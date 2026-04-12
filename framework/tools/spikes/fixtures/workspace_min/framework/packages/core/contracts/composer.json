@@ -1,0 +1,18 @@
+{
+  "name": "coretsia/core-contracts",
+  "type": "library",
+  "description": "Fixture package: core/contracts",
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Core\\Contracts\\": "src/"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

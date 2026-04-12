@@ -1,0 +1,9 @@
+// Coretsia Deptrac graph (Epic 0.80.0) - deterministic artifact.
+// fixture: deptrac_min/package_index_ok.php
+digraph "coretsia_deptrac" {
+  rankdir=LR;
+  node [shape=box];
+  "demo/pkg-a";
+  "demo/pkg-b";
+  "demo/pkg-a" -> "demo/pkg-b";
+}

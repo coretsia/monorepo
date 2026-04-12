@@ -1,0 +1,105 @@
+{
+  "name": "coretsia/framework",
+  "type": "project",
+  "description": "Coretsia framework tooling workspace (monorepo framework root)",
+  "keywords": [
+    "framework",
+    "psr",
+    "ddd",
+    "domain-driven-design",
+    "modular",
+    "enterprise",
+    "performance",
+    "microservices",
+    "events",
+    "cqrs",
+    "observability"
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4"
+  },
+  "require-dev": {
+    "coretsia/core-contracts": "dev-main",
+    "coretsia/devtools-cli-spikes": "dev-main",
+    "coretsia/devtools-internal-toolkit": "dev-main",
+    "coretsia/platform-cli": "dev-main",
+    "ext-ctype": "*",
+    "ext-libxml": "*",
+    "ext-dom": "*",
+    "ext-imagick": "*",
+    "phpunit/phpunit": "^12.5"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Tools\\Tests\\": "tools/tests/",
+      "Coretsia\\Tools\\Testing\\Tests\\": "tools/testing/tests/",
+      "Coretsia\\Tools\\Spikes\\": "tools/spikes/"
+    },
+    "exclude-from-classmap": [
+      "tools/spikes/fixtures/"
+    ]
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/*/*",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    }
+  ],
+  "scripts": {
+    "test": [
+      "@package:phpunit:gate",
+      "@php tools/testing/run_packages_phpunit.php --strict"
+    ],
+    "test-fast": "@test",
+    "test-slow": "@test",
+    "arch:package-index:check": "@php tools/build/package_index.php --check",
+    "arch:package-index:generate": "@php tools/build/package_index.php --apply",
+    "sync:check": "@php tools/build/sync_composer_repositories.php --check",
+    "sync:repos": "@php tools/build/sync_composer_repositories.php",
+    "spike:gate": "@php tools/gates/spikes_boundary_gate.php",
+    "toolkit:gate": "@php tools/gates/internal_toolkit_no_dup_gate.php",
+    "tools:ia": "@php tools/gates/tools_invalid_argument_exception_gate.php",
+    "spike:io:policy": "@php tools/gates/spikes_io_policy_gate.php",
+    "spike:canonical:paths": "@php tools/gates/spikes_canonical_paths_gate.php",
+    "repo:text:gate": "@php tools/gates/repo_text_normalization_gate.php",
+    "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
+    "spike:output:gate": "@php tools/gates/spikes_output_gate.php",
+    "spike:test": [
+      "@spike:gate",
+      "@toolkit:gate",
+      "@tools:ia",
+      "@spike:io:policy",
+      "@spike:canonical:paths",
+      "@repo:text:gate",
+      "@spike:output:gate",
+      "vendor/bin/phpunit -c tools/spikes/phpunit.spikes.xml --do-not-cache-result"
+    ],
+    "spike:test:determinism": "@php tools/spikes/_support/DeterminismRunner.php",
+    "docs:structure": "@php tools/build/generate_structure.php",
+    "docs:structure:tree": "@php tools/build/generate_structure.php --structure",
+    "docs:structure:full": "@php tools/build/generate_structure.php --full",
+    "package:new": "@php tools/build/new-package.php",
+    "build:icons": "@php tools/build/build_icons.php"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "8.4.0"
+    },
+    "sort-packages": true
+  }
+}

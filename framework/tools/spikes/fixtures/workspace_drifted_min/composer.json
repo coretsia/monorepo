@@ -1,0 +1,41 @@
+{
+  "name": "coretsia/monorepo",
+  "type": "project",
+  "description": "Workspace fixture (repo root)",
+  "require": {
+    "php": "^8.4"
+  },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://repo.packagist.org"
+    },
+    {
+      "url": "framework\\packages\\*\\*",
+      "coretsia_managed": true,
+      "type": "path",
+      "options": {
+        "symlink": true
+      }
+    },
+    {
+      "coretsia_managed": true,
+      "options": {
+        "symlink": true
+      },
+      "url": "framework",
+      "type": "path"
+    },
+    {
+      "type": "path",
+      "url": "skeleton",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    }
+  ],
+  "config": {
+    "sort-packages": true
+  }
+}

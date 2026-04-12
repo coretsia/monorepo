@@ -1,0 +1,29 @@
+{
+  "name": "coretsia/framework",
+  "type": "project",
+  "description": "Workspace fixture (framework root)",
+  "require": {
+    "php": "^8.4"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://example.com/acme/custom-repo.git"
+    },
+    {
+      "url": "packages\\*\\*",
+      "coretsia_managed": true,
+      "type": "path",
+      "options": {
+        "symlink": true
+      }
+    },
+    {
+      "type": "composer",
+      "url": "https://repo.packagist.org"
+    }
+  ],
+  "config": {
+    "sort-packages": true
+  }
+}

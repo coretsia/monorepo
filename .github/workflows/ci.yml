@@ -1,0 +1,278 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+
+jobs:
+  ci:
+    name: "${{ matrix.os }} / PHP ${{ matrix.php }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+        php: [ "8.4" ]
+
+    # Apply MSYS symlink rails to ALL steps on Windows (per-step env does not propagate).
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      # Windows rails MUST be applied BEFORE checkout to affect git checkout semantics.
+      - name: "Windows rails: git + symlinks (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      # Windows job MUST run under a workspace that allows symlink creation.
+      - name: "Windows rails: verify symlink capability (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ runner.os == 'Windows' && always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      # MUST run before any composer install (canonical repo-root wrapper).
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      # Installs (MUST NOT modify locks)
+      - name: "Install: composer (root) (install:root)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:root
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Install: composer (skeleton) (install:skeleton)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:skeleton
+
+      # Validations
+      - name: "Validate: composer (root) (validate:root)"
+        shell: bash
+        run: composer --no-interaction validate:root
+
+      - name: "Validate: composer (framework) (validate:framework)"
+        shell: bash
+        run: composer --no-interaction validate:framework
+
+      - name: "Validate: composer (skeleton) (validate:skeleton)"
+        shell: bash
+        run: composer --no-interaction validate:skeleton
+
+      # Tests (repo root delegates to framework test runner)
+      - name: "Test: project suite (test)"
+        shell: bash
+        run: composer --no-interaction test
+
+      # MUST fail if any composer.lock changed
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  spikes:
+    name: "spikes / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      # MUST run before any composer install (canonical repo-root wrapper).
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Test: spikes rails (spike:test)"
+        shell: bash
+        run: composer --no-interaction spike:test
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  determinism:
+    name: "determinism / ${{ matrix.os }} / PHP ${{ matrix.php }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+        php: [ "8.4" ]
+
+    # Apply MSYS symlink rails to ALL steps on Windows.
+    env:
+      MSYS: winsymlinks:nativestrict
+      CORETSIA_CI_SAFE_DEBUG: ${{ vars.CORETSIA_CI_SAFE_DEBUG || '0' }}
+
+    steps:
+      # Windows rails MUST be applied BEFORE checkout to affect git checkout semantics.
+      - name: "Windows rails: git + symlinks (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      # Windows job MUST run under a workspace that allows symlink creation.
+      - name: "Windows rails: verify symlink capability (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ runner.os == 'Windows' && always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      # MUST run before any composer install (canonical repo-root wrapper).
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Determinism: spikes rerun-no-diff (spike:test:determinism)"
+        shell: bash
+        run: composer --no-interaction spike:test:determinism
+
+      - name: "Debug (safe): extract CORETSIA codes + failing PHPUnit cases (Windows only)"
+        if: ${{ runner.os == 'Windows' && failure() && env.CORETSIA_CI_SAFE_DEBUG == '1' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .tmp_spike_test.log || true
+
+          # Re-run spike:test but capture output; do not fail this debug step.
+          (composer --no-interaction --working-dir=framework run-script spike:test -- || true) \
+            | tr -d '\r' > .tmp_spike_test.log
+
+          echo "== CORETSIA codes =="
+          grep -Eo '\bCORETSIA_[A-Z0-9_]+\b' .tmp_spike_test.log | sort -u || true
+
+          echo "== PHPUnit failing cases (paths stripped) =="
+          grep -E '^[0-9]+\) ' .tmp_spike_test.log \
+            | sed -E 's/ in .*$//g' || true
+
+          rm -f .tmp_spike_test.log || true
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check

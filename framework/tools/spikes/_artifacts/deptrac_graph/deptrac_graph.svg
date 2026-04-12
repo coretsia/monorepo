@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="276" viewBox="0 0 1200 276">
+  <rect x="0" y="0" width="1200" height="276" fill="white"/>
+  <g font-family="monospace" font-size="14" fill="black">
+    <text x="10" y="22">Coretsia Deptrac Graph (Epic 0.80.0)</text>
+    <text x="10" y="40">Fixture: deptrac_min/package_index_ok.php</text>
+    <text x="10" y="58"></text>
+    <text x="10" y="76">Nodes (2):</text>
+    <text x="10" y="94">  - demo/pkg-a</text>
+    <text x="10" y="112">  - demo/pkg-b</text>
+    <text x="10" y="130"></text>
+    <text x="10" y="148">Edges (1):</text>
+    <text x="10" y="166">  - demo/pkg-a -&gt; demo/pkg-b</text>
+    <text x="10" y="184"></text>
+    <text x="10" y="202">Adjacency:</text>
+    <text x="10" y="220">  demo/pkg-a: demo/pkg-b</text>
+    <text x="10" y="238">  demo/pkg-b: (none)</text>
+  </g>
+</svg>

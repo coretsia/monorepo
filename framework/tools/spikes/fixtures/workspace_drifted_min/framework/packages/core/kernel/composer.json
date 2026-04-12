@@ -1,0 +1,19 @@
+{
+  "name": "coretsia/core-kernel",
+  "type": "library",
+  "description": "Fixture package: core/kernel",
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Core\\Kernel\\": "src/"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleClass": "Coretsia\\Core\\Kernel\\Module\\KernelModule"
+    }
+  }
+}

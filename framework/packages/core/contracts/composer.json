@@ -1,0 +1,50 @@
+{
+  "name": "coretsia/core-contracts",
+  "type": "library",
+  "description": "Coretsia Contracts package (public interfaces, SPIs, cross-package abstractions)",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "contracts",
+    "interfaces",
+    "spi",
+    "abstractions",
+    "api",
+    "modular",
+    "ddd",
+    "psr"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Contracts\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Contracts\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

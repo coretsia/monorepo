@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Coretsia Framework (Monorepo)
+ *
+ * Project: Coretsia Framework (Monorepo)
+ * Authors: Vladyslav Mudrichenko and contributors
+ * Copyright (c) 2026 Vladyslav Mudrichenko
+ *
+ * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * For contributors list, see git history.
+ * See LICENSE and NOTICE in the project root for full license information.
+ */
+
+use Coretsia\Platform\Cli\Application;
+
+// Strict runtime defaults (single-choice).
+\error_reporting(\E_ALL);
+\ini_set('display_errors', '0');
+
+$launcherFile = \realpath(__FILE__) ?: __FILE__;
+
+// Launcher-only deterministic code (must not depend on autoload/classes).
+$uncaughtCode = 'CORETSIA_CLI_UNCAUGHT_EXCEPTION';
+
+/**
+ * Emit exactly one line with trailing "\n" (no extra data, no paths).
+ */
+$emitLine = static function (string $line): void {
+    $normalized = \rtrim($line, "\r\n");
+    \fwrite(\STDERR, $normalized . "\n");
+};
+
+/**
+ * Minimal deterministic boot error (no paths, no exception data).
+ */
+$bootFail = static function (string $reason) use ($emitLine, $uncaughtCode): void {
+    $emitLine($uncaughtCode);
+    $emitLine($reason);
+    exit(1);
+};
+
+// Deterministic autoload selection (ordered fallback; no probing).
+$frameworkVendorAutoload = \dirname(__DIR__) . '/vendor/autoload.php';          // framework/vendor/autoload.php
+$repoVendorAutoload = \dirname(\dirname(__DIR__)) . '/vendor/autoload.php';     // vendor/autoload.php
+
+$autoloadCandidate = null;
+
+if (\is_file($frameworkVendorAutoload) && \is_readable($frameworkVendorAutoload)) {
+    $autoloadCandidate = $frameworkVendorAutoload;
+} elseif (\is_file($repoVendorAutoload) && \is_readable($repoVendorAutoload)) {
+    $autoloadCandidate = $repoVendorAutoload;
+} else {
+    $bootFail('autoload-missing');
+}
+
+$autoloadFile = \realpath($autoloadCandidate);
+if ($autoloadFile === false) {
+    $bootFail('autoload-missing');
+}
+
+try {
+    require $autoloadFile;
+
+    $app = new Application($autoloadFile, $launcherFile);
+
+    $exitCode = $app->run(null);
+
+    // Exit semantics are single-choice (cemented).
+    exit((int)$exitCode);
+} catch (\Throwable) {
+    // Catch-all: never print exception message/trace/file/line.
+    $emitLine($uncaughtCode);
+    $emitLine('uncaught-exception');
+    exit(1);
+}

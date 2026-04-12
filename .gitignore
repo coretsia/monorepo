@@ -1,0 +1,121 @@
+# ---------------------------------------
+# OS / Editor / IDE
+# ---------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+.vscode/
+.fleet/
+*.iml
+
+.osp/
+
+# ---------------------------------------
+# Environment files (keep examples)
+# ---------------------------------------
+.env
+.env.*
+!.env.example
+!.env.dist
+!.env.sample
+
+# ---------------------------------------
+# Tooling fixtures: allow committed .env* under spikes fixtures
+# (these are NOT real secrets; used only for deterministic tests)
+# ---------------------------------------
+!framework/tools/spikes/fixtures/**/.env
+!framework/tools/spikes/fixtures/**/.env.*
+!framework/tools/tests/Fixtures/**/.env
+!framework/tools/tests/Fixtures/**/.env.*
+
+# ---------------------------------------
+# Composer / PHP dependencies
+# (ignore vendor everywhere in monorepo)
+# ---------------------------------------
+**/vendor/
+
+# ---------------------------------------
+# PHPUnit / test artifacts
+# ---------------------------------------
+.phpunit.result.cache
+.phpunit.cache/
+**/.phpunit.cache/
+coverage/
+build/coverage/
+clover.xml
+
+# ---------------------------------------
+# Static analysis / code style tool caches
+# ---------------------------------------
+.php-cs-fixer.cache
+.php-cs-fixer.dist.php.cache
+**/.php-cs-fixer.cache
+
+.phpstan.cache/
+**/.phpstan.cache/
+.phpstan-cache/
+**/.phpstan-cache/
+phpstan-baseline.neon.cache
+
+.rector.cache/
+**/.rector.cache/
+
+.psalm/
+**/.psalm/
+
+# Deptrac
+.deptrac.cache
+
+# Infection
+infection.log
+infection.json
+infection.json.dist
+.infection/
+**/.infection/
+
+# ---------------------------------------
+# Logs / temp / runtime artifacts (root)
+# ---------------------------------------
+*.log
+*.tmp
+*.swp
+
+var/
+tmp/
+
+# ---------------------------------------
+# Framework tooling scratch (Prelude: backups live here; must be ignored)
+# ---------------------------------------
+framework/var/
+
+# ---------------------------------------
+# Skeleton runtime dirs:
+# keep .gitkeep, ignore everything else inside var/
+# ---------------------------------------
+/skeleton/var/**/*
+!/skeleton/var/**/.gitkeep
+
+# ---------------------------------------
+# Node / frontend artifacts (if present)
+# ---------------------------------------
+**/node_modules/
+**/public/build/
+**/public/hot
+**/.vite/
+**/.parcel-cache/
+
+# ---------------------------------------
+# PHP runtime / misc
+# ---------------------------------------
+preload.php
+.phpactor/
+**/.phpactor/
+
+# ---------------------------------------
+# Security / secrets
+# ---------------------------------------
+*.key
+*.pem
+*.p12

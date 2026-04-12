@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Coretsia Framework (Monorepo)
+
+  Project: Coretsia Framework (Monorepo)
+  Authors: Vladyslav Mudrichenko and contributors
+  Copyright (c) 2026 Vladyslav Mudrichenko
+
+  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+  SPDX-License-Identifier: Apache-2.0
+
+  For contributors list, see git history.
+  See LICENSE and NOTICE in the project root for full license information.
+-->
+<phpunit
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.5/phpunit.xsd"
+  bootstrap="bootstrap.php"
+  cacheDirectory="../../var/phpunit-cache"
+  colors="true"
+  failOnRisky="true"
+  failOnWarning="true"
+  beStrictAboutChangesToGlobalState="true"
+  beStrictAboutOutputDuringTests="true"
+  defaultTestSuite="all"
+>
+  <!--
+    Canonical framework/packages PHPUnit harness (SSoT).
+
+    Contract:
+    - This file is the ONLY canonical PHPUnit config for:
+      - tools/testing/tests/**
+      - tools/tests/**
+      - packages/*/*/tests/**
+    - Package-local phpunit.xml/phpunit.dist.xml are forbidden by policy.
+    - tools/testing/run_packages_phpunit.php MUST generate
+      framework/var/phpunit/phpunit.discovered.xml from THIS file by:
+      - rebasing relative paths for the generated-config location
+      - materializing discovered package test directories into the marker below
+    - The generated file is a runtime artifact only, never a hand-edited source of truth.
+  -->
+
+  <testsuites>
+    <testsuite name="all">
+      <directory>tests</directory>
+      <directory>../tests</directory>
+      <!-- CORETSIA_DISCOVERED_TEST_DIRECTORIES -->
+    </testsuite>
+  </testsuites>
+
+  <source>
+    <include>
+      <directory>../../packages</directory>
+      <directory>../../tools</directory>
+    </include>
+    <exclude>
+      <directory>../../tools/spikes</directory>
+      <directory>../../var</directory>
+    </exclude>
+  </source>
+
+  <php>
+    <!-- Keep output deterministic across OS -->
+    <ini name="date.timezone" value="UTC"/>
+  </php>
+</phpunit>

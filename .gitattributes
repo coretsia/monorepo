@@ -1,0 +1,124 @@
+# Canonical text normalization attributes:
+# - default: * text=auto
+# - code/docs/scripts: enforce eol=lf (single-choice)
+# - windows scripts: *.bat/*.cmd MUST use eol=crlf
+# - binaries MUST be explicit -text
+
+# Default: let Git auto-detect text; no global eol enforcement here.
+* text=auto
+
+# -----------------------------------------------------------------------------
+# Repo meta (force LF)
+# -----------------------------------------------------------------------------
+.editorconfig  text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf
+
+# -----------------------------------------------------------------------------
+# Source (force LF)
+# -----------------------------------------------------------------------------
+*.php   text eol=lf diff=php
+*.phpt  text eol=lf
+*.phtml text eol=lf
+
+# JS/TS/CSS (force LF)
+*.js    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.css   text eol=lf
+*.scss  text eol=lf
+
+# -----------------------------------------------------------------------------
+# Docs (force LF)
+# -----------------------------------------------------------------------------
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# -----------------------------------------------------------------------------
+# Config (force LF)
+# -----------------------------------------------------------------------------
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.xml   text eol=lf
+*.neon  text eol=lf
+*.dist  text eol=lf
+*.env   text eol=lf
+*.env.* text eol=lf
+.env*   text eol=lf
+*.lock  text eol=lf
+
+# -----------------------------------------------------------------------------
+# Scripts (force LF)
+# -----------------------------------------------------------------------------
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.zsh   text eol=lf
+*.ps1   text eol=lf
+
+# Windows scripts (CRLF only)
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# -----------------------------------------------------------------------------
+# Vector (keep diffable + LF)
+# -----------------------------------------------------------------------------
+*.svg   text eol=lf
+
+# -----------------------------------------------------------------------------
+# Images (explicit -text)
+# -----------------------------------------------------------------------------
+*.png   -text
+*.jpg   -text
+*.jpeg  -text
+*.gif   -text
+*.webp  -text
+*.ico   -text
+
+# -----------------------------------------------------------------------------
+# Archives / binaries (explicit -text)
+# -----------------------------------------------------------------------------
+*.pdf   -text
+*.zip   -text
+*.gz    -text
+*.tgz   -text
+*.tar   -text
+*.7z    -text
+*.phar  -text
+
+# -----------------------------------------------------------------------------
+# Fonts / media (explicit -text)
+# -----------------------------------------------------------------------------
+*.woff  -text
+*.woff2 -text
+*.ttf   -text
+*.eot   -text
+*.mp4   -text
+*.mov   -text
+
+# -----------------------------------------------------------------------------
+# Fixtures: byte-exact, NEVER normalize EOL/newlines (tests rely on raw bytes)
+# -----------------------------------------------------------------------------
+framework/tools/**/fixtures/** -text
+**/tests/fixtures/**          -text
+
+# -----------------------------------------------------------------------------
+# Optional: exclude service/dev-only files from git archive exports
+# -----------------------------------------------------------------------------
+/.github            export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/.editorconfig      export-ignore
+
+/docs               export-ignore
+/DEVELOPMENT_STRUCTURE.md  export-ignore
+/TECHNICAL_ROADMAP.md      export-ignore
+/TECHNICAL_STRUCTURE.md    export-ignore
+/generate_structure.php    export-ignore
+
+/skeleton            export-ignore
+/framework/tools     export-ignore
+
+/tests               export-ignore
+/phpunit.xml         export-ignore
+/phpunit.xml.dist    export-ignore

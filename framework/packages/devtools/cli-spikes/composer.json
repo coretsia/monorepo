@@ -1,0 +1,51 @@
+{
+  "name": "coretsia/devtools-cli-spikes",
+  "type": "library",
+  "description": "Coretsia devtools-only deterministic command pack (doctor/spike:* / deptrac:* / workspace:*). Not for production runtime.",
+  "keywords": [
+    "coretsia",
+    "devtools",
+    "tooling",
+    "cli",
+    "commands",
+    "spikes",
+    "determinism"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "dev-main",
+    "coretsia/platform-cli": "dev-main"
+  },
+  "suggest": {
+    "coretsia/devtools-internal-toolkit": "Optional deterministic helpers (Path/Json/Slug) for safe path handling and stable JSON."
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Devtools\\CliSpikes\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Devtools\\CliSpikes\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "coretsia/skeleton",
+  "type": "project",
+  "description": "Workspace fixture (skeleton root)",
+  "require": {
+    "php": "^8.4"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://example.com/acme/skeleton-custom.git"
+    },
+    {
+      "type": "path",
+      "url": "../framework",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "../framework/packages/*/*",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    }
+  ],
+  "config": {
+    "sort-packages": true
+  }
+}

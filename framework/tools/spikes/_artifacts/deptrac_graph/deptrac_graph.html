@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coretsia Deptrac Graph (Epic 0.80.0)</title>
+  <style>
+    table{border-collapse:collapse;border-spacing:0;}
+    th,td{border:1px solid #000;padding:6px;vertical-align:top;}
+  </style>
+</head>
+<body>
+  <h1>Coretsia Deptrac Graph (Epic 0.80.0)</h1>
+  <p>Fixture: <code>deptrac_min/package_index_ok.php</code></p>
+  <h2>Nodes (2)</h2>
+  <ul>
+    <li><code>demo/pkg-a</code></li>
+    <li><code>demo/pkg-b</code></li>
+  </ul>
+  <h2>Edges (1)</h2>
+  <table>
+    <thead>
+      <tr><th>From</th><th>To</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>demo/pkg-a</code></td><td><code>demo/pkg-b</code></td></tr>
+    </tbody>
+  </table>
+  <h2>Adjacency</h2>
+  <table>
+    <thead>
+      <tr><th>Node</th><th>Targets</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>demo/pkg-a</code></td><td><code>demo/pkg-b</code></td></tr>
+      <tr><td><code>demo/pkg-b</code></td><td><code>(none)</code></td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

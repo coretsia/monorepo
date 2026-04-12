@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Coretsia Framework (Monorepo)
+
+  Project: Coretsia Framework (Monorepo)
+  Authors: Vladyslav Mudrichenko and contributors
+  Copyright (c) 2026 Vladyslav Mudrichenko
+
+  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+  SPDX-License-Identifier: Apache-2.0
+
+  For contributors list, see git history.
+  See LICENSE and NOTICE in the project root for full license information.
+-->
+<phpunit
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.5/phpunit.xsd"
+  bootstrap="_support/bootstrap.php"
+  colors="true"
+  failOnRisky="true"
+  failOnWarning="true"
+  beStrictAboutChangesToGlobalState="true"
+  beStrictAboutOutputDuringTests="true"
+  defaultTestSuite="spikes"
+>
+  <!--
+    Spikes PHPUnit harness:
+
+    - MUST be CWD-independent:
+      bootstrap is config-file-relative: "_support/bootstrap.php"
+
+    - MUST NOT write caches/artifacts into the git worktree:
+      NO cacheDirectory / result-cache paths are declared here.
+      Result cache is disabled via CLI flag "do-not-cache-result" (double-dash prefixed).
+
+    - MUST NOT configure report outputs writing into the repo:
+      No <logging/> and no coverage outputs are configured.
+  -->
+
+  <testsuites>
+    <testsuite name="spikes">
+      <!-- Scan the entire spikes sandbox for *Test.php -->
+      <directory>.</directory>
+
+      <!-- Exclude non-test areas -->
+      <exclude>_support</exclude>
+      <exclude>fixtures</exclude>
+    </testsuite>
+  </testsuites>
+
+  <php>
+    <!-- Keep output deterministic across OS -->
+    <ini name="date.timezone" value="UTC"/>
+  </php>
+</phpunit>

@@ -1,0 +1,316 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to validate (must match vMAJOR.MINOR.PATCH)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: "validate release invariants"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Setup: PHP 8.4 (for split-plan generator)"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          tools: composer:v2
+
+      - name: "Resolve tag"
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Validate tag format (single-choice)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.tag.outputs.tag }}"
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format: ${TAG}"
+            echo "Expected: vMAJOR.MINOR.PATCH (example: v1.2.3)"
+            exit 1
+          fi
+
+      - name: "Validate required files exist"
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "CHANGELOG.md"
+          test -f "UPGRADE.md"
+          test -f "CONTRIBUTING.md"
+          test -f "docs/guides/releasing.md"
+          test -f ".github/scripts/split-plan.php"
+          test -f ".github/scripts/split-plan.schema.md"
+
+      - name: "Deterministic split plan (A)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf ci
+          mkdir -p ci
+          php .github/scripts/split-plan.php \
+            --out=ci/split-plan.A.json \
+            --tag="${{ steps.tag.outputs.tag }}"
+
+      - name: "Deterministic split plan (B)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php .github/scripts/split-plan.php \
+            --out=ci/split-plan.B.json \
+            --tag="${{ steps.tag.outputs.tag }}"
+
+      - name: "Split plan rerun-no-diff (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sha256sum ci/split-plan.A.json | awk '{print $1}' > ci/split-plan.A.sha256
+          sha256sum ci/split-plan.B.json | awk '{print $1}' > ci/split-plan.B.sha256
+
+          diff -u ci/split-plan.A.sha256 ci/split-plan.B.sha256
+
+          mv ci/split-plan.A.json ci/split-plan.json
+          sha256sum ci/split-plan.json | awk '{print $1}' > ci/split-plan.sha256
+
+          rm -f ci/split-plan.B.json ci/split-plan.A.sha256 ci/split-plan.B.sha256
+
+      - name: "Validate split plan schema conformance (normative) (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          php -r '
+          $path = "ci/split-plan.json";
+          $raw = file_get_contents($path);
+          if ($raw === false) { fwrite(STDERR, "Missing: {$path}\n"); exit(1); }
+
+          $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+          if (!is_array($data)) { fwrite(STDERR, "Invalid JSON object\n"); exit(1); }
+
+          $expectedTop = ["schemaVersion","sourceCommit","tag","packages"];
+          if (array_keys($data) !== $expectedTop) {
+              fwrite(STDERR, "Top-level keys mismatch (order or set)\n");
+              exit(1);
+          }
+
+          if (($data["schemaVersion"] ?? null) !== "coretsia.splitPlan.v1") {
+              fwrite(STDERR, "Invalid schemaVersion\n");
+              exit(1);
+          }
+
+          $sha = $data["sourceCommit"] ?? null;
+          if (!is_string($sha) || !preg_match("/^[0-9a-f]{40}$/", $sha)) {
+              fwrite(STDERR, "Invalid sourceCommit\n");
+              exit(1);
+          }
+
+          $tag = $data["tag"] ?? null;
+          if (!is_null($tag) && (!is_string($tag) || !preg_match("/^v[0-9]+\.[0-9]+\.[0-9]+$/", $tag))) {
+              fwrite(STDERR, "Invalid tag\n");
+              exit(1);
+          }
+
+          $pkgs = $data["packages"] ?? null;
+          if (!is_array($pkgs)) { fwrite(STDERR, "Invalid packages\n"); exit(1); }
+
+          $ids = [];
+          foreach ($pkgs as $i => $pkg) {
+              if (!is_array($pkg)) { fwrite(STDERR, "packages[$i] not object\n"); exit(1); }
+
+              $expectedPkgKeys = ["package_id","pathPrefix","splitRepo","composerName"];
+              if (array_keys($pkg) !== $expectedPkgKeys) {
+                  fwrite(STDERR, "packages[$i] keys mismatch (order or set)\n");
+                  exit(1);
+              }
+
+              $id = $pkg["package_id"] ?? null;
+              $pp = $pkg["pathPrefix"] ?? null;
+              $sr = $pkg["splitRepo"] ?? null;
+              $cn = $pkg["composerName"] ?? null;
+
+              if (!is_string($id) || $id === "") { fwrite(STDERR, "packages[$i].package_id invalid\n"); exit(1); }
+              if (!is_string($pp) || $pp === "" || !str_ends_with($pp, "/")) { fwrite(STDERR, "packages[$i].pathPrefix invalid\n"); exit(1); }
+              if (!is_string($sr) || $sr === "") { fwrite(STDERR, "packages[$i].splitRepo invalid\n"); exit(1); }
+              if (!is_string($cn) || $cn === "") { fwrite(STDERR, "packages[$i].composerName invalid\n"); exit(1); }
+              if ($sr !== $cn) { fwrite(STDERR, "packages[$i] splitRepo != composerName\n"); exit(1); }
+
+              $parts = explode("/", $id, 2);
+              if (count($parts) !== 2) { fwrite(STDERR, "packages[$i].package_id format invalid\n"); exit(1); }
+              [$layer, $slug] = $parts;
+
+              $expectedPrefix = "framework/packages/{$layer}/{$slug}/";
+              $expectedRepo   = "coretsia/{$layer}-{$slug}";
+
+              if ($pp !== $expectedPrefix) { fwrite(STDERR, "packages[$i].pathPrefix mismatch\n"); exit(1); }
+              if ($sr !== $expectedRepo) { fwrite(STDERR, "packages[$i].splitRepo mismatch\n"); exit(1); }
+
+              $ids[] = $id;
+          }
+
+          $sorted = $ids;
+          sort($sorted, SORT_STRING);
+          if ($ids !== $sorted) {
+              fwrite(STDERR, "packages not sorted by package_id\n");
+              exit(1);
+          }
+          '
+
+      - name: "Upload CI evidence artifacts (split plan)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "split-plan-${{ steps.tag.outputs.tag }}"
+          if-no-files-found: error
+          path: |
+            ci/split-plan.json
+            ci/split-plan.sha256
+
+      - name: "Validate CHANGELOG has notes section for tag"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES_FILE="release_notes.md"
+
+          # Canonical format (single-choice):
+          # - A release section starts with "## vMAJOR.MINOR.PATCH"
+          # - Notes are all lines until the next "## " heading (or EOF).
+          awk -v tag="${TAG}" '
+            BEGIN { in=0; found=0 }
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { in=1; found=1; next }
+            $0 ~ "^##[[:space:]]+" && in==1 { exit }
+            in==1 { print }
+            END { if (found==0) exit 2 }
+          ' "CHANGELOG.md" > "${NOTES_FILE}" || {
+            echo "Missing CHANGELOG section for ${TAG}"
+            echo "Expected heading: \"## ${TAG}\""
+            exit 1
+          }
+
+          # Ensure non-empty notes body (optional but strict for quality).
+          if [[ ! -s "${NOTES_FILE}" ]]; then
+            echo "Empty release notes for ${TAG} in CHANGELOG.md"
+            exit 1
+          fi
+
+      - name: "Dry-run mode notice (workflow_dispatch only)"
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "OK: validation completed (dry-run)."
+
+  release:
+    name: "create GitHub Release (tag push only)"
+    runs-on: ubuntu-latest
+    needs: [ validate ]
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Resolve tag"
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Prepare release notes from CHANGELOG.md"
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES_FILE="release_notes.md"
+
+          awk -v tag="${TAG}" '
+            BEGIN { in=0; found=0 }
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { in=1; found=1; next }
+            $0 ~ "^##[[:space:]]+" && in==1 { exit }
+            in==1 { print }
+            END { if (found==0) exit 2 }
+          ' "CHANGELOG.md" > "${NOTES_FILE}" || {
+            echo "Missing CHANGELOG section for ${TAG}"
+            exit 1
+          }
+
+          if [[ ! -s "${NOTES_FILE}" ]]; then
+            echo "Empty release notes for ${TAG} in CHANGELOG.md"
+            exit 1
+          fi
+
+          echo "notes_file=${NOTES_FILE}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Create GitHub Release (idempotent)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+
+          # If release already exists, treat as idempotent success.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release already exists: ${TAG}"
+            exit 0
+          fi
+
+          # Source-only publishing policy:
+          # - do NOT attach built artifacts
+          # - GitHub will provide source tarball/zip automatically.
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes-file "${NOTES_FILE}" \
+            --verify-tag

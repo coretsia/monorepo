@@ -1,0 +1,55 @@
+{
+  "name": "coretsia/skeleton",
+  "type": "project",
+  "description": "Coretsia application skeleton (local workspace)",
+  "keywords": [
+    "framework",
+    "psr",
+    "ddd",
+    "domain-driven-design",
+    "modular",
+    "enterprise",
+    "performance",
+    "microservices",
+    "events",
+    "cqrs",
+    "observability"
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../framework",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "../framework/packages/*/*",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
+    }
+  ],
+  "config": {
+    "platform": {
+      "php": "8.4.0"
+    },
+    "sort-packages": true
+  }
+}

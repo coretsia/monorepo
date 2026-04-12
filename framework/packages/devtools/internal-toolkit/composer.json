@@ -1,0 +1,44 @@
+{
+  "name": "coretsia/devtools-internal-toolkit",
+  "type": "library",
+  "description": "Coretsia tooling-only deterministic helpers (Slug/Path/Json). Not for runtime packages.",
+  "keywords": [
+    "coretsia",
+    "tooling",
+    "determinism",
+    "internal-toolkit"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Devtools\\InternalToolkit\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Devtools\\InternalToolkit\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

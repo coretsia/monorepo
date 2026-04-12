@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+
+# Coretsia pre-commit hook
+#
+# Enforces managed Composer repositories blocks (SPOF) before commit.
+# Canonical check tool:
+#   php framework/tools/build/sync_composer_repositories.php --check
+#
+# Notes:
+# - This hook MUST be enabled via: git config core.hooksPath .githooks
+# - The sync tool MUST be runnable without vendor/autoload (Prelude constraint).
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+PHP_BIN="${PHP:-php}"
+
+if ! command -v "${PHP_BIN}" >/dev/null 2>&1; then
+  echo "CORETSIA_GITHOOK_PHP_NOT_FOUND"
+  echo "php executable not found; cannot run managed repositories guard."
+  echo "Install PHP 8.4+ and retry."
+  exit 1
+fi
+
+SYNC_TOOL="${ROOT_DIR}/framework/tools/build/sync_composer_repositories.php"
+
+if [ ! -f "${SYNC_TOOL}" ]; then
+  echo "CORETSIA_GITHOOK_SYNC_TOOL_MISSING"
+  echo "Missing: framework/tools/build/sync_composer_repositories.php"
+  echo "Run from repo root: composer setup"
+  exit 1
+fi
+
+# Fail fast on drift (must be checked BEFORE any installs in CI; hook mirrors that rule).
+"${PHP_BIN}" "${SYNC_TOOL}" --check
+
+exit 0

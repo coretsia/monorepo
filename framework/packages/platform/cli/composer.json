@@ -1,0 +1,54 @@
+{
+  "name": "coretsia/platform-cli",
+  "type": "library",
+  "description": "Coretsia CLI base runtime (config-based command registry, deterministic safe output, kernel-free in Phase 0)",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "cli",
+    "commands",
+    "runtime",
+    "deterministic",
+    "redaction"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Cli\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Cli\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.cli",
+      "moduleClass": "Coretsia\\Platform\\Cli\\Module\\CliModule",
+      "providers": [
+        "Coretsia\\Platform\\Cli\\Provider\\CliServiceProvider"
+      ],
+      "defaultsConfigPath": "config/cli.php"
+    }
+  }
+}

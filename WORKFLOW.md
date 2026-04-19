@@ -16,22 +16,23 @@
 
 Daily development workflow for Coretsia Framework (Monorepo).
 
-## Branch policy
+## Rules
 
-- `main` must stay clean and releasable.
-- Do not develop directly on `main`.
-- Every task must be done in a separate branch.
-- Merge into `main` via Pull Request.
-- Prefer **Squash and merge** so `main` keeps one clean commit per completed task.
+- `main` must stay clean.
+- Do not work on `main`.
+- Do not commit task work on `main`.
+- Use one branch per task.
+- Merge into `main` only via Pull Request.
+- Prefer **Squash and merge**.
+- Commit messages must be in English.
 
-## Branch naming
-
-Use short, predictable branch names:
+## Branch names
 
 - `feat/<name>`
 - `fix/<name>`
 - `docs/<name>`
 - `chore/<name>`
+- `wip/<name>` — local-only work
 
 Examples:
 
@@ -39,132 +40,287 @@ Examples:
 - `fix/privacy-cookie-banner`
 - `docs/readme-phase0`
 - `chore/release-prep`
+- `wip/local-experiment`
 
 ## Daily start
 
-Before starting work:
-
 ```bash
-git switch main
-git pull --ff-only
-composer validate --strict
-composer test
+git switch main          # main
+git pull --ff-only       # sync
+composer validate --strict  # validate
+composer test            # test
 ```
 
-Purpose:
-
-- switch to the main branch
-- pull the latest changes without creating merge commits
-- validate Composer manifests
-- verify the project is green before starting new work
-
-## Start a new task
-
-Create a branch from the latest `main`:
+## Start new task
 
 ```bash
-git switch main
-git pull --ff-only
-git switch -c feat/my-task
+git switch main              # main
+git pull --ff-only           # sync
+git switch -c feat/my-task   # new branch
 ```
 
-## During development
-
-Check changed files:
+## Continue task
 
 ```bash
-git status --short
-git diff
+git switch feat/my-task                  # branch
+git status --short --untracked-files=all # status
 ```
 
-Run validation and tests before commit:
+## Check changes
 
 ```bash
-composer validate --strict
-composer test
+git status --short --untracked-files=all # status
+git diff                                 # diff
 ```
 
-## Commit changes
+## Stage changes
 
-Stage and commit:
+Prefer explicit staging:
 
 ```bash
-git add .
-git commit -m "Add clear human commit message"
+git add <explicit paths>   # stage paths
 ```
 
-Commit messages must be written in English.
-
-## Push branch
-
-First push:
+Or partial staging:
 
 ```bash
-git push -u origin feat/my-task
+git add -p                 # stage hunks
 ```
 
-Next pushes:
+Review staged set:
 
 ```bash
-git push
+git diff --cached --name-only  # staged files
+git diff --cached              # staged diff
+```
+
+## Pre-commit checks
+
+```bash
+composer validate --strict  # validate
+composer spike:test         # gates
+composer test               # test
+```
+
+## Commit
+
+```bash
+git status --short --untracked-files=all # status
+git add <explicit paths>                  # stage
+git diff --cached --name-only             # staged files
+git commit -m "Add clear human commit message" # commit
+```
+
+## Post-commit check
+
+```bash
+composer spike:test:determinism  # determinism
+```
+
+If it fails:
+
+```bash
+git add <explicit paths>      # stage fix
+git commit --amend --no-edit  # amend
+composer spike:test:determinism # recheck
+```
+
+## First push
+
+```bash
+git push -u origin feat/my-task  # push branch
+```
+
+## Next pushes
+
+```bash
+git push  # push
 ```
 
 ## Pull Request
 
-After the task is ready:
-
-- open a Pull Request from your working branch into `main`
-- review the final diff carefully
+- open PR into `main`
+- review final diff
+- keep fixing in the same branch
 - use **Squash and merge**
-- write one clean final commit message for `main`
+- write one clean final commit message
 
-This keeps `main` readable even if the working branch contains many small or temporary commits.
+## Update working branch
 
-## Keep branch up to date
-
-If `main` moved forward while you were working:
+Run on the working branch, not on `main`:
 
 ```bash
-git fetch origin
-git rebase origin/main
+git fetch origin        # fetch
+git rebase origin/main  # rebase
 ```
 
-Resolve conflicts if needed, then continue.
+After conflicts:
+
+```bash
+git add <resolved files> # resolve
+git rebase --continue    # continue
+```
+
+Cancel rebase:
+
+```bash
+git rebase --abort       # abort
+```
+
+## Accidental commit on `main`
+
+Preserve commit first:
+
+```bash
+git switch -c chore/my-task  # save work
+```
+
+Restore local `main`:
+
+```bash
+git switch main           # main
+git fetch origin          # fetch
+git reset --hard origin/main # reset
+```
+
+## `git pull --ff-only` failed on `main`
+
+Inspect:
+
+```bash
+git status                              # status
+git log --oneline --decorate --graph -n 10 # log
+```
+
+If task work was committed on `main`:
+
+```bash
+git switch -c chore/my-task  # save work
+git switch main              # main
+git fetch origin             # fetch
+git reset --hard origin/main # reset
+```
+
+## Direct push to `main` rejected
+
+Use a task branch:
+
+```bash
+git switch -c chore/my-task      # new branch
+git push -u origin chore/my-task # push
+```
+
+Then open or update the Pull Request.
+
+## Fix branch after failed CI
+
+Normal fix:
+
+```bash
+git add <explicit paths>                  # stage
+git commit -m "Fix CI failure in workflow update" # commit
+git push                                  # push
+```
+
+Single-commit cleanup:
+
+```bash
+git add <explicit paths>      # stage
+git commit --amend --no-edit  # amend
+git push --force-with-lease   # safe force push
+```
+
+Use `--force-with-lease` only on your own working branch. Never on `main`.
+
+## Local-only work
+
+```bash
+git switch -c wip/local-experiment  # local branch
+```
+
+No `git push` = local only.
 
 ## After merge
 
-Return to `main`:
-
 ```bash
-git switch main
-git pull --ff-only
+git switch main      # main
+git pull --ff-only   # sync
 ```
 
-Delete the local branch:
+Delete local branch:
 
 ```bash
-git branch -d feat/my-task
+git branch -d feat/my-task  # delete local
 ```
 
-Delete the remote branch if needed:
+Delete remote branch if it still exists:
 
 ```bash
-git push origin --delete feat/my-task
+git push origin --delete feat/my-task  # delete remote
 ```
 
-## Local-only experimental work
+## Quick flow
 
-If work is not ready to publish, keep it local:
+### Daily
 
 ```bash
-git switch -c wip/local-experiment
+git switch main                      # main
+git pull --ff-only                   # sync
+git switch -c feat/my-task           # new branch
+
+git status --short --untracked-files=all  # status
+git add <explicit paths>                  # stage
+composer validate --strict                # validate
+composer spike:test                       # gates
+composer test                             # test
+git commit -m "Add clear human commit message" # commit
+composer spike:test:determinism           # determinism
+
+git push -u origin feat/my-task           # push
 ```
 
-If you do not run `git push`, the branch remains visible only on your machine.
+### Sync
 
-## Practical rule
+```bash
+git switch feat/my-task              # branch
+git fetch origin                     # fetch
+git rebase origin/main               # rebase
 
-- `main` = stable public history
-- working branch = active task
-- many small commits in a working branch are acceptable
-- `main` should receive one clean squash commit per finished task
+git add <resolved files>             # resolve
+git rebase --continue                # continue
+```
+
+Abort if needed:
+
+```bash
+git rebase --abort                   # abort
+```
+
+### Recovery
+
+Accidental commit on `main`:
+
+```bash
+git switch -c chore/my-task          # save work
+git switch main                      # main
+git fetch origin                     # fetch
+git reset --hard origin/main         # reset
+```
+
+CI fix on working branch:
+
+```bash
+git add <explicit paths>             # stage
+git commit --amend --no-edit         # amend
+composer spike:test:determinism      # determinism
+git push --force-with-lease          # safe force push
+```
+
+After merge:
+
+```bash
+git switch main                      # main
+git pull --ff-only                   # sync
+git branch -d feat/my-task           # delete local
+git push origin --delete feat/my-task # delete remote
+```

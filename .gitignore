@@ -76,26 +76,33 @@ infection.json.dist
 **/.infection/
 
 # ---------------------------------------
-# Logs / temp / runtime artifacts (root)
+# Logs / temp / runtime artifacts (root only)
 # ---------------------------------------
 *.log
 *.tmp
 *.swp
-
-var/
-tmp/
+/var/
+/tmp/
 
 # ---------------------------------------
-# Framework tooling scratch (Prelude: backups live here; must be ignored)
+# Framework tooling scratch
+# keep only marker .gitignore files
 # ---------------------------------------
-framework/var/
+/framework/var/*
+!/framework/var/.gitignore
+!/framework/var/backups/
+!/framework/var/backups/.gitignore
 
 # ---------------------------------------
 # Skeleton runtime dirs:
 # keep .gitkeep, ignore everything else inside var/
 # ---------------------------------------
+/skeleton/var/*
+/skeleton/var/**/
+!/skeleton/var/*/
 /skeleton/var/**/*
 !/skeleton/var/**/.gitkeep
+!/skeleton/var/*/.gitkeep
 
 # ---------------------------------------
 # Node / frontend artifacts (if present)

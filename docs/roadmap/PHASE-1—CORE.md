@@ -695,8 +695,10 @@ N/A
 ### Gate (baseline) — No skeleton modules default (MUST)
 
 - Script: `framework/tools/gates/no_skeleton_modules_default_gate.php`
-- Purpose: skeleton MUST NOT ship `skeleton/config/modules.php` as a parallel module-selection path
-  (module selection is kernel-owned and resolved only via preset files + composer metadata).
+- Purpose: skeleton MUST NOT ship any parallel module-selection file:
+  - `skeleton/config/modules.php`
+  - `skeleton/apps/*/config/modules.php`
+    (module selection is kernel-owned and resolved only via preset files + composer metadata).
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
@@ -883,6 +885,8 @@ N/A (tooling output only; must be secret-safe)
 - [ ] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
 - [ ] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
 - [ ] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
+- [ ] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
+  then `no_skeleton_modules_default_gate.php` fails deterministically.
 - [ ] Prelude rails preserved (MUST):
   - [ ] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
   - [ ] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
@@ -7943,6 +7947,9 @@ provides:
 - "Bootstrap Phase A: env policy + dotenv + minimal overrides (optional)"
 - "Boot without skeleton/config/* (bare skeleton safe)"
 - "Deterministic precedence: strict_dotenv vs allow_system"
+- "Deterministic app target selection (`web|api|console|worker`) as a minimal boot input"
+- "Selected app target resolves the app root under `skeleton/apps/<app>/` without filesystem scanning"
+- "App target selection is entrypoint-owned input; it is NOT inferred by probing `skeleton/apps/*`"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -8002,7 +8009,6 @@ Forbidden:
   - `ResetOrchestrator`
 - Rationale (cemented boundary):
   - reset is a **UoW lifecycle** concern (KernelRuntime 1.280.0), not a boot concern.
-
 
 ### Deliverables (MUST)
 
@@ -8108,6 +8114,10 @@ Allowed diagnostics:
 
 - [ ] Phase A boot succeeds without skeleton config
 - [ ] Env policy precedence matches SSoT and is tested
+- [ ] Bootstrap Phase A includes deterministic app target selection:
+  - [ ] selected app is an explicit input (`web|api|console|worker`)
+  - [ ] selected app root resolves to `skeleton/apps/<app>/`
+  - [ ] bootstrap MUST NOT scan `skeleton/apps/*` to auto-detect the app
 - [ ] No secret leakage in error paths
 - [ ] Non-goals / out of scope:
   - [ ] Phase A НЕ читає merged config через ConfigKernel (Phase B).
@@ -8221,9 +8231,14 @@ Discovery + preset loading + graph:
     - [ ] `BootstrapConfig.preset` selected in Phase A
     - [ ] mode files (`skeleton/config/modes/*.php` override → framework defaults)
     - [ ] composer metadata discovery
-    - [ ] `skeleton/config/modules.php` MUST NOT exist as a parallel module-selection path
+    - [ ] selected app target from Phase A (`BootstrapConfig.app`) MAY affect app-root resolution for app-local config/bootstrap,
+      but MUST NOT introduce a parallel module-selection source
+    - [ ] forbidden parallel module-selection paths:
+      - [ ] `skeleton/config/modules.php`
+      - [ ] `skeleton/apps/*/config/modules.php`
   - [ ] orchestrates:
     - [ ] preset load (skeleton override → framework default)
+    - [ ] app-root resolution from selected app target (`skeleton/apps/<app>/`)
     - [ ] schema validation
     - [ ] composer metadata discovery
     - [ ] graph resolve + topo sort

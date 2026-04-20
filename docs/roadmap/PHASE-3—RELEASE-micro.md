@@ -4158,6 +4158,9 @@ Real boot:
   - [ ] before starting server, run deterministic compile chain (single-choice):
     - [ ] `coretsia config:compile`
     - [ ] `coretsia routes:compile`
+  - [ ] `framework/bin/serve` MUST resolve selected HTTP app target via `--app=<web|api>` with default = `web`
+  - [ ] compile + serve flow in this epic is executed for the selected app target only
+  - [ ] docroot MUST resolve to `skeleton/apps/<app>/public`
   - [ ] NOTE:
     - [ ] `container.php` is produced by `config:compile`; `container:compile` is NOT a separate required step here.
   - [ ] MUST remain CWD-independent and repo-root anchored
@@ -4183,7 +4186,19 @@ Real boot:
   - [ ] this epic does NOT introduce `skeleton/apps/web/config/modules.php`
   - [ ] demo web module is surfaced through the existing kernel-owned module selection flow
     (preset/mode selection + composer metadata), not via a parallel skeleton modules list
+- [ ] Multi-app skeleton compatibility is preserved:
+  - [ ] this epic materializes only the `web` app target
+  - [ ] it does not forbid later `api|console|worker` app targets
+  - [ ] app-local configuration stays selected-app scoped and MUST NOT become a parallel mode/module registry
 - [ ] Skeleton runtime wiring uses the owner public constant for `routing.route_provider` (no local mirror/string fallback here because `platform/routing` is an allowed dependency)
+- [ ] Scope clarification (MUST):
+  - [ ] this epic materializes the `web` app target only
+  - [ ] it MUST remain compatible with the canonical skeleton multi-app layout:
+    - [ ] `skeleton/apps/web/`
+    - [ ] `skeleton/apps/api/`
+    - [ ] `skeleton/apps/console/`
+    - [ ] `skeleton/apps/worker/`
+  - [ ] it MUST NOT redefine module-selection policy or imply that `web` is the only valid app target in the skeleton
 
 ---
 

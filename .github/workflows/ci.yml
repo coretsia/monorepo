@@ -16,6 +16,9 @@ on:
     branches: [ "**" ]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     name: "${{ matrix.os }} / PHP ${{ matrix.php }}"

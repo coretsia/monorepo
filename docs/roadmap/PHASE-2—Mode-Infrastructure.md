@@ -121,6 +121,24 @@ Forbidden:
     - [ ] framework ships presets under `framework/packages/core/kernel/resources/modes/*.php`
     - [ ] skeleton ships **no** `skeleton/config/modes/*` by default
     - [ ] user MAY add `skeleton/config/modes/*.php` as override (user-owned)
+- [ ] `docs/architecture/PACKAGING.md`:
+  - [ ] add “Skeleton app targets layout” section:
+    - [ ] canonical skeleton app roots are:
+      - [ ] `skeleton/apps/web/`
+      - [ ] `skeleton/apps/api/`
+      - [ ] `skeleton/apps/console/`
+      - [ ] `skeleton/apps/worker/`
+    - [ ] each app root MAY contain:
+      - [ ] `bootstrap/`
+      - [ ] `config/`
+      - [ ] `public/` only for HTTP-facing apps (`web|api`)
+    - [ ] app-local `config/` is for selected-app overrides only
+    - [ ] app-local `config/` MUST NOT introduce parallel module-selection files:
+      - [ ] `skeleton/apps/*/config/modules.php` is forbidden
+    - [ ] mode preset ownership remains unchanged:
+      - [ ] presets are still framework-owned under `framework/packages/core/kernel/resources/modes/*.php`
+      - [ ] skeleton MAY override via `skeleton/config/modes/*.php` only
+      - [ ] app-local directories are NOT an alternative mode-preset registry
 
 - [ ] `framework/tools/gates/package_compliance_gate.php`
   - [ ] include `no_default_skeleton_modes_gate.php` in deterministic chain order
@@ -981,7 +999,14 @@ ssot_refs:
 - [ ] `framework/bin/serve`
   - [ ] pure PHP script; CWD-independent repo-root discovery via `__DIR__`
   - [ ] starts PHP built-in server via `proc_open` (allowed here)
-  - [ ] MUST accept `--host`, `--port`, `--docroot`
+  - [ ] MUST accept `--host`, `--port`, `--docroot`, `--app`
+  - [ ] `--app` is a deterministic HTTP app selector with default = `web`
+  - [ ] supported app values in this epic:
+    - [ ] `web`
+    - [ ] `api`
+  - [ ] when `--docroot` is omitted, docroot MUST resolve to:
+    - [ ] repo-root `skeleton/apps/<app>/public`
+  - [ ] `console|worker` are out of scope for this HTTP serve script and MUST fail deterministically if passed to `--app`
   - [ ] MUST fail deterministically if port is unavailable:
     - [ ] CODE: `CORETSIA_SERVE_PORT_UNAVAILABLE`
   - [ ] Process management (MUST):
@@ -993,6 +1018,7 @@ ssot_refs:
 - [ ] `framework/bin/smoke-http`
   - [ ] pure PHP smoke check via `stream_socket_client` / HTTP request text
   - [ ] MUST accept `--url` OR `--host/--port`
+  - [ ] MUST accept optional `--app=<web|api>` with default = `web`
   - [ ] MUST assert:
     - [ ] status = 503
     - [ ] body JSON matches expected schema EXACTLY (no “contains” heuristics)
@@ -1003,7 +1029,8 @@ ssot_refs:
   - [ ] default expected payload (if omitted):
     - [ ] `<docroot>/_boot_not_ready_payload.php`
   - [ ] default docroot resolution (single-choice):
-    - [ ] if `--expected-payload` is omitted, default docroot MUST resolve to repo-root `skeleton/apps/web/public`
+    - [ ] if `--expected-payload` is omitted, default docroot MUST resolve to repo-root `skeleton/apps/<app>/public`
+      where `<app>` comes from `--app` and defaults to `web`
     - [ ] this resolution MUST be CWD-independent and based on the script location (`__DIR__`)
 
 - [ ] `framework/tools/tests/Integration/HttpStubSmokeTest.php`

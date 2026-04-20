@@ -28,49 +28,56 @@ Daily development workflow for Coretsia Framework (Monorepo).
 
 ## Branch names
 
-- `feat/<name>`
-- `fix/<name>`
-- `docs/<name>`
-- `chore/<name>`
-- `wip/<name>` — local-only work
+Branch format:
+
+```text
+<type>/<branch-name>
+```
+
+Recommended branch types:
+
+- `feat`  = new functionality or new behavior
+- `fix`   = bug fix, broken behavior, CI fix, workflow fix, security warning fix
+- `docs`  = documentation only
+- `chore` = maintenance, service changes, dependency refresh, config updates, routine non-feature work
+- `wip`   = local or temporary unfinished work that is not ready to publish
 
 Examples:
 
-- `feat/footer-links-fix`
-- `fix/privacy-cookie-banner`
-- `docs/readme-phase0`
-- `chore/release-prep`
+- `feat/http-route-cache`
+- `fix/ci-workflow-permissions`
+- `docs/workflow-cheatsheet`
+- `chore/phpunit-refresh`
 - `wip/local-experiment`
 
-## Daily start
+## Start a new working branch
+
+Run once at the start of a task:
 
 ```bash
-git switch main          # main
-git pull --ff-only       # sync
-composer validate --strict  # validate
-composer test            # test
+git switch main                            # switch to local main
+git pull --ff-only                         # sync local main with origin/main
+git switch -c <type>/<branch-name>         # create and open a new working branch
 ```
 
-## Start new task
+## Return to an existing working branch
 
 ```bash
-git switch main              # main
-git pull --ff-only           # sync
-git switch -c feat/my-task   # new branch
+git switch <type>/<branch-name>            # return to an existing working branch
 ```
 
-## Continue task
+If you need to inspect local branches:
 
 ```bash
-git switch feat/my-task                  # branch
-git status --short --untracked-files=all # status
+git branch                                 # list local branches
+git branch --show-current                  # show current branch
 ```
 
-## Check changes
+## Check current changes
 
 ```bash
-git status --short --untracked-files=all # status
-git diff                                 # diff
+git status --short --untracked-files=all   # show changed and untracked files
+git diff                                   # show unstaged diff
 ```
 
 ## Stage changes
@@ -78,185 +85,204 @@ git diff                                 # diff
 Prefer explicit staging:
 
 ```bash
-git add <explicit paths>   # stage paths
+git add <explicit paths>                   # stage only selected files
 ```
 
-Or partial staging:
+For partial staging:
 
 ```bash
-git add -p                 # stage hunks
+git add -p                                 # stage selected hunks
 ```
 
-Review staged set:
+Review staged content before commit:
 
 ```bash
-git diff --cached --name-only  # staged files
-git diff --cached              # staged diff
+git diff --cached --name-only              # show staged file list
+git diff --cached                          # show full staged diff
 ```
 
 ## Pre-commit checks
 
-```bash
-composer validate --strict  # validate
-composer spike:test         # gates
-composer test               # test
-```
-
-## Commit
+Run before each commit:
 
 ```bash
-git status --short --untracked-files=all # status
-git add <explicit paths>                  # stage
-git diff --cached --name-only             # staged files
-git commit -m "Add clear human commit message" # commit
+composer validate:all --strict             # validate all composer manifests
+composer spike:test                        # run spike gates and spike tests
+composer test                              # run main test suite
 ```
 
-## Post-commit check
+## Create a commit
+
+Run for each new commit in the current working branch:
 
 ```bash
-composer spike:test:determinism  # determinism
+git status --short --untracked-files=all   # inspect current changes
+git add <explicit paths>                   # stage only selected files
+git diff --cached --name-only              # verify staged file list
+git commit -m "Your commit message"        # create local commit
 ```
 
-If it fails:
+## Post-commit determinism check
+
+Run after each commit:
 
 ```bash
-git add <explicit paths>      # stage fix
-git commit --amend --no-edit  # amend
-composer spike:test:determinism # recheck
+composer spike:test:determinism            # run determinism check on committed state
 ```
 
-## First push
+If the check fails:
 
 ```bash
-git push -u origin feat/my-task  # push branch
+git add <explicit paths>                   # stage the fix
+git commit --amend --no-edit               # update the last commit without changing its message
+composer spike:test:determinism            # rerun determinism check
 ```
 
-## Next pushes
+## Sync working branch with main
+
+Run only from the working branch, not from `main`:
 
 ```bash
-git push  # push
+git fetch origin                           # update remote refs locally
+git rebase origin/main                     # rebase current working branch onto latest origin/main
 ```
 
-## Pull Request
+If conflicts appear:
 
-- open PR into `main`
-- review final diff
-- keep fixing in the same branch
+```bash
+git add <resolved files>                   # stage manually resolved files
+git rebase --continue                      # continue rebase
+```
+
+If you need to cancel the rebase:
+
+```bash
+git rebase --abort                         # abort rebase and return to pre-rebase state
+```
+
+## Push working branch
+
+First push of a new working branch:
+
+```bash
+git push -u origin <type>/<branch-name>    # push branch and set upstream tracking
+```
+
+Next pushes in the same branch:
+
+```bash
+git push                                   # push new local commits to tracked remote branch
+```
+
+## Pull Request flow
+
+After the branch is ready:
+
+- open a Pull Request into `main`
+- review the final diff carefully
+- keep fixing in the same working branch if needed
+- wait for green checks
 - use **Squash and merge**
-- write one clean final commit message
+- write one clean final commit message for `main`
 
-## Update working branch
+## If you accidentally committed on main
 
-Run on the working branch, not on `main`:
-
-```bash
-git fetch origin        # fetch
-git rebase origin/main  # rebase
-```
-
-After conflicts:
+Preserve the commit first:
 
 ```bash
-git add <resolved files> # resolve
-git rebase --continue    # continue
-```
-
-Cancel rebase:
-
-```bash
-git rebase --abort       # abort
-```
-
-## Accidental commit on `main`
-
-Preserve commit first:
-
-```bash
-git switch -c chore/my-task  # save work
+git switch -c chore/my-task                # save accidental main work into a new branch
 ```
 
 Restore local `main`:
 
 ```bash
-git switch main           # main
-git fetch origin          # fetch
-git reset --hard origin/main # reset
+git switch main                            # return to main
+git fetch origin                           # refresh origin/main
+git reset --hard origin/main               # reset local main to remote main
 ```
 
-## `git pull --ff-only` failed on `main`
+## If `git pull --ff-only` fails on main
 
-Inspect:
+Inspect the current state:
 
 ```bash
-git status                              # status
-git log --oneline --decorate --graph -n 10 # log
+git status                                 # inspect working tree state
+git log --oneline --decorate --graph -n 10 # inspect recent history
 ```
 
 If task work was committed on `main`:
 
 ```bash
-git switch -c chore/my-task  # save work
-git switch main              # main
-git fetch origin             # fetch
-git reset --hard origin/main # reset
+git switch -c chore/my-task                # preserve the work in a new branch
+git switch main                            # return to main
+git fetch origin                           # refresh origin/main
+git reset --hard origin/main               # restore clean local main
 ```
 
-## Direct push to `main` rejected
+## If direct push to main is rejected
 
-Use a task branch:
+Use a task branch instead:
 
 ```bash
-git switch -c chore/my-task      # new branch
-git push -u origin chore/my-task # push
+git switch -c chore/my-task                # create a working branch from current state
+git push -u origin chore/my-task           # publish the working branch
 ```
 
 Then open or update the Pull Request.
 
-## Fix branch after failed CI
+## Fix a branch after failed CI
 
-Normal fix:
-
-```bash
-git add <explicit paths>                  # stage
-git commit -m "Fix CI failure in workflow update" # commit
-git push                                  # push
-```
-
-Single-commit cleanup:
+Normal fix flow:
 
 ```bash
-git add <explicit paths>      # stage
-git commit --amend --no-edit  # amend
-git push --force-with-lease   # safe force push
+git add <explicit paths>                   # stage the fix
+git commit -m "Fix CI failure in <context>" # create a follow-up commit
+git push                                   # push the fix
 ```
 
-Use `--force-with-lease` only on your own working branch. Never on `main`.
+Single-commit cleanup flow:
+
+```bash
+git add <explicit paths>                   # stage the fix
+git commit --amend --no-edit               # update the latest commit
+git push --force-with-lease                # safely replace remote branch history
+```
+
+Use `--force-with-lease` only on your own working branch. Never use it on `main`.
 
 ## Local-only work
 
 ```bash
-git switch -c wip/local-experiment  # local branch
+git switch -c wip/local-experiment         # create a local-only experimental branch
 ```
 
-No `git push` = local only.
+If you do not run `git push`, the branch remains local only.
 
-## After merge
+## After Pull Request merge
+
+Return to `main` and sync it:
 
 ```bash
-git switch main      # main
-git pull --ff-only   # sync
+git switch main                            # return to main
+git pull --ff-only                         # fetch merged changes from origin/main
 ```
 
-Delete local branch:
+Delete the local branch:
 
 ```bash
-git branch -d feat/my-task  # delete local
+git branch -d <type>/<branch-name>         # delete local branch if already merged
 ```
 
-Delete remote branch if it still exists:
+Delete the remote branch if it still exists:
 
 ```bash
-git push origin --delete feat/my-task  # delete remote
+git push origin --delete <type>/<branch-name>  # delete remote branch on GitHub
+```
+
+If the local branch does not delete with `-d`, but you know it is no longer needed:
+
+```bash
+git branch -D <type>/<branch-name>         # force delete local branch
 ```
 
 ## Quick flow
@@ -264,36 +290,58 @@ git push origin --delete feat/my-task  # delete remote
 ### Daily
 
 ```bash
-git switch main                      # main
-git pull --ff-only                   # sync
-git switch -c feat/my-task           # new branch
+git switch main                            # switch to local main
+git pull --ff-only                         # sync local main with origin/main
+git switch -c <type>/<branch-name>         # create and open working branch
 
-git status --short --untracked-files=all  # status
-git add <explicit paths>                  # stage
-composer validate --strict                # validate
-composer spike:test                       # gates
-composer test                             # test
-git commit -m "Add clear human commit message" # commit
-composer spike:test:determinism           # determinism
+git status --short --untracked-files=all   # inspect changed files
+git add <explicit paths>                   # stage selected files
+git diff --cached --name-only              # verify staged file list
 
-git push -u origin feat/my-task           # push
+composer validate:all --strict             # validate all composer manifests
+composer spike:test                        # run spike gates and spike tests
+composer test                              # run main test suite
+
+git commit -m "Your commit message"        # create local commit
+composer spike:test:determinism            # run determinism check
+
+git push -u origin <type>/<branch-name>    # first push of the working branch
+```
+
+### Next commit in the same branch
+
+```bash
+git switch <type>/<branch-name>            # return to working branch if needed
+
+git status --short --untracked-files=all   # inspect changed files
+git add <explicit paths>                   # stage selected files
+git diff --cached --name-only              # verify staged file list
+
+composer validate:all --strict             # validate all composer manifests
+composer spike:test                        # run spike gates and spike tests
+composer test                              # run main test suite
+
+git commit -m "Your commit message"        # create next local commit
+composer spike:test:determinism            # run determinism check
+
+git push                                   # push next commit to tracked remote branch
 ```
 
 ### Sync
 
 ```bash
-git switch feat/my-task              # branch
-git fetch origin                     # fetch
-git rebase origin/main               # rebase
+git switch <type>/<branch-name>            # make sure you are on the working branch
+git fetch origin                           # refresh remote refs
+git rebase origin/main                     # rebase onto latest origin/main
 
-git add <resolved files>             # resolve
-git rebase --continue                # continue
+git add <resolved files>                   # stage resolved conflicts if any
+git rebase --continue                      # continue rebase
 ```
 
 Abort if needed:
 
 ```bash
-git rebase --abort                   # abort
+git rebase --abort                         # cancel rebase
 ```
 
 ### Recovery
@@ -301,26 +349,26 @@ git rebase --abort                   # abort
 Accidental commit on `main`:
 
 ```bash
-git switch -c chore/my-task          # save work
-git switch main                      # main
-git fetch origin                     # fetch
-git reset --hard origin/main         # reset
+git switch -c chore/my-task                # preserve work in a new branch
+git switch main                            # return to main
+git fetch origin                           # refresh origin/main
+git reset --hard origin/main               # restore clean local main
 ```
 
-CI fix on working branch:
+Fix failed determinism or failed CI on a working branch:
 
 ```bash
-git add <explicit paths>             # stage
-git commit --amend --no-edit         # amend
-composer spike:test:determinism      # determinism
-git push --force-with-lease          # safe force push
+git add <explicit paths>                   # stage the fix
+git commit --amend --no-edit               # update the latest commit
+composer spike:test:determinism            # rerun determinism
+git push --force-with-lease                # safely update remote working branch
 ```
 
 After merge:
 
 ```bash
-git switch main                      # main
-git pull --ff-only                   # sync
-git branch -d feat/my-task           # delete local
-git push origin --delete feat/my-task # delete remote
+git switch main                            # return to main
+git pull --ff-only                         # sync merged changes
+git branch -d <type>/<branch-name>         # delete local branch
+git push origin --delete <type>/<branch-name>  # delete remote branch if still present
 ```

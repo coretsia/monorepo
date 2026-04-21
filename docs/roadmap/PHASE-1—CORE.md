@@ -549,8 +549,8 @@ N/A
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/observability.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/observability.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 

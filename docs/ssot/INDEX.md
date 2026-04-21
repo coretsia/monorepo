@@ -32,6 +32,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Registries
 
+- [Config Roots Registry](./config-roots.md) — owner: repo — scope: config,ownership,registry,roots
 - [Tag Registry](./tags.md) — owner: repo — scope: di,ownership,registry,tags
 
 ## Policies

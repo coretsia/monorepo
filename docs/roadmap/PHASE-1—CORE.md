@@ -525,32 +525,32 @@ N/A
 
 #### Creates
 
-- [ ] `docs/ssot/observability.md` — SSoT:
-  - [ ] naming rules:
-    - [ ] spans: `<domain>.<operation>` (e.g. `http.request`)
-    - [ ] metrics: `<domain>.<metric>_{total|duration_ms|...}` (e.g. `http.request_total`)
-  - [ ] label allowlist (single-choice; reserved baseline):
-    - [ ] `method,status,driver,operation,table,outcome`
-  - [ ] forbidden data:
-    - [ ] raw path, raw query, headers/cookies/body, auth/session ids, tokens, raw SQL
-  - [ ] forbidden label keys:
-    - [ ] `field`
-    - [ ] `path`
-    - [ ] `property`
-    - [ ] `request_id`
-    - [ ] `correlation_id`
-    - [ ] `tenant_id`
-    - [ ] `user_id`
-  - [ ] allowed patterns:
-    - [ ] `hash(value)` / `len(value)` / safe ids
-  - [ ] baseline canonical events:
-    - [ ] span `http.request`
-    - [ ] metrics `http.request_total` + `http.request_duration_ms` (labels: `method,status,outcome` only)
+- [x] `docs/ssot/observability.md` — SSoT:
+  - [x] naming rules:
+    - [x] spans: `<domain>.<operation>` (e.g. `http.request`)
+    - [x] metrics: `<domain>.<metric>_{total|duration_ms|...}` (e.g. `http.request_total`)
+  - [x] label allowlist (single-choice; reserved baseline):
+    - [x] `method,status,driver,operation,table,outcome`
+  - [x] forbidden data:
+    - [x] raw path, raw query, headers/cookies/body, auth/session ids, tokens, raw SQL
+  - [x] forbidden label keys:
+    - [x] `field`
+    - [x] `path`
+    - [x] `property`
+    - [x] `request_id`
+    - [x] `correlation_id`
+    - [x] `tenant_id`
+    - [x] `user_id`
+  - [x] allowed patterns:
+    - [x] `hash(value)` / `len(value)` / safe ids
+  - [x] baseline canonical events:
+    - [x] span `http.request`
+    - [x] metrics `http.request_total` + `http.request_duration_ms` (labels: `method,status,outcome` only)
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/observability.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/observability.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -566,9 +566,9 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Allowlist is explicit and single-choice
-- [ ] Redaction policy is explicit (must-not-leak list)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Allowlist is explicit and single-choice
+- [x] Redaction policy is explicit (must-not-leak list)
 
 ---
 

@@ -78,7 +78,11 @@ Coretsia/
 │   │   ├── PRELUDE.md
 │   │   └── ROADMAP.md
 │   └── ssot/
-│       └── INDEX.md
+│       ├── INDEX.md
+│       ├── artifacts.md
+│       ├── config-roots.md
+│       ├── observability.md
+│       └── tags.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -415,19 +419,15 @@ Coretsia/
 │   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
 │   ├── var/
 │   │   ├── backups/
-│   │   │   ├── workspace/
 │   │   │   └── .gitignore
-│   │   ├── phpunit/
-│   │   │   └── phpunit.discovered.xml
-│   │   ├── phpunit-cache/
-│   │   ├── .gitignore
-│   │   └── package-index.php
+│   │   └── .gitignore
 │   ├── composer.json
 │   └── composer.lock
 ├── skeleton/
 │   ├── apps/
 │   │   └── web/
 │   │       └── public/
+│   │           └── .gitkeep
 │   ├── var/
 │   │   ├── cache/
 │   │   │   └── .gitkeep
@@ -460,6 +460,7 @@ Coretsia/
 ├── README.md
 ├── SECURITY.md
 ├── UPGRADE.md
+├── WORKFLOW.md
 ├── composer.json
 ├── composer.lock
 └── coretsia
@@ -467,5 +468,5 @@ Coretsia/
 
 Generator ignores entries for documentation output; this is not the same as .gitignore.
 Ignore lists SSoT: framework/tools/build/structure.ignore.php
-Ignored directories: .git, .idea, .osp, .phpstan-cache, .phpunit.cache, vendor
+Ignored directories: .git, .idea, .osp, .phpstan-cache, .phpunit.cache, phpunit-cache, phpunit, vendor
 Ignored files: .DS_Store, preload.php, .deptrac.cache

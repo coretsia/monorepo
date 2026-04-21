@@ -28,6 +28,8 @@ return [
         '.osp',
         '.phpstan-cache',
         '.phpunit.cache',
+        'phpunit-cache',
+        'phpunit',
         'vendor',
     ],
     'ignoreFiles' => [

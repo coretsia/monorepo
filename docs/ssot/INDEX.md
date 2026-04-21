@@ -34,6 +34,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 - [Artifact Header and Schema Registry](./artifacts.md) — owner: repo — scope: artifacts,determinism,envelope,registry,schema
 - [Config Roots Registry](./config-roots.md) — owner: repo — scope: config,ownership,registry,roots
+- [Observability Naming and Labels Allowlist](./observability.md) — owner: repo — scope: labels,observability,redaction,registry,spans
 - [Tag Registry](./tags.md) — owner: repo — scope: di,ownership,registry,tags
 
 ## Policies

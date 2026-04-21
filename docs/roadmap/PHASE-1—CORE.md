@@ -94,95 +94,95 @@ N/A
 
 #### Creates
 
-- [ ] `docs/ssot/tags.md` — SSoT registry:
-  - [ ] naming rules (single-choice): dot-separated tokens; lowercase; digits and `_` are allowed inside a token; no whitespace
-    - [ ] canonical regex: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`
-  - [ ] Registry rows можуть існувати до появи owner package; константи вводяться лише в owner epic.
-  - [ ] Інші пакети MAY мати local mirror constants лише коли owner package є forbidden compile-time dep;
+- [x] `docs/ssot/tags.md` — SSoT registry:
+  - [x] naming rules (single-choice): dot-separated tokens; lowercase; digits and `_` are allowed inside a token; no whitespace
+    - [x] canonical regex: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`
+  - [x] Registry rows можуть існувати до появи owner package; константи вводяться лише в owner epic.
+  - [x] Інші пакети MAY мати local mirror constants лише коли owner package є forbidden compile-time dep;
     ці константи не є public API і MUST дорівнювати canonical string (перевіряється gate’ом).
-  - [ ] ownership rule (single-choice):
-    - [ ] every tag has exactly ONE owner package_id
-    - [ ] only the owner epic may introduce/modify a tag entry
-    - [ ] “shared ownership” is forbidden
-  - [ ] reserved prefixes (single-choice; baseline):
-    - [ ] `http.middleware.*` → owner: `platform/http`
-    - [ ] `kernel.hook.*` → owner: `core/kernel`
-    - [ ] `kernel.reset` → owner: `core/foundation` (reserved canonical default reset-discovery tag name)
-    - [ ] `kernel.stateful` → owner: `core/foundation` (fixed enforcement marker)
-    - [ ] `kernel.*` (крім вищих винятків) → owner: `core/kernel`
-    - [ ] `cli.*` → owner: `platform/cli`
-    - [ ] `error.*` → owner: `platform/errors`
-    - [ ] `health.*` → owner: `platform/health` (future)
-  - [ ] reserved tags (baseline; MUST be present as registry rows):
-    - [ ] HTTP middleware slots (owner: `platform/http`):
-      - [ ] `http.middleware.system_pre`
-      - [ ] `http.middleware.system`
-      - [ ] `http.middleware.system_post`
-      - [ ] `http.middleware.app_pre`
-      - [ ] `http.middleware.app`
-      - [ ] `http.middleware.app_post`
-      - [ ] `http.middleware.route_pre`
-      - [ ] `http.middleware.route`
-      - [ ] `http.middleware.route_post`
-    - [ ] Kernel lifecycle:
-      - [ ] `kernel.reset` → owner: `core/foundation`
-      - [ ] `kernel.stateful` → owner: `core/foundation`
-      - [ ] `kernel.hook.before_uow` → owner: `core/kernel`
-      - [ ] `kernel.hook.after_uow` → owner: `core/kernel`
-    - [ ] Errors discovery (owner: `platform/errors`):
-      - [ ] `error.mapper`
-    - [ ] Health discovery (owner: `platform/health` future):
-      - [ ] `health.check`
-    - [ ] CLI discovery (owner: `platform/cli`):
-      - [ ] `cli.command`
-  - [ ] forbidden / legacy tags (cemented):
-    - [ ] The following legacy tags MUST NOT be introduced anywhere:
-      - [ ] `http.middleware.user_before_routing`
-      - [ ] `http.middleware.user`
-      - [ ] `http.middleware.user_after_routing`
-    - [ ] Rationale: canonical Phase 0+ taxonomy is single-choice: `system/app/route`.
-    - [ ] Any new epic mentioning `http.middleware.user*` MUST treat it only as legacy/renamed terminology and MUST NOT use it as a current tag name anywhere in contracts, SSoT, defaults, or gates.
-  - [ ] registry table: `tag` | `owner package_id` | `purpose` | `stability` | `notes`
-    - [ ] stability enum (single-choice): `stable|experimental|deprecated`
-  - [ ] rule (single-choice): every reserved tag MUST be declared as a constant in the owner package (usually `src/Provider/Tags.php`)
-  - [ ] ownership split (single-choice):
-    - [ ] for every reserved tag, the owner package exclusively owns:
-      - [ ] the registry row in `docs/ssot/tags.md`
-      - [ ] the canonical public constant
-      - [ ] the canonical meta-schema (if any)
-      - [ ] the canonical consumer/discovery semantics
-    - [ ] non-owner packages MAY use existing reserved tags, but MUST NOT redefine competing meta keys or semantics
-  - [ ] runtime usage rule (single-choice):
-    - [ ] if the owner package is an allowed compile-time dependency, runtime code MUST use the owner public tag constant
-    - [ ] if the owner package is a forbidden compile-time dependency, runtime code MAY define a package-local mirror constant
-    - [ ] such local mirror constants:
-      - [ ] MUST be package-internal only
-      - [ ] MUST equal the canonical tag string exactly
-      - [ ] MUST NOT be treated as public API
-      - [ ] MUST be verified by tooling gates for string equality
-    - [ ] raw literal tag strings are allowed in docs/tests/fixtures for readability, but MUST NOT be the preferred runtime-code pattern
-  - [ ] contributor rule (single-choice):
-    - [ ] a non-owner epic MAY say `N/A (uses existing <tag>)`
-    - [ ] a non-owner epic MUST NOT introduce or freeze a competing meta-schema for that tag
-    - [ ] if owner meta-schema is not cemented yet, contributor epics MUST say `meta per owner schema` (or equivalent) instead of inventing alternative keys
-  - [ ] temporal clarification (single-choice):
-    - [ ] a registry row MAY exist before the owner package becomes tag-aware in runtime
-    - [ ] the canonical owner public constant becomes mandatory in the owner epic that introduces the corresponding tag-aware mode/entrypoint
-    - [ ] until then, non-owner packages MAY still reference the canonical tag only under the usage rule:
-      - [ ] owner public constant when the owner package is an allowed compile-time dependency
-      - [ ] package-local mirror constant when the owner package is a forbidden compile-time dependency
-    - [ ] non-owner packages MUST NOT define competing public APIs or competing meta-schema for the same tag
-  - [ ] rule (single-choice): introducing a new tag requires:
-    - [ ] adding a registry row in `docs/ssot/tags.md` by the owner epic
-    - [ ] adding a constant in the owner package
-  - [ ] Non-tag metadata rule:
-    - [ ] PHP attributes (including DTO marker attributes) are NOT DI tags and MUST NOT be registered in this tag registry.
-    - [ ] DI tags and PHP attributes are orthogonal mechanisms and MUST NOT be conflated.
+  - [x] ownership rule (single-choice):
+    - [x] every tag has exactly ONE owner package_id
+    - [x] only the owner epic may introduce/modify a tag entry
+    - [x] “shared ownership” is forbidden
+  - [x] reserved prefixes (single-choice; baseline):
+    - [x] `http.middleware.*` → owner: `platform/http`
+    - [x] `kernel.hook.*` → owner: `core/kernel`
+    - [x] `kernel.reset` → owner: `core/foundation` (reserved canonical default reset-discovery tag name)
+    - [x] `kernel.stateful` → owner: `core/foundation` (fixed enforcement marker)
+    - [x] `kernel.*` (крім вищих винятків) → owner: `core/kernel`
+    - [x] `cli.*` → owner: `platform/cli`
+    - [x] `error.*` → owner: `platform/errors`
+    - [x] `health.*` → owner: `platform/health` (future)
+  - [x] reserved tags (baseline; MUST be present as registry rows):
+    - [x] HTTP middleware slots (owner: `platform/http`):
+      - [x] `http.middleware.system_pre`
+      - [x] `http.middleware.system`
+      - [x] `http.middleware.system_post`
+      - [x] `http.middleware.app_pre`
+      - [x] `http.middleware.app`
+      - [x] `http.middleware.app_post`
+      - [x] `http.middleware.route_pre`
+      - [x] `http.middleware.route`
+      - [x] `http.middleware.route_post`
+    - [x] Kernel lifecycle:
+      - [x] `kernel.reset` → owner: `core/foundation`
+      - [x] `kernel.stateful` → owner: `core/foundation`
+      - [x] `kernel.hook.before_uow` → owner: `core/kernel`
+      - [x] `kernel.hook.after_uow` → owner: `core/kernel`
+    - [x] Errors discovery (owner: `platform/errors`):
+      - [x] `error.mapper`
+    - [x] Health discovery (owner: `platform/health` future):
+      - [x] `health.check`
+    - [x] CLI discovery (owner: `platform/cli`):
+      - [x] `cli.command`
+  - [x] forbidden / legacy tags (cemented):
+    - [x] The following legacy tags MUST NOT be introduced anywhere:
+      - [x] `http.middleware.user_before_routing`
+      - [x] `http.middleware.user`
+      - [x] `http.middleware.user_after_routing`
+    - [x] Rationale: canonical Phase 0+ taxonomy is single-choice: `system/app/route`.
+    - [x] Any new epic mentioning `http.middleware.user*` MUST treat it only as legacy/renamed terminology and MUST NOT use it as a current tag name anywhere in contracts, SSoT, defaults, or gates.
+  - [x] registry table: `tag` | `owner package_id` | `purpose` | `stability` | `notes`
+    - [x] stability enum (single-choice): `stable|experimental|deprecated`
+  - [x] rule (single-choice): every reserved tag MUST be declared as a constant in the owner package (usually `src/Provider/Tags.php`)
+  - [x] ownership split (single-choice):
+    - [x] for every reserved tag, the owner package exclusively owns:
+      - [x] the registry row in `docs/ssot/tags.md`
+      - [x] the canonical public constant
+      - [x] the canonical meta-schema (if any)
+      - [x] the canonical consumer/discovery semantics
+    - [x] non-owner packages MAY use existing reserved tags, but MUST NOT redefine competing meta keys or semantics
+  - [x] runtime usage rule (single-choice):
+    - [x] if the owner package is an allowed compile-time dependency, runtime code MUST use the owner public tag constant
+    - [x] if the owner package is a forbidden compile-time dependency, runtime code MAY define a package-local mirror constant
+    - [x] such local mirror constants:
+      - [x] MUST be package-internal only
+      - [x] MUST equal the canonical tag string exactly
+      - [x] MUST NOT be treated as public API
+      - [x] MUST be verified by tooling gates for string equality
+    - [x] raw literal tag strings are allowed in docs/tests/fixtures for readability, but MUST NOT be the preferred runtime-code pattern
+  - [x] contributor rule (single-choice):
+    - [x] a non-owner epic MAY say `N/A (uses existing <tag>)`
+    - [x] a non-owner epic MUST NOT introduce or freeze a competing meta-schema for that tag
+    - [x] if owner meta-schema is not cemented yet, contributor epics MUST say `meta per owner schema` (or equivalent) instead of inventing alternative keys
+  - [x] temporal clarification (single-choice):
+    - [x] a registry row MAY exist before the owner package becomes tag-aware in runtime
+    - [x] the canonical owner public constant becomes mandatory in the owner epic that introduces the corresponding tag-aware mode/entrypoint
+    - [x] until then, non-owner packages MAY still reference the canonical tag only under the usage rule:
+      - [x] owner public constant when the owner package is an allowed compile-time dependency
+      - [x] package-local mirror constant when the owner package is a forbidden compile-time dependency
+    - [x] non-owner packages MUST NOT define competing public APIs or competing meta-schema for the same tag
+  - [x] rule (single-choice): introducing a new tag requires:
+    - [x] adding a registry row in `docs/ssot/tags.md` by the owner epic
+    - [x] adding a constant in the owner package
+  - [x] Non-tag metadata rule:
+    - [x] PHP attributes (including DTO marker attributes) are NOT DI tags and MUST NOT be registered in this tag registry.
+    - [x] DI tags and PHP attributes are orthogonal mechanisms and MUST NOT be conflated.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/tags.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/tags.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -198,10 +198,10 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Registry is single-choice (no “either/or” naming rules)
-- [ ] Ownership rules are explicit (no ambiguous “shared” ownership)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Registry is single-choice (no “either/or” naming rules)
+- [x] Ownership rules are explicit (no ambiguous “shared” ownership)
 
 ---
 

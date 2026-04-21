@@ -395,51 +395,51 @@ N/A
 
 #### Creates
 
-- [ ] `docs/ssot/artifacts.md` — SSoT:
-  - [ ] Artifact envelope (single-choice; applies to ALL artifacts regardless of file encoding):
-    - [ ] top-level object MUST be `{ "_meta": <header>, "payload": <schema-specific> }`
-  - [ ] Header fields (single-choice):
-    - [ ] `name` (string)
-    - [ ] `schemaVersion` (int)
-    - [ ] `fingerprint` (string; deterministic)
-    - [ ] `generator` (string; stable id, MUST NOT include build timestamps/absolute paths)
-    - [ ] `requires` (optional; deterministic; e.g. min runtime version)
-  - [ ] Deterministic serialization law (single-choice; applies to any JSON-like bodies/headers AND to codegen that materializes map ordering):
-    - [ ] Maps/objects MUST be normalized by sorting keys ascending by byte-order (`strcmp`) recursively at every nesting level.
-    - [ ] Lists/arrays MUST preserve order (MUST NOT be sorted).
-    - [ ] List-vs-map classification MUST use `array_is_list(...)` for ANY array value.
-    - [ ] Empty array rule (cemented):
-      - [ ] `[]` MUST be treated as a list in serialized form.
-      - [ ] Rationale: PHP cannot represent empty-map vs empty-list distinction using arrays; `array_is_list([]) === true`.
-    - [ ] Encoding flags MUST be deterministic:
-      - [ ] unescaped slashes and unicode
-      - [ ] no locale-dependent behavior
-    - [ ] Artifacts MUST be rerun-no-diff and MUST NOT embed timestamps, absolute paths, or environment-specific bytes.
-  - [ ] Tooling helper library `coretsia/devtools-internal-toolkit` is Phase 0 tooling-only and MUST NOT become a mandatory runtime dependency.
-  - [ ] Runtime packages (core/*, platform/*) that generate/consume artifacts MUST implement the deterministic laws locally (or via runtime-owned shared code),
+- [x] `docs/ssot/artifacts.md` — SSoT:
+  - [x] Artifact envelope (single-choice; applies to ALL artifacts regardless of file encoding):
+    - [x] top-level object MUST be `{ "_meta": <header>, "payload": <schema-specific> }`
+  - [x] Header fields (single-choice):
+    - [x] `name` (string)
+    - [x] `schemaVersion` (int)
+    - [x] `fingerprint` (string; deterministic)
+    - [x] `generator` (string; stable id, MUST NOT include build timestamps/absolute paths)
+    - [x] `requires` (optional; deterministic; e.g. min runtime version)
+  - [x] Deterministic serialization law (single-choice; applies to any JSON-like bodies/headers AND to codegen that materializes map ordering):
+    - [x] Maps/objects MUST be normalized by sorting keys ascending by byte-order (`strcmp`) recursively at every nesting level.
+    - [x] Lists/arrays MUST preserve order (MUST NOT be sorted).
+    - [x] List-vs-map classification MUST use `array_is_list(...)` for ANY array value.
+    - [x] Empty array rule (cemented):
+      - [x] `[]` MUST be treated as a list in serialized form.
+      - [x] Rationale: PHP cannot represent empty-map vs empty-list distinction using arrays; `array_is_list([]) === true`.
+    - [x] Encoding flags MUST be deterministic:
+      - [x] unescaped slashes and unicode
+      - [x] no locale-dependent behavior
+    - [x] Artifacts MUST be rerun-no-diff and MUST NOT embed timestamps, absolute paths, or environment-specific bytes.
+  - [x] Tooling helper library `coretsia/devtools-internal-toolkit` is Phase 0 tooling-only and MUST NOT become a mandatory runtime dependency.
+  - [x] Runtime packages (core/*, platform/*) that generate/consume artifacts MUST implement the deterministic laws locally (or via runtime-owned shared code),
     but MUST match the same laws (byte-order key sorting, list order preserved, locale-independent behavior).
-  - [ ] Serialized `[]` is byte-wise identical for both “empty list” and “empty map” intents (PHP limitation).
-  - [ ] Therefore:
-    - [ ] Producers MUST serialize `[]` exactly as `[]`.
-    - [ ] Consumers MUST interpret `[]` according to the schema/context (list-required vs map-required).
-  - [ ] invariants:
-    - [ ] no timestamps, no environment-dependent bytes, no secrets/PII
-    - [ ] stable sorting rules for maps/arrays when serializing/codegen
-    - [ ] rerun-no-diff required for any artifact generator
-  - [ ] registry table: `artifact name` | `schemaVersion` | `owner package_id` | `path shape` | `notes`
-  - [ ] baseline registry entries:
-    - [ ] `container@1` (owner: `core/kernel`) — compiled container artifact
-    - [ ] `config@1` (owner: `core/kernel`) — compiled config artifact (FUTURE: may be introduced later)
-    - [ ] `module-manifest@1` (owner: `core/kernel`) — ModulePlan-derived enabled/disabled/optionalMissing + deterministic topo order; envelope `{_meta,payload}`; no timestamps/abs paths. (FUTURE: may be introduced later)
-    - [ ] `routes@1` (owner: `platform/routing`) — route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. (FUTURE: may be introduced later)
-  - [ ] Artifact payload rule:
-    - [ ] payload MAY be derived from descriptors/results/DTO-like models, but artifacts are canonical serialized shapes and MUST NOT depend on PHP object identity/class semantics at runtime.
-  - [ ] artifact readers/consumers MUST validate by schema/header semantics, not by PHP class type checks
+  - [x] Serialized `[]` is byte-wise identical for both “empty list” and “empty map” intents (PHP limitation).
+  - [x] Therefore:
+    - [x] Producers MUST serialize `[]` exactly as `[]`.
+    - [x] Consumers MUST interpret `[]` according to the schema/context (list-required vs map-required).
+  - [x] invariants:
+    - [x] no timestamps, no environment-dependent bytes, no secrets/PII
+    - [x] stable sorting rules for maps/arrays when serializing/codegen
+    - [x] rerun-no-diff required for any artifact generator
+  - [x] registry table: `artifact name` | `schemaVersion` | `owner package_id` | `path shape` | `notes`
+  - [x] baseline registry entries:
+    - [x] `container@1` (owner: `core/kernel`) — compiled container artifact
+    - [x] `config@1` (owner: `core/kernel`) — compiled config artifact (FUTURE: may be introduced later)
+    - [x] `module-manifest@1` (owner: `core/kernel`) — ModulePlan-derived enabled/disabled/optionalMissing + deterministic topo order; envelope `{_meta,payload}`; no timestamps/abs paths. (FUTURE: may be introduced later)
+    - [x] `routes@1` (owner: `platform/routing`) — route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. (FUTURE: may be introduced later)
+  - [x] Artifact payload rule:
+    - [x] payload MAY be derived from descriptors/results/DTO-like models, but artifacts are canonical serialized shapes and MUST NOT depend on PHP object identity/class semantics at runtime.
+  - [x] artifact readers/consumers MUST validate by schema/header semantics, not by PHP class type checks
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/artifacts.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/artifacts.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -455,10 +455,10 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Envelope + header format is single-choice and deterministic by design
-- [ ] Registry entries include explicit owner and schemaVersion
-- [ ] Deterministic serialization law is unambiguous (`array_is_list` applies to any array; empty array cemented)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Envelope + header format is single-choice and deterministic by design
+- [x] Registry entries include explicit owner and schemaVersion
+- [x] Deterministic serialization law is unambiguous (`array_is_list` applies to any array; empty array cemented)
 
 ---
 

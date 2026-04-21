@@ -277,35 +277,35 @@ N/A
 
 #### Creates
 
-- [ ] `docs/ssot/config-roots.md` — SSoT registry:
-  - [ ] invariants (single-choice):
-    - [ ] `config/<name>.php` returns subtree (no repeated root wrapper)
-    - [ ] defaults live in the owning package only
-    - [ ] `config/rules.php` is owned by the owning package only
-    - [ ] config roots and DTO policy are orthogonal:
-      - [ ] configuration ownership is defined exclusively by config roots registry
-      - [ ] PHP attributes MUST NOT replace package-owned config defaults/rules
-  - [ ] Example (cemented):
-    - [ ] File: `config/foundation.php`
-      - [ ] MUST return the subtree (without repeating the root key), e.g. it returns `['container' => [...], ...]`, not `['foundation' => [...]]`.
-    - [ ] Runtime reads from the global config under the root key, e.g. `foundation.container.*`.
-  - [ ] registry table: `root` | `owner package_id` | `defaults file` | `rules file` | `notes`
-    - [ ] `cli` | `platform/cli` | `framework/packages/platform/cli/config/cli.php` | `framework/packages/platform/cli/config/rules.php` | Phase 0 locked root from 0.130.0
-    - [ ] `foundation` | `core/foundation` | `framework/packages/core/foundation/config/foundation.php` | `framework/packages/core/foundation/config/rules.php` | runtime core root
-    - [ ] `kernel` | `core/kernel` | `framework/packages/core/kernel/config/kernel.php` | `framework/packages/core/kernel/config/rules.php` | runtime kernel root
-    - [ ] `http` | `platform/http` | `framework/packages/platform/http/config/http.php` | `framework/packages/platform/http/config/rules.php` | platform HTTP root
-    - [ ] `logging` | `platform/logging` | `framework/packages/platform/logging/config/logging.php` | `framework/packages/platform/logging/config/rules.php` | platform logging root
-    - [ ] `metrics` | `platform/metrics` | `framework/packages/platform/metrics/config/metrics.php` | `framework/packages/platform/metrics/config/rules.php` | platform metrics root
-    - [ ] `tracing` | `platform/tracing` | `framework/packages/platform/tracing/config/tracing.php` | `framework/packages/platform/tracing/config/rules.php` | platform tracing root
-    - [ ] `problem_details` | `platform/problem-details` | `framework/packages/platform/problem-details/config/problem_details.php` | `framework/packages/platform/problem-details/config/rules.php` | platform problem-details root
-  - [ ] initial registry rows introduced by this epic: `cli,foundation,kernel,http,logging,metrics,tracing,problem_details`
-  - [ ] this registry MAY be extended only by later owner epics via direct modification of `docs/ssot/config-roots.md`
-  - [ ] later additions MUST update the canonical registry rows directly and MUST NOT leave parallel “future reserved identifier” notes in roadmap epics
+- [x] `docs/ssot/config-roots.md` — SSoT registry:
+  - [x] invariants (single-choice):
+    - [x] `config/<name>.php` returns subtree (no repeated root wrapper)
+    - [x] defaults live in the owning package only
+    - [x] `config/rules.php` is owned by the owning package only
+    - [x] config roots and DTO policy are orthogonal:
+      - [x] configuration ownership is defined exclusively by config roots registry
+      - [x] PHP attributes MUST NOT replace package-owned config defaults/rules
+  - [x] Example (cemented):
+    - [x] File: `config/foundation.php`
+      - [x] MUST return the subtree (without repeating the root key), e.g. it returns `['container' => [...], ...]`, not `['foundation' => [...]]`.
+    - [x] Runtime reads from the global config under the root key, e.g. `foundation.container.*`.
+  - [x] registry table: `root` | `owner package_id` | `defaults file` | `rules file` | `notes`
+    - [x] `cli` | `platform/cli` | `framework/packages/platform/cli/config/cli.php` | `framework/packages/platform/cli/config/rules.php` | Phase 0 locked root from 0.130.0
+    - [x] `foundation` | `core/foundation` | `framework/packages/core/foundation/config/foundation.php` | `framework/packages/core/foundation/config/rules.php` | runtime core root
+    - [x] `kernel` | `core/kernel` | `framework/packages/core/kernel/config/kernel.php` | `framework/packages/core/kernel/config/rules.php` | runtime kernel root
+    - [x] `http` | `platform/http` | `framework/packages/platform/http/config/http.php` | `framework/packages/platform/http/config/rules.php` | platform HTTP root
+    - [x] `logging` | `platform/logging` | `framework/packages/platform/logging/config/logging.php` | `framework/packages/platform/logging/config/rules.php` | platform logging root
+    - [x] `metrics` | `platform/metrics` | `framework/packages/platform/metrics/config/metrics.php` | `framework/packages/platform/metrics/config/rules.php` | platform metrics root
+    - [x] `tracing` | `platform/tracing` | `framework/packages/platform/tracing/config/tracing.php` | `framework/packages/platform/tracing/config/rules.php` | platform tracing root
+    - [x] `problem_details` | `platform/problem-details` | `framework/packages/platform/problem-details/config/problem_details.php` | `framework/packages/platform/problem-details/config/rules.php` | platform problem-details root
+  - [x] initial registry rows introduced by this epic: `cli,foundation,kernel,http,logging,metrics,tracing,problem_details`
+  - [x] this registry MAY be extended only by later owner epics via direct modification of `docs/ssot/config-roots.md`
+  - [x] later additions MUST update the canonical registry rows directly and MUST NOT leave parallel “future reserved identifier” notes in roadmap epics
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/config-roots.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/config-roots.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -321,9 +321,9 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Ownership is explicit per root (no ambiguous “shared defaults”)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Ownership is explicit per root (no ambiguous “shared defaults”)
 
 ---
 

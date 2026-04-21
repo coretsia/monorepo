@@ -26,13 +26,13 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
   - no dates, no “last updated”, no timestamps.
 - Ordering **MUST** be deterministic:
   - sections order is fixed;
-  - entries inside a section are sorted by `<relative-path>` using byte-order `strcmp` (locale-independent).
+  - entries inside a section are sorted by `relative-path` using byte-order `strcmp` (locale-independent).
 - Entry format is **single-choice** (one line per file):
-  - `- [<Title>](<relative-path>) — owner: <package_id|repo> — scope: <tokens>`
+  - `- [<title>](<relative-path>) — owner: <package_id|repo> — scope: <tokens>`
 
 ## Registries
 
-_Empty for now (Prelude)._
+- [Tag Registry](./tags.md) — owner: repo — scope: di,ownership,registry,tags
 
 ## Policies
 

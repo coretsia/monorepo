@@ -42,10 +42,10 @@ Current public implementation baseline:
 
 Authoritative planning and invariants:
 
-- Roadmap (canonical): `docs/roadmap/ROADMAP.md`
-- Canonical condensed rules (normative): `docs/roadmap/ROADMAP.md`
-- Single Source of Truth (invariants/shapes/policies): `docs/ssot/**`
-- Security policy: `SECURITY.md`
+- [Roadmap (canonical)](docs/roadmap/ROADMAP.md)
+- [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
+- [Single Source of Truth (invariants/shapes/policies)](docs/ssot/INDEX.md)
+- [Security policy](SECURITY.md)
 
 ## Repository layout (canonical)
 
@@ -68,7 +68,7 @@ Authoritative planning and invariants:
 - Package id: `<layer>/<slug>`
 - Composer name: `coretsia/<layer>-<slug>`
 - Monorepo-wide versioning via git tags `vMAJOR.MINOR.PATCH` (no per-package versions)
-- Canonical packaging strategy (single-choice): `docs/architecture/PACKAGING.md`
+- [Canonical packaging strategy (single-choice)](docs/architecture/PACKAGING.md)
 
 ### Canonical entrypoints (MUST)
 
@@ -138,22 +138,22 @@ composer ci
 
 ### Guides (Prelude)
 
-- Quickstart (clean clone → working baseline): `docs/guides/quickstart.md`
-- Developer onboarding checklist: `docs/guides/onboarding.md`
-- Git hooks + managed repositories policy: `docs/guides/git-hooks.md`
-- Dependency graph (conceptual; truth is in SSoT): `docs/guides/dependency-graph.md`
-- Releasing (GitHub Release + Packagist): `docs/guides/releasing.md`
+- [Quickstart (clean clone → working baseline)](docs/guides/quickstart.md)
+- [Developer onboarding checklist](docs/guides/onboarding.md)
+- [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
+- [Dependency graph (conceptual; truth is in SSoT)](docs/guides/dependency-graph.md)
+- [Releasing (GitHub Release + Packagist)](docs/guides/releasing.md)
 
 ### References
 
-- Packaging strategy (canonical): `docs/architecture/PACKAGING.md`
-- Repository structure: `docs/architecture/STRUCTURE.md`
-- Roadmap: `docs/roadmap/ROADMAP.md`
-- Canonical condensed rules (normative): `docs/roadmap/ROADMAP.md`
-- SSoT index: `docs/ssot/INDEX.md`
-- Branding spec: `docs/architecture/BRANDING.md`
+- [Packaging strategy (canonical)](docs/architecture/PACKAGING.md)
+- [Repository structure](docs/architecture/STRUCTURE.md)
+- [Roadmap](docs/roadmap/ROADMAP.md)
+- [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
+- [SSoT index](docs/ssot/INDEX.md)
+- [Branding spec](docs/architecture/BRANDING.md)
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See `LICENSE`.  
-See `NOTICE` for attribution and third-party notices (if applicable).
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).  
+See [NOTICE](NOTICE) for attribution and third-party notices (if applicable).

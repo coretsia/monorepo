@@ -19,44 +19,44 @@
 > **Source of truth for workflow rules:** `docs/roadmap/ROADMAP.md`  
 > **See also (workflow):** `docs/guides/development-workflow.md`
 
-Цей документ фіксує **канонічні** команди/entrypoints, які реально існують у репозиторії, та правила їх документування.
+This document fixes the **canonical** commands/entrypoints that actually exist in the repository, and the rules for documenting them.
 
 ---
 
 ## Global rules (applies to all commands)
 
-- Команди в цьому документі **MUST** бути виконувані з **repo root** (якщо команда вимагає інше — це MUST бути явно вказано в entry).
-- Додавання/зміна/видалення команди **MUST** супроводжуватись оновленням цього файлу.
-- **Canonical entrypoints policy:** у цьому SSoT **canonical entrypoints** — це:
-  - repo-root `composer <script>` (scripts з root `composer.json`) — **preferred** canonical entrypoints;
-  - `php <repo-relative-path>` — **DIRECT** canonical entrypoints **тільки якщо** для команди ще немає repo-root composer wrapper.
-- Прямі виклики `composer --working-dir=... <subcommand>` є **implementation detail**.
-  - Вони **MAY** згадуватись лише в `Notes` як “under the hood”, але **MUST NOT** трактуватись як публічний entrypoint і **MUST NOT** використовуватись у CI rails / workflow прикладах.
-- Якщо команда документована як **DIRECT** (`php ...`), вона **SHOULD** отримати repo-root `composer <script>` wrapper до наступного cutline/milestone.
-- Для кожної команди **MUST** бути чітко вказано:
+- Commands in this document **MUST** be executed from the **repo root** (if a command requires otherwise, that **MUST** be explicitly stated in the entry).
+- Adding/changing/removing a command **MUST** be accompanied by an update to this file.
+- **Canonical entrypoints policy:** in this SSoT, **canonical entrypoints** are:
+  - repo-root `composer <script>` (scripts from root `composer.json`) — **preferred** canonical entrypoints;
+  - `php <repo-relative-path>` — **DIRECT** canonical entrypoints **only if** the command does not yet have a repo-root composer wrapper.
+- Direct calls such as `composer --working-dir=... <subcommand>` are an **implementation detail**.
+  - They **MAY** be mentioned only in `Notes` as “under the hood”, but **MUST NOT** be treated as a public entrypoint and **MUST NOT** be used in CI rails / workflow examples.
+- If a command is documented as **DIRECT** (`php ...`), it **SHOULD** receive a repo-root `composer <script>` wrapper by the next cutline/milestone.
+- For every command, the following **MUST** be stated clearly:
   - canonical path/entrypoint,
-  - outputs (що саме створюється/оновлюється),
-  - determinism policy (deterministic vs nondeterministic режими),
-  - приклади запуску.
-- Якщо команда має режим/прапор, що робить output **недетермінованим**, цей режим **MUST** бути позначений як **NONDETERMINISTIC** і **MUST NOT** використовуватись у CI rails / rerun-no-diff workflow.
-- Документація/приклади **MUST** уникати “неіснуючих” entrypoints для поточного контексту (наприклад, у Prelude не референсити `./dev/**`).
-- Якщо команда має **alias** (наприклад, `composer ...` як проксі до `coretsia ...`), документ **MUST** явно вказати:
-  - який entrypoint є **canonical**, а який — **alias/compat**, і **MUST** гарантувати еквівалентність поведінки (semantics/outputs) у deterministic режимі.
-- При **міграції** entrypoint (canonical змінюється), попередній canonical **SHOULD** залишатися як **compat alias** щонайменше на 1 epic/phase (або до наступного cutline), та **MUST** бути позначений як `DEPRECATED` із вказаним “remove-after” milestone.
+  - outputs (what exactly is created/updated),
+  - determinism policy (deterministic vs nondeterministic modes),
+  - usage examples.
+- If a command has a mode/flag that makes output **nondeterministic**, that mode **MUST** be marked as **NONDETERMINISTIC** and **MUST NOT** be used in CI rails / rerun-no-diff workflows.
+- Documentation/examples **MUST** avoid “non-existent” entrypoints for the current context (for example, do not reference `./dev/**` in Prelude).
+- If a command has an **alias** (for example, `composer ...` as a proxy to `coretsia ...`), the document **MUST** explicitly state:
+  - which entrypoint is **canonical**, and which one is **alias/compat**, and **MUST** guarantee behavior equivalence (semantics/outputs) in deterministic mode.
+- When an entrypoint is **migrated** (the canonical one changes), the previous canonical entrypoint **SHOULD** remain as a **compat alias** for at least 1 epic/phase (or until the next cutline), and **MUST** be marked as `DEPRECATED` with a “remove-after” milestone.
 
 ---
 
 ## Entry format (how to extend this file)
 
-Кожна нова команда додається окремим розділом як підрозділ у `## Commands` (зараз використовується формат `### <n>) <title>`), у форматі:
+Each new command is added as a separate section under `## Commands` (the format currently used is `### <n>) <title>`), in the following form:
 
-- **Id:** stable id (snake / kebab, без пробілів)
+- **Id:** stable id (snake / kebab, without spaces)
 - **Entrypoint:** canonical entrypoint (repo-root)
-- **Category:** класифікація (інформативно)
-- **Outputs:** список файлів/директорій, які створюються/оновлюються
-- **Determinism:** таблиця режимів (deterministic / nondeterministic)
-- **Notes:** semantics / invariants / CI policy / “under the hood” (MUST NOT дублювати списки canonical entrypoints)
-- **Usage:** приклади запуску (список). Якщо є кілька canonical variant’ів (наприклад `:all/:root/:framework/:skeleton`) — **всі** вони перелічуються тут.
+- **Category:** classification (informational)
+- **Outputs:** list of files/directories that are created/updated
+- **Determinism:** mode table (deterministic / nondeterministic)
+- **Notes:** semantics / invariants / CI policy / “under the hood” (MUST NOT duplicate lists of canonical entrypoints)
+- **Usage:** usage examples (list). If there are several canonical variants (for example `:all/:root/:framework/:skeleton`) — **all** of them are listed here.
 
 ---
 

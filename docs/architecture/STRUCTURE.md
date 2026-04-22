@@ -12,85 +12,85 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Структура з **повним каталогом пакетів** (Non-product doc)
+# Structure with a **full package catalog** (Non-product doc)
 
-- Структура розбита по шарах (Core / Platform / Integrations / Enterprise / DevTools / Presets) +
-  **правила найменування та залежностей**, щоб модульність була реальною, а не “залежності всюди”.
+- The structure is split by layers (Core / Platform / Integrations / Enterprise / DevTools / Presets) +
+  **naming and dependency rules**, so that modularity is real rather than “dependencies everywhere”.
 
 ---
 
-## 0) Канонічні правила структури (фіксуємо раз і назавжди)
+## 0) Canonical structure rules (fixed once and for all)
 
 ### 0.0. Packaging strategy (canonical reference)
 
-- Усі правила `path ↔ package_id ↔ composer ↔ namespace`, publishable units та versioning **MUST** відповідати:
+- All `path ↔ package_id ↔ composer ↔ namespace`, publishable units, and versioning rules **MUST** comply with:
   - `docs/architecture/PACKAGING.md`
 
-### 0.1. Імена та відповідність “папка ↔ package_id ↔ composer ↔ namespace”
+### 0.1. Names and the “folder ↔ package_id ↔ composer ↔ namespace” mapping
 
 - Package path **MUST**: `framework/packages/<layer>/<slug>/`
-- Package id **MUST**: `<layer>/<slug>` (напр. `platform/http-client`)
-- Composer package **MUST**: `coretsia/<layer>-<slug>` (напр. `coretsia/platform-http-client`)
+- Package id **MUST**: `<layer>/<slug>` (e.g. `platform/http-client`)
+- Composer package **MUST**: `coretsia/<layer>-<slug>` (e.g. `coretsia/platform-http-client`)
 - Slug uniqueness policy (single-choice):
-  - slug **MUST** бути унікальним в межах одного layer
-  - slug **MAY** повторюватися між layers (унікальність забезпечує `<layer>-` префікс у composer name)
+  - slug **MUST** be unique within one layer
+  - slug **MAY** repeat across layers (uniqueness is ensured by the `<layer>-` prefix in the composer name)
 - Namespace mapping **MUST** be deterministic (single-choice; core exception):
   - For `core/*` packages:
-    - `Coretsia\<StudlyCase(slug)>\...` (напр. `core/kernel` → `Coretsia\Kernel\...`)
+    - `Coretsia\<StudlyCase(slug)>\...` (e.g. `core/kernel` → `Coretsia\Kernel\...`)
   - For non-core packages (`platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`):
     - `Coretsia\<StudlyCase(layer)>\<StudlyCase(slug)>\...`
-    - (напр. `platform/http-client` → `Coretsia\Platform\HttpClient\...`)
-  - `src/` → відповідний root namespace, `tests/` → `...\Tests\...`
+    - (e.g. `platform/http-client` → `Coretsia\Platform\HttpClient\...`)
+  - `src/` → the corresponding root namespace, `tests/` → `...\Tests\...`
 - Collision safety (MUST):
-  - slugs `Core`, `Platform`, `Integrations`, `Devtools` **MUST NOT** бути використані як slugs у `core/*`.
-- Versioning **MUST** be monorepo-wide через repo tags `vMAJOR.MINOR.PATCH`; per-package versions **MUST NOT**.
+  - slugs `Core`, `Platform`, `Integrations`, `Devtools` **MUST NOT** be used as slugs under `core/*`.
+- Versioning **MUST** be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions **MUST NOT** be used.
 
-> Примітка: tooling-only libs, що живуть поза `framework/packages/**` (напр. `framework/tools/**`),
-> не є publishable units і можуть мати окремі правила (див. `docs/architecture/PACKAGING.md`).
+> Note: tooling-only libs that live outside `framework/packages/**` (for example `framework/tools/**`)
+> are not publishable units and may have separate rules (see `docs/architecture/PACKAGING.md`).
 
-### 0.2. Core vs Platform vs Integrations — жорстке розділення
+### 0.2. Core vs Platform vs Integrations — hard separation
 
-- **Core**: мінімум, на ньому стоїть все (contracts/foundation/kernel).
-- **Platform**: “вбудовані” можливості фреймворку (http/db/queue/security/…).
-- **Integrations**: все, що тягне конкретні драйвери/вендори (redis/prometheus/s3/otlp/smtp/…).
-- **DevTools**: інструменти DX (debugbar/scaffolding/admin/api-docs профайлинг).
-- **Enterprise**: політики/пакети “строгого стеку” (audit/compliance/tenancy/sso/…).
-- **Presets**: composer convenience packages (підтягують залежності), не замінюють runtime modes.
+- **Core**: the minimum everything stands on (contracts/foundation/kernel).
+- **Platform**: the framework’s “built-in” capabilities (http/db/queue/security/…).
+- **Integrations**: everything that pulls concrete drivers/vendors (redis/prometheus/s3/otlp/smtp/…).
+- **DevTools**: DX tools (debugbar/scaffolding/admin/api-docs profiling).
+- **Enterprise**: “strict stack” policies/packages (audit/compliance/tenancy/sso/…).
+- **Presets**: composer convenience packages (they pull dependencies), and do not replace runtime modes.
 
-### 0.3. Пакети фреймворку
+### 0.3. Framework packages
 
-- Кожен пакет самодостатній: `src/`, `config/`, `tests/`, `composer.json`, `README.md`
-- Пакети **не тягнуть додаток**: ніяких `apps/*`, ніяких “проектних” конфігів усередині `framework/`.
+- Each package is self-contained: `src/`, `config/`, `tests/`, `composer.json`, `README.md`
+- Packages **do not pull in the application**: no `apps/*`, no “project-specific” configs inside `framework/`.
 
-### 0.4. Skeleton (додаток)
+### 0.4. Skeleton (application)
 
-- Все, що пише користувач: `apps/`, `modules/`, `config/`, `resources/`, `var/`, `tests/`
-- `config/` у skeleton — **тільки overrides**, а не дефолти фреймворку
-- Дефолти живуть у пакетах (`framework/packages/**/config`), skeleton лише перекриває.
+- Everything written by the user: `apps/`, `modules/`, `config/`, `resources/`, `var/`, `tests/`
+- `config/` in skeleton is **overrides only**, not framework defaults
+- Defaults live in packages (`framework/packages/**/config`), skeleton only overrides them.
 
-### 0.5. “contracts” — єдине джерело істини для портів
+### 0.5. “contracts” — the single source of truth for ports
 
-- `core/contracts` — централізовані порти (Module/Config/Env/Bus/Observability/Storage/Security/Runtime…)
-- Реалізації — в конкретних пакетах (`integrations/*`, `platform/*`).
-- Мінімізуємо “Contracts у пакетах”. Якщо дуже треба — тільки приватні внутрішні інтерфейси, не для cross-package API.
-- Якщо для capability існує достатній external standard port (напр. `Psr\SimpleCache\CacheInterface`), `core/contracts` **MAY NOT** вводити дублюючий порт без окремої framework-specific потреби.
+- `core/contracts` — centralized ports (Module/Config/Env/Bus/Observability/Storage/Security/Runtime…)
+- Implementations live in concrete packages (`integrations/*`, `platform/*`).
+- Minimize “Contracts in packages”. If absolutely needed, only private internal interfaces, not cross-package APIs.
+- If a capability already has a sufficient external standard port (e.g. `Psr\SimpleCache\CacheInterface`), `core/contracts` **MAY NOT** introduce a duplicate port without a separate framework-specific need.
 
 ---
 
-## 1) Фінальна структура монорепо (framework + skeleton + tooling)
+## 1) Final monorepo structure (framework + skeleton + tooling)
 
-Канонічні repo roots (Prelude):
+Canonical repo roots (Prelude):
 
-- `framework/` — **tooling workspace root** фреймворку (packages + tools) + workspace runtime state в `framework/var/**`
-  - `framework/var/**` містить тимчасові/службові файли tooling (напр. backups), і не є publishable content
-- `skeleton/` — **skeleton app workspace root** (sandbox додатка) + runtime state в `skeleton/var/**`
-- `.githooks/` — Git hooks, **вмикаються** через `composer setup` (встановлює `git config core.hooksPath .githooks`)
+- `framework/` — the framework **tooling workspace root** (packages + tools) + workspace runtime state in `framework/var/**`
+  - `framework/var/**` contains temporary/service tooling files (e.g. backups), and is not publishable content
+- `skeleton/` — the **skeleton app workspace root** (application sandbox) + runtime state in `skeleton/var/**`
+- `.githooks/` — Git hooks, **enabled** via `composer setup` (sets `git config core.hooksPath .githooks`)
 
-> `framework/packages/` має підшари (core/platform/integrations/enterprise/devtools/presets).
-> Composer name **детерміновано** походить від `{layer, slug}` за правилом: `coretsia/<layer>-<slug>`.
+> `framework/packages/` has sublayers (core/platform/integrations/enterprise/devtools/presets).
+> Composer name is **deterministically** derived from `{layer, slug}` by the rule: `coretsia/<layer>-<slug>`.
 
-**Canonical entrypoints (Prelude):** усе запускається з **repo root** через `composer setup|test|ci`.  
-Див. мінімальний сценарій “clean clone → green baseline” у `docs/guides/quickstart.md`.
+**Canonical entrypoints (Prelude):** everything runs from the **repo root** via `composer setup|test|ci`.  
+See the minimal “clean clone → green baseline” scenario in `docs/guides/quickstart.md`.
 
 ```txt
 coretsia/
@@ -98,8 +98,8 @@ coretsia/
 ├── .github/
 │   └── workflows/                 # CI: lint / static / unit / contract / integration
 ├── docs/
-│   ├── adr/                       # ADR-0001..., шаблон ADR
-│   ├── architecture/              # порт-адаптер, залежності, модульність, режими
+│   ├── adr/                       # ADR-0001..., ADR template
+│   ├── architecture/              # port-adapter, dependencies, modularity, modes
 │   ├── guides/                    # quickstart/onboarding/git-hooks/dependency-graph/...
 │   └── REPO.md
 │
@@ -244,22 +244,22 @@ coretsia/
 
 ---
 
-## 2) Канонічний шаблон будь-якого framework-пакета
+## 2) Canonical template for any framework package
 
-> Мета: будь-який пакет можна “включити як модуль”, отримати дефолтний конфіг, правила, теги, команди, міграції,
-> ресурси.
+> Goal: any package can be “included as a module”, receive default config, rules, tags, commands, migrations,
+> resources.
 
 ```txt
 framework/packages/<layer>/<slug>/
 ├── src/
 │   ├── Module/                    # <Xxx>Module (ModuleInterface)
 │   ├── Provider/                  # <Xxx>ServiceProvider
-│   ├── Contracts/                 # ТІЛЬКИ якщо внутрішні, не cross-package API
-│   ├── Console/                   # CLI commands (якщо пакет додає свої)
-│   ├── Http/                      # middleware/handlers (якщо релевантно)
+│   ├── Contracts/                 # ONLY if internal, not cross-package API
+│   ├── Console/                   # CLI commands (if the package adds its own)
+│   ├── Http/                      # middleware/handlers (if relevant)
 │   └── ...
 ├── config/
-│   ├── <slug>.php                 # defaults (subtree; без wrapper root)
+│   ├── <slug>.php                 # defaults (subtree; without wrapper root)
 │   ├── rules.php                  # validation/schema/metadata
 │   └── deprecations.php           # optional
 ├── resources/                     # views/lang/assets (optional)
@@ -271,26 +271,26 @@ framework/packages/<layer>/<slug>/
 ├── tests/
 │   ├── Unit/
 │   ├── Contract/
-│   └── Integration/               # тільки якщо пакет має свою інтеграцію
+│   └── Integration/               # only if the package has its own integration
 ├── README.md
 └── composer.json
 ```
 
-**Обов’язкові домовленості в пакеті**
+**Required conventions inside the package**
 
-- `src/Module/*Module.php` експортує:
+- `src/Module/*Module.php` exports:
   - id/version/deps/providers
-  - defaults config path (для ConfigKernel)
+  - defaults config path (for ConfigKernel)
   - optional: migrations/resources
 
 - `src/Provider/*ServiceProvider.php`:
   - DI bindings
   - tags (health/middleware/exporters/commands)
-- `config/<slug>.php` повертає **subtree** (без повторення wrapper root).
+- `config/<slug>.php` returns a **subtree** (without repeating the wrapper root).
 
 ---
 
-## 3) “contracts” як реальний центр: фінальна структура підпапок
+## 3) “contracts” as the real center: final subfolder structure
 
 ```txt
 framework/packages/core/contracts/src/
@@ -303,30 +303,30 @@ framework/packages/core/contracts/src/
 ├── Observability/
 ├── Security/
 ├── Storage/
-├── Database/          # ports, events contracts (не реалізації)
+├── Database/          # ports, events contracts (not implementations)
 ├── Queue/
 ├── Scheduler/
 ├── Etl/
-├── Http/              # лише порти
+├── Http/              # ports only
 └── Runtime/           # optional (loop/async primitives)
 ```
 
-**Правило:** якщо щось потенційно потрібно **двом+ пакетам** — воно має шанс жити в `contracts`.
-**Антиправило:** не тягнути в `contracts` “конкретику” (PDO/Redis/S3/Prometheus).
+**Rule:** if something is potentially needed by **two or more packages**, it has a chance to live in `contracts`.
+**Anti-rule:** do not pull “concrete things” (PDO/Redis/S3/Prometheus) into `contracts`.
 
 ---
 
-## 4) Пакети-адаптери (integrations): канонічне найменування
+## 4) Adapter packages (integrations): canonical naming
 
-Формула:
+Formula:
 
 - layer = `integrations`
-- slug = `<capability>-<vendor>` (або `-<driver>`)
+- slug = `<capability>-<vendor>` (or `-<driver>`)
 - composer = `coretsia/integrations-<slug>`
 
-де capability ∈ `cache|queue|filesystem|metrics|tracing|mail|runtime|lock`.
+where capability ∈ `cache|queue|filesystem|metrics|tracing|mail|runtime|lock`.
 
-Приклади (всі в `framework/packages/integrations/`):
+Examples (all under `framework/packages/integrations/`):
 
 - `cache-redis` → `coretsia/integrations-cache-redis`
 - `cache-apcu` → `coretsia/integrations-cache-apcu`
@@ -339,37 +339,37 @@ framework/packages/core/contracts/src/
 - `mail-smtp` → `coretsia/integrations-mail-smtp`
 - `runtime-roadrunner` → `coretsia/integrations-runtime-roadrunner`
 
-**Жорстке правило залежностей:** integrations може залежати від platform, але platform **ніколи** не залежить від integrations.
+**Hard dependency rule:** integrations may depend on platform, but platform **must never** depend on integrations.
 
 ---
 
-## 5) Preset пакети vs Mode presets (щоб не плутати)
+## 5) Preset packages vs Mode presets (to avoid confusion)
 
 ### 5.1. Mode presets (kernel runtime planning)
 
-- Живуть у skeleton: `skeleton/config/modes/*.php`
-- Впливають на **план модулів** (required/optional/disabled + bundles типу `observability=minimal`)
+- Live in skeleton: `skeleton/config/modes/*.php`
+- Affect the **module plan** (required/optional/disabled + bundles such as `observability=minimal`)
 
-### 5.2. Preset пакети (composer dependency convenience)
+### 5.2. Preset packages (composer dependency convenience)
 
-- Живуть у framework: `framework/packages/presets/preset-*/`
-- Роблять “composer require coretsia/presets-preset-express” → підтягується рекомендований dependency set для відповідного release line
-- **Не замінюють** mode presets. Вони лише ставлять залежності.
-- Preset package **MUST** бути phase-consistent з `ROADMAP.md`:
-  - `preset-micro` — тільки `micro` baseline
+- Live in framework: `framework/packages/presets/preset-*/`
+- They make “composer require coretsia/presets-preset-express” pull the recommended dependency set for the corresponding release line
+- They **do not replace** mode presets. They only install dependencies.
+- Preset package **MUST** be phase-consistent with `ROADMAP.md`:
+  - `preset-micro` — `micro` baseline only
   - `preset-express` — `micro` + required `express` additions
   - `preset-hybrid` — `express` + `hybrid` additions
   - `preset-enterprise` — `hybrid` + `enterprise` additions
-- Якщо release line містить `SHOULD` packages (напр. `platform/cache` у `express`), canonical preset:
-  - **MUST** чітко відрізняти required baseline від later-optional additions,
-  - **MUST NOT** неявно робити optional package частиною required mode definition без окремої policy note,
-  - **MAY** мати окремі convenience variants / extras для richer distribution.
+- If the release line contains `SHOULD` packages (for example `platform/cache` in `express`), the canonical preset:
+  - **MUST** clearly distinguish required baseline from later-optional additions,
+  - **MUST NOT** implicitly make an optional package part of the required mode definition without a separate policy note,
+  - **MAY** have separate convenience variants / extras for richer distribution.
 
 ---
 
-## 6) Skeleton: канонічний шаблон DDD-модуля (user code)
+## 6) Skeleton: canonical DDD module template (user code)
 
-Щоб `modules/` не став “кучею класів”, фіксуємо структуру bounded context:
+To prevent `modules/` from becoming “a pile of classes”, we fix the bounded context structure:
 
 ```txt
 skeleton/modules/<ContextName>/
@@ -379,94 +379,94 @@ skeleton/modules/<ContextName>/
 │   ├── Infrastructure/            # DB repos, integrations, adapters
 │   └── Presentation/              # Controllers/Endpoints (optional)
 ├── config/
-│   └── <context>.php              # overrides only (якщо треба)
+│   └── <context>.php              # overrides only (if needed)
 ├── database/
-│   └── migrations/                # optional, якщо модуль має схему
+│   └── migrations/                # optional, if the module has a schema
 ├── resources/
 │   ├── views/                     # optional
 │   └── lang/                      # optional
 ├── tests/
 │   ├── Unit/
 │   └── Integration/
-├── <Context>Module.php            # реалізує ModuleInterface (user module)
+├── <Context>Module.php            # implements ModuleInterface (user module)
 └── README.md
 ```
 
-**Канали інтеграції між модулями:**
+**Integration channels between modules:**
 
 - domain events
 - query bus (read model)
-- ports (інтерфейси з contracts, реалізації — через DI)
-- (опц) outbox/inbox для гарантій доставки
+- ports (interfaces from contracts, implementations via DI)
+- (optional) outbox/inbox for delivery guarantees
 
 ---
 
-## 7) Правила залежностей між шарами (щоб не було “залежності всюди”)
+## 7) Dependency rules between layers (so that there are no “dependencies everywhere”)
 
-Ось простий “закон”:
+Here is a simple “law”:
 
 - **Core** (`contracts`, `foundation`, `kernel`)
-  → не залежить ні від чого “вище” (окрім PSR/стандартів).
+  → depends on nothing “above” it (except PSR/standards).
 - **Platform**
-  → залежить від Core (+ інколи один від одного, але без циклів).
+  → depends on Core (+ sometimes on each other, but without cycles).
 - **Integrations**
-  → залежить від Platform + Core, але Platform ніколи не залежить від Integrations.
+  → depend on Platform + Core, but Platform never depends on Integrations.
 - **DevTools**
-  → залежить від Platform (http/observability/routing/db), але не навпаки.
+  → depend on Platform (http/observability/routing/db), but not the other way around.
 - **Enterprise**
-  → може залежати від Platform/Integrations, але це “верхній шар”.
+  → may depend on Platform/Integrations, but it is the “upper layer”.
 
-Міні-матриця дозволів:
+Mini permission matrix:
 
-| From \ To    | Core | Platform | Integrations |   DevTools | Enterprise |
-|--------------|-----:|---------:|-------------:|-----------:|-----------:|
-| Core         |    ✅ |        ❌ |            ❌ |          ❌ |          ❌ |
-| Platform     |    ✅ |       ✅* |            ❌ |          ❌ |          ❌ |
-| Integrations |    ✅ |        ✅ |            ✅ |          ❌ |          ❌ |
-| DevTools     |    ✅ |        ✅ |   ✅ (інколи) |          ✅ |          ❌ |
-| Enterprise   |    ✅ |        ✅ |            ✅ | ✅ (інколи) |          ✅ |
+| From \ To    | Core | Platform |  Integrations |      DevTools | Enterprise |
+|--------------|-----:|---------:|--------------:|--------------:|-----------:|
+| Core         |    ✅ |        ❌ |             ❌ |             ❌ |          ❌ |
+| Platform     |    ✅ |       ✅* |             ❌ |             ❌ |          ❌ |
+| Integrations |    ✅ |        ✅ |             ✅ |             ❌ |          ❌ |
+| DevTools     |    ✅ |        ✅ | ✅ (sometimes) |             ✅ |          ❌ |
+| Enterprise   |    ✅ |        ✅ |             ✅ | ✅ (sometimes) |          ✅ |
 
-- Platform→Platform дозволено тільки dependency-safe (kernel не тягне http/db і т.д.)
-- Platform ніколи не тягне DevTools/Enterprise
-- DevTools можуть тягнути Platform (+ інколи Integrations), але це односторонньо
+- Platform→Platform is allowed only when dependency-safe (kernel must not pull http/db etc.)
+- Platform never pulls DevTools/Enterprise
+- DevTools may pull Platform (+ sometimes Integrations), but this is one-way
 
 ---
 
-## 8) Маленькі “дотяжки”, щоб структура була завершеною
+## 8) Small “finishing touches” so the structure is complete
 
-1. **Єдине місце для “build artifacts” у runtime**
+1. **A single place for runtime “build artifacts”**
 
 - skeleton: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
-- kernel artifacts: `var/cache/module-manifest.php`, `var/cache/config.php`, `var/cache/container.php` (stub/пізніше)
+- kernel artifacts: `var/cache/module-manifest.php`, `var/cache/config.php`, `var/cache/container.php` (stub/later)
 
-2. **Єдині правила конфігів**
+2. **Unified config rules**
 
-- defaults — тільки в пакетах (`framework/packages/**/config`)
-- overrides — тільки в skeleton (`skeleton/config`, `skeleton/apps/*/config`, `skeleton/modules/*/config`)
-- валідатори/metadata — `config/rules.php` (пакет) + explain/source tracking у kernel
+- defaults — packages only (`framework/packages/**/config`)
+- overrides — skeleton only (`skeleton/config`, `skeleton/apps/*/config`, `skeleton/modules/*/config`)
+- validators/metadata — `config/rules.php` (package) + explain/source tracking in kernel
 
-3. **Пакет завжди “включається” через Module + Provider**
+3. **A package is always “enabled” through Module + Provider**
 
-- навіть якщо пакет “малий”: це рятує від хаосу з реєстраціями
+- even if a package is “small”: this saves you from registration chaos
 
 ---
 
-## 9) Остаточна мапа режимів — `micro | express | hybrid | enterprise | custom`
+## 9) Final mode map — `micro | express | hybrid | enterprise | custom`
 
-> **Канонічне правило:** `ROADMAP.md` визначає, **коли** capability входить у систему; цей розділ описує, **як** capability групуються на рівні runtime modes.  
-> Mode map у цьому документі **MUST NOT** суперечити `ROADMAP.md` по фазі доступності capability.
+> **Canonical rule:** `ROADMAP.md` defines **when** a capability enters the system; this section describes **how** capabilities are grouped at the runtime mode level.  
+> The mode map in this document **MUST NOT** contradict `ROADMAP.md` on the phase availability of a capability.
 >
-> **Таксономія опису (single-choice):**
-> - **Required** — мінімально необхідний payload режиму;
-> - **Adds** — capability, які цей режим додає поверх попереднього;
-> - **Optional / later addons** — не є mode-defining minimum і можуть з’являтися пізніше в тій самій фазі або в наступних фазах.
+> **Description taxonomy (single-choice):**
+> - **Required** — the minimally required payload of the mode;
+> - **Adds** — capabilities this mode adds on top of the previous one;
+> - **Optional / later addons** — not mode-defining minimums and may appear later in the same phase or in later phases.
 
 ### Custom
 
-- `custom` — це user-defined mode preset (`skeleton/config/modes/*.php`), який:
-  - базується на тих самих правилах `required|optional|disabled`,
-  - **MUST NOT** вимагати capability, яких ще немає в roadmap-фазі/встановлених пакетах,
-  - **MAY** збирати вузькі сценарії (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
+- `custom` — a user-defined mode preset (`skeleton/config/modes/*.php`) that:
+  - is based on the same `required|optional|disabled` rules,
+  - **MUST NOT** require capabilities that do not yet exist in the roadmap phase / installed packages,
+  - **MAY** assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
 
 ### Micro
 
@@ -502,7 +502,7 @@ skeleton/modules/<ContextName>/
 - HTML problem-details renderer
 - dev diagnostics endpoints
 
-> `micro` — перший чесний production-safe HTTP режим, а не “тільки transport shell”.
+> `micro` — the first honest production-safe HTTP mode, not “just a transport shell”.
 
 ### Express
 
@@ -532,7 +532,7 @@ skeleton/modules/<ContextName>/
 - `platform/cache` (`PSR-16` implementation / manager / reference stores)
 
 > `express` = “web + persistence + IO”.  
-> `platform/cache` належить до express release line, але **MUST NOT** вважатися required baseline цього режиму, якщо в roadmap він лишається `SHOULD`.
+> `platform/cache` belongs to the express release line, but **MUST NOT** be considered a required baseline of this mode if it remains `SHOULD` in the roadmap.
 
 ### Hybrid
 
@@ -550,10 +550,10 @@ skeleton/modules/<ContextName>/
 **Optional / scenario-specific additions:**
 
 - DB-backed async queue driver
-- stronger authorization engines (RBAC/REBAC), якщо потрібні конкретному preset
+- stronger authorization engines (RBAC/REBAC), if needed by a specific preset
 
 > `hybrid` = async/business orchestration mode.  
-> `http-client`, `feature-flags`, advanced observability, rate-limit hardening **MUST NOT** визначати цей режим, якщо вони вводяться в інших фазах.
+> `http-client`, `feature-flags`, advanced observability, rate-limit hardening **MUST NOT** define this mode if they are introduced in other phases.
 
 ### Enterprise
 
@@ -576,28 +576,28 @@ skeleton/modules/<ContextName>/
 
 **Notes:**
 
-- `enterprise` — це extension-heavy / strict-stack mode, а не базова умова для HTTP або persistence.
-- `CQRS` **не** є enterprise-only capability, бо додається на `hybrid`.
+- `enterprise` — an extension-heavy / strict-stack mode, not a baseline condition for HTTP or persistence.
+- `CQRS` **is not** an enterprise-only capability, because it is added at `hybrid`.
 
 ### Preset packages vs runtime modes
 
-- Runtime mode preset (`skeleton/config/modes/*.php`) визначає **module plan**.
-- Composer preset package (`framework/packages/presets/preset-*`) визначає **dependency convenience set**.
-- Preset package **MUST NOT** декларувати capability, яких ще немає у відповідному roadmap release line.
-- Рекомендована відповідність:
+- Runtime mode preset (`skeleton/config/modes/*.php`) defines the **module plan**.
+- Composer preset package (`framework/packages/presets/preset-*`) defines the **dependency convenience set**.
+- A preset package **MUST NOT** declare capabilities that do not yet exist in the corresponding roadmap release line.
+- Recommended mapping:
   - `preset-micro` → required payload `micro`
-  - `preset-express` → `micro` + required payload `express`; **MAY** додавати express-line `SHOULD` packages окремими preset variants або extras, але canonical baseline **MUST NOT** змішувати required і later-optional без явного policy note
+  - `preset-express` → `micro` + required payload `express`; **MAY** add express-line `SHOULD` packages as separate preset variants or extras, but the canonical baseline **MUST NOT** mix required and later-optional items without an explicit policy note
   - `preset-hybrid` → `express` + adds `hybrid`
   - `preset-enterprise` → `hybrid` + adds `enterprise`
 
 ---
 
-## 10) Повний каталог пакетів (DDD-friendly, PSR-first)
+## 10) Full package catalog (DDD-friendly, PSR-first)
 
-Нижче — **максимально повний** набір, який дає “повний стек”, але зберігає мінімальні залежності через **split на
+Below is the **maximally complete** set that gives a “full stack”, while still preserving minimal dependencies through a **split into
 “platform + integrations adapters”**.
 
-### A) Core Runtime / Kernel (незамінне)
+### A) Core Runtime / Kernel (indispensable)
 
 1. `coretsia/core-kernel`
 2. `coretsia/core-contracts`
@@ -646,7 +646,7 @@ skeleton/modules/<ContextName>/
 30. `coretsia/platform-scheduler`
 31. `coretsia/platform-etl`
 
-### G) Observability (розділено правильно)
+### G) Observability (properly split)
 
 32. `coretsia/platform-logging`
 33. `coretsia/platform-metrics`
@@ -674,7 +674,7 @@ skeleton/modules/<ContextName>/
 46. `coretsia/platform-graphql` (optional)
 47. `coretsia/platform-grpc` (optional)
 
-### K) Enterprise Meta (як “комерційний шар” або “strict stack”)
+### K) Enterprise Meta (as a “commercial layer” or “strict stack”)
 
 48. `coretsia/enterprise-bundle` (meta/bundle)
 49. `coretsia/enterprise-audit` (optional split)

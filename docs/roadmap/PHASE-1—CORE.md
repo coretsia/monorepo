@@ -1894,42 +1894,137 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
+  - `composer package-scaffold:sync -- <path>` → repo-root mirror scaffold sync runner
+  - `composer package-scaffold:check -- <path>` → repo-root mirror scaffold check runner
+  - `composer -d framework package-scaffold:sync -- <path>` → workspace scaffold sync runner
+  - `composer -d framework package-scaffold:check -- <path>` → workspace scaffold check runner
   - `composer package-compliance:gate -- <path>` → repo-root mirror gate runner
-  - `composer module-descriptor-metadata:gate -- <path>` → repo-root mirror gate runner
   - `composer -d framework package-compliance:gate -- <path>` → workspace gate runner
-  - `composer -d framework module-descriptor-metadata:gate -- <path>` → workspace gate runner
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/gates/package_compliance_gate.php` — enforces package shape invariants
-- [ ] `framework/tools/gates/module_descriptor_metadata_gate.php` — enforces module metadata invariants
-  - [ ] MUST enforce at minimum for `kind=runtime` packages:
-    - [ ] composer extra contains:
-      - [ ] `extra.coretsia.moduleId`
-      - [ ] `extra.coretsia.moduleClass`
-      - [ ] `extra.coretsia.providers`
-      - [ ] `extra.coretsia.defaultsConfigPath`
-    - [ ] `extra.coretsia.moduleId` MUST equal canonical `<layer>.<slug>` derived from package path
-    - [ ] `extra.coretsia.moduleClass` MUST equal the canonical module FQCN for `src/Module/<StudlySlug>Module.php`
-    - [ ] `extra.coretsia.providers` MUST include the canonical provider FQCN for `src/Provider/<StudlySlug>ServiceProvider.php`
+- [ ] `framework/tools/build/sync_package_scaffold.php` — package scaffold sync tool:
+  - [ ] scans packages under `framework/packages/*/*`
+  - [ ] supports apply mode and `--check`
+  - [ ] exact-canonical sync is allowed only for:
+    - [ ] `LICENSE`
+    - [ ] `NOTICE`
+  - [ ] create-if-missing only (MUST NOT overwrite existing user-owned content):
+    - [ ] `README.md`
+    - [ ] `tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [ ] runtime-only scaffold files/directories
+  - [ ] MUST NOT rewrite editable package code/docs/config once present
+  - [ ] MUST be rerun-no-diff
+- [ ] `framework/tools/gates/package_compliance_gate.php` — read-only package compliance gate:
+  - [ ] Allowlist application (single-choice):
+    - [ ] `package_compliance_allowlist.php` is the ONLY grandfathering mechanism
+    - [ ] allowlisted package_ids MAY be exempt only from explicitly gated strict rules
+    - [ ] allowlist loading and matching MUST be deterministic
+  - [ ] scans publishable packages under `framework/packages/*/*`
+  - [ ] deterministic iteration/order only (`strcmp`, locale-independent)
+  - [ ] MUST NOT create, modify, or delete files
+  - [ ] MUST fail on missing required package scaffold artifacts
+  - [ ] MUST fail on missing or drifted canonical legal files
+  - [ ] MUST validate package shape by package kind (`library|runtime`) from `composer.json > extra.coretsia.kind`
+  - [ ] Required artifacts for every package:
+    - [ ] `composer.json`
+    - [ ] `README.md`
+    - [ ] `LICENSE`
+    - [ ] `NOTICE`
+    - [ ] `src/`
+    - [ ] `tests/Contract/`
+    - [ ] `tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] Canonical legal files (single-choice; exact match required):
+    - [ ] package `LICENSE` MUST be byte-identical to repo root `LICENSE`
+    - [ ] package `NOTICE` MUST be byte-identical to repo root `NOTICE`
+  - [ ] `composer.json` checks for every package:
+    - [ ] valid JSON object
+    - [ ] `"name"` MUST equal `coretsia/<layer>-<slug>`
+    - [ ] `"type"` MUST equal `library`
+    - [ ] `"license"` MUST equal `Apache-2.0`
+    - [ ] `autoload.psr-4` MUST contain the canonical package root namespace mapped to `src/`
+    - [ ] `extra.coretsia.kind` MUST exist and be exactly `library` or `runtime`
+  - [ ] Runtime package checks (`extra.coretsia.kind = runtime`):
+    - [ ] `src/Module/` exists
+    - [ ] `src/Provider/` exists
+    - [ ] `src/Module/<StudlySlug>Module.php` exists
+    - [ ] `src/Provider/<StudlySlug>ServiceProvider.php` exists
+    - [ ] `config/` exists
+    - [ ] `config/<slug>.php` exists
+    - [ ] `config/rules.php` exists
+    - [ ] `extra.coretsia.moduleId` MUST equal `<layer>.<slug>`
+    - [ ] `extra.coretsia.moduleClass` MUST equal canonical runtime module FQCN
+    - [ ] `extra.coretsia.providers` MUST include canonical runtime provider FQCN
+    - [ ] `extra.coretsia.defaultsConfigPath` MUST equal `config/<slug>.php`
+  - [ ] Package identity / slug checks:
+    - [ ] package path MUST match canonical `framework/packages/<layer>/<slug>/`
+    - [ ] forbidden slugs: `app|modules|shared`
+    - [ ] reserved slugs: `kernel`, `observability`
+      - [ ] reserved means these slugs are blocked for arbitrary new packages
+      - [ ] reserved slugs MAY be used only by canonical owner packages/paths defined by roadmap/SSoT
+  - [ ] README checks:
+    - [ ] `README.md` MUST include at minimum:
+      - [ ] `## Observability`
+      - [ ] `## Errors`
+      - [ ] `## Security / Redaction`
+  - [ ] Runtime config shape checks (`extra.coretsia.kind = runtime`):
+    - [ ] `config/<slug>.php` MUST exist at the canonical path
+    - [ ] `config/<slug>.php` MUST return a plain array subtree (no wrapper root)
+    - [ ] `config/rules.php` MUST exist
+    - [ ] `config/rules.php` MUST return a plain array
+  - [ ] Runtime metadata enforcement is part of package compliance (single-choice):
+    - [ ] canonical runtime metadata rules MUST be enforced directly by `package_compliance_gate.php`
+    - [ ] `module_descriptor_metadata_gate.php` is not created by this epic
+    - [ ] runtime metadata MUST NOT be defined or validated in multiple independent gates in this epic
+  - [ ] Library package checks (`extra.coretsia.kind = library`):
+    - [ ] runtime-only files/directories MUST NOT be required
+    - [ ] runtime-only metadata MUST NOT be required
+  - [ ] Gate output / diagnostics:
+    - [ ] read-only only; no writes
+    - [ ] deterministic diagnostics only
+    - [ ] relative paths only; no absolute paths
+    - [ ] non-zero exit on compliance violations
 - [ ] `framework/tools/gates/package_compliance_allowlist.php` — explicit grandfathering list (single-choice):
-  - [ ] lists package paths (or package_ids) temporarily exempt from strict rules
+  - [ ] lists canonical package_ids `<layer>/<slug>` temporarily exempt from strict rules
   - [ ] MUST be deterministic and sorted by `strcmp`
+  - [ ] MUST contain data only
+  - [ ] MUST NOT contain validation logic, derivation rules, or package-shape policy
   - [ ] policy: allowlist MUST ONLY shrink over time; additions require an explicit epic/ADR justification
 
 - [ ] `framework/tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
 - [ ] `framework/tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
+- [ ] `framework/tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
+- [ ] `framework/tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
 
 #### Modifies
 
+- [ ] `framework/tools/build/new-package.php`
+  - [ ] MUST continue to create the canonical baseline package scaffold
+  - [ ] MUST create required package artifacts for new packages:
+    - [ ] `composer.json`
+    - [ ] `README.md`
+    - [ ] `src/`
+    - [ ] `tests/Contract/`
+    - [ ] `tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] for `kind=runtime`, MUST create required runtime scaffold artifacts:
+    - [ ] `src/Module/<StudlySlug>Module.php`
+    - [ ] `src/Provider/<StudlySlug>ServiceProvider.php`
+    - [ ] `config/<slug>.php`
+    - [ ] `config/rules.php`
+  - [ ] MUST ensure `LICENSE` and `NOTICE` are present in newly created packages
+  - [ ] MUST invoke `framework/tools/build/sync_package_scaffold.php` for the newly created package after scaffold creation
+  - [ ] MUST NOT duplicate canonical scaffold-sync policy internally
+  - [ ] package scaffold completion logic MUST remain single-choice in `sync_package_scaffold.php`
 - [ ] `composer.json` — add repo-root mirror scripts:
+  - [ ] `package-scaffold:sync` → `@composer --no-interaction --working-dir=framework run-script package-scaffold:sync --`
+  - [ ] `package-scaffold:check` → `@composer --no-interaction --working-dir=framework run-script package-scaffold:check --`
   - [ ] `package-compliance:gate` → `@composer --no-interaction --working-dir=framework run-script package-compliance:gate --`
-  - [ ] `module-descriptor-metadata:gate` → `@composer --no-interaction --working-dir=framework run-script module-descriptor-metadata:gate --`
-- [ ] `framework/composer.json` — add workspace gate scripts:
+- [ ] `framework/composer.json` — add workspace scripts:
+  - [ ] `package-scaffold:sync` → `@php tools/build/sync_package_scaffold.php`
+  - [ ] `package-scaffold:check` → `@php tools/build/sync_package_scaffold.php --check`
   - [ ] `package-compliance:gate` → `@php tools/gates/package_compliance_gate.php`
-  - [ ] `module-descriptor-metadata:gate` → `@php tools/gates/module_descriptor_metadata_gate.php`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -1945,10 +2040,15 @@ N/A
 - [ ] Fixtures used by gate integration tests are committed and deterministic:
   - [ ] `framework/tools/tests/Fixtures/package_good/**`
   - [ ] `framework/tools/tests/Fixtures/package_bad/**`
+- [ ] `sync_package_scaffold.php --check` rejects missing canonical legal files deterministically
+- [ ] `sync_package_scaffold.php --check` rejects drifted `LICENSE` / `NOTICE` deterministically
+- [ ] `sync_package_scaffold.php` creates missing required scaffold files without rewriting existing user-owned content
 
 ### Tests (MUST)
 
 - Integration:
+  - [ ] `framework/tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
+  - [ ] `framework/tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
   - [ ] `framework/tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
   - [ ] `framework/tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
 
@@ -1976,7 +2076,7 @@ N/A
   - [ ] if `kind=runtime` then required skeleton files exist (shape enforcement):
     - [ ] `src/Module/<StudlySlug>Module.php`
     - [ ] `src/Provider/<StudlySlug>ServiceProvider.php`
-    - [ ] `config/<snake_case(slug)>.php`
+    - [ ] `config/<slug>.php`
     - [ ] `config/rules.php`
     - [ ] `README.md` (must include: Observability / Errors / Security-Redaction)
   - [ ] Single source of truth (MUST):

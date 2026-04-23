@@ -125,6 +125,10 @@ jobs:
         shell: bash
         run: composer --no-interaction validate:skeleton
 
+      - name: "Gate rail: tooling/baseline gates (gates)"
+        shell: bash
+        run: composer --no-interaction gates
+
       # Tests (repo root delegates to framework test runner)
       - name: "Test: project suite (test)"
         shell: bash

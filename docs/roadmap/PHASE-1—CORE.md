@@ -717,7 +717,7 @@ N/A
   - [ ] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
   - [ ] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
   - [ ] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
-- [ ] `framework/tools/gates/no_skeleton_http_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
 - [ ] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
 - [ ] `framework/tools/gates/no_skeleton_modules_default_gate.php`
 - [ ] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
@@ -798,7 +798,7 @@ Tooling baseline configs
 - [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
   - [ ] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
   - [ ] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
-  - [ ] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
+  - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
   - [ ] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
   - [ ] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
   - [ ] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
@@ -810,7 +810,7 @@ Tooling baseline configs
 - [ ] `framework/composer.json` — add workspace gate scripts:
   - [ ] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
   - [ ] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
-  - [ ] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
+  - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
   - [ ] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
   - [ ] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
   - [ ] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`

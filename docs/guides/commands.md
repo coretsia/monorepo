@@ -604,8 +604,9 @@ Each new command is added as a separate section under `## Commands` (the format 
   3) `composer tools:ia`
   4) `composer spike:io:policy`
   5) `composer spike:canonical:paths`
-  6) `composer spike:output:gate`
-  7) Spikes PHPUnit suite (`tools/spikes/phpunit.spikes.xml`)
+  6) `composer repo:text:gate`
+  7) `composer spike:output:gate`
+  8) Spikes PHPUnit suite (`tools/spikes/phpunit.spikes.xml`)
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script spike:test --`
   - framework implementation detail: framework script executes:
@@ -614,6 +615,7 @@ Each new command is added as a separate section under `## Commands` (the format 
     - `@tools:ia`
     - `@spike:io:policy`
     - `@spike:canonical:paths`
+    - `@repo:text:gate`
     - `@spike:output:gate`
     - `vendor/bin/phpunit -c tools/spikes/phpunit.spikes.xml --do-not-cache-result`
 
@@ -1233,3 +1235,67 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer build:icons`
 - `composer build:icons -- --check`
+
+### 39) Tooling gates rail
+
+**Id:** `tool.gates`
+**Entrypoint:** `composer gates`
+**Category:** CI / repo policy / guard rail
+**Outputs:**
+- none (exits non-zero if any configured gate fails)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Executes the canonical aggregate tooling gates rail in stable order.   |
+
+**Notes:**
+- Purpose: executes the canonical aggregate gates rail for baseline/tooling/public-API enforcement.
+- This command is the preferred CI entrypoint for gates owned by tooling epics after Phase 0.
+- Individual `*:gate` scripts remain separately invokable and are the canonical unit entrypoints.
+- `composer gates` is the canonical aggregate rail entrypoint.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script gates --`
+  - framework implementation detail: aggregate `gates` script in `framework/composer.json`
+- Policy:
+  - order of invoked gates inside the aggregate rail MUST be deterministic
+  - spikes rails are separate and MUST NOT be silently folded into this aggregate command
+  - this rail SHOULD run before `composer test` in CI
+
+**Usage (repo root):**
+- `composer gates`
+
+### 40) No skeleton HTTP default gate
+
+**Id:** `tool.no_skeleton_http_default_gate`
+**Entrypoint:** `composer no-skeleton-http-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                     |
+|--------------|---------------|---------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton HTTP config file only. |
+
+**Notes:**
+- Purpose: forbids shipping the default skeleton HTTP config file:
+  - `skeleton/config/http.php`
+- Canonical policy:
+  - HTTP defaults are framework/package-owned
+  - skeleton `config/http.php` is app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-http-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_http_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_http_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-http-default:gate`

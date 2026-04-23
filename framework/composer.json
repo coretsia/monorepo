@@ -66,6 +66,9 @@
     ],
     "test-fast": "@test",
     "test-slow": "@test",
+    "gates": [
+      "@no-skeleton-http-default:gate"
+    ],
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
     "sync:check": "@php tools/build/sync_composer_repositories.php --check",
@@ -76,7 +79,6 @@
     "spike:io:policy": "@php tools/gates/spikes_io_policy_gate.php",
     "spike:canonical:paths": "@php tools/gates/spikes_canonical_paths_gate.php",
     "repo:text:gate": "@php tools/gates/repo_text_normalization_gate.php",
-    "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
     "spike:output:gate": "@php tools/gates/spikes_output_gate.php",
     "spike:test": [
       "@spike:gate",
@@ -89,6 +91,8 @@
       "vendor/bin/phpunit -c tools/spikes/phpunit.spikes.xml --do-not-cache-result"
     ],
     "spike:test:determinism": "@php tools/spikes/_support/DeterminismRunner.php",
+    "no-skeleton-http-default:gate": "@php tools/gates/no_skeleton_http_default_gate.php",
+    "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
     "docs:structure": "@php tools/build/generate_structure.php",
     "docs:structure:tree": "@php tools/build/generate_structure.php --structure",
     "docs:structure:full": "@php tools/build/generate_structure.php --full",

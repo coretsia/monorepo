@@ -148,8 +148,9 @@ Each new command is added as a separate section under `## Commands` (the format 
   1) `composer sync:check`
   2) `composer install:all`
   3) `composer validate:all`
-  4) `composer framework:test`
-  5) `composer lock:check`
+  4) `composer gates`
+  5) `composer framework:test`
+  6) `composer lock:check`
 - `composer framework:test` MUST support args-forwarding via `--` (see `framework.test`).
 
 **Usage (repo root):**
@@ -1403,3 +1404,45 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer no-skeleton-modules-default:gate`
+
+### 44) Contracts-only ports gate
+
+**Id:** `tool.contracts_only_ports_gate`
+**Entrypoint:** `composer contracts-only-ports:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                                    |
+|--------------|---------------|------------------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan of framework packages source tree for forbidden public-port patterns. |
+
+**Notes:**
+- Purpose: forbids declaring canonical public ports outside the owner package:
+  - allowed owner scope: `framework/packages/core/contracts/src/**`
+  - forbidden outside owner scope:
+    - files named `*PortInterface.php`
+    - paths under `src/**/Port/**`
+- Deterministic scan scope:
+  - `framework/packages/*/*/src/**/*.php`
+- Exclusions:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Output policy:
+  - first line is stable code: `CORETSIA_CONTRACTS_ONLY_PORTS_FORBIDDEN`
+  - next lines are framework-root-relative diagnostics in the form:
+    - `<path>: <reason>`
+  - diagnostics are sorted by `strcmp`
+- Fixed reason tokens:
+  - `forbidden-public-port-interface`
+  - `forbidden-public-port-namespace`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script contracts-only-ports:gate --`
+- Framework implementation detail: `@php tools/gates/contracts_only_ports_gate.php`
+- Direct call `php framework/tools/gates/contracts_only_ports_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer contracts-only-ports:gate`

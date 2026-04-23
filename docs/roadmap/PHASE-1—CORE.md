@@ -721,16 +721,16 @@ N/A
 - [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
-- [ ] `framework/tools/gates/contracts_only_ports_gate.php`
-  - [ ] deterministic scope:
-    - [ ] scans `framework/packages/**/src/**/*.php`
-    - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-    - [ ] output format follows the canonical Phase 0 gate policy
-  - [ ] MUST fail if a package outside `framework/packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
-    - [ ] `*PortInterface.php`
-    - [ ] `src/**/Port/**`
-  - [ ] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
-  - [ ] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+- [x] `framework/tools/gates/contracts_only_ports_gate.php`
+  - [x] deterministic scope:
+    - [x] scans `framework/packages/**/src/**/*.php`
+    - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+    - [x] output format follows the canonical Phase 0 gate policy
+  - [x] MUST fail if a package outside `framework/packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
+    - [x] `*PortInterface.php`
+    - [x] `src/**/Port/**`
+  - [x] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
+  - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
 - [ ] `framework/tools/gates/tag_constant_mirror_gate.php`
   - [ ] validates that:
     - [ ] owner tag constants equal the canonical strings from `docs/ssot/tags.md`
@@ -802,7 +802,7 @@ Tooling baseline configs
   - [x] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
   - [x] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
   - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
-  - [ ] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
+  - [x] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
   - [ ] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
   - [ ] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
   - [ ] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
@@ -814,7 +814,7 @@ Tooling baseline configs
   - [x] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
   - [x] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
   - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
-  - [ ] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
+  - [x] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
   - [ ] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
   - [ ] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
   - [ ] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`

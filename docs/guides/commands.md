@@ -1299,3 +1299,37 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer no-skeleton-http-default:gate`
+
+### 41) No skeleton bundles default gate
+
+**Id:** `tool.no_skeleton_bundles_default_gate`
+**Entrypoint:** `composer no-skeleton-bundles-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                        |
+|--------------|---------------|------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton bundle config files only. |
+
+**Notes:**
+- Purpose: forbids shipping default skeleton bundle config files:
+  - `skeleton/config/bundles/*.php`
+- Canonical policy:
+  - bundle defaults are framework-owned
+  - skeleton `config/bundles/*.php` files are app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-bundles-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_bundles_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_bundles_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-bundles-default:gate`

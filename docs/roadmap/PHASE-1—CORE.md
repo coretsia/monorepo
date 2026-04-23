@@ -720,7 +720,7 @@ N/A
 - [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
 - [ ] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
 - [ ] `framework/tools/gates/no_skeleton_modules_default_gate.php`
-- [ ] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
 - [ ] `framework/tools/gates/contracts_only_ports_gate.php`
   - [ ] deterministic scope:
     - [ ] scans `framework/packages/**/src/**/*.php`
@@ -801,7 +801,7 @@ Tooling baseline configs
   - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
   - [ ] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
   - [ ] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
-  - [ ] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
+  - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
   - [ ] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
   - [ ] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
   - [ ] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
@@ -813,7 +813,7 @@ Tooling baseline configs
   - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
   - [ ] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
   - [ ] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
-  - [ ] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
+  - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
   - [ ] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
   - [ ] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
   - [ ] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`

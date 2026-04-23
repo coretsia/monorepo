@@ -1333,3 +1333,37 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer no-skeleton-bundles-default:gate`
+
+### 42) No skeleton mode presets default gate
+
+**Id:** `tool.no_skeleton_mode_presets_default_gate`
+**Entrypoint:** `composer no-skeleton-mode-presets-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                             |
+|--------------|---------------|-----------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton mode preset config files only. |
+
+**Notes:**
+- Purpose: forbids shipping default skeleton mode preset config files:
+  - `skeleton/config/modes/*.php`
+- Canonical policy:
+  - mode presets are framework-owned
+  - skeleton `config/modes/*.php` files are app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_mode_presets_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-mode-presets-default:gate`

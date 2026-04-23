@@ -1367,3 +1367,39 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer no-skeleton-mode-presets-default:gate`
+
+### 43) No skeleton modules default gate
+
+**Id:** `tool.no_skeleton_modules_default_gate`
+**Entrypoint:** `composer no-skeleton-modules-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                           |
+|--------------|---------------|---------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton module-selection files only. |
+
+**Notes:**
+- Purpose: forbids shipping parallel default module-selection files in the skeleton:
+  - `skeleton/config/modules.php`
+  - `skeleton/apps/*/config/modules.php`
+- Canonical policy:
+  - module selection is kernel-owned
+  - it is resolved only via preset files + composer metadata
+  - skeleton module-selection files are app-level overrides only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_MODULES_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-modules-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_modules_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_modules_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-modules-default:gate`

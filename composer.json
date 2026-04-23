@@ -99,6 +99,7 @@
     "no-skeleton-http-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --",
     "no-skeleton-bundles-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --",
     "no-skeleton-mode-presets-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --",
+    "no-skeleton-modules-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --",
     "package:phpunit:gate": "@composer --no-interaction --working-dir=framework run-script package:phpunit:gate --",
     "validate:root": "@composer --no-interaction validate --strict",
     "validate:framework": "@composer --no-interaction --working-dir=framework validate --strict",

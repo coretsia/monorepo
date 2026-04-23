@@ -719,7 +719,7 @@ N/A
   - [ ] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
 - [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
-- [ ] `framework/tools/gates/no_skeleton_modules_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
 - [ ] `framework/tools/gates/contracts_only_ports_gate.php`
   - [ ] deterministic scope:
@@ -800,7 +800,7 @@ Tooling baseline configs
   - [ ] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
   - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
   - [x] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
-  - [ ] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
+  - [x] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
   - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
   - [ ] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
   - [ ] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
@@ -812,7 +812,7 @@ Tooling baseline configs
   - [ ] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
   - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
   - [x] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
-  - [ ] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
+  - [x] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
   - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
   - [ ] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
   - [ ] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
@@ -884,8 +884,8 @@ N/A (tooling output only; must be secret-safe)
 - [ ] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
 - [ ] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
 - [ ] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
-- [ ] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
-- [ ] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
+- [x] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
+- [x] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
   then `no_skeleton_modules_default_gate.php` fails deterministically.
 - [ ] Prelude rails preserved (MUST):
   - [ ] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`

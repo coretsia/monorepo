@@ -707,11 +707,11 @@ N/A
 #### Creates
 
 - [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
-  - [ ] MUST enforce at minimum:
-    - [ ] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
-    - [ ] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
-  - [ ] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
-  - [ ] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
+  - [x] MUST enforce at minimum:
+    - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
+    - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
+  - [x] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
+  - [x] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
 - [ ] `framework/tools/gates/kernel_public_api_gate.php`
   - [ ] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
   - [ ] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
@@ -815,9 +815,11 @@ Tooling baseline configs
   - [x] adds `CORETSIA_OBSERVABILITY_NAMING_GATE_FAILED`
   - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_DRIFT`
   - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_GATE_FAILED`
+  - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
+  - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_GATE_FAILED`
 
 - [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
-  - [ ] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
+  - [x] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
   - [ ] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
   - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
   - [x] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
@@ -829,7 +831,7 @@ Tooling baseline configs
   - [x] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
 - [ ] `framework/composer.json` — add workspace gate scripts:
-  - [ ] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
+  - [x] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
   - [ ] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
   - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
   - [x] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`

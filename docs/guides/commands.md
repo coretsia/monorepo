@@ -1568,3 +1568,43 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer artifact-header-schema:gate`
+
+### 48) Cross-cutting contract gate
+
+**Id:** `tool.cross_cutting_contract_gate`  
+**Entrypoint:** `composer cross-cutting-contract:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on cross-cutting contract policy violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces cross-cutting Kernel/Foundation contract invariants once the required owner-package evidence exists.
+- Enforced baseline:
+  - services tagged as `kernel.stateful` MUST implement `Coretsia\Contracts\Runtime\ResetInterface`
+  - services tagged as `kernel.stateful` MUST also be discoverable through the effective Foundation reset discovery tag `kernel.reset`
+  - if the required owner-package evidence is not present yet, the gate behaves as a deterministic no-op
+- Additional enforcement:
+  - once `ContextStore` / `ContextKeys` owner symbols exist, forbidden direct usage is reported deterministically
+- Output policy:
+  - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
+  - next lines are framework-root-relative paths plus fixed reason tokens sorted by `strcmp`
+- Fixed reason tokens:
+  - `kernel-stateful-service-missing-reset-tag`
+  - `kernel-stateful-service-class-unresolved`
+  - `kernel-stateful-service-not-resettable`
+  - `forbidden-context-store-usage`
+  - `forbidden-context-keys-usage`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cross-cutting-contract:gate --`
+  - framework implementation detail: `@php tools/gates/cross_cutting_contract_gate.php`
+- Direct call `php framework/tools/gates/cross_cutting_contract_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer cross-cutting-contract:gate`

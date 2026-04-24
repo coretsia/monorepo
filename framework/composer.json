@@ -74,7 +74,8 @@
       "@contracts-only-ports:gate",
       "@tag-constant-mirror:gate",
       "@observability-naming:gate",
-      "@artifact-header-schema:gate"
+      "@artifact-header-schema:gate",
+      "@cross-cutting-contract:gate"
     ],
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
@@ -106,6 +107,7 @@
     "tag-constant-mirror:gate": "@php tools/gates/tag_constant_mirror_gate.php",
     "observability-naming:gate": "@php tools/gates/observability_naming_gate.php",
     "artifact-header-schema:gate": "@php tools/gates/artifact_header_schema_gate.php",
+    "cross-cutting-contract:gate": "@php tools/gates/cross_cutting_contract_gate.php",
     "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
     "docs:structure": "@php tools/build/generate_structure.php",
     "docs:structure:tree": "@php tools/build/generate_structure.php --structure",

@@ -1446,3 +1446,36 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer contracts-only-ports:gate`
+
+### 45) Tag constant mirror gate
+
+**Id:** `tool.tag_constant_mirror_gate`  
+**Entrypoint:** `composer tag-constant-mirror:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on tag constant / mirror drift; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags                         | Determinism   | Notes                                                                  |
+|--------------------------------------|---------------|------------------------------------------------------------------------|
+| `composer tag-constant-mirror:gate`  | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: validates reserved DI tag constant usage against `docs/ssot/tags.md`.
+- Enforces the temporal tag-constant policy:
+  - registry rows may exist before the owner public constant becomes mandatory;
+  - existing owner constants, if present, must equal the canonical tag string;
+  - package-local mirror constants, if present, must equal the canonical tag string;
+  - non-owner packages must not expose competing owner-like tag APIs.
+- Output policy:
+  - first line is stable code: `CORETSIA_TAG_CONSTANT_MIRROR_DRIFT`
+  - next lines are framework-root-relative violating paths + short reason tokens sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script tag-constant-mirror:gate --`
+  - framework implementation detail: `@php tools/gates/tag_constant_mirror_gate.php`
+- Direct call `php framework/tools/gates/tag_constant_mirror_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy: `composer gates` MUST execute this gate through the named composer script, not by raw PHP path.
+
+**Usage (repo root):**
+- `composer tag-constant-mirror:gate`

@@ -731,20 +731,24 @@ N/A
     - [x] `src/**/Port/**`
   - [x] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
-- [ ] `framework/tools/gates/tag_constant_mirror_gate.php`
-  - [ ] validates that:
-    - [ ] owner tag constants equal the canonical strings from `docs/ssot/tags.md`
-    - [ ] allowed package-local mirror constants equal the canonical strings exactly
-  - [ ] temporal owner-constant rule (single-choice):
-    - [ ] the gate MUST NOT fail only because a registry row exists before the owner public constant is introduced
-    - [ ] until the owner epic makes the canonical public constant mandatory per `1.10.0` temporal clarification, the gate MUST:
-      - [ ] verify any existing owner constant, if present, against the canonical string
-      - [ ] verify any allowed package-local mirror constant against the canonical string
-    - [ ] once the owner public constant becomes mandatory in the owner epic, absence of that constant MUST fail deterministically
-  - [ ] local mirror constants are allowed only when the owner package is a forbidden compile-time dependency
-  - [ ] package-local mirror constants MUST be treated as internal convenience only, not public API
-  - [ ] the gate MUST also fail if a package attempts to define a competing owner-like constant for a tag it does not own
-  - [ ] output format follows the canonical Phase 0 gate policy
+- [x] `framework/tools/gates/tag_constant_mirror_gate.php`
+  - [x] validates that:
+    - [x] owner tag constants equal the canonical strings from `docs/ssot/tags.md`
+    - [x] allowed package-local mirror constants equal the canonical strings exactly
+  - [x] temporal owner-constant rule (single-choice):
+    - [x] the gate MUST NOT fail only because a registry row exists before the owner public constant is introduced
+    - [x] until the owner epic makes the canonical public constant mandatory per `1.10.0` temporal clarification, the gate MUST:
+      - [x] verify any existing owner constant, if present, against the canonical string
+      - [x] verify any allowed package-local mirror constant against the canonical string
+    - [x] once the owner public constant becomes mandatory in the owner epic, absence of that constant MUST fail deterministically
+  - [x] local mirror constants are allowed only when the owner package is a forbidden compile-time dependency
+  - [x] package-local mirror constants MUST be treated as internal convenience only, not public API
+  - [x] the gate MUST also fail if a package attempts to define a competing owner-like constant for a tag it does not own
+  - [x] output format follows the canonical Phase 0 gate policy
+- [x] `framework/tools/policies/tag_owner_constants.php`
+  - [x] declares deterministic owner constant policy for reserved DI tags
+  - [x] supports `constant_required=true|false` temporal enforcement
+  - [x] maps every `docs/ssot/tags.md` registry row to owner package, expected path, and expected constant name
 - [ ] `framework/tools/gates/observability_naming_gate.php`
   - [ ] MUST enforce at minimum:
     - [ ] metric names follow the canonical form from `docs/ssot/observability.md`
@@ -803,7 +807,7 @@ Tooling baseline configs
   - [x] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
   - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
   - [x] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
-  - [ ] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
+  - [x] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
   - [ ] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
   - [ ] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
@@ -815,7 +819,7 @@ Tooling baseline configs
   - [x] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
   - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
   - [x] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
-  - [ ] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
+  - [x] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
   - [ ] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
   - [ ] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
 

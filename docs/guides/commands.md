@@ -1530,3 +1530,41 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer observability-naming:gate`
+
+### 47) Artifact header/schema gate
+
+**Id:** `tool.artifact_header_schema_gate`  
+**Entrypoint:** `composer artifact-header-schema:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on artifact envelope/header/schema violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: validates generated artifacts against the canonical artifact envelope and header schema from `docs/ssot/artifacts.md`.
+- Enforced baseline:
+  - top-level envelope MUST be exactly `{ "_meta", "payload" }`
+  - required `_meta` fields are `name`, `schemaVersion`, `fingerprint`, `generator`
+  - artifact `name` and `schemaVersion` MUST match the canonical artifact registry
+  - generated artifacts MUST NOT contain timestamps, absolute paths, or environment-specific bytes
+  - JSON artifacts and PHP artifacts returning arrays are both supported
+- Temporal artifact-materialization policy:
+  - registry rows alone do not require an artifact file to exist yet
+  - if no matching generated artifact file exists, the gate behaves as a deterministic no-op
+  - if a matching generated artifact file exists, malformed envelope/header/schema fails deterministically
+- Output policy:
+  - first line is stable code: `CORETSIA_ARTIFACT_HEADER_SCHEMA_DRIFT`
+  - next lines are normalized repo-relative paths plus fixed reason tokens sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script artifact-header-schema:gate --`
+  - framework implementation detail: `@php tools/gates/artifact_header_schema_gate.php`
+- Direct call `php framework/tools/gates/artifact_header_schema_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer artifact-header-schema:gate`

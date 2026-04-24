@@ -764,16 +764,16 @@ N/A
       - [x] `user_id`
   - [x] output format follows the canonical Phase 0 gate policy
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
-- [ ] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
-  - [ ] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
-  - [ ] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
-  - [ ] MUST validate kernel-owned PHP artifacts that return arrays (e.g. `module-manifest.php`, `config.php`, `container.php`); the gate MUST NOT assume JSON-only artifacts.
-  - [ ] Validation target is the canonical returned top-level envelope `{ "_meta": <header>, "payload": <schema-specific> }`, regardless of whether the artifact is serialized as JSON or emitted as a PHP file returning an array.
-  - [ ] temporal artifact-materialization rule (single-choice):
-    - [ ] the gate MUST NOT fail only because an artifact registry row exists before the owner epic materializes that artifact in runtime/build output
-    - [ ] if a matching generated artifact file is present, the gate MUST validate it deterministically against the canonical envelope/header/schema rules
-    - [ ] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
-    - [ ] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
+- [x] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
+  - [x] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
+  - [x] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
+  - [x] MUST validate kernel-owned PHP artifacts that return arrays (e.g. `module-manifest.php`, `config.php`, `container.php`); the gate MUST NOT assume JSON-only artifacts.
+  - [x] Validation target is the canonical returned top-level envelope `{ "_meta": <header>, "payload": <schema-specific> }`, regardless of whether the artifact is serialized as JSON or emitted as a PHP file returning an array.
+  - [x] temporal artifact-materialization rule (single-choice):
+    - [x] the gate MUST NOT fail only because an artifact registry row exists before the owner epic materializes that artifact in runtime/build output
+    - [x] if a matching generated artifact file is present, the gate MUST validate it deterministically against the canonical envelope/header/schema rules
+    - [x] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
+    - [x] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
 
 - [ ] `framework/tools/testing/deptrac.yaml`
 - [ ] `framework/tools/testing/deptrac.allowlist.yaml`
@@ -798,6 +798,23 @@ Tooling baseline configs
     - [ ] `composer -d framework dto:gate`
 - [ ] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
 - [ ] `skeleton/phpunit.xml` — skeleton PHPUnit entrypoint (if used by CI)
+- [x] `framework/tools/spikes/_support/ErrorCodes.php`
+  - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_MODULES_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_MODULES_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_CONTRACTS_ONLY_PORTS_FORBIDDEN`
+  - [x] adds `CORETSIA_CONTRACTS_ONLY_PORTS_GATE_FAILED`
+  - [x] adds `CORETSIA_TAG_CONSTANT_MIRROR_DRIFT`
+  - [x] adds `CORETSIA_TAG_CONSTANT_MIRROR_GATE_FAILED`
+  - [x] adds `CORETSIA_OBSERVABILITY_NAMING_DRIFT`
+  - [x] adds `CORETSIA_OBSERVABILITY_NAMING_GATE_FAILED`
+  - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_DRIFT`
+  - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_GATE_FAILED`
 
 - [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
   - [ ] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
@@ -809,7 +826,7 @@ Tooling baseline configs
   - [x] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
   - [x] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
   - [x] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
-  - [ ] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
+  - [x] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
 - [ ] `framework/composer.json` — add workspace gate scripts:
   - [ ] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
@@ -821,7 +838,7 @@ Tooling baseline configs
   - [x] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
   - [x] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
   - [x] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
-  - [ ] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
+  - [x] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
 
 #### Artifacts / outputs (if applicable)
 

@@ -102,6 +102,7 @@
     "no-skeleton-modules-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --",
     "contracts-only-ports:gate": "@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --",
     "tag-constant-mirror:gate": "@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --",
+    "observability-naming:gate": "@composer --no-interaction --working-dir=framework run-script observability-naming:gate --",
     "package:phpunit:gate": "@composer --no-interaction --working-dir=framework run-script package:phpunit:gate --",
     "validate:root": "@composer --no-interaction validate --strict",
     "validate:framework": "@composer --no-interaction --working-dir=framework validate --strict",

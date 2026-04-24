@@ -1479,3 +1479,54 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer tag-constant-mirror:gate`
+
+### 46) Observability naming gate
+
+**Id:** `tool.observability_naming_gate`  
+**Entrypoint:** `composer observability-naming:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on observability naming / label policy violations)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces the canonical observability metric naming and label allowlist policy from `docs/ssot/observability.md`.
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Enforces at minimum:
+  - metric names follow the canonical SSoT shape, for example `http.request_total` and `http.request_duration_ms`
+  - metric / label / attribute keys are limited to the SSoT allowlist:
+    - `method`
+    - `status`
+    - `driver`
+    - `operation`
+    - `table`
+    - `outcome`
+  - forbidden label keys fail deterministically:
+    - `field`
+    - `path`
+    - `property`
+    - `request_id`
+    - `correlation_id`
+    - `tenant_id`
+    - `user_id`
+- Output policy:
+  - first line is stable code: `CORETSIA_OBSERVABILITY_NAMING_DRIFT`
+  - next lines are framework-root-relative paths with fixed reason tokens, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script observability-naming:gate --`
+  - framework implementation detail: `@php tools/gates/observability_naming_gate.php`
+- Direct call `php framework/tools/gates/observability_naming_gate.php` is **NOT** a canonical entrypoint; it is an implementation detail only.
+- CI/rails policy: `composer gates` SHOULD execute this gate with the other Phase 1 tooling gates.
+
+**Usage (repo root):**
+- `composer observability-naming:gate`

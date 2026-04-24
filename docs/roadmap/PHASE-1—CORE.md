@@ -749,21 +749,21 @@ N/A
   - [x] declares deterministic owner constant policy for reserved DI tags
   - [x] supports `constant_required=true|false` temporal enforcement
   - [x] maps every `docs/ssot/tags.md` registry row to owner package, expected path, and expected constant name
-- [ ] `framework/tools/gates/observability_naming_gate.php`
-  - [ ] MUST enforce at minimum:
-    - [ ] metric names follow the canonical form from `docs/ssot/observability.md`
-    - [ ] label keys are limited to the allowlist:
-      - [ ] `method,status,driver,operation,table,outcome`
-    - [ ] forbidden label keys fail deterministically:
-      - [ ] `field`
-      - [ ] `path`
-      - [ ] `property`
-      - [ ] `request_id`
-      - [ ] `correlation_id`
-      - [ ] `tenant_id`
-      - [ ] `user_id`
-  - [ ] output format follows the canonical Phase 0 gate policy
-  - [ ] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+- [x] `framework/tools/gates/observability_naming_gate.php`
+  - [x] MUST enforce at minimum:
+    - [x] metric names follow the canonical form from `docs/ssot/observability.md`
+    - [x] label keys are limited to the allowlist:
+      - [x] `method,status,driver,operation,table,outcome`
+    - [x] forbidden label keys fail deterministically:
+      - [x] `field`
+      - [x] `path`
+      - [x] `property`
+      - [x] `request_id`
+      - [x] `correlation_id`
+      - [x] `tenant_id`
+      - [x] `user_id`
+  - [x] output format follows the canonical Phase 0 gate policy
+  - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
 - [ ] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
   - [ ] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
   - [ ] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
@@ -808,7 +808,7 @@ Tooling baseline configs
   - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
   - [x] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
   - [x] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
-  - [ ] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
+  - [x] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
   - [ ] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
 - [ ] `framework/composer.json` — add workspace gate scripts:
@@ -820,7 +820,7 @@ Tooling baseline configs
   - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
   - [x] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
   - [x] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
-  - [ ] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
+  - [x] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
   - [ ] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
 
 #### Artifacts / outputs (if applicable)

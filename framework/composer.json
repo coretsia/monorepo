@@ -72,7 +72,8 @@
       "@no-skeleton-mode-presets-default:gate",
       "@no-skeleton-modules-default:gate",
       "@contracts-only-ports:gate",
-      "@tag-constant-mirror:gate"
+      "@tag-constant-mirror:gate",
+      "@observability-naming:gate"
     ],
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
@@ -102,6 +103,7 @@
     "no-skeleton-modules-default:gate": "@php tools/gates/no_skeleton_modules_default_gate.php",
     "contracts-only-ports:gate": "@php tools/gates/contracts_only_ports_gate.php",
     "tag-constant-mirror:gate": "@php tools/gates/tag_constant_mirror_gate.php",
+    "observability-naming:gate": "@php tools/gates/observability_naming_gate.php",
     "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
     "docs:structure": "@php tools/build/generate_structure.php",
     "docs:structure:tree": "@php tools/build/generate_structure.php --structure",

@@ -1247,20 +1247,32 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Determinism:**
 
-| Mode / flags | Determinism   | Notes                                                                  |
-|--------------|---------------|------------------------------------------------------------------------|
-| default      | deterministic | Executes the canonical aggregate tooling gates rail in stable order.   |
+| Mode / flags | Determinism   | Notes                                                                |
+|--------------|---------------|----------------------------------------------------------------------|
+| default      | deterministic | Executes the canonical aggregate tooling gates rail in stable order. |
 
 **Notes:**
 - Purpose: executes the canonical aggregate gates rail for baseline/tooling/public-API enforcement.
 - This command is the preferred CI entrypoint for gates owned by tooling epics after Phase 0.
 - Individual `*:gate` scripts remain separately invokable and are the canonical unit entrypoints.
 - `composer gates` is the canonical aggregate rail entrypoint.
+- Execution order is cemented:
+  1) `composer no-skeleton-http-default:gate`
+  2) `composer no-skeleton-bundles-default:gate`
+  3) `composer no-skeleton-mode-presets-default:gate`
+  4) `composer no-skeleton-modules-default:gate`
+  5) `composer contracts-only-ports:gate`
+  6) `composer tag-constant-mirror:gate`
+  7) `composer observability-naming:gate`
+  8) `composer artifact-header-schema:gate`
+  9) `composer cross-cutting-contract:gate`
+  10) `composer kernel-public-api:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`
 - Policy:
   - order of invoked gates inside the aggregate rail MUST be deterministic
+  - aggregate rail MUST invoke named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths
   - spikes rails are separate and MUST NOT be silently folded into this aggregate command
   - this rail SHOULD run before `composer test` in CI
 
@@ -1608,3 +1620,64 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer cross-cutting-contract:gate`
+
+### 49) Kernel public API gate
+
+**Id:** `tool.kernel_public_api_gate`  
+**Entrypoint:** `composer kernel-public-api:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on kernel public API surface violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces the canonical `core/kernel` public API surface once the owner public-surface evidence exists.
+- Temporal public API evidence policy:
+  - if `framework/packages/core/kernel/src` does not exist yet, the gate behaves as a deterministic no-op
+  - if the kernel public-surface evidence does not exist yet, the gate behaves as a deterministic no-op
+  - once owner evidence exists, the gate validates the `core/kernel` public surface without changing the canonical output policy
+- Evidence sources include explicit kernel public API docs/config and public API contract-test evidence, for example:
+  - `framework/packages/core/kernel/PUBLIC_API.md`
+  - `framework/packages/core/kernel/public-api.md`
+  - `framework/packages/core/kernel/public_api.md`
+  - `framework/packages/core/kernel/public-api.json`
+  - `framework/packages/core/kernel/public_api.json`
+  - `framework/packages/core/kernel/public-api.php`
+  - `framework/packages/core/kernel/public_api.php`
+  - `framework/packages/core/kernel/docs/PUBLIC_API.md`
+  - `framework/packages/core/kernel/docs/public-api.md`
+  - `framework/packages/core/kernel/docs/public_api.md`
+  - `docs/ssot/kernel-public-api.md`
+  - `docs/ssot/kernel_public_api.md`
+  - `docs/architecture/kernel-public-api.md`
+  - `docs/architecture/kernel_public_api.md`
+  - `framework/packages/core/kernel/tests/**/*PublicApi*.php`
+  - `framework/packages/core/kernel/tests/**/*PublicAPI*.php`
+  - `framework/packages/core/kernel/tests/**/*PublicSurface*.php`
+  - `framework/packages/core/kernel/tests/**/*ApiSurface*.php`
+  - `framework/packages/core/kernel/tests/**/*KernelPublic*.php`
+- Enforced baseline once evidence exists:
+  - public `core/kernel/src` symbols MUST be listed in the public API evidence
+  - symbols listed as public API MUST NOT be internal
+  - internal symbols are detected through `@internal` docblocks or `Internal` / `internal` path segments
+- Output policy:
+  - first line is stable code: `CORETSIA_KERNEL_PUBLIC_API_DRIFT`
+  - next lines are normalized repo/framework-relative paths plus fixed reason tokens sorted by `strcmp`
+- Fixed reason tokens:
+  - `kernel-public-api-evidence-empty`
+  - `kernel-public-api-symbol-internal-listed`
+  - `kernel-public-api-symbol-unlisted`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script kernel-public-api:gate --`
+  - framework implementation detail: `@php tools/gates/kernel_public_api_gate.php`
+- Direct call `php framework/tools/gates/kernel_public_api_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- This gate is a standalone rail; optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for this command.
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer kernel-public-api:gate`

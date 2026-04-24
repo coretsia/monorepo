@@ -706,17 +706,17 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
+- [x] `framework/tools/gates/cross_cutting_contract_gate.php`
   - [x] MUST enforce at minimum:
     - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
     - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
   - [x] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
   - [x] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
-- [ ] `framework/tools/gates/kernel_public_api_gate.php`
-  - [ ] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
-  - [ ] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
-  - [ ] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
-  - [ ] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
+- [x] `framework/tools/gates/kernel_public_api_gate.php`
+  - [x] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
+  - [x] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
+  - [x] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
+  - [x] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
 - [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
@@ -817,10 +817,12 @@ Tooling baseline configs
   - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_GATE_FAILED`
   - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
   - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_GATE_FAILED`
+  - [x] adds `CORETSIA_KERNEL_PUBLIC_API_DRIFT`
+  - [x] adds `CORETSIA_KERNEL_PUBLIC_API_GATE_FAILED`
 
-- [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
+- [x] `composer.json` — add repo-root mirror scripts (delegates to framework):
   - [x] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
-  - [ ] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
+  - [x] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
   - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
   - [x] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
   - [x] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
@@ -830,9 +832,9 @@ Tooling baseline configs
   - [x] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
   - [x] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
-- [ ] `framework/composer.json` — add workspace gate scripts:
+- [x] `framework/composer.json` — add workspace gate scripts:
   - [x] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
-  - [ ] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
+  - [x] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
   - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
   - [x] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
   - [x] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`

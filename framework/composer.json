@@ -34,10 +34,12 @@
     "coretsia/devtools-internal-toolkit": "dev-main",
     "coretsia/platform-cli": "dev-main",
     "ext-ctype": "*",
-    "ext-libxml": "*",
     "ext-dom": "*",
     "ext-imagick": "*",
-    "phpunit/phpunit": "^12.5"
+    "ext-libxml": "*",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^12.5",
+    "symplify/easy-coding-standard": "^13.0"
   },
   "autoload-dev": {
     "psr-4": {
@@ -117,7 +119,14 @@
     "docs:structure:tree": "@php tools/build/generate_structure.php --structure",
     "docs:structure:full": "@php tools/build/generate_structure.php --full",
     "package:new": "@php tools/build/new-package.php",
-    "build:icons": "@php tools/build/build_icons.php"
+    "build:icons": "@php tools/build/build_icons.php",
+    "cs:check": "@php vendor/bin/ecs check --config=tools/cs/ecs.php",
+    "cs:fix": "@php vendor/bin/ecs check --config=tools/cs/ecs.php --fix",
+    "phpstan": "@php vendor/bin/phpstan analyse --configuration=tools/phpstan/phpstan.neon --memory-limit=1G",
+    "quality": [
+      "@cs:check",
+      "@phpstan"
+    ]
   },
   "config": {
     "optimize-autoloader": true,

@@ -780,8 +780,8 @@ N/A
 - [x] `framework/tools/build/deptrac_generate.php`
 
 Tooling baseline configs
-- [ ] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)
-- [ ] `framework/tools/phpstan/phpstan.neon` — static analysis baseline
+- [x] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)
+- [x] `framework/tools/phpstan/phpstan.neon` — static analysis baseline
 
 #### Modifies
 

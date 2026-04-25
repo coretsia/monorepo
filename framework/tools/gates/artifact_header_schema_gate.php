@@ -465,6 +465,12 @@ function coretsia_artifact_header_schema_gate_is_excluded_path(string $absPath):
         || \str_contains($absPath, '/tests/')
         || \str_contains($absPath, '/fixtures/')
         || \str_contains($absPath, '/.git/')
+        || \str_contains($absPath, '/.cache/')
+        || \str_contains($absPath, '/framework/.cache/')
+        || \str_contains($absPath, '/framework/var/phpstan/')
+        || \str_contains($absPath, '/framework/var/phpunit/')
+        || \str_contains($absPath, '/framework/var/cache/')
+        || \str_contains($absPath, '/framework/var/backups/')
         || \str_contains($absPath, '/framework/tools/build/');
 }
 

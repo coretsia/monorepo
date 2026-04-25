@@ -78,6 +78,7 @@
       "@install:all",
       "@validate:all",
       "@gates",
+      "@quality",
       "@framework:test",
       "@lock:check"
     ],
@@ -157,7 +158,11 @@
     "docs:structure:tree": "@composer --no-interaction --working-dir=framework run-script docs:structure:tree --",
     "docs:structure:full": "@composer --no-interaction --working-dir=framework run-script docs:structure:full --",
     "package:new": "@composer --no-interaction --working-dir=framework run-script package:new --",
-    "build:icons": "@composer --no-interaction --working-dir=framework run-script build:icons --"
+    "build:icons": "@composer --no-interaction --working-dir=framework run-script build:icons --",
+    "cs:check": "@composer --no-interaction --working-dir=framework run-script cs:check --",
+    "cs:fix": "@composer --no-interaction --working-dir=framework run-script cs:fix --",
+    "phpstan": "@composer --no-interaction --working-dir=framework run-script phpstan --",
+    "quality": "@composer --no-interaction --working-dir=framework run-script quality --"
   },
   "config": {
     "sort-packages": true,

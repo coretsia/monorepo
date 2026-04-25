@@ -139,6 +139,43 @@ jobs:
         shell: bash
         run: composer --no-interaction lock:check
 
+  quality:
+    name: "quality / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      # MUST run before any composer install (canonical repo-root wrapper).
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Quality: code style baseline (cs:check)"
+        shell: bash
+        run: composer --no-interaction cs:check
+
+      - name: "Quality: static analysis baseline (phpstan)"
+        shell: bash
+        run: composer --no-interaction phpstan
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
   spikes:
     name: "spikes / ubuntu-latest / PHP 8.4"
     runs-on: ubuntu-latest

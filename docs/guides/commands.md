@@ -1292,7 +1292,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - order of invoked gates inside the aggregate rail MUST be deterministic
   - aggregate rail MUST invoke named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths
   - spikes rails are separate and MUST NOT be silently folded into this aggregate command
-  - this rail SHOULD run before `composer test` in CI
+  - this rail SHOULD run before `composer quality` and `composer test` in CI
 
 **Usage (repo root):**
 - `composer gates`
@@ -1749,3 +1749,170 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer arch:deptrac:generate`
 - `composer arch:deptrac:check`
+
+### 51) Quality aggregate rail
+
+**Id:** `tool.quality`
+**Entrypoint:** `composer quality`
+**Category:** quality / aggregate rail
+**Outputs:**
+- none directly
+- delegates to quality tools, which may produce native diagnostics
+- may create/update internal tool cache files, including:
+  - `framework/var/phpstan/**`
+
+**Determinism:**
+
+| Mode / flags       | Determinism   | Notes                                                                      |
+|--------------------|---------------|----------------------------------------------------------------------------|
+| `composer quality` | deterministic | Runs the canonical quality checks in stable order; writes no source files. |
+
+**Notes:**
+- Purpose: aggregate quality rail for code style and static analysis.
+- Execution order is cemented:
+  1) `composer cs:check`
+  2) `composer phpstan`
+- This command is an aggregate quality rail, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - It preserves native diagnostics from the underlying tools.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script quality --`
+  - framework implementation detail: aggregate `quality` script in `framework/composer.json`
+- CI/rails policy:
+  - this command SHOULD run in CI after `composer gates`
+  - this command SHOULD run before `composer test`
+  - this command MUST use `cs:check`, not `cs:fix`
+  - this command MUST NOT modify source files
+- Local full-check order SHOULD remain:
+  1) `composer sync:check`
+  2) `composer install:all`
+  3) `composer validate:all`
+  4) `composer gates`
+  5) `composer quality`
+  6) `composer test`
+  7) `composer lock:check`
+
+**Usage (repo root):**
+- `composer quality`
+
+### 52) Code style check
+
+**Id:** `tool.cs_check`
+**Entrypoint:** `composer cs:check`
+**Category:** quality / code style
+**Outputs:**
+- none on success
+- tool diagnostics on failure
+- may create/update internal tool cache files only if the underlying tool does so
+
+**Determinism:**
+
+| Mode / flags        | Determinism   | Notes                                                     |
+|---------------------|---------------|-----------------------------------------------------------|
+| `composer cs:check` | deterministic | Checks code style baseline; MUST NOT rewrite source code. |
+
+**Notes:**
+- Purpose: runs the canonical framework code style baseline.
+- Configuration SSoT:
+  - `framework/tools/cs/ecs.php`
+- Scan scope is defined by the ECS config and currently includes:
+  - `framework/packages`
+  - `framework/tools`
+  - `skeleton`
+- Exclusions are defined by `framework/tools/cs/ecs.php`.
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native ECS diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cs:check --`
+  - framework implementation detail: `@php vendor/bin/ecs check --config=tools/cs/ecs.php`
+- Direct call `php framework/vendor/bin/ecs check --config=framework/tools/cs/ecs.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this command SHOULD run in the `quality` rail
+  - this command MAY run after gates and before tests
+  - this command MUST NOT modify source files
+
+**Usage (repo root):**
+- `composer cs:check`
+
+### 53) Code style fixer
+
+**Id:** `tool.cs_fix`
+**Entrypoint:** `composer cs:fix`
+**Category:** quality / code style / mutating fixer
+**Outputs:**
+- may rewrite PHP source files in the configured ECS scan scope
+
+**Determinism:**
+
+| Mode / flags      | Determinism                | Notes                                         |
+|-------------------|----------------------------|-----------------------------------------------|
+| `composer cs:fix` | deterministic but mutating | Rewrites files according to the ECS baseline. |
+
+**Notes:**
+- Purpose: applies the canonical framework code style baseline.
+- Configuration SSoT:
+  - `framework/tools/cs/ecs.php`
+- This command is intentionally mutating:
+  - it MAY rewrite files under the configured ECS paths
+  - it MUST NOT be used as a CI check command
+- CI/rails policy:
+  - CI MUST use `composer cs:check`, not `composer cs:fix`
+  - `composer cs:fix` is a local developer command only
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native ECS diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cs:fix --`
+  - framework implementation detail: `@php vendor/bin/ecs check --config=tools/cs/ecs.php --fix`
+- Direct call `php framework/vendor/bin/ecs check --config=framework/tools/cs/ecs.php --fix` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer cs:fix`
+
+### 54) Static analysis baseline
+
+**Id:** `tool.phpstan`
+**Entrypoint:** `composer phpstan`
+**Category:** quality / static analysis
+**Outputs:**
+- none on success
+- native PHPStan diagnostics on failure
+- internal PHPStan cache:
+  - `framework/var/phpstan/**`
+
+**Determinism:**
+
+| Mode / flags       | Determinism   | Notes                                               |
+|--------------------|---------------|-----------------------------------------------------|
+| `composer phpstan` | deterministic | Runs the canonical framework static analysis setup. |
+
+**Notes:**
+- Purpose: runs the canonical framework static analysis baseline.
+- Configuration SSoT:
+  - `framework/tools/phpstan/phpstan.neon`
+- Analysis scope is defined by PHPStan config and currently includes:
+  - `framework/packages`
+  - `framework/tools`
+- PHPStan cache policy:
+  - `framework/var/phpstan/**` is internal tool cache
+  - it is **NOT** a Coretsia generated artifact
+  - artifact/schema gates MUST NOT treat PHPStan cache as generated artifact output
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native PHPStan diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script phpstan --`
+  - framework implementation detail: `@php vendor/bin/phpstan analyse --configuration=tools/phpstan/phpstan.neon --memory-limit=1G`
+- Direct call `php framework/vendor/bin/phpstan analyse --configuration=framework/tools/phpstan/phpstan.neon` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this command SHOULD run in the `quality` rail
+  - this command MAY run after gates and before tests
+  - lock drift checks MUST still fail if dependency installation or tooling changes lock files
+
+**Usage (repo root):**
+- `composer phpstan`

@@ -425,7 +425,7 @@ function coretsia_tag_constant_mirror_gate_parse_dependency_table(string $depend
         }
 
         $cells = \array_map(
-            static fn(string $cell): string => \trim($cell),
+            static fn (string $cell): string => \trim($cell),
             \explode('|', \trim($trimmed, '|')),
         );
 
@@ -479,8 +479,7 @@ function coretsia_tag_constant_mirror_gate_parse_dependency_table(string $depend
 function coretsia_tag_constant_mirror_gate_load_tag_owner_constants_policy(
     string $policyFile,
     array $tagOwners,
-): array
-{
+): array {
     $bufferStarted = \ob_start();
 
     try {
@@ -909,8 +908,7 @@ function coretsia_tag_constant_mirror_gate_is_allowed_compile_time_dependency(
     string $packageId,
     string $ownerPackageId,
     array $dependencyTable,
-): bool
-{
+): bool {
     if ($packageId === $ownerPackageId) {
         return true;
     }

@@ -84,7 +84,7 @@ declare(strict_types=1);
 
         if ($bypassFiles !== []) {
             $paths = array_keys($bypassFiles);
-            usort($paths, static fn(string $a, string $b): int => strcmp($a, $b));
+            usort($paths, static fn (string $a, string $b): int => strcmp($a, $b));
 
             $lines = [];
             $lines[] = 'CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED';
@@ -105,7 +105,6 @@ declare(strict_types=1);
 
 /**
  * @param array $argv
- * @return string|null
  */
 function parseScanRootOverride(array $argv): ?string
 {
@@ -113,12 +112,11 @@ function parseScanRootOverride(array $argv): ?string
         if (!is_string($arg)) {
             continue;
         }
+
         if (str_starts_with($arg, '--path=')) {
             $value = substr($arg, 7);
-            if ($value === false || $value === '') {
-                return null;
-            }
-            return $value;
+
+            return $value !== '' ? $value : null;
         }
     }
 
@@ -198,7 +196,7 @@ function collectPhpFiles(string $scanRoot, string $scanRootNorm): array
             }
 
             $name = $file->getFilename();
-            if (!is_string($name) || !str_ends_with($name, '.php')) {
+            if (!str_ends_with($name, '.php')) {
                 continue;
             }
 
@@ -211,16 +209,11 @@ function collectPhpFiles(string $scanRoot, string $scanRootNorm): array
             $absNorm = str_replace('\\', '/', $absReal);
             $absNormCmp = normalizeForPrefixCheck($absNorm);
 
-            // On Windows: compare case-insensitively (drive-letter casing can differ).
             if (!str_starts_with($absNormCmp, $scanRootNormCmp . '/')) {
                 throw new RuntimeException('scan-failed');
             }
 
             $rel = substr($absNorm, strlen($scanRootNorm) + 1);
-            if (!is_string($rel)) {
-                throw new RuntimeException('scan-failed');
-            }
-
             $relNorm = normalizeRelativePath($rel);
             $out[$absReal] = $relNorm;
         }
@@ -510,12 +503,8 @@ function decodeConstantStringLiteral(string $tokenText): ?string
     }
 
     $inner = substr($tokenText, 1, $len - 2);
-    if (!is_string($inner)) {
-        return null;
-    }
 
     if ($q === '\'') {
-        // In single quotes, only \\ and \' are escaped.
         $inner = str_replace(['\\\\', '\\\''], ['\\', '\''], $inner);
         return $inner;
     }

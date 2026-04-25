@@ -42,8 +42,7 @@ final class CliCommandFailedException extends CliException
         string      $reason = self::REASON_COMMAND_FAILED,
         int         $exitCode = 1,
         ?\Throwable $previous = null
-    )
-    {
+    ) {
         $this->exitCode = $exitCode;
 
         parent::__construct(

@@ -279,7 +279,7 @@ final class ErrorCodes
 
         \usort(
             $codes,
-            static fn(string $a, string $b): int => \strcmp($a, $b),
+            static fn (string $a, string $b): int => \strcmp($a, $b),
         );
 
         $lookup = [];

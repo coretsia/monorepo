@@ -150,7 +150,7 @@ final class DeterministicFileLister
 
             \usort(
                 $entries,
-                static fn(array $a, array $b): int => \strcmp((string) $a['rel'], (string) $b['rel']),
+                static fn (array $a, array $b): int => \strcmp((string) $a['rel'], (string) $b['rel']),
             );
 
             foreach ($entries as $entry) {
@@ -170,7 +170,7 @@ final class DeterministicFileLister
             }
         }
 
-        \usort($result, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($result, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         /** @var list<string> $result */
         return \array_values($result);

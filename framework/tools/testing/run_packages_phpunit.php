@@ -47,7 +47,9 @@ declare(strict_types=1);
     $stopParsingFlags = false;
 
     foreach ($args as $a) {
-        if (!is_string($a) || $a === '') {
+        $a = (string)$a;
+
+        if ($a === '') {
             continue;
         }
 
@@ -64,9 +66,13 @@ declare(strict_types=1);
         $forwardArgs[] = $a;
     }
 
-    $packageDirs = glob($frameworkRoot . '/packages/*/*', GLOB_ONLYDIR) ?: [];
-    $packageDirs = array_values(array_filter($packageDirs, static fn($p) => is_string($p) && $p !== ''));
-    $packageDirs = array_map(static fn($p) => rtrim(str_replace('\\', '/', $p), '/'), $packageDirs);
+    $packageDirs = glob($frameworkRoot . '/packages/*/*', GLOB_ONLYDIR);
+    if ($packageDirs === false) {
+        $packageDirs = [];
+    }
+
+    $packageDirs = array_values(array_filter($packageDirs, static fn (string $p): bool => $p !== ''));
+    $packageDirs = array_map(static fn (string $p): string => rtrim(str_replace('\\', '/', $p), '/'), $packageDirs);
     sort($packageDirs, SORT_STRING);
 
     /** @var list<array{pkg:string,testsRel:string}> $pkgEntries */
@@ -98,7 +104,7 @@ declare(strict_types=1);
 
     usort(
         $pkgEntries,
-        static fn(array $a, array $b): int => strcmp($a['pkg'], $b['pkg'])
+        static fn (array $a, array $b): int => strcmp($a['pkg'], $b['pkg'])
     );
 
     foreach ($pkgEntries as $e) {
@@ -161,7 +167,7 @@ declare(strict_types=1);
     }
 
     $code = proc_close($proc);
-    exit(is_int($code) ? $code : 1);
+    exit($code);
 })($argv);
 
 /** exists AND has any meaningful contents (any .php file OR any non-dot directory). */
@@ -179,7 +185,8 @@ function self_hasNonEmptyTestsTree(string $testsDir): bool
 
     foreach ($it as $node) {
         $path = $node->getPathname();
-        if (!is_string($path) || $path === '') {
+
+        if ($path === '') {
             continue;
         }
 
@@ -222,8 +229,7 @@ function self_renderGeneratedPhpunitXmlFromBase(
     string $generatedConfigAbs,
     string $frameworkRoot,
     array  $discoveredTestsDirsRel
-): string
-{
+): string {
     $baseDir = rtrim(str_replace('\\', '/', dirname($baseConfigAbs)), '/');
     $generatedDir = rtrim(str_replace('\\', '/', dirname($generatedConfigAbs)), '/');
     $frameworkRoot = rtrim(str_replace('\\', '/', $frameworkRoot), '/');
@@ -305,7 +311,7 @@ function self_renderGeneratedPhpunitXmlFromBase(
         }
 
         $discoveredTestsDirsRel = array_values(array_unique(array_map(
-            static fn(string $p): string => trim(str_replace('\\', '/', $p), '/'),
+            static fn (string $p): string => trim(str_replace('\\', '/', $p), '/'),
             $discoveredTestsDirsRel
         )));
         sort($discoveredTestsDirsRel, SORT_STRING);
@@ -489,7 +495,7 @@ function self_splitPathParts(string $path): array
     }
 
     /** @var list<string> $parts */
-    $parts = array_values(array_filter(explode('/', $path), static fn(string $p): bool => $p !== ''));
+    $parts = array_values(array_filter(explode('/', $path), static fn (string $p): bool => $p !== ''));
 
     return $parts;
 }

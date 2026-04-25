@@ -228,7 +228,7 @@ declare(strict_types=1);
         // Deterministic ordering.
         \usort(
             $out,
-            static fn(array $a, array $b): int => \strcmp((string)$a['rel'], (string)$b['rel']),
+            static fn (array $a, array $b): int => \strcmp((string)$a['rel'], (string)$b['rel']),
         );
 
         return $out;
@@ -316,7 +316,7 @@ declare(strict_types=1);
         }
 
         $roots = \array_keys($found);
-        \usort($roots, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($roots, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         /** @var list<string> $roots */
         return $roots;

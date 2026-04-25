@@ -86,7 +86,7 @@ final class Slug
         // Locale-independent ASCII lowering.
         return preg_replace_callback(
             '/[A-Z]/',
-            static fn(array $m): string => chr(ord($m[0]) + 32),
+            static fn (array $m): string => chr(ord($m[0]) + 32),
             $s
         ) ?? $s;
     }

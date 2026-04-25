@@ -64,8 +64,7 @@ final class CliOutput implements OutputInterface
         bool      $redactionEnabled = true,
         ?\Closure $stdoutWriter = null,
         ?\Closure $stderrWriter = null,
-    )
-    {
+    ) {
         $this->redactionEnabled = $redactionEnabled;
 
         $this->stdoutWriter = $stdoutWriter ?? static function (string $chunk): void {
@@ -259,7 +258,7 @@ final class CliOutput implements OutputInterface
 
         \uksort(
             $out,
-            static fn($a, $b): int => \strcmp((string)$a, (string)$b),
+            static fn ($a, $b): int => \strcmp((string)$a, (string)$b),
         );
 
         foreach ($out as $k => $v) {

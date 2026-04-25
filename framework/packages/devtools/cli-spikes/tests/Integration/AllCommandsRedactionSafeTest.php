@@ -70,7 +70,7 @@ final class AllCommandsRedactionSafeTest extends TestCase
                 $cmd = $case['cmd'];
                 $tokens = $case['tokens'];
 
-                $input = new class ($tokens) implements InputInterface {
+                $input = new class($tokens) implements InputInterface {
                     /** @var list<string> */
                     private array $tokens;
 

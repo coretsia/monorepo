@@ -133,8 +133,12 @@ declare(strict_types=1);
         $violations = [];
 
         foreach (['phpunit.xml', 'phpunit.dist.xml'] as $fileName) {
-            $matches = \glob($packagesRoot . '/*/*/' . $fileName) ?: [];
-            $matches = \array_values(\array_filter($matches, static fn($p) => \is_string($p) && $p !== ''));
+            $matches = \glob($packagesRoot . '/*/*/' . $fileName);
+            if ($matches === false) {
+                $matches = [];
+            }
+
+            $matches = \array_values(\array_filter($matches, static fn (string $p): bool => $p !== ''));
 
             foreach ($matches as $abs) {
                 $abs = \rtrim(\str_replace('\\', '/', $abs), '/');

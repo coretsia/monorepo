@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\deptrac\tests;
 
-use Coretsia\Tools\Spikes\deptrac\DeptracGenerate;
 use Coretsia\Tools\Spikes\_support\DeterministicFile;
+use Coretsia\Tools\Spikes\deptrac\DeptracGenerate;
 use PHPUnit\Framework\TestCase;
 
 final class RerunGeneratorNoDiffTest extends TestCase

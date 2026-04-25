@@ -335,15 +335,12 @@ final class NewPackage
             return "[\n" . implode(",\n", $parts) . "\n" . $indent . "]";
         }
 
-        if ($value === []) {
-            return '{}';
-        }
-
         $parts = [];
         foreach ($value as $k => $v) {
             if (!is_string($k)) {
                 throw new RuntimeException('JSON object keys must be strings');
             }
+
             $parts[] = $childIndent
                 . '"'
                 . self::escapeJsonString($k)

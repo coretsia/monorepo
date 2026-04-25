@@ -257,9 +257,9 @@ final class ConsoleOutput
         // optionally prefixed by "<relpath>: ".
         if (\str_contains($line, '\\')) {
             $ok = \preg_match(
-                    '/^([A-Za-z0-9._\/-]+:\s)?forbidden-import:[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)+$/',
-                    $line
-                ) === 1;
+                '/^([A-Za-z0-9._\/-]+:\s)?forbidden-import:[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)+$/',
+                $line
+            ) === 1;
 
             if (!$ok) {
                 return self::UNSAFE_OUTPUT_TOKEN;

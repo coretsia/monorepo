@@ -142,7 +142,7 @@ final class FingerprintCalculator
             'schema_versions' => $this->digestSchemaVersionsBucket(),
         ];
 
-        \uksort($bucketDigests, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($bucketDigests, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $encodedBuckets = StableJsonEncoder::encode($bucketDigests);
         $final = self::hashSha256OrFail($encodedBuckets, self::MSG_FINAL_HASH_FAILED);
@@ -186,7 +186,7 @@ final class FingerprintCalculator
 
         $paths = $lister->listAllFiles();
 
-        \usort($paths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($paths, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         /** @var list<string> $paths */
         return $paths;
@@ -220,7 +220,7 @@ final class FingerprintCalculator
      */
     private function hashFilesToSnapshot(array $paths): array
     {
-        \usort($paths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($paths, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $out = [];
 
@@ -231,7 +231,7 @@ final class FingerprintCalculator
             $out[$rel] = $sha;
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -246,7 +246,7 @@ final class FingerprintCalculator
      */
     private function hashDotenvFilesToSnapshot(array $paths): array
     {
-        \usort($paths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($paths, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $out = [];
 
@@ -263,7 +263,7 @@ final class FingerprintCalculator
             ];
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -280,7 +280,7 @@ final class FingerprintCalculator
             $out[$rel] = (string)($meta['sha256'] ?? '');
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -295,7 +295,7 @@ final class FingerprintCalculator
         $entries = [];
 
         $paths = \array_keys($snapshot);
-        \usort($paths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($paths, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         foreach ($paths as $rel) {
             $entries[] = [
@@ -404,7 +404,7 @@ final class FingerprintCalculator
             $out[$key] = '1:' . $sha;
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }

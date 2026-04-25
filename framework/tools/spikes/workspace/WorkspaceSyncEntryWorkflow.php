@@ -112,7 +112,7 @@ final class WorkspaceSyncEntryWorkflow
             $out[] = self::normalizeRepoRelativePath($value);
         }
 
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         /** @var list<string> $out */
         return \array_values(\array_unique($out));
@@ -182,7 +182,7 @@ final class WorkspaceSyncEntryWorkflow
 
         \usort(
             $out,
-            static fn(array $a, array $b): int => \strcmp((string) $a['path'], (string) $b['path'])
+            static fn (array $a, array $b): int => \strcmp((string) $a['path'], (string) $b['path'])
         );
 
         /** @var list<array{

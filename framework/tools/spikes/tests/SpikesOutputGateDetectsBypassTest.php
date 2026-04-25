@@ -46,7 +46,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
         $tmpRoot = self::createTempScanRoot();
         try {
             // Synthetic scan-only tree (bootstrap/ConsoleOutput MUST be loaded from real runtime tools root).
-            self::writePhp($tmpRoot . '/spikes/fingerprint/Ok.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/spikes/fingerprint/Ok.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -59,7 +61,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
             );
 
             // Cement the NOTE: If gate incorrectly loads bootstrap from scan-root, this would terminate.
-            self::writePhp($tmpRoot . '/spikes/_support/bootstrap.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/spikes/_support/bootstrap.php',
+                <<<'PHP'
                 <?php
                 exit(123);
                 PHP
@@ -87,7 +91,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
         $tmpRoot = self::createTempScanRoot();
         try {
             // Cement: spikes/tests/** is excluded; bypasses here MUST NOT fail the gate.
-            self::writePhp($tmpRoot . '/spikes/tests/bad.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/spikes/tests/bad.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -97,7 +103,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
             );
 
             // Cement: spikes/fixtures/** is excluded.
-            self::writePhp($tmpRoot . '/spikes/fixtures/bad.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/spikes/fixtures/bad.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -107,7 +115,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
             );
 
             // Cement: gates/**/tests/** is excluded.
-            self::writePhp($tmpRoot . '/gates/tests/bad.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/gates/tests/bad.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -117,7 +127,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
             );
 
             // Cement: gates/**/fixtures/** is excluded.
-            self::writePhp($tmpRoot . '/gates/fixtures/bad.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/gates/fixtures/bad.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -143,7 +155,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
         $tmpRoot = self::createTempScanRoot();
         try {
             // Cement: allowlisted file spikes/_support/ConsoleOutput.php is ignored by the gate.
-            self::writePhp($tmpRoot . '/spikes/_support/ConsoleOutput.php', <<<'PHP'
+            self::writePhp(
+                $tmpRoot . '/spikes/_support/ConsoleOutput.php',
+                <<<'PHP'
                 <?php
 
                 declare(strict_types=1);
@@ -188,8 +202,7 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
         string $relativePath,
         string $phpContents,
         string $expectedDiagnosticPath
-    ): void
-    {
+    ): void {
         $gate = self::gateScriptPath();
 
         $tmpRoot = self::createTempScanRoot();

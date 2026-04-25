@@ -544,7 +544,7 @@ final class DeterminismRunner
         }
 
         $out = array_keys($uniq);
-        usort($out, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($out, static fn (string $a, string $b): int => strcmp($a, $b));
 
         /** @var list<string> $out */
         return $out;
@@ -682,8 +682,7 @@ final class DeterminismRunner
         ?array $env,
         bool   $captureStdout,
         bool   $captureStderr
-    ): ProcessResult
-    {
+    ): ProcessResult {
         return self::runner()->run($command, $cwd, $env, $captureStdout, $captureStderr);
     }
 

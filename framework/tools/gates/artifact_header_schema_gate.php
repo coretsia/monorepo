@@ -482,8 +482,7 @@ function coretsia_artifact_header_schema_gate_validate_artifact_file(
     string $absPath,
     string $repoRoot,
     array  $registry,
-): array
-{
+): array {
     $absPath = \rtrim(\str_replace('\\', '/', $absPath), '/');
     $repoRoot = \rtrim(\str_replace('\\', '/', $repoRoot), '/');
 
@@ -526,8 +525,7 @@ function coretsia_artifact_header_schema_gate_validate_json_artifact(
     string $content,
     string $repoRelPath,
     array  $registry,
-): array
-{
+): array {
     /** @var list<string> $violations */
     $violations = [];
 
@@ -552,8 +550,7 @@ function coretsia_artifact_header_schema_gate_validate_php_artifact(
     string $content,
     string $repoRelPath,
     array  $registry,
-): array
-{
+): array {
     /** @var list<string> $violations */
     $violations = [];
 
@@ -626,8 +623,7 @@ function coretsia_artifact_header_schema_gate_validate_decoded_envelope(
     array  $decoded,
     string $repoRelPath,
     array  $registry,
-): array
-{
+): array {
     /** @var list<string> $violations */
     $violations = [];
 
@@ -732,12 +728,8 @@ function coretsia_artifact_header_schema_gate_extract_php_return_array_block(str
         return null;
     }
 
-    $matchText = $m[1][0] ?? null;
-    $matchOffset = $m[1][1] ?? null;
-
-    if (!\is_string($matchText) || !\is_int($matchOffset)) {
-        return null;
-    }
+    $matchText = (string)$m[1][0];
+    $matchOffset = (int)$m[1][1];
 
     if (\str_ends_with($matchText, '[')) {
         $openPos = $matchOffset + \strlen($matchText) - 1;
@@ -745,7 +737,7 @@ function coretsia_artifact_header_schema_gate_extract_php_return_array_block(str
         $openPos = \strpos($content, '(', $matchOffset);
     }
 
-    if (!\is_int($openPos)) {
+    if ($openPos === false) {
         return null;
     }
 
@@ -768,12 +760,8 @@ function coretsia_artifact_header_schema_gate_extract_php_meta_array_block(strin
         return null;
     }
 
-    $matchText = $m[2][0] ?? null;
-    $matchOffset = $m[2][1] ?? null;
-
-    if (!\is_string($matchText) || !\is_int($matchOffset)) {
-        return null;
-    }
+    $matchText = (string)$m[2][0];
+    $matchOffset = (int)$m[2][1];
 
     if (\str_ends_with($matchText, '[')) {
         $openPos = $matchOffset + \strlen($matchText) - 1;
@@ -781,7 +769,7 @@ function coretsia_artifact_header_schema_gate_extract_php_meta_array_block(strin
         $openPos = \strpos($returnArrayBlock, '(', $matchOffset);
     }
 
-    if (!\is_int($openPos)) {
+    if ($openPos === false) {
         return null;
     }
 
@@ -796,8 +784,7 @@ function coretsia_artifact_header_schema_gate_extract_balanced_block(
     int    $openPos,
     string $open,
     string $close,
-): ?string
-{
+): ?string {
     $len = \strlen($source);
     $depth = 0;
 

@@ -66,19 +66,19 @@ final readonly class SpikesPaths
             $launcherPathRaw = $server['argv'][0];
         }
 
-        if (!is_string($launcherPathRaw) || $launcherPathRaw === '') {
+        if ($launcherPathRaw === null) {
             throw new SpikesBootstrapFailedException(SpikesBootstrapFailedException::REASON_LAUNCHER_PATH_UNRESOLVABLE);
         }
 
         $launcherPath = realpath($launcherPathRaw);
-        if (!is_string($launcherPath) || $launcherPath === '') {
+        if ($launcherPath === false) {
             throw new SpikesBootstrapFailedException(SpikesBootstrapFailedException::REASON_LAUNCHER_PATH_UNRESOLVABLE);
         }
 
         $frameworkRoot = self::resolveFrameworkRootFromLauncher($launcherPath);
         $repoRoot = realpath($frameworkRoot . '/..');
 
-        if (!is_string($repoRoot) || $repoRoot === '') {
+        if ($repoRoot === false) {
             throw new SpikesBootstrapFailedException(SpikesBootstrapFailedException::REASON_REPO_ROOT_UNRESOLVABLE);
         }
 
@@ -180,7 +180,7 @@ final readonly class SpikesPaths
         // Case A: launched via framework/bin/coretsia
         if (\preg_match('~/(framework)/bin/coretsia(?:\.php)?\z~', $p) === 1) {
             $frameworkRoot = realpath(dirname(dirname($launcherPathAbs)));
-            if (!is_string($frameworkRoot) || $frameworkRoot === '') {
+            if ($frameworkRoot === false) {
                 throw new SpikesBootstrapFailedException(SpikesBootstrapFailedException::REASON_FRAMEWORK_ROOT_UNRESOLVABLE);
             }
 
@@ -189,7 +189,7 @@ final readonly class SpikesPaths
 
         // Case B: launched via repo-root/coretsia
         $candidate = realpath(dirname($launcherPathAbs) . '/framework');
-        if (!is_string($candidate) || $candidate === '') {
+        if ($candidate === false) {
             throw new SpikesBootstrapFailedException(SpikesBootstrapFailedException::REASON_FRAMEWORK_ROOT_UNRESOLVABLE);
         }
 
@@ -203,7 +203,7 @@ final readonly class SpikesPaths
         // Normalize Windows drive letter if present.
         if (\preg_match('/\A([A-Za-z]):(\/.*)?\z/', $p, $m) === 1) {
             $drive = strtoupper($m[1]) . ':';
-            $rest = isset($m[2]) && is_string($m[2]) ? $m[2] : '';
+            $rest = $m[2] ?? '';
             $p = $drive . $rest;
         }
 
@@ -225,21 +225,17 @@ final readonly class SpikesPaths
 
     private static function isAbsolute(string $path): bool
     {
-        if ($path === '') {
-            return false;
-        }
-
-        // POSIX absolute or Windows rooted "\foo" (already normalized to "/foo")
+        // POSIX absolute or Windows rooted "\foo" after normalization.
         if ($path[0] === '/') {
             return true;
         }
 
-        // UNC after normalization may look like "//server/share/..."
+        // UNC after normalization may look like "//server/share/...".
         if (str_starts_with($path, '//')) {
             return true;
         }
 
-        // Windows drive absolute: "C:/..."
+        // Windows drive absolute: "C:/...".
         return \preg_match('/\A[A-Za-z]:\//', $path) === 1;
     }
 
@@ -255,7 +251,7 @@ final readonly class SpikesPaths
     {
         $relRaw = str_replace('\\', '/', trim($relRaw));
 
-        if ($relRaw === '' || $relRaw === '.') {
+        if ($relRaw === '.') {
             return '';
         }
 

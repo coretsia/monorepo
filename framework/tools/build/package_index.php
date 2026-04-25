@@ -96,7 +96,7 @@ final class PackageIndexTool
         $items = [];
 
         foreach ($hits as $abs) {
-            if (!is_string($abs) || $abs === '' || !is_file($abs)) {
+            if ($abs === '' || !is_file($abs)) {
                 continue;
             }
 
@@ -170,7 +170,7 @@ final class PackageIndexTool
 
         usort(
             $items,
-            static fn(array $a, array $b): int => strcmp((string)$a['path'], (string)$b['path'])
+            static fn (array $a, array $b): int => strcmp((string)$a['path'], (string)$b['path'])
         );
 
         return $items;
@@ -210,7 +210,7 @@ final class PackageIndexTool
         }
 
         $keys = array_keys($value);
-        usort($keys, static fn($a, $b) => strcmp((string)$a, (string)$b));
+        usort($keys, static fn ($a, $b) => strcmp((string)$a, (string)$b));
 
         $out = [];
         foreach ($keys as $k) {
@@ -265,7 +265,7 @@ final class PackageIndexTool
         }
 
         $keys = array_keys($psr4);
-        usort($keys, static fn($a, $b) => strcmp((string)$a, (string)$b));
+        usort($keys, static fn ($a, $b) => strcmp((string)$a, (string)$b));
         return (string)$keys[0];
     }
 
@@ -356,9 +356,9 @@ final class PackageIndexTool
                 throw new RuntimeException('Cannot resolve cwd');
             }
             $candidate = rtrim(str_replace('\\', '/', $cwd), '/') . '/' . ltrim(
-                    str_replace('\\', '/', $candidate),
-                    '/'
-                );
+                str_replace('\\', '/', $candidate),
+                '/'
+            );
         }
 
         $candidate = rtrim(str_replace('\\', '/', $candidate), '/');

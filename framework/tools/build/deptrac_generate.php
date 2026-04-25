@@ -161,7 +161,7 @@ final class DeptracGenerateTool
             }
 
             $cells = array_map(
-                static fn(string $cell): string => trim($cell),
+                static fn (string $cell): string => trim($cell),
                 explode('|', trim($line, '|')),
             );
 
@@ -224,10 +224,6 @@ final class DeptracGenerateTool
         $value = trim($value, "` \t\n\r\0\x0B");
         $value = preg_replace('/\s+/u', ' ', $value);
 
-        if (!is_string($value)) {
-            throw new RuntimeException('markdown-cell-normalize-failed');
-        }
-
         return trim($value);
     }
 
@@ -270,7 +266,7 @@ final class DeptracGenerateTool
 
         $composerFiles = [];
         foreach ($hits as $hit) {
-            if (is_string($hit) && $hit !== '' && is_file($hit)) {
+            if ($hit !== '' && is_file($hit)) {
                 $composerFiles[] = str_replace('\\', '/', $hit);
             }
         }
@@ -317,7 +313,7 @@ final class DeptracGenerateTool
 
         usort(
             $index,
-            static fn(array $a, array $b): int => strcmp((string)$a['id'], (string)$b['id']),
+            static fn (array $a, array $b): int => strcmp((string)$a['id'], (string)$b['id']),
         );
 
         return $index;
@@ -352,8 +348,7 @@ final class DeptracGenerateTool
         array  $packageIndex,
         array  $ssotRuleset,
         array  $excludeFiles,
-    ): array
-    {
+    ): array {
         /** @var list<array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>}> $activePackages */
         $activePackages = [];
 
@@ -393,7 +388,7 @@ final class DeptracGenerateTool
 
         usort(
             $layers,
-            static fn(array $a, array $b): int => strcmp((string)$a['name'], (string)$b['name']),
+            static fn (array $a, array $b): int => strcmp((string)$a['name'], (string)$b['name']),
         );
 
         $ruleset = self::buildRuleset(
@@ -451,8 +446,7 @@ final class DeptracGenerateTool
         array $activePackageIds,
         array $composerNameToPackageId,
         array $ssotRuleset,
-    ): array
-    {
+    ): array {
         /** @var list<string> $missing */
         $missing = [];
 
@@ -534,8 +528,7 @@ final class DeptracGenerateTool
         array $activePackageIds,
         array $composerNameToPackageId,
         array $ssotRuleset,
-    ): array
-    {
+    ): array {
         if ($allowedPackageIds === []) {
             return [];
         }
@@ -850,8 +843,7 @@ final class DeptracGenerateTool
         array  &$visited,
         array  $stack,
         string $kind,
-    ): void
-    {
+    ): void {
         if (isset($visited[$node])) {
             return;
         }
@@ -1104,7 +1096,7 @@ final class DeptracGenerateTool
         }
 
         $keys = array_keys($psr4);
-        usort($keys, static fn($a, $b): int => strcmp((string)$a, (string)$b));
+        usort($keys, static fn ($a, $b): int => strcmp((string)$a, (string)$b));
 
         return (string)$keys[0];
     }

@@ -171,7 +171,7 @@ final class ComposerJsonCanonicalFormatTest extends TestCase
             WorkspacePolicy::normalizeUrlForSort((string)$managed[1]['url']),
         ];
         $sorted = $urls;
-        \usort($sorted, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($sorted, static fn (string $a, string $b): int => \strcmp($a, $b));
         self::assertSame($sorted, $urls);
 
         // Managed map key insertion order is canonical.

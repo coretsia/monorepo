@@ -44,7 +44,7 @@ use Composer\Autoload\ClassLoader;
 
     if ($loader instanceof ClassLoader) {
         $classLoader = $loader;
-    } elseif (class_exists(ClassLoader::class) && method_exists(ClassLoader::class, 'getRegisteredLoaders')) {
+    } elseif (class_exists(ClassLoader::class)) {
         /** @var array<string, ClassLoader> $loaders */
         $loaders = ClassLoader::getRegisteredLoaders();
         $keys = array_keys($loaders);
@@ -86,8 +86,12 @@ use Composer\Autoload\ClassLoader;
     $glob = $packagesRoot . '/*/*/composer.json';
 
     /** @var list<string> $composerFiles */
-    $composerFiles = glob($glob) ?: [];
-    $composerFiles = array_values(array_filter($composerFiles, static fn($p) => is_string($p) && $p !== ''));
+    $composerFiles = glob($glob);
+    if ($composerFiles === false) {
+        $composerFiles = [];
+    }
+
+    $composerFiles = array_values(array_filter($composerFiles, static fn (string $p): bool => $p !== ''));
     sort($composerFiles, SORT_STRING);
 
     foreach ($composerFiles as $composerJsonPath) {

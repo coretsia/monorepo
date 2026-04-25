@@ -322,8 +322,8 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
     private function globSorted(string $pattern): array
     {
         $items = glob($pattern) ?: [];
-        $items = array_values(array_filter($items, static fn($p) => is_string($p) && $p !== ''));
-        $items = array_map(static fn(string $p): string => str_replace('\\', '/', $p), $items);
+        $items = array_values(array_filter($items, static fn ($p) => is_string($p) && $p !== ''));
+        $items = array_map(static fn (string $p): string => str_replace('\\', '/', $p), $items);
         sort($items, SORT_STRING);
 
         return $items;

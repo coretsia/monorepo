@@ -206,7 +206,7 @@ final class FingerprintExplainer
             $out[$rel] = $v;
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -273,7 +273,7 @@ final class FingerprintExplainer
             $out[$rel] = ['sha256' => $sha, 'len' => $len];
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -304,7 +304,7 @@ final class FingerprintExplainer
             $out[$k] = (string)$v;
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }
@@ -339,9 +339,9 @@ final class FingerprintExplainer
             }
         }
 
-        \usort($added, static fn(string $a, string $b): int => \strcmp($a, $b));
-        \usort($removed, static fn(string $a, string $b): int => \strcmp($a, $b));
-        \usort($modified, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($added, static fn (string $a, string $b): int => \strcmp($a, $b));
+        \usort($removed, static fn (string $a, string $b): int => \strcmp($a, $b));
+        \usort($modified, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return [
             'added' => $added,
@@ -378,9 +378,9 @@ final class FingerprintExplainer
             }
         }
 
-        \usort($added, static fn(string $a, string $b): int => \strcmp($a, $b));
-        \usort($removed, static fn(string $a, string $b): int => \strcmp($a, $b));
-        \usort($changed, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($added, static fn (string $a, string $b): int => \strcmp($a, $b));
+        \usort($removed, static fn (string $a, string $b): int => \strcmp($a, $b));
+        \usort($changed, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return [
             'added' => $added,
@@ -421,7 +421,7 @@ final class FingerprintExplainer
         }
 
         $out = \array_keys($set);
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         /** @var list<string> $out */
         return $out;
@@ -459,7 +459,7 @@ final class FingerprintExplainer
             }
         }
 
-        \uksort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \uksort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $out;
     }

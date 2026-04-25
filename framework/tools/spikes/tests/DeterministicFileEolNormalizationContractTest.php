@@ -106,7 +106,7 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
         $path = $this->root . DIRECTORY_SEPARATOR . $token . "\0" . 'x.txt';
 
         // Precondition: native filesystem API must throw ValueError for null byte paths.
-        $this->assertNativeValueError(static fn(): mixed => file_get_contents($path));
+        $this->assertNativeValueError(static fn (): mixed => file_get_contents($path));
 
         try {
             DeterministicFile::readTextNormalizedEol($path);
@@ -162,7 +162,7 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
         $path = $this->root . DIRECTORY_SEPARATOR . $token . "\0" . 'y.bin';
 
         // Precondition: native filesystem API must throw ValueError for null byte paths.
-        $this->assertNativeValueError(static fn(): mixed => fopen($path, 'wb'));
+        $this->assertNativeValueError(static fn (): mixed => fopen($path, 'wb'));
 
         try {
             DeterministicFile::writeBytesExact($path, 'abc');

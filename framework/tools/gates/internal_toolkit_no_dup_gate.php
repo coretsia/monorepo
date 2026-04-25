@@ -285,7 +285,7 @@ function coretsia_tools_list_php_files(string $scanRoot): array
 
     \uasort(
         $out,
-        static fn(string $a, string $b): int => \strcmp($a, $b)
+        static fn (string $a, string $b): int => \strcmp($a, $b)
     );
 
     return $out;

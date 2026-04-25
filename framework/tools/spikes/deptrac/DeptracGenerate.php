@@ -176,7 +176,7 @@ final class DeptracGenerate
         }
 
         $packageIds = \array_keys($pkgById);
-        \usort($packageIds, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($packageIds, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $srcPaths = [];
         foreach ($packageIds as $id) {
@@ -189,7 +189,7 @@ final class DeptracGenerate
         foreach ($packageIds as $id) {
             $depsOut = $pkgById[$id]['deps'];
             $depsOut = \array_values(\array_unique($depsOut));
-            \usort($depsOut, static fn(string $a, string $b): int => \strcmp($a, $b));
+            \usort($depsOut, static fn (string $a, string $b): int => \strcmp($a, $b));
 
             foreach ($depsOut as $to) {
                 if (!isset($pkgById[$to])) {
@@ -433,7 +433,7 @@ final class DeptracGenerate
             $s = \substr($s, 2);
         }
 
-        $parts = \array_values(\array_filter(\explode('/', $s), static fn(string $p): bool => $p !== ''));
+        $parts = \array_values(\array_filter(\explode('/', $s), static fn (string $p): bool => $p !== ''));
         $n = \count($parts);
 
         if ($n >= 2) {

@@ -4,7 +4,10 @@ parameters:
 
     paths:
         - ../../packages
-        - ../../tools
+        - ../../tools/build
+        - ../../tools/gates
+        - ../../tools/policies
+        - ../../tools/testing
 
     bootstrapFiles:
         - ../spikes/_support/bootstrap.php
@@ -20,14 +23,20 @@ parameters:
             - ../../var
 
             - ../../packages/*/*/vendor
+            - ../../packages/*/*/vendor/*
             - ../../packages/*/*/var
+            - ../../packages/*/*/var/*
+            - ../../packages/*/*/tests
+            - ../../packages/*/*/tests/*
             - ../../packages/*/*/tests/fixtures
             - ../../packages/*/*/tests/fixtures/*
 
-            - ../../tools/spikes/*/fixtures
-            - ../../tools/spikes/*/fixtures/*
-            - ../../tools/tests/*/fixtures
-            - ../../tools/tests/*/fixtures/*
+            - ../../tools/spikes
+            - ../../tools/spikes/*
+            - ../../tools/tests
+            - ../../tools/tests/*
+            - ../../tools/*/fixtures
+            - ../../tools/*/fixtures/*
 
-    treatPhpDocTypesAsCertain: true
+    treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true

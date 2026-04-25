@@ -79,7 +79,6 @@ final class DeptracGraphCommand implements CommandInterface
                 return SpikesExitCodeMapper::failure();
             }
 
-            /** @var mixed $result */
             $result = DeptracGraphWorkflow::run(
                 $paths->repoRoot(),
                 $fixtureRel,
@@ -132,7 +131,7 @@ final class DeptracGraphCommand implements CommandInterface
 
     /**
      * @param list<string> $tokens
-     * @return array{fixture:?string,out:?string,json:bool,help:bool}
+     * @return array{fixture: string|null, out: string|null, json: bool, help: bool}
      */
     private static function parseArgs(array $tokens): array
     {
@@ -176,7 +175,11 @@ final class DeptracGraphCommand implements CommandInterface
         $output->text(
             'usage: coretsia '
             . self::NAME
-            . ' [--fixture=deptrac_min/package_index_ok.php] [--out=framework/tools/spikes/_artifacts/deptrac_graph] [--json]'
+            . ' [--fixture='
+            . self::DEFAULT_FIXTURE
+            . '] [--out='
+            . self::DEFAULT_OUT_DIR_REL
+            . '] [--json]'
         );
         $output->text('notes:');
         $output->text('  - --fixture MUST be under deptrac_min/');
@@ -238,7 +241,7 @@ final class DeptracGraphCommand implements CommandInterface
         }
 
         $s = \preg_replace('~/+~', '/', $s);
-        if (!\is_string($s) || $s === '') {
+        if ($s === null || $s === '') {
             return null;
         }
 

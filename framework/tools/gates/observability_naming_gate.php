@@ -241,9 +241,7 @@ function coretsia_observability_naming_gate_parse_observability_policy(string $o
             continue;
         }
 
-        if ($section === 'forbidden') {
-            $forbidden[$label] = true;
-        }
+        $forbidden[$label] = true;
     }
 
     \ksort($allowed, \SORT_STRING);

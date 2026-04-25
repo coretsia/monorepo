@@ -178,9 +178,9 @@ declare(strict_types=1);
         if ($publicApiSymbols === []) {
             foreach ($evidenceFiles as $evidenceFile) {
                 $violations[] = coretsia_kernel_public_api_gate_rel_from_repo(
-                        $evidenceFile,
-                        $repoRoot,
-                    ) . ': kernel-public-api-evidence-empty';
+                    $evidenceFile,
+                    $repoRoot,
+                ) . ': kernel-public-api-evidence-empty';
             }
         }
 
@@ -451,8 +451,7 @@ function coretsia_kernel_public_api_gate_extract_type_list_after_keyword(
     array  $stopKeywordIds,
     string $namespace,
     array  $imports,
-): array
-{
+): array {
     /** @var list<string> $names */
     $names = [];
 
@@ -525,8 +524,7 @@ function coretsia_kernel_public_api_gate_extract_type_list_after_keyword(
 function coretsia_kernel_public_api_gate_extract_public_api_symbols_from_evidence(
     array $evidenceFiles,
     array $declaredTypes,
-): array
-{
+): array {
     /** @var array<string, true> $symbols */
     $symbols = [];
 
@@ -694,10 +692,8 @@ function coretsia_kernel_public_api_gate_parse_php_context(string $source): arra
             \PREG_OFFSET_CAPTURE,
         ) === 1
     ) {
-        $offset = $m[0][1] ?? null;
-        if (\is_int($offset)) {
-            $header = \substr($source, 0, $offset);
-        }
+        $declarationOffset = (int)$m[0][1];
+        $header = \substr($source, 0, $declarationOffset);
     }
 
     $namespace = '';
@@ -901,8 +897,7 @@ function coretsia_kernel_public_api_gate_resolve_type_name(
     string $name,
     string $namespace,
     array  $imports,
-): string
-{
+): string {
     $name = \trim($name);
     if ($name === '') {
         return $name;

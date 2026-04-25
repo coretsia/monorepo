@@ -341,7 +341,7 @@ final class ConfigMerger
 
         usort(
             $keys,
-            static fn(string|int $a, string|int $b): int => strcmp((string) $a, (string) $b),
+            static fn (string|int $a, string|int $b): int => strcmp((string) $a, (string) $b),
         );
 
         $out = [];

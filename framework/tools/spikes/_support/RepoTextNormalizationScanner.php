@@ -44,7 +44,7 @@ final class RepoTextNormalizationScanner
         });
 
         $out = array_keys($diagnostics);
-        usort($out, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($out, static fn (string $a, string $b): int => strcmp($a, $b));
 
         /** @var list<string> $out */
         return $out;
@@ -641,8 +641,7 @@ final class RepoTextNormalizationScanner
         string $canonicalNeedle,
         string $pattern,
         string $ruleRegexTail
-    ): void
-    {
+    ): void {
         $re = '~^\s*' . preg_quote($pattern, '~') . '\s+' . $ruleRegexTail . '(?:\s+.*)?\s*$~m';
 
         if (preg_match($re, $contents) !== 1) {

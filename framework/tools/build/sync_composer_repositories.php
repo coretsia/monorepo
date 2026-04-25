@@ -120,9 +120,6 @@ final class SyncComposerRepositories
         }
 
         $repos = $data['repositories'] ?? [];
-        if ($repos === null) {
-            $repos = [];
-        }
         if (!is_array($repos)) {
             throw new RuntimeException('repositories must be array: ' . self::rel($repoRoot, $composerJsonPath));
         }
@@ -267,9 +264,6 @@ final class SyncComposerRepositories
             }
 
             $options = $r['options'] ?? [];
-            if ($options === null) {
-                $options = [];
-            }
             if (!is_array($options)) {
                 throw new RuntimeException('options must be object');
             }
@@ -358,10 +352,6 @@ final class SyncComposerRepositories
             }
 
             return "[\n" . implode(",\n", $parts) . "\n" . $indent . "]";
-        }
-
-        if ($value === []) {
-            return '{}';
         }
 
         $parts = [];

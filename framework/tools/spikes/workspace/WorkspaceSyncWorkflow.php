@@ -94,7 +94,7 @@ final class WorkspaceSyncWorkflow
             ];
         }
 
-        \usort($changedPaths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($changedPaths, static fn (string $a, string $b): int => \strcmp($a, $b));
         \usort(
             $files,
             static function (array $a, array $b): int {

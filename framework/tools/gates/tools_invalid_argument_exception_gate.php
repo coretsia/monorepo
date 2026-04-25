@@ -295,12 +295,12 @@ function coretsia_tools_iae_list_php_files(string $toolsRootAbs, string $scanRoo
         }
 
         $name = $info->getFilename();
-        if (!\is_string($name) || !\str_ends_with($name, '.php')) {
+        if (!\str_ends_with($name, '.php')) {
             continue;
         }
 
         $abs = $info->getPathname();
-        if (!\is_string($abs) || $abs === '') {
+        if ($abs === '') {
             continue;
         }
 
@@ -318,7 +318,7 @@ function coretsia_tools_iae_list_php_files(string $toolsRootAbs, string $scanRoo
         }
 
         $rel = \substr($absNorm, \strlen($toolsNorm) + 1);
-        if (!\is_string($rel) || $rel === '') {
+        if ($rel === '') {
             continue;
         }
 
@@ -327,7 +327,7 @@ function coretsia_tools_iae_list_php_files(string $toolsRootAbs, string $scanRoo
 
     \uasort(
         $out,
-        static fn(string $a, string $b): int => \strcmp($a, $b)
+        static fn (string $a, string $b): int => \strcmp($a, $b)
     );
 
     return $out;

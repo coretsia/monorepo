@@ -610,8 +610,7 @@ function coretsia_cross_cutting_contract_gate_extract_type_list_after_keyword(
     array  $stopKeywordIds,
     string $namespace,
     array  $imports,
-): array
-{
+): array {
     /** @var list<string> $names */
     $names = [];
 
@@ -686,8 +685,7 @@ function coretsia_cross_cutting_contract_gate_type_is_resettable(
     array  $declaredTypes,
     array  &$cache,
     array  $visiting,
-): bool
-{
+): bool {
     if ($typeName === 'Coretsia\\Contracts\\Runtime\\ResetInterface') {
         return true;
     }
@@ -769,8 +767,7 @@ function coretsia_cross_cutting_contract_gate_find_context_symbols(array $declar
 function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
     string $phpFile,
     array  $classFiles,
-): array
-{
+): array {
     $source = coretsia_cross_cutting_contract_gate_read_file($phpFile);
 
     if (
@@ -949,8 +946,7 @@ function coretsia_cross_cutting_contract_gate_extract_class_references_from_wind
     string $namespace,
     array  $imports,
     array  $classFiles,
-): array
-{
+): array {
     /** @var array<string, true> $classes */
     $classes = [];
 
@@ -1030,8 +1026,7 @@ function coretsia_cross_cutting_contract_gate_declared_classes_in_window(
     int   $windowStart,
     int   $windowEnd,
     array $declaredClassNames,
-): array
-{
+): array {
     if ($declaredClassNames === []) {
         return [];
     }
@@ -1081,8 +1076,7 @@ function coretsia_cross_cutting_contract_gate_declared_classes_in_window(
 function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_usage(
     string $phpFile,
     array  $contextSymbols,
-): array
-{
+): array {
     if ($contextSymbols['ContextStore'] === [] && $contextSymbols['ContextKeys'] === []) {
         return [];
     }
@@ -1181,10 +1175,8 @@ function coretsia_cross_cutting_contract_gate_parse_php_context(string $source):
             \PREG_OFFSET_CAPTURE,
         ) === 1
     ) {
-        $offset = $m[0][1] ?? null;
-        if (\is_int($offset)) {
-            $header = \substr($source, 0, $offset);
-        }
+        $declarationOffset = (int)$m[0][1];
+        $header = \substr($source, 0, $declarationOffset);
     }
 
     $namespace = '';
@@ -1388,8 +1380,7 @@ function coretsia_cross_cutting_contract_gate_resolve_type_name(
     string $name,
     string $namespace,
     array  $imports,
-): string
-{
+): string {
     $name = \trim($name);
     if ($name === '') {
         return $name;

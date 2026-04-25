@@ -92,8 +92,7 @@ final class NewPackageWorkflow
         string  $kind,
         ?string $moduleClass = null,
         bool    $apply = true,
-    ): array
-    {
+    ): array {
         $workspaceRoot = self::normalizePath($workspaceRoot);
 
         if ($workspaceRoot === '') {
@@ -210,8 +209,7 @@ final class NewPackageWorkflow
         array   $psr4,
         string  $kind,
         ?string $moduleClass,
-    ): void
-    {
+    ): void {
         $layer = self::normalizePath($layer);
         $slug = self::normalizePath($slug);
 
@@ -255,8 +253,7 @@ final class NewPackageWorkflow
         array   $psr4,
         string  $kind,
         ?string $moduleClass,
-    ): string
-    {
+    ): string {
         // Minimal composer.json required by PackageIndexBuilder parsing rules:
         // - name
         // - autoload.psr-4 (map)
@@ -472,7 +469,7 @@ final class NewPackageWorkflow
             return;
         }
 
-        $ok = self::guardWrite(static fn(): bool => \unlink($path));
+        $ok = self::guardWrite(static fn (): bool => \unlink($path));
         if ($ok !== true) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
         }
@@ -582,7 +579,7 @@ final class NewPackageWorkflow
             self::removeTreeOrFail(self::joinPath($path, $name));
         }
 
-        $ok = self::guardWrite(static fn(): bool => \rmdir($path));
+        $ok = self::guardWrite(static fn (): bool => \rmdir($path));
         if ($ok !== true) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
         }
@@ -618,7 +615,7 @@ final class NewPackageWorkflow
             }
         }
 
-        \usort($paths, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($paths, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return \array_values(\array_unique($paths));
     }
@@ -712,7 +709,7 @@ final class NewPackageWorkflow
             $out[] = $name;
         }
 
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return \array_values($out);
     }
@@ -726,7 +723,7 @@ final class NewPackageWorkflow
             return;
         }
 
-        $ok = self::guardWrite(static fn(): bool => \mkdir($dir, 0777, true));
+        $ok = self::guardWrite(static fn (): bool => \mkdir($dir, 0777, true));
         if ($ok !== true && !\is_dir($dir)) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
         }
@@ -737,7 +734,7 @@ final class NewPackageWorkflow
      */
     private static function renameOrFail(string $from, string $to): void
     {
-        $ok = self::guardWrite(static fn(): bool => \rename($from, $to));
+        $ok = self::guardWrite(static fn (): bool => \rename($from, $to));
         if ($ok !== true) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
         }
@@ -750,7 +747,7 @@ final class NewPackageWorkflow
         }
 
         try {
-            self::guardWrite(static fn(): bool => \unlink($path));
+            self::guardWrite(static fn (): bool => \unlink($path));
         } catch (\Throwable) {
             // ignored
         }
@@ -782,7 +779,7 @@ final class NewPackageWorkflow
         }
 
         try {
-            self::guardWrite(static fn(): bool => \rmdir($path));
+            self::guardWrite(static fn (): bool => \rmdir($path));
         } catch (\Throwable) {
             // ignored
         }

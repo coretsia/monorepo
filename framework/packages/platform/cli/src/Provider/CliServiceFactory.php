@@ -62,8 +62,7 @@ final class CliServiceFactory
         array     $cliSubtree,
         ?\Closure $stdoutWriter = null,
         ?\Closure $stderrWriter = null,
-    ): CliOutput
-    {
+    ): CliOutput {
         $enabled = $cliSubtree['output']['redaction']['enabled'] ?? true;
         $redactionEnabled = \is_bool($enabled) ? $enabled : true;
 

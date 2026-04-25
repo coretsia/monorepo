@@ -57,7 +57,7 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
 
             // Sorted unique list is produced by workflow.
             $sorted = $changedPaths;
-            \usort($sorted, static fn(string $a, string $b): int => \strcmp($a, $b));
+            \usort($sorted, static fn (string $a, string $b): int => \strcmp($a, $b));
             self::assertSame($sorted, $changedPaths);
             self::assertSame(\array_values(\array_unique($changedPaths)), $changedPaths);
 
@@ -157,7 +157,7 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
                 $paths[] = (string)$entry['path'];
             }
             $sorted = $paths;
-            \usort($sorted, static fn(string $a, string $b): int => \strcmp($a, $b));
+            \usort($sorted, static fn (string $a, string $b): int => \strcmp($a, $b));
             self::assertSame($sorted, $paths);
         } finally {
             self::removeTreeBestEffort($tmp);
@@ -216,8 +216,7 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
         array $psr4,
         string $kind,
         ?string $moduleClass
-    ): string
-    {
+    ): string {
         // Mirrors NewPackageWorkflow::buildMinimalPackageComposerJsonBytes().
         $composer = [];
 
@@ -315,7 +314,7 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
             $out[] = $name;
         }
 
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return \array_values($out);
     }

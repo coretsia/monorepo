@@ -37,8 +37,7 @@ final class NativeProcessRunner implements ProcessRunnerInterface
         ?array $env,
         bool   $captureStdout,
         bool   $captureStderr
-    ): ProcessResult
-    {
+    ): ProcessResult {
         $null = self::nullDevice();
 
         $spec = [

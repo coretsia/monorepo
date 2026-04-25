@@ -179,7 +179,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
 
 **Notes:**
-- Checks drift vs the generated artifact: `framework/var/package-index.php`.
+- Checks drift vs the generated artifact: `framework/tools/testing/package-index.php`.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:check --`
 - Framework implementation detail: `@php tools/build/package_index.php --check` (framework workspace).
@@ -196,7 +196,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Entrypoint:** `composer arch:package-index:generate`  
 **Category:** architecture / generator  
 **Outputs:**
-- Updates generated package index artifact: `framework/var/package-index.php`
+- Updates generated package index artifact: `framework/tools/testing/package-index.php`
 
 **Determinism:**
 

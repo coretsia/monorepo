@@ -27,6 +27,7 @@ return [
         '.idea',
         '.osp',
         '.phpstan-cache',
+        'phpstan',
         '.phpunit.cache',
         'phpunit-cache',
         'phpunit',

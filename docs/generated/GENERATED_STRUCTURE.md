@@ -205,12 +205,14 @@ Coretsia/
 │   ├── tools/
 │   │   ├── build/
 │   │   │   ├── build_icons.php (BuildIconsTool - main()/renderSvgToPngBytes()/renderViaImagick()/renderViaRsvgConvert()/buildIcoFromPngBytes()/detectPngDimensions()/isDifferentBinaryFile()/writeBytes()/findExecutable()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
-│   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
+│   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/assertAllDiscoveredPackagesHaveSsotRows()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
 │   │   │   ├── generate_structure.php
 │   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/readme()/runtimeModulePhp()/runtimeProviderPhp()/defaultsConfigPhp()/rulesConfigPhp()/noopContractTestPhp()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/kebabFromStudly()/splitFqcn()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
 │   │   │   ├── structure.ignore.php
 │   │   │   └── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
+│   │   ├── cs/
+│   │   │   └── ecs.php
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
@@ -427,6 +429,7 @@ Coretsia/
 │   │   │   ├── bootstrap.php
 │   │   │   ├── deptrac.allowlist.yaml
 │   │   │   ├── deptrac.yaml
+│   │   │   ├── package-index.php
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
@@ -439,8 +442,7 @@ Coretsia/
 │   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
-│   │   ├── .gitignore
-│   │   └── package-index.php
+│   │   └── .gitignore
 │   ├── composer.json
 │   └── composer.lock
 ├── skeleton/
@@ -488,5 +490,5 @@ Coretsia/
 
 Generator ignores entries for documentation output; this is not the same as .gitignore.
 Ignore lists SSoT: framework/tools/build/structure.ignore.php
-Ignored directories: .git, .idea, .osp, .phpstan-cache, .phpunit.cache, phpunit-cache, phpunit, vendor
+Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor
 Ignored files: .DS_Store, preload.php, .deptrac.cache

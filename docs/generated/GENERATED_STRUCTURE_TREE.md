@@ -211,6 +211,8 @@ Coretsia/
 │   │   │   ├── package_index.php
 │   │   │   ├── structure.ignore.php
 │   │   │   └── sync_composer_repositories.php
+│   │   ├── cs/
+│   │   │   └── ecs.php
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
@@ -427,6 +429,7 @@ Coretsia/
 │   │   │   ├── bootstrap.php
 │   │   │   ├── deptrac.allowlist.yaml
 │   │   │   ├── deptrac.yaml
+│   │   │   ├── package-index.php
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
@@ -439,8 +442,7 @@ Coretsia/
 │   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
-│   │   ├── .gitignore
-│   │   └── package-index.php
+│   │   └── .gitignore
 │   ├── composer.json
 │   └── composer.lock
 ├── skeleton/
@@ -488,5 +490,5 @@ Coretsia/
 
 Generator ignores entries for documentation output; this is not the same as .gitignore.
 Ignore lists SSoT: framework/tools/build/structure.ignore.php
-Ignored directories: .git, .idea, .osp, .phpstan-cache, .phpunit.cache, phpunit-cache, phpunit, vendor
+Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor
 Ignored files: .DS_Store, preload.php, .deptrac.cache

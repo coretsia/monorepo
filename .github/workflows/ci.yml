@@ -192,6 +192,7 @@ jobs:
         shell: bash
         run: |
           git diff --exit-code -- \
+            framework/tools/testing/package-index.php \
             framework/tools/testing/deptrac.yaml \
             framework/tools/testing/deptrac.allowlist.yaml
 
@@ -200,7 +201,6 @@ jobs:
         run: composer --no-interaction arch:deptrac:analyze
 
       - name: "Upload: dep graph artifacts"
-        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: coretsia-deptrac-graph

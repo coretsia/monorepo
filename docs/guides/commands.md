@@ -1681,3 +1681,47 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer kernel-public-api:gate`
+
+### 50) Deptrac config generator
+
+**Id:** `tool.arch_deptrac`
+**Entrypoint:** `composer arch:deptrac:generate`
+**Category:** architecture / generator / CI rail
+**Outputs:**
+- `framework/tools/testing/deptrac.yaml`
+- `framework/tools/testing/deptrac.allowlist.yaml` *(created if missing)*
+- `framework/var/arch/deptrac_graph.dot` *(gitignored / CI artifact)*
+- `framework/var/arch/deptrac_graph.svg` *(gitignored / CI artifact)*
+- `framework/var/arch/deptrac_graph.html` *(gitignored / CI artifact)*
+
+**Determinism:**
+
+| Mode / flags                     | Determinism   | Notes                                                                |
+|----------------------------------|---------------|----------------------------------------------------------------------|
+| `composer arch:deptrac:generate` | deterministic | Generates Deptrac config, allowlist if missing, and graph artifacts. |
+| `composer arch:deptrac:check`    | deterministic | Checks generated files are up to date; writes no files.              |
+
+**Notes:**
+- Purpose: generates the canonical Deptrac architecture config from repository SSoT data.
+- Reads dependency policy from:
+  - `docs/roadmap/phase0/00_2-dependency-table.md`
+- Scans framework packages from:
+  - `framework/packages/*/*/composer.json`
+- Generated config analyzes package `src/` roots only.
+- Exclusions are controlled by:
+  - `framework/tools/testing/deptrac.allowlist.yaml`
+- Allowlist policy:
+  - may exclude tests, fixtures, vendor, or tooling-only paths
+  - MUST NOT exclude `framework/packages/**/src/**`
+- Graph artifacts are generated for CI upload / architecture inspection only.
+- This command is part of the `arch` rail, not the `gates` rail.
+- It MUST remain rerun-no-diff in deterministic mode.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace scripts:
+  - `@composer --working-dir=framework run-script arch:deptrac:generate --`
+  - `@composer --working-dir=framework run-script arch:deptrac:check --`
+  - framework implementation detail: `@php tools/build/deptrac_generate.php --apply|--check`
+- Direct call `php framework/tools/build/deptrac_generate.php` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer arch:deptrac:generate`
+- `composer arch:deptrac:check`

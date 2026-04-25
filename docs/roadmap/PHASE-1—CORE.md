@@ -775,9 +775,9 @@ N/A
     - [x] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
     - [x] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
 
-- [ ] `framework/tools/testing/deptrac.yaml`
-- [ ] `framework/tools/testing/deptrac.allowlist.yaml`
-- [ ] `framework/tools/build/deptrac_generate.php`
+- [x] `framework/tools/testing/deptrac.yaml`
+- [x] `framework/tools/testing/deptrac.allowlist.yaml`
+- [x] `framework/tools/build/deptrac_generate.php`
 
 Tooling baseline configs
 - [ ] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)

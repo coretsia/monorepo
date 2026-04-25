@@ -80,6 +80,8 @@
     ],
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
+    "arch:deptrac:check": "@php tools/build/deptrac_generate.php --check",
+    "arch:deptrac:generate": "@php tools/build/deptrac_generate.php --apply",
     "sync:check": "@php tools/build/sync_composer_repositories.php --check",
     "sync:repos": "@php tools/build/sync_composer_repositories.php",
     "spike:gate": "@php tools/gates/spikes_boundary_gate.php",

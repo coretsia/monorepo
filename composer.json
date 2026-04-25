@@ -83,6 +83,8 @@
     ],
     "arch:package-index:check": "@composer --no-interaction --working-dir=framework run-script arch:package-index:check --",
     "arch:package-index:generate": "@composer --no-interaction --working-dir=framework run-script arch:package-index:generate --",
+    "arch:deptrac:check": "@composer --no-interaction --working-dir=framework run-script arch:deptrac:check --",
+    "arch:deptrac:generate": "@composer --no-interaction --working-dir=framework run-script arch:deptrac:generate --",
     "spike:test": "@composer --no-interaction --working-dir=framework run-script spike:test --",
     "spike:test:determinism": "@composer --no-interaction --working-dir=framework run-script spike:test:determinism --",
     "spike:gate": "@composer --no-interaction --working-dir=framework run-script spike:gate --",

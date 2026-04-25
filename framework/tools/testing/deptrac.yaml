@@ -1,0 +1,53 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+#
+# GENERATED FILE (deterministic). Do not edit manually.
+# Regenerate: php framework/tools/build/deptrac_generate.php --apply
+
+deptrac:
+  paths:
+    - '../../packages/core/contracts/src'
+    - '../../packages/devtools/cli-spikes/src'
+    - '../../packages/devtools/internal-toolkit/src'
+    - '../../packages/platform/cli/src'
+
+  exclude_files:
+    - '#(^|/)fixtures(/|$)#'
+    - '#(^|/)tests(/|$)#'
+    - '#(^|/)vendor(/|$)#'
+
+  layers:
+    - name: 'core.contracts'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Contracts\\.*'
+    - name: 'devtools.cli-spikes'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Devtools\\CliSpikes\\.*'
+    - name: 'devtools.internal-toolkit'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Devtools\\InternalToolkit\\.*'
+    - name: 'platform.cli'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Cli\\.*'
+
+  ruleset:
+    'core.contracts': [ ]
+    'devtools.cli-spikes':
+      - 'core.contracts'
+      - 'platform.cli'
+    'devtools.internal-toolkit': [ ]
+    'platform.cli':
+      - 'core.contracts'

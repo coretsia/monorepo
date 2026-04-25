@@ -205,20 +205,33 @@ Coretsia/
 │   ├── tools/
 │   │   ├── build/
 │   │   │   ├── build_icons.php (BuildIconsTool - main()/renderSvgToPngBytes()/renderViaImagick()/renderViaRsvgConvert()/buildIcoFromPngBytes()/detectPngDimensions()/isDifferentBinaryFile()/writeBytes()/findExecutable()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
+│   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
 │   │   │   ├── generate_structure.php
 │   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/readme()/runtimeModulePhp()/runtimeProviderPhp()/defaultsConfigPhp()/rulesConfigPhp()/noopContractTestPhp()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/kebabFromStudly()/splitFqcn()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
 │   │   │   ├── structure.ignore.php
 │   │   │   └── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   ├── gates/
+│   │   │   ├── artifact_header_schema_gate.php
+│   │   │   ├── contracts_only_ports_gate.php
+│   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
+│   │   │   ├── kernel_public_api_gate.php
+│   │   │   ├── no_skeleton_bundles_default_gate.php
+│   │   │   ├── no_skeleton_http_default_gate.php
+│   │   │   ├── no_skeleton_mode_presets_default_gate.php
+│   │   │   ├── no_skeleton_modules_default_gate.php
+│   │   │   ├── observability_naming_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
 │   │   │   ├── spikes_io_policy_gate.php
 │   │   │   ├── spikes_output_gate.php
+│   │   │   ├── tag_constant_mirror_gate.php
 │   │   │   └── tools_invalid_argument_exception_gate.php
+│   │   ├── policies/
+│   │   │   └── tag_owner_constants.php
 │   │   ├── spikes/
 │   │   │   ├── _artifacts/
 │   │   │   │   └── deptrac_graph/
@@ -412,15 +425,22 @@ Coretsia/
 │   │   │   │   └── Smoke/
 │   │   │   │       └── MonorepoSmokeTest.php (MonorepoSmokeTest - testHarnessBootsAndCanonicalEntryFilesExist()/frameworkRoot()/repoRoot())
 │   │   │   ├── bootstrap.php
+│   │   │   ├── deptrac.allowlist.yaml
+│   │   │   ├── deptrac.yaml
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
 │   │       └── Integration/
 │   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
 │   ├── var/
+│   │   ├── arch/
+│   │   │   ├── deptrac_graph.dot
+│   │   │   ├── deptrac_graph.html
+│   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
-│   │   └── .gitignore
+│   │   ├── .gitignore
+│   │   └── package-index.php
 │   ├── composer.json
 │   └── composer.lock
 ├── skeleton/

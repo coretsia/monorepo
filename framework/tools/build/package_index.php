@@ -19,6 +19,10 @@ declare(strict_types=1);
 
 final class PackageIndexTool
 {
+    public const string CODE_FAILED = 'CORETSIA_PACKAGE_INDEX_FAILED';
+
+    private const string CODE_OUT_OF_DATE = 'CORETSIA_PACKAGE_INDEX_OUT_OF_DATE';
+
     public static function main(array $argv): int
     {
         $repoRoot = self::resolveRepoRoot($argv);
@@ -43,8 +47,8 @@ final class PackageIndexTool
 
         if ($check) {
             if ($changed) {
-                fwrite(STDERR, "CORETSIA_PACKAGE_INDEX_OUT_OF_DATE\n");
-                fwrite(STDERR, "framework/var/package-index.php\n");
+                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
+                fwrite(STDERR, self::rel($repoRoot, $outPath) . "\n");
                 return 1;
             }
 
@@ -399,6 +403,6 @@ try {
     exit(PackageIndexTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, "CORETSIA_PACKAGE_INDEX_FAILED: $msg\n");
+    fwrite(STDERR, PackageIndexTool::CODE_FAILED . ": {$msg}\n");
     exit(1);
 }

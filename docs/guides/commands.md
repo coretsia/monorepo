@@ -88,6 +88,8 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `@composer --working-dir=framework run-script docs:structure:tree --`
   - `@composer --working-dir=framework run-script docs:structure:full --`
 - Framework implementation detail: `@php tools/build/generate_structure.php` (framework workspace).
+- Failure output policy:
+  - on unexpected failure, line 1 starts with stable code: `CORETSIA_STRUCTURE_GENERATE_FAILED`
 - Direct call `php framework/tools/build/generate_structure.php` is **NOT** a canonical entrypoint (kept as implementation detail only).
 
 **Usage (repo root):**
@@ -175,6 +177,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:check --`
 - Framework implementation detail: `@php tools/build/package_index.php --check` (framework workspace).
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_PACKAGE_INDEX_OUT_OF_DATE`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_INDEX_FAILED`
 
 **Usage (repo root):**
 - `composer arch:package-index:check`
@@ -198,6 +203,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:generate --`
 - Framework implementation detail: `@php tools/build/package_index.php --apply` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_INDEX_FAILED`
 
 **Usage (repo root):**
 - `composer arch:package-index:generate`
@@ -292,6 +299,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:repos --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_WORKSPACE_SYNC_FAILED`
 
 **Usage (repo root):**
 - `composer sync:repos`
@@ -315,6 +324,10 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:check --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php --check` (framework workspace).
+- Failure output policy:
+  - invalid managed block: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID`
+  - managed repository drift: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_WORKSPACE_SYNC_FAILED`
 
 **Usage (repo root):**
 - `composer sync:check`
@@ -386,6 +399,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script package:new --`
 - Framework implementation detail: `@php tools/build/new-package.php` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_NEW_PACKAGE_FAILED`
 - Optional: supports `--repo-root` (implementation detail for tooling / fixtures).
 
 **Usage (repo root):**
@@ -1230,6 +1245,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script build:icons --`
 - Framework implementation detail: `@php tools/build/build_icons.php` (framework workspace).
+- Failure output policy:
+  - drift in `--check` mode: line 1 is stable code `CORETSIA_BUILD_ICONS_OUT_OF_DATE`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_BUILD_ICONS_FAILED`
 - Direct call `php framework/tools/build/build_icons.php` is **NOT** a canonical entrypoint (implementation detail only).
 - Current workspace platform requirement includes `ext-imagick` in `framework/composer.json`; alternative renderer support, if present in the tool implementation, does **NOT** change the documented workspace requirement.
 
@@ -1720,6 +1738,12 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `@composer --working-dir=framework run-script arch:deptrac:generate --`
   - `@composer --working-dir=framework run-script arch:deptrac:check --`
   - framework implementation detail: `@php tools/build/deptrac_generate.php --apply|--check`
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_DEPTRAC_OUT_OF_DATE`
+  - missing dependency policy: line 1 starts with stable code `CORETSIA_DEPTRAC_SSOT_RULESET_MISSING`
+  - cycle detected: line 1 starts with stable code `CORETSIA_DEPTRAC_CYCLE_DETECTED`
+  - invalid allowlist: line 1 starts with stable code `CORETSIA_DEPTRAC_ALLOWLIST_INVALID`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_DEPTRAC_GENERATE_FAILED`
 - Direct call `php framework/tools/build/deptrac_generate.php` is **NOT** a canonical entrypoint (implementation detail only).
 
 **Usage (repo root):**

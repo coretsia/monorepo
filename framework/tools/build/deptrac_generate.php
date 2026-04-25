@@ -120,13 +120,32 @@ final class DeptracGenerateTool
         return 0;
     }
 
+    public static function formatFailure(Throwable $e): string
+    {
+        $message = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
+
+        foreach ([
+                     self::CODE_MISSING_SSOT_RULESET,
+                     self::CODE_CYCLE_DETECTED,
+                     self::CODE_ALLOWLIST_INVALID,
+                 ] as $code) {
+            if ($message === $code || str_starts_with($message, $code . ':')) {
+                return $message;
+            }
+        }
+
+        return self::CODE_GENERATE_FAILED . ': ' . $message;
+    }
+
     /**
      * @return array<string, list<string>> package_id => package_id dependencies
      */
     private static function readSsotDependencyTable(string $path): array
     {
         if (!is_file($path)) {
-            throw new RuntimeException('Missing SSoT dependency table: ' . self::DEPENDENCY_TABLE_PATH);
+            throw new RuntimeException(
+                self::CODE_MISSING_SSOT_RULESET . ': missing SSoT dependency table: ' . self::DEPENDENCY_TABLE_PATH
+            );
         }
 
         $raw = self::normalizeEol((string)file_get_contents($path));
@@ -1315,7 +1334,6 @@ final class DeptracGenerateTool
 try {
     exit(DeptracGenerateTool::main($argv));
 } catch (Throwable $e) {
-    $message = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, DeptracGenerateTool::CODE_GENERATE_FAILED . ': ' . $message . "\n");
+    fwrite(STDERR, DeptracGenerateTool::formatFailure($e) . "\n");
     exit(1);
 }

@@ -205,20 +205,33 @@ Coretsia/
 │   ├── tools/
 │   │   ├── build/
 │   │   │   ├── build_icons.php
+│   │   │   ├── deptrac_generate.php
 │   │   │   ├── generate_structure.php
 │   │   │   ├── new-package.php
 │   │   │   ├── package_index.php
 │   │   │   ├── structure.ignore.php
 │   │   │   └── sync_composer_repositories.php
 │   │   ├── gates/
+│   │   │   ├── artifact_header_schema_gate.php
+│   │   │   ├── contracts_only_ports_gate.php
+│   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
+│   │   │   ├── kernel_public_api_gate.php
+│   │   │   ├── no_skeleton_bundles_default_gate.php
+│   │   │   ├── no_skeleton_http_default_gate.php
+│   │   │   ├── no_skeleton_mode_presets_default_gate.php
+│   │   │   ├── no_skeleton_modules_default_gate.php
+│   │   │   ├── observability_naming_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
 │   │   │   ├── spikes_io_policy_gate.php
 │   │   │   ├── spikes_output_gate.php
+│   │   │   ├── tag_constant_mirror_gate.php
 │   │   │   └── tools_invalid_argument_exception_gate.php
+│   │   ├── policies/
+│   │   │   └── tag_owner_constants.php
 │   │   ├── spikes/
 │   │   │   ├── _artifacts/
 │   │   │   │   └── deptrac_graph/
@@ -412,15 +425,22 @@ Coretsia/
 │   │   │   │   └── Smoke/
 │   │   │   │       └── MonorepoSmokeTest.php
 │   │   │   ├── bootstrap.php
+│   │   │   ├── deptrac.allowlist.yaml
+│   │   │   ├── deptrac.yaml
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
 │   │       └── Integration/
 │   │           └── ManagedComposerRepositoriesGuardTest.php
 │   ├── var/
+│   │   ├── arch/
+│   │   │   ├── deptrac_graph.dot
+│   │   │   ├── deptrac_graph.html
+│   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
-│   │   └── .gitignore
+│   │   ├── .gitignore
+│   │   └── package-index.php
 │   ├── composer.json
 │   └── composer.lock
 ├── skeleton/

@@ -17,6 +17,8 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+const CORETSIA_STRUCTURE_GENERATE_FAILED = 'CORETSIA_STRUCTURE_GENERATE_FAILED';
+
 /**
  * @return string absolute path to repo root
  */
@@ -489,68 +491,74 @@ function buildMarkdown(
     return $structure;
 }
 
-// Args
-$args = parseArgs($argv);
-$withTimestamp = $args['withTimestamp'];
-$mode = $args['mode'];
+try {
+    // Args
+    $args = parseArgs($argv);
+    $withTimestamp = $args['withTimestamp'];
+    $mode = $args['mode'];
 
-// Resolve repo root and output paths (root-based, deterministic).
-$repoRoot = detectRepoRoot(__DIR__);
+    // Resolve repo root and output paths (root-based, deterministic).
+    $repoRoot = detectRepoRoot(__DIR__);
 
-$docsGeneratedDir = $repoRoot . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'generated';
-$outputFileFull = $docsGeneratedDir . DIRECTORY_SEPARATOR . 'GENERATED_STRUCTURE.md';
-$outputFileTree = $docsGeneratedDir . DIRECTORY_SEPARATOR . 'GENERATED_STRUCTURE_TREE.md';
+    $docsGeneratedDir = $repoRoot . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'generated';
+    $outputFileFull = $docsGeneratedDir . DIRECTORY_SEPARATOR . 'GENERATED_STRUCTURE.md';
+    $outputFileTree = $docsGeneratedDir . DIRECTORY_SEPARATOR . 'GENERATED_STRUCTURE_TREE.md';
 
-// Load ignore config from SSoT file.
-$ignoreConfig = loadIgnoreConfig(__DIR__);
-$ignoreDirs = $ignoreConfig['ignoreDirs'];
-$ignoreFiles = $ignoreConfig['ignoreFiles'];
+    // Load ignore config from SSoT file.
+    $ignoreConfig = loadIgnoreConfig(__DIR__);
+    $ignoreDirs = $ignoreConfig['ignoreDirs'];
+    $ignoreFiles = $ignoreConfig['ignoreFiles'];
 
-$written = [];
+    $written = [];
 
-/**
- * Full (as before): includes class/method info.
- * Keep legacy path GENERATED_STRUCTURE.md for compatibility.
- */
-if ($mode === 'both' || $mode === 'full') {
-    $md = buildMarkdown(
-        '🏗️ Структура монорепозиторію (повна, з PHP symbols)',
-        'composer docs:structure:full',
-        $repoRoot,
-        $ignoreDirs,
-        $ignoreFiles,
-        true,
-        $withTimestamp
-    );
+    /**
+     * Full (as before): includes class/method info.
+     * Keep legacy path GENERATED_STRUCTURE.md for compatibility.
+     */
+    if ($mode === 'both' || $mode === 'full') {
+        $md = buildMarkdown(
+            '🏗️ Структура монорепозиторію (повна, з PHP symbols)',
+            'composer docs:structure:full',
+            $repoRoot,
+            $ignoreDirs,
+            $ignoreFiles,
+            true,
+            $withTimestamp
+        );
 
-    writeFileAtomic($outputFileFull, $md);
-    $written[] = 'docs/generated/GENERATED_STRUCTURE.md';
-}
+        writeFileAtomic($outputFileFull, $md);
+        $written[] = 'docs/generated/GENERATED_STRUCTURE.md';
+    }
 
-/**
- * Tree-only: no class/method info.
- */
-if ($mode === 'both' || $mode === 'structure') {
-    $md = buildMarkdown(
-        '🏗️ Структура монорепозиторію (тільки дерево)',
-        'composer docs:structure:tree',
-        $repoRoot,
-        $ignoreDirs,
-        $ignoreFiles,
-        false,
-        $withTimestamp
-    );
+    /**
+     * Tree-only: no class/method info.
+     */
+    if ($mode === 'both' || $mode === 'structure') {
+        $md = buildMarkdown(
+            '🏗️ Структура монорепозиторію (тільки дерево)',
+            'composer docs:structure:tree',
+            $repoRoot,
+            $ignoreDirs,
+            $ignoreFiles,
+            false,
+            $withTimestamp
+        );
 
-    writeFileAtomic($outputFileTree, $md);
-    $written[] = 'docs/generated/GENERATED_STRUCTURE_TREE.md';
-}
+        writeFileAtomic($outputFileTree, $md);
+        $written[] = 'docs/generated/GENERATED_STRUCTURE_TREE.md';
+    }
 
-if ($written === []) {
-    // Should be unreachable, but keep deterministic behavior.
-    throw new RuntimeException('Nothing to write (invalid mode).');
-}
+    if ($written === []) {
+        // Should be unreachable, but keep deterministic behavior.
+        throw new RuntimeException('Nothing to write (invalid mode).');
+    }
 
-echo "Project structure generated:\n";
-foreach ($written as $p) {
-    echo "- " . $p . "\n";
+    fwrite(STDOUT, "Project structure generated:\n");
+    foreach ($written as $p) {
+        fwrite(STDOUT, "- " . $p . "\n");
+    }
+} catch (Throwable $e) {
+    $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
+    fwrite(STDERR, CORETSIA_STRUCTURE_GENERATE_FAILED . ": {$msg}\n");
+    exit(1);
 }

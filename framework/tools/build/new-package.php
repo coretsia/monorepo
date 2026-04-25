@@ -19,6 +19,8 @@ declare(strict_types=1);
 
 final class NewPackage
 {
+    public const string CODE_FAILED = 'CORETSIA_NEW_PACKAGE_FAILED';
+
     public static function main(array $argv): int
     {
         $repoRoot = self::resolveRepoRoot($argv);
@@ -583,6 +585,6 @@ try {
     exit(NewPackage::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, "CORETSIA_NEW_PACKAGE_FAILED: {$msg}\n");
+    fwrite(STDERR, NewPackage::CODE_FAILED . ": {$msg}\n");
     exit(1);
 }

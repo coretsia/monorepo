@@ -20,7 +20,7 @@ use Composer\Autoload\ClassLoader;
 
 (static function (): void {
     // tools/testing -> framework
-    $frameworkRoot = dirname(__DIR__, 3);
+    $frameworkRoot = dirname(__DIR__, 2);
     $frameworkRoot = rtrim(str_replace('\\', '/', $frameworkRoot), '/');
 
     $repoRoot = dirname($frameworkRoot);

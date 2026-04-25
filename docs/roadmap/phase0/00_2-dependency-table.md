@@ -88,18 +88,20 @@ These invariants are part of Phase 0 dependency law:
 
 ## 4) Phase 0 baseline dependency table (MUST)
 
-| package_id               | depends_on                                   | notes |
-|--------------------------|----------------------------------------------|-------|
-| core/contracts           | —                                            |       |
-| core/foundation          | core/contracts                               |       |
-| core/kernel              | core/contracts, core/foundation              |       |
-| platform/cli             | core/foundation, core/kernel                 |       |
-| platform/errors          | core/contracts, core/foundation              |       |
-| platform/http            | core/contracts, core/foundation, core/kernel |       |
-| platform/logging         | core/contracts, core/foundation              |       |
-| platform/metrics         | core/contracts, core/foundation              |       |
-| platform/problem-details | core/contracts, core/foundation              |       |
-| platform/tracing         | core/contracts, core/foundation              |       |
+| package_id                | depends_on                                   | notes |
+|---------------------------|----------------------------------------------|-------|
+| core/contracts            | —                                            |       |
+| core/foundation           | core/contracts                               |       |
+| core/kernel               | core/contracts, core/foundation              |       |
+| devtools/cli-spikes       | core/contracts, platform/cli                 |       |
+| devtools/internal-toolkit | —                                            |       |
+| platform/cli              | core/contracts                               |       |
+| platform/errors           | core/contracts, core/foundation              |       |
+| platform/http             | core/contracts, core/foundation, core/kernel |       |
+| platform/logging          | core/contracts, core/foundation              |       |
+| platform/metrics          | core/contracts, core/foundation              |       |
+| platform/problem-details  | core/contracts, core/foundation              |       |
+| platform/tracing          | core/contracts, core/foundation              |       |
 
 ---
 

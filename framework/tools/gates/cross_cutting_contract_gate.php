@@ -153,7 +153,10 @@ declare(strict_types=1);
             ($foundationTags['KERNEL_STATEFUL'] ?? null) !== 'kernel.stateful'
             || ($foundationTags['KERNEL_RESET'] ?? null) !== 'kernel.reset'
         ) {
-            exit(0);
+            $ConsoleOutput::codeWithDiagnostics($codeViolation, [
+                'packages/core/foundation/src/Provider/Tags.php: kernel-tags-drift',
+            ]);
+            exit(1);
         }
 
         if (!\is_dir($packagesRoot)) {

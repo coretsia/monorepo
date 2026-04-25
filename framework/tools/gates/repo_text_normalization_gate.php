@@ -30,29 +30,43 @@ declare(strict_types=1);
     $scannerFile = $toolsRootRuntime . '/spikes/_support/RepoTextNormalizationScanner.php';
 
     if ($repoRootRuntime === false) {
-        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile, ['repo_root_unresolvable']);
+        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
         exit(1);
     }
 
     $scanRoot = coretsia_repo_text_resolve_scan_root($repoRootRuntime, $argv);
     if ($scanRoot === null) {
-        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile, ['scan_root_invalid']);
+        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
         exit(1);
     }
 
     if (!is_file($bootstrap) || !is_readable($bootstrap)) {
-        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile, ['bootstrap_missing']);
+        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
         exit(1);
     }
 
     // NOTE (cemented): if bootstrap terminates the process, its deterministic output is authoritative.
     require_once $bootstrap;
 
+    if (!is_file($consoleOutputFile) || !is_readable($consoleOutputFile)) {
+        exit(1);
+    }
+
     // Output MUST be emitted only via runtime ConsoleOutput (tools-root based).
     require_once $consoleOutputFile;
 
+    if (!is_file($errorCodesFile) || !is_readable($errorCodesFile)) {
+        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
+        exit(1);
+    }
+
     // Canonical codes registry (tools-root based).
     require_once $errorCodesFile;
+
+    if (!is_file($scannerFile) || !is_readable($scannerFile)) {
+        coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
+        exit(1);
+    }
 
     // Scanner (tools-root based).
     require_once $scannerFile;
@@ -66,6 +80,9 @@ declare(strict_types=1);
 
         /** @var list<string> $diagnostics */
         $diagnostics = $scannerFqcn::scan($repoRootRuntime, $scanRoot);
+
+        $diagnostics = \array_values(\array_unique($diagnostics));
+        \sort($diagnostics, \SORT_STRING);
 
         if ($diagnostics === []) {
             // Gate pass: silent.
@@ -81,7 +98,7 @@ declare(strict_types=1);
         coretsia_repo_text_safe_emit_lines($out);
         exit(1);
     } catch (Throwable) {
-        coretsia_repo_text_safe_emit_lines(['CORETSIA_REPO_TEXT_POLICY_SCAN_FAILED', 'scan_failed']);
+        coretsia_repo_text_safe_emit_lines(['CORETSIA_REPO_TEXT_POLICY_SCAN_FAILED']);
         exit(1);
     }
 })($argv ?? []);
@@ -158,18 +175,18 @@ function coretsia_repo_text_resolve_path_against_repo_root(string $repoRoot, str
 
 /**
  * @param string $consoleOutputFile absolute runtime tools path
- * @param list<string> $reasons
  */
-function coretsia_repo_text_safe_emit_scan_failed(string $consoleOutputFile, array $reasons = []): void
+function coretsia_repo_text_safe_emit_scan_failed(string $consoleOutputFile): void
 {
-    if (is_file($consoleOutputFile) && is_readable($consoleOutputFile)) {
-        require_once $consoleOutputFile;
-
-        coretsia_repo_text_safe_emit_lines(array_merge(
-            ['CORETSIA_REPO_TEXT_POLICY_SCAN_FAILED'],
-            $reasons,
-        ));
+    if (!is_file($consoleOutputFile) || !is_readable($consoleOutputFile)) {
+        return;
     }
+
+    require_once $consoleOutputFile;
+
+    coretsia_repo_text_safe_emit_lines([
+        'CORETSIA_REPO_TEXT_POLICY_SCAN_FAILED',
+    ]);
 }
 
 /**
@@ -177,31 +194,22 @@ function coretsia_repo_text_safe_emit_scan_failed(string $consoleOutputFile, arr
  */
 function coretsia_repo_text_safe_emit_lines(array $lines): void
 {
-    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
-    $candidates = [$fqcn, 'ConsoleOutput'];
-
-    foreach ($candidates as $class) {
-        if (!class_exists($class)) {
-            continue;
-        }
-
-        foreach (['writeLines', 'lines', 'emitLines', 'outLines'] as $method) {
-            if (method_exists($class, $method)) {
-                $class::$method($lines);
-                return;
-            }
-        }
-
-        foreach (['writeLine', 'line', 'writeln', 'emit', 'out'] as $method) {
-            if (!method_exists($class, $method)) {
-                continue;
-            }
-
-            foreach ($lines as $line) {
-                $class::$method($line);
-            }
-
-            return;
-        }
+    if ($lines === []) {
+        return;
     }
+
+    /** @var class-string<\Coretsia\Tools\Spikes\_support\ConsoleOutput> $fqcn */
+    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+
+    if (!class_exists($fqcn)) {
+        return;
+    }
+
+    $code = array_shift($lines);
+
+    if (!is_string($code) || $code === '') {
+        return;
+    }
+
+    $fqcn::codeWithDiagnostics($code, $lines);
 }

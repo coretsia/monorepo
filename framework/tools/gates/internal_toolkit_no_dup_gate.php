@@ -62,13 +62,19 @@ declare(strict_types=1);
         if (\is_file($consoleFile) && \is_readable($consoleFile)) {
             require_once $consoleFile;
 
+            $code = 'CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED';
+
             if (\is_file($errorCodesFile) && \is_readable($errorCodesFile)) {
                 require_once $errorCodesFile;
-                $ConsoleOutput::codeWithDiagnostics($ErrorCodes::CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED, []);
-            } else {
-                // Absolute last-resort fallback: fixed code string (no paths leaked).
-                $ConsoleOutput::codeWithDiagnostics('CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED', []);
+
+                $code = coretsia_tools_error_code_or_fallback(
+                    $ErrorCodes,
+                    'CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED',
+                    $code,
+                );
             }
+
+            $ConsoleOutput::codeWithDiagnostics($code, []);
         }
 
         exit(1);
@@ -217,11 +223,13 @@ declare(strict_types=1);
     } catch (\Throwable) {
         // Deterministic failure: no leaks.
         if (\class_exists($ConsoleOutput)) {
-            $codeOut = \class_exists($ErrorCodes)
-                ? $ErrorCodes::CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED
-                : 'CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED';
+            $codeOut = coretsia_tools_error_code_or_fallback(
+                $ErrorCodes,
+                'CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED',
+                'CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED',
+            );
 
-            $ConsoleOutput::codeWithDiagnostics((string)$codeOut, []);
+            $ConsoleOutput::codeWithDiagnostics($codeOut, []);
         }
 
         exit(1);
@@ -502,4 +510,18 @@ function coretsia_tools_skip_ws_only(array $tokens, int $i): int
         break;
     }
     return $i;
+}
+
+function coretsia_tools_error_code_or_fallback(string $errorCodesFqcn, string $constantName, string $fallback): string
+{
+    $name = $errorCodesFqcn . '::' . $constantName;
+
+    if (\defined($name)) {
+        /** @var string $code */
+        $code = \constant($name);
+
+        return $code;
+    }
+
+    return $fallback;
 }

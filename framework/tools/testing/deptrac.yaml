@@ -30,11 +30,11 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Contracts\\.*'
-    - name: 'devtools.cli-spikes'
+    - name: 'devtools.cli_spikes'
       collectors:
         - type: classLike
           value: '^Coretsia\\Devtools\\CliSpikes\\.*'
-    - name: 'devtools.internal-toolkit'
+    - name: 'devtools.internal_toolkit'
       collectors:
         - type: classLike
           value: '^Coretsia\\Devtools\\InternalToolkit\\.*'
@@ -45,9 +45,9 @@ deptrac:
 
   ruleset:
     'core.contracts': [ ]
-    'devtools.cli-spikes':
+    'devtools.cli_spikes':
       - 'core.contracts'
       - 'platform.cli'
-    'devtools.internal-toolkit': [ ]
+    'devtools.internal_toolkit': [ ]
     'platform.cli':
       - 'core.contracts'

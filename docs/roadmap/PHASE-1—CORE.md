@@ -660,9 +660,9 @@ N/A
 - Gate commands policy:
   - every gate created under `framework/tools/gates/*_gate.php` MUST be separately invokable via a dedicated composer script named `<kebab-name>:gate`
   - command name derivation is single-choice:
-    - [ ] strip suffix `_gate.php`
-    - [ ] replace `_` with `-`
-    - [ ] append `:gate`
+    - [x] strip suffix `_gate.php`
+    - [x] replace `_` with `-`
+    - [x] append `:gate`
   - repo-root `composer.json` MUST expose mirror scripts delegating to `framework/composer.json`
   - workspace `framework/composer.json` MUST map each dedicated `*:gate` script directly to the corresponding `tools/gates/*_gate.php`
   - CI `gates` job MUST prefer invoking named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths, for gates owned by this and later epics
@@ -785,19 +785,19 @@ Tooling baseline configs
 
 #### Modifies
 
-- [ ] `.github/workflows/ci.yml` — MUST include rails jobs:
-  - [ ] `gates` (Linux): runs gate scripts deterministically
-  - [ ] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
-  - [ ] `test` (Linux): `composer -d framework install` → `composer -d framework test`
-  - [ ] `unit+contract` (Linux): runs unit/contract suites when they exist
-  - [ ] `integration-fast` (Linux): fast integration suites when they exist
-  - [ ] `integration-slow` (Linux): slow integration suites when they exist
-  - [ ] `spikes` (Linux): keep Phase 0 spike rails if still applicable
-  - [ ] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
-  - [ ] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
-    - [ ] `composer -d framework dto:gate`
-- [ ] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
-- [ ] `skeleton/phpunit.xml` — skeleton PHPUnit entrypoint (if used by CI)
+- [x] `.github/workflows/ci.yml` — MUST include rails jobs:
+  - [x] `gates` (Linux): runs gate scripts deterministically
+  - [x] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
+  - [x] `test` (Linux): `composer -d framework install` → `composer -d framework test`
+  - [x] `unit+contract` (Linux): runs unit/contract suites when they exist
+  - [x] `integration-fast` (Linux): fast integration suites when they exist
+  - [x] `integration-slow` (Linux): slow integration suites when they exist
+  - [x] `spikes` (Linux): keep Phase 0 spike rails if still applicable
+  - [x] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
+  - [x] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
+    - [x] `composer -d framework dto:gate`
+- [x] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
+- [x] `skeleton/phpunit.xml` — N/A for 1.50.0; skeleton PHPUnit is not consumed by CI yet.
 - [x] `framework/tools/spikes/_support/ErrorCodes.php`
   - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
   - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_GATE_FAILED`
@@ -846,8 +846,8 @@ Tooling baseline configs
 
 #### Artifacts / outputs (if applicable)
 
-- [ ] Writes (CI artifacts only):
-  - [ ] dep graph artifacts (dot/svg/html) uploaded by `arch` job
+- [x] Writes (CI artifacts only):
+  - [x] dep graph artifacts (dot/svg/html) uploaded by `arch` job
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -857,15 +857,15 @@ N/A (tooling output only; must be secret-safe)
 
 #### Security / Redaction
 
-- [ ] gates output MUST NOT print secrets; only paths + reasons (deterministic)
-- [ ] Gate output policy (MUST; aligned with Phase 0 rails):
-  - [ ] Any `framework/tools/gates/*.php` gate MUST:
-    - [ ] load `framework/tools/spikes/_support/bootstrap.php` before scanning
-    - [ ] emit output ONLY via `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] follow the canonical Phase 0 format:
-      - [ ] Line 1: deterministic `CODE` only
-      - [ ] Line 2+: stable diagnostics (`<scan-root-relative-path>: <reason>`) sorted by `strcmp`
-    - [ ] MUST NOT use `echo|print|var_dump|print_r|printf|error_log` or direct stdout/stderr sinks
+- [x] gates output MUST NOT print secrets; only paths + reasons (deterministic)
+- [x] Gate output policy (MUST; aligned with Phase 0 rails):
+  - [x] Any `framework/tools/gates/*.php` gate MUST:
+    - [x] load `framework/tools/spikes/_support/bootstrap.php` before scanning
+    - [x] emit output ONLY via `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] follow the canonical Phase 0 format:
+      - [x] Line 1: deterministic `CODE` only
+      - [x] Line 2+: stable diagnostics (`<scan-root-relative-path>: <reason>`) sorted by `strcmp`
+    - [x] MUST NOT use `echo|print|var_dump|print_r|printf|error_log` or direct stdout/stderr sinks
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -883,41 +883,41 @@ N/A (tooling output only; must be secret-safe)
 - Contract:
   - [ ] fixture-lock contract tests listed above
 - Integration:
-  - [ ] gates smoke run in CI job `gates`
-  - [ ] deptrac generate + analyze in CI job `arch`
+  - [x] gates smoke run in CI job `gates`
+  - [x] deptrac generate + analyze in CI job `arch`
 - Gates/Arch:
-  - [ ] deptrac denies forbidden edges (e.g. platform → integrations)
-  - [ ] contracts-only ports gate blocks ports outside `core/contracts`
-  - [ ] skeleton defaults gates block forbidden default files
-  - [ ] no-skeleton-modules-default gate blocks `skeleton/config/modules.php`
-  - [ ] observability naming gate blocks label/name drift
-  - [ ] artifact header/schema gate blocks non-canonical `_meta` and non-deterministic bytes
-  - [ ] tag constant mirror gate blocks drift between canonical tag strings and local mirror constants
+  - [x] deptrac denies forbidden edges (e.g. platform → integrations)
+  - [x] contracts-only ports gate blocks ports outside `core/contracts`
+  - [x] skeleton defaults gates block forbidden default files
+  - [x] no-skeleton-modules-default gate blocks `skeleton/config/modules.php`
+  - [x] observability naming gate blocks label/name drift
+  - [x] artifact header/schema gate blocks non-canonical `_meta` and non-deterministic bytes
+  - [x] tag constant mirror gate blocks drift between canonical tag strings and local mirror constants
 
 ### DoD (MUST)
 
 - [ ] Deliverables complete (creates+modifies), paths exact
 - [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Determinism: generator rerun-no-diff (arch job)
-- [ ] CI contains at minimum:
-  - [ ] `gates` job
-  - [ ] `arch` job (deptrac generate + analyze + artifacts upload)
-  - [ ] `test` job runs `composer -d framework test`
-  - [ ] `framework/composer.json` MUST expose the `test` script consumed by CI
+- [x] Determinism: generator rerun-no-diff (arch job)
+- [x] CI contains at minimum:
+  - [x] `gates` job
+  - [x] `arch` job (deptrac generate + analyze + artifacts upload)
+  - [x] `test` job runs `composer -d framework test`
+  - [x] `framework/composer.json` MUST expose the `test` script consumed by CI
 - [ ] Fixture-lock tests exist and fail deterministically when rules are violated
-- [ ] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
+- [x] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
 - [ ] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
 - [ ] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
-- [ ] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
+- [x] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
 - [x] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
 - [x] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
   then `no_skeleton_modules_default_gate.php` fails deterministically.
-- [ ] Prelude rails preserved (MUST):
-  - [ ] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
-  - [ ] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
-  - [ ] Lock drift check remains enforced (job fails if any lock changed)
-  - [ ] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
-- [ ] Tooling rail supports specialized sub-gates without changing output policy or CI invariants
+- [x] Prelude rails preserved (MUST):
+  - [x] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
+  - [x] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
+  - [x] Lock drift check remains enforced (job fails if any lock changed)
+  - [x] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
+- [x] Tooling rail supports specialized sub-gates without changing output policy or CI invariants
 
 ---
 

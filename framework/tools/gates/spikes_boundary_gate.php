@@ -48,7 +48,10 @@ declare(strict_types=1);
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED');
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
+                [],
+            );
         }
 
         exit(1);
@@ -90,7 +93,10 @@ declare(strict_types=1);
         if (\is_file($consolePath) && \is_readable($consolePath)) {
             require_once $consolePath;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED');
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
+                [],
+            );
         }
 
         exit(1);
@@ -99,9 +105,29 @@ declare(strict_types=1);
     // NOTE (cemented): if bootstrap exists but terminates (e.g. autoload missing), its output is authoritative.
     require_once $bootstrap;
 
-    // Ensure ConsoleOutput + ErrorCodes are available (tools-only includes).
-    require_once $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    require_once $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $consolePath = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
+    $errorCodesPath = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+
+    if (
+        !\is_file($consolePath)
+        || !\is_readable($consolePath)
+        || !\is_file($errorCodesPath)
+        || !\is_readable($errorCodesPath)
+    ) {
+        if (\is_file($consolePath) && \is_readable($consolePath)) {
+            require_once $consolePath;
+
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
+                [],
+            );
+        }
+
+        exit(1);
+    }
+
+    require_once $consolePath;
+    require_once $errorCodesPath;
 
     $ConsoleOutput = \Coretsia\Tools\Spikes\_support\ConsoleOutput::class;
     $ErrorCodes = \Coretsia\Tools\Spikes\_support\ErrorCodes::class;
@@ -251,7 +277,8 @@ declare(strict_types=1);
         return $tokenText;
     };
 
-    /**” means:
+    /**
+     * Forbidden path literal means:
      * - normalize via str_replace('\\','/',$raw)
      * - forbidden if contains 'packages/' AND '/src/' in that order.
      */
@@ -505,7 +532,10 @@ declare(strict_types=1);
         exit(1);
     } catch (\Throwable $e) {
         // Deterministic scan failure; no details, no absolute paths.
-        $ConsoleOutput::codeWithDiagnostics($ErrorCodes::CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED);
+        $ConsoleOutput::codeWithDiagnostics(
+            $ErrorCodes::CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED,
+            [],
+        );
         exit(1);
     }
 })(isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []);

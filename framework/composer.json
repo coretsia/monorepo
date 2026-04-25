@@ -29,14 +29,15 @@
     "php": "^8.4"
   },
   "require-dev": {
-    "coretsia/core-contracts": "dev-main",
-    "coretsia/devtools-cli-spikes": "dev-main",
-    "coretsia/devtools-internal-toolkit": "dev-main",
-    "coretsia/platform-cli": "dev-main",
     "ext-ctype": "*",
     "ext-dom": "*",
     "ext-imagick": "*",
     "ext-libxml": "*",
+    "coretsia/core-contracts": "dev-main",
+    "coretsia/devtools-cli-spikes": "dev-main",
+    "coretsia/devtools-internal-toolkit": "dev-main",
+    "coretsia/platform-cli": "dev-main",
+    "deptrac/deptrac": "^4.6",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
     "symplify/easy-coding-standard": "^13.0"
@@ -80,10 +81,16 @@
       "@cross-cutting-contract:gate",
       "@kernel-public-api:gate"
     ],
+    "arch": [
+      "@arch:package-index:check",
+      "@arch:deptrac:check",
+      "@arch:deptrac:analyze"
+    ],
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
     "arch:deptrac:check": "@php tools/build/deptrac_generate.php --check",
     "arch:deptrac:generate": "@php tools/build/deptrac_generate.php --apply",
+    "arch:deptrac:analyze": "@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache",
     "sync:check": "@php tools/build/sync_composer_repositories.php --check",
     "sync:repos": "@php tools/build/sync_composer_repositories.php",
     "spike:gate": "@php tools/gates/spikes_boundary_gate.php",

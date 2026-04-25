@@ -143,7 +143,10 @@ declare(strict_types=1);
         $evidenceFiles = coretsia_kernel_public_api_gate_find_public_api_evidence_files($repoRoot, $kernelRoot);
 
         if ($evidenceFiles === []) {
-            exit(0);
+            $ConsoleOutput::codeWithDiagnostics($codeViolation, [
+                'framework/packages/core/kernel: kernel-public-api-evidence-missing',
+            ]);
+            exit(1);
         }
 
         /**

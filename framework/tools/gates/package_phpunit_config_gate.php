@@ -147,7 +147,8 @@ declare(strict_types=1);
                     continue;
                 }
 
-                $violations[] = coretsia_package_phpunit_gate_rel_from_framework($abs, $frameworkRoot);
+                $violations[] = coretsia_package_phpunit_gate_rel_from_framework($abs, $frameworkRoot)
+                    . ': forbidden-package-phpunit-config';
             }
         }
 

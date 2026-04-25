@@ -20,23 +20,58 @@ permissions:
   contents: read
 
 jobs:
-  ci:
-    name: "${{ matrix.os }} / PHP ${{ matrix.php }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest ]
-        php: [ "8.4" ]
+  gates:
+    name: "gates / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
 
-    # Apply MSYS symlink rails to ALL steps on Windows (per-step env does not propagate).
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Gate rail: tooling/baseline gates (gates)"
+        shell: bash
+        run: composer --no-interaction gates
+
+      - name: "Gate rail: DTO specialized gates if materialized (dto:gate)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["dto:gate"]) ? 0 : 1);'; then
+            composer --no-interaction -d framework dto:gate
+          else
+            printf '%s\n' "dto:gate script is not materialized yet; optional DTO rail skipped."
+          fi
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  gates-windows:
+    name: "gates / windows-latest / PHP 8.4"
+    runs-on: windows-latest
+
     env:
       MSYS: winsymlinks:nativestrict
 
     steps:
-      # Windows rails MUST be applied BEFORE checkout to affect git checkout semantics.
       - name: "Windows rails: git + symlinks (MUST)"
-        if: ${{ runner.os == 'Windows' }}
         shell: bash
         run: |
           git config --global core.autocrlf false
@@ -48,16 +83,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: "Windows rails: assert git symlink mode (MUST)"
-        if: ${{ runner.os == 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
           git config core.symlinks true
           test "$(git config --bool core.symlinks)" = "true"
 
-      # Windows job MUST run under a workspace that allows symlink creation.
       - name: "Windows rails: verify symlink capability (MUST)"
-        if: ${{ runner.os == 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -71,13 +103,12 @@ jobs:
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: "8.4"
           tools: composer:v2
           coverage: none
           extensions: imagick
 
       - name: "Windows rails: verify PHP symlink capability (MUST)"
-        if: ${{ runner.os == 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -89,52 +120,357 @@ jobs:
           test -L link.txt
 
       - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
-        if: ${{ runner.os == 'Windows' && always() }}
+        if: ${{ always() }}
         shell: bash
         run: |
           rm -rf .tmp_symlink_php_check
 
-      # MUST run before any composer install (canonical repo-root wrapper).
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
         run: composer --no-interaction sync:check
-
-      # Installs (MUST NOT modify locks)
-      - name: "Install: composer (root) (install:root)"
-        shell: bash
-        run: composer --no-interaction --no-progress install:root
 
       - name: "Install: composer (framework) (install:framework)"
         shell: bash
         run: composer --no-interaction --no-progress install:framework
 
-      - name: "Install: composer (skeleton) (install:skeleton)"
+      - name: "Gate rail: tooling/baseline gates (gates)"
         shell: bash
-        run: composer --no-interaction --no-progress install:skeleton
+        run: composer --no-interaction gates
 
-      # Validations
-      - name: "Validate: composer (root) (validate:root)"
+      - name: "Gate rail: DTO specialized gates if materialized (dto:gate)"
         shell: bash
-        run: composer --no-interaction validate:root
+        run: |
+          set -euo pipefail
+
+          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["dto:gate"]) ? 0 : 1);'; then
+            composer --no-interaction -d framework dto:gate
+          else
+            printf '%s\n' "dto:gate script is not materialized yet; optional DTO rail skipped."
+          fi
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  arch:
+    name: "arch / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Arch: package index generator rerun-no-diff (arch:package-index:check)"
+        shell: bash
+        run: composer --no-interaction arch:package-index:check
+
+      - name: "Arch: deptrac generator rerun-no-diff (arch:deptrac:check)"
+        shell: bash
+        run: composer --no-interaction arch:deptrac:check
+
+      - name: "Arch: generate dep graph artifacts (arch:deptrac:generate)"
+        shell: bash
+        run: composer --no-interaction arch:deptrac:generate
+
+      - name: "Guard: generated arch source drift (MUST)"
+        shell: bash
+        run: |
+          git diff --exit-code -- \
+            framework/tools/testing/deptrac.yaml \
+            framework/tools/testing/deptrac.allowlist.yaml
+
+      - name: "Arch: deptrac analyze (arch:deptrac:analyze)"
+        shell: bash
+        run: composer --no-interaction arch:deptrac:analyze
+
+      - name: "Upload: dep graph artifacts"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coretsia-deptrac-graph
+          path: |
+            framework/var/arch/deptrac_graph.dot
+            framework/var/arch/deptrac_graph.svg
+            framework/var/arch/deptrac_graph.html
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  arch-windows:
+    name: "arch-check / windows-latest / PHP 8.4"
+    runs-on: windows-latest
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Arch: package index generator rerun-no-diff (arch:package-index:check)"
+        shell: bash
+        run: composer --no-interaction arch:package-index:check
+
+      - name: "Arch: deptrac generator rerun-no-diff (arch:deptrac:check)"
+        shell: bash
+        run: composer --no-interaction arch:deptrac:check
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  test:
+    name: "test / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+    needs:
+      - gates
+      - arch
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
 
       - name: "Validate: composer (framework) (validate:framework)"
         shell: bash
         run: composer --no-interaction validate:framework
 
-      - name: "Validate: composer (skeleton) (validate:skeleton)"
+      - name: "Test: framework package/unit/contract suite"
         shell: bash
-        run: composer --no-interaction validate:skeleton
+        run: composer --no-interaction --working-dir=framework run-script test --
 
-      - name: "Gate rail: tooling/baseline gates (gates)"
+      - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
-        run: composer --no-interaction gates
+        run: composer --no-interaction lock:check
 
-      # Tests (repo root delegates to framework test runner)
-      - name: "Test: project suite (test)"
+  unit-contract:
+    name: "unit+contract / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+    needs:
+      - gates
+      - arch
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
-        run: composer --no-interaction test
+        run: composer --no-interaction sync:check
 
-      # MUST fail if any composer.lock changed
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Test: unit+contract suites"
+        shell: bash
+        run: composer --no-interaction --working-dir=framework run-script test --
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  integration-fast:
+    name: "integration-fast / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+    needs:
+      - gates
+      - arch
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Test: integration-fast suites if materialized"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["integration-fast"]) ? 0 : 1);'; then
+            composer --no-interaction --working-dir=framework run-script integration-fast --
+            exit 0
+          fi
+
+          if find framework -type f \( \
+              -path '*/tests/Integration/Fast/*Test.php' -o \
+              -path '*/tests/IntegrationFast/*Test.php' -o \
+              -path '*/tests/integration-fast/*Test.php' \
+            \) | grep -q .; then
+            printf '%s\n' "integration-fast tests exist, but framework/composer.json has no integration-fast script." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "No integration-fast suites detected; rail is a deterministic no-op."
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  integration-slow:
+    name: "integration-slow / ubuntu-latest / PHP 8.4"
+    runs-on: ubuntu-latest
+    needs:
+      - gates
+      - arch
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Test: integration-slow suites if materialized"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["integration-slow"]) ? 0 : 1);'; then
+            composer --no-interaction --working-dir=framework run-script integration-slow --
+            exit 0
+          fi
+
+          if find framework -type f \( \
+              -path '*/tests/Integration/Slow/*Test.php' -o \
+              -path '*/tests/IntegrationSlow/*Test.php' -o \
+              -path '*/tests/integration-slow/*Test.php' \
+            \) | grep -q .; then
+            printf '%s\n' "integration-slow tests exist, but framework/composer.json has no integration-slow script." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "No integration-slow suites detected; rail is a deterministic no-op."
+
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
         run: composer --no-interaction lock:check
@@ -155,7 +491,6 @@ jobs:
           coverage: none
           extensions: imagick
 
-      # MUST run before any composer install (canonical repo-root wrapper).
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
         run: composer --no-interaction sync:check
@@ -192,7 +527,6 @@ jobs:
           coverage: none
           extensions: imagick
 
-      # MUST run before any composer install (canonical repo-root wrapper).
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
         run: composer --no-interaction sync:check
@@ -218,13 +552,11 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
         php: [ "8.4" ]
 
-    # Apply MSYS symlink rails to ALL steps on Windows.
     env:
       MSYS: winsymlinks:nativestrict
       CORETSIA_CI_SAFE_DEBUG: ${{ vars.CORETSIA_CI_SAFE_DEBUG || '0' }}
 
     steps:
-      # Windows rails MUST be applied BEFORE checkout to affect git checkout semantics.
       - name: "Windows rails: git + symlinks (MUST)"
         if: ${{ runner.os == 'Windows' }}
         shell: bash
@@ -245,7 +577,6 @@ jobs:
           git config core.symlinks true
           test "$(git config --bool core.symlinks)" = "true"
 
-      # Windows job MUST run under a workspace that allows symlink creation.
       - name: "Windows rails: verify symlink capability (MUST)"
         if: ${{ runner.os == 'Windows' }}
         shell: bash
@@ -284,7 +615,6 @@ jobs:
         run: |
           rm -rf .tmp_symlink_php_check
 
-      # MUST run before any composer install (canonical repo-root wrapper).
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
         run: composer --no-interaction sync:check
@@ -304,7 +634,6 @@ jobs:
           set -euo pipefail
           rm -f .tmp_spike_test.log || true
 
-          # Re-run spike:test but capture output; do not fail this debug step.
           (composer --no-interaction --working-dir=framework run-script spike:test -- || true) \
             | tr -d '\r' > .tmp_spike_test.log
 

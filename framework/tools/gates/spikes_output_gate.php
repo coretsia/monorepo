@@ -25,28 +25,44 @@ declare(strict_types=1);
 
     $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
     $consoleOutputFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
 
     $scanRoot = $toolsRootRuntime;
-    $override = parseScanRootOverride($argv);
+    $override = coretsia_spikes_output_gate_parse_scan_root_override($argv);
     if ($override !== null) {
         $resolved = realpath($override);
         if ($resolved === false) {
-            safeEmitScanFailed($consoleOutputFile);
+            coretsia_spikes_output_gate_safe_emit_scan_failed($consoleOutputFile, $errorCodesFile);
             exit(1);
         }
+
         $scanRoot = $resolved;
     }
 
     if (!is_file($bootstrap) || !is_readable($bootstrap)) {
-        safeEmitScanFailed($consoleOutputFile);
+        coretsia_spikes_output_gate_safe_emit_scan_failed($consoleOutputFile, $errorCodesFile);
         exit(1);
     }
 
     // NOTE (cemented): if bootstrap terminates the process, its deterministic output is authoritative.
     require_once $bootstrap;
 
+    if (!is_file($consoleOutputFile) || !is_readable($consoleOutputFile)) {
+        exit(1);
+    }
+
     // Output MUST be emitted only via runtime ConsoleOutput (tools-root based, not scan-root based).
     require_once $consoleOutputFile;
+
+    if (!is_file($errorCodesFile) || !is_readable($errorCodesFile)) {
+        coretsia_spikes_output_gate_safe_emit_scan_failed($consoleOutputFile, $errorCodesFile);
+        exit(1);
+    }
+
+    require_once $errorCodesFile;
+
+    /** @var class-string $errorCodesFqcn */
+    $errorCodesFqcn = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
 
     try {
         $scanRootNorm = rtrim(str_replace('\\', '/', $scanRoot), '/');
@@ -58,26 +74,29 @@ declare(strict_types=1);
 
         foreach ($includeDirs as $dir) {
             if (!is_dir($dir)) {
-                safeEmitScanFailed($consoleOutputFile);
+                coretsia_spikes_output_gate_safe_emit_lines([
+                    $errorCodesFqcn::CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED,
+                ]);
                 exit(1);
             }
         }
 
         $allowlistedRel = 'spikes/_support/ConsoleOutput.php';
 
-        $directSinks = buildDirectOutputSinks();
+        $directSinks = coretsia_spikes_output_gate_build_direct_output_sinks();
         $bypassFiles = [];
 
-        $files = collectPhpFiles($scanRoot, $scanRootNorm);
+        $files = coretsia_spikes_output_gate_collect_php_files($scanRoot, $scanRootNorm);
         foreach ($files as $abs => $rel) {
-            if (isExcluded($rel)) {
+            if (coretsia_spikes_output_gate_is_excluded($rel)) {
                 continue;
             }
+
             if ($rel === $allowlistedRel) {
                 continue;
             }
 
-            if (fileHasOutputBypass($abs, $directSinks)) {
+            if (coretsia_spikes_output_gate_file_has_output_bypass($abs, $directSinks)) {
                 $bypassFiles[$rel] = true;
             }
         }
@@ -87,26 +106,30 @@ declare(strict_types=1);
             usort($paths, static fn (string $a, string $b): int => strcmp($a, $b));
 
             $lines = [];
-            $lines[] = 'CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED';
+            $lines[] = $errorCodesFqcn::CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED;
+
             foreach ($paths as $p) {
                 $lines[] = $p . ': output-bypass';
             }
 
-            safeEmitLines($lines);
+            coretsia_spikes_output_gate_safe_emit_lines($lines);
             exit(1);
         }
 
         exit(0);
     } catch (Throwable) {
-        safeEmitLines(['CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED']);
+        coretsia_spikes_output_gate_safe_emit_lines([
+            $errorCodesFqcn::CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED,
+        ]);
         exit(1);
     }
 })($argv ?? []);
 
 /**
  * @param array $argv
+ * @return string|null
  */
-function parseScanRootOverride(array $argv): ?string
+function coretsia_spikes_output_gate_parse_scan_root_override(array $argv): ?string
 {
     foreach ($argv as $arg) {
         if (!is_string($arg)) {
@@ -125,22 +148,38 @@ function parseScanRootOverride(array $argv): ?string
 
 /**
  * @param string $consoleOutputFile absolute runtime tools path
+ * @param string $errorCodesFile absolute runtime tools path
  */
-function safeEmitScanFailed(string $consoleOutputFile): void
+function coretsia_spikes_output_gate_safe_emit_scan_failed(string $consoleOutputFile, string $errorCodesFile): void
 {
-    if (is_file($consoleOutputFile) && is_readable($consoleOutputFile)) {
-        require_once $consoleOutputFile;
-        safeEmitLines(['CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED']);
+    if (!is_file($consoleOutputFile) || !is_readable($consoleOutputFile)) {
         return;
     }
 
-    // No safe output channel available.
+    require_once $consoleOutputFile;
+
+    $code = 'CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED';
+
+    if (is_file($errorCodesFile) && is_readable($errorCodesFile)) {
+        require_once $errorCodesFile;
+
+        $errorCodesFqcn = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+        $constantName = $errorCodesFqcn . '::CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED';
+
+        if (defined($constantName)) {
+            /** @var string $resolvedCode */
+            $resolvedCode = constant($constantName);
+            $code = $resolvedCode;
+        }
+    }
+
+    coretsia_spikes_output_gate_safe_emit_lines([$code]);
 }
 
 /**
  * @return list<string>
  */
-function buildDirectOutputSinks(): array
+function coretsia_spikes_output_gate_build_direct_output_sinks(): array
 {
     $p = 'php' . '://';
 
@@ -158,7 +197,7 @@ function buildDirectOutputSinks(): array
  * - "/" separators
  * - on Windows: case-fold to lower to avoid drive-letter case mismatch from realpath()
  */
-function normalizeForPrefixCheck(string $path): string
+function coretsia_spikes_output_gate_normalize_for_prefix_check(string $path): string
 {
     $path = str_replace('\\', '/', $path);
     $path = rtrim($path, '/');
@@ -175,11 +214,11 @@ function normalizeForPrefixCheck(string $path): string
  * @param string $scanRootNorm absolute with "/" separators and no trailing "/"
  * @return array<string, string> map: absPath => scan-root-relative normalized path
  */
-function collectPhpFiles(string $scanRoot, string $scanRootNorm): array
+function coretsia_spikes_output_gate_collect_php_files(string $scanRoot, string $scanRootNorm): array
 {
     $out = [];
 
-    $scanRootNormCmp = normalizeForPrefixCheck($scanRootNorm);
+    $scanRootNormCmp = coretsia_spikes_output_gate_normalize_for_prefix_check($scanRootNorm);
 
     foreach (['spikes', 'gates'] as $sub) {
         $dir = $scanRoot . DIRECTORY_SEPARATOR . $sub;
@@ -207,24 +246,27 @@ function collectPhpFiles(string $scanRoot, string $scanRootNorm): array
             }
 
             $absNorm = str_replace('\\', '/', $absReal);
-            $absNormCmp = normalizeForPrefixCheck($absNorm);
+            $absNormCmp = coretsia_spikes_output_gate_normalize_for_prefix_check($absNorm);
 
             if (!str_starts_with($absNormCmp, $scanRootNormCmp . '/')) {
                 throw new RuntimeException('scan-failed');
             }
 
             $rel = substr($absNorm, strlen($scanRootNorm) + 1);
-            $relNorm = normalizeRelativePath($rel);
+            $relNorm = coretsia_spikes_output_gate_normalize_relative_path($rel);
             $out[$absReal] = $relNorm;
         }
     }
 
-    ksort($out, SORT_STRING);
+    \uasort(
+        $out,
+        static fn (string $a, string $b): int => \strcmp($a, $b),
+    );
 
     return $out;
 }
 
-function normalizeRelativePath(string $path): string
+function coretsia_spikes_output_gate_normalize_relative_path(string $path): string
 {
     $path = str_replace('\\', '/', $path);
     $parts = explode('/', $path);
@@ -247,7 +289,7 @@ function normalizeRelativePath(string $path): string
     return implode('/', $out);
 }
 
-function isExcluded(string $rel): bool
+function coretsia_spikes_output_gate_is_excluded(string $rel): bool
 {
     if ($rel === 'spikes/tests' || str_starts_with($rel, 'spikes/tests/')) {
         return true;
@@ -271,9 +313,18 @@ function isExcluded(string $rel): bool
 /**
  * @param list<string> $directSinks
  */
-function fileHasOutputBypass(string $absPath, array $directSinks): bool
+function coretsia_spikes_output_gate_file_has_output_bypass(string $absPath, array $directSinks): bool
 {
-    $src = file_get_contents($absPath);
+    set_error_handler(static function (): bool {
+        return true;
+    });
+
+    try {
+        $src = file_get_contents($absPath);
+    } finally {
+        restore_error_handler();
+    }
+
     if (!is_string($src)) {
         throw new RuntimeException('scan-failed');
     }
@@ -307,25 +358,25 @@ function fileHasOutputBypass(string $absPath, array $directSinks): bool
             }
 
             if ($id === T_CONSTANT_ENCAPSED_STRING) {
-                $value = decodeConstantStringLiteral($text);
+                $value = coretsia_spikes_output_gate_decode_constant_string_literal($text);
                 if ($value !== null && in_array($value, $directSinks, true)) {
                     return true;
                 }
                 continue;
             }
 
-            if (!isCallableNameToken($id)) {
+            if (!coretsia_spikes_output_gate_is_callable_name_token($id)) {
                 continue;
             }
 
-            $fn = lastNameSegment($text);
+            $fn = coretsia_spikes_output_gate_last_name_segment($text);
             $fnLower = strtolower($fn);
 
             if (!isset($callBypass[$fnLower]) && !isset($streamFns[$fnLower])) {
                 continue;
             }
 
-            if (!isCallSite($tokens, $i)) {
+            if (!coretsia_spikes_output_gate_is_call_site($tokens, $i)) {
                 continue;
             }
 
@@ -334,12 +385,12 @@ function fileHasOutputBypass(string $absPath, array $directSinks): bool
             }
 
             // fwrite/fputs/fprintf: bypass only if args contain STDOUT/STDERR.
-            $openIdx = nextNonIgnorableIndex($tokens, $i + 1);
+            $openIdx = coretsia_spikes_output_gate_next_non_ignorable_index($tokens, $i + 1);
             if ($openIdx === null || $tokens[$openIdx] !== '(') {
                 continue;
             }
 
-            if (argsContainStdStream($tokens, $openIdx)) {
+            if (coretsia_spikes_output_gate_args_contain_std_stream($tokens, $openIdx)) {
                 return true;
             }
 
@@ -350,7 +401,7 @@ function fileHasOutputBypass(string $absPath, array $directSinks): bool
     return false;
 }
 
-function isCallableNameToken(int $id): bool
+function coretsia_spikes_output_gate_is_callable_name_token(int $id): bool
 {
     return $id === T_STRING
         || $id === (defined('T_NAME_QUALIFIED') ? T_NAME_QUALIFIED : -1)
@@ -358,7 +409,7 @@ function isCallableNameToken(int $id): bool
         || $id === (defined('T_NAME_RELATIVE') ? T_NAME_RELATIVE : -1);
 }
 
-function lastNameSegment(string $name): string
+function coretsia_spikes_output_gate_last_name_segment(string $name): string
 {
     $name = str_replace('\\', '/', $name);
     $parts = explode('/', $name);
@@ -372,9 +423,9 @@ function lastNameSegment(string $name): string
 /**
  * @param list<array{0:int,1:string,2?:int}|string> $tokens
  */
-function isCallSite(array $tokens, int $nameIndex): bool
+function coretsia_spikes_output_gate_is_call_site(array $tokens, int $nameIndex): bool
 {
-    $prev = prevNonIgnorableIndex($tokens, $nameIndex - 1);
+    $prev = coretsia_spikes_output_gate_prev_non_ignorable_index($tokens, $nameIndex - 1);
     if ($prev !== null && is_array($tokens[$prev])) {
         $pid = $tokens[$prev][0];
         if ($pid === T_OBJECT_OPERATOR || $pid === T_DOUBLE_COLON || $pid === T_FUNCTION) {
@@ -382,7 +433,7 @@ function isCallSite(array $tokens, int $nameIndex): bool
         }
     }
 
-    $next = nextNonIgnorableIndex($tokens, $nameIndex + 1);
+    $next = coretsia_spikes_output_gate_next_non_ignorable_index($tokens, $nameIndex + 1);
     if ($next === null) {
         return false;
     }
@@ -393,11 +444,11 @@ function isCallSite(array $tokens, int $nameIndex): bool
 /**
  * @param list<array{0:int,1:string,2?:int}|string> $tokens
  */
-function prevNonIgnorableIndex(array $tokens, int $from): ?int
+function coretsia_spikes_output_gate_prev_non_ignorable_index(array $tokens, int $from): ?int
 {
     for ($i = $from; $i >= 0; $i--) {
         $t = $tokens[$i];
-        if (isIgnorableToken($t)) {
+        if (coretsia_spikes_output_gate_is_ignorable_token($t)) {
             continue;
         }
         return $i;
@@ -409,12 +460,12 @@ function prevNonIgnorableIndex(array $tokens, int $from): ?int
 /**
  * @param list<array{0:int,1:string,2?:int}|string> $tokens
  */
-function nextNonIgnorableIndex(array $tokens, int $from): ?int
+function coretsia_spikes_output_gate_next_non_ignorable_index(array $tokens, int $from): ?int
 {
     $n = count($tokens);
     for ($i = $from; $i < $n; $i++) {
         $t = $tokens[$i];
-        if (isIgnorableToken($t)) {
+        if (coretsia_spikes_output_gate_is_ignorable_token($t)) {
             continue;
         }
         return $i;
@@ -426,7 +477,7 @@ function nextNonIgnorableIndex(array $tokens, int $from): ?int
 /**
  * @param array{0:int,1:string,2?:int}|string $token
  */
-function isIgnorableToken(array|string $token): bool
+function coretsia_spikes_output_gate_is_ignorable_token(array|string $token): bool
 {
     if (!is_array($token)) {
         return false;
@@ -440,7 +491,7 @@ function isIgnorableToken(array|string $token): bool
 /**
  * @param list<array{0:int,1:string,2?:int}|string> $tokens
  */
-function argsContainStdStream(array $tokens, int $openParenIndex): bool
+function coretsia_spikes_output_gate_args_contain_std_stream(array $tokens, int $openParenIndex): bool
 {
     $n = count($tokens);
     $depth = 0;
@@ -474,8 +525,8 @@ function argsContainStdStream(array $tokens, int $openParenIndex): bool
             continue;
         }
 
-        if ($id === T_STRING || isCallableNameToken($id)) {
-            $name = lastNameSegment($text);
+        if ($id === T_STRING || coretsia_spikes_output_gate_is_callable_name_token($id)) {
+            $name = coretsia_spikes_output_gate_last_name_segment($text);
             $u = strtoupper($name);
             if ($u === 'STDOUT' || $u === 'STDERR') {
                 return true;
@@ -490,7 +541,7 @@ function argsContainStdStream(array $tokens, int $openParenIndex): bool
  * @param string $tokenText
  * @return string|null
  */
-function decodeConstantStringLiteral(string $tokenText): ?string
+function coretsia_spikes_output_gate_decode_constant_string_literal(string $tokenText): ?string
 {
     $len = strlen($tokenText);
     if ($len < 2) {
@@ -515,35 +566,24 @@ function decodeConstantStringLiteral(string $tokenText): ?string
 /**
  * @param list<string> $lines
  */
-function safeEmitLines(array $lines): void
+function coretsia_spikes_output_gate_safe_emit_lines(array $lines): void
 {
-    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
-    $candidates = [$fqcn, 'ConsoleOutput'];
-
-    foreach ($candidates as $class) {
-        if (!class_exists($class)) {
-            continue;
-        }
-
-        // Prefer batch APIs if available.
-        foreach (['writeLines', 'lines', 'emitLines', 'outLines'] as $m) {
-            if (method_exists($class, $m)) {
-                $class::$m($lines);
-                return;
-            }
-        }
-
-        // Fallback: single-line APIs.
-        foreach (['writeLine', 'line', 'writeln', 'emit', 'out'] as $m) {
-            if (!method_exists($class, $m)) {
-                continue;
-            }
-            foreach ($lines as $line) {
-                $class::$m($line);
-            }
-            return;
-        }
+    if ($lines === []) {
+        return;
     }
 
-    // No safe output channel available.
+    /** @var class-string<\Coretsia\Tools\Spikes\_support\ConsoleOutput> $fqcn */
+    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+
+    if (!class_exists($fqcn)) {
+        return;
+    }
+
+    $code = array_shift($lines);
+
+    if (!is_string($code) || $code === '') {
+        return;
+    }
+
+    $fqcn::codeWithDiagnostics($code, $lines);
 }

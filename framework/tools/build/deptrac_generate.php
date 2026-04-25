@@ -28,13 +28,6 @@ final class DeptracGenerateTool
     private const string DEPENDENCY_TABLE_PATH = 'docs/roadmap/phase0/00_2-dependency-table.md';
 
     /**
-     * @var array<string, true>
-     */
-    private const array TOOLING_LAYERS = [
-        'devtools' => true,
-    ];
-
-    /**
      * @var list<string>
      */
     private const array DEFAULT_EXCLUDE_FILES = [
@@ -70,6 +63,8 @@ final class DeptracGenerateTool
         self::assertNoPackageCycles($ssotRuleset);
 
         $packageIndex = self::scanPackages($repoRoot);
+        self::assertAllDiscoveredPackagesHaveSsotRows($packageIndex, $ssotRuleset);
+
         $model = self::buildDeptracModel($repoRoot, $outPath, $packageIndex, $ssotRuleset, $excludeFiles);
 
         $yaml = self::renderDeptracYaml($model);
@@ -135,6 +130,51 @@ final class DeptracGenerateTool
         }
 
         return self::CODE_GENERATE_FAILED . ': ' . $message;
+    }
+
+    /**
+     * @param list<array{
+     *     id:string,
+     *     packageId:string,
+     *     layer:string,
+     *     slug:string,
+     *     composerName:string,
+     *     path:string,
+     *     srcPath:string,
+     *     psr4:string,
+     *     requireNames:list<string>
+     * }> $packageIndex
+     * @param array<string, list<string>> $ssotRuleset
+     */
+    private static function assertAllDiscoveredPackagesHaveSsotRows(array $packageIndex, array $ssotRuleset): void
+    {
+        /** @var list<string> $missing */
+        $missing = [];
+
+        foreach ($packageIndex as $package) {
+            $packageId = $package['packageId'];
+
+            if (!isset($ssotRuleset[$packageId])) {
+                $missing[] = $packageId;
+            }
+        }
+
+        $missing = array_values(array_unique($missing));
+        sort($missing, SORT_STRING);
+
+        if ($missing === []) {
+            return;
+        }
+
+        $message = self::CODE_MISSING_SSOT_RULESET . ': missing dependency table rows for discovered packages';
+
+        foreach ($missing as $packageId) {
+            $message .= "\n- " . $packageId;
+        }
+
+        $message .= "\nFix: add rows to " . self::DEPENDENCY_TABLE_PATH . '.';
+
+        throw new RuntimeException($message);
     }
 
     /**
@@ -457,26 +497,22 @@ final class DeptracGenerateTool
             $packageId = $package['packageId'];
             $layerId = $package['id'];
 
-            if (isset($ssotRuleset[$packageId])) {
-                $allowedPackageIds = $ssotRuleset[$packageId];
-                $allowedPackageIds = self::applyTemporalMissingDependencyCompat(
-                    $package,
-                    $allowedPackageIds,
-                    $activePackageIds,
-                    $composerNameToPackageId,
-                    $ssotRuleset,
-                );
-            } elseif (isset(self::TOOLING_LAYERS[$package['layer']])) {
-                $allowedPackageIds = self::composerRequireNamesToPackageIds(
-                    $package['requireNames'],
-                    $composerNameToPackageId,
-                );
-            } else {
+            if (!isset($ssotRuleset[$packageId])) {
                 $missing[] = $packageId;
                 continue;
             }
 
+            $allowedPackageIds = $ssotRuleset[$packageId];
+            $allowedPackageIds = self::applyTemporalMissingDependencyCompat(
+                $package,
+                $allowedPackageIds,
+                $activePackageIds,
+                $composerNameToPackageId,
+                $ssotRuleset,
+            );
+
             $allowedLayers = [];
+
             foreach ($allowedPackageIds as $allowedPackageId) {
                 if (!isset($activePackageIds[$allowedPackageId]) || $allowedPackageId === $packageId) {
                     continue;
@@ -495,11 +531,13 @@ final class DeptracGenerateTool
         sort($missing, SORT_STRING);
 
         if ($missing !== []) {
-            $message = self::CODE_MISSING_SSOT_RULESET . ': missing dependency policy for discovered package layers';
+            $message = self::CODE_MISSING_SSOT_RULESET . ': missing dependency policy for active package layers';
+
             foreach ($missing as $packageId) {
                 $message .= "\n- " . $packageId;
             }
-            $message .= "\nFix: add rows to " . self::DEPENDENCY_TABLE_PATH . ' or mark the package as tooling-only.';
+
+            $message .= "\nFix: add rows to " . self::DEPENDENCY_TABLE_PATH . '.';
 
             throw new RuntimeException($message);
         }
@@ -1153,7 +1191,7 @@ final class DeptracGenerateTool
 
     private static function packageIdToLayerId(string $packageId): string
     {
-        return str_replace('/', '.', $packageId);
+        return str_replace(['/', '-'], ['.', '_'], $packageId);
     }
 
     private static function normalizeEol(string $value): string

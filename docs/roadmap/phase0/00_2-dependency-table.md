@@ -91,6 +91,7 @@ These invariants are part of Phase 0 dependency law:
 | package_id                | depends_on                                   | notes |
 |---------------------------|----------------------------------------------|-------|
 | core/contracts            | —                                            |       |
+| core/dto-attribute        | —                                            |       |
 | core/foundation           | core/contracts                               |       |
 | core/kernel               | core/contracts, core/foundation              |       |
 | devtools/cli-spikes       | core/contracts, platform/cli                 |       |

@@ -1059,25 +1059,25 @@ A compliant DTO in this rail is **not**:
   - [ ] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
   - [ ] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
 
-- [ ] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
-  - [ ] package name: `coretsia/core-dto-attribute`
-  - [ ] package kind: library-only marker package
-  - [ ] no runtime deps
-  - [ ] PSR-4:
-    - [ ] `Coretsia\Dto\Attribute\` → `src/Attribute/`
+- [x] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
+  - [x] package name: `coretsia/core-dto-attribute`
+  - [x] package kind: library-only marker package
+  - [x] no runtime deps
+  - [x] PSR-4:
+    - [x] `Coretsia\Dto\Attribute\` → `src/Attribute/`
 
-- [ ] `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
-  - [ ] `#[Attribute(Attribute::TARGET_CLASS)]`
-  - [ ] empty marker attribute
-  - [ ] no parameters in Phase 1
-  - [ ] no runtime behavior
+- [x] `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
+  - [x] `#[Attribute(Attribute::TARGET_CLASS)]`
+  - [x] empty marker attribute
+  - [x] no parameters in Phase 1
+  - [x] no runtime behavior
 
-- [ ] `framework/packages/core/dto-attribute/README.md` — usage and policy note:
-  - [ ] explains explicit opt-in
-  - [ ] explains that marking a class as DTO subjects it to DTO gates
-  - [ ] explains that DTO is a narrow transport shape, not a general-purpose VO model
+- [x] `framework/packages/core/dto-attribute/README.md` — usage and policy note:
+  - [x] explains explicit opt-in
+  - [x] explains that marking a class as DTO subjects it to DTO gates
+  - [x] explains that DTO is a narrow transport shape, not a general-purpose VO model
 
-- [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
 - [x] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
   - [x] already has canonical vocabulary
@@ -1129,8 +1129,8 @@ A compliant DTO in this rail is **not**:
   - [ ] `CORETSIA_DTO_SHAPE_VIOLATION`
   - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
 
-- [ ] `framework/composer.json` — require marker package for workspace autoload visibility:
-  - [ ] add `coretsia/core-dto-attribute`
+- [x] `framework/composer.json` — require marker package for workspace autoload visibility:
+  - [x] add `coretsia/core-dto-attribute`
 
 - [x] `docs/ssot/INDEX.md` — register:
   - [x] `docs/ssot/dto-policy.md`
@@ -1183,12 +1183,12 @@ N/A
   - [ ] proves non-zero exit propagates
   - [ ] proves aggregate runner does not invent a second diagnostics format
 
-- [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+  - [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 - Integration:
   - [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
 - Gates/Arch:
@@ -1201,11 +1201,11 @@ N/A
 - [ ] DTO rail is deterministic and integrated into CI
 - [ ] Aggregate runner exists and invokes specialized gates in deterministic order
 - [ ] Error codes are registered in `ErrorCodes.php`
-- [ ] `docs/ssot/dto-policy.md` exists and is linked
-- [ ] Marker package `coretsia/core-dto-attribute` exists with minimal deps
-- [ ] DTO detection is attribute-only and explicit-opt-in
-- [ ] Unmarked classes are outside DTO rail scope
-- [ ] `README.md` of marker package explains usage and scope
+- [x] `docs/ssot/dto-policy.md` exists and is linked
+- [x] Marker package `coretsia/core-dto-attribute` exists with minimal deps
+- [x] DTO detection is attribute-only and explicit-opt-in
+- [x] Unmarked classes are outside DTO rail scope
+- [x] `README.md` of marker package explains usage and scope
 - [ ] `dto_gate.php` preserves single-gate output contract by forwarding first failing sub-gate output verbatim
 
 ---

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3289634be7f6febfecc77d51d2ab6a56",
+    "content-hash": "1ae028d08fe38cfd16a52a4a7179c579",
     "packages": [],
     "packages-dev": [
         {
@@ -202,6 +202,59 @@
                 "php",
                 "psr",
                 "spi"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "coretsia/core-dto-attribute",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/core/dto-attribute",
+                "reference": "393b150524bc191fc46edef9360e073d97839997"
+            },
+            "require": {
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "library"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Dto\\Attribute\\": "src/Attribute/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Dto\\Attribute\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Coretsia Team",
+                    "email": "team@coretsia.dev",
+                    "homepage": "https://coretsia.dev/"
+                }
+            ],
+            "description": "Coretsia DTO marker attribute package",
+            "keywords": [
+                "attribute",
+                "coretsia",
+                "dto",
+                "framework",
+                "marker",
+                "php",
+                "policy",
+                "transport"
             ],
             "transport-options": {
                 "symlink": true,
@@ -3987,6 +4040,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "coretsia/core-contracts": 20,
+        "coretsia/core-dto-attribute": 20,
         "coretsia/devtools-cli-spikes": 20,
         "coretsia/devtools-internal-toolkit": 20,
         "coretsia/platform-cli": 20

@@ -16,6 +16,7 @@
 deptrac:
   paths:
     - '../../packages/core/contracts/src'
+    - '../../packages/core/dto-attribute/src'
     - '../../packages/devtools/cli-spikes/src'
     - '../../packages/devtools/internal-toolkit/src'
     - '../../packages/platform/cli/src'
@@ -30,6 +31,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Contracts\\.*'
+    - name: 'core.dto_attribute'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Dto\\Attribute\\.*'
     - name: 'devtools.cli_spikes'
       collectors:
         - type: classLike
@@ -45,6 +50,7 @@ deptrac:
 
   ruleset:
     'core.contracts': [ ]
+    'core.dto_attribute': [ ]
     'devtools.cli_spikes':
       - 'core.contracts'
       - 'platform.cli'

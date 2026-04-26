@@ -869,14 +869,14 @@ N/A (tooling output only; must be secret-safe)
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Fixture locks promoted to rails (tests reference spike fixtures):
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
+- [x] Fixture locks promoted to rails (tests reference spike fixtures):
+  - [x] `framework/tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
 
 ### Tests (MUST)
 

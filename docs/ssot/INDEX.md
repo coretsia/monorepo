@@ -39,7 +39,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Policies
 
-_Empty for now (Prelude)._
+- [DTO Policy](./dto-policy.md) — owner: repo — scope: dto,marker,policy,transport
 
 ## Shapes and Contracts
 

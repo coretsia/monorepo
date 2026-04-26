@@ -1,0 +1,47 @@
+{
+  "name": "coretsia/core-dto-attribute",
+  "type": "library",
+  "description": "Coretsia DTO marker attribute package",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "dto",
+    "attribute",
+    "marker",
+    "transport",
+    "policy"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Dto\\Attribute\\": "src/Attribute/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Dto\\Attribute\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

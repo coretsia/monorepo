@@ -30,6 +30,22 @@ return array(
     ),
     1 =>
     array(
+      'composerName' => 'coretsia/core-dto-attribute',
+      'defaultsConfigPath' => null,
+      'id' => 'core.dto-attribute',
+      'kind' => 'library',
+      'layer' => 'core',
+      'moduleClass' => null,
+      'moduleId' => null,
+      'path' => 'framework/packages/core/dto-attribute',
+      'providers' =>
+      array(
+      ),
+      'psr4' => 'Coretsia\\Dto\\Attribute\\',
+      'slug' => 'dto-attribute',
+    ),
+    2 =>
+    array(
       'composerName' => 'coretsia/devtools-cli-spikes',
       'defaultsConfigPath' => null,
       'id' => 'devtools.cli-spikes',
@@ -44,7 +60,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\CliSpikes\\',
       'slug' => 'cli-spikes',
     ),
-    2 =>
+    3 =>
     array(
       'composerName' => 'coretsia/devtools-internal-toolkit',
       'defaultsConfigPath' => null,
@@ -60,7 +76,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\InternalToolkit\\',
       'slug' => 'internal-toolkit',
     ),
-    3 =>
+    4 =>
     array(
       'composerName' => 'coretsia/platform-cli',
       'defaultsConfigPath' => 'config/cli.php',

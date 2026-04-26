@@ -34,6 +34,7 @@
     "ext-imagick": "*",
     "ext-libxml": "*",
     "coretsia/core-contracts": "dev-main",
+    "coretsia/core-dto-attribute": "dev-main",
     "coretsia/devtools-cli-spikes": "dev-main",
     "coretsia/devtools-internal-toolkit": "dev-main",
     "coretsia/platform-cli": "dev-main",
@@ -81,6 +82,10 @@
       "@cross-cutting-contract:gate",
       "@kernel-public-api:gate"
     ],
+    "dto:gate": "@php tools/gates/dto_gate.php",
+    "dto-marker-consistency:gate": "@php tools/gates/dto_marker_consistency_gate.php",
+    "dto-no-logic:gate": "@php tools/gates/dto_no_logic_gate.php",
+    "dto-shape:gate": "@php tools/gates/dto_shape_gate.php",
     "arch": [
       "@arch:package-index:check",
       "@arch:deptrac:check",

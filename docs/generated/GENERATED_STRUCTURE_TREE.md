@@ -81,6 +81,7 @@ Coretsia/
 │       ├── INDEX.md
 │       ├── artifacts.md
 │       ├── config-roots.md
+│       ├── dto-policy.md
 │       ├── observability.md
 │       └── tags.md
 ├── framework/
@@ -88,17 +89,26 @@ Coretsia/
 │   │   └── coretsia
 │   ├── packages/
 │   │   ├── core/
-│   │   │   └── contracts/
+│   │   │   ├── contracts/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── Cli/
+│   │   │   │   │       ├── Command/
+│   │   │   │   │       │   └── CommandInterface.php
+│   │   │   │   │       ├── Input/
+│   │   │   │   │       │   └── InputInterface.php
+│   │   │   │   │       └── Output/
+│   │   │   │   │           └── OutputInterface.php
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── README.md
+│   │   │   │   └── composer.json
+│   │   │   └── dto-attribute/
 │   │   │       ├── src/
-│   │   │       │   └── Cli/
-│   │   │       │       ├── Command/
-│   │   │       │       │   └── CommandInterface.php
-│   │   │       │       ├── Input/
-│   │   │       │       │   └── InputInterface.php
-│   │   │       │       └── Output/
-│   │   │       │           └── OutputInterface.php
+│   │   │       │   └── Attribute/
+│   │   │       │       └── Dto.php
 │   │   │       ├── tests/
-│   │   │       │   └── .gitkeep
+│   │   │       │   └── Contract/
+│   │   │       │       └── AttributeExistsTest.php
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
@@ -217,6 +227,10 @@ Coretsia/
 │   │   │   ├── artifact_header_schema_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
+│   │   │   ├── dto_gate.php
+│   │   │   ├── dto_marker_consistency_gate.php
+│   │   │   ├── dto_no_logic_gate.php
+│   │   │   ├── dto_shape_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
 │   │   │   ├── kernel_public_api_gate.php
 │   │   │   ├── no_skeleton_bundles_default_gate.php
@@ -439,6 +453,10 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php
 │   │       └── Integration/
+│   │           ├── DtoGateAggregateRunnerTest.php
+│   │           ├── DtoMarkerConsistencyGateTest.php
+│   │           ├── DtoNoLogicGateTest.php
+│   │           ├── DtoShapeGateTest.php
 │   │           └── ManagedComposerRepositoriesGuardTest.php
 │   ├── var/
 │   │   ├── backups/

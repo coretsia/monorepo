@@ -1044,104 +1044,104 @@ A compliant DTO in this rail is **not**:
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
-  - [ ] runs `dto_marker_consistency_gate.php`
-  - [ ] runs `dto_no_logic_gate.php`
-  - [ ] runs `dto_shape_gate.php`
-  - [ ] preserves deterministic execution order
-  - [ ] stops with non-zero exit code if any sub-gate fails
-  - [ ] MUST NOT rewrite/merge sub-gate diagnostics into an alternative format
-  - [ ] MUST preserve Phase 0 gate output policy
-  - [ ] aggregate runner MUST stop on first failing sub-gate
-  - [ ] aggregate runner MUST pass through the exact output of the first failing sub-gate unchanged
-  - [ ] aggregate runner MUST NOT concatenate outputs of multiple failing sub-gates into a new composite report
-  - [ ] if all sub-gates pass, exit 0 and print nothing
-  - [ ] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
-  - [ ] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
+- [x] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
+  - [x] runs `dto_marker_consistency_gate.php`
+  - [x] runs `dto_no_logic_gate.php`
+  - [x] runs `dto_shape_gate.php`
+  - [x] preserves deterministic execution order
+  - [x] stops with non-zero exit code if any sub-gate fails
+  - [x] MUST NOT rewrite/merge sub-gate diagnostics into an alternative format
+  - [x] MUST preserve Phase 0 gate output policy
+  - [x] aggregate runner MUST stop on first failing sub-gate
+  - [x] aggregate runner MUST pass through the exact output of the first failing sub-gate unchanged
+  - [x] aggregate runner MUST NOT concatenate outputs of multiple failing sub-gates into a new composite report
+  - [x] if all sub-gates pass, exit 0 and print nothing
+  - [x] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
+  - [x] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
 
-- [ ] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
-  - [ ] package name: `coretsia/core-dto-attribute`
-  - [ ] package kind: library-only marker package
-  - [ ] no runtime deps
-  - [ ] PSR-4:
-    - [ ] `Coretsia\Dto\Attribute\` → `src/Attribute/`
+- [x] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
+  - [x] package name: `coretsia/core-dto-attribute`
+  - [x] package kind: library-only marker package
+  - [x] no runtime deps
+  - [x] PSR-4:
+    - [x] `Coretsia\Dto\Attribute\` → `src/Attribute/`
 
-- [ ] `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
-  - [ ] `#[Attribute(Attribute::TARGET_CLASS)]`
-  - [ ] empty marker attribute
-  - [ ] no parameters in Phase 1
-  - [ ] no runtime behavior
+- [x] `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
+  - [x] `#[Attribute(Attribute::TARGET_CLASS)]`
+  - [x] empty marker attribute
+  - [x] no parameters in Phase 1
+  - [x] no runtime behavior
 
-- [ ] `framework/packages/core/dto-attribute/README.md` — usage and policy note:
-  - [ ] explains explicit opt-in
-  - [ ] explains that marking a class as DTO subjects it to DTO gates
-  - [ ] explains that DTO is a narrow transport shape, not a general-purpose VO model
+- [x] `framework/packages/core/dto-attribute/README.md` — usage and policy note:
+  - [x] explains explicit opt-in
+  - [x] explains that marking a class as DTO subjects it to DTO gates
+  - [x] explains that DTO is a narrow transport shape, not a general-purpose VO model
 
-- [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
-- [ ] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
-  - [ ] already has canonical vocabulary
-  - [ ] defines what a DTO is in Coretsia
-  - [ ] states explicit opt-in policy
-  - [ ] states attribute-first marker strategy
-  - [ ] states that Phase 1 uses attribute-only detection
-  - [ ] defines canonical DTO rules:
-    - [ ] final class
-    - [ ] public typed instance properties
-    - [ ] no static properties
-    - [ ] no inheritance
-    - [ ] no traits
-    - [ ] no interfaces
-    - [ ] no methods except optional constructor
-  - [ ] states what DTO is not:
-    - [ ] not a domain entity
-    - [ ] not a service
-    - [ ] not a stateful runtime object
-    - [ ] not a rich VO/shape class
-  - [ ] provides compliant and non-compliant examples
-  - [ ] explicitly states that unmarked classes are outside DTO gate scope
-  - [ ] `## Canonical vocabulary`
-    - [ ] DTO — explicit transport class, opt-in via marker, enforced by DTO gates
-    - [ ] VO — value object with behavior/invariants allowed; outside DTO gate scope unless explicitly marked
-    - [ ] Descriptor — canonical structured model used for cross-package/runtime boundaries; not automatically DTO
-    - [ ] Result/Shape/Context model — structured contract/runtime payload; not automatically DTO
-  - [ ] `## Scope rule`
-    - [ ] unmarked classes are outside DTO gate scope
-    - [ ] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
+- [x] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
+  - [x] already has canonical vocabulary
+  - [x] defines what a DTO is in Coretsia
+  - [x] states explicit opt-in policy
+  - [x] states attribute-first marker strategy
+  - [x] states that Phase 1 uses attribute-only detection
+  - [x] defines canonical DTO rules:
+    - [x] final class
+    - [x] public typed instance properties
+    - [x] no static properties
+    - [x] no inheritance
+    - [x] no traits
+    - [x] no interfaces
+    - [x] no methods except optional constructor
+  - [x] states what DTO is not:
+    - [x] not a domain entity
+    - [x] not a service
+    - [x] not a stateful runtime object
+    - [x] not a rich VO/shape class
+  - [x] provides compliant and non-compliant examples
+  - [x] explicitly states that unmarked classes are outside DTO gate scope
+  - [x] `## Canonical vocabulary`
+    - [x] DTO — explicit transport class, opt-in via marker, enforced by DTO gates
+    - [x] VO — value object with behavior/invariants allowed; outside DTO gate scope unless explicitly marked
+    - [x] Descriptor — canonical structured model used for cross-package/runtime boundaries; not automatically DTO
+    - [x] Result/Shape/Context model — structured contract/runtime payload; not automatically DTO
+  - [x] `## Scope rule`
+    - [x] unmarked classes are outside DTO gate scope
+    - [x] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
 
-- [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
+- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `dto:gate` → `@composer --no-interaction --working-dir=framework run-script dto:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `dto:gate` → `@php tools/gates/dto_gate.php`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `dto:gate` → `@composer --no-interaction --working-dir=framework run-script dto:gate --`
+- [x] `framework/composer.json` — add gate script
+  - [x] `dto:gate` → `@php tools/gates/dto_gate.php`
 
-- [ ] `.github/workflows/ci.yml` — add DTO rail execution:
-  - [ ] runs after install and before tests
-  - [ ] may run inside existing `gates` job
+- [x] `.github/workflows/ci.yml` — add DTO rail execution:
+  - [x] runs after install and before tests
+  - [x] may run inside existing `gates` job
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_DTO_GATE_FAILED`
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION`
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
-  - [ ] `CORETSIA_DTO_SHAPE_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_DTO_GATE_FAILED`
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION`
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
+  - [x] `CORETSIA_DTO_SHAPE_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
 
-- [ ] `framework/composer.json` — require marker package for workspace autoload visibility:
-  - [ ] add `coretsia/core-dto-attribute`
+- [x] `framework/composer.json` — require marker package for workspace autoload visibility:
+  - [x] add `coretsia/core-dto-attribute`
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/dto-policy.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/dto-policy.md`
 
 #### Configuration (keys + defaults)
 
 N/A
 
-- [ ] This epic intentionally has **no config root** and **no runtime/workspace config toggles**.
-- [ ] DTO policy is hardcoded in gates + documented in SSoT.
-- [ ] Alternative DTO models (e.g. getters/withers/private-readonly DTOs/interface marker fallback) are out of scope for this rail and require a future epic/ADR.
+- [x] This epic intentionally has **no config root** and **no runtime/workspace config toggles**.
+- [x] DTO policy is hardcoded in gates + documented in SSoT.
+- [x] Alternative DTO models (e.g. getters/withers/private-readonly DTOs/interface marker fallback) are out of scope for this rail and require a future epic/ADR.
 
 #### Wiring / DI tags (when applicable)
 
@@ -1163,50 +1163,50 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes reserved for DTO rail:
-  - [ ] `CORETSIA_DTO_GATE_FAILED` — aggregate rail orchestration failed before any sub-gate could produce canonical diagnostics
-    - [ ] MUST NOT be used for normal policy violations detected by specialized DTO gates
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION` — marker consistency gate found violations
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION` — no-logic gate found violations
-  - [ ] `CORETSIA_DTO_SHAPE_VIOLATION` — shape gate found violations
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED` — a DTO gate failed to initialize or scan
+- [x] Deterministic top-level error codes reserved for DTO rail:
+  - [x] `CORETSIA_DTO_GATE_FAILED` — aggregate rail orchestration failed before any sub-gate could produce canonical diagnostics
+    - [x] MUST NOT be used for normal policy violations detected by specialized DTO gates
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION` — marker consistency gate found violations
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION` — no-logic gate found violations
+  - [x] `CORETSIA_DTO_SHAPE_VIOLATION` — shape gate found violations
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED` — a DTO gate failed to initialize or scan
 
 #### Security / Redaction
 
-- [ ] DTO rail MUST NOT leak class contents, property values, constructor body text, or method bodies.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] DTO rail MUST NOT leak class contents, property values, constructor body text, or method bodies.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
-  - [ ] proves specialized gates are invoked in deterministic order
-  - [ ] proves non-zero exit propagates
-  - [ ] proves aggregate runner does not invent a second diagnostics format
+- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+  - [x] proves specialized gates are invoked in deterministic order
+  - [x] proves non-zero exit propagates
+  - [x] proves aggregate runner does not invent a second diagnostics format
 
-- [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+  - [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+  - [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
 - Gates/Arch:
-  - [ ] `.github/workflows/ci.yml` runs `composer -d framework dto:gate`
+  - [x] `.github/workflows/ci.yml` runs `composer -d framework dto:gate`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] DTO rail is deterministic and integrated into CI
-- [ ] Aggregate runner exists and invokes specialized gates in deterministic order
-- [ ] Error codes are registered in `ErrorCodes.php`
-- [ ] `docs/ssot/dto-policy.md` exists and is linked
-- [ ] Marker package `coretsia/core-dto-attribute` exists with minimal deps
-- [ ] DTO detection is attribute-only and explicit-opt-in
-- [ ] Unmarked classes are outside DTO rail scope
-- [ ] `README.md` of marker package explains usage and scope
-- [ ] `dto_gate.php` preserves single-gate output contract by forwarding first failing sub-gate output verbatim
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] DTO rail is deterministic and integrated into CI
+- [x] Aggregate runner exists and invokes specialized gates in deterministic order
+- [x] Error codes are registered in `ErrorCodes.php`
+- [x] `docs/ssot/dto-policy.md` exists and is linked
+- [x] Marker package `coretsia/core-dto-attribute` exists with minimal deps
+- [x] DTO detection is attribute-only and explicit-opt-in
+- [x] Unmarked classes are outside DTO rail scope
+- [x] `README.md` of marker package explains usage and scope
+- [x] `dto_gate.php` preserves single-gate output contract by forwarding first failing sub-gate output verbatim
 
 ---
 
@@ -1304,40 +1304,40 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
-  - [ ] scans `framework/packages/**/src/**/*.php`
-  - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-  - [ ] token-based analysis only
-  - [ ] detects DTO marker usage only via canonical attribute `#[Coretsia\Dto\Attribute\Dto]`
-  - [ ] allows imported alias only if alias resolves to canonical FQCN
-  - [ ] forbids custom attribute classes intended as DTO markers inside monorepo
-  - [ ] forbids legacy interface markers such as `DtoInterface`
-  - [ ] forbids simultaneous support for multiple DTO marker strategies
-  - [ ] output format follows Phase 0 gate policy:
-    - [ ] line 1: `CORETSIA_DTO_MARKER_VIOLATION` if any violation exists
-    - [ ] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
-    - [ ] diagnostics sorted by normalized path using `strcmp`
-    - [ ] if multiple violations exist in one file, each violation gets its own line
-    - [ ] if no violations, exit 0 and print nothing
-    - [ ] output only through `ConsoleOutput`
-  - [ ] runtime roots vs scan root:
-    - [ ] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
-    - [ ] default scan root is `$toolsRootRuntime . '/..'`
-    - [ ] `--path=<dir>` overrides only scan root
-    - [ ] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
-  - [ ] error handling:
-    - [ ] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] any uncaught exception → same code, exit 1
+- [x] `framework/tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
+  - [x] scans `framework/packages/**/src/**/*.php`
+  - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+  - [x] token-based analysis only
+  - [x] detects DTO marker usage only via canonical attribute `#[Coretsia\Dto\Attribute\Dto]`
+  - [x] allows imported alias only if alias resolves to canonical FQCN
+  - [x] forbids custom attribute classes intended as DTO markers inside monorepo
+  - [x] forbids legacy interface markers such as `DtoInterface`
+  - [x] forbids simultaneous support for multiple DTO marker strategies
+  - [x] output format follows Phase 0 gate policy:
+    - [x] line 1: `CORETSIA_DTO_MARKER_VIOLATION` if any violation exists
+    - [x] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
+    - [x] diagnostics sorted by normalized path using `strcmp`
+    - [x] if multiple violations exist in one file, each violation gets its own line
+    - [x] if no violations, exit 0 and print nothing
+    - [x] output only through `ConsoleOutput`
+  - [x] runtime roots vs scan root:
+    - [x] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
+    - [x] default scan root is `$toolsRootRuntime . '/..'`
+    - [x] `--path=<dir>` overrides only scan root
+    - [x] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
+  - [x] error handling:
+    - [x] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] any uncaught exception → same code, exit 1
 
-- [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 #### Modifies
 
-- [ ] `composer.json` — add repo-root mirror script:
-  - [ ] `dto-marker-consistency:gate` → `@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --`
-- [ ] `framework/composer.json` — add workspace gate script:
-  - [ ] `dto-marker-consistency:gate` → `@php tools/gates/dto_marker_consistency_gate.php`
+- [x] `composer.json` — add repo-root mirror script:
+  - [x] `dto-marker-consistency:gate` → `@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --`
+- [x] `framework/composer.json` — add workspace gate script:
+  - [x] `dto-marker-consistency:gate` → `@php tools/gates/dto_marker_consistency_gate.php`
 
 #### Configuration (keys + defaults)
 
@@ -1363,43 +1363,43 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes:
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
-- [ ] Fixed reason codes:
-  - [ ] `non-canonical-dto-marker`
-  - [ ] `legacy-dto-interface-marker`
-  - [ ] `custom-dto-marker-class`
-  - [ ] `multiple-dto-marker-strategies`
+- [x] Deterministic top-level error codes:
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] Fixed reason codes:
+  - [x] `non-canonical-dto-marker`
+  - [x] `legacy-dto-interface-marker`
+  - [x] `custom-dto-marker-class`
+  - [x] `multiple-dto-marker-strategies`
 
 #### Security / Redaction
 
-- [ ] Gate MUST NOT leak attribute bodies, class contents, or method/property text.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] Gate MUST NOT leak attribute bodies, class contents, or method/property text.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
-  - [ ] canonical marker usage passes
-  - [ ] alias import resolving to canonical marker passes
-  - [ ] custom DTO marker attribute fails with `custom-dto-marker-class`
-  - [ ] legacy interface marker fails with `legacy-dto-interface-marker`
-  - [ ] mixed marker strategy in same synthetic tree fails with `multiple-dto-marker-strategies`
-  - [ ] `--path` override works on synthetic tree
-  - [ ] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
+  - [x] canonical marker usage passes
+  - [x] alias import resolving to canonical marker passes
+  - [x] custom DTO marker attribute fails with `custom-dto-marker-class`
+  - [x] legacy interface marker fails with `legacy-dto-interface-marker`
+  - [x] mixed marker strategy in same synthetic tree fails with `multiple-dto-marker-strategies`
+  - [x] `--path` override works on synthetic tree
+  - [x] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+  - [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Exactly one DTO marker strategy exists in Phase 1
-- [ ] Gate is deterministic and integrated via DTO rail
-- [ ] Any future alternate marker requires ADR + SSoT update + gate update
+- [x] Deliverables complete (creates), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Exactly one DTO marker strategy exists in Phase 1
+- [x] Gate is deterministic and integrated via DTO rail
+- [x] Any future alternate marker requires ADR + SSoT update + gate update
 
 ---
 
@@ -1512,50 +1512,50 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
-  - [ ] scans `framework/packages/**/src/**/*.php`
-  - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-  - [ ] analyzes only explicitly marked DTO classes
-  - [ ] token-based analysis only
-  - [ ] allowed constructor patterns:
-    - [ ] property promotion only
-    - [ ] trivial assignments `$this->prop = $param;`
-  - [ ] fixed reason codes:
-    - [ ] `disallowed-method` — DTO method other than `__construct` exists
-    - [ ] `constructor-calls-function`
-    - [ ] `constructor-calls-method`
-    - [ ] `constructor-static-call`
-    - [ ] `constructor-control-flow`
-    - [ ] `constructor-loop`
-    - [ ] `constructor-try-catch`
-    - [ ] `constructor-throw`
-    - [ ] `constructor-new-object`
-    - [ ] `constructor-nontrivial-body`
-  - [ ] output format follows Phase 0 gate policy:
-    - [ ] line 1: `CORETSIA_DTO_NO_LOGIC_VIOLATION` if any violation exists
-    - [ ] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
-    - [ ] diagnostics sorted by normalized path using `strcmp`
-    - [ ] if multiple violations exist in one file, each violation gets its own line
-    - [ ] if no violations, exit 0 and print nothing
-    - [ ] output only through `ConsoleOutput`
-  - [ ] runtime roots vs scan root:
-    - [ ] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
-    - [ ] default scan root is `$toolsRootRuntime . '/..'`
-    - [ ] `--path=<dir>` overrides only scan root
-    - [ ] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
-  - [ ] error handling:
-    - [ ] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] any uncaught exception → same code, exit 1
+- [x] `framework/tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
+  - [x] scans `framework/packages/**/src/**/*.php`
+  - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+  - [x] analyzes only explicitly marked DTO classes
+  - [x] token-based analysis only
+  - [x] allowed constructor patterns:
+    - [x] property promotion only
+    - [x] trivial assignments `$this->prop = $param;`
+  - [x] fixed reason codes:
+    - [x] `disallowed-method` — DTO method other than `__construct` exists
+    - [x] `constructor-calls-function`
+    - [x] `constructor-calls-method`
+    - [x] `constructor-static-call`
+    - [x] `constructor-control-flow`
+    - [x] `constructor-loop`
+    - [x] `constructor-try-catch`
+    - [x] `constructor-throw`
+    - [x] `constructor-new-object`
+    - [x] `constructor-nontrivial-body`
+  - [x] output format follows Phase 0 gate policy:
+    - [x] line 1: `CORETSIA_DTO_NO_LOGIC_VIOLATION` if any violation exists
+    - [x] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
+    - [x] diagnostics sorted by normalized path using `strcmp`
+    - [x] if multiple violations exist in one file, each violation gets its own line
+    - [x] if no violations, exit 0 and print nothing
+    - [x] output only through `ConsoleOutput`
+  - [x] runtime roots vs scan root:
+    - [x] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
+    - [x] default scan root is `$toolsRootRuntime . '/..'`
+    - [x] `--path=<dir>` overrides only scan root
+    - [x] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
+  - [x] error handling:
+    - [x] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] any uncaught exception → same code, exit 1
 
-- [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
 
 #### Modifies
 
-- [ ] `composer.json` — add repo-root mirror script:
-  - [ ] `dto-no-logic:gate` → `@composer --no-interaction --working-dir=framework run-script dto-no-logic:gate --`
-- [ ] `framework/composer.json` — add workspace gate script:
-  - [ ] `dto-no-logic:gate` → `@php tools/gates/dto_no_logic_gate.php`
+- [x] `composer.json` — add repo-root mirror script:
+  - [x] `dto-no-logic:gate` → `@composer --no-interaction --working-dir=framework run-script dto-no-logic:gate --`
+- [x] `framework/composer.json` — add workspace gate script:
+  - [x] `dto-no-logic:gate` → `@php tools/gates/dto_no_logic_gate.php`
 
 #### Configuration (keys + defaults)
 
@@ -1581,56 +1581,56 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes:
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
-- [ ] Fixed reason codes:
-  - [ ] `disallowed-method`
-  - [ ] `constructor-calls-function`
-  - [ ] `constructor-calls-method`
-  - [ ] `constructor-static-call`
-  - [ ] `constructor-control-flow`
-  - [ ] `constructor-loop`
-  - [ ] `constructor-try-catch`
-  - [ ] `constructor-throw`
-  - [ ] `constructor-new-object`
-  - [ ] `constructor-nontrivial-body`
+- [x] Deterministic top-level error codes:
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] Fixed reason codes:
+  - [x] `disallowed-method`
+  - [x] `constructor-calls-function`
+  - [x] `constructor-calls-method`
+  - [x] `constructor-static-call`
+  - [x] `constructor-control-flow`
+  - [x] `constructor-loop`
+  - [x] `constructor-try-catch`
+  - [x] `constructor-throw`
+  - [x] `constructor-new-object`
+  - [x] `constructor-nontrivial-body`
 
 #### Security / Redaction
 
-- [ ] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`:
-  - [ ] DTO with no constructor passes
-  - [ ] DTO with promoted public typed properties passes
-  - [ ] DTO with trivial assignment constructor passes
-  - [ ] DTO with extra method fails with `disallowed-method`
-  - [ ] constructor with `trim(...)` fails with `constructor-calls-function`
-  - [ ] constructor with `$this->helper()` fails with `constructor-calls-method`
-  - [ ] constructor with `self::normalize()` fails with `constructor-static-call`
-  - [ ] constructor with `if`/`match` fails with `constructor-control-flow`
-  - [ ] constructor with loop fails with `constructor-loop`
-  - [ ] constructor with `try/catch` fails with `constructor-try-catch`
-  - [ ] constructor with `throw` fails with `constructor-throw`
-  - [ ] constructor with `new DateTimeImmutable(...)` fails with `constructor-new-object`
-  - [ ] `--path` override works on synthetic tree
-  - [ ] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`:
+  - [x] DTO with no constructor passes
+  - [x] DTO with promoted public typed properties passes
+  - [x] DTO with trivial assignment constructor passes
+  - [x] DTO with extra method fails with `disallowed-method`
+  - [x] constructor with `trim(...)` fails with `constructor-calls-function`
+  - [x] constructor with `$this->helper()` fails with `constructor-calls-method`
+  - [x] constructor with `self::normalize()` fails with `constructor-static-call`
+  - [x] constructor with `if`/`match` fails with `constructor-control-flow`
+  - [x] constructor with loop fails with `constructor-loop`
+  - [x] constructor with `try/catch` fails with `constructor-try-catch`
+  - [x] constructor with `throw` fails with `constructor-throw`
+  - [x] constructor with `new DateTimeImmutable(...)` fails with `constructor-new-object`
+  - [x] `--path` override works on synthetic tree
+  - [x] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+  - [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Gate is deterministic and integrated via DTO rail
-- [ ] DTO constructor semantics are narrow and enforceable
-- [ ] DTO behavior cannot drift into VO/service territory without failing the gate
+- [x] Deliverables complete (creates), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Gate is deterministic and integrated via DTO rail
+- [x] DTO constructor semantics are narrow and enforceable
+- [x] DTO behavior cannot drift into VO/service territory without failing the gate
 
 ---
 
@@ -1731,56 +1731,56 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_shape_gate.php` — deterministic shape gate:
-  - [ ] scans `framework/packages/**/src/**/*.php`
-  - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-  - [ ] analyzes only explicitly marked DTO classes
-  - [ ] token-based analysis only
-  - [ ] validates:
-    - [ ] DTO is a class, not interface/trait/enum
-    - [ ] DTO is `final`
-    - [ ] DTO is not `abstract`
-    - [ ] DTO does not `extends`
-    - [ ] DTO does not `implements`
-    - [ ] DTO does not `use` traits
-    - [ ] DTO does not declare static properties
-    - [ ] every declared property is typed
-    - [ ] every declared property is public
-    - [ ] promoted properties are public and typed
-  - [ ] fixed reason codes:
-    - [ ] `not-final`
-    - [ ] `abstract-class`
-    - [ ] `extends-class`
-    - [ ] `implements-interface`
-    - [ ] `uses-trait`
-    - [ ] `static-property`
-    - [ ] `untyped-property`
-    - [ ] `non-public-property`
-  - [ ] output format follows Phase 0 gate policy:
-    - [ ] line 1: `CORETSIA_DTO_SHAPE_VIOLATION` if any violation exists
-    - [ ] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
-    - [ ] diagnostics sorted by normalized path using `strcmp`
-    - [ ] if multiple violations exist in one file, each violation gets its own line
-    - [ ] if no violations, exit 0 and print nothing
-    - [ ] output only through `ConsoleOutput`
-  - [ ] runtime roots vs scan root:
-    - [ ] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
-    - [ ] default scan root is `$toolsRootRuntime . '/..'`
-    - [ ] `--path=<dir>` overrides only scan root
-    - [ ] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
-  - [ ] error handling:
-    - [ ] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] any uncaught exception → same code, exit 1
+- [x] `framework/tools/gates/dto_shape_gate.php` — deterministic shape gate:
+  - [x] scans `framework/packages/**/src/**/*.php`
+  - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+  - [x] analyzes only explicitly marked DTO classes
+  - [x] token-based analysis only
+  - [x] validates:
+    - [x] DTO is a class, not interface/trait/enum
+    - [x] DTO is `final`
+    - [x] DTO is not `abstract`
+    - [x] DTO does not `extends`
+    - [x] DTO does not `implements`
+    - [x] DTO does not `use` traits
+    - [x] DTO does not declare static properties
+    - [x] every declared property is typed
+    - [x] every declared property is public
+    - [x] promoted properties are public and typed
+  - [x] fixed reason codes:
+    - [x] `not-final`
+    - [x] `abstract-class`
+    - [x] `extends-class`
+    - [x] `implements-interface`
+    - [x] `uses-trait`
+    - [x] `static-property`
+    - [x] `untyped-property`
+    - [x] `non-public-property`
+  - [x] output format follows Phase 0 gate policy:
+    - [x] line 1: `CORETSIA_DTO_SHAPE_VIOLATION` if any violation exists
+    - [x] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
+    - [x] diagnostics sorted by normalized path using `strcmp`
+    - [x] if multiple violations exist in one file, each violation gets its own line
+    - [x] if no violations, exit 0 and print nothing
+    - [x] output only through `ConsoleOutput`
+  - [x] runtime roots vs scan root:
+    - [x] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
+    - [x] default scan root is `$toolsRootRuntime . '/..'`
+    - [x] `--path=<dir>` overrides only scan root
+    - [x] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
+  - [x] error handling:
+    - [x] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] any uncaught exception → same code, exit 1
 
-- [ ] `framework/tools/tests/Integration/DtoShapeGateTest.php`
+- [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`
 
 #### Modifies
 
-- [ ] `composer.json` — add repo-root mirror script:
-  - [ ] `dto-shape:gate` → `@composer --no-interaction --working-dir=framework run-script dto-shape:gate --`
-- [ ] `framework/composer.json` — add workspace gate script:
-  - [ ] `dto-shape:gate` → `@php tools/gates/dto_shape_gate.php`
+- [x] `composer.json` — add repo-root mirror script:
+  - [x] `dto-shape:gate` → `@composer --no-interaction --working-dir=framework run-script dto-shape:gate --`
+- [x] `framework/composer.json` — add workspace gate script:
+  - [x] `dto-shape:gate` → `@php tools/gates/dto_shape_gate.php`
 
 #### Configuration (keys + defaults)
 
@@ -1806,53 +1806,53 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes:
-  - [ ] `CORETSIA_DTO_SHAPE_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
-- [ ] Fixed reason codes:
-  - [ ] `not-final`
-  - [ ] `abstract-class`
-  - [ ] `extends-class`
-  - [ ] `implements-interface`
-  - [ ] `uses-trait`
-  - [ ] `static-property`
-  - [ ] `untyped-property`
-  - [ ] `non-public-property`
+- [x] Deterministic top-level error codes:
+  - [x] `CORETSIA_DTO_SHAPE_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] Fixed reason codes:
+  - [x] `not-final`
+  - [x] `abstract-class`
+  - [x] `extends-class`
+  - [x] `implements-interface`
+  - [x] `uses-trait`
+  - [x] `static-property`
+  - [x] `untyped-property`
+  - [x] `non-public-property`
 
 #### Security / Redaction
 
-- [ ] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoShapeGateTest.php`:
-  - [ ] compliant DTO with public typed properties passes
-  - [ ] compliant DTO with public promoted typed properties passes
-  - [ ] abstract DTO fails with `abstract-class`
-  - [ ] non-final DTO fails with `not-final`
-  - [ ] DTO extending another class fails with `extends-class`
-  - [ ] DTO implementing interface fails with `implements-interface`
-  - [ ] DTO using trait fails with `uses-trait`
-  - [ ] DTO with static property fails with `static-property`
-  - [ ] DTO with untyped property fails with `untyped-property`
-  - [ ] DTO with non-public property fails with `non-public-property`
-  - [ ] unmarked class is ignored
-  - [ ] `--path` override works on synthetic tree
-  - [ ] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`:
+  - [x] compliant DTO with public typed properties passes
+  - [x] compliant DTO with public promoted typed properties passes
+  - [x] abstract DTO fails with `abstract-class`
+  - [x] non-final DTO fails with `not-final`
+  - [x] DTO extending another class fails with `extends-class`
+  - [x] DTO implementing interface fails with `implements-interface`
+  - [x] DTO using trait fails with `uses-trait`
+  - [x] DTO with static property fails with `static-property`
+  - [x] DTO with untyped property fails with `untyped-property`
+  - [x] DTO with non-public property fails with `non-public-property`
+  - [x] unmarked class is ignored
+  - [x] `--path` override works on synthetic tree
+  - [x] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoShapeGateTest.php`
+  - [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Gate is deterministic and integrated via DTO rail
-- [ ] Shape policy is narrow, explicit, and enforceable
-- [ ] DTOs cannot drift into inheritance/trait/interface/static-state models without failing the gate
+- [x] Deliverables complete (creates), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Gate is deterministic and integrated via DTO rail
+- [x] Shape policy is narrow, explicit, and enforceable
+- [x] DTOs cannot drift into inheritance/trait/interface/static-state models without failing the gate
 
 ---
 

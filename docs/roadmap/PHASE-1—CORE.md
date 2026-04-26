@@ -1079,35 +1079,35 @@ A compliant DTO in this rail is **not**:
 
 - [ ] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
-- [ ] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
-  - [ ] already has canonical vocabulary
-  - [ ] defines what a DTO is in Coretsia
-  - [ ] states explicit opt-in policy
-  - [ ] states attribute-first marker strategy
-  - [ ] states that Phase 1 uses attribute-only detection
-  - [ ] defines canonical DTO rules:
-    - [ ] final class
-    - [ ] public typed instance properties
-    - [ ] no static properties
-    - [ ] no inheritance
-    - [ ] no traits
-    - [ ] no interfaces
-    - [ ] no methods except optional constructor
-  - [ ] states what DTO is not:
-    - [ ] not a domain entity
-    - [ ] not a service
-    - [ ] not a stateful runtime object
-    - [ ] not a rich VO/shape class
-  - [ ] provides compliant and non-compliant examples
-  - [ ] explicitly states that unmarked classes are outside DTO gate scope
-  - [ ] `## Canonical vocabulary`
-    - [ ] DTO — explicit transport class, opt-in via marker, enforced by DTO gates
-    - [ ] VO — value object with behavior/invariants allowed; outside DTO gate scope unless explicitly marked
-    - [ ] Descriptor — canonical structured model used for cross-package/runtime boundaries; not automatically DTO
-    - [ ] Result/Shape/Context model — structured contract/runtime payload; not automatically DTO
-  - [ ] `## Scope rule`
-    - [ ] unmarked classes are outside DTO gate scope
-    - [ ] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
+- [x] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
+  - [x] already has canonical vocabulary
+  - [x] defines what a DTO is in Coretsia
+  - [x] states explicit opt-in policy
+  - [x] states attribute-first marker strategy
+  - [x] states that Phase 1 uses attribute-only detection
+  - [x] defines canonical DTO rules:
+    - [x] final class
+    - [x] public typed instance properties
+    - [x] no static properties
+    - [x] no inheritance
+    - [x] no traits
+    - [x] no interfaces
+    - [x] no methods except optional constructor
+  - [x] states what DTO is not:
+    - [x] not a domain entity
+    - [x] not a service
+    - [x] not a stateful runtime object
+    - [x] not a rich VO/shape class
+  - [x] provides compliant and non-compliant examples
+  - [x] explicitly states that unmarked classes are outside DTO gate scope
+  - [x] `## Canonical vocabulary`
+    - [x] DTO — explicit transport class, opt-in via marker, enforced by DTO gates
+    - [x] VO — value object with behavior/invariants allowed; outside DTO gate scope unless explicitly marked
+    - [x] Descriptor — canonical structured model used for cross-package/runtime boundaries; not automatically DTO
+    - [x] Result/Shape/Context model — structured contract/runtime payload; not automatically DTO
+  - [x] `## Scope rule`
+    - [x] unmarked classes are outside DTO gate scope
+    - [x] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
 
 - [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
 
@@ -1132,8 +1132,8 @@ A compliant DTO in this rail is **not**:
 - [ ] `framework/composer.json` — require marker package for workspace autoload visibility:
   - [ ] add `coretsia/core-dto-attribute`
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/dto-policy.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/dto-policy.md`
 
 #### Configuration (keys + defaults)
 

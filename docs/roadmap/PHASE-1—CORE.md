@@ -1304,40 +1304,40 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
-  - [ ] scans `framework/packages/**/src/**/*.php`
-  - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-  - [ ] token-based analysis only
-  - [ ] detects DTO marker usage only via canonical attribute `#[Coretsia\Dto\Attribute\Dto]`
-  - [ ] allows imported alias only if alias resolves to canonical FQCN
-  - [ ] forbids custom attribute classes intended as DTO markers inside monorepo
-  - [ ] forbids legacy interface markers such as `DtoInterface`
-  - [ ] forbids simultaneous support for multiple DTO marker strategies
-  - [ ] output format follows Phase 0 gate policy:
-    - [ ] line 1: `CORETSIA_DTO_MARKER_VIOLATION` if any violation exists
-    - [ ] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
-    - [ ] diagnostics sorted by normalized path using `strcmp`
-    - [ ] if multiple violations exist in one file, each violation gets its own line
-    - [ ] if no violations, exit 0 and print nothing
-    - [ ] output only through `ConsoleOutput`
-  - [ ] runtime roots vs scan root:
-    - [ ] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
-    - [ ] default scan root is `$toolsRootRuntime . '/..'`
-    - [ ] `--path=<dir>` overrides only scan root
-    - [ ] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
-  - [ ] error handling:
-    - [ ] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] any uncaught exception → same code, exit 1
+- [x] `framework/tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
+  - [x] scans `framework/packages/**/src/**/*.php`
+  - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+  - [x] token-based analysis only
+  - [x] detects DTO marker usage only via canonical attribute `#[Coretsia\Dto\Attribute\Dto]`
+  - [x] allows imported alias only if alias resolves to canonical FQCN
+  - [x] forbids custom attribute classes intended as DTO markers inside monorepo
+  - [x] forbids legacy interface markers such as `DtoInterface`
+  - [x] forbids simultaneous support for multiple DTO marker strategies
+  - [x] output format follows Phase 0 gate policy:
+    - [x] line 1: `CORETSIA_DTO_MARKER_VIOLATION` if any violation exists
+    - [x] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
+    - [x] diagnostics sorted by normalized path using `strcmp`
+    - [x] if multiple violations exist in one file, each violation gets its own line
+    - [x] if no violations, exit 0 and print nothing
+    - [x] output only through `ConsoleOutput`
+  - [x] runtime roots vs scan root:
+    - [x] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
+    - [x] default scan root is `$toolsRootRuntime . '/..'`
+    - [x] `--path=<dir>` overrides only scan root
+    - [x] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
+  - [x] error handling:
+    - [x] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] any uncaught exception → same code, exit 1
 
-- [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 #### Modifies
 
-- [ ] `composer.json` — add repo-root mirror script:
-  - [ ] `dto-marker-consistency:gate` → `@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --`
-- [ ] `framework/composer.json` — add workspace gate script:
-  - [ ] `dto-marker-consistency:gate` → `@php tools/gates/dto_marker_consistency_gate.php`
+- [x] `composer.json` — add repo-root mirror script:
+  - [x] `dto-marker-consistency:gate` → `@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --`
+- [x] `framework/composer.json` — add workspace gate script:
+  - [x] `dto-marker-consistency:gate` → `@php tools/gates/dto_marker_consistency_gate.php`
 
 #### Configuration (keys + defaults)
 
@@ -1363,43 +1363,43 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes:
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
-- [ ] Fixed reason codes:
-  - [ ] `non-canonical-dto-marker`
-  - [ ] `legacy-dto-interface-marker`
-  - [ ] `custom-dto-marker-class`
-  - [ ] `multiple-dto-marker-strategies`
+- [x] Deterministic top-level error codes:
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] Fixed reason codes:
+  - [x] `non-canonical-dto-marker`
+  - [x] `legacy-dto-interface-marker`
+  - [x] `custom-dto-marker-class`
+  - [x] `multiple-dto-marker-strategies`
 
 #### Security / Redaction
 
-- [ ] Gate MUST NOT leak attribute bodies, class contents, or method/property text.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] Gate MUST NOT leak attribute bodies, class contents, or method/property text.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
-  - [ ] canonical marker usage passes
-  - [ ] alias import resolving to canonical marker passes
-  - [ ] custom DTO marker attribute fails with `custom-dto-marker-class`
-  - [ ] legacy interface marker fails with `legacy-dto-interface-marker`
-  - [ ] mixed marker strategy in same synthetic tree fails with `multiple-dto-marker-strategies`
-  - [ ] `--path` override works on synthetic tree
-  - [ ] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
+  - [x] canonical marker usage passes
+  - [x] alias import resolving to canonical marker passes
+  - [x] custom DTO marker attribute fails with `custom-dto-marker-class`
+  - [x] legacy interface marker fails with `legacy-dto-interface-marker`
+  - [x] mixed marker strategy in same synthetic tree fails with `multiple-dto-marker-strategies`
+  - [x] `--path` override works on synthetic tree
+  - [x] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+  - [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Exactly one DTO marker strategy exists in Phase 1
-- [ ] Gate is deterministic and integrated via DTO rail
-- [ ] Any future alternate marker requires ADR + SSoT update + gate update
+- [x] Deliverables complete (creates), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Exactly one DTO marker strategy exists in Phase 1
+- [x] Gate is deterministic and integrated via DTO rail
+- [x] Any future alternate marker requires ADR + SSoT update + gate update
 
 ---
 

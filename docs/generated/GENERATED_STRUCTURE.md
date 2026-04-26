@@ -81,6 +81,7 @@ Coretsia/
 │       ├── INDEX.md
 │       ├── artifacts.md
 │       ├── config-roots.md
+│       ├── dto-policy.md
 │       ├── observability.md
 │       └── tags.md
 ├── framework/
@@ -88,17 +89,26 @@ Coretsia/
 │   │   └── coretsia
 │   ├── packages/
 │   │   ├── core/
-│   │   │   └── contracts/
+│   │   │   ├── contracts/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── Cli/
+│   │   │   │   │       ├── Command/
+│   │   │   │   │       │   └── CommandInterface.php (CommandInterface [interface] - name()/run())
+│   │   │   │   │       ├── Input/
+│   │   │   │   │       │   └── InputInterface.php (InputInterface [interface] - tokens())
+│   │   │   │   │       └── Output/
+│   │   │   │   │           └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── README.md
+│   │   │   │   └── composer.json
+│   │   │   └── dto-attribute/
 │   │   │       ├── src/
-│   │   │       │   └── Cli/
-│   │   │       │       ├── Command/
-│   │   │       │       │   └── CommandInterface.php (CommandInterface [interface] - name()/run())
-│   │   │       │       ├── Input/
-│   │   │       │       │   └── InputInterface.php (InputInterface [interface] - tokens())
-│   │   │       │       └── Output/
-│   │   │       │           └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
+│   │   │       │   └── Attribute/
+│   │   │       │       └── Dto.php (Dto)
 │   │   │       ├── tests/
-│   │   │       │   └── .gitkeep
+│   │   │       │   └── Contract/
+│   │   │       │       └── AttributeExistsTest.php (AttributeExistsTest - testDtoAttributeExists()/testDtoAttributeTargetsClassesOnly())
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
@@ -217,6 +227,8 @@ Coretsia/
 │   │   │   ├── artifact_header_schema_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
+│   │   │   ├── dto_gate.php
+│   │   │   ├── dto_marker_consistency_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
 │   │   │   ├── kernel_public_api_gate.php
 │   │   │   ├── no_skeleton_bundles_default_gate.php
@@ -439,6 +451,8 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
 │   │       └── Integration/
+│   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesMaterializedSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
+│   │           ├── DtoMarkerConsistencyGateTest.php (DtoMarkerConsistencyGateTest - testCanonicalMarkerUsagePasses()/testAliasImportResolvingToCanonicalMarkerPasses()/testCustomDtoMarkerAttributeFails()/testLegacyDtoInterfaceMarkerFails()/testMixedMarkerStrategyFailsWithMultipleStrategiesReason()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoMarkerConsistencyGate()/writeSyntheticPhpFile())
 │   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
 │   ├── var/
 │   │   ├── backups/

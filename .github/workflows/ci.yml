@@ -48,16 +48,9 @@ jobs:
         shell: bash
         run: composer --no-interaction gates
 
-      - name: "Gate rail: DTO specialized gates if materialized (dto:gate)"
+      - name: "Gate rail: DTO aggregate rail (dto:gate)"
         shell: bash
-        run: |
-          set -euo pipefail
-
-          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["dto:gate"]) ? 0 : 1);'; then
-            composer --no-interaction -d framework dto:gate
-          else
-            printf '%s\n' "dto:gate script is not materialized yet; optional DTO rail skipped."
-          fi
+        run: composer --no-interaction dto:gate
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
@@ -137,16 +130,9 @@ jobs:
         shell: bash
         run: composer --no-interaction gates
 
-      - name: "Gate rail: DTO specialized gates if materialized (dto:gate)"
+      - name: "Gate rail: DTO aggregate rail (dto:gate)"
         shell: bash
-        run: |
-          set -euo pipefail
-
-          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["dto:gate"]) ? 0 : 1);'; then
-            composer --no-interaction -d framework dto:gate
-          else
-            printf '%s\n' "dto:gate script is not materialized yet; optional DTO rail skipped."
-          fi
+        run: composer --no-interaction dto:gate
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash

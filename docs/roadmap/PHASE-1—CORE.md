@@ -1109,7 +1109,7 @@ A compliant DTO in this rail is **not**:
     - [x] unmarked classes are outside DTO gate scope
     - [x] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
 
-- [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
+- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
 
 #### Modifies
 
@@ -1118,9 +1118,9 @@ A compliant DTO in this rail is **not**:
 - [x] `framework/composer.json` — add gate script
   - [x] `dto:gate` → `@php tools/gates/dto_gate.php`
 
-- [ ] `.github/workflows/ci.yml` — add DTO rail execution:
-  - [ ] runs after install and before tests
-  - [ ] may run inside existing `gates` job
+- [x] `.github/workflows/ci.yml` — add DTO rail execution:
+  - [x] runs after install and before tests
+  - [x] may run inside existing `gates` job
 
 - [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_DTO_GATE_FAILED`
@@ -1178,10 +1178,10 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
-  - [ ] proves specialized gates are invoked in deterministic order
-  - [ ] proves non-zero exit propagates
-  - [ ] proves aggregate runner does not invent a second diagnostics format
+- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+  - [x] proves specialized gates are invoked in deterministic order
+  - [x] proves non-zero exit propagates
+  - [x] proves aggregate runner does not invent a second diagnostics format
 
 - [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
@@ -1190,15 +1190,15 @@ N/A
 - Contract:
   - [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+  - [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
 - Gates/Arch:
-  - [ ] `.github/workflows/ci.yml` runs `composer -d framework dto:gate`
+  - [x] `.github/workflows/ci.yml` runs `composer -d framework dto:gate`
 
 ### DoD (MUST)
 
 - [ ] Deliverables complete (creates+modifies), paths exact
 - [ ] Preconditions satisfied (no forward references)
-- [ ] DTO rail is deterministic and integrated into CI
+- [x] DTO rail is deterministic and integrated into CI
 - [x] Aggregate runner exists and invokes specialized gates in deterministic order
 - [x] Error codes are registered in `ErrorCodes.php`
 - [x] `docs/ssot/dto-policy.md` exists and is linked

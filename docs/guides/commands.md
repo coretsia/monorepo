@@ -88,6 +88,8 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `@composer --working-dir=framework run-script docs:structure:tree --`
   - `@composer --working-dir=framework run-script docs:structure:full --`
 - Framework implementation detail: `@php tools/build/generate_structure.php` (framework workspace).
+- Failure output policy:
+  - on unexpected failure, line 1 starts with stable code: `CORETSIA_STRUCTURE_GENERATE_FAILED`
 - Direct call `php framework/tools/build/generate_structure.php` is **NOT** a canonical entrypoint (kept as implementation detail only).
 
 **Usage (repo root):**
@@ -134,7 +136,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Category:** CI / verification  
 **Outputs:**
 - No tracked outputs on success (MUST be rerun-no-diff w.r.t. tracked files)
-- Installs vendors (untracked) and runs validations + tests
+- Installs vendors (untracked) and runs validations + gates + arch + quality + tests
 - Fails if any lockfile changed after install
 
 **Determinism:**
@@ -148,9 +150,16 @@ Each new command is added as a separate section under `## Commands` (the format 
   1) `composer sync:check`
   2) `composer install:all`
   3) `composer validate:all`
-  4) `composer framework:test`
-  5) `composer lock:check`
+  4) `composer gates`
+  5) `composer arch`
+  6) `composer quality`
+  7) `composer framework:test`
+  8) `composer spike:test`
+  9) `composer lock:check`
+- `composer arch` is the canonical aggregate architecture rail and MUST remain rerun-no-diff.
+- `composer quality` is a third-party quality aggregate rail and MAY emit native ECS/PHPStan diagnostics.
 - `composer framework:test` MUST support args-forwarding via `--` (see `framework.test`).
+- `composer spike:test` preserves the Phase 0 spikes rails chain.
 
 **Usage (repo root):**
 - `composer ci`
@@ -170,10 +179,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
 
 **Notes:**
-- Checks drift vs the generated artifact: `framework/var/package-index.php`.
+- Checks drift vs the generated artifact: `framework/tools/testing/package-index.php`.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:check --`
 - Framework implementation detail: `@php tools/build/package_index.php --check` (framework workspace).
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_PACKAGE_INDEX_OUT_OF_DATE`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_INDEX_FAILED`
 
 **Usage (repo root):**
 - `composer arch:package-index:check`
@@ -184,7 +196,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Entrypoint:** `composer arch:package-index:generate`  
 **Category:** architecture / generator  
 **Outputs:**
-- Updates generated package index artifact: `framework/var/package-index.php`
+- Updates generated package index artifact: `framework/tools/testing/package-index.php`
 
 **Determinism:**
 
@@ -197,11 +209,44 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:generate --`
 - Framework implementation detail: `@php tools/build/package_index.php --apply` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_INDEX_FAILED`
 
 **Usage (repo root):**
 - `composer arch:package-index:generate`
 
-### 6) Test suite (project-wide)
+### 6) Architecture aggregate rail
+
+**Id:** `tool.arch`
+**Entrypoint:** `composer arch`
+**Category:** architecture / CI rail
+**Outputs:**
+- none on success
+- MUST NOT update tracked generated files
+- MUST NOT materialize graph artifacts; graph generation is owned by `composer arch:deptrac:generate`
+
+**Determinism:**
+
+| Mode / flags    | Determinism   | Notes                                                                     |
+|-----------------|---------------|---------------------------------------------------------------------------|
+| `composer arch` | deterministic | Aggregate check/analyze rail; MUST be rerun-no-diff w.r.t. tracked files. |
+
+**Notes:**
+- Purpose: executes the canonical architecture verification rail.
+- Execution order is cemented:
+  1) `composer arch:package-index:check`
+  2) `composer arch:deptrac:check`
+  3) `composer arch:deptrac:analyze`
+- This command is a check/analyze aggregate. It does **not** run `composer arch:package-index:generate` or `composer arch:deptrac:generate`.
+- CI may run `composer arch:deptrac:generate` separately to materialize Deptrac graph artifacts for upload, but that is not part of the `composer arch` aggregate.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script arch --`
+- Framework implementation detail: aggregate `arch` script in `framework/composer.json`.
+
+**Usage (repo root):**
+- `composer arch`
+
+### 7) Test suite (project-wide)
 
 **Id:** `project.test`  
 **Entrypoint:** `composer test`  
@@ -237,13 +282,14 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer test -- --testsuite all`
 - `composer test -- --group contract`
 
-### 7) Test suite (fast)
+### 8) Test suite (fast)
 
 **Id:** `project.test_fast`  
 **Entrypoint:** `composer test-fast`  
 **Category:** testing  
 **Outputs:**
 - No tracked outputs on success
+- `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
 
 **Determinism:**
 
@@ -254,13 +300,14 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer test-fast`
 
-### 8) Test suite (slow)
+### 9) Test suite (slow)
 
 **Id:** `project.test_slow`  
 **Entrypoint:** `composer test-slow`  
 **Category:** testing  
 **Outputs:**
 - No tracked outputs on success
+- `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
 
 **Determinism:**
 
@@ -271,7 +318,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer test-slow`
 
-### 9) Managed composer repositories (apply)
+### 10) Managed composer repositories (apply)
 
 **Id:** `tool.sync_repos_apply`  
 **Entrypoint:** `composer sync:repos`  
@@ -291,11 +338,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:repos --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_WORKSPACE_SYNC_FAILED`
 
 **Usage (repo root):**
 - `composer sync:repos`
 
-### 10) Managed composer repositories (check)
+### 11) Managed composer repositories (check)
 
 **Id:** `tool.sync_repos_check`  
 **Entrypoint:** `composer sync:check`  
@@ -314,11 +363,15 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:check --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php --check` (framework workspace).
+- Failure output policy:
+  - invalid managed block: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID`
+  - managed repository drift: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_WORKSPACE_SYNC_FAILED`
 
 **Usage (repo root):**
 - `composer sync:check`
 
-### 11) Lock drift guard
+### 12) Lock drift guard
 
 **Id:** `tool.lock_check`  
 **Entrypoint:** `composer lock:check`  
@@ -341,7 +394,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer lock:check`
 
-### 12) Composer roots validation (strict)
+### 13) Composer roots validation (strict)
 
 **Id:** `tool.validate_all`  
 **Entrypoint:** `composer validate:all`  
@@ -366,7 +419,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer validate:framework`
 - `composer validate:skeleton`
 
-### 13) New package generator (framework workspace)
+### 14) New package generator (framework workspace)
 
 **Id:** `tool.new_package`
 **Entrypoint:** `composer package:new`
@@ -385,13 +438,15 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script package:new --`
 - Framework implementation detail: `@php tools/build/new-package.php` (framework workspace).
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_NEW_PACKAGE_FAILED`
 - Optional: supports `--repo-root` (implementation detail for tooling / fixtures).
 
 **Usage (repo root):**
 - `composer package:new -- --layer=core --slug=example --kind=library`
 - `composer package:new -- --layer=platform --slug=cli --kind=runtime`
 
-### 14) Git hooks install (workspace)
+### 15) Git hooks install (workspace)
 
 **Id:** `tool.hooks_install`  
 **Entrypoint:** `composer hooks:install`  
@@ -408,7 +463,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer hooks:install`
 
-### 15) Dependencies install (Composer, all roots)
+### 16) Dependencies install (Composer, all roots)
 
 **Id:** `tool.install_all`  
 **Entrypoint:** `composer install:all`  
@@ -435,13 +490,14 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer install:framework`
 - `composer install:skeleton`
 
-### 16) Framework test runner (via repo root)
+### 17) Framework test runner (via repo root)
 
 **Id:** `framework.test`  
 **Entrypoint:** `composer framework:test`  
 **Category:** testing  
 **Outputs:**
 - No tracked outputs on success
+- `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
 
 **Determinism:**
 
@@ -462,7 +518,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer framework:test-slow`
 - `composer framework:test -- --filter <pattern>`
 
-### 17) Spikes boundary enforcement gate
+### 18) Spikes boundary enforcement gate
 
 **Id:** `tool.spike_boundary_gate`  
 **Entrypoint:** `composer spike:gate`  
@@ -488,7 +544,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer spike:gate`
 
-### 18) Spikes I/O policy gate
+### 19) Spikes I/O policy gate
 
 **Id:** `tool.spike_io_policy_gate`  
 **Entrypoint:** `composer spike:io:policy`  
@@ -519,7 +575,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer spike:io:policy`
 - `composer spike:io:policy -- --path=framework/tools`
 
-### 19) Spikes canonical paths gate
+### 20) Spikes canonical paths gate
 
 **Id:** `tool.spike_canonical_paths_gate`  
 **Entrypoint:** `composer spike:canonical:paths`  
@@ -559,7 +615,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer spike:canonical:paths`
 - `composer spike:canonical:paths -- --path=framework/tools`
 
-### 20) Spikes output bypass gate
+### 21) Spikes output bypass gate
 
 **Id:** `tool.spike_output_gate`  
 **Entrypoint:** `composer spike:output:gate`  
@@ -582,7 +638,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer spike:output:gate`
 
-### 21) Spikes test suite
+### 22) Spikes test suite
 
 **Id:** `tool.spike_test`  
 **Entrypoint:** `composer spike:test`  
@@ -604,8 +660,9 @@ Each new command is added as a separate section under `## Commands` (the format 
   3) `composer tools:ia`
   4) `composer spike:io:policy`
   5) `composer spike:canonical:paths`
-  6) `composer spike:output:gate`
-  7) Spikes PHPUnit suite (`tools/spikes/phpunit.spikes.xml`)
+  6) `composer repo:text:gate`
+  7) `composer spike:output:gate`
+  8) Spikes PHPUnit suite (`tools/spikes/phpunit.spikes.xml`)
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script spike:test --`
   - framework implementation detail: framework script executes:
@@ -614,13 +671,14 @@ Each new command is added as a separate section under `## Commands` (the format 
     - `@tools:ia`
     - `@spike:io:policy`
     - `@spike:canonical:paths`
+    - `@repo:text:gate`
     - `@spike:output:gate`
     - `vendor/bin/phpunit -c tools/spikes/phpunit.spikes.xml --do-not-cache-result`
 
 **Usage (repo root):**
 - `composer spike:test`
 
-### 22) Spikes determinism runner
+### 23) Spikes determinism runner
 
 **Id:** `tool.spike_test_determinism`  
 **Entrypoint:** `composer spike:test:determinism`  
@@ -642,7 +700,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer spike:test:determinism`
 
-### 23) Repo text normalization gate
+### 24) Repo text normalization gate
 
 **Id:** `tool.repo_text_normalization_gate`
 **Entrypoint:** `composer repo:text:gate`
@@ -670,7 +728,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer repo:text:gate`
 - `composer repo:text:gate -- --path=framework`
 
-### 24) Package-local PHPUnit config gate
+### 25) Package-local PHPUnit config gate
 
 **Id:** `tool.package_phpunit_gate`
 **Entrypoint:** `composer package:phpunit:gate`
@@ -704,7 +762,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer package:phpunit:gate`
 
-### 25) Outdated dependencies report (Composer, all roots)
+### 26) Outdated dependencies report (Composer, all roots)
 
 **Id:** `tool.outdated_all`  
 **Entrypoint:** `composer outdated:all`  
@@ -729,7 +787,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer outdated:framework`
 - `composer outdated:skeleton`
 
-### 26) Autoloader dump (Composer, all roots)
+### 27) Autoloader dump (Composer, all roots)
 
 **Id:** `tool.dump_autoload_all`  
 **Entrypoint:** `composer dump-autoload:all`  
@@ -755,7 +813,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer dump-autoload:framework`
 - `composer dump-autoload:skeleton`
 
-### 27) Dependencies update (Composer, all roots)
+### 28) Dependencies update (Composer, all roots)
 
 **Id:** `tool.update_all`  
 **Entrypoint:** `composer update:all`  
@@ -787,7 +845,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer update:framework`
 - `composer update:skeleton`
 
-### 28) Internal toolkit anti-duplication gate
+### 29) Internal toolkit anti-duplication gate
 
 **Id:** `tool.toolkit_gate`  
 **Entrypoint:** `composer toolkit:gate`  
@@ -822,7 +880,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer toolkit:gate`
 - `composer toolkit:gate -- --path=/absolute/path/to/temp-scan-root`
 
-### 29) Tools InvalidArgumentException policy gate
+### 30) Tools InvalidArgumentException policy gate
 
 **Id:** `tool.tools_invalid_argument_exception_gate`  
 **Entrypoint:** `composer tools:ia`  
@@ -857,7 +915,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 30) Coretsia CLI help (Phase 0)
+### 31) Coretsia CLI help (Phase 0)
 
 **Id:** `cli.help`
 **Entrypoint:** `php coretsia help`
@@ -890,7 +948,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 31) Coretsia CLI list (Phase 0)
+### 32) Coretsia CLI list (Phase 0)
 
 **Id:** `cli.list`
 **Entrypoint:** `php coretsia list`
@@ -915,7 +973,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `php coretsia list`
 
-### 32) Coretsia CLI doctor (Phase 0)
+### 33) Coretsia CLI doctor (Phase 0)
 
 **Id:** `cli.doctor`
 **Entrypoint:** `php coretsia doctor`
@@ -950,7 +1008,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 33) Coretsia CLI spike fingerprint (Phase 0)
+### 34) Coretsia CLI spike fingerprint (Phase 0)
 
 **Id:** `cli.spike_fingerprint`
 **Entrypoint:** `php coretsia spike:fingerprint`
@@ -990,7 +1048,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 34) Coretsia CLI spike config debug (Phase 0)
+### 35) Coretsia CLI spike config debug (Phase 0)
 
 **Id:** `cli.spike_config_debug`
 **Entrypoint:** `php coretsia spike:config:debug`
@@ -1042,7 +1100,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 35) Coretsia CLI deptrac graph (Phase 0)
+### 36) Coretsia CLI deptrac graph (Phase 0)
 
 **Id:** `cli.deptrac_graph`
 **Entrypoint:** `php coretsia deptrac:graph`
@@ -1100,7 +1158,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 36) Coretsia CLI workspace sync dry-run (Phase 0)
+### 37) Coretsia CLI workspace sync dry-run (Phase 0)
 
 **Id:** `cli.workspace_sync_dry_run`
 **Entrypoint:** `php coretsia workspace:sync --dry-run`
@@ -1155,7 +1213,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### 37) Coretsia CLI workspace sync apply (Phase 0)
+### 38) Coretsia CLI workspace sync apply (Phase 0)
 
 **Id:** `cli.workspace_sync_apply`
 **Entrypoint:** `php coretsia workspace:sync --apply`
@@ -1192,7 +1250,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `php coretsia workspace:sync --apply`
 
-### 38) Site icons builder
+### 39) Site icons builder
 
 **Id:** `tool.build_icons`
 **Entrypoint:** `composer build:icons`
@@ -1227,9 +1285,748 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script build:icons --`
 - Framework implementation detail: `@php tools/build/build_icons.php` (framework workspace).
+- Failure output policy:
+  - drift in `--check` mode: line 1 is stable code `CORETSIA_BUILD_ICONS_OUT_OF_DATE`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_BUILD_ICONS_FAILED`
 - Direct call `php framework/tools/build/build_icons.php` is **NOT** a canonical entrypoint (implementation detail only).
 - Current workspace platform requirement includes `ext-imagick` in `framework/composer.json`; alternative renderer support, if present in the tool implementation, does **NOT** change the documented workspace requirement.
 
 **Usage (repo root):**
 - `composer build:icons`
 - `composer build:icons -- --check`
+
+### 40) Tooling gates rail
+
+**Id:** `tool.gates`
+**Entrypoint:** `composer gates`
+**Category:** CI / repo policy / guard rail
+**Outputs:**
+- none (exits non-zero if any configured gate fails)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                |
+|--------------|---------------|----------------------------------------------------------------------|
+| default      | deterministic | Executes the canonical aggregate tooling gates rail in stable order. |
+
+**Notes:**
+- Purpose: executes the canonical aggregate gates rail for baseline/tooling/public-API enforcement.
+- This command is the preferred CI entrypoint for gates owned by tooling epics after Phase 0.
+- Individual `*:gate` scripts remain separately invokable and are the canonical unit entrypoints.
+- `composer gates` is the canonical aggregate rail entrypoint.
+- Execution order is cemented:
+  1) `composer no-skeleton-http-default:gate`
+  2) `composer no-skeleton-bundles-default:gate`
+  3) `composer no-skeleton-mode-presets-default:gate`
+  4) `composer no-skeleton-modules-default:gate`
+  5) `composer contracts-only-ports:gate`
+  6) `composer tag-constant-mirror:gate`
+  7) `composer observability-naming:gate`
+  8) `composer artifact-header-schema:gate`
+  9) `composer cross-cutting-contract:gate`
+  10) `composer kernel-public-api:gate`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script gates --`
+  - framework implementation detail: aggregate `gates` script in `framework/composer.json`
+- Policy:
+  - order of invoked gates inside the aggregate rail MUST be deterministic
+  - aggregate rail MUST invoke named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths
+  - spikes rails are separate and MUST NOT be silently folded into this aggregate command
+  - this rail SHOULD run before `composer quality` and `composer test` in CI
+
+**Usage (repo root):**
+- `composer gates`
+
+### 41) No skeleton HTTP default gate
+
+**Id:** `tool.no_skeleton_http_default_gate`
+**Entrypoint:** `composer no-skeleton-http-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                     |
+|--------------|---------------|---------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton HTTP config file only. |
+
+**Notes:**
+- Purpose: forbids shipping the default skeleton HTTP config file:
+  - `skeleton/config/http.php`
+- Canonical policy:
+  - HTTP defaults are framework/package-owned
+  - skeleton `config/http.php` is app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-http-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_http_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_http_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-http-default:gate`
+
+### 42) No skeleton bundles default gate
+
+**Id:** `tool.no_skeleton_bundles_default_gate`
+**Entrypoint:** `composer no-skeleton-bundles-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                        |
+|--------------|---------------|------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton bundle config files only. |
+
+**Notes:**
+- Purpose: forbids shipping default skeleton bundle config files:
+  - `skeleton/config/bundles/*.php`
+- Canonical policy:
+  - bundle defaults are framework-owned
+  - skeleton `config/bundles/*.php` files are app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-bundles-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_bundles_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_bundles_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-bundles-default:gate`
+
+### 43) No skeleton mode presets default gate
+
+**Id:** `tool.no_skeleton_mode_presets_default_gate`
+**Entrypoint:** `composer no-skeleton-mode-presets-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                             |
+|--------------|---------------|-----------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton mode preset config files only. |
+
+**Notes:**
+- Purpose: forbids shipping default skeleton mode preset config files:
+  - `skeleton/config/modes/*.php`
+- Canonical policy:
+  - mode presets are framework-owned
+  - skeleton `config/modes/*.php` files are app-override only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_mode_presets_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-mode-presets-default:gate`
+
+### 44) No skeleton modules default gate
+
+**Id:** `tool.no_skeleton_modules_default_gate`
+**Entrypoint:** `composer no-skeleton-modules-default:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                           |
+|--------------|---------------|---------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic check for forbidden default skeleton module-selection files only. |
+
+**Notes:**
+- Purpose: forbids shipping parallel default module-selection files in the skeleton:
+  - `skeleton/config/modules.php`
+  - `skeleton/apps/*/config/modules.php`
+- Canonical policy:
+  - module selection is kernel-owned
+  - it is resolved only via preset files + composer metadata
+  - skeleton module-selection files are app-level overrides only and MUST NOT be present by default
+- Output policy:
+  - first line is stable code: `CORETSIA_NO_SKELETON_MODULES_DEFAULT_FORBIDDEN`
+  - next lines are repo-relative violating paths with fixed reason token, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-skeleton-modules-default:gate --`
+  - framework implementation detail: `@php tools/gates/no_skeleton_modules_default_gate.php`
+- Direct call `php framework/tools/gates/no_skeleton_modules_default_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this gate SHOULD run in the dedicated `gates` rail before tests
+  - it MUST remain deterministic and rerun-no-diff
+
+**Usage (repo root):**
+- `composer no-skeleton-modules-default:gate`
+
+### 45) Contracts-only ports gate
+
+**Id:** `tool.contracts_only_ports_gate`
+**Entrypoint:** `composer contracts-only-ports:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none (exits non-zero on violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                                    |
+|--------------|---------------|------------------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan of framework packages source tree for forbidden public-port patterns. |
+
+**Notes:**
+- Purpose: forbids declaring canonical public ports outside the owner package:
+  - allowed owner scope: `framework/packages/core/contracts/src/**`
+  - forbidden outside owner scope:
+    - files named `*PortInterface.php`
+    - paths under `src/**/Port/**`
+- Deterministic scan scope:
+  - `framework/packages/*/*/src/**/*.php`
+- Exclusions:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Output policy:
+  - first line is stable code: `CORETSIA_CONTRACTS_ONLY_PORTS_FORBIDDEN`
+  - next lines are framework-root-relative diagnostics in the form:
+    - `<path>: <reason>`
+  - diagnostics are sorted by `strcmp`
+- Fixed reason tokens:
+  - `forbidden-public-port-interface`
+  - `forbidden-public-port-namespace`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script contracts-only-ports:gate --`
+- Framework implementation detail: `@php tools/gates/contracts_only_ports_gate.php`
+- Direct call `php framework/tools/gates/contracts_only_ports_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer contracts-only-ports:gate`
+
+### 46) Tag constant mirror gate
+
+**Id:** `tool.tag_constant_mirror_gate`  
+**Entrypoint:** `composer tag-constant-mirror:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on tag constant / mirror drift; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags                         | Determinism   | Notes                                                                  |
+|--------------------------------------|---------------|------------------------------------------------------------------------|
+| `composer tag-constant-mirror:gate`  | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: validates reserved DI tag constant usage against `docs/ssot/tags.md`.
+- Enforces the temporal tag-constant policy:
+  - registry rows may exist before the owner public constant becomes mandatory;
+  - existing owner constants, if present, must equal the canonical tag string;
+  - package-local mirror constants, if present, must equal the canonical tag string;
+  - non-owner packages must not expose competing owner-like tag APIs.
+- Output policy:
+  - first line is stable code: `CORETSIA_TAG_CONSTANT_MIRROR_DRIFT`
+  - next lines are framework-root-relative violating paths + short reason tokens sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script tag-constant-mirror:gate --`
+  - framework implementation detail: `@php tools/gates/tag_constant_mirror_gate.php`
+- Direct call `php framework/tools/gates/tag_constant_mirror_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy: `composer gates` MUST execute this gate through the named composer script, not by raw PHP path.
+
+**Usage (repo root):**
+- `composer tag-constant-mirror:gate`
+
+### 47) Observability naming gate
+
+**Id:** `tool.observability_naming_gate`  
+**Entrypoint:** `composer observability-naming:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on observability naming / label policy violations)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces the canonical observability metric naming and label allowlist policy from `docs/ssot/observability.md`.
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Enforces at minimum:
+  - metric names follow the canonical SSoT shape, for example `http.request_total` and `http.request_duration_ms`
+  - metric / label / attribute keys are limited to the SSoT allowlist:
+    - `method`
+    - `status`
+    - `driver`
+    - `operation`
+    - `table`
+    - `outcome`
+  - forbidden label keys fail deterministically:
+    - `field`
+    - `path`
+    - `property`
+    - `request_id`
+    - `correlation_id`
+    - `tenant_id`
+    - `user_id`
+- Output policy:
+  - first line is stable code: `CORETSIA_OBSERVABILITY_NAMING_DRIFT`
+  - next lines are framework-root-relative paths with fixed reason tokens, sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script observability-naming:gate --`
+  - framework implementation detail: `@php tools/gates/observability_naming_gate.php`
+- Direct call `php framework/tools/gates/observability_naming_gate.php` is **NOT** a canonical entrypoint; it is an implementation detail only.
+- CI/rails policy: `composer gates` SHOULD execute this gate with the other Phase 1 tooling gates.
+
+**Usage (repo root):**
+- `composer observability-naming:gate`
+
+### 48) Artifact header/schema gate
+
+**Id:** `tool.artifact_header_schema_gate`  
+**Entrypoint:** `composer artifact-header-schema:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on artifact envelope/header/schema violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: validates generated artifacts against the canonical artifact envelope and header schema from `docs/ssot/artifacts.md`.
+- Enforced baseline:
+  - top-level envelope MUST be exactly `{ "_meta", "payload" }`
+  - required `_meta` fields are `name`, `schemaVersion`, `fingerprint`, `generator`
+  - artifact `name` and `schemaVersion` MUST match the canonical artifact registry
+  - generated artifacts MUST NOT contain timestamps, absolute paths, or environment-specific bytes
+  - JSON artifacts and PHP artifacts returning arrays are both supported
+- Temporal artifact-materialization policy:
+  - registry rows alone do not require an artifact file to exist yet
+  - if no matching generated artifact file exists, the gate behaves as a deterministic no-op
+  - if a matching generated artifact file exists, malformed envelope/header/schema fails deterministically
+- Output policy:
+  - first line is stable code: `CORETSIA_ARTIFACT_HEADER_SCHEMA_DRIFT`
+  - next lines are normalized repo-relative paths plus fixed reason tokens sorted by `strcmp`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script artifact-header-schema:gate --`
+  - framework implementation detail: `@php tools/gates/artifact_header_schema_gate.php`
+- Direct call `php framework/tools/gates/artifact_header_schema_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer artifact-header-schema:gate`
+
+### 49) Cross-cutting contract gate
+
+**Id:** `tool.cross_cutting_contract_gate`  
+**Entrypoint:** `composer cross-cutting-contract:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on cross-cutting contract policy violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces cross-cutting Kernel/Foundation contract invariants once the required owner-package evidence exists.
+- Enforced baseline:
+  - services tagged as `kernel.stateful` MUST implement `Coretsia\Contracts\Runtime\ResetInterface`
+  - services tagged as `kernel.stateful` MUST also be discoverable through the effective Foundation reset discovery tag `kernel.reset`
+  - if the required owner-package evidence is not present yet, the gate behaves as a deterministic no-op
+- Additional enforcement:
+  - once `ContextStore` / `ContextKeys` owner symbols exist, forbidden direct usage is reported deterministically
+- Output policy:
+  - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
+  - next lines are framework-root-relative paths plus fixed reason tokens sorted by `strcmp`
+- Fixed reason tokens:
+  - `kernel-stateful-service-missing-reset-tag`
+  - `kernel-stateful-service-class-unresolved`
+  - `kernel-stateful-service-not-resettable`
+  - `forbidden-context-store-usage`
+  - `forbidden-context-keys-usage`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cross-cutting-contract:gate --`
+  - framework implementation detail: `@php tools/gates/cross_cutting_contract_gate.php`
+- Direct call `php framework/tools/gates/cross_cutting_contract_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer cross-cutting-contract:gate`
+
+### 50) Kernel public API gate
+
+**Id:** `tool.kernel_public_api_gate`  
+**Entrypoint:** `composer kernel-public-api:gate`  
+**Category:** repo policy / guard  
+**Outputs:**
+- none (exits non-zero on kernel public API surface violations; emits deterministic diagnostics)
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: enforces the canonical `core/kernel` public API surface once the owner public-surface evidence exists.
+- Temporal public API evidence policy:
+  - if `framework/packages/core/kernel/src` does not exist yet, the gate behaves as a deterministic no-op
+  - if the kernel public-surface evidence does not exist yet, the gate behaves as a deterministic no-op
+  - once owner evidence exists, the gate validates the `core/kernel` public surface without changing the canonical output policy
+- Evidence sources include explicit kernel public API docs/config and public API contract-test evidence, for example:
+  - `framework/packages/core/kernel/PUBLIC_API.md`
+  - `framework/packages/core/kernel/public-api.md`
+  - `framework/packages/core/kernel/public_api.md`
+  - `framework/packages/core/kernel/public-api.json`
+  - `framework/packages/core/kernel/public_api.json`
+  - `framework/packages/core/kernel/public-api.php`
+  - `framework/packages/core/kernel/public_api.php`
+  - `framework/packages/core/kernel/docs/PUBLIC_API.md`
+  - `framework/packages/core/kernel/docs/public-api.md`
+  - `framework/packages/core/kernel/docs/public_api.md`
+  - `docs/ssot/kernel-public-api.md`
+  - `docs/ssot/kernel_public_api.md`
+  - `docs/architecture/kernel-public-api.md`
+  - `docs/architecture/kernel_public_api.md`
+  - `framework/packages/core/kernel/tests/**/*PublicApi*.php`
+  - `framework/packages/core/kernel/tests/**/*PublicAPI*.php`
+  - `framework/packages/core/kernel/tests/**/*PublicSurface*.php`
+  - `framework/packages/core/kernel/tests/**/*ApiSurface*.php`
+  - `framework/packages/core/kernel/tests/**/*KernelPublic*.php`
+- Enforced baseline once evidence exists:
+  - public `core/kernel/src` symbols MUST be listed in the public API evidence
+  - symbols listed as public API MUST NOT be internal
+  - internal symbols are detected through `@internal` docblocks or `Internal` / `internal` path segments
+- Output policy:
+  - first line is stable code: `CORETSIA_KERNEL_PUBLIC_API_DRIFT`
+  - next lines are normalized repo/framework-relative paths plus fixed reason tokens sorted by `strcmp`
+- Fixed reason tokens:
+  - `kernel-public-api-evidence-empty`
+  - `kernel-public-api-symbol-internal-listed`
+  - `kernel-public-api-symbol-unlisted`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script kernel-public-api:gate --`
+  - framework implementation detail: `@php tools/gates/kernel_public_api_gate.php`
+- Direct call `php framework/tools/gates/kernel_public_api_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- This gate is a standalone rail; optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for this command.
+- `composer gates` MUST execute this gate as part of the tooling rails chain.
+
+**Usage (repo root):**
+- `composer kernel-public-api:gate`
+
+### 51) Deptrac config check
+
+**Id:** `tool.arch_deptrac_check`
+**Entrypoint:** `composer arch:deptrac:check`
+**Category:** architecture / guard / CI rail
+**Outputs:**
+- none (exits non-zero if generated Deptrac config drift is detected)
+
+**Determinism:**
+
+| Mode / flags                    | Determinism   | Notes                                                   |
+|---------------------------------|---------------|---------------------------------------------------------|
+| `composer arch:deptrac:check`   | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
+
+**Notes:**
+- Purpose: checks that canonical Deptrac generated files are up to date.
+- Checked tracked outputs:
+  - `framework/tools/testing/deptrac.yaml`
+  - `framework/tools/testing/deptrac.allowlist.yaml`
+- Reads dependency policy from:
+  - `docs/roadmap/phase0/00_2-dependency-table.md`
+- Scans framework packages from:
+  - `framework/packages/*/*/composer.json`
+- Generated config analyzes package `src/` roots only.
+- Allowlist policy:
+  - may exclude tests, fixtures, vendor, or tooling-only paths
+  - MUST NOT exclude `framework/packages/**/src/**`
+- This command is part of the `composer arch` aggregate rail.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script arch:deptrac:check --`
+- Framework implementation detail:
+  - `@php tools/build/deptrac_generate.php --check`
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_DEPTRAC_OUT_OF_DATE`
+  - missing dependency policy: line 1 starts with stable code `CORETSIA_DEPTRAC_SSOT_RULESET_MISSING`
+  - cycle detected: line 1 starts with stable code `CORETSIA_DEPTRAC_CYCLE_DETECTED`
+  - invalid allowlist: line 1 starts with stable code `CORETSIA_DEPTRAC_ALLOWLIST_INVALID`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_DEPTRAC_GENERATE_FAILED`
+- Direct call `php framework/tools/build/deptrac_generate.php --check` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer arch:deptrac:check`
+
+### 52) Deptrac config and graph generator
+
+**Id:** `tool.arch_deptrac_generate`
+**Entrypoint:** `composer arch:deptrac:generate`
+**Category:** architecture / generator / CI artifact materialization
+**Outputs:**
+- `framework/tools/testing/deptrac.yaml`
+- `framework/tools/testing/deptrac.allowlist.yaml` *(created if missing)*
+- `framework/var/arch/deptrac_graph.dot` *(gitignored / CI artifact)*
+- `framework/var/arch/deptrac_graph.svg` *(gitignored / CI artifact)*
+- `framework/var/arch/deptrac_graph.html` *(gitignored / CI artifact)*
+
+**Determinism:**
+
+| Mode / flags                       | Determinism   | Notes                                                                |
+|------------------------------------|---------------|----------------------------------------------------------------------|
+| `composer arch:deptrac:generate`   | deterministic | Generates Deptrac config, allowlist if missing, and graph artifacts. |
+
+**Notes:**
+- Purpose: materializes canonical Deptrac architecture outputs from repository SSoT data.
+- Reads dependency policy from:
+  - `docs/roadmap/phase0/00_2-dependency-table.md`
+- Scans framework packages from:
+  - `framework/packages/*/*/composer.json`
+- Generated config analyzes package `src/` roots only.
+- Exclusions are controlled by:
+  - `framework/tools/testing/deptrac.allowlist.yaml`
+- Allowlist policy:
+  - may exclude tests, fixtures, vendor, or tooling-only paths
+  - MUST NOT exclude `framework/packages/**/src/**`
+- Graph artifacts are generated for CI upload / architecture inspection only.
+- This command is **not** part of the `composer arch` aggregate rail because it is mutating/materializing.
+- CI MAY run this command separately in the `arch` job to upload Deptrac graph artifacts.
+- It MUST remain deterministic and rerun-no-diff for the same repo state.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script arch:deptrac:generate --`
+- Framework implementation detail:
+  - `@php tools/build/deptrac_generate.php --apply`
+- Failure output policy:
+  - missing dependency policy: line 1 starts with stable code `CORETSIA_DEPTRAC_SSOT_RULESET_MISSING`
+  - cycle detected: line 1 starts with stable code `CORETSIA_DEPTRAC_CYCLE_DETECTED`
+  - invalid allowlist: line 1 starts with stable code `CORETSIA_DEPTRAC_ALLOWLIST_INVALID`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_DEPTRAC_GENERATE_FAILED`
+- Direct call `php framework/tools/build/deptrac_generate.php --apply` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer arch:deptrac:generate`
+
+### 53) Deptrac architecture analysis
+
+**Id:** `tool.arch_deptrac_analyze`
+**Entrypoint:** `composer arch:deptrac:analyze`
+**Category:** architecture / dependency analysis / CI rail
+**Outputs:**
+- none on success
+- native Deptrac diagnostics on violations/failure
+
+**Determinism:**
+
+| Mode / flags                      | Determinism   | Notes                                                      |
+|-----------------------------------|---------------|------------------------------------------------------------|
+| `composer arch:deptrac:analyze`   | deterministic | Runs Deptrac against the canonical generated config.       |
+
+**Notes:**
+- Purpose: runs Deptrac architecture analysis using the canonical generated config:
+  - `framework/tools/testing/deptrac.yaml`
+- This command is part of the `composer arch` aggregate rail.
+- This command depends on generated Deptrac config being up to date; CI SHOULD run `composer arch:deptrac:check` before this command.
+- This is a third-party architecture analysis command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native Deptrac diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script arch:deptrac:analyze --`
+- Framework implementation detail:
+  - `@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache`
+- Direct call `php framework/vendor/bin/deptrac analyse --config-file=framework/tools/testing/deptrac.yaml --no-cache` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer arch:deptrac:analyze`
+
+### 54) Quality aggregate rail
+
+**Id:** `tool.quality`
+**Entrypoint:** `composer quality`
+**Category:** quality / aggregate rail
+**Outputs:**
+- none directly
+- delegates to quality tools, which may produce native diagnostics
+- may create/update internal tool cache files, including:
+  - `framework/var/phpstan/**`
+
+**Determinism:**
+
+| Mode / flags       | Determinism   | Notes                                                                      |
+|--------------------|---------------|----------------------------------------------------------------------------|
+| `composer quality` | deterministic | Runs the canonical quality checks in stable order; writes no source files. |
+
+**Notes:**
+- Purpose: aggregate quality rail for code style and static analysis.
+- Execution order is cemented:
+  1) `composer cs:check`
+  2) `composer phpstan`
+- This command is an aggregate quality rail, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - It preserves native diagnostics from the underlying tools.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script quality --`
+  - framework implementation detail: aggregate `quality` script in `framework/composer.json`
+- CI/rails policy:
+  - this command SHOULD run in CI after `composer gates`
+  - this command SHOULD run before `composer test`
+  - this command MUST use `cs:check`, not `cs:fix`
+  - this command MUST NOT modify source files
+- Local full-check order SHOULD remain:
+  1) `composer sync:check`
+  2) `composer install:all`
+  3) `composer validate:all`
+  4) `composer gates`
+  5) `composer quality`
+  6) `composer test`
+  7) `composer lock:check`
+
+**Usage (repo root):**
+- `composer quality`
+
+### 55) Code style check
+
+**Id:** `tool.cs_check`
+**Entrypoint:** `composer cs:check`
+**Category:** quality / code style
+**Outputs:**
+- none on success
+- tool diagnostics on failure
+- may create/update internal tool cache files only if the underlying tool does so
+
+**Determinism:**
+
+| Mode / flags        | Determinism   | Notes                                                     |
+|---------------------|---------------|-----------------------------------------------------------|
+| `composer cs:check` | deterministic | Checks code style baseline; MUST NOT rewrite source code. |
+
+**Notes:**
+- Purpose: runs the canonical framework code style baseline.
+- Configuration SSoT:
+  - `framework/tools/cs/ecs.php`
+- Scan scope is defined by the ECS config and currently includes:
+  - `framework/packages`
+  - `framework/tools`
+  - `skeleton`
+- Exclusions are defined by `framework/tools/cs/ecs.php`.
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native ECS diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cs:check --`
+  - framework implementation detail: `@php vendor/bin/ecs check --config=tools/cs/ecs.php`
+- Direct call `php framework/vendor/bin/ecs check --config=framework/tools/cs/ecs.php` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this command SHOULD run in the `quality` rail
+  - this command MAY run after gates and before tests
+  - this command MUST NOT modify source files
+
+**Usage (repo root):**
+- `composer cs:check`
+
+### 56) Code style fixer
+
+**Id:** `tool.cs_fix`
+**Entrypoint:** `composer cs:fix`
+**Category:** quality / code style / mutating fixer
+**Outputs:**
+- may rewrite PHP source files in the configured ECS scan scope
+
+**Determinism:**
+
+| Mode / flags      | Determinism                | Notes                                         |
+|-------------------|----------------------------|-----------------------------------------------|
+| `composer cs:fix` | deterministic but mutating | Rewrites files according to the ECS baseline. |
+
+**Notes:**
+- Purpose: applies the canonical framework code style baseline.
+- Configuration SSoT:
+  - `framework/tools/cs/ecs.php`
+- This command is intentionally mutating:
+  - it MAY rewrite files under the configured ECS paths
+  - it MUST NOT be used as a CI check command
+- CI/rails policy:
+  - CI MUST use `composer cs:check`, not `composer cs:fix`
+  - `composer cs:fix` is a local developer command only
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native ECS diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script cs:fix --`
+  - framework implementation detail: `@php vendor/bin/ecs check --config=tools/cs/ecs.php --fix`
+- Direct call `php framework/vendor/bin/ecs check --config=framework/tools/cs/ecs.php --fix` is **NOT** a canonical entrypoint (implementation detail only).
+
+**Usage (repo root):**
+- `composer cs:fix`
+
+### 57) Static analysis baseline
+
+**Id:** `tool.phpstan`
+**Entrypoint:** `composer phpstan`
+**Category:** quality / static analysis
+**Outputs:**
+- none on success
+- native PHPStan diagnostics on failure
+- internal PHPStan cache:
+  - `framework/var/phpstan/**`
+
+**Determinism:**
+
+| Mode / flags       | Determinism   | Notes                                               |
+|--------------------|---------------|-----------------------------------------------------|
+| `composer phpstan` | deterministic | Runs the canonical framework static analysis setup. |
+
+**Notes:**
+- Purpose: runs the canonical framework static analysis baseline.
+- Configuration SSoT:
+  - `framework/tools/phpstan/phpstan.neon`
+- Analysis scope is defined by PHPStan config and currently includes:
+  - `framework/packages`
+  - `framework/tools`
+- PHPStan cache policy:
+  - `framework/var/phpstan/**` is internal tool cache
+  - it is **NOT** a Coretsia generated artifact
+  - artifact/schema gates MUST NOT treat PHPStan cache as generated artifact output
+- This is a third-party quality command, not a Coretsia policy gate.
+  - It does **NOT** follow the Phase 0 gate output contract.
+  - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.
+  - Native PHPStan diagnostics are expected.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script phpstan --`
+  - framework implementation detail: `@php vendor/bin/phpstan analyse --configuration=tools/phpstan/phpstan.neon --memory-limit=1G`
+- Direct call `php framework/vendor/bin/phpstan analyse --configuration=framework/tools/phpstan/phpstan.neon` is **NOT** a canonical entrypoint (implementation detail only).
+- CI/rails policy:
+  - this command SHOULD run in the `quality` rail
+  - this command MAY run after gates and before tests
+  - lock drift checks MUST still fail if dependency installation or tooling changes lock files
+
+**Usage (repo root):**
+- `composer phpstan`

@@ -19,7 +19,9 @@ declare(strict_types=1);
 
 final class BuildIconsTool
 {
-    private const string OUT_OF_DATE_CODE = 'CORETSIA_BUILD_ICONS_OUT_OF_DATE';
+    public const string CODE_FAILED = 'CORETSIA_BUILD_ICONS_FAILED';
+
+    private const string CODE_OUT_OF_DATE = 'CORETSIA_BUILD_ICONS_OUT_OF_DATE';
     private const string BRANDING_DIR = 'docs/assets/branding/favicon';
 
     public static function main(array $argv): int
@@ -126,7 +128,7 @@ final class BuildIconsTool
 
         if ($check) {
             if ($changedFiles !== []) {
-                fwrite(STDERR, self::OUT_OF_DATE_CODE . "\n");
+                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
                 foreach ($changedFiles as $path) {
                     fwrite(STDERR, $path . "\n");
                 }
@@ -511,6 +513,6 @@ try {
     exit(BuildIconsTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, "CORETSIA_BUILD_ICONS_FAILED: {$msg}\n");
+    fwrite(STDERR, BuildIconsTool::CODE_FAILED . ": {$msg}\n");
     exit(1);
 }

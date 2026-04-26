@@ -69,7 +69,7 @@ final class CliRejectsMissingCommandClassDeterministicallyTest extends TestCase
             self::assertSame('', $result['stdout'], 'This failure MUST NOT emit stdout.');
 
             $stderr = $this->normalizeNewlines($result['stderr']);
-            $lines = \array_values(\array_filter(\explode("\n", $stderr), static fn(string $s): bool => $s !== ''));
+            $lines = \array_values(\array_filter(\explode("\n", $stderr), static fn (string $s): bool => $s !== ''));
 
             self::assertCount(2, $lines, 'CLI deterministic failure MUST emit exactly 2 stderr lines.');
             self::assertSame('CORETSIA_CLI_COMMAND_CLASS_MISSING', $lines[0]);

@@ -37,7 +37,7 @@ final class RerunNoDiffTest extends TestCase
         $scenarios = $matrix['scenarios'];
 
         $ids = array_keys($scenarios);
-        usort($ids, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($ids, static fn (string $a, string $b): int => strcmp($a, $b));
 
         foreach ($ids as $id) {
             $scenario = $scenarios[$id];

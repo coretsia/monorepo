@@ -1,0 +1,42 @@
+parameters:
+    level: 5
+    phpVersion: 80400
+
+    paths:
+        - ../../packages
+        - ../../tools/build
+        - ../../tools/gates
+        - ../../tools/policies
+        - ../../tools/testing
+
+    bootstrapFiles:
+        - ../spikes/_support/bootstrap.php
+
+    tmpDir: ../../var/phpstan
+
+    fileExtensions:
+        - php
+
+    excludePaths:
+        analyseAndScan:
+            - ../../vendor
+            - ../../var
+
+            - ../../packages/*/*/vendor
+            - ../../packages/*/*/vendor/*
+            - ../../packages/*/*/var
+            - ../../packages/*/*/var/*
+            - ../../packages/*/*/tests
+            - ../../packages/*/*/tests/*
+            - ../../packages/*/*/tests/fixtures
+            - ../../packages/*/*/tests/fixtures/*
+
+            - ../../tools/spikes
+            - ../../tools/spikes/*
+            - ../../tools/tests
+            - ../../tools/tests/*
+            - ../../tools/*/fixtures
+            - ../../tools/*/fixtures/*
+
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: true

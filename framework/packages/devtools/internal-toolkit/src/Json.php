@@ -109,7 +109,7 @@ final class Json
 
         uksort(
             $tmp,
-            static fn(string $a, string $b): int => strcmp($a, $b)
+            static fn (string $a, string $b): int => strcmp($a, $b)
         );
 
         return $tmp;

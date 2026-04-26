@@ -44,7 +44,7 @@ final class FileListingDeterministicOrderTest extends TestCase
 
         // MUST: deterministic lexicographic order (byte-order; strcmp), no locale dependence.
         $sortedActual = $actual;
-        usort($sortedActual, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($sortedActual, static fn (string $a, string $b): int => strcmp($a, $b));
         self::assertSame($sortedActual, $actual);
 
         $expectedPath = FixtureRoot::path('repo_min/expected_paths.txt');
@@ -82,7 +82,7 @@ final class FileListingDeterministicOrderTest extends TestCase
 
         // MUST: deterministic expected fixture order and uniqueness (byte-order; strcmp).
         $expectedSorted = $expected;
-        usort($expectedSorted, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($expectedSorted, static fn (string $a, string $b): int => strcmp($a, $b));
         self::assertSame($expectedSorted, $expected);
 
         $unique = array_values(array_unique($expected));

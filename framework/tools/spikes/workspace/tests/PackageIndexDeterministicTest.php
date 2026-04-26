@@ -66,7 +66,7 @@ final class PackageIndexDeterministicTest extends TestCase
             $sorted = $paths;
             \usort(
                 $sorted,
-                static fn(string $a, string $b): int => \strcmp(self::normalizePath($a), self::normalizePath($b))
+                static fn (string $a, string $b): int => \strcmp(self::normalizePath($a), self::normalizePath($b))
             );
 
             self::assertSame($sorted, $paths);
@@ -145,7 +145,7 @@ final class PackageIndexDeterministicTest extends TestCase
             $out[] = $name;
         }
 
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return \array_values($out);
     }

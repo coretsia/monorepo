@@ -50,14 +50,14 @@ final class SpikeModulesDoNotCallExitOrDieTest extends TestCase
 
         if ($violations !== []) {
             $paths = array_keys($violations);
-            usort($paths, static fn(string $a, string $b): int => strcmp($a, $b));
+            usort($paths, static fn (string $a, string $b): int => strcmp($a, $b));
 
             $lines = [];
             $lines[] = 'Spike modules MUST NOT use process-termination constructs (exit/die).';
             $lines[] = 'Found:';
             foreach ($paths as $p) {
                 $kws = array_keys($violations[$p]);
-                usort($kws, static fn(string $a, string $b): int => strcmp($a, $b));
+                usort($kws, static fn (string $a, string $b): int => strcmp($a, $b));
 
                 $lines[] = '- ' . $p . ': ' . implode(', ', $kws);
             }

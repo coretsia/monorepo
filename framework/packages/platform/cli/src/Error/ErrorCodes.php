@@ -46,7 +46,7 @@ final class ErrorCodes
             self::CORETSIA_CLI_UNCAUGHT_EXCEPTION,
         ];
 
-        \usort($codes, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($codes, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return $codes;
     }

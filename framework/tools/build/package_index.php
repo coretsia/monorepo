@@ -19,6 +19,10 @@ declare(strict_types=1);
 
 final class PackageIndexTool
 {
+    public const string CODE_FAILED = 'CORETSIA_PACKAGE_INDEX_FAILED';
+
+    private const string CODE_OUT_OF_DATE = 'CORETSIA_PACKAGE_INDEX_OUT_OF_DATE';
+
     public static function main(array $argv): int
     {
         $repoRoot = self::resolveRepoRoot($argv);
@@ -26,7 +30,7 @@ final class PackageIndexTool
         $check = self::argFlag($argv, '--check');
         $apply = self::argFlag($argv, '--apply') || !$check; // default apply unless --check
 
-        $outPath = self::argValue($argv, '--out') ?? ($repoRoot . '/framework/var/package-index.php');
+        $outPath = self::argValue($argv, '--out') ?? ($repoRoot . '/framework/tools/testing/package-index.php');
         $outPath = self::absFromRepo($repoRoot, $outPath);
 
         $packages = self::buildIndex($repoRoot);
@@ -43,8 +47,8 @@ final class PackageIndexTool
 
         if ($check) {
             if ($changed) {
-                fwrite(STDERR, "CORETSIA_PACKAGE_INDEX_OUT_OF_DATE\n");
-                fwrite(STDERR, "framework/var/package-index.php\n");
+                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
+                fwrite(STDERR, self::rel($repoRoot, $outPath) . "\n");
                 return 1;
             }
 
@@ -92,7 +96,7 @@ final class PackageIndexTool
         $items = [];
 
         foreach ($hits as $abs) {
-            if (!is_string($abs) || $abs === '' || !is_file($abs)) {
+            if ($abs === '' || !is_file($abs)) {
                 continue;
             }
 
@@ -166,7 +170,7 @@ final class PackageIndexTool
 
         usort(
             $items,
-            static fn(array $a, array $b): int => strcmp((string)$a['path'], (string)$b['path'])
+            static fn (array $a, array $b): int => strcmp((string)$a['path'], (string)$b['path'])
         );
 
         return $items;
@@ -176,7 +180,7 @@ final class PackageIndexTool
     {
         $payload = self::normalizePayload($payload);
 
-        $export = var_export($payload, true);
+        $export = self::renderPhpValue($payload, 0);
         $export = self::normalizeEol($export);
 
         $out = "<?php\n\n";
@@ -189,6 +193,71 @@ final class PackageIndexTool
         $out .= "return " . $export . ";\n";
 
         return $out;
+    }
+
+    private static function renderPhpValue(mixed $value, int $indent): string
+    {
+        if (is_array($value)) {
+            return self::renderPhpArray($value, $indent);
+        }
+
+        if ($value === null) {
+            return 'null';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_int($value) || is_float($value) || is_string($value)) {
+            return var_export($value, true);
+        }
+
+        throw new RuntimeException('Unsupported package-index payload value');
+    }
+
+    /**
+     * @param array<int|string,mixed> $value
+     */
+    private static function renderPhpArray(array $value, int $indent): string
+    {
+        $pad = str_repeat(' ', $indent);
+        $childPad = str_repeat(' ', $indent + 2);
+
+        $lines = [];
+        $lines[] = $pad . 'array(';
+
+        foreach ($value as $key => $item) {
+            $keyOut = self::renderPhpArrayKey($key);
+
+            if (is_array($item)) {
+                $lines[] = $childPad . $keyOut . ' =>';
+
+                $nestedLines = explode("\n", self::renderPhpArray($item, $indent + 2));
+                $last = count($nestedLines) - 1;
+
+                foreach ($nestedLines as $i => $line) {
+                    $lines[] = $line . ($i === $last ? ',' : '');
+                }
+
+                continue;
+            }
+
+            $lines[] = $childPad . $keyOut . ' => ' . self::renderPhpValue($item, $indent + 2) . ',';
+        }
+
+        $lines[] = $pad . ')';
+
+        return implode("\n", $lines);
+    }
+
+    private static function renderPhpArrayKey(int|string $key): string
+    {
+        if (is_int($key)) {
+            return (string)$key;
+        }
+
+        return var_export($key, true);
     }
 
     private static function normalizePayload(mixed $value): mixed
@@ -206,7 +275,7 @@ final class PackageIndexTool
         }
 
         $keys = array_keys($value);
-        usort($keys, static fn($a, $b) => strcmp((string)$a, (string)$b));
+        usort($keys, static fn ($a, $b) => strcmp((string)$a, (string)$b));
 
         $out = [];
         foreach ($keys as $k) {
@@ -261,7 +330,7 @@ final class PackageIndexTool
         }
 
         $keys = array_keys($psr4);
-        usort($keys, static fn($a, $b) => strcmp((string)$a, (string)$b));
+        usort($keys, static fn ($a, $b) => strcmp((string)$a, (string)$b));
         return (string)$keys[0];
     }
 
@@ -352,9 +421,9 @@ final class PackageIndexTool
                 throw new RuntimeException('Cannot resolve cwd');
             }
             $candidate = rtrim(str_replace('\\', '/', $cwd), '/') . '/' . ltrim(
-                    str_replace('\\', '/', $candidate),
-                    '/'
-                );
+                str_replace('\\', '/', $candidate),
+                '/'
+            );
         }
 
         $candidate = rtrim(str_replace('\\', '/', $candidate), '/');
@@ -399,6 +468,6 @@ try {
     exit(PackageIndexTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, "CORETSIA_PACKAGE_INDEX_FAILED: $msg\n");
+    fwrite(STDERR, PackageIndexTool::CODE_FAILED . ": {$msg}\n");
     exit(1);
 }

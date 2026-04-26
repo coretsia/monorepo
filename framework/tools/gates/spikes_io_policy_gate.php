@@ -271,7 +271,7 @@ function coretsia_spikes_io_list_php_files(string $scanRoot): array
 
     \uasort(
         $out,
-        static fn(string $a, string $b): int => \strcmp($a, $b)
+        static fn (string $a, string $b): int => \strcmp($a, $b)
     );
 
     return $out;
@@ -378,7 +378,7 @@ function coretsia_spikes_io_detect_policy_violations(array $tokens): array
     }
 
     $reasons = \array_keys($out);
-    \usort($reasons, static fn(string $a, string $b): int => \strcmp($a, $b));
+    \usort($reasons, static fn (string $a, string $b): int => \strcmp($a, $b));
 
     /** @var list<string> $reasons */
     return $reasons;
@@ -529,12 +529,8 @@ function coretsia_spikes_io_decode_constant_string_literal(string $tokenText): ?
     }
 
     $inner = \substr($tokenText, 1, $len - 2);
-    if (!\is_string($inner)) {
-        return null;
-    }
 
     if ($q === '\'') {
-        // In single quotes, only \\ and \' are escaped.
         $inner = \str_replace(['\\\\', '\\\''], ['\\', '\''], $inner);
         return $inner;
     }

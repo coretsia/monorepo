@@ -333,15 +333,11 @@ final class Application
 
     /**
      * @param class-string<CommandInterface> $fqcn
+     * @throws \ReflectionException
      */
     private function instantiateZeroArg(string $fqcn): CommandInterface
     {
-        try {
-            $ref = new \ReflectionClass($fqcn);
-        } catch (\ReflectionException $e) {
-            // Deterministic: treat as "class not found" (autoload/reflect failed).
-            throw CliCommandClassMissingException::classNotFound($e);
-        }
+        $ref = new \ReflectionClass($fqcn);
 
         // Instantiable implies: not abstract, ctor accessible, etc.
         if (!$ref->isInstantiable()) {
@@ -487,7 +483,6 @@ final class Application
             $out[] = $part;
         }
 
-        /** @var list<string> $out */
         return $out;
     }
 

@@ -660,9 +660,9 @@ N/A
 - Gate commands policy:
   - every gate created under `framework/tools/gates/*_gate.php` MUST be separately invokable via a dedicated composer script named `<kebab-name>:gate`
   - command name derivation is single-choice:
-    - [ ] strip suffix `_gate.php`
-    - [ ] replace `_` with `-`
-    - [ ] append `:gate`
+    - [x] strip suffix `_gate.php`
+    - [x] replace `_` with `-`
+    - [x] append `:gate`
   - repo-root `composer.json` MUST expose mirror scripts delegating to `framework/composer.json`
   - workspace `framework/composer.json` MUST map each dedicated `*:gate` script directly to the corresponding `tools/gates/*_gate.php`
   - CI `gates` job MUST prefer invoking named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths, for gates owned by this and later epics
@@ -706,123 +706,148 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
-  - [ ] MUST enforce at minimum:
-    - [ ] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
-    - [ ] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
-  - [ ] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
-  - [ ] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
-- [ ] `framework/tools/gates/kernel_public_api_gate.php`
-  - [ ] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
-  - [ ] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
-  - [ ] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
-  - [ ] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
-- [ ] `framework/tools/gates/no_skeleton_http_default_gate.php`
-- [ ] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
-- [ ] `framework/tools/gates/no_skeleton_modules_default_gate.php`
-- [ ] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
-- [ ] `framework/tools/gates/contracts_only_ports_gate.php`
-  - [ ] deterministic scope:
-    - [ ] scans `framework/packages/**/src/**/*.php`
-    - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-    - [ ] output format follows the canonical Phase 0 gate policy
-  - [ ] MUST fail if a package outside `framework/packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
-    - [ ] `*PortInterface.php`
-    - [ ] `src/**/Port/**`
-  - [ ] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
-  - [ ] diagnostics MUST contain only normalized relative paths + fixed reason tokens
-- [ ] `framework/tools/gates/tag_constant_mirror_gate.php`
-  - [ ] validates that:
-    - [ ] owner tag constants equal the canonical strings from `docs/ssot/tags.md`
-    - [ ] allowed package-local mirror constants equal the canonical strings exactly
-  - [ ] temporal owner-constant rule (single-choice):
-    - [ ] the gate MUST NOT fail only because a registry row exists before the owner public constant is introduced
-    - [ ] until the owner epic makes the canonical public constant mandatory per `1.10.0` temporal clarification, the gate MUST:
-      - [ ] verify any existing owner constant, if present, against the canonical string
-      - [ ] verify any allowed package-local mirror constant against the canonical string
-    - [ ] once the owner public constant becomes mandatory in the owner epic, absence of that constant MUST fail deterministically
-  - [ ] local mirror constants are allowed only when the owner package is a forbidden compile-time dependency
-  - [ ] package-local mirror constants MUST be treated as internal convenience only, not public API
-  - [ ] the gate MUST also fail if a package attempts to define a competing owner-like constant for a tag it does not own
-  - [ ] output format follows the canonical Phase 0 gate policy
-- [ ] `framework/tools/gates/observability_naming_gate.php`
-  - [ ] MUST enforce at minimum:
-    - [ ] metric names follow the canonical form from `docs/ssot/observability.md`
-    - [ ] label keys are limited to the allowlist:
-      - [ ] `method,status,driver,operation,table,outcome`
-    - [ ] forbidden label keys fail deterministically:
-      - [ ] `field`
-      - [ ] `path`
-      - [ ] `property`
-      - [ ] `request_id`
-      - [ ] `correlation_id`
-      - [ ] `tenant_id`
-      - [ ] `user_id`
-  - [ ] output format follows the canonical Phase 0 gate policy
-  - [ ] diagnostics MUST contain only normalized relative paths + fixed reason tokens
-- [ ] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
-  - [ ] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
-  - [ ] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
-  - [ ] MUST validate kernel-owned PHP artifacts that return arrays (e.g. `module-manifest.php`, `config.php`, `container.php`); the gate MUST NOT assume JSON-only artifacts.
-  - [ ] Validation target is the canonical returned top-level envelope `{ "_meta": <header>, "payload": <schema-specific> }`, regardless of whether the artifact is serialized as JSON or emitted as a PHP file returning an array.
-  - [ ] temporal artifact-materialization rule (single-choice):
-    - [ ] the gate MUST NOT fail only because an artifact registry row exists before the owner epic materializes that artifact in runtime/build output
-    - [ ] if a matching generated artifact file is present, the gate MUST validate it deterministically against the canonical envelope/header/schema rules
-    - [ ] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
-    - [ ] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
+- [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+  - [x] MUST enforce at minimum:
+    - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
+    - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
+  - [x] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
+  - [x] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
+- [x] `framework/tools/gates/kernel_public_api_gate.php`
+  - [x] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
+  - [x] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
+  - [x] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
+  - [x] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
+- [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
+- [x] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
+- [x] `framework/tools/gates/contracts_only_ports_gate.php`
+  - [x] deterministic scope:
+    - [x] scans `framework/packages/**/src/**/*.php`
+    - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+    - [x] output format follows the canonical Phase 0 gate policy
+  - [x] MUST fail if a package outside `framework/packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
+    - [x] `*PortInterface.php`
+    - [x] `src/**/Port/**`
+  - [x] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
+  - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+- [x] `framework/tools/gates/tag_constant_mirror_gate.php`
+  - [x] validates that:
+    - [x] owner tag constants equal the canonical strings from `docs/ssot/tags.md`
+    - [x] allowed package-local mirror constants equal the canonical strings exactly
+  - [x] temporal owner-constant rule (single-choice):
+    - [x] the gate MUST NOT fail only because a registry row exists before the owner public constant is introduced
+    - [x] until the owner epic makes the canonical public constant mandatory per `1.10.0` temporal clarification, the gate MUST:
+      - [x] verify any existing owner constant, if present, against the canonical string
+      - [x] verify any allowed package-local mirror constant against the canonical string
+    - [x] once the owner public constant becomes mandatory in the owner epic, absence of that constant MUST fail deterministically
+  - [x] local mirror constants are allowed only when the owner package is a forbidden compile-time dependency
+  - [x] package-local mirror constants MUST be treated as internal convenience only, not public API
+  - [x] the gate MUST also fail if a package attempts to define a competing owner-like constant for a tag it does not own
+  - [x] output format follows the canonical Phase 0 gate policy
+- [x] `framework/tools/policies/tag_owner_constants.php`
+  - [x] declares deterministic owner constant policy for reserved DI tags
+  - [x] supports `constant_required=true|false` temporal enforcement
+  - [x] maps every `docs/ssot/tags.md` registry row to owner package, expected path, and expected constant name
+- [x] `framework/tools/gates/observability_naming_gate.php`
+  - [x] MUST enforce at minimum:
+    - [x] metric names follow the canonical form from `docs/ssot/observability.md`
+    - [x] label keys are limited to the allowlist:
+      - [x] `method,status,driver,operation,table,outcome`
+    - [x] forbidden label keys fail deterministically:
+      - [x] `field`
+      - [x] `path`
+      - [x] `property`
+      - [x] `request_id`
+      - [x] `correlation_id`
+      - [x] `tenant_id`
+      - [x] `user_id`
+  - [x] output format follows the canonical Phase 0 gate policy
+  - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+- [x] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
+  - [x] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
+  - [x] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
+  - [x] MUST validate kernel-owned PHP artifacts that return arrays (e.g. `module-manifest.php`, `config.php`, `container.php`); the gate MUST NOT assume JSON-only artifacts.
+  - [x] Validation target is the canonical returned top-level envelope `{ "_meta": <header>, "payload": <schema-specific> }`, regardless of whether the artifact is serialized as JSON or emitted as a PHP file returning an array.
+  - [x] temporal artifact-materialization rule (single-choice):
+    - [x] the gate MUST NOT fail only because an artifact registry row exists before the owner epic materializes that artifact in runtime/build output
+    - [x] if a matching generated artifact file is present, the gate MUST validate it deterministically against the canonical envelope/header/schema rules
+    - [x] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
+    - [x] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
 
-- [ ] `framework/tools/testing/deptrac.yaml`
-- [ ] `framework/tools/testing/deptrac.allowlist.yaml`
-- [ ] `framework/tools/build/deptrac_generate.php`
+- [x] `framework/tools/testing/deptrac.yaml`
+- [x] `framework/tools/testing/deptrac.allowlist.yaml`
+- [x] `framework/tools/build/deptrac_generate.php`
 
 Tooling baseline configs
-- [ ] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)
-- [ ] `framework/tools/phpstan/phpstan.neon` — static analysis baseline
+- [x] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)
+- [x] `framework/tools/phpstan/phpstan.neon` — static analysis baseline
 
 #### Modifies
 
-- [ ] `.github/workflows/ci.yml` — MUST include rails jobs:
-  - [ ] `gates` (Linux): runs gate scripts deterministically
-  - [ ] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
-  - [ ] `test` (Linux): `composer -d framework install` → `composer -d framework test`
-  - [ ] `unit+contract` (Linux): runs unit/contract suites when they exist
-  - [ ] `integration-fast` (Linux): fast integration suites when they exist
-  - [ ] `integration-slow` (Linux): slow integration suites when they exist
-  - [ ] `spikes` (Linux): keep Phase 0 spike rails if still applicable
-  - [ ] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
-  - [ ] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
-    - [ ] `composer -d framework dto:gate`
-- [ ] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
-- [ ] `skeleton/phpunit.xml` — skeleton PHPUnit entrypoint (if used by CI)
+- [x] `.github/workflows/ci.yml` — MUST include rails jobs:
+  - [x] `gates` (Linux): runs gate scripts deterministically
+  - [x] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
+  - [x] `test` (Linux): `composer -d framework install` → `composer -d framework test`
+  - [x] `unit+contract` (Linux): runs unit/contract suites when they exist
+  - [x] `integration-fast` (Linux): fast integration suites when they exist
+  - [x] `integration-slow` (Linux): slow integration suites when they exist
+  - [x] `spikes` (Linux): keep Phase 0 spike rails if still applicable
+  - [x] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
+  - [x] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
+    - [x] `composer -d framework dto:gate`
+- [x] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
+- [x] `skeleton/phpunit.xml` — N/A for 1.50.0; skeleton PHPUnit is not consumed by CI yet.
+- [x] `framework/tools/spikes/_support/ErrorCodes.php`
+  - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_MODE_PRESETS_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_NO_SKELETON_MODULES_DEFAULT_FORBIDDEN`
+  - [x] adds `CORETSIA_NO_SKELETON_MODULES_DEFAULT_GATE_FAILED`
+  - [x] adds `CORETSIA_CONTRACTS_ONLY_PORTS_FORBIDDEN`
+  - [x] adds `CORETSIA_CONTRACTS_ONLY_PORTS_GATE_FAILED`
+  - [x] adds `CORETSIA_TAG_CONSTANT_MIRROR_DRIFT`
+  - [x] adds `CORETSIA_TAG_CONSTANT_MIRROR_GATE_FAILED`
+  - [x] adds `CORETSIA_OBSERVABILITY_NAMING_DRIFT`
+  - [x] adds `CORETSIA_OBSERVABILITY_NAMING_GATE_FAILED`
+  - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_DRIFT`
+  - [x] adds `CORETSIA_ARTIFACT_HEADER_SCHEMA_GATE_FAILED`
+  - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
+  - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_GATE_FAILED`
+  - [x] adds `CORETSIA_KERNEL_PUBLIC_API_DRIFT`
+  - [x] adds `CORETSIA_KERNEL_PUBLIC_API_GATE_FAILED`
 
-- [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
-  - [ ] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
-  - [ ] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
-  - [ ] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
-  - [ ] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
-  - [ ] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
-  - [ ] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
-  - [ ] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
-  - [ ] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
-  - [ ] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
-  - [ ] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
+- [x] `composer.json` — add repo-root mirror scripts (delegates to framework):
+  - [x] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
+  - [x] `kernel-public-api:gate` → `@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --`
+  - [x] `no-skeleton-http-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --`
+  - [x] `no-skeleton-mode-presets-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --`
+  - [x] `no-skeleton-modules-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --`
+  - [x] `no-skeleton-bundles-default:gate` → `@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --`
+  - [x] `contracts-only-ports:gate` → `@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --`
+  - [x] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
+  - [x] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
+  - [x] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
 
-- [ ] `framework/composer.json` — add workspace gate scripts:
-  - [ ] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
-  - [ ] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
-  - [ ] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
-  - [ ] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
-  - [ ] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
-  - [ ] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
-  - [ ] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
-  - [ ] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
-  - [ ] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
-  - [ ] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
+- [x] `framework/composer.json` — add workspace gate scripts:
+  - [x] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
+  - [x] `kernel-public-api:gate` → `@php tools/gates/kernel_public_api_gate.php`
+  - [x] `no-skeleton-http-default:gate` → `@php tools/gates/no_skeleton_http_default_gate.php`
+  - [x] `no-skeleton-mode-presets-default:gate` → `@php tools/gates/no_skeleton_mode_presets_default_gate.php`
+  - [x] `no-skeleton-modules-default:gate` → `@php tools/gates/no_skeleton_modules_default_gate.php`
+  - [x] `no-skeleton-bundles-default:gate` → `@php tools/gates/no_skeleton_bundles_default_gate.php`
+  - [x] `contracts-only-ports:gate` → `@php tools/gates/contracts_only_ports_gate.php`
+  - [x] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
+  - [x] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
+  - [x] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
 
 #### Artifacts / outputs (if applicable)
 
-- [ ] Writes (CI artifacts only):
-  - [ ] dep graph artifacts (dot/svg/html) uploaded by `arch` job
+- [x] Writes (CI artifacts only):
+  - [x] dep graph artifacts (dot/svg/html) uploaded by `arch` job
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -832,67 +857,67 @@ N/A (tooling output only; must be secret-safe)
 
 #### Security / Redaction
 
-- [ ] gates output MUST NOT print secrets; only paths + reasons (deterministic)
-- [ ] Gate output policy (MUST; aligned with Phase 0 rails):
-  - [ ] Any `framework/tools/gates/*.php` gate MUST:
-    - [ ] load `framework/tools/spikes/_support/bootstrap.php` before scanning
-    - [ ] emit output ONLY via `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] follow the canonical Phase 0 format:
-      - [ ] Line 1: deterministic `CODE` only
-      - [ ] Line 2+: stable diagnostics (`<scan-root-relative-path>: <reason>`) sorted by `strcmp`
-    - [ ] MUST NOT use `echo|print|var_dump|print_r|printf|error_log` or direct stdout/stderr sinks
+- [x] gates output MUST NOT print secrets; only paths + reasons (deterministic)
+- [x] Gate output policy (MUST; aligned with Phase 0 rails):
+  - [x] Any `framework/tools/gates/*.php` gate MUST:
+    - [x] load `framework/tools/spikes/_support/bootstrap.php` before scanning
+    - [x] emit output ONLY via `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] follow the canonical Phase 0 format:
+      - [x] Line 1: deterministic `CODE` only
+      - [x] Line 2+: stable diagnostics (`<scan-root-relative-path>: <reason>`) sorted by `strcmp`
+    - [x] MUST NOT use `echo|print|var_dump|print_r|printf|error_log` or direct stdout/stderr sinks
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Fixture locks promoted to rails (tests reference spike fixtures):
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
-  - [ ] `framework/tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
+- [x] Fixture locks promoted to rails (tests reference spike fixtures):
+  - [x] `framework/tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
+  - [x] `framework/tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] fixture-lock contract tests listed above
+  - [x] fixture-lock contract tests listed above
 - Integration:
-  - [ ] gates smoke run in CI job `gates`
-  - [ ] deptrac generate + analyze in CI job `arch`
+  - [x] gates smoke run in CI job `gates`
+  - [x] deptrac generate + analyze in CI job `arch`
 - Gates/Arch:
-  - [ ] deptrac denies forbidden edges (e.g. platform → integrations)
-  - [ ] contracts-only ports gate blocks ports outside `core/contracts`
-  - [ ] skeleton defaults gates block forbidden default files
-  - [ ] no-skeleton-modules-default gate blocks `skeleton/config/modules.php`
-  - [ ] observability naming gate blocks label/name drift
-  - [ ] artifact header/schema gate blocks non-canonical `_meta` and non-deterministic bytes
-  - [ ] tag constant mirror gate blocks drift between canonical tag strings and local mirror constants
+  - [x] deptrac denies forbidden edges (e.g. platform → integrations)
+  - [x] contracts-only ports gate blocks ports outside `core/contracts`
+  - [x] skeleton defaults gates block forbidden default files
+  - [x] no-skeleton-modules-default gate blocks `skeleton/config/modules.php`
+  - [x] observability naming gate blocks label/name drift
+  - [x] artifact header/schema gate blocks non-canonical `_meta` and non-deterministic bytes
+  - [x] tag constant mirror gate blocks drift between canonical tag strings and local mirror constants
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Determinism: generator rerun-no-diff (arch job)
-- [ ] CI contains at minimum:
-  - [ ] `gates` job
-  - [ ] `arch` job (deptrac generate + analyze + artifacts upload)
-  - [ ] `test` job runs `composer -d framework test`
-  - [ ] `framework/composer.json` MUST expose the `test` script consumed by CI
-- [ ] Fixture-lock tests exist and fail deterministically when rules are violated
-- [ ] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
-- [ ] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
-- [ ] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
-- [ ] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
-- [ ] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
-- [ ] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Determinism: generator rerun-no-diff (arch job)
+- [x] CI contains at minimum:
+  - [x] `gates` job
+  - [x] `arch` job (deptrac generate + analyze + artifacts upload)
+  - [x] `test` job runs `composer -d framework test`
+  - [x] `framework/composer.json` MUST expose the `test` script consumed by CI
+- [x] Fixture-lock tests exist and fail deterministically when rules are violated
+- [x] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
+- [x] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
+- [x] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
+- [x] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
+- [x] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
+- [x] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
   then `no_skeleton_modules_default_gate.php` fails deterministically.
-- [ ] Prelude rails preserved (MUST):
-  - [ ] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
-  - [ ] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
-  - [ ] Lock drift check remains enforced (job fails if any lock changed)
-  - [ ] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
-- [ ] Tooling rail supports specialized sub-gates without changing output policy or CI invariants
+- [x] Prelude rails preserved (MUST):
+  - [x] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
+  - [x] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
+  - [x] Lock drift check remains enforced (job fails if any lock changed)
+  - [x] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
+- [x] Tooling rail supports specialized sub-gates without changing output policy or CI invariants
 
 ---
 

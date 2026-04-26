@@ -91,7 +91,6 @@ final class SpikeConfigDebugCommand implements CommandInterface
                 return SpikesExitCodeMapper::failure();
             }
 
-            /** @var mixed $result */
             $result = ConfigDebugWorkflow::run($scenarioId, $key);
 
             if (!self::isValidWorkflowResult($result)) {
@@ -145,8 +144,7 @@ final class SpikeConfigDebugCommand implements CommandInterface
             }
 
             if (\str_starts_with($t, $needleEq)) {
-                $v = \substr($t, \strlen($needleEq));
-                return \is_string($v) ? $v : null;
+                return \substr($t, \strlen($needleEq));
             }
 
             if ($t === '--' . $name) {
@@ -220,12 +218,12 @@ final class SpikeConfigDebugCommand implements CommandInterface
         }
 
         return isset(
-                $result['schema_version'],
-                $result['scenario'],
-                $result['key'],
-                $result['resolved'],
-                $result['trace'],
-            )
+            $result['schema_version'],
+            $result['scenario'],
+            $result['key'],
+            $result['resolved'],
+            $result['trace'],
+        )
             && \is_int($result['schema_version'])
             && \is_string($result['scenario'])
             && \is_string($result['key'])

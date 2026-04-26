@@ -309,13 +309,13 @@ final class GraphArtifactBuilder
             }
 
             $depsOut = \array_values(\array_unique($depsOut));
-            \usort($depsOut, static fn(string $a, string $b): int => \strcmp($a, $b));
+            \usort($depsOut, static fn (string $a, string $b): int => \strcmp($a, $b));
 
             $adjacency[$packageId] = $depsOut;
         }
 
         $nodes = \array_keys($nodeSet);
-        \usort($nodes, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($nodes, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $nodeLookup = [];
         foreach ($nodes as $node) {
@@ -343,7 +343,7 @@ final class GraphArtifactBuilder
         }
 
         $edgeKeys = \array_keys($edgeSet);
-        \usort($edgeKeys, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($edgeKeys, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         $edges = [];
         foreach ($edgeKeys as $key) {
@@ -360,7 +360,7 @@ final class GraphArtifactBuilder
 
             $targets = $adjacency[$id];
             $targets = \array_values(\array_unique($targets));
-            \usort($targets, static fn(string $a, string $b): int => \strcmp($a, $b));
+            \usort($targets, static fn (string $a, string $b): int => \strcmp($a, $b));
             $adjacency[$id] = $targets;
         }
 
@@ -448,7 +448,7 @@ final class GraphArtifactBuilder
             $s = \substr($s, 2);
         }
 
-        $parts = \array_values(\array_filter(\explode('/', $s), static fn(string $p): bool => $p !== ''));
+        $parts = \array_values(\array_filter(\explode('/', $s), static fn (string $p): bool => $p !== ''));
         $n = \count($parts);
 
         if ($n >= 2) {

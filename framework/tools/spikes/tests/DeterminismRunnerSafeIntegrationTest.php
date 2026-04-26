@@ -459,8 +459,7 @@ final class RecordingProcessRunner implements ProcessRunnerInterface
         ?array $env,
         bool   $captureStdout,
         bool   $captureStderr
-    ): ProcessResult
-    {
+    ): ProcessResult {
         $this->runCalls[] = [
             'cmd' => self::normalizeCommand($command),
             'cwd' => $cwd,

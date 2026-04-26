@@ -291,15 +291,14 @@ function coretsia_spikes_paths_list_child_dirs(string $rootAbs): array
 
     $it = new \DirectoryIterator($rootAbs);
     foreach ($it as $fi) {
-        if (!$fi instanceof \DirectoryIterator) {
-            continue;
-        }
         if ($fi->isDot()) {
             continue;
         }
+
         if (!$fi->isDir()) {
             continue;
         }
+
         if ($fi->isLink()) {
             continue;
         }
@@ -312,7 +311,7 @@ function coretsia_spikes_paths_list_child_dirs(string $rootAbs): array
 
     \usort(
         $out,
-        static fn(array $a, array $b): int => \strcmp((string)$a['name'], (string)$b['name'])
+        static fn (array $a, array $b): int => \strcmp((string)$a['name'], (string)$b['name'])
     );
 
     return $out;
@@ -365,7 +364,7 @@ function coretsia_spikes_paths_list_dirs_recursive(string $scanRootAbs, string $
         }
 
         $rel = \substr($absNorm, \strlen($scanRootNorm) + 1);
-        if (!\is_string($rel) || $rel === '') {
+        if ($rel === '') {
             continue;
         }
 
@@ -374,7 +373,7 @@ function coretsia_spikes_paths_list_dirs_recursive(string $scanRootAbs, string $
     }
 
     $dirs = \array_keys($out);
-    \usort($dirs, static fn(string $a, string $b): int => \strcmp($a, $b));
+    \usort($dirs, static fn (string $a, string $b): int => \strcmp($a, $b));
 
     /** @var list<string> $dirs */
     return $dirs;

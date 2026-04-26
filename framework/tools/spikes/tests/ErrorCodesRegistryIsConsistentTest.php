@@ -74,7 +74,7 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
 
         // Expected registry is the sorted unique set of public CORETSIA_* const values.
         $expected = $unique;
-        usort($expected, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($expected, static fn (string $a, string $b): int => strcmp($a, $b));
 
         $actual = ErrorCodes::all();
 
@@ -93,7 +93,7 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
 
         // MUST assert ErrorCodes::all() is sorted by byte-order (strcmp).
         $sorted = $actual;
-        usort($sorted, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($sorted, static fn (string $a, string $b): int => strcmp($a, $b));
         self::assertSame(
             $sorted,
             $actual,
@@ -206,7 +206,7 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
         }
 
         $codes = array_keys($seen);
-        usort($codes, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($codes, static fn (string $a, string $b): int => strcmp($a, $b));
 
         foreach ($codes as $code) {
             self::assertTrue(

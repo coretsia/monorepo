@@ -115,7 +115,6 @@ final class WorkspaceSyncDryRunCommand implements CommandInterface
                 return SpikesExitCodeMapper::failure();
             }
 
-            /** @var mixed $entry */
             $entry = WorkspaceSyncEntryWorkflow::run($workspaceRoot, false);
 
             if (!self::isValidEntry($entry, self::MODE)) {

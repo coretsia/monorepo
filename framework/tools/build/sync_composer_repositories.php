@@ -19,6 +19,11 @@ declare(strict_types=1);
 
 final class SyncComposerRepositories
 {
+    public const string CODE_FAILED = 'CORETSIA_WORKSPACE_SYNC_FAILED';
+
+    private const string CODE_MANAGED_BLOCK_INVALID = 'CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID';
+    private const string CODE_MANAGED_REPOS_OUT_OF_SYNC = 'CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC';
+
     private const string MANAGED_FLAG = 'coretsia_managed';
 
     public static function main(array $argv): int
@@ -64,7 +69,7 @@ final class SyncComposerRepositories
 
         if ($check) {
             if ($invalidBlockFiles !== []) {
-                fwrite(STDERR, "CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID\n");
+                fwrite(STDERR, self::CODE_MANAGED_BLOCK_INVALID . "\n");
                 foreach ($invalidBlockFiles as $p) {
                     fwrite(STDERR, $p . "\n");
                 }
@@ -72,7 +77,7 @@ final class SyncComposerRepositories
             }
 
             if ($changedFiles !== []) {
-                fwrite(STDERR, "CORETSIA_MANAGED_REPOS_OUT_OF_SYNC\n");
+                fwrite(STDERR, self::CODE_MANAGED_REPOS_OUT_OF_SYNC . "\n");
                 foreach ($changedFiles as $p) {
                     fwrite(STDERR, $p . "\n");
                 }
@@ -115,9 +120,6 @@ final class SyncComposerRepositories
         }
 
         $repos = $data['repositories'] ?? [];
-        if ($repos === null) {
-            $repos = [];
-        }
         if (!is_array($repos)) {
             throw new RuntimeException('repositories must be array: ' . self::rel($repoRoot, $composerJsonPath));
         }
@@ -251,7 +253,7 @@ final class SyncComposerRepositories
 
         foreach ($desired as $r) {
             if (!is_array($r)) {
-                throw new InvalidArgumentException('desiredManaged must be list<object>');
+                throw new RuntimeException('desiredManaged must be list<object>');
             }
 
             $type = $r['type'] ?? null;
@@ -262,9 +264,6 @@ final class SyncComposerRepositories
             }
 
             $options = $r['options'] ?? [];
-            if ($options === null) {
-                $options = [];
-            }
             if (!is_array($options)) {
                 throw new RuntimeException('options must be object');
             }
@@ -353,10 +352,6 @@ final class SyncComposerRepositories
             }
 
             return "[\n" . implode(",\n", $parts) . "\n" . $indent . "]";
-        }
-
-        if ($value === []) {
-            return '{}';
         }
 
         $parts = [];
@@ -617,6 +612,6 @@ try {
     exit(SyncComposerRepositories::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, "CORETSIA_SYNC_FAILED: $msg\n");
+    fwrite(STDERR, SyncComposerRepositories::CODE_FAILED . ": {$msg}\n");
     exit(1);
 }

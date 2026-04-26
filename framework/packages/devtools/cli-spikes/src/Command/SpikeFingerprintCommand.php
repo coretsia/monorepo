@@ -63,7 +63,6 @@ final class SpikeFingerprintCommand implements CommandInterface
                 return SpikesExitCodeMapper::failure();
             }
 
-            /** @var mixed $result */
             $result = FingerprintWorkflow::run(false);
 
             if (!self::isValidWorkflowResult($result)) {

@@ -140,7 +140,7 @@ final class DeterministicFile
     private static function readBytes(string $path): string
     {
         $result = self::guardRead(
-            static fn(): string|false => file_get_contents($path),
+            static fn (): string|false => file_get_contents($path),
         );
 
         if ($result === false) {
@@ -163,7 +163,7 @@ final class DeterministicFile
         }
 
         $exists = self::guardWrite(
-            static fn(): bool => is_dir($dir),
+            static fn (): bool => is_dir($dir),
         );
 
         if ($exists) {
@@ -171,7 +171,7 @@ final class DeterministicFile
         }
 
         $ok = self::guardWrite(
-            static fn(): bool => mkdir($dir, 0777, true),
+            static fn (): bool => mkdir($dir, 0777, true),
         );
 
         if ($ok === false) {
@@ -182,7 +182,7 @@ final class DeterministicFile
         }
 
         $existsAfter = self::guardWrite(
-            static fn(): bool => is_dir($dir),
+            static fn (): bool => is_dir($dir),
         );
 
         if ($existsAfter !== true) {
@@ -196,7 +196,7 @@ final class DeterministicFile
     private static function writeBytesInternal(string $path, string $bytes): void
     {
         $fp = self::guardWrite(
-            static fn() => fopen($path, 'wb'),
+            static fn () => fopen($path, 'wb'),
         );
 
         if ($fp === false) {
@@ -214,7 +214,7 @@ final class DeterministicFile
                 $chunk = substr($bytes, $written);
 
                 $n = self::guardWrite(
-                    static fn() => fwrite($fp, $chunk),
+                    static fn () => fwrite($fp, $chunk),
                 );
 
                 if ($n === false || $n === 0) {
@@ -229,7 +229,7 @@ final class DeterministicFile
         } finally {
             // Must not emit warnings/notices; must not leak OS messages.
             $closed = self::guardWrite(
-                static fn(): bool => fclose($fp),
+                static fn (): bool => fclose($fp),
             );
 
             if ($closed === false) {

@@ -43,7 +43,7 @@ final class ConfigPrecedenceMatrixDataDrivenTest extends TestCase
         $scenarios = $matrix['scenarios'];
 
         $keys = array_keys($scenarios);
-        usort($keys, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($keys, static fn (string $a, string $b): int => strcmp($a, $b));
 
         foreach ($keys as $id) {
             $scenario = $scenarios[$id];

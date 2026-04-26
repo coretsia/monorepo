@@ -38,8 +38,7 @@ final class SpikesBoundaryGateDetectsForbiddenImportsTest extends TestCase
         bool     $shouldPass,
         ?string  $expectedCode,
         array    $expectedDiagnostics
-    ): void
-    {
+    ): void {
         $tempToolsRoot = self::createTempDir('coretsia_spikes_boundary_gate_');
 
         try {

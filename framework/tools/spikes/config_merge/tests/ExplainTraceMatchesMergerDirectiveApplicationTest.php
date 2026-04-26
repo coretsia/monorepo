@@ -82,13 +82,13 @@ final class ExplainTraceMatchesMergerDirectiveApplicationTest extends TestCase
             }
         }
 
-        usort($traceDirectivePaths, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($traceDirectivePaths, static fn (string $a, string $b): int => strcmp($a, $b));
 
         // 2) Extract marker keyPaths from merged output (proof that merger applied the directives).
         $markerPaths = [];
         $this->collectMarkerPaths($merged, '', $markerPaths);
 
-        usort($markerPaths, static fn(string $a, string $b): int => strcmp($a, $b));
+        usort($markerPaths, static fn (string $a, string $b): int => strcmp($a, $b));
 
         // 3) 1:1: exactly the same keyPaths.
         self::assertSame($traceDirectivePaths, $markerPaths);
@@ -123,7 +123,7 @@ final class ExplainTraceMatchesMergerDirectiveApplicationTest extends TestCase
 
         usort(
             $keys,
-            static fn(string|int $a, string|int $b): int => strcmp((string)$a, (string)$b),
+            static fn (string|int $a, string|int $b): int => strcmp((string)$a, (string)$b),
         );
 
         foreach ($keys as $key) {

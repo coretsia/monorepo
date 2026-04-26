@@ -168,7 +168,7 @@ final class NoImplicitCwdEvidenceTest extends TestCase
             $out[] = $name;
         }
 
-        \usort($out, static fn(string $a, string $b): int => \strcmp($a, $b));
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
 
         return \array_values($out);
     }

@@ -1512,50 +1512,50 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
-  - [ ] scans `framework/packages/**/src/**/*.php`
-  - [ ] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
-  - [ ] analyzes only explicitly marked DTO classes
-  - [ ] token-based analysis only
-  - [ ] allowed constructor patterns:
-    - [ ] property promotion only
-    - [ ] trivial assignments `$this->prop = $param;`
-  - [ ] fixed reason codes:
-    - [ ] `disallowed-method` — DTO method other than `__construct` exists
-    - [ ] `constructor-calls-function`
-    - [ ] `constructor-calls-method`
-    - [ ] `constructor-static-call`
-    - [ ] `constructor-control-flow`
-    - [ ] `constructor-loop`
-    - [ ] `constructor-try-catch`
-    - [ ] `constructor-throw`
-    - [ ] `constructor-new-object`
-    - [ ] `constructor-nontrivial-body`
-  - [ ] output format follows Phase 0 gate policy:
-    - [ ] line 1: `CORETSIA_DTO_NO_LOGIC_VIOLATION` if any violation exists
-    - [ ] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
-    - [ ] diagnostics sorted by normalized path using `strcmp`
-    - [ ] if multiple violations exist in one file, each violation gets its own line
-    - [ ] if no violations, exit 0 and print nothing
-    - [ ] output only through `ConsoleOutput`
-  - [ ] runtime roots vs scan root:
-    - [ ] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
-    - [ ] default scan root is `$toolsRootRuntime . '/..'`
-    - [ ] `--path=<dir>` overrides only scan root
-    - [ ] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
-  - [ ] error handling:
-    - [ ] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
-    - [ ] any uncaught exception → same code, exit 1
+- [x] `framework/tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
+  - [x] scans `framework/packages/**/src/**/*.php`
+  - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
+  - [x] analyzes only explicitly marked DTO classes
+  - [x] token-based analysis only
+  - [x] allowed constructor patterns:
+    - [x] property promotion only
+    - [x] trivial assignments `$this->prop = $param;`
+  - [x] fixed reason codes:
+    - [x] `disallowed-method` — DTO method other than `__construct` exists
+    - [x] `constructor-calls-function`
+    - [x] `constructor-calls-method`
+    - [x] `constructor-static-call`
+    - [x] `constructor-control-flow`
+    - [x] `constructor-loop`
+    - [x] `constructor-try-catch`
+    - [x] `constructor-throw`
+    - [x] `constructor-new-object`
+    - [x] `constructor-nontrivial-body`
+  - [x] output format follows Phase 0 gate policy:
+    - [x] line 1: `CORETSIA_DTO_NO_LOGIC_VIOLATION` if any violation exists
+    - [x] line 2+: `<scan-root-relative-normalized-path>: <reason-code>`
+    - [x] diagnostics sorted by normalized path using `strcmp`
+    - [x] if multiple violations exist in one file, each violation gets its own line
+    - [x] if no violations, exit 0 and print nothing
+    - [x] output only through `ConsoleOutput`
+  - [x] runtime roots vs scan root:
+    - [x] `$toolsRootRuntime = realpath(__DIR__ . '/..')`
+    - [x] default scan root is `$toolsRootRuntime . '/..'`
+    - [x] `--path=<dir>` overrides only scan root
+    - [x] bootstrap is always loaded from `$toolsRootRuntime . '/spikes/_support/bootstrap.php'`
+  - [x] error handling:
+    - [x] missing/unreadable bootstrap → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
+    - [x] any uncaught exception → same code, exit 1
 
-- [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
 
 #### Modifies
 
-- [ ] `composer.json` — add repo-root mirror script:
-  - [ ] `dto-no-logic:gate` → `@composer --no-interaction --working-dir=framework run-script dto-no-logic:gate --`
-- [ ] `framework/composer.json` — add workspace gate script:
-  - [ ] `dto-no-logic:gate` → `@php tools/gates/dto_no_logic_gate.php`
+- [x] `composer.json` — add repo-root mirror script:
+  - [x] `dto-no-logic:gate` → `@composer --no-interaction --working-dir=framework run-script dto-no-logic:gate --`
+- [x] `framework/composer.json` — add workspace gate script:
+  - [x] `dto-no-logic:gate` → `@php tools/gates/dto_no_logic_gate.php`
 
 #### Configuration (keys + defaults)
 
@@ -1581,56 +1581,56 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes:
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
-- [ ] Fixed reason codes:
-  - [ ] `disallowed-method`
-  - [ ] `constructor-calls-function`
-  - [ ] `constructor-calls-method`
-  - [ ] `constructor-static-call`
-  - [ ] `constructor-control-flow`
-  - [ ] `constructor-loop`
-  - [ ] `constructor-try-catch`
-  - [ ] `constructor-throw`
-  - [ ] `constructor-new-object`
-  - [ ] `constructor-nontrivial-body`
+- [x] Deterministic top-level error codes:
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] Fixed reason codes:
+  - [x] `disallowed-method`
+  - [x] `constructor-calls-function`
+  - [x] `constructor-calls-method`
+  - [x] `constructor-static-call`
+  - [x] `constructor-control-flow`
+  - [x] `constructor-loop`
+  - [x] `constructor-try-catch`
+  - [x] `constructor-throw`
+  - [x] `constructor-new-object`
+  - [x] `constructor-nontrivial-body`
 
 #### Security / Redaction
 
-- [ ] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] Gate MUST NOT leak class contents, property values, constructor body text, or method bodies.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`:
-  - [ ] DTO with no constructor passes
-  - [ ] DTO with promoted public typed properties passes
-  - [ ] DTO with trivial assignment constructor passes
-  - [ ] DTO with extra method fails with `disallowed-method`
-  - [ ] constructor with `trim(...)` fails with `constructor-calls-function`
-  - [ ] constructor with `$this->helper()` fails with `constructor-calls-method`
-  - [ ] constructor with `self::normalize()` fails with `constructor-static-call`
-  - [ ] constructor with `if`/`match` fails with `constructor-control-flow`
-  - [ ] constructor with loop fails with `constructor-loop`
-  - [ ] constructor with `try/catch` fails with `constructor-try-catch`
-  - [ ] constructor with `throw` fails with `constructor-throw`
-  - [ ] constructor with `new DateTimeImmutable(...)` fails with `constructor-new-object`
-  - [ ] `--path` override works on synthetic tree
-  - [ ] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`:
+  - [x] DTO with no constructor passes
+  - [x] DTO with promoted public typed properties passes
+  - [x] DTO with trivial assignment constructor passes
+  - [x] DTO with extra method fails with `disallowed-method`
+  - [x] constructor with `trim(...)` fails with `constructor-calls-function`
+  - [x] constructor with `$this->helper()` fails with `constructor-calls-method`
+  - [x] constructor with `self::normalize()` fails with `constructor-static-call`
+  - [x] constructor with `if`/`match` fails with `constructor-control-flow`
+  - [x] constructor with loop fails with `constructor-loop`
+  - [x] constructor with `try/catch` fails with `constructor-try-catch`
+  - [x] constructor with `throw` fails with `constructor-throw`
+  - [x] constructor with `new DateTimeImmutable(...)` fails with `constructor-new-object`
+  - [x] `--path` override works on synthetic tree
+  - [x] missing bootstrap triggers `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+  - [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Gate is deterministic and integrated via DTO rail
-- [ ] DTO constructor semantics are narrow and enforceable
-- [ ] DTO behavior cannot drift into VO/service territory without failing the gate
+- [x] Deliverables complete (creates), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] Gate is deterministic and integrated via DTO rail
+- [x] DTO constructor semantics are narrow and enforceable
+- [x] DTO behavior cannot drift into VO/service territory without failing the gate
 
 ---
 

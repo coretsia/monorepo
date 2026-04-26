@@ -113,9 +113,10 @@ Run before staging the final diff for a commit:
 ```bash
 rm -rf framework/var/phpstan               # clear phpstan cache before static analysis
 composer validate:all                      # validate all composer manifests
-composer quality                           # run cs:check and phpstan
-composer arch                              # check package index, deptrac config, and deptrac analyze
 composer gates                             # run main tooling gates
+composer dto:gate                          # run DTO policy rail
+composer arch                              # check package index, deptrac config, and deptrac analyze
+composer quality                           # run cs:check and phpstan
 composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
 composer lock:check                        # check lock files for accidental drift
@@ -148,6 +149,7 @@ Review staged content before commit:
 
 ```bash
 git diff --cached --name-only              # show staged file list
+git diff --cached --check                  # check staged diff for whitespace/error-marker problems
 git diff --cached                          # show full staged diff
 ```
 
@@ -156,12 +158,8 @@ git diff --cached                          # show full staged diff
 Run after staging and before each commit:
 
 ```bash
-composer validate:all                      # validate all composer manifests
-composer quality                           # run cs:check and phpstan
-composer arch                              # check arch rails
-composer gates                             # run main tooling gates
-composer spike:test                        # run spike gates and spike tests
-composer test                              # run main test suite
+git status --short --untracked-files=all   # inspect staged, unstaged, and untracked state before commit
+git diff --name-only                       # check whether unstaged changes remain after staging
 composer lock:check                        # check lock files for accidental drift
 ```
 
@@ -367,9 +365,10 @@ composer arch:deptrac:generate             # regenerate deptrac config and artif
 
 rm -rf framework/var/phpstan               # clear phpstan cache
 composer validate:all                      # validate all composer manifests
-composer quality                           # run cs:check and phpstan
-composer arch                              # run arch rails
 composer gates                             # run main tooling gates
+composer dto:gate                          # run DTO policy rail
+composer arch                              # run arch rails
+composer quality                           # run cs:check and phpstan
 composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
 composer lock:check                        # check lock files
@@ -377,14 +376,11 @@ composer lock:check                        # check lock files
 git status --short --untracked-files=all   # inspect changed files
 git add "explicit-paths"                   # stage selected files
 git diff --cached --name-only              # verify staged file list
+git diff --cached --check                  # check staged diff for whitespace/error-marker problems
 git diff --cached                          # review staged diff
 
-composer validate:all                      # final composer validation
-composer quality                           # final quality check
-composer arch                              # final arch check
-composer gates                             # final gates check
-composer spike:test                        # final spike test
-composer test                              # final main test
+git status --short --untracked-files=all   # inspect staged, unstaged, and untracked state before commit
+git diff --name-only                       # check whether unstaged changes remain after staging
 composer lock:check                        # final lock drift check
 
 git commit -m "Your commit message"        # create local commit

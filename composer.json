@@ -106,6 +106,7 @@
     "gates": "@composer --no-interaction --working-dir=framework run-script gates --",
     "dto:gate": "@composer --no-interaction --working-dir=framework run-script dto:gate --",
     "dto-marker-consistency:gate": "@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --",
+    "dto-no-logic:gate": "@composer --no-interaction --working-dir=framework run-script dto-no-logic:gate --",
     "no-skeleton-http-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --",
     "no-skeleton-bundles-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --",
     "no-skeleton-mode-presets-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --",

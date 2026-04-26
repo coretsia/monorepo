@@ -78,6 +78,7 @@
       "@install:all",
       "@validate:all",
       "@gates",
+      "@dto:gate",
       "@arch",
       "@quality",
       "@framework:test",

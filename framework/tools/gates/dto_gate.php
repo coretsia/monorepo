@@ -16,6 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+use Coretsia\Tools\Spikes\_support\ConsoleOutput;
+use Coretsia\Tools\Spikes\_support\ErrorCodes;
+
 require_once __DIR__ . '/../spikes/_support/bootstrap.php';
 
 $frameworkRoot = str_replace('\\', '/', dirname(__DIR__, 2));
@@ -34,7 +37,7 @@ foreach ($subGates as $subGate) {
     }
 
     $pipes = [];
-    $process = proc_open(
+    $process = @proc_open(
         [PHP_BINARY, $subGatePath],
         [
             0 => ['pipe', 'r'],
@@ -46,6 +49,13 @@ foreach ($subGates as $subGate) {
     );
 
     if (!is_resource($process)) {
+        ConsoleOutput::codeWithDiagnostics(
+            ErrorCodes::CORETSIA_DTO_GATE_FAILED,
+            [
+                $subGate . ': dto_sub_gate_process_start_failed',
+            ],
+        );
+
         exit(1);
     }
 

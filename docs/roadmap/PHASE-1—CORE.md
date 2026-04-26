@@ -1044,7 +1044,7 @@ A compliant DTO in this rail is **not**:
 
 #### Creates
 
-- [ ] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
+- [x] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
   - [x] runs `dto_marker_consistency_gate.php`
   - [x] runs `dto_no_logic_gate.php`
   - [x] runs `dto_shape_gate.php`
@@ -1057,7 +1057,7 @@ A compliant DTO in this rail is **not**:
   - [x] aggregate runner MUST NOT concatenate outputs of multiple failing sub-gates into a new composite report
   - [x] if all sub-gates pass, exit 0 and print nothing
   - [x] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
-  - [ ] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
+  - [x] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
 
 - [x] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
   - [x] package name: `coretsia/core-dto-attribute`
@@ -1139,9 +1139,9 @@ A compliant DTO in this rail is **not**:
 
 N/A
 
-- [ ] This epic intentionally has **no config root** and **no runtime/workspace config toggles**.
-- [ ] DTO policy is hardcoded in gates + documented in SSoT.
-- [ ] Alternative DTO models (e.g. getters/withers/private-readonly DTOs/interface marker fallback) are out of scope for this rail and require a future epic/ADR.
+- [x] This epic intentionally has **no config root** and **no runtime/workspace config toggles**.
+- [x] DTO policy is hardcoded in gates + documented in SSoT.
+- [x] Alternative DTO models (e.g. getters/withers/private-readonly DTOs/interface marker fallback) are out of scope for this rail and require a future epic/ADR.
 
 #### Wiring / DI tags (when applicable)
 
@@ -1173,8 +1173,8 @@ N/A
 
 #### Security / Redaction
 
-- [ ] DTO rail MUST NOT leak class contents, property values, constructor body text, or method bodies.
-- [ ] Diagnostics contain only normalized relative paths and fixed reason tokens.
+- [x] DTO rail MUST NOT leak class contents, property values, constructor body text, or method bodies.
+- [x] Diagnostics contain only normalized relative paths and fixed reason tokens.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -1196,8 +1196,8 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
 - [x] DTO rail is deterministic and integrated into CI
 - [x] Aggregate runner exists and invokes specialized gates in deterministic order
 - [x] Error codes are registered in `ErrorCodes.php`

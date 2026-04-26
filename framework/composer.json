@@ -82,6 +82,7 @@
       "@cross-cutting-contract:gate",
       "@kernel-public-api:gate"
     ],
+    "dto:gate": "@php tools/gates/dto_gate.php",
     "arch": [
       "@arch:package-index:check",
       "@arch:deptrac:check",

@@ -103,6 +103,7 @@
     "framework:test-fast": "@composer --no-interaction --working-dir=framework run-script test-fast --",
     "framework:test-slow": "@composer --no-interaction --working-dir=framework run-script test-slow --",
     "gates": "@composer --no-interaction --working-dir=framework run-script gates --",
+    "dto:gate": "@composer --no-interaction --working-dir=framework run-script dto:gate --",
     "no-skeleton-http-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-http-default:gate --",
     "no-skeleton-bundles-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-bundles-default:gate --",
     "no-skeleton-mode-presets-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --",

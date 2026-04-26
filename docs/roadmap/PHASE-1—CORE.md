@@ -1045,18 +1045,18 @@ A compliant DTO in this rail is **not**:
 #### Creates
 
 - [ ] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
-  - [ ] runs `dto_marker_consistency_gate.php`
-  - [ ] runs `dto_no_logic_gate.php`
-  - [ ] runs `dto_shape_gate.php`
-  - [ ] preserves deterministic execution order
-  - [ ] stops with non-zero exit code if any sub-gate fails
-  - [ ] MUST NOT rewrite/merge sub-gate diagnostics into an alternative format
-  - [ ] MUST preserve Phase 0 gate output policy
-  - [ ] aggregate runner MUST stop on first failing sub-gate
-  - [ ] aggregate runner MUST pass through the exact output of the first failing sub-gate unchanged
-  - [ ] aggregate runner MUST NOT concatenate outputs of multiple failing sub-gates into a new composite report
-  - [ ] if all sub-gates pass, exit 0 and print nothing
-  - [ ] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
+  - [x] runs `dto_marker_consistency_gate.php`
+  - [x] runs `dto_no_logic_gate.php`
+  - [x] runs `dto_shape_gate.php`
+  - [x] preserves deterministic execution order
+  - [x] stops with non-zero exit code if any sub-gate fails
+  - [x] MUST NOT rewrite/merge sub-gate diagnostics into an alternative format
+  - [x] MUST preserve Phase 0 gate output policy
+  - [x] aggregate runner MUST stop on first failing sub-gate
+  - [x] aggregate runner MUST pass through the exact output of the first failing sub-gate unchanged
+  - [x] aggregate runner MUST NOT concatenate outputs of multiple failing sub-gates into a new composite report
+  - [x] if all sub-gates pass, exit 0 and print nothing
+  - [x] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
   - [ ] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
 
 - [x] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
@@ -1113,21 +1113,21 @@ A compliant DTO in this rail is **not**:
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `dto:gate` → `@composer --no-interaction --working-dir=framework run-script dto:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `dto:gate` → `@php tools/gates/dto_gate.php`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `dto:gate` → `@composer --no-interaction --working-dir=framework run-script dto:gate --`
+- [x] `framework/composer.json` — add gate script
+  - [x] `dto:gate` → `@php tools/gates/dto_gate.php`
 
 - [ ] `.github/workflows/ci.yml` — add DTO rail execution:
   - [ ] runs after install and before tests
   - [ ] may run inside existing `gates` job
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_DTO_GATE_FAILED`
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION`
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
-  - [ ] `CORETSIA_DTO_SHAPE_VIOLATION`
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_DTO_GATE_FAILED`
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION`
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
+  - [x] `CORETSIA_DTO_SHAPE_VIOLATION`
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED`
 
 - [x] `framework/composer.json` — require marker package for workspace autoload visibility:
   - [x] add `coretsia/core-dto-attribute`
@@ -1163,13 +1163,13 @@ N/A
 
 #### Errors
 
-- [ ] Deterministic top-level error codes reserved for DTO rail:
-  - [ ] `CORETSIA_DTO_GATE_FAILED` — aggregate rail orchestration failed before any sub-gate could produce canonical diagnostics
-    - [ ] MUST NOT be used for normal policy violations detected by specialized DTO gates
-  - [ ] `CORETSIA_DTO_MARKER_VIOLATION` — marker consistency gate found violations
-  - [ ] `CORETSIA_DTO_NO_LOGIC_VIOLATION` — no-logic gate found violations
-  - [ ] `CORETSIA_DTO_SHAPE_VIOLATION` — shape gate found violations
-  - [ ] `CORETSIA_DTO_GATE_SCAN_FAILED` — a DTO gate failed to initialize or scan
+- [x] Deterministic top-level error codes reserved for DTO rail:
+  - [x] `CORETSIA_DTO_GATE_FAILED` — aggregate rail orchestration failed before any sub-gate could produce canonical diagnostics
+    - [x] MUST NOT be used for normal policy violations detected by specialized DTO gates
+  - [x] `CORETSIA_DTO_MARKER_VIOLATION` — marker consistency gate found violations
+  - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION` — no-logic gate found violations
+  - [x] `CORETSIA_DTO_SHAPE_VIOLATION` — shape gate found violations
+  - [x] `CORETSIA_DTO_GATE_SCAN_FAILED` — a DTO gate failed to initialize or scan
 
 #### Security / Redaction
 
@@ -1199,14 +1199,14 @@ N/A
 - [ ] Deliverables complete (creates+modifies), paths exact
 - [ ] Preconditions satisfied (no forward references)
 - [ ] DTO rail is deterministic and integrated into CI
-- [ ] Aggregate runner exists and invokes specialized gates in deterministic order
-- [ ] Error codes are registered in `ErrorCodes.php`
+- [x] Aggregate runner exists and invokes specialized gates in deterministic order
+- [x] Error codes are registered in `ErrorCodes.php`
 - [x] `docs/ssot/dto-policy.md` exists and is linked
 - [x] Marker package `coretsia/core-dto-attribute` exists with minimal deps
 - [x] DTO detection is attribute-only and explicit-opt-in
 - [x] Unmarked classes are outside DTO rail scope
 - [x] `README.md` of marker package explains usage and scope
-- [ ] `dto_gate.php` preserves single-gate output contract by forwarding first failing sub-gate output verbatim
+- [x] `dto_gate.php` preserves single-gate output contract by forwarding first failing sub-gate output verbatim
 
 ---
 

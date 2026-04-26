@@ -32,13 +32,14 @@ final class DtoGateAggregateRunnerTest extends ToolContractTestCase
         'dto_shape_gate.php',
     ];
 
-    public function testAggregateRunnerInvokesMaterializedSubGatesInDeterministicOrder(): void
+    public function testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder(): void
     {
         $logPath = $this->tempDir('coretsia-dto-gate-log') . '/order.log';
 
         $this->withTemporaryDtoSubGates(
             [
                 'dto_marker_consistency_gate.php' => $this->passingSubGate($logPath, 'marker'),
+                'dto_no_logic_gate.php' => $this->passingSubGate($logPath, 'no-logic'),
                 'dto_shape_gate.php' => $this->passingSubGate($logPath, 'shape'),
             ],
             function () use ($logPath): void {
@@ -46,7 +47,7 @@ final class DtoGateAggregateRunnerTest extends ToolContractTestCase
 
                 self::assertSame(0, $code);
                 self::assertSame('', $output);
-                self::assertSame("marker\nshape\n", $this->readBytes($logPath));
+                self::assertSame("marker\nno-logic\nshape\n", $this->readBytes($logPath));
             },
         );
     }
@@ -67,6 +68,29 @@ final class DtoGateAggregateRunnerTest extends ToolContractTestCase
 
                 self::assertSame(37, $code);
                 self::assertSame($expectedOutput, $output);
+                self::assertSame("marker\nno-logic\n", $this->readBytes($logPath));
+            },
+        );
+    }
+
+    public function testAggregateRunnerFailsWhenListedSpecializedGateIsMissing(): void
+    {
+        $logPath = $this->tempDir('coretsia-dto-gate-log') . '/missing.log';
+
+        $this->withTemporaryDtoSubGates(
+            [
+                'dto_marker_consistency_gate.php' => $this->passingSubGate($logPath, 'marker'),
+                'dto_no_logic_gate.php' => $this->passingSubGate($logPath, 'no-logic'),
+            ],
+            function () use ($logPath): void {
+                [$code, $output] = $this->runDtoGate();
+
+                self::assertSame(1, $code);
+                self::assertSame(
+                    "CORETSIA_DTO_GATE_FAILED\n"
+                    . "tools/gates/dto_shape_gate.php: dto_sub_gate_missing\n",
+                    $output,
+                );
                 self::assertSame("marker\nno-logic\n", $this->readBytes($logPath));
             },
         );

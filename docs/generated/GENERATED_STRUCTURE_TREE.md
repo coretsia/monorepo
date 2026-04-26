@@ -229,6 +229,8 @@ Coretsia/
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
 │   │   │   ├── dto_marker_consistency_gate.php
+│   │   │   ├── dto_no_logic_gate.php
+│   │   │   ├── dto_shape_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
 │   │   │   ├── kernel_public_api_gate.php
 │   │   │   ├── no_skeleton_bundles_default_gate.php
@@ -453,6 +455,8 @@ Coretsia/
 │   │       └── Integration/
 │   │           ├── DtoGateAggregateRunnerTest.php
 │   │           ├── DtoMarkerConsistencyGateTest.php
+│   │           ├── DtoNoLogicGateTest.php
+│   │           ├── DtoShapeGateTest.php
 │   │           └── ManagedComposerRepositoriesGuardTest.php
 │   ├── var/
 │   │   ├── backups/

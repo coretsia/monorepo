@@ -126,7 +126,25 @@ declare(strict_types=1);
             $subGatePath = $frameworkRoot . '/' . $subGate;
 
             if (!\is_file($subGatePath)) {
-                continue;
+                $ConsoleOutput::codeWithDiagnostics(
+                    $codeGateFailed,
+                    [
+                        $subGate . ': dto_sub_gate_missing',
+                    ],
+                );
+
+                exit(1);
+            }
+
+            if (!\is_readable($subGatePath)) {
+                $ConsoleOutput::codeWithDiagnostics(
+                    $codeGateFailed,
+                    [
+                        $subGate . ': dto_sub_gate_unreadable',
+                    ],
+                );
+
+                exit(1);
             }
 
             $processResult = $withSuppressedErrors(

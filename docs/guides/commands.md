@@ -1363,14 +1363,16 @@ Each new command is added as a separate section under `## Commands` (the format 
   - only classes marked with `#[Coretsia\Dto\Attribute\Dto]` are in DTO gate scope
   - unmarked classes are outside DTO gate scope
 - This command is the aggregate DTO rail entrypoint.
-- Specialized DTO gates are materialized incrementally.
-- Missing specialized DTO gates are skipped deterministically.
+- Specialized DTO gates are materialized incrementally and are also available as standalone canonical unit entrypoints.
+- All listed specialized DTO gates are required. A missing or unreadable listed sub-gate is treated as an aggregate orchestration failure with `CORETSIA_DTO_GATE_FAILED`.
 - Execution order is cemented:
-  1) `framework/tools/gates/dto_marker_consistency_gate.php`
-  2) `framework/tools/gates/dto_no_logic_gate.php`
-  3) `framework/tools/gates/dto_shape_gate.php`
+  1) DTO marker consistency gate: `composer dto-marker-consistency:gate`
+  2) DTO no-logic gate: `composer dto-no-logic:gate`
+  3) DTO shape gate: `composer dto-shape:gate`
 - Materialized specialized gate entrypoints:
   - `composer dto-marker-consistency:gate`
+  - `composer dto-no-logic:gate`
+  - `composer dto-shape:gate`
 - Future specialized DTO gates, once materialized, MUST also have their own repo-root `composer <name>:gate` wrapper and framework workspace script.
 - Failure behavior:
   - the aggregate runner stops on the first failing materialized sub-gate
@@ -1380,9 +1382,17 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Aggregate/orchestration failure policy:
   - if the aggregate runner itself cannot start a materialized sub-gate, line 1 is stable code `CORETSIA_DTO_GATE_FAILED`
   - diagnostics use normalized repo-relative paths and fixed reason tokens
+- Fixed aggregate reason tokens:
+  - `dto_sub_gate_missing`
+  - `dto_sub_gate_unreadable`
+  - `dto_sub_gate_process_start_failed`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script dto:gate --`
   - framework implementation detail: `@php tools/gates/dto_gate.php`
+- Framework aggregate implementation detail:
+  - `framework/tools/gates/dto_marker_consistency_gate.php`
+  - `framework/tools/gates/dto_no_logic_gate.php`
+  - `framework/tools/gates/dto_shape_gate.php`
 - Direct call `php framework/tools/gates/dto_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
 - CI/rails policy:
   - this command SHOULD run in the dedicated `gates` CI job after `composer gates`
@@ -1458,7 +1468,154 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer dto-marker-consistency:gate`
 - `composer dto-marker-consistency:gate -- --path=framework`
 
-### 43) No skeleton HTTP default gate
+### 43) DTO no-logic gate
+
+**Id:** `tool.dto_no_logic_gate`
+**Entrypoint:** `composer dto-no-logic:gate`
+**Category:** repo policy / DTO guard
+**Outputs:**
+- none on success
+- exits non-zero on DTO no-logic policy violations
+- emits deterministic diagnostics only through the canonical tooling output policy
+
+**Determinism:**
+
+| Mode / flags                              | Determinism   | Notes                                                                 |
+|-------------------------------------------|---------------|-----------------------------------------------------------------------|
+| `composer dto-no-logic:gate`              | deterministic | Scans the framework package source tree using the default scan root.  |
+| `composer dto-no-logic:gate -- --path=`   | deterministic | Overrides scan root only; bootstrap/runtime root remains tools-owned. |
+
+**Notes:**
+- Purpose: enforces that explicitly marked DTOs remain transport-only and do not contain executable behavior beyond trivial construction.
+- DTO policy is explicit opt-in only:
+  - only classes marked with `#[Coretsia\Dto\Attribute\Dto]` are analyzed
+  - unmarked classes are outside DTO gate scope
+- Allowed DTO methods:
+  - no methods except optional `__construct`
+- Allowed constructor forms:
+  - property promotion only
+  - empty constructor body
+  - trivial assignments of the form `$this->property = $parameter;`
+- Constructor policy:
+  - right-hand side MUST be a direct constructor parameter variable
+  - left-hand side MUST be a direct instance property
+  - computed expressions, normalization, validation, calls, object allocation, branching, loops, try/catch, and throw are forbidden
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- `--path=<dir>` policy:
+  - overrides only the scan root
+  - does not affect bootstrap discovery
+  - bootstrap is always loaded from the runtime tools root:
+    - `framework/tools/spikes/_support/bootstrap.php`
+  - intended for integration tests and local focused checks
+- Output policy:
+  - no-logic violations: line 1 is stable code `CORETSIA_DTO_NO_LOGIC_VIOLATION`
+  - scan/bootstrap/internal failure: line 1 is stable code `CORETSIA_DTO_GATE_SCAN_FAILED`
+  - line 2+ diagnostics use scan-root-relative normalized paths and fixed reason tokens
+  - diagnostics are sorted by `strcmp`
+  - if no violations exist, command exits 0 and prints nothing
+  - diagnostics MUST NOT leak class contents, property values, constructor body text, or method bodies
+- Fixed reason tokens:
+  - `disallowed-method`
+  - `constructor-calls-function`
+  - `constructor-calls-method`
+  - `constructor-static-call`
+  - `constructor-control-flow`
+  - `constructor-loop`
+  - `constructor-try-catch`
+  - `constructor-throw`
+  - `constructor-new-object`
+  - `constructor-nontrivial-body`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script dto-no-logic:gate --`
+  - framework implementation detail: `@php tools/gates/dto_no_logic_gate.php`
+- Direct call `php framework/tools/gates/dto_no_logic_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- Aggregate rail integration:
+  - `composer dto:gate` invokes this gate after `dto-marker-consistency:gate` and before `dto-shape:gate`
+  - failing output MUST pass through the aggregate runner unchanged
+
+**Usage (repo root):**
+- `composer dto-no-logic:gate`
+- `composer dto-no-logic:gate -- --path=framework`
+
+### 44) DTO shape gate
+
+**Id:** `tool.dto_shape_gate`
+**Entrypoint:** `composer dto-shape:gate`
+**Category:** repo policy / DTO guard
+**Outputs:**
+- none on success
+- exits non-zero on DTO shape policy violations
+- emits deterministic diagnostics only through the canonical tooling output policy
+
+**Determinism:**
+
+| Mode / flags                           | Determinism   | Notes                                                                 |
+|----------------------------------------|---------------|-----------------------------------------------------------------------|
+| `composer dto-shape:gate`              | deterministic | Scans the framework package source tree using the default scan root.  |
+| `composer dto-shape:gate -- --path=`   | deterministic | Overrides scan root only; bootstrap/runtime root remains tools-owned. |
+
+**Notes:**
+- Purpose: enforces the canonical structural shape for explicitly marked DTOs.
+- DTO policy is explicit opt-in only:
+  - only classes marked with `#[Coretsia\Dto\Attribute\Dto]` are analyzed
+  - unmarked classes are outside DTO gate scope
+- Required DTO shape:
+  - DTO MUST be a class
+  - DTO MUST be `final`
+  - DTO MUST NOT be `abstract`
+  - DTO MUST NOT extend another class
+  - DTO MUST NOT implement interfaces
+  - DTO MUST NOT use traits
+  - DTO MUST NOT declare static properties
+  - every declared property MUST be public
+  - every declared property MUST be typed
+  - promoted properties MUST be public and typed
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- `--path=<dir>` policy:
+  - overrides only the scan root
+  - does not affect bootstrap discovery
+  - bootstrap is always loaded from the runtime tools root:
+    - `framework/tools/spikes/_support/bootstrap.php`
+  - intended for integration tests and local focused checks
+- Output policy:
+  - shape violations: line 1 is stable code `CORETSIA_DTO_SHAPE_VIOLATION`
+  - scan/bootstrap/internal failure: line 1 is stable code `CORETSIA_DTO_GATE_SCAN_FAILED`
+  - line 2+ diagnostics use scan-root-relative normalized paths and fixed reason tokens
+  - diagnostics are sorted by `strcmp`
+  - if no violations exist, command exits 0 and prints nothing
+  - diagnostics MUST NOT leak class contents, property values, constructor body text, or method bodies
+- Fixed reason tokens:
+  - `not-final`
+  - `abstract-class`
+  - `extends-class`
+  - `implements-interface`
+  - `uses-trait`
+  - `static-property`
+  - `untyped-property`
+  - `non-public-property`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script dto-shape:gate --`
+  - framework implementation detail: `@php tools/gates/dto_shape_gate.php`
+- Direct call `php framework/tools/gates/dto_shape_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- Aggregate rail integration:
+  - `composer dto:gate` invokes this gate after `dto-marker-consistency:gate` and `dto-no-logic:gate`
+  - failing output MUST pass through the aggregate runner unchanged
+
+**Usage (repo root):**
+- `composer dto-shape:gate`
+- `composer dto-shape:gate -- --path=framework`
+
+### 45) No skeleton HTTP default gate
 
 **Id:** `tool.no_skeleton_http_default_gate`
 **Entrypoint:** `composer no-skeleton-http-default:gate`
@@ -1492,7 +1649,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer no-skeleton-http-default:gate`
 
-### 44) No skeleton bundles default gate
+### 46) No skeleton bundles default gate
 
 **Id:** `tool.no_skeleton_bundles_default_gate`
 **Entrypoint:** `composer no-skeleton-bundles-default:gate`
@@ -1526,7 +1683,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer no-skeleton-bundles-default:gate`
 
-### 45) No skeleton mode presets default gate
+### 47) No skeleton mode presets default gate
 
 **Id:** `tool.no_skeleton_mode_presets_default_gate`
 **Entrypoint:** `composer no-skeleton-mode-presets-default:gate`
@@ -1560,7 +1717,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer no-skeleton-mode-presets-default:gate`
 
-### 46) No skeleton modules default gate
+### 48) No skeleton modules default gate
 
 **Id:** `tool.no_skeleton_modules_default_gate`
 **Entrypoint:** `composer no-skeleton-modules-default:gate`
@@ -1596,7 +1753,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer no-skeleton-modules-default:gate`
 
-### 47) Contracts-only ports gate
+### 49) Contracts-only ports gate
 
 **Id:** `tool.contracts_only_ports_gate`
 **Entrypoint:** `composer contracts-only-ports:gate`
@@ -1638,7 +1795,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer contracts-only-ports:gate`
 
-### 48) Tag constant mirror gate
+### 50) Tag constant mirror gate
 
 **Id:** `tool.tag_constant_mirror_gate`  
 **Entrypoint:** `composer tag-constant-mirror:gate`  
@@ -1671,7 +1828,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer tag-constant-mirror:gate`
 
-### 49) Observability naming gate
+### 51) Observability naming gate
 
 **Id:** `tool.observability_naming_gate`  
 **Entrypoint:** `composer observability-naming:gate`  
@@ -1722,7 +1879,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer observability-naming:gate`
 
-### 50) Artifact header/schema gate
+### 52) Artifact header/schema gate
 
 **Id:** `tool.artifact_header_schema_gate`  
 **Entrypoint:** `composer artifact-header-schema:gate`  
@@ -1760,7 +1917,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer artifact-header-schema:gate`
 
-### 51) Cross-cutting contract gate
+### 53) Cross-cutting contract gate
 
 **Id:** `tool.cross_cutting_contract_gate`  
 **Entrypoint:** `composer cross-cutting-contract:gate`  
@@ -1800,7 +1957,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer cross-cutting-contract:gate`
 
-### 52) Kernel public API gate
+### 54) Kernel public API gate
 
 **Id:** `tool.kernel_public_api_gate`  
 **Entrypoint:** `composer kernel-public-api:gate`  
@@ -1861,7 +2018,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer kernel-public-api:gate`
 
-### 53) Deptrac config check
+### 55) Deptrac config check
 
 **Id:** `tool.arch_deptrac_check`
 **Entrypoint:** `composer arch:deptrac:check`
@@ -1904,7 +2061,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer arch:deptrac:check`
 
-### 54) Deptrac config and graph generator
+### 56) Deptrac config and graph generator
 
 **Id:** `tool.arch_deptrac_generate`
 **Entrypoint:** `composer arch:deptrac:generate`
@@ -1952,7 +2109,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer arch:deptrac:generate`
 
-### 55) Deptrac architecture analysis
+### 57) Deptrac architecture analysis
 
 **Id:** `tool.arch_deptrac_analyze`
 **Entrypoint:** `composer arch:deptrac:analyze`
@@ -1985,7 +2142,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer arch:deptrac:analyze`
 
-### 56) Quality aggregate rail
+### 58) Quality aggregate rail
 
 **Id:** `tool.quality`
 **Entrypoint:** `composer quality`
@@ -2031,7 +2188,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer quality`
 
-### 57) Code style check
+### 59) Code style check
 
 **Id:** `tool.cs_check`
 **Entrypoint:** `composer cs:check`
@@ -2072,7 +2229,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer cs:check`
 
-### 58) Code style fixer
+### 60) Code style fixer
 
 **Id:** `tool.cs_fix`
 **Entrypoint:** `composer cs:fix`
@@ -2108,7 +2265,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Usage (repo root):**
 - `composer cs:fix`
 
-### 59) Static analysis baseline
+### 61) Static analysis baseline
 
 **Id:** `tool.phpstan`
 **Entrypoint:** `composer phpstan`

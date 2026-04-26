@@ -287,7 +287,9 @@ function coretsia_dto_no_logic_gate_extract_use_aliases(string $contents): array
     /** @var array<string,string> $aliases */
     $aliases = [];
 
-    if (\preg_match_all('/^\s*use\s+(?!function\b|const\b)([^;]+);/mi', $contents, $matches) !== 1) {
+    $matchCount = \preg_match_all('/^\s*use\s+(?!function\b|const\b)([^;]+);/mi', $contents, $matches);
+
+    if ($matchCount === false || $matchCount === 0) {
         return $aliases;
     }
 

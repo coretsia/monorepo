@@ -229,6 +229,8 @@ Coretsia/
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
 │   │   │   ├── dto_marker_consistency_gate.php
+│   │   │   ├── dto_no_logic_gate.php
+│   │   │   ├── dto_shape_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
 │   │   │   ├── kernel_public_api_gate.php
 │   │   │   ├── no_skeleton_bundles_default_gate.php
@@ -451,8 +453,10 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
 │   │       └── Integration/
-│   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesMaterializedSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
+│   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
 │   │           ├── DtoMarkerConsistencyGateTest.php (DtoMarkerConsistencyGateTest - testCanonicalMarkerUsagePasses()/testAliasImportResolvingToCanonicalMarkerPasses()/testCustomDtoMarkerAttributeFails()/testLegacyDtoInterfaceMarkerFails()/testMixedMarkerStrategyFailsWithMultipleStrategiesReason()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoMarkerConsistencyGate()/writeSyntheticPhpFile())
+│   │           ├── DtoNoLogicGateTest.php (DtoNoLogicGateTest - testDtoWithNoConstructorPasses()/testDtoWithPromotedPublicTypedPropertiesPasses()/testDtoWithTrivialAssignmentConstructorPasses()/testUnmarkedClassWithLogicIsIgnored()/testDtoWithExtraMethodFails()/testConstructorWithFunctionCallFails()/testConstructorWithMethodCallFails()/testConstructorWithStaticCallFails()/testConstructorWithIfFails()/testConstructorWithMatchFails()/testConstructorWithLoopFails()/testConstructorWithTryCatchFails()/testConstructorWithThrowFails()/testConstructorWithNewObjectFails()/testConstructorWithComputedExpressionFails()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoNoLogicGate()/writeSyntheticPhpFile())
+│   │           ├── DtoShapeGateTest.php (DtoShapeGateTest - testCompliantDtoWithPublicTypedPropertiesPasses()/testCompliantDtoWithPublicPromotedTypedPropertiesPasses()/testAbstractDtoFails()/testNonFinalDtoFails()/testDtoExtendingAnotherClassFails()/testDtoImplementingInterfaceFails()/testDtoUsingTraitFails()/testDtoWithStaticPropertyFails()/testDtoWithUntypedPropertyFails()/testDtoWithNonPublicPropertyFails()/testUnmarkedClassIsIgnored()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoShapeGate()/writeSyntheticPhpFile())
 │   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
 │   ├── var/
 │   │   ├── backups/

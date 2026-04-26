@@ -25,13 +25,16 @@ Daily development workflow for Coretsia Framework (Monorepo).
 - Merge into `main` only via Pull Request.
 - Prefer **Squash and merge**.
 - Commit messages must be in English.
+- Prefer explicit staging.
+- Run local verification before each commit.
+- Run full local CI before push when possible.
 
 ## Branch names
 
 Branch format:
 
 ```text
-<type>/<branch-name>
+type/branch-name
 ```
 
 Recommended branch types:
@@ -57,13 +60,13 @@ Run once at the start of a task:
 ```bash
 git switch main                            # switch to local main
 git pull --ff-only                         # sync local main with origin/main
-git switch -c <type>/<branch-name>         # create and open a new working branch
+git switch -c type/branch-name             # create and open a new working branch
 ```
 
 ## Return to an existing working branch
 
 ```bash
-git switch <type>/<branch-name>            # return to an existing working branch
+git switch type/branch-name                # return to an existing working branch
 ```
 
 If you need to inspect local branches:
@@ -80,12 +83,59 @@ git status --short --untracked-files=all   # show changed and untracked files
 git diff                                   # show unstaged diff
 ```
 
+## Auto-fixes and generators
+
+Run before staging when the current task may affect source files, composer manifests, package structure, dependency policy, or generated rails:
+
+```bash
+composer cs:fix                            # apply code style fixes
+composer sync:check                        # check managed composer repositories
+```
+
+If managed composer repositories drift is reported:
+
+```bash
+composer sync:repos                        # sync managed composer repositories
+composer sync:check                        # verify repository sync again
+```
+
+If package manifests, package structure, dependency table, or deptrac policy changed:
+
+```bash
+composer arch:package-index:generate       # regenerate package index
+composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac artifacts
+```
+
+## Pre-staging checks
+
+Run before staging the final diff for a commit:
+
+```bash
+rm -rf framework/var/phpstan               # clear phpstan cache before static analysis
+composer validate:all                      # validate all composer manifests
+composer quality                           # run cs:check and phpstan
+composer arch                              # check package index, deptrac config, and deptrac analyze
+composer gates                             # run main tooling gates
+composer spike:test                        # run spike gates and spike tests
+composer test                              # run main test suite
+composer lock:check                        # check lock files for accidental drift
+```
+
 ## Stage changes
 
 Prefer explicit staging:
 
 ```bash
-git add <explicit paths>                   # stage only selected files
+git status --short --untracked-files=all   # inspect changed and untracked files
+git add "explicit-paths"                   # stage only selected files
+```
+
+For multiple explicit paths:
+
+```bash
+git add -- "path" \
+           "path" \
+           "path"
 ```
 
 For partial staging:
@@ -101,14 +151,18 @@ git diff --cached --name-only              # show staged file list
 git diff --cached                          # show full staged diff
 ```
 
-## Pre-commit checks
+## Final pre-commit checks
 
-Run before each commit:
+Run after staging and before each commit:
 
 ```bash
-composer validate:all --strict             # validate all composer manifests
+composer validate:all                      # validate all composer manifests
+composer quality                           # run cs:check and phpstan
+composer arch                              # check arch rails
+composer gates                             # run main tooling gates
 composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
+composer lock:check                        # check lock files for accidental drift
 ```
 
 ## Create a commit
@@ -116,26 +170,26 @@ composer test                              # run main test suite
 Run for each new commit in the current working branch:
 
 ```bash
-git status --short --untracked-files=all   # inspect current changes
-git add <explicit paths>                   # stage only selected files
-git diff --cached --name-only              # verify staged file list
 git commit -m "Your commit message"        # create local commit
 ```
 
-## Post-commit determinism check
+## Post-commit checks before push
 
-Run after each commit:
+Run after each commit and before push:
 
 ```bash
 composer spike:test:determinism            # run determinism check on committed state
+composer ci                                # run full local CI entrypoint
 ```
 
-If the check fails:
+If a post-commit check fails or changes files:
 
 ```bash
-git add <explicit paths>                   # stage the fix
+git status --short --untracked-files=all   # inspect changes after checks
+git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the last commit without changing its message
 composer spike:test:determinism            # rerun determinism check
+composer ci                                # rerun full local CI entrypoint
 ```
 
 ## Sync working branch with main
@@ -150,7 +204,7 @@ git rebase origin/main                     # rebase current working branch onto 
 If conflicts appear:
 
 ```bash
-git add <resolved files>                   # stage manually resolved files
+git add "resolved-files"                   # stage manually resolved files
 git rebase --continue                      # continue rebase
 ```
 
@@ -165,7 +219,7 @@ git rebase --abort                         # abort rebase and return to pre-reba
 First push of a new working branch:
 
 ```bash
-git push -u origin <type>/<branch-name>    # push branch and set upstream tracking
+git push -u origin type/branch-name        # push branch and set upstream tracking
 ```
 
 Next pushes in the same branch:
@@ -235,16 +289,18 @@ Then open or update the Pull Request.
 Normal fix flow:
 
 ```bash
-git add <explicit paths>                   # stage the fix
+git add "explicit-paths"                    # stage the fix
 git commit -m "Fix CI failure in <context>" # create a follow-up commit
-git push                                   # push the fix
+git push                                    # push the fix
 ```
 
 Single-commit cleanup flow:
 
 ```bash
-git add <explicit paths>                   # stage the fix
+git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
+composer spike:test:determinism            # rerun determinism
+composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely replace remote branch history
 ```
 
@@ -270,71 +326,105 @@ git pull --ff-only                         # fetch merged changes from origin/ma
 Delete the local branch:
 
 ```bash
-git branch -d <type>/<branch-name>         # delete local branch if already merged
+git branch -d type/branch-name             # delete local branch if already merged
 ```
 
 Delete the remote branch if it still exists:
 
 ```bash
-git push origin --delete <type>/<branch-name>  # delete remote branch on GitHub
+git push origin --delete type/branch-name  # delete remote branch on GitHub
 ```
 
 If the local branch does not delete with `-d`, but you know it is no longer needed:
 
 ```bash
-git branch -D <type>/<branch-name>         # force delete local branch
+git branch -D type/branch-name             # force delete local branch
 ```
 
 ## Quick flow
 
-### Daily
+### New working branch
 
 ```bash
 git switch main                            # switch to local main
 git pull --ff-only                         # sync local main with origin/main
-git switch -c <type>/<branch-name>         # create and open working branch
-
-git status --short --untracked-files=all   # inspect changed files
-git add <explicit paths>                   # stage selected files
-git diff --cached --name-only              # verify staged file list
-
-composer validate:all --strict             # validate all composer manifests
-composer spike:test                        # run spike gates and spike tests
-composer test                              # run main test suite
-
-git commit -m "Your commit message"        # create local commit
-composer spike:test:determinism            # run determinism check
-
-git push -u origin <type>/<branch-name>    # first push of the working branch
+git switch -c type/branch-name             # create and open working branch
 ```
 
-### Next commit in the same branch
+### Commit in a working branch
 
 ```bash
-git switch <type>/<branch-name>            # return to working branch if needed
+composer cs:fix                            # apply code style fixes
+composer sync:check                        # check managed composer repositories
 
-git status --short --untracked-files=all   # inspect changed files
-git add <explicit paths>                   # stage selected files
-git diff --cached --name-only              # verify staged file list
+# If sync drift is reported:
+composer sync:repos                        # sync managed composer repositories
+composer sync:check                        # verify repository sync again
 
-composer validate:all --strict             # validate all composer manifests
+# If package/deptrac/generated arch inputs changed:
+composer arch:package-index:generate       # regenerate package index
+composer arch:deptrac:generate             # regenerate deptrac config and artifacts
+
+rm -rf framework/var/phpstan               # clear phpstan cache
+composer validate:all                      # validate all composer manifests
+composer quality                           # run cs:check and phpstan
+composer arch                              # run arch rails
+composer gates                             # run main tooling gates
 composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
+composer lock:check                        # check lock files
 
-git commit -m "Your commit message"        # create next local commit
+git status --short --untracked-files=all   # inspect changed files
+git add "explicit-paths"                   # stage selected files
+git diff --cached --name-only              # verify staged file list
+git diff --cached                          # review staged diff
+
+composer validate:all                      # final composer validation
+composer quality                           # final quality check
+composer arch                              # final arch check
+composer gates                             # final gates check
+composer spike:test                        # final spike test
+composer test                              # final main test
+composer lock:check                        # final lock drift check
+
+git commit -m "Your commit message"        # create local commit
+
 composer spike:test:determinism            # run determinism check
+composer ci                                # run full local CI entrypoint
+```
 
-git push                                   # push next commit to tracked remote branch
+If post-commit checks require fixes:
+
+```bash
+git status --short --untracked-files=all   # inspect changes
+git add "explicit-paths"                   # stage fixes
+git commit --amend --no-edit               # update latest commit
+composer spike:test:determinism            # rerun determinism
+composer ci                                # rerun full local CI entrypoint
+```
+
+### Push
+
+First push:
+
+```bash
+git push -u origin type/branch-name        # push branch and set upstream tracking
+```
+
+Next pushes:
+
+```bash
+git push                                   # push new local commits
 ```
 
 ### Sync
 
 ```bash
-git switch <type>/<branch-name>            # make sure you are on the working branch
+git switch type/branch-name                # make sure you are on the working branch
 git fetch origin                           # refresh remote refs
 git rebase origin/main                     # rebase onto latest origin/main
 
-git add <resolved files>                   # stage resolved conflicts if any
+git add "resolved-files"                   # stage resolved conflicts if any
 git rebase --continue                      # continue rebase
 ```
 
@@ -358,9 +448,10 @@ git reset --hard origin/main               # restore clean local main
 Fix failed determinism or failed CI on a working branch:
 
 ```bash
-git add <explicit paths>                   # stage the fix
+git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
 composer spike:test:determinism            # rerun determinism
+composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely update remote working branch
 ```
 
@@ -369,6 +460,6 @@ After merge:
 ```bash
 git switch main                            # return to main
 git pull --ff-only                         # sync merged changes
-git branch -d <type>/<branch-name>         # delete local branch
-git push origin --delete <type>/<branch-name>  # delete remote branch if still present
+git branch -d type/branch-name             # delete local branch
+git push origin --delete type/branch-name  # delete remote branch if still present
 ```

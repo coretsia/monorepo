@@ -32,10 +32,15 @@ return [
         'phpunit-cache',
         'phpunit',
         'vendor',
+        '_artifacts',
+        'arch',
     ],
     'ignoreFiles' => [
         '.DS_Store',
         'preload.php',
         '.deptrac.cache',
+        'deptrac_graph.dot',
+        'deptrac_graph.html',
+        'deptrac_graph.svg',
     ],
 ];

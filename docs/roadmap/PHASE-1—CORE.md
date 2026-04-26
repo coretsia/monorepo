@@ -881,7 +881,7 @@ N/A (tooling output only; must be secret-safe)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] fixture-lock contract tests listed above
+  - [x] fixture-lock contract tests listed above
 - Integration:
   - [x] gates smoke run in CI job `gates`
   - [x] deptrac generate + analyze in CI job `arch`
@@ -896,18 +896,18 @@ N/A (tooling output only; must be secret-safe)
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] deps/forbidden respected (deptrac; no cycles)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] deps/forbidden respected (deptrac; no cycles)
 - [x] Determinism: generator rerun-no-diff (arch job)
 - [x] CI contains at minimum:
   - [x] `gates` job
   - [x] `arch` job (deptrac generate + analyze + artifacts upload)
   - [x] `test` job runs `composer -d framework test`
   - [x] `framework/composer.json` MUST expose the `test` script consumed by CI
-- [ ] Fixture-lock tests exist and fail deterministically when rules are violated
+- [x] Fixture-lock tests exist and fail deterministically when rules are violated
 - [x] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
-- [ ] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
-- [ ] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
+- [x] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
+- [x] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
 - [x] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
 - [x] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
 - [x] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,

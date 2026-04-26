@@ -235,11 +235,6 @@ Coretsia/
 │   │   ├── policies/
 │   │   │   └── tag_owner_constants.php
 │   │   ├── spikes/
-│   │   │   ├── _artifacts/
-│   │   │   │   └── deptrac_graph/
-│   │   │   │       ├── deptrac_graph.dot
-│   │   │   │       ├── deptrac_graph.html
-│   │   │   │       └── deptrac_graph.svg
 │   │   │   ├── _support/
 │   │   │   │   ├── ConsoleOutput.php
 │   │   │   │   ├── DeterminismRunner.php
@@ -433,13 +428,19 @@ Coretsia/
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
+│   │       ├── Contract/
+│   │       │   ├── Support/
+│   │       │   │   └── ToolContractTestCase.php
+│   │       │   ├── SpikeComposerRepositoriesSyncManagedOnlyContractTest.php
+│   │       │   ├── SpikeComposerRepositoriesSyncWritesBackupsContractTest.php
+│   │       │   ├── SpikeDeptracAllowlistPolicyContractTest.php
+│   │       │   ├── SpikeDeptracCycleDetectionContractTest.php
+│   │       │   ├── SpikeDeptracYamlMatchesFixtureContractTest.php
+│   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php
+│   │       │   └── SpikeWorkspaceSyncLockContractTest.php
 │   │       └── Integration/
 │   │           └── ManagedComposerRepositoriesGuardTest.php
 │   ├── var/
-│   │   ├── arch/
-│   │   │   ├── deptrac_graph.dot
-│   │   │   ├── deptrac_graph.html
-│   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
 │   │   └── .gitignore
@@ -490,5 +491,5 @@ Coretsia/
 
 Generator ignores entries for documentation output; this is not the same as .gitignore.
 Ignore lists SSoT: framework/tools/build/structure.ignore.php
-Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor
-Ignored files: .DS_Store, preload.php, .deptrac.cache
+Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor, _artifacts, arch
+Ignored files: .DS_Store, preload.php, .deptrac.cache, deptrac_graph.dot, deptrac_graph.html, deptrac_graph.svg

@@ -208,7 +208,7 @@ Coretsia/
 │   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/assertAllDiscoveredPackagesHaveSsotRows()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
 │   │   │   ├── generate_structure.php
 │   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/readme()/runtimeModulePhp()/runtimeProviderPhp()/defaultsConfigPhp()/rulesConfigPhp()/noopContractTestPhp()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/kebabFromStudly()/splitFqcn()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
-│   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
+│   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/renderPhpValue()/renderPhpArray()/renderPhpArrayKey()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
 │   │   │   ├── structure.ignore.php
 │   │   │   └── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   ├── cs/
@@ -235,11 +235,6 @@ Coretsia/
 │   │   ├── policies/
 │   │   │   └── tag_owner_constants.php
 │   │   ├── spikes/
-│   │   │   ├── _artifacts/
-│   │   │   │   └── deptrac_graph/
-│   │   │   │       ├── deptrac_graph.dot
-│   │   │   │       ├── deptrac_graph.html
-│   │   │   │       └── deptrac_graph.svg
 │   │   │   ├── _support/
 │   │   │   │   ├── ConsoleOutput.php (ConsoleOutput - line()/lines()/codeWithDiagnostics()/stdoutStream()/stderrStream()/openStream()/write()/sanitizeLine()/withSuppressedErrors())
 │   │   │   │   ├── DeterminismRunner.php (DeterminismRunner - setProcessRunner()/main()/runner()/run()/emitFailure()/frameworkRoot()/repoRoot()/assertGitAvailable()/assertWorktreeClean()/runComposerSpikeTest()/classifyComposerFailure()/extractCoretsiaCodes()/createFreshTmpRootOutsideRepo()/chooseTempBaseNative()/removeDirRecursive()/tryRemoveDirRecursive()/runCommand()/canonicalize()/isInside()/dedupPreserveOrder())
@@ -433,13 +428,19 @@ Coretsia/
 │   │   │   ├── phpunit.xml
 │   │   │   └── run_packages_phpunit.php
 │   │   └── tests/
+│   │       ├── Contract/
+│   │       │   ├── Support/
+│   │       │   │   └── ToolContractTestCase.php (ToolContractTestCase - tearDown()/frameworkRoot()/repoRoot()/spikeFixturePath()/requireArrayFixture()/requireStringListFixture()/tempDir()/runPhp()/runDeptracGenerate()/runWorkspaceSync()/createWorkspaceSandbox()/createDeptracSandboxFromPackageIndexFixture()/writeDependencyTable()/writeDeptracAllowlistYamlFromSpikeFixture()/packageNamespace()/writePackageClass())
+│   │       │   ├── SpikeComposerRepositoriesSyncManagedOnlyContractTest.php (SpikeComposerRepositoriesSyncManagedOnlyContractTest - testSyncRewritesOnlyManagedRepositoriesAndPreservesUnmanagedRepositories()/readComposerJson()/expectedRootManagedRepositories())
+│   │       │   ├── SpikeComposerRepositoriesSyncWritesBackupsContractTest.php (SpikeComposerRepositoriesSyncWritesBackupsContractTest - testDriftedWorkspaceApplyWritesBackupsAndRestoresExpectedComposerFiles())
+│   │       │   ├── SpikeDeptracAllowlistPolicyContractTest.php (SpikeDeptracAllowlistPolicyContractTest - testSrcAllowlistFromSpikeFixtureIsRejectedDeterministically()/testTestsOnlyAllowlistFromSpikeFixtureIsAccepted())
+│   │       │   ├── SpikeDeptracCycleDetectionContractTest.php (SpikeDeptracCycleDetectionContractTest - testCycleFixtureFailsWithDeterministicErrorCode())
+│   │       │   ├── SpikeDeptracYamlMatchesFixtureContractTest.php (SpikeDeptracYamlMatchesFixtureContractTest - testGeneratedDeptracYamlIsLockedToPromotedSpikeFixture()/assertYamlIsDeterministic()/assertYamlContainsFixturePackagesAndRules()/packageIdToLayerName())
+│   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
+│   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
 │   │       └── Integration/
 │   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
 │   ├── var/
-│   │   ├── arch/
-│   │   │   ├── deptrac_graph.dot
-│   │   │   ├── deptrac_graph.html
-│   │   │   └── deptrac_graph.svg
 │   │   ├── backups/
 │   │   │   └── .gitignore
 │   │   └── .gitignore
@@ -490,5 +491,5 @@ Coretsia/
 
 Generator ignores entries for documentation output; this is not the same as .gitignore.
 Ignore lists SSoT: framework/tools/build/structure.ignore.php
-Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor
-Ignored files: .DS_Store, preload.php, .deptrac.cache
+Ignored directories: .git, .idea, .osp, .phpstan-cache, phpstan, .phpunit.cache, phpunit-cache, phpunit, vendor, _artifacts, arch
+Ignored files: .DS_Store, preload.php, .deptrac.cache, deptrac_graph.dot, deptrac_graph.html, deptrac_graph.svg

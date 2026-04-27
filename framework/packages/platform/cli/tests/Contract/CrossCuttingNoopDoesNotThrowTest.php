@@ -67,17 +67,40 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertIsArray($cliSubtree, 'config/cli.php MUST return an array subtree.');
         self::assertArrayNotHasKey('cli', $cliSubtree, 'config/cli.php MUST NOT repeat the root key ("cli").');
 
-        // rules.php: MUST be output-free and MUST return callable(array $cfg): void
+        // rules.php: MUST be output-free and MUST return a plain declarative ruleset array.
         \ob_start();
         $rules = require $rulesFile;
         $out = (string)\ob_get_clean();
 
         self::assertSame('', $out, 'config/rules.php MUST NOT emit output.');
-        self::assertIsCallable($rules, 'config/rules.php MUST return a callable.');
+        self::assertIsArray($rules, 'config/rules.php MUST return a plain declarative ruleset array.');
 
-        // Minimal sanity: rules callable should accept the global config map that contains "cli" root.
-        $rules(['cli' => $cliSubtree]);
+        self::assertSame(1, $rules['schemaVersion'] ?? null, 'config/rules.php MUST declare schemaVersion=1.');
+        self::assertSame('cli', $rules['configRoot'] ?? null, 'config/rules.php MUST target the cli config root.');
+        self::assertSame(false, $rules['additionalKeys'] ?? null, 'config/rules.php MUST declare root-level additionalKeys=false.');
 
-        self::addToAssertionCount(1);
+        self::assertArrayHasKey('keys', $rules, 'config/rules.php MUST declare top-level keys.');
+        self::assertIsArray($rules['keys'], 'config/rules.php "keys" MUST be a map.');
+
+        self::assertArrayHasKey('commands', $rules['keys'], 'cli rules MUST declare cli.commands.');
+        self::assertArrayHasKey('output', $rules['keys'], 'cli rules MUST declare cli.output.');
+
+        self::assertSame(
+            'list',
+            $rules['keys']['commands']['type'] ?? null,
+            'cli.commands rule MUST declare list type.'
+        );
+
+        self::assertSame(
+            'map',
+            $rules['keys']['output']['type'] ?? null,
+            'cli.output rule MUST declare map type.'
+        );
+
+        self::assertSame(
+            ['json', 'text'],
+            $rules['keys']['output']['keys']['format']['allowedValues'] ?? null,
+            'cli.output.format allowed values MUST stay deterministic.'
+        );
     }
 }

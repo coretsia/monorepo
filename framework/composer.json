@@ -50,7 +50,8 @@
       "Coretsia\\Tools\\Spikes\\": "tools/spikes/"
     },
     "exclude-from-classmap": [
-      "tools/spikes/fixtures/"
+      "tools/spikes/fixtures/",
+      "tools/tests/Fixtures/"
     ]
   },
   "repositories": [
@@ -80,7 +81,8 @@
       "@observability-naming:gate",
       "@artifact-header-schema:gate",
       "@cross-cutting-contract:gate",
-      "@kernel-public-api:gate"
+      "@kernel-public-api:gate",
+      "@package-compliance:gate"
     ],
     "dto:gate": "@php tools/gates/dto_gate.php",
     "dto-marker-consistency:gate": "@php tools/gates/dto_marker_consistency_gate.php",
@@ -126,6 +128,9 @@
     "artifact-header-schema:gate": "@php tools/gates/artifact_header_schema_gate.php",
     "cross-cutting-contract:gate": "@php tools/gates/cross_cutting_contract_gate.php",
     "kernel-public-api:gate": "@php tools/gates/kernel_public_api_gate.php",
+    "package-scaffold:sync": "@php tools/build/sync_package_scaffold.php",
+    "package-scaffold:check": "@php tools/build/sync_package_scaffold.php --check",
+    "package-compliance:gate": "@php tools/gates/package_compliance_gate.php",
     "package:phpunit:gate": "@php tools/gates/package_phpunit_config_gate.php",
     "docs:structure": "@php tools/build/generate_structure.php",
     "docs:structure:tree": "@php tools/build/generate_structure.php --structure",

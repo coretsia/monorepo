@@ -62,3 +62,15 @@ This package is intentionally minimal:
 
 - **Depends on:** PHP only
 - **Forbidden:** runtime framework packages, platform packages, integrations, service implementations
+
+## Observability
+
+This package does not emit telemetry directly.
+
+## Errors
+
+This package does not define runtime error codes directly.
+
+## Security / Redaction
+
+This package does not process sensitive runtime payloads directly.

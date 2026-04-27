@@ -678,15 +678,16 @@ Errors:
     - [ ] `cli.uow.enabled` = true
 
 - [ ] `framework/packages/platform/cli/config/rules.php`
-  - [ ] MUST hard-fail deterministically if:
+  - [ ] MUST return a plain declarative ruleset array.
+  - [ ] MUST declare rules that make ConfigValidator fail deterministically if:
     - [ ] any `cli.mode.*` exists
     - [ ] `cli.commands` exists AND is a list (legacy registry list)
     - [ ] `cli.commands` exists AND contains any key other than `overrides`
-  - [ ] MUST validate overrides shape:
+  - [ ] MUST declare rules for overrides shape:
     - [ ] `cli.commands.overrides` is a map keyed by `commandName` (same regex as tag schema)
     - [ ] allowlisted override keys: `summary|hidden|group`
-    - [ ] unknown keys hard-fail
-    - [ ] override for unknown command hard-fails
+    - [ ] unknown keys hard-fail through ConfigValidator
+    - [ ] override for unknown command hard-fails through ConfigValidator
 
 - [ ] `framework/packages/platform/cli/README.md`
   - [ ] MUST include: Observability / Errors / Security-Redaction / Mode usage / Determinism / Providing CLI commands

@@ -71,6 +71,18 @@ The interface intentionally does not define styling/verbosity policies.
   - format-neutral,
   - easy to depend on.
 
+## Observability
+
+This package does not emit telemetry directly.
+
+## Errors
+
+This package does not define runtime error codes directly.
+
+## Security / Redaction
+
+This package does not process sensitive runtime payloads directly.
+
 ## References
 
 - Roadmap condensed rules: `docs/roadmap/ROADMAP.md`

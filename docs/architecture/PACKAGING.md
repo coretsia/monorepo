@@ -161,6 +161,23 @@ For any package:
 - `framework/packages/platform/problem-details/src` → `Coretsia\Platform\ProblemDetails\...`
 - `framework/packages/platform/problem-details/tests` → `Coretsia\Platform\ProblemDetails\Tests\...`
 
+### 5.4. Canonical namespace/source-path exceptions (MUST)
+
+Most package namespace roots and source paths are derived mechanically by §5.2 and §5.3.
+
+The following exceptions are canonical and MUST be treated as part of the packaging law:
+
+| package_id           | namespace root               | source path      | rationale                                                              |
+|----------------------|------------------------------|------------------|------------------------------------------------------------------------|
+| `core/dto-attribute` | `Coretsia\Dto\Attribute\...` | `src/Attribute/` | DTO marker attribute namespace is locked by DTO policy and public API. |
+
+Rules:
+
+- Exceptions in this table are normative.
+- Package compliance tooling MAY encode these exceptions directly.
+- New exceptions MUST NOT be added without an explicit roadmap/ADR justification.
+- Packages not listed here MUST use the derived mapping from §5.2 and §5.3.
+
 ---
 
 ## 6) Collision safety (MUST)
@@ -180,7 +197,9 @@ For `core/*` packages, the value of `Studly(<slug>)` **MUST NOT** equal any of:
 - `Core`
 - `Platform`
 - `Integrations`
+- `Enterprise`
 - `Devtools`
+- `Presets`
 
 #### Equivalent slug values (derived)
 
@@ -190,7 +209,9 @@ the following `<slug>` values **MUST NOT** be used under `core/*`:
 - `core`
 - `platform`
 - `integrations`
+- `enterprise`
 - `devtools`
+- `presets`
 
 **Rationale:**
 
@@ -223,7 +244,225 @@ The following parts of the repository **MUST NOT** be considered publishable pac
 
 ---
 
-## 8) Versioning policy (MUST)
+## 8) Package scaffold baseline (MUST)
+
+Every publishable package under `framework/packages/<layer>/<slug>/` MUST contain the canonical baseline package scaffold.
+
+### 8.1. Required artifacts for every package (single-choice)
+
+Every package MUST contain:
+
+- `composer.json`
+- `README.md`
+- `LICENSE`
+- `NOTICE`
+- `src/`
+- `tests/Contract/`
+- `tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+### 8.2. Canonical legal files (single-choice)
+
+Package legal files MUST be byte-identical to the monorepo root legal files:
+
+- package `LICENSE` MUST equal repo root `LICENSE`
+- package `NOTICE` MUST equal repo root `NOTICE`
+
+Package-level legal files MUST NOT drift from the repository canonical legal text.
+
+### 8.3. README baseline (single-choice)
+
+Every package `README.md` MUST include at minimum the following sections:
+
+- `## Observability`
+- `## Errors`
+- `## Security / Redaction`
+
+The sections MAY be short for packages where the topic is not applicable, but they MUST exist to keep package policy review uniform.
+
+---
+
+## 9) Composer package metadata (MUST)
+
+Every publishable package MUST define canonical Composer metadata in `composer.json`.
+
+### 9.1. Baseline Composer fields (single-choice)
+
+For every package:
+
+- `"name"` MUST equal `coretsia/<layer>-<slug>` derived from the package path.
+- `"type"` MUST equal `library`.
+- `"license"` MUST equal `Apache-2.0`.
+- `autoload.psr-4` MUST map the canonical package namespace root to `src/`.
+- `autoload-dev.psr-4`, when present, MUST map the canonical package test namespace root to `tests/`.
+
+### 9.2. Coretsia package kind (single-choice)
+
+Every package MUST declare:
+
+```json
+{
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}
+```
+
+The value of `extra.coretsia.kind` MUST be exactly one of:
+
+- `library`
+- `runtime`
+
+### 9.3. Library packages (MUST)
+
+A package with:
+
+```json
+{
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}
+```
+
+is a library package.
+
+Library packages:
+
+- MUST NOT be required to define runtime module metadata.
+- MUST NOT be required to contain runtime-only scaffold paths such as `src/Module/`, `src/Provider/`, or `config/`.
+- MAY contain only library code, contracts, marker attributes, value objects, test support, or other non-runtime package surfaces.
+
+### 9.4. Runtime packages (MUST)
+
+A package with:
+
+```json
+{
+  "extra": {
+    "coretsia": {
+      "kind": "runtime"
+    }
+  }
+}
+```
+
+is a runtime package.
+
+Runtime packages MUST declare canonical runtime metadata under `extra.coretsia`:
+
+- `moduleId`
+- `moduleClass`
+- `providers`
+- `defaultsConfigPath`
+
+For a runtime package at:
+
+```text
+framework/packages/<layer>/<slug>/
+```
+
+the metadata MUST be derived as follows:
+
+- `moduleId` MUST equal `<layer>.<slug>`
+- `moduleClass` MUST equal the canonical runtime module FQCN
+- `providers` MUST include the canonical runtime service provider FQCN
+- `defaultsConfigPath` MUST equal `config/<slug>.php`
+
+The canonical runtime module class file MUST be:
+
+```text
+src/Module/<StudlySlug>Module.php
+```
+
+The canonical runtime service provider class file MUST be:
+
+```text
+src/Provider/<StudlySlug>ServiceProvider.php
+```
+
+Where `StudlySlug` is derived by the `Studly(slug)` algorithm defined in this document.
+
+---
+
+## 10) Runtime package shape and reserved package identifiers (MUST)
+
+### 10.1. Runtime package scaffold (single-choice)
+
+Every runtime package MUST contain:
+
+- `src/Module/`
+- `src/Provider/`
+- `src/Module/<StudlySlug>Module.php`
+- `src/Provider/<StudlySlug>ServiceProvider.php`
+- `config/`
+- `config/<slug>.php`
+- `config/rules.php`
+
+### 10.2. Runtime config shape (single-choice)
+
+Runtime package defaults file:
+
+```text
+config/<slug>.php
+```
+
+MUST return a plain array subtree and MUST NOT repeat the root wrapper.
+
+Runtime package rules file:
+
+```text
+config/rules.php
+```
+
+MUST return a plain array.
+
+Config root ownership and config subtree invariants are governed by:
+
+```text
+docs/ssot/config-roots.md
+```
+
+This packaging document MUST NOT introduce an alternative config-root ownership model.
+
+### 10.3. Globally forbidden slugs (single-choice)
+
+The following slugs MUST NOT be used for framework packages in any layer:
+
+- `app`
+- `modules`
+- `shared`
+
+Rationale:
+
+- `app` is reserved for consuming applications / skeleton semantics.
+- `modules` is reserved for module-selection/config terminology.
+- `shared` is ambiguous and does not encode package ownership or layer semantics.
+
+### 10.4. Roadmap-reserved slugs (single-choice)
+
+The following slugs are reserved and MUST NOT be used by arbitrary new packages:
+
+- `kernel`
+- `observability`
+
+Reserved slugs MAY be used only by canonical owner packages or paths explicitly defined by roadmap/SSoT ownership.
+
+Current reserved slug ownership:
+
+| slug            | allowed canonical package_id | notes                                                                                                                                       |
+|-----------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `kernel`        | `core/kernel`                | Canonical kernel runtime owner package.                                                                                                     |
+| `observability` | none yet                     | Reserved umbrella term; use concrete packages such as logging, metrics, or tracing unless a future owner epic assigns this slug explicitly. |
+
+The existing canonical package `framework/packages/core/kernel/` MUST remain valid and MUST NOT fail package compliance because of the reserved-slug rule.
+
+---
+
+## 11) Versioning policy (MUST)
 
 Versioning **MUST** be monorepo-wide:
 
@@ -237,9 +476,9 @@ Versioning **MUST** be monorepo-wide:
 
 ---
 
-## 9) Publishing target: Packagist via split repositories (MUST)
+## 12) Publishing target: Packagist via split repositories (MUST)
 
-### 9.1. Canonical publish target (single-choice)
+### 12.1. Canonical publish target (single-choice)
 
 Packagist.org publish target **MUST** be **only** split repositories (one package → one VCS repo):
 
@@ -251,7 +490,7 @@ Packagist.org publish target **MUST** be **only** split repositories (one packag
 **Rationale (normative):**
 Packagist expects `composer.json` at the root of the VCS repository, and versions are taken automatically from git tags.
 
-### 9.2. Split repository naming & mapping (single-choice)
+### 12.2. Split repository naming & mapping (single-choice)
 
 For every `package_id = <layer>/<slug>`, split repository identity **MUST** be deterministic:
 
@@ -261,20 +500,21 @@ For every `package_id = <layer>/<slug>`, split repository identity **MUST** be d
 - **Repository URL (derived):** `https://github.com/coretsia/<layer>-<slug>`
 
 **Examples (derived):**
+
 - `core/contracts` → repo `coretsia/core-contracts`
 - `platform/problem-details` → repo `coretsia/platform-problem-details`
 - `integrations/cache-redis` → repo `coretsia/integrations-cache-redis`
 
-### 9.3. Split content law (single-choice)
+### 12.3. Split content law (single-choice)
 
 Split repository content **MUST** equal **exactly** the package subtree:
 
 - split repo root == `framework/packages/<layer>/<slug>/` (including `src/`, `config/`, `tests/`, `README.md`, `composer.json`, …)
 - split repo **MUST NOT** contain anything outside the package (for example: `docs/**`, `framework/tools/**`, `skeleton/**`, monorepo root files).
 
-### 9.4. Tag/version propagation (single-choice)
+### 12.4. Tag/version propagation (single-choice)
 
-Versioning remains monorepo-wide (§8), therefore:
+Versioning remains monorepo-wide (§11), therefore:
 
 - Monorepo git tags `vMAJOR.MINOR.PATCH` are the **single source of version truth**.
 - Every split repo **MUST** receive the **same** tag `vMAJOR.MINOR.PATCH`,
@@ -283,7 +523,7 @@ Versioning remains monorepo-wide (§8), therefore:
 
 Packagist picks up new versions automatically from tags in the VCS repository.
 
-### 9.5. Auto-update policy (single-choice)
+### 12.5. Auto-update policy (single-choice)
 
 Canonical publishing procedure **MUST** use auto-update (service hook / GitHub integration):
 
@@ -291,7 +531,7 @@ Canonical publishing procedure **MUST** use auto-update (service hook / GitHub i
 - Manual “Update” in the UI **MUST NOT** be part of the canonical release procedure.
 - Hook mode (GitHub) is recommended and gives crawl-on-push behavior.
 
-### 9.6. Private phase status (MUST)
+### 12.6. Private phase status (MUST)
 
 While the repositories are not public:
 
@@ -304,7 +544,7 @@ but they **MUST NOT** change the canonical checkbox status until public evidence
 
 ---
 
-## 10) Required references (MUST)
+## 13) Required references (MUST)
 
 - `docs/architecture/STRUCTURE.md` **MUST** refer to this document as the packaging law.
 - `README.md` **MUST** include a link to this document in the documentation/navigation section.

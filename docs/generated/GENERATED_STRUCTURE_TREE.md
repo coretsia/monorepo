@@ -99,7 +99,11 @@ Coretsia/
 │   │   │   │   │       └── Output/
 │   │   │   │   │           └── OutputInterface.php
 │   │   │   │   ├── tests/
+│   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   └── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
 │   │   │   │   └── composer.json
 │   │   │   └── dto-attribute/
@@ -108,7 +112,10 @@ Coretsia/
 │   │   │       │       └── Dto.php
 │   │   │       ├── tests/
 │   │   │       │   └── Contract/
-│   │   │       │       └── AttributeExistsTest.php
+│   │   │       │       ├── AttributeExistsTest.php
+│   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       ├── LICENSE
+│   │   │       ├── NOTICE
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
@@ -134,6 +141,7 @@ Coretsia/
 │   │   │   │   │   │   ├── CommandsDispatchViaSpikesBootstrapTest.php
 │   │   │   │   │   │   ├── CommandsDoNotWriteToStdoutTest.php
 │   │   │   │   │   │   ├── ConsoleOutputReservedForGatesOnlyTest.php
+│   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   │   ├── DeptracGraphCommandIsThinAdapterTest.php
 │   │   │   │   │   │   ├── PlatformCliDoesNotShipCliSpikesCommandsTest.php
 │   │   │   │   │   │   ├── SpikeConfigDebugCommandIsThinAdapterTest.php
@@ -150,6 +158,8 @@ Coretsia/
 │   │   │   │   │       ├── WorkflowBackedCommandsDispatchToToolsRuntimeTest.php
 │   │   │   │   │       ├── WorkspaceSyncApplyCommandTest.php
 │   │   │   │   │       └── WorkspaceSyncDryRunIsSafeTest.php
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
 │   │   │   │   └── composer.json
 │   │   │   └── internal-toolkit/
@@ -159,10 +169,13 @@ Coretsia/
 │   │   │       │   └── Slug.php
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
+│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   └── JsonEncodeStableContractTest.php
 │   │   │       │   └── Unit/
 │   │   │       │       ├── PathNormalizeRelativeGoldenVectorsTest.php
 │   │   │       │       └── SlugToStudlyGoldenVectorsTest.php
+│   │   │       ├── LICENSE
+│   │   │       ├── NOTICE
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   └── platform/
@@ -210,6 +223,8 @@ Coretsia/
 │   │           │       ├── CliBootHelpWorksWithEmptyCommandsTest.php
 │   │           │       ├── CliRejectsMissingCommandClassDeterministicallyTest.php
 │   │           │       └── OutputRedactionDoesNotLeakTest.php
+│   │           ├── LICENSE
+│   │           ├── NOTICE
 │   │           ├── README.md
 │   │           └── composer.json
 │   ├── tools/
@@ -220,7 +235,8 @@ Coretsia/
 │   │   │   ├── new-package.php
 │   │   │   ├── package_index.php
 │   │   │   ├── structure.ignore.php
-│   │   │   └── sync_composer_repositories.php
+│   │   │   ├── sync_composer_repositories.php
+│   │   │   └── sync_package_scaffold.php
 │   │   ├── cs/
 │   │   │   └── ecs.php
 │   │   ├── gates/
@@ -238,6 +254,8 @@ Coretsia/
 │   │   │   ├── no_skeleton_mode_presets_default_gate.php
 │   │   │   ├── no_skeleton_modules_default_gate.php
 │   │   │   ├── observability_naming_gate.php
+│   │   │   ├── package_compliance_allowlist.php
+│   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── spikes_boundary_gate.php
@@ -452,12 +470,75 @@ Coretsia/
 │   │       │   ├── SpikeDeptracYamlMatchesFixtureContractTest.php
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php
+│   │       ├── Fixtures/
+│   │       │   ├── package_bad/
+│   │       │   │   └── packages/
+│   │       │   │       ├── core/
+│   │       │   │       │   └── broken-library/
+│   │       │   │       │       ├── src/
+│   │       │   │       │       │   └── BrokenLibrary.php
+│   │       │   │       │       ├── tests/
+│   │       │   │       │       │   └── Contract/
+│   │       │   │       │       │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │       │   │       │       ├── LICENSE
+│   │       │   │       │       ├── NOTICE
+│   │       │   │       │       └── composer.json
+│   │       │   │       └── platform/
+│   │       │   │           └── broken-runtime/
+│   │       │   │               ├── config/
+│   │       │   │               │   └── broken-runtime.php
+│   │       │   │               ├── src/
+│   │       │   │               │   ├── Module/
+│   │       │   │               │   │   └── BrokenRuntimeModule.php
+│   │       │   │               │   └── Provider/
+│   │       │   │               │       └── BrokenRuntimeServiceProvider.php
+│   │       │   │               ├── tests/
+│   │       │   │               │   └── Contract/
+│   │       │   │               │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │       │   │               ├── LICENSE
+│   │       │   │               ├── NOTICE
+│   │       │   │               ├── README.md
+│   │       │   │               └── composer.json
+│   │       │   └── package_good/
+│   │       │       └── packages/
+│   │       │           ├── core/
+│   │       │           │   └── sample-library/
+│   │       │           │       ├── src/
+│   │       │           │       │   └── SampleLibrary.php
+│   │       │           │       ├── tests/
+│   │       │           │       │   └── Contract/
+│   │       │           │       │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │       │           │       ├── LICENSE
+│   │       │           │       ├── NOTICE
+│   │       │           │       ├── README.md
+│   │       │           │       └── composer.json
+│   │       │           └── platform/
+│   │       │               └── sample-runtime/
+│   │       │                   ├── config/
+│   │       │                   │   ├── rules.php
+│   │       │                   │   └── sample-runtime.php
+│   │       │                   ├── src/
+│   │       │                   │   ├── Module/
+│   │       │                   │   │   └── SampleRuntimeModule.php
+│   │       │                   │   └── Provider/
+│   │       │                   │       └── SampleRuntimeServiceProvider.php
+│   │       │                   ├── tests/
+│   │       │                   │   └── Contract/
+│   │       │                   │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │       │                   ├── LICENSE
+│   │       │                   ├── NOTICE
+│   │       │                   ├── README.md
+│   │       │                   └── composer.json
 │   │       └── Integration/
 │   │           ├── DtoGateAggregateRunnerTest.php
 │   │           ├── DtoMarkerConsistencyGateTest.php
 │   │           ├── DtoNoLogicGateTest.php
 │   │           ├── DtoShapeGateTest.php
-│   │           └── ManagedComposerRepositoriesGuardTest.php
+│   │           ├── ManagedComposerRepositoriesGuardTest.php
+│   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php
+│   │           ├── PackageComplianceGateRejectsBadFixtureTest.php
+│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php
+│   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php
 │   ├── var/
 │   │   ├── backups/
 │   │   │   └── .gitignore

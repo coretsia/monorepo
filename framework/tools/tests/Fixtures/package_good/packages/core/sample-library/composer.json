@@ -1,0 +1,20 @@
+{
+  "name": "coretsia/core-sample-library",
+  "type": "library",
+  "license": "Apache-2.0",
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\SampleLibrary\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\SampleLibrary\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

@@ -57,6 +57,18 @@ use Coretsia\Devtools\InternalToolkit\Slug;
 - Outputs MUST NOT include timestamps, absolute paths, environment-specific bytes, or secrets/PII.
 - Any future extensions MUST preserve “rerun => no diff” behavior for the same repo state and inputs.
 
+## Observability
+
+This package does not emit telemetry directly.
+
+## Errors
+
+This package does not define runtime error codes directly.
+
+## Security / Redaction
+
+This package does not process sensitive runtime payloads directly.
+
 ## License
 
 Apache-2.0. See `LICENSE` and `NOTICE` in the repository root.

@@ -106,6 +106,25 @@ composer arch:package-index:generate       # regenerate package index
 composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac artifacts
 ```
 
+If package scaffold, package compliance, `new-package.php`, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `framework/packages/*/*` structure changed:
+
+```bash
+composer package-scaffold:check -- framework       # read-only scaffold/legal drift check
+```
+
+If scaffold drift is reported:
+
+```bash
+composer package-scaffold:sync -- framework        # create/fix canonical scaffold artifacts
+composer package-scaffold:check -- framework       # verify scaffold/legal drift again
+```
+
+For targeted package compliance verification:
+
+```bash
+composer package-compliance:gate -- framework      # targeted package compliance gate; also included in composer gates
+```
+
 ## Pre-staging checks
 
 Run before staging the final diff for a commit:
@@ -362,6 +381,16 @@ composer sync:check                        # verify repository sync again
 # If package/deptrac/generated arch inputs changed:
 composer arch:package-index:generate       # regenerate package index
 composer arch:deptrac:generate             # regenerate deptrac config and artifacts
+
+# If package scaffold/package compliance/package shape inputs changed:
+composer package-scaffold:check -- framework       # read-only scaffold/legal drift check
+
+# If scaffold drift is reported:
+composer package-scaffold:sync -- framework        # create/fix canonical scaffold artifacts
+composer package-scaffold:check -- framework       # verify scaffold/legal drift again
+
+# Optional targeted package compliance check; composer gates also runs it:
+composer package-compliance:gate -- framework      # run package compliance gate directly
 
 rm -rf framework/var/phpstan               # clear phpstan cache
 composer validate:all                      # validate all composer manifests

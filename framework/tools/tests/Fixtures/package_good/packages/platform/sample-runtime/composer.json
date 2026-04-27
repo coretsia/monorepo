@@ -1,0 +1,26 @@
+{
+  "name": "coretsia/platform-sample-runtime",
+  "type": "library",
+  "license": "Apache-2.0",
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\SampleRuntime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\SampleRuntime\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.sample-runtime",
+      "moduleClass": "Coretsia\\Platform\\SampleRuntime\\Module\\SampleRuntimeModule",
+      "providers": [
+        "Coretsia\\Platform\\SampleRuntime\\Provider\\SampleRuntimeServiceProvider"
+      ],
+      "defaultsConfigPath": "config/sample-runtime.php"
+    }
+  }
+}

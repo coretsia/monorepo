@@ -99,7 +99,11 @@ Coretsia/
 │   │   │   │   │       └── Output/
 │   │   │   │   │           └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
 │   │   │   │   ├── tests/
+│   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
 │   │   │   │   └── composer.json
 │   │   │   └── dto-attribute/
@@ -108,7 +112,10 @@ Coretsia/
 │   │   │       │       └── Dto.php (Dto)
 │   │   │       ├── tests/
 │   │   │       │   └── Contract/
-│   │   │       │       └── AttributeExistsTest.php (AttributeExistsTest - testDtoAttributeExists()/testDtoAttributeTargetsClassesOnly())
+│   │   │       │       ├── AttributeExistsTest.php (AttributeExistsTest - testDtoAttributeExists()/testDtoAttributeTargetsClassesOnly())
+│   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │       ├── LICENSE
+│   │   │       ├── NOTICE
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
@@ -134,6 +141,7 @@ Coretsia/
 │   │   │   │   │   │   ├── CommandsDispatchViaSpikesBootstrapTest.php (CommandsDispatchViaSpikesBootstrapTest - testAllCommandsUseSpikesBootstrapAndDoNotRequireToolsBootstrapDirectly()/collectPhpFiles()/nextNonWhitespaceIndex()/displayPath())
 │   │   │   │   │   │   ├── CommandsDoNotWriteToStdoutTest.php (CommandsDoNotWriteToStdoutTest - testCommandsDoNotUseDirectStdoutStderrSinks()/scanTokens()/isFunctionCallLike()/readPossibleFqConstant()/failToken()/collectPhpFiles()/nextNonWhitespaceIndex()/prevNonWhitespaceIndex()/nextNonWhitespaceTokenIs()/tokenText()/displayPath())
 │   │   │   │   │   │   ├── ConsoleOutputReservedForGatesOnlyTest.php (ConsoleOutputReservedForGatesOnlyTest - testToolsSpikesDoNotReferenceConsoleOutputOutsideReservedImplementationFile()/collectPhpFiles()/shouldSkipFile()/displayPath())
+│   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │   │   │   │   │   ├── DeptracGraphCommandIsThinAdapterTest.php (DeptracGraphCommandIsThinAdapterTest - testDeptracGraphCommandDelegatesToWorkflowAndDoesNotEmbedArtifactBuildLogic())
 │   │   │   │   │   │   ├── PlatformCliDoesNotShipCliSpikesCommandsTest.php (PlatformCliDoesNotShipCliSpikesCommandsTest - testPlatformCliComposerJsonDoesNotRequireCliSpikesPackage()/testPlatformCliPhpSourcesDoNotReferenceCliSpikesNamespaceOrCommandClasses()/collectPhpFiles()/displayPath())
 │   │   │   │   │   │   ├── SpikeConfigDebugCommandIsThinAdapterTest.php (SpikeConfigDebugCommandIsThinAdapterTest - testSpikeConfigDebugCommandDelegatesToWorkflowAndDoesNotEmbedConfigMergeLogic())
@@ -150,6 +158,8 @@ Coretsia/
 │   │   │   │   │       ├── WorkflowBackedCommandsDispatchToToolsRuntimeTest.php (WorkflowBackedCommandsDispatchToToolsRuntimeTest - testSpikeFingerprintCommandDispatchesToToolsWorkflow()/testSpikeConfigDebugCommandDispatchesToToolsWorkflow()/testDeptracGraphCommandDispatchesToToolsWorkflow()/testWorkspaceSyncCommandsDispatchToToolsEntryWorkflow()/stubInput()/repoRoot()/withLauncherAtRepoRoot(); DispatchProofOutput - json()/text()/error()/jsonPayloads()/textLines()/errors(); AliasFingerprintWorkflowFake - reset()/run(); AliasConfigDebugWorkflowFake - reset()/run(); AliasDeptracGraphWorkflowFake - reset()/run(); AliasWorkspaceSyncEntryWorkflowFake - reset()/run())
 │   │   │   │   │       ├── WorkspaceSyncApplyCommandTest.php (WorkspaceSyncApplyCommandTest - testWorkspaceSyncApplyRunsAndDoesNotMutateFrameworkComposerJson()/repoRoot()/withLauncherAtRepoRoot()/assertPayloadDoesNotContainAbsolutePaths()/assertStringIsSafe())
 │   │   │   │   │       └── WorkspaceSyncDryRunIsSafeTest.php (WorkspaceSyncDryRunIsSafeTest - testWorkspaceSyncDryRunIsDeterministicAndDoesNotLeakAbsolutePaths()/repoRoot()/withLauncherAtRepoRoot()/assertPayloadDoesNotContainAbsolutePaths()/assertStringIsSafe())
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
 │   │   │   │   └── composer.json
 │   │   │   └── internal-toolkit/
@@ -159,10 +169,13 @@ Coretsia/
 │   │   │       │   └── Slug.php (Slug - toStudly()/toSnake()/asciiLower()/asciiUpperFirst())
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
+│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │   │       │   │   └── JsonEncodeStableContractTest.php (JsonEncodeStableContractTest - testEncodeStableSortsMapKeysRecursively()/testEncodeStablePreservesListOrder()/testEncodeStablePreservesUnicodeAndSlashes()/testEncodeStableEncodesEmptyArrayAsList()/testEncodeStableRejectsFloatDeterministically()/testEncodeStableRejectsNonStringMapKeysDeterministically())
 │   │   │       │   └── Unit/
 │   │   │       │       ├── PathNormalizeRelativeGoldenVectorsTest.php (PathNormalizeRelativeGoldenVectorsTest - testNormalizeRelativeGoldenVectors()/testNormalizeRelativeRejectsOutsideRepoRoot()/provideGoldenVectors())
 │   │   │       │       └── SlugToStudlyGoldenVectorsTest.php (SlugToStudlyGoldenVectorsTest - testToStudlyGoldenVectors()/provideGoldenVectors())
+│   │   │       ├── LICENSE
+│   │   │       ├── NOTICE
 │   │   │       ├── README.md
 │   │   │       └── composer.json
 │   │   └── platform/
@@ -210,6 +223,8 @@ Coretsia/
 │   │           │       ├── CliBootHelpWorksWithEmptyCommandsTest.php (CliBootHelpWorksWithEmptyCommandsTest - testBootHelpWorksWithEmptyCommands()/repoRoot()/normalizeNewlines()/runProcess())
 │   │           │       ├── CliRejectsMissingCommandClassDeterministicallyTest.php (CliRejectsMissingCommandClassDeterministicallyTest - testMissingCommandClassIsDeterministicError()/repoRoot()/configCliPhp())
 │   │           │       └── OutputRedactionDoesNotLeakTest.php (OutputRedactionDoesNotLeakTest - testRedactionDoesNotLeakSecretsOrAbsolutePaths()/repoRoot()/configCliPhp())
+│   │           ├── LICENSE
+│   │           ├── NOTICE
 │   │           ├── README.md
 │   │           └── composer.json
 │   ├── tools/
@@ -217,10 +232,11 @@ Coretsia/
 │   │   │   ├── build_icons.php (BuildIconsTool - main()/renderSvgToPngBytes()/renderViaImagick()/renderViaRsvgConvert()/buildIcoFromPngBytes()/detectPngDimensions()/isDifferentBinaryFile()/writeBytes()/findExecutable()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/assertAllDiscoveredPackagesHaveSsotRows()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
 │   │   │   ├── generate_structure.php
-│   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/readme()/runtimeModulePhp()/runtimeProviderPhp()/defaultsConfigPhp()/rulesConfigPhp()/noopContractTestPhp()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/kebabFromStudly()/splitFqcn()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
+│   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/runPackageScaffoldSync()/firstNonEmptyLine()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/renderPhpValue()/renderPhpArray()/renderPhpArrayKey()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
 │   │   │   ├── structure.ignore.php
-│   │   │   └── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
+│   │   │   ├── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
+│   │   │   └── sync_package_scaffold.php
 │   │   ├── cs/
 │   │   │   └── ecs.php
 │   │   ├── gates/
@@ -238,6 +254,8 @@ Coretsia/
 │   │   │   ├── no_skeleton_mode_presets_default_gate.php
 │   │   │   ├── no_skeleton_modules_default_gate.php
 │   │   │   ├── observability_naming_gate.php
+│   │   │   ├── package_compliance_allowlist.php
+│   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── spikes_boundary_gate.php
@@ -452,12 +470,75 @@ Coretsia/
 │   │       │   ├── SpikeDeptracYamlMatchesFixtureContractTest.php (SpikeDeptracYamlMatchesFixtureContractTest - testGeneratedDeptracYamlIsLockedToPromotedSpikeFixture()/assertYamlIsDeterministic()/assertYamlContainsFixturePackagesAndRules()/packageIdToLayerName())
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
+│   │       ├── Fixtures/
+│   │       │   ├── package_bad/
+│   │       │   │   └── packages/
+│   │       │   │       ├── core/
+│   │       │   │       │   └── broken-library/
+│   │       │   │       │       ├── src/
+│   │       │   │       │       │   └── BrokenLibrary.php (BrokenLibrary)
+│   │       │   │       │       ├── tests/
+│   │       │   │       │       │   └── Contract/
+│   │       │   │       │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │       │   │       │       ├── LICENSE
+│   │       │   │       │       ├── NOTICE
+│   │       │   │       │       └── composer.json
+│   │       │   │       └── platform/
+│   │       │   │           └── broken-runtime/
+│   │       │   │               ├── config/
+│   │       │   │               │   └── broken-runtime.php
+│   │       │   │               ├── src/
+│   │       │   │               │   ├── Module/
+│   │       │   │               │   │   └── BrokenRuntimeModule.php (BrokenRuntimeModule)
+│   │       │   │               │   └── Provider/
+│   │       │   │               │       └── BrokenRuntimeServiceProvider.php (BrokenRuntimeServiceProvider)
+│   │       │   │               ├── tests/
+│   │       │   │               │   └── Contract/
+│   │       │   │               │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │       │   │               ├── LICENSE
+│   │       │   │               ├── NOTICE
+│   │       │   │               ├── README.md
+│   │       │   │               └── composer.json
+│   │       │   └── package_good/
+│   │       │       └── packages/
+│   │       │           ├── core/
+│   │       │           │   └── sample-library/
+│   │       │           │       ├── src/
+│   │       │           │       │   └── SampleLibrary.php (SampleLibrary)
+│   │       │           │       ├── tests/
+│   │       │           │       │   └── Contract/
+│   │       │           │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │       │           │       ├── LICENSE
+│   │       │           │       ├── NOTICE
+│   │       │           │       ├── README.md
+│   │       │           │       └── composer.json
+│   │       │           └── platform/
+│   │       │               └── sample-runtime/
+│   │       │                   ├── config/
+│   │       │                   │   ├── rules.php
+│   │       │                   │   └── sample-runtime.php
+│   │       │                   ├── src/
+│   │       │                   │   ├── Module/
+│   │       │                   │   │   └── SampleRuntimeModule.php (SampleRuntimeModule)
+│   │       │                   │   └── Provider/
+│   │       │                   │       └── SampleRuntimeServiceProvider.php (SampleRuntimeServiceProvider)
+│   │       │                   ├── tests/
+│   │       │                   │   └── Contract/
+│   │       │                   │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │       │                   ├── LICENSE
+│   │       │                   ├── NOTICE
+│   │       │                   ├── README.md
+│   │       │                   └── composer.json
 │   │       └── Integration/
 │   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
 │   │           ├── DtoMarkerConsistencyGateTest.php (DtoMarkerConsistencyGateTest - testCanonicalMarkerUsagePasses()/testAliasImportResolvingToCanonicalMarkerPasses()/testCustomDtoMarkerAttributeFails()/testLegacyDtoInterfaceMarkerFails()/testMixedMarkerStrategyFailsWithMultipleStrategiesReason()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoMarkerConsistencyGate()/writeSyntheticPhpFile())
 │   │           ├── DtoNoLogicGateTest.php (DtoNoLogicGateTest - testDtoWithNoConstructorPasses()/testDtoWithPromotedPublicTypedPropertiesPasses()/testDtoWithTrivialAssignmentConstructorPasses()/testUnmarkedClassWithLogicIsIgnored()/testDtoWithExtraMethodFails()/testConstructorWithFunctionCallFails()/testConstructorWithMethodCallFails()/testConstructorWithStaticCallFails()/testConstructorWithIfFails()/testConstructorWithMatchFails()/testConstructorWithLoopFails()/testConstructorWithTryCatchFails()/testConstructorWithThrowFails()/testConstructorWithNewObjectFails()/testConstructorWithComputedExpressionFails()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoNoLogicGate()/writeSyntheticPhpFile())
 │   │           ├── DtoShapeGateTest.php (DtoShapeGateTest - testCompliantDtoWithPublicTypedPropertiesPasses()/testCompliantDtoWithPublicPromotedTypedPropertiesPasses()/testAbstractDtoFails()/testNonFinalDtoFails()/testDtoExtendingAnotherClassFails()/testDtoImplementingInterfaceFails()/testDtoUsingTraitFails()/testDtoWithStaticPropertyFails()/testDtoWithUntypedPropertyFails()/testDtoWithNonPublicPropertyFails()/testUnmarkedClassIsIgnored()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoShapeGate()/writeSyntheticPhpFile())
-│   │           └── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
+│   │           ├── ManagedComposerRepositoriesGuardTest.php (ManagedComposerRepositoriesGuardTest - testSyncCheckPassesOnCanonicalState()/testDriftIsDetectedAndRestoredAndRerunIsNoop()/runSync()/introduceRepositoriesDrift()/createWorkspaceFixtureSandbox()/workspaceFixtureRoot()/normalizeEol()/frameworkRoot()/readBytes()/writeBytesExact()/globSorted()/copyDir()/removeDir())
+│   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php (PackageComplianceGateAcceptsGoodFixtureTest - testGoodFixturePasses()/runPackageComplianceGate()/fixtureRoot())
+│   │           ├── PackageComplianceGateRejectsBadFixtureTest.php (PackageComplianceGateRejectsBadFixtureTest - testBadFixtureFailsWithDeterministicDiagnostics()/testAllowlistIsLoadedDeterministicallyAndSuppressesAllowlistedPackage()/runPackageComplianceGate()/fixtureRoot()/assertDiagnosticsAreRelativeAndSorted()/writeTemporaryAllowlist()/renderAllowlistEntries())
+│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php (SyncPackageScaffoldCheckRejectsDriftTest - testCheckModeRejectsMissingAndDriftedLegalFilesWithoutWrites()/runSyncPackageScaffoldCheck()/prepareTempRoot()/createCompleteLibraryPackage()/createCompleteRuntimePackage()/composerJson()/readme()/noopContractTest()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/assertDiagnosticsAreRelativeAndSorted()/repoRoot()/ensureDir()/removePath())
+│   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php (SyncPackageScaffoldCreatesMissingFilesTest - testApplyModeCreatesMissingScaffoldWithoutRewritingUserOwnedContent()/runSyncPackageScaffold()/prepareTempRoot()/createLibraryPackageSkeleton()/createRuntimePackageSkeleton()/composerJson()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/repoRoot()/ensureDir()/removePath())
 │   ├── var/
 │   │   ├── backups/
 │   │   │   └── .gitignore

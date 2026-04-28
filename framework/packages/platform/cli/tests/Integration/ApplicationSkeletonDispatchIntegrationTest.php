@@ -19,12 +19,11 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Cli\Tests\Integration;
 
 use Coretsia\Platform\Cli\Application;
-use Coretsia\Platform\Cli\Exception\CliConfigInvalidException;
 use Coretsia\Platform\Cli\Tests\Fake\FakeWorkspaceSyncApplyCommand;
 use Coretsia\Platform\Cli\Tests\Fake\FakeWorkspaceSyncDryRunCommand;
 use PHPUnit\Framework\TestCase;
 
-final class ApplicationPresetDispatchIntegrationTest extends TestCase
+final class ApplicationSkeletonDispatchIntegrationTest extends TestCase
 {
     private string $tmpDir;
 
@@ -53,9 +52,9 @@ final class ApplicationPresetDispatchIntegrationTest extends TestCase
 
     public function testRunDispatchesRegisteredMultiTokenDryRunCommand(): void
     {
-        [$autoloadFile, $launcherFile] = $this->createLayout(withPreset: true);
+        $launcherFile = $this->createLayout(withSkeletonConfig: true);
 
-        $app = new Application($autoloadFile, $launcherFile);
+        $app = new Application($launcherFile);
 
         $result = $this->runApplicationAndCaptureOutput($app, [
             'coretsia',
@@ -72,9 +71,9 @@ final class ApplicationPresetDispatchIntegrationTest extends TestCase
 
     public function testRunDispatchesRegisteredMultiTokenApplyCommand(): void
     {
-        [$autoloadFile, $launcherFile] = $this->createLayout(withPreset: true);
+        $launcherFile = $this->createLayout(withSkeletonConfig: true);
 
-        $app = new Application($autoloadFile, $launcherFile);
+        $app = new Application($launcherFile);
 
         $result = $this->runApplicationAndCaptureOutput($app, [
             'coretsia',
@@ -88,16 +87,17 @@ final class ApplicationPresetDispatchIntegrationTest extends TestCase
         self::assertSame(1, FakeWorkspaceSyncApplyCommand::$calls);
     }
 
-    public function testMissingCliSpikesPresetBreaksCommandRegistration(): void
+    public function testMissingSkeletonCliConfigIsEmptyOverlayAndDoesNotRegisterCommands(): void
     {
-        [$autoloadFile, $launcherFile] = $this->createLayout(withPreset: false);
+        $launcherFile = $this->createLayout(withSkeletonConfig: false);
 
-        $app = new Application($autoloadFile, $launcherFile);
+        $app = new Application($launcherFile);
 
         $loadCliConfigSubtree = \Closure::bind(
             static function (Application $app): array {
                 /** @var array<string, mixed> $cli */
                 $cli = $app->loadCliConfigSubtree();
+
                 return $cli;
             },
             null,
@@ -106,55 +106,41 @@ final class ApplicationPresetDispatchIntegrationTest extends TestCase
 
         self::assertInstanceOf(\Closure::class, $loadCliConfigSubtree);
 
-        try {
-            $loadCliConfigSubtree($app);
-            self::fail('CliConfigInvalidException with reason "cli-spikes-preset-missing" was expected.');
-        } catch (CliConfigInvalidException $e) {
-            self::assertSame('CORETSIA_CLI_CONFIG_INVALID', $e->code());
-            self::assertSame('cli-spikes-preset-missing', $e->reason());
-        }
+        $cli = $loadCliConfigSubtree($app);
+
+        self::assertArrayHasKey('commands', $cli);
+        self::assertSame([], $cli['commands']);
 
         self::assertSame(0, FakeWorkspaceSyncDryRunCommand::$calls);
         self::assertSame(0, FakeWorkspaceSyncApplyCommand::$calls);
     }
 
-    /**
-     * @return array{0:string,1:string}
-     */
-    private function createLayout(bool $withPreset): array
+    private function createLayout(bool $withSkeletonConfig): string
     {
         $repoRoot = $this->tmpDir . '/repo';
-        $vendorRoot = $this->tmpDir . '/vendor';
 
         $frameworkBinDir = $repoRoot . '/framework/bin';
-        $skeletonDir = $repoRoot . '/skeleton';
-        $packageRoot = $vendorRoot . '/coretsia/devtools-cli-spikes';
+        $skeletonConfigDir = $repoRoot . '/skeleton/config';
 
         self::assertTrue(@mkdir($frameworkBinDir, 0777, true) || is_dir($frameworkBinDir));
-        self::assertTrue(@mkdir($skeletonDir, 0777, true) || is_dir($skeletonDir));
-        self::assertTrue(@mkdir($vendorRoot, 0777, true) || is_dir($vendorRoot));
-        self::assertTrue(@mkdir($packageRoot, 0777, true) || is_dir($packageRoot));
 
         $launcherFile = $frameworkBinDir . '/coretsia';
-        $autoloadFile = $vendorRoot . '/autoload.php';
 
         file_put_contents($launcherFile, "#!/usr/bin/env php\n<?php\n");
-        file_put_contents($autoloadFile, "<?php\n");
 
-        if ($withPreset) {
-            $configDir = $packageRoot . '/config';
-            self::assertTrue(@mkdir($configDir, 0777, true) || is_dir($configDir));
+        if ($withSkeletonConfig) {
+            self::assertTrue(@mkdir($skeletonConfigDir, 0777, true) || is_dir($skeletonConfigDir));
 
             file_put_contents(
-                $configDir . '/cli.php',
-                $this->buildPresetConfigPhp()
+                $skeletonConfigDir . '/cli.php',
+                $this->buildSkeletonConfigPhp()
             );
         }
 
-        return [$autoloadFile, $launcherFile];
+        return $launcherFile;
     }
 
-    private function buildPresetConfigPhp(): string
+    private function buildSkeletonConfigPhp(): string
     {
         $dryRunClassFile = \dirname(__DIR__) . '/Fake/FakeWorkspaceSyncDryRunCommand.php';
         $applyClassFile = \dirname(__DIR__) . '/Fake/FakeWorkspaceSyncApplyCommand.php';

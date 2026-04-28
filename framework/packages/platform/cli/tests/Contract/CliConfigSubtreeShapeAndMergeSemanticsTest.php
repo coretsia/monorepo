@@ -48,7 +48,7 @@ final class CliConfigSubtreeShapeAndMergeSemanticsTest extends TestCase
 
     public function testCliCommandsMergeIsAppendUniqueWithStableFirstOccurrenceOrder(): void
     {
-        $app = new Application('autoload-file-placeholder', 'launcher-file-placeholder');
+        $app = new Application('launcher-file-placeholder');
 
         $ref = new \ReflectionObject($app);
         $merge = $ref->getMethod('mergeCliSubtrees');

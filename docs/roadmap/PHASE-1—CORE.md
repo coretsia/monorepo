@@ -702,6 +702,81 @@ N/A
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
+### Gate — No runtime tooling artifacts (MUST)
+
+- Script: `framework/tools/gates/no_runtime_tooling_artifacts_gate.php`
+- Purpose: runtime packages MUST NOT import, require, execute, or read Phase 0/Phase 1 tooling code or tooling-generated architecture artifacts at runtime.
+- This is a runtime-purity gate, not a second architecture dependency brain.
+- It complements deptrac because deptrac catches namespace/class dependencies but does not reliably catch string-path reads, require/include paths, shell invocations, or accidental runtime consumption of tooling artifacts.
+
+#### Scan scope (MUST)
+
+The gate MUST scan runtime source/config only:
+
+- `framework/packages/core/*/src`
+- `framework/packages/core/*/config`
+- `framework/packages/platform/*/src`
+- `framework/packages/platform/*/config`
+- `framework/packages/integrations/*/src`
+- `framework/packages/integrations/*/config`
+- `framework/packages/presets/*/src`
+- `framework/packages/presets/*/config`
+- `framework/packages/enterprise/*/src`
+- `framework/packages/enterprise/*/config`
+
+#### Exclusions (MUST)
+
+The gate MUST exclude:
+
+- `framework/packages/devtools/**`
+- `**/tests/**`
+- `**/fixtures/**`
+- `**/vendor/**`
+- `framework/tools/**` as scan input, because tools are not runtime packages
+
+#### Forbidden evidence (MUST)
+
+Runtime source/config MUST NOT contain:
+
+- namespace imports or references:
+  - `Coretsia\Tools\Spikes\`
+  - `Coretsia\Devtools\`
+- Composer/package references:
+  - `devtools/internal-toolkit`
+  - `devtools/cli-spikes`
+  - `coretsia/devtools-internal-toolkit`
+  - `coretsia/devtools-cli-spikes`
+- runtime path reads/includes/execs involving:
+  - `framework/tools/`
+  - `tools/spikes/`
+  - `tools/build/`
+  - `tools/gates/`
+  - `framework/var/arch`
+- PHP include/require patterns that resolve into tooling paths
+- shell command strings that execute tooling paths from runtime code
+
+#### Allowed evidence (MUST)
+
+The gate MAY allow:
+
+- docs-only mentions outside scan scope
+- tests/fixtures mentions outside runtime scan scope
+- CI/tooling code under `framework/tools/**`
+- generated architecture artifacts consumed by CI/tooling jobs only, never by runtime packages
+
+#### Output policy (MUST)
+
+- On violation:
+  - line 1: `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION`
+  - line 2+: deterministic diagnostics
+- On scanner failure:
+  - line 1: `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_GATE_FAILED`
+- Diagnostics MUST be:
+  - repo-relative
+  - sorted by byte-order `strcmp`
+  - stable across OSes
+  - free of source snippets, raw file contents, absolute paths, secrets, environment values
+
 ### Deliverables (MUST)
 
 #### Creates
@@ -709,9 +784,37 @@ N/A
 - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
   - [x] MUST enforce at minimum:
     - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
-    - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag resolved from wiring/config
-  - [x] MAY additionally enforce forbidden ContextStore / ContextKeys usage once the owning Foundation/Kernel evidence exists
-  - [x] if the required owner-package evidence is not present yet, the gate MUST behave as deterministic no-op
+    - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag
+  - [x] MUST resolve the effective Foundation reset discovery tag from available Foundation evidence:
+    - [x] default reserved tag is `kernel.reset`
+    - [x] if `foundation.reset.tag` config evidence exists, that configured value is the effective reset discovery tag
+    - [x] the gate MUST NOT hardcode only `kernel.reset` when custom `foundation.reset.tag` evidence is present
+  - [x] MUST preserve deterministic no-op behavior:
+    - [x] if Foundation owner-package evidence is not present yet, the gate exits successfully
+    - [x] if Kernel owner-package evidence is not present yet, the gate exits successfully for kernel-specific checks
+    - [x] no missing-future-package failure is allowed
+  - [x] MUST NOT create `framework/tools/gates/kernel_reset_discipline_gate.php`.
+  - [x] MAY additionally enforce forbidden `ContextStore` / `ContextKeys` usage once the owning Foundation/Kernel evidence exists.
+  - [x] diagnostics MUST be deterministic:
+    - [x] repo-relative paths only
+    - [x] stable reason tokens
+    - [x] sorted by byte-order `strcmp`
+    - [x] no raw config payloads
+    - [x] no secrets
+    - [x] no absolute paths
+- [x] `framework/tools/gates/no_runtime_tooling_artifacts_gate.php`
+  - [x] enforces the “No runtime tooling artifacts” gate policy above
+  - [x] deterministic no-op when no runtime package scan roots exist
+  - [x] uses `ConsoleOutput`
+  - [x] uses deterministic reason tokens:
+    - [x] `runtime-imports-tools-spikes`
+    - [x] `runtime-imports-devtools`
+    - [x] `runtime-references-devtools-package`
+    - [x] `runtime-reads-framework-tools`
+    - [x] `runtime-executes-tooling-path`
+    - [x] `runtime-reads-architecture-artifact`
+  - [x] MUST NOT duplicate deptrac layer rules
+  - [x] MUST NOT parse `docs/roadmap/phase0/00_2-dependency-table.md`
 - [x] `framework/tools/gates/kernel_public_api_gate.php`
   - [x] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
   - [x] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
@@ -786,6 +889,7 @@ Tooling baseline configs
 #### Modifies
 
 - [x] `.github/workflows/ci.yml` — MUST include rails jobs:
+  - [x] ensure the gate runs in the gates job before runtime package tests
   - [x] `gates` (Linux): runs gate scripts deterministically
   - [x] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
   - [x] `test` (Linux): `composer -d framework install` → `composer -d framework test`
@@ -819,6 +923,8 @@ Tooling baseline configs
   - [x] adds `CORETSIA_CROSS_CUTTING_CONTRACT_GATE_FAILED`
   - [x] adds `CORETSIA_KERNEL_PUBLIC_API_DRIFT`
   - [x] adds `CORETSIA_KERNEL_PUBLIC_API_GATE_FAILED`
+  - [x] adds `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION`
+  - [x] adds `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_GATE_FAILED`
 
 - [x] `composer.json` — add repo-root mirror scripts (delegates to framework):
   - [x] `cross-cutting-contract:gate` → `@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --`
@@ -831,6 +937,7 @@ Tooling baseline configs
   - [x] `tag-constant-mirror:gate` → `@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --`
   - [x] `observability-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-naming:gate --`
   - [x] `artifact-header-schema:gate` → `@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --`
+  - [x] `no-runtime-tooling-artifacts:gate` → `@composer --no-interaction --working-dir=framework run-script no-runtime-tooling-artifacts:gate --`
 
 - [x] `framework/composer.json` — add workspace gate scripts:
   - [x] `cross-cutting-contract:gate` → `@php tools/gates/cross_cutting_contract_gate.php`
@@ -843,6 +950,8 @@ Tooling baseline configs
   - [x] `tag-constant-mirror:gate` → `@php tools/gates/tag_constant_mirror_gate.php`
   - [x] `observability-naming:gate` → `@php tools/gates/observability_naming_gate.php`
   - [x] `artifact-header-schema:gate` → `@php tools/gates/artifact_header_schema_gate.php`
+  - [x] `no-runtime-tooling-artifacts:gate` → `@php tools/gates/no_runtime_tooling_artifacts_gate.php`
+  - [x] include `@no-runtime-tooling-artifacts:gate` in the canonical `gates` aggregate
 
 #### Artifacts / outputs (if applicable)
 
@@ -885,6 +994,23 @@ N/A (tooling output only; must be secret-safe)
 - Integration:
   - [x] gates smoke run in CI job `gates`
   - [x] deptrac generate + analyze in CI job `arch`
+  - [x] `framework/tools/tests/Integration/CrossCuttingContractGateTest.php`
+    - [x] `kernel.stateful` service without `ResetInterface` fails deterministically
+    - [x] `kernel.stateful` service without effective reset discovery tag fails deterministically
+    - [x] custom `foundation.reset.tag` is respected when Foundation config evidence exists
+    - [x] default `kernel.reset` is used when no custom Foundation reset tag is configured
+    - [x] gate is deterministic no-op when required owner-package evidence is absent
+    - [x] diagnostics do not contain absolute paths, raw config payloads, or secrets
+  - [x] `framework/tools/tests/Integration/NoRuntimeToolingArtifactsGateTest.php`
+    - [x] runtime source importing `Coretsia\Tools\Spikes\*` fails
+    - [x] runtime source importing `Coretsia\Devtools\*` fails
+    - [x] runtime config/source referencing `framework/tools/` fails
+    - [x] runtime source requiring or including `tools/build/*` fails
+    - [x] runtime source shelling out to `tools/gates/*` fails
+    - [x] runtime source reading `framework/var/arch` fails
+    - [x] docs/tests/fixtures mentions are ignored
+    - [x] diagnostics are sorted and repo-relative
+    - [x] diagnostics do not contain source snippets, absolute paths, raw file contents, env values, or secrets
 - Gates/Arch:
   - [x] deptrac denies forbidden edges (e.g. platform → integrations)
   - [x] contracts-only ports gate blocks ports outside `core/contracts`
@@ -918,6 +1044,12 @@ N/A (tooling output only; must be secret-safe)
   - [x] Lock drift check remains enforced (job fails if any lock changed)
   - [x] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
 - [x] Tooling rail supports specialized sub-gates without changing output policy or CI invariants
+- [x] No `kernel_reset_discipline_gate.php` exists.
+- [x] Reset discipline remains enforced by `cross_cutting_contract_gate.php`.
+- [x] Effective reset tag resolution is Foundation-owned and is not duplicated as a competing Kernel policy.
+- [x] Runtime packages cannot consume tooling code or tooling artifacts.
+- [x] `no_runtime_tooling_artifacts_gate.php` is part of the canonical gates rail.
+- [x] The gate complements deptrac but does not duplicate deptrac rules or SSoT dependency parsing.
 
 ---
 
@@ -9385,6 +9517,23 @@ Forbidden:
 - читати `framework/tools/**` у runtime execution
   (Spike fixtures допускаються тільки в test-time locks.)
 
+#### Gate boundary: closure definitions are compiler semantics, not a standalone static gate (MUST)
+
+This epic MUST NOT introduce `framework/tools/gates/container_no_closure_definitions_gate.php`.
+
+Closure rejection is a semantic compiled-container invariant, not a generic PHP-source invariant:
+- closures / anonymous functions are forbidden only when they become container definitions, factories, compiled graph entries, or artifact payload values;
+- ordinary closure usage in unrelated tests/fixtures/tools is outside this epic’s runtime policy;
+- enforcement MUST live in `ContainerCompiler` and be locked by Contract/Integration tests.
+
+The canonical enforcement chain is:
+- `ContainerCompiler` rejects closure / anonymous-function based definitions or factories before artifact write;
+- `CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php` locks the failure semantics;
+- artifact/header/schema validation covers only the already-produced artifact envelope and payload shape, not provider-source semantics.
+
+If the compiled-container pipeline is ever not executed by CI on every relevant PR, a later tooling epic MAY introduce a broader `compiled_container_policy_gate.php`.
+That future gate, if introduced, MUST inspect the compiled definition graph / artifact payload and MUST NOT be named `container_no_closure_definitions_gate.php`.
+
 ## Required invariants for compiled container (cemented; single-choice)
 
 ### A) Deterministic graph ordering (MUST)
@@ -9406,6 +9555,9 @@ Forbidden:
 - no timestamps, no random ids, no environment-dependent metadata
 - no absolute machine paths embedded
 - no closures / anonymous functions serialized into artifact payload
+- no closure / anonymous-function based service definitions, factories, configurators, lazy factories, or compiled graph values MAY reach artifact serialization
+- compiled definition graph values MUST be deterministic schema values only: scalars, lists, maps, class/service ids, references, parameters, and schema-owned structured values
+- callable-like runtime behavior MUST be represented by deterministic service ids / class references, never by serialized PHP callables or closures
 
 ### C) Error policy (MUST)
 Будь-які помилки компіляції/читання artifact MUST бути:
@@ -9425,6 +9577,11 @@ Kernel повертає/кидає deterministic exceptions.
 - header shape/schema is stable (без timestamps)
 - factory builds runtime container from artifact deterministically
 - missing artifact hard-fails with deterministic code `CORETSIA_CONTAINER_ARTIFACT_MISSING` (без path leaks)
+- closure / anonymous-function based container definitions are rejected before artifact write:
+  - failure code: `CORETSIA_CONTAINER_COMPILE_FAILED`
+  - message token: `container-compile-failed`
+  - no closure dumps, source snippets, absolute paths, raw config values, env-specific bytes, or OS error messages
+  - this verification MUST be part of the canonical CI/test rail for this epic, not an optional local-only check
 
 ### Deliverables (MUST)
 
@@ -9586,6 +9743,9 @@ Docs:
 - [ ] Add/extend an integration test in `core/kernel` (or wherever your artifact boot tests live) asserting:
   - [ ] artifact-only boot can resolve `ResetOrchestrator`
   - [ ] KernelRuntime can execute a UoW and triggers reset once per UoW
+- Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
+- No standalone `container_no_closure_definitions_gate.php` exists.
+- Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
 
 ---
 
@@ -11171,11 +11331,12 @@ phase: 1
 epic_id: "1.430.0"
 owner_path: "framework/tools/gates/"
 
-goal: "Enforce architectural rules (e.g., layering, dependency direction) using deptrac with a canonical configuration."
+goal: "Provide a deterministic architecture gate wrapper around the canonical deptrac config and SSoT generator, without creating a second architecture-rules brain."
 provides:
-- "Deterministic deptrac analysis with predefined layers and rules"
-- "Integration into CI to block violations"
-- "Single source of truth for architecture rules"
+- "Deterministic architecture gate wrapper over canonical deptrac analysis"
+- "CI blocker for architecture violations"
+- "SSoT freshness check via existing deptrac generator"
+- "No second architecture-rules/config brain"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -11195,7 +11356,9 @@ ssot_refs:
   - `docs/ssot/architecture-layers.md` defines allowed dependencies.
 
 - Required deliverables:
-  - `framework/tools/testing/deptrac.yaml` — canonical deptrac config generated/owned by `1.50.0`
+  - `framework/tools/build/deptrac_generate.php` — canonical SSoT → deptrac config generator/checker
+  - `framework/tools/testing/deptrac.yaml` — generated canonical deptrac config
+  - `docs/roadmap/phase0/00_2-dependency-table.md` — canonical compile-time dependency SSoT
 
 #### Compile-time deps
 
@@ -11209,39 +11372,117 @@ Forbidden:
 
 ### Entry points / integration points (MUST)
 
-- Composer:
-  - `composer deptrac:analyze` — runs deptrac analysis
-  - `composer architecture:gate` — runs the architecture gate
+- Composer, framework workspace:
+  - `composer arch:deptrac:check` — verifies generated deptrac config is up to date from SSoT
+  - `composer arch:deptrac:generate` — regenerates canonical deptrac config from SSoT
+  - `composer arch:deptrac:analyze` — runs raw deptrac analysis against `framework/tools/testing/deptrac.yaml`
+  - `composer architecture:gate` — runs deterministic architecture gate wrapper
+
+- Composer, repo root:
+  - `composer architecture:gate` — delegates to framework workspace `architecture:gate`
+  - optional aliases MAY exist for `deptrac:generate` / `deptrac:analyze`, but MUST delegate to the existing framework arch scripts and MUST NOT bypass SSoT freshness checks in CI.
+
 - CI:
-  - run in arch job.
+  - architecture job MUST run:
+    - `arch:deptrac:check`
+    - `architecture:gate`
+  - CI MUST NOT run a separate `deptrac_ssot_ruleset_gate.php`.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/gates/architecture_gate.php` — deterministic gate:
-  - [ ] MUST analyze the canonical deptrac config owned by `1.50.0` (`framework/tools/testing/deptrac.yaml`)
-  - [ ] MUST NOT introduce a second architecture-rules/config brain
-  - [ ] captures output, parses for violations
-  - [ ] if violations found, prints `CORETSIA_ARCHITECTURE_VIOLATION` + list of violations (normalized paths, rule names)
+- [ ] `framework/tools/gates/architecture_gate.php` — deterministic architecture gate:
+  - [ ] MUST first verify canonical config freshness by invoking or semantically matching:
+    - [ ] `php tools/build/deptrac_generate.php --check`
+  - [ ] MUST then analyze the canonical generated config:
+    - [ ] `vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache`
+  - [ ] MUST analyze only the canonical deptrac config generated from SSoT.
+  - [ ] MUST NOT introduce a second architecture-rules/config brain.
+  - [ ] MUST NOT parse roadmap docs independently as an alternative ruleset source.
+  - [ ] MUST NOT create or require `deptrac_gate.php`.
+  - [ ] MUST NOT create or require `deptrac_ssot_ruleset_gate.php`.
+  - [ ] captures deptrac output and normalizes diagnostics deterministically:
+    - [ ] repo-relative paths only
+    - [ ] stable LF line endings
+    - [ ] diagnostics sorted by byte-order `strcmp`
+    - [ ] no absolute paths
+    - [ ] no code snippets
+  - [ ] on SSoT/config freshness failure, surfaces deterministic diagnostics from the generator under architecture-gate output policy.
+  - [ ] on architecture violations, prints:
+    - [ ] `CORETSIA_ARCHITECTURE_VIOLATION`
+    - [ ] normalized list of violations
+  - [ ] on deptrac/generator/tooling failure, prints:
+    - [ ] `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
   - [ ] uses `ConsoleOutput`
-  - [ ] if deptrac not available, prints `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
-  - [ ] supports `--path` override
+  - [ ] supports `--path` override only as an analysis narrowing input.
+    - [ ] `--path` MUST NOT mutate `framework/tools/testing/deptrac.yaml`.
+    - [ ] `--path` MUST NOT create an alternate deptrac config.
+
+#### Explicit non-goals / duplicate-gate guard (MUST)
+
+- [ ] MUST NOT create `framework/tools/gates/deptrac_ssot_ruleset_gate.php`.
+- [ ] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
+- [ ] Architecture gate MUST call or require the result of the existing SSoT generator/checker instead of implementing its own parser/ruleset.
+- [ ] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
+
+#### Internal Composer dependency consistency (MUST)
+
+This epic MUST NOT create `framework/tools/gates/no_platform_integrations_dep_gate.php`.
+
+The policy “core packages do not depend on forbidden platform/integrations/devtools packages” MUST be enforced through the canonical dependency chain:
+
+`docs/roadmap/phase0/00_2-dependency-table.md`
+→ `framework/tools/build/deptrac_generate.php`
+→ `framework/tools/testing/deptrac.yaml`
+→ `framework/tools/gates/architecture_gate.php`
+
+Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
+
+- [ ] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
+  - [ ] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
+  - [ ] map internal Composer names to package ids
+  - [ ] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [ ] dependencies not present in SSoT MUST fail deterministically
+  - [ ] diagnostics MUST include:
+    - [ ] source package id
+    - [ ] target package id
+    - [ ] reason token `composer-edge-not-in-ssot`
+  - [ ] diagnostics MUST NOT include absolute paths or raw composer file dumps
+
+This check closes forbidden dependency drift without introducing a second architecture policy gate.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `deptrac:generate` → `@composer --no-interaction --working-dir=framework run-script deptrac:generate --`
-  - [ ] `deptrac:analyze` → `@composer --no-interaction --working-dir=framework run-script deptrac:analyze --`
+- [ ] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
+  - [ ] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [ ] internal package self-requires are forbidden
+  - [ ] unknown internal package names MUST fail deterministically
+  - [ ] diagnostics MUST use package ids, not absolute paths
+  - [ ] failure MUST use a deterministic code:
+    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [ ] this check MUST NOT inspect or enforce external vendor packages
+  - [ ] this check MUST NOT create a second architecture ruleset
+- [ ] `composer.json` — add/ensure mirror scripts:
   - [ ] `architecture:gate` → `@composer --no-interaction --working-dir=framework run-script architecture:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `deptrac:generate` → `@php tools/gates/architecture_gate.php`
-  - [ ] `deptrac:analyze` → `deptrac analyze tools/testing/deptrac.yaml`
+  - [ ] optional `deptrac:generate` alias MAY delegate to `framework` `arch:deptrac:generate`
+  - [ ] optional `deptrac:analyze` alias MAY delegate to `framework` `arch:deptrac:analyze`
+- [ ] `framework/composer.json` — add/ensure scripts:
   - [ ] `architecture:gate` → `@php tools/gates/architecture_gate.php`
-- [ ] `.github/workflows/ci.yml` — add architecture analysis
+  - [ ] keep canonical existing arch scripts:
+    - [ ] `arch:deptrac:check` → `@php tools/build/deptrac_generate.php --check`
+    - [ ] `arch:deptrac:generate` → `@php tools/build/deptrac_generate.php --apply`
+    - [ ] `arch:deptrac:analyze` → `@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache`
+  - [ ] `gates` aggregate SHOULD include `@architecture:gate` only if the CI architecture job does not run it separately.
+    - [ ] Single-choice CI policy: do not run the same architecture gate twice in the same job.
+- [ ] `.github/workflows/ci.yml` — add architecture analysis job:
+  - [ ] runs SSoT freshness check
+  - [ ] runs architecture gate
+  - [ ] fails deterministically on violations
 - [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_ARCHITECTURE_VIOLATION`
   - [ ] `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
+  - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
 
 ### Cross-cutting
 
@@ -11261,13 +11502,25 @@ Forbidden:
 
 - [ ] Integration test: create synthetic code with layer violation, run gate, assert failure.
 
-### Tests
+### Tests (MUST)
 
 - [ ] `framework/tools/tests/Integration/ArchitectureGateTest.php`
+  - [ ] synthetic layer violation fails with `CORETSIA_ARCHITECTURE_VIOLATION`
+  - [ ] stale generated deptrac config fails deterministically through architecture gate
+  - [ ] missing deptrac binary / deptrac execution failure maps to `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
+  - [ ] diagnostics contain repo-relative paths only
+  - [ ] diagnostics do not contain source snippets or absolute paths
 
 ### DoD
 
 - [ ] Gate implemented, CI integrated.
+- [ ] No `framework/tools/gates/deptrac_gate.php` exists.
+- [ ] No `framework/tools/gates/deptrac_ssot_ruleset_gate.php` exists.
+- [ ] `architecture_gate.php` is the only architecture gate wrapper.
+- [ ] `deptrac_generate.php --check` remains the only SSoT freshness enforcement entrypoint.
+- [ ] No `no_platform_integrations_dep_gate.php` exists.
+- [ ] Forbidden package dependency drift is enforced through SSoT dependency table + deptrac generator/check + architecture gate.
+- [ ] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
 
 ---
 

@@ -180,6 +180,14 @@ final class RepoTextNormalizationScanner
             '.gitattributes text eol=lf',
             '.gitignore     text eol=lf',
 
+            'LICENSE text eol=lf',
+            'NOTICE text eol=lf',
+            'framework/packages/*/*/LICENSE text eol=lf',
+            'framework/packages/*/*/NOTICE text eol=lf',
+
+            'coretsia text eol=lf',
+            'framework/bin/coretsia text eol=lf',
+
             '*.php   text eol=lf',
             '*.phpt  text eol=lf',
             '*.phtml text eol=lf',
@@ -320,8 +328,21 @@ final class RepoTextNormalizationScanner
                 continue;
             }
 
-            // Always check policy files if they are under scanRoot.
-            if ($base === '.editorconfig' || $base === '.gitattributes' || $base === '.gitignore') {
+            // Always check policy/legal files if they are under scanRoot.
+            if (
+                $base === '.editorconfig'
+                || $base === '.gitattributes'
+                || $base === '.gitignore'
+                || $base === 'LICENSE'
+                || $base === 'NOTICE'
+            ) {
+                $bytes = self::readBytes($absPath);
+                self::enforceLfOnlyBytes($rel, $bytes, $diagnostics);
+                continue;
+            }
+
+            // Extensionless runtime/tooling launcher pinned explicitly in .gitattributes.
+            if ($rel === 'framework/bin/coretsia' || $rel === 'coretsia') {
                 $bytes = self::readBytes($absPath);
                 self::enforceLfOnlyBytes($rel, $bytes, $diagnostics);
                 continue;

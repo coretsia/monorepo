@@ -37,13 +37,12 @@ use Coretsia\Platform\Cli\Output\TrackedOutput;
  * Minimal Phase 0 CLI runtime (kernel-free).
  *
  * Responsibilities:
- * - deterministic config loading + merge (defaults → preset → skeleton)
+ * - deterministic config loading + merge (defaults → skeleton)
  * - command registry instantiation (new $fqcn(), zero-arg ctor only)
  * - built-in commands: help/list
  * - deterministic error boundary for CliExceptionInterface
  *
  * IMPORTANT integration contract:
- * - $autoloadFile MUST be the resolved absolute Composer autoload file selected by the launcher.
  * - $launcherFile MUST be the resolved absolute launcher file path (framework/bin/coretsia),
  *   used for deterministic repo root resolution (no probing).
  *
@@ -51,17 +50,12 @@ use Coretsia\Platform\Cli\Output\TrackedOutput;
  */
 final class Application
 {
-    private const string DEVTOOLS_PACKAGE = 'coretsia/devtools-cli-spikes';
-    private const string PRESET_RELATIVE_FILE = '/coretsia/devtools-cli-spikes/config/cli.php';
-
     private const string SKELETON_RELATIVE_FILE = '/config/cli.php';
 
-    private readonly string $autoloadFile;
     private readonly string $launcherFile;
 
-    public function __construct(string $autoloadFile, string $launcherFile)
+    public function __construct(string $launcherFile)
     {
-        $this->autoloadFile = $autoloadFile;
         $this->launcherFile = $launcherFile;
     }
 
@@ -110,7 +104,6 @@ final class Application
     /**
      * Deterministically load and merge the `cli` subtree:
      * - defaults: framework/packages/platform/cli/config/cli.php
-     * - preset: vendor/coretsia/devtools-cli-spikes/config/cli.php (only if devtools package is installed)
      * - skeleton: skeleton/config/cli.php (repo layout derived from launcher path; OPTIONAL file)
      *
      * @return array<string, mixed>
@@ -123,14 +116,11 @@ final class Application
             CliConfigInvalidException::REASON_CLI_SUBTREE_INVALID
         );
 
-        $preset = $this->loadOptionalDevtoolsPresetSubtree();
-
         // Optional overlay: absence is allowed (user override zone).
         $skeleton = $this->loadSkeletonSubtree();
 
-        // Merge order is single-choice and deterministic: defaults → preset → skeleton.
+        // Merge order is single-choice and deterministic: defaults → skeleton.
         $cli = $defaults;
-        $cli = $this->mergeCliSubtrees($cli, $preset);
         $cli = $this->mergeCliSubtrees($cli, $skeleton);
 
         // Post-merge: cement required keys presence deterministically.
@@ -148,32 +138,6 @@ final class Application
     {
         // src/Application.php -> package root -> config/cli.php
         return \dirname(__DIR__) . '/config/cli.php';
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function loadOptionalDevtoolsPresetSubtree(): array
-    {
-        if (!$this->isDevtoolsPresetInstalled()) {
-            return [];
-        }
-
-        $presetFile = $this->vendorDir() . self::PRESET_RELATIVE_FILE;
-
-        if (!\is_file($presetFile) || !\is_readable($presetFile)) {
-            throw CliConfigInvalidException::cliSpikesPresetMissing();
-        }
-
-        try {
-            return $this->loadCliSubtreeFromFile(
-                $presetFile,
-                CliConfigInvalidException::REASON_CLI_SPIKES_PRESET_INVALID
-            );
-        } catch (CliConfigInvalidException $e) {
-            // Normalize any shape failure into the prescribed preset-invalid token.
-            throw CliConfigInvalidException::cliSpikesPresetInvalid($e);
-        }
     }
 
     /**
@@ -620,35 +584,6 @@ final class Application
         }
 
         return $out;
-    }
-
-    private function isDevtoolsPresetInstalled(): bool
-    {
-        // Deterministic detection:
-        // 1) if the package directory exists under the selected vendor dir, preset is considered installed
-        //    and config/cli.php becomes mandatory
-        // 2) otherwise, fall back to Composer\InstalledVersions when available
-        $packageDir = $this->vendorDir() . '/coretsia/devtools-cli-spikes';
-        if (\is_dir($packageDir)) {
-            return true;
-        }
-
-        if (!\class_exists(\Composer\InstalledVersions::class)) {
-            return false;
-        }
-
-        try {
-            return \Composer\InstalledVersions::isInstalled(self::DEVTOOLS_PACKAGE);
-        } catch (\Throwable) {
-            // Deterministic safety: treat failure as "not installed".
-            return false;
-        }
-    }
-
-    private function vendorDir(): string
-    {
-        // Autoload file is selected by launcher and passed in; derive vendor dir without probing.
-        return \dirname($this->autoloadFile);
     }
 
     /**

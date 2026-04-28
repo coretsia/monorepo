@@ -15,6 +15,14 @@
 .gitignore     text eol=lf
 
 # -----------------------------------------------------------------------------
+# Legal files (force LF)
+# -----------------------------------------------------------------------------
+LICENSE text eol=lf
+NOTICE text eol=lf
+framework/packages/*/*/LICENSE text eol=lf
+framework/packages/*/*/NOTICE text eol=lf
+
+# -----------------------------------------------------------------------------
 # Source (force LF)
 # -----------------------------------------------------------------------------
 *.php   text eol=lf diff=php
@@ -51,6 +59,8 @@
 # -----------------------------------------------------------------------------
 # Scripts (force LF)
 # -----------------------------------------------------------------------------
+coretsia text eol=lf
+framework/bin/coretsia text eol=lf
 *.sh    text eol=lf
 *.bash  text eol=lf
 *.zsh   text eol=lf

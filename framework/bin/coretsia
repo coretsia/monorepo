@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 declare(strict_types=1);
@@ -66,7 +67,7 @@ if ($autoloadFile === false) {
 try {
     require $autoloadFile;
 
-    $app = new Application($autoloadFile, $launcherFile);
+    $app = new Application($launcherFile);
 
     $exitCode = $app->run(null);
 

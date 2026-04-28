@@ -38,9 +38,9 @@ final class CliServiceFactory
         // static-only
     }
 
-    public static function application(string $autoloadFile, string $launcherFile): Application
+    public static function application(string $launcherFile): Application
     {
-        return new Application($autoloadFile, $launcherFile);
+        return new Application($launcherFile);
     }
 
     public static function input(?array $argv = null): CliInput

@@ -601,7 +601,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - diagnostics use relative paths only and are sorted by `strcmp`
   - diagnostics MUST NOT include secrets, absolute paths, raw config payloads, headers, tokens, or environment values
 - CI/rails policy:
-  - `composer gates` MUST execute this gate as part of the baseline/tooling gates aggregate.
+  - `composer gates` MUST execute this gate as part of the baseline/tooling gates aggregate after `composer no-runtime-tooling-artifacts:gate`.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script package-compliance:gate --`
 - Framework implementation detail: `@php tools/gates/package_compliance_gate.php`.
@@ -1528,14 +1528,16 @@ Each new command is added as a separate section under `## Commands` (the format 
   8) `composer artifact-header-schema:gate`
   9) `composer cross-cutting-contract:gate`
   10) `composer kernel-public-api:gate`
-  11) `composer package-compliance:gate`
+  11) `composer no-runtime-tooling-artifacts:gate`
+  12) `composer package-compliance:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`
 - Policy:
   - order of invoked gates inside the aggregate rail MUST be deterministic
   - aggregate rail MUST invoke named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths
-  - package compliance MUST run after baseline public-API/policy gates in this aggregate rail
+  - runtime tooling artifact purity MUST run before package compliance in this aggregate rail
+  - package compliance MUST run after baseline public-API/runtime-purity/policy gates in this aggregate rail
   - spikes rails are separate and MUST NOT be silently folded into this aggregate command
   - this rail SHOULD run before `composer quality` and `composer test` in CI
 
@@ -2151,7 +2153,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Entrypoint:** `composer cross-cutting-contract:gate`  
 **Category:** repo policy / guard  
 **Outputs:**
-- none (exits non-zero on cross-cutting contract policy violations; emits deterministic diagnostics)
+- none on success
+- deterministic diagnostics on cross-cutting contract policy violations
 
 **Determinism:**
 
@@ -2163,14 +2166,28 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Purpose: enforces cross-cutting Kernel/Foundation contract invariants once the required owner-package evidence exists.
 - Enforced baseline:
   - services tagged as `kernel.stateful` MUST implement `Coretsia\Contracts\Runtime\ResetInterface`
-  - services tagged as `kernel.stateful` MUST also be discoverable through the effective Foundation reset discovery tag `kernel.reset`
+  - services tagged as `kernel.stateful` MUST also be discoverable through the effective Foundation reset discovery tag
+  - default effective Foundation reset discovery tag is `kernel.reset`
+  - if `foundation.reset.tag` config evidence exists, that configured value is the effective Foundation reset discovery tag
+  - the gate MUST NOT hardcode only `kernel.reset` when custom `foundation.reset.tag` evidence is present
   - if the required owner-package evidence is not present yet, the gate behaves as a deterministic no-op
+- Foundation reset tag evidence:
+  - canonical default: `kernel.reset`
+  - optional config evidence path: `framework/packages/core/foundation/config/foundation.php`
+  - optional config key namespace: `foundation.reset.tag`
+  - the config file MUST return the `foundation` subtree, so the file-level shape is:
+    - `['reset' => ['tag' => '<tag-name>']]`
+  - custom tag values MUST follow canonical reserved tag naming syntax:
+    - `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`
 - Additional enforcement:
   - once `ContextStore` / `ContextKeys` owner symbols exist, forbidden direct usage is reported deterministically
 - Output policy:
   - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
-  - next lines are framework-root-relative paths plus fixed reason tokens sorted by `strcmp`
+  - next lines are framework-root-relative paths plus fixed reason tokens sorted by byte-order `strcmp`
+  - diagnostics MUST NOT include absolute paths, raw config payloads, secrets, source snippets, or environment-specific values
 - Fixed reason tokens:
+  - `kernel-tags-drift`
+  - `foundation-reset-tag-invalid`
   - `kernel-stateful-service-missing-reset-tag`
   - `kernel-stateful-service-class-unresolved`
   - `kernel-stateful-service-not-resettable`
@@ -2247,6 +2264,88 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer kernel-public-api:gate`
+
+---
+
+### No runtime tooling artifacts gate
+
+**Id:** `tool.no_runtime_tooling_artifacts_gate`
+**Entrypoint:** `composer no-runtime-tooling-artifacts:gate`
+**Category:** repo policy / runtime purity guard
+**Outputs:**
+- none on success
+- exits non-zero on runtime tooling artifact violations
+- emits deterministic diagnostics only through the canonical tooling output policy
+
+**Determinism:**
+
+| Mode / flags                                  | Determinism   | Notes                                                                                |
+|-----------------------------------------------|---------------|--------------------------------------------------------------------------------------|
+| `composer no-runtime-tooling-artifacts:gate`  | deterministic | Read-only; scans runtime package `src/` and `config/` roots only.                    |
+
+**Notes:**
+- Purpose: prevents runtime packages from importing, requiring, executing, or reading Phase 0/Phase 1 tooling code or tooling-generated architecture artifacts.
+- This is a runtime-purity gate, not a second architecture dependency brain.
+- It complements deptrac because deptrac catches namespace/class dependencies, while this gate catches string-path reads, require/include paths, shell invocations, and accidental runtime consumption of tooling artifacts.
+- Default scan scope:
+  - `framework/packages/core/*/src`
+  - `framework/packages/core/*/config`
+  - `framework/packages/platform/*/src`
+  - `framework/packages/platform/*/config`
+  - `framework/packages/integrations/*/src`
+  - `framework/packages/integrations/*/config`
+  - `framework/packages/presets/*/src`
+  - `framework/packages/presets/*/config`
+  - `framework/packages/enterprise/*/src`
+  - `framework/packages/enterprise/*/config`
+- Excluded paths:
+  - `framework/packages/devtools/**`
+  - `**/tests/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+  - `framework/tools/**` as scan input
+- Forbidden evidence:
+  - namespace imports or references to `Coretsia\Tools\Spikes\`
+  - namespace imports or references to `Coretsia\Devtools\`
+  - composer/package references to devtools packages
+  - runtime path reads/includes/execs involving `framework/tools/`
+  - runtime path reads/includes/execs involving `tools/spikes/`, `tools/build/`, or `tools/gates/`
+  - runtime reads of `framework/var/arch`
+  - shell command strings that execute tooling paths from runtime code
+- Allowed evidence:
+  - docs-only mentions outside scan scope
+  - tests/fixtures mentions outside runtime scan scope
+  - CI/tooling code under `framework/tools/**`
+  - generated architecture artifacts consumed by CI/tooling jobs only
+- Output policy:
+  - violation: line 1 is stable code `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION`
+  - scanner/internal failure: line 1 is stable code `CORETSIA_RUNTIME_TOOLING_ARTIFACTS_GATE_FAILED`
+  - diagnostics are repo-relative
+  - diagnostics are sorted by byte-order `strcmp`
+  - diagnostics MUST NOT include source snippets, raw file contents, absolute paths, secrets, environment values, headers, or tokens
+- Fixed reason tokens:
+  - `runtime-imports-tools-spikes`
+  - `runtime-imports-devtools`
+  - `runtime-references-devtools-package`
+  - `runtime-reads-framework-tools`
+  - `runtime-executes-tooling-path`
+  - `runtime-reads-architecture-artifact`
+- Deterministic no-op policy:
+  - if no runtime package scan roots exist, the gate exits 0 and prints nothing
+- Non-goals:
+  - MUST NOT duplicate deptrac layer rules
+  - MUST NOT parse `docs/roadmap/phase0/00_2-dependency-table.md`
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script no-runtime-tooling-artifacts:gate --`
+  - framework implementation detail: `@php tools/gates/no_runtime_tooling_artifacts_gate.php`
+- Direct call `php framework/tools/gates/no_runtime_tooling_artifacts_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+- Aggregate rail integration:
+  - `composer gates` invokes this gate after `composer kernel-public-api:gate`
+  - `composer gates` invokes this gate before `composer package-compliance:gate`
+  - this gate SHOULD run before framework package tests in CI
+
+**Usage (repo root):**
+- `composer no-runtime-tooling-artifacts:gate`
 
 ---
 

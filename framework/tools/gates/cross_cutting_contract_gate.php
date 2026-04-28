@@ -159,6 +159,16 @@ declare(strict_types=1);
             exit(1);
         }
 
+        [$effectiveResetTag, $effectiveResetTagViolations] = coretsia_cross_cutting_contract_gate_resolve_effective_foundation_reset_tag(
+            $packagesRoot,
+            'kernel.reset',
+        );
+
+        if ($effectiveResetTagViolations !== []) {
+            $ConsoleOutput::codeWithDiagnostics($codeViolation, $effectiveResetTagViolations);
+            exit(1);
+        }
+
         if (!\is_dir($packagesRoot)) {
             exit(0);
         }
@@ -217,6 +227,7 @@ declare(strict_types=1);
                 coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
                     $absPath,
                     $classFiles,
+                    $effectiveResetTag,
                 ) as $evidence
             ) {
                 if (!$evidence['has_reset_tag']) {
@@ -770,6 +781,7 @@ function coretsia_cross_cutting_contract_gate_find_context_symbols(array $declar
 function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
     string $phpFile,
     array  $classFiles,
+    string $effectiveResetTag,
 ): array {
     $source = coretsia_cross_cutting_contract_gate_read_file($phpFile);
 
@@ -810,7 +822,7 @@ function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
 
         $hasResetTag = false;
         for ($j = $windowStart; $j <= $windowEnd; $j++) {
-            if (coretsia_cross_cutting_contract_gate_is_reset_tag_token($tokens[$j])) {
+            if (coretsia_cross_cutting_contract_gate_is_reset_tag_token($tokens[$j], $effectiveResetTag)) {
                 $hasResetTag = true;
                 break;
             }
@@ -923,17 +935,19 @@ function coretsia_cross_cutting_contract_gate_is_stateful_tag_token(array|string
 /**
  * @param array{0:int, 1:string, 2:int}|string $token
  */
-function coretsia_cross_cutting_contract_gate_is_reset_tag_token(array|string $token): bool
+function coretsia_cross_cutting_contract_gate_is_reset_tag_token(array|string $token, string $effectiveResetTag): bool
 {
     if (!\is_array($token)) {
         return false;
     }
 
     if ($token[0] === T_CONSTANT_ENCAPSED_STRING) {
-        return coretsia_cross_cutting_contract_gate_decode_php_string_literal($token[1]) === 'kernel.reset';
+        return coretsia_cross_cutting_contract_gate_decode_php_string_literal($token[1]) === $effectiveResetTag;
     }
 
-    return $token[0] === T_STRING && $token[1] === 'KERNEL_RESET';
+    return $token[0] === T_STRING
+        && $token[1] === 'KERNEL_RESET'
+        && $effectiveResetTag === 'kernel.reset';
 }
 
 /**
@@ -1473,6 +1487,185 @@ function coretsia_cross_cutting_contract_gate_decode_php_string_literal(string $
     }
 
     throw new \RuntimeException('php-string-literal-quote-invalid');
+}
+
+/**
+ * @return array{0:string,1:list<string>}
+ */
+function coretsia_cross_cutting_contract_gate_resolve_effective_foundation_reset_tag(
+    string $packagesRoot,
+    string $defaultResetTag,
+): array {
+    $packagesRoot = \rtrim(\str_replace('\\', '/', $packagesRoot), '/');
+    $defaultResetTag = \trim($defaultResetTag);
+
+    if ($defaultResetTag === '') {
+        $defaultResetTag = 'kernel.reset';
+    }
+
+    $foundationConfigFile = $packagesRoot . '/core/foundation/config/foundation.php';
+
+    if (!\is_file($foundationConfigFile) || !\is_readable($foundationConfigFile)) {
+        return [$defaultResetTag, []];
+    }
+
+    $source = coretsia_cross_cutting_contract_gate_read_file($foundationConfigFile);
+    $configuredResetTag = coretsia_cross_cutting_contract_gate_extract_foundation_reset_tag_from_config_source($source);
+
+    if ($configuredResetTag === null) {
+        return [$defaultResetTag, []];
+    }
+
+    if (!coretsia_cross_cutting_contract_gate_is_valid_tag_name($configuredResetTag)) {
+        return [
+            $defaultResetTag,
+            [
+                'packages/core/foundation/config/foundation.php: foundation-reset-tag-invalid',
+            ],
+        ];
+    }
+
+    return [$configuredResetTag, []];
+}
+
+function coretsia_cross_cutting_contract_gate_extract_foundation_reset_tag_from_config_source(string $source): ?string
+{
+    if (
+        \preg_match(
+            '/([\'"])reset\1\s*=>\s*(array\s*\(|\[)/iu',
+            $source,
+            $matches,
+            \PREG_OFFSET_CAPTURE,
+        ) !== 1
+    ) {
+        return null;
+    }
+
+    $matchText = (string)$matches[2][0];
+    $matchOffset = (int)$matches[2][1];
+
+    if (\str_ends_with($matchText, '[')) {
+        $openPos = $matchOffset + \strlen($matchText) - 1;
+        $open = '[';
+        $close = ']';
+    } else {
+        $openPos = \strpos($source, '(', $matchOffset);
+        if ($openPos === false) {
+            return null;
+        }
+
+        $open = '(';
+        $close = ')';
+    }
+
+    $resetBlock = coretsia_cross_cutting_contract_gate_extract_balanced_block($source, $openPos, $open, $close);
+    if ($resetBlock === null) {
+        return '';
+    }
+
+    if (
+        \preg_match(
+            '/([\'"])tag\1\s*=>\s*([\'"])((?:\\\\.|(?!\2).)*)\2/su',
+            $resetBlock,
+            $tagMatch,
+        ) === 1
+    ) {
+        return coretsia_cross_cutting_contract_gate_decode_php_string_literal($tagMatch[2] . $tagMatch[3] . $tagMatch[2]);
+    }
+
+    if (\preg_match('/([\'"])tag\1\s*=>/iu', $resetBlock) === 1) {
+        return '';
+    }
+
+    return null;
+}
+
+function coretsia_cross_cutting_contract_gate_is_valid_tag_name(string $tag): bool
+{
+    return \preg_match('/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/u', $tag) === 1;
+}
+
+function coretsia_cross_cutting_contract_gate_extract_balanced_block(
+    string $source,
+    int    $openPos,
+    string $open,
+    string $close,
+): ?string {
+    $len = \strlen($source);
+    $depth = 0;
+
+    for ($i = $openPos; $i < $len; $i++) {
+        $char = $source[$i];
+
+        if ($char === "'" || $char === '"') {
+            $i = coretsia_cross_cutting_contract_gate_skip_php_string($source, $i);
+            continue;
+        }
+
+        if ($char === '/' && ($source[$i + 1] ?? '') === '/') {
+            $next = \strpos($source, "\n", $i + 2);
+            if ($next === false) {
+                return null;
+            }
+
+            $i = $next;
+            continue;
+        }
+
+        if ($char === '#') {
+            $next = \strpos($source, "\n", $i + 1);
+            if ($next === false) {
+                return null;
+            }
+
+            $i = $next;
+            continue;
+        }
+
+        if ($char === '/' && ($source[$i + 1] ?? '') === '*') {
+            $next = \strpos($source, '*/', $i + 2);
+            if ($next === false) {
+                return null;
+            }
+
+            $i = $next + 1;
+            continue;
+        }
+
+        if ($char === $open) {
+            $depth++;
+            continue;
+        }
+
+        if ($char === $close) {
+            $depth--;
+
+            if ($depth === 0) {
+                return \substr($source, $openPos, $i - $openPos + 1);
+            }
+        }
+    }
+
+    return null;
+}
+
+function coretsia_cross_cutting_contract_gate_skip_php_string(string $source, int $start): int
+{
+    $quote = $source[$start];
+    $len = \strlen($source);
+
+    for ($i = $start + 1; $i < $len; $i++) {
+        if ($source[$i] === '\\') {
+            $i++;
+            continue;
+        }
+
+        if ($source[$i] === $quote) {
+            return $i;
+        }
+    }
+
+    return $len - 1;
 }
 
 function coretsia_cross_cutting_contract_gate_read_file(string $path): string

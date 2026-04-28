@@ -219,7 +219,7 @@ Coretsia/
 │   │           │   │   ├── LeakCommand.php
 │   │           │   │   └── LeakCommand.prepend.php
 │   │           │   └── Integration/
-│   │           │       ├── ApplicationPresetDispatchIntegrationTest.php
+│   │           │       ├── ApplicationSkeletonDispatchIntegrationTest.php
 │   │           │       ├── CliBootHelpWorksWithEmptyCommandsTest.php
 │   │           │       ├── CliRejectsMissingCommandClassDeterministicallyTest.php
 │   │           │       └── OutputRedactionDoesNotLeakTest.php
@@ -249,6 +249,7 @@ Coretsia/
 │   │   │   ├── dto_shape_gate.php
 │   │   │   ├── internal_toolkit_no_dup_gate.php
 │   │   │   ├── kernel_public_api_gate.php
+│   │   │   ├── no_runtime_tooling_artifacts_gate.php
 │   │   │   ├── no_skeleton_bundles_default_gate.php
 │   │   │   ├── no_skeleton_http_default_gate.php
 │   │   │   ├── no_skeleton_mode_presets_default_gate.php
@@ -530,11 +531,13 @@ Coretsia/
 │   │       │                   ├── README.md
 │   │       │                   └── composer.json
 │   │       └── Integration/
+│   │           ├── CrossCuttingContractGateTest.php
 │   │           ├── DtoGateAggregateRunnerTest.php
 │   │           ├── DtoMarkerConsistencyGateTest.php
 │   │           ├── DtoNoLogicGateTest.php
 │   │           ├── DtoShapeGateTest.php
 │   │           ├── ManagedComposerRepositoriesGuardTest.php
+│   │           ├── NoRuntimeToolingArtifactsGateTest.php
 │   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php
 │   │           ├── PackageComplianceGateRejectsBadFixtureTest.php
 │   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php

@@ -1,13 +1,13 @@
 <!--
   Coretsia Framework (Monorepo)
-  
+
   Project: Coretsia Framework (Monorepo)
   Authors: Vladyslav Mudrichenko and contributors
   Copyright (c) 2026 Vladyslav Mudrichenko
-  
+
   SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
   SPDX-License-Identifier: Apache-2.0
-  
+
   For contributors list, see git history.
   See LICENSE and NOTICE in the project root for full license information.
 -->
@@ -2337,37 +2337,41 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Module/ModuleInterface.php` — module contract (`descriptor(): ModuleDescriptor`)
-- [ ] `framework/packages/core/contracts/src/Module/ModuleId.php` — moduleId VO (validation + normalization rules; no locale)
-- [ ] `framework/packages/core/contracts/src/Module/ModuleDescriptor.php` — descriptor VO (schemaVersion + metadata + runtime fields)
-  - [ ] only scalar/json-like fields
-  - [ ] no closures/resources/objects in exported metadata
-  - [ ] deterministic map ordering expectation for any exported array-like methods
-- [ ] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module descriptors
-- [ ] `framework/packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
-- [ ] `framework/packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
-- [ ] `framework/packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
-- [ ] `framework/packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
+- [x] `framework/packages/core/contracts/src/Module/ModuleInterface.php` — module contract (`descriptor(): ModuleDescriptor`)
+- [x] `framework/packages/core/contracts/src/Module/ModuleId.php` — moduleId VO (validation + normalization rules; no locale)
+- [x] `framework/packages/core/contracts/src/Module/ModuleDescriptor.php` — descriptor VO (schemaVersion + metadata + runtime fields)
+  - [x] exported descriptor shape contains only deterministic scalar/json-like values
+    - [x] `ModuleDescriptor::toArray()` MUST NOT export PHP objects/resources/closures
+    - [x] `ModuleDescriptor::toArray()` MAY export only `null|bool|int|string|list<...>|array<string,...>`
+    - [x] floats are intentionally forbidden in descriptor metadata
+    - [x] internal VO fields such as `ModuleId $id` are allowed and are not part of the exported descriptor shape
+  - [x] exported metadata contains no closures/resources/objects/floats
+  - [x] deterministic map ordering expectation for any exported array-like methods
+- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module descriptors
+- [x] `framework/packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
+- [x] `framework/packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
+- [x] `framework/packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
+- [x] `framework/packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
 
-- [ ] `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
-- [ ] `docs/ssot/modules-and-manifests.md` — moduleId format, descriptor schemaVersion policy, “metadata-only discovery” MUST include:
-  - [ ] Descriptor boundary clarification:
-    - [ ] `ModuleDescriptor` is a contracts descriptor/VO, not a DTO-marker class by default
-    - [ ] descriptor invariants are governed by contracts shape rules, not DTO gate rules
-- [ ] `docs/ssot/modes.md` — preset format + meaning (micro/express/hybrid/enterprise)
-- [ ] `docs/adr/INDEX.md` — ADR navigation entrypoint (append-only index)
-  - [ ] register `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
+- [x] `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
+- [x] `docs/ssot/modules-and-manifests.md` — moduleId format, descriptor schemaVersion policy, “metadata-only discovery” MUST include:
+  - [x] Descriptor boundary clarification:
+    - [x] `ModuleDescriptor` is a contracts descriptor/VO, not a DTO-marker class by default
+    - [x] descriptor invariants are governed by contracts shape rules, not DTO gate rules
+- [x] `docs/ssot/modes.md` — preset format + meaning (micro/express/hybrid/enterprise)
+- [x] `docs/adr/INDEX.md` — ADR navigation entrypoint (append-only index)
+  - [x] register `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
 
-- [ ] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+- [x] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/modules-and-manifests.md`
-  - [ ] `docs/ssot/modes.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/modules-and-manifests.md`
+  - [x] `docs/ssot/modes.md`
 
 #### Package skeleton (if type=package)
 
@@ -2391,7 +2395,7 @@ N/A
 
 #### Security / Redaction
 
-- [ ] Contracts contain no secret values and MUST NOT leak secrets from composer metadata / env.
+- [x] Contracts contain no secret values and MUST NOT leak secrets from composer metadata / env.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -2400,34 +2404,34 @@ N/A (contracts-only; proven by contract tests listed below)
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
+  - [x] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] No forbidden deps in contracts (static scan/deptrac)
-- [ ] Tests green
-- [ ] Docs match contracts shape (`modules-and-manifests.md`, `modes.md`)
-- [ ] Non-goals / out of scope:
-  - [ ] Module discovery is NOT implemented in contracts (Kernel `ComposerManifestReader` is responsible).
-  - [ ] No runtime wiring / DI tags in contracts.
-  - [ ] No HTTP/PSR-7 types in contracts (format-neutral hard rule).
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] Kernel implements `ManifestReaderInterface` using the Phase 0 workspace package-index shape (0.100.0) as the canonical source of `{layer, slug}`.
-  - [ ] Composer metadata is allowed only for OPTIONAL fields (e.g. `moduleClass`), but MUST NOT affect `moduleId` derivation.
-- [ ] Determinism invariants (cemented; Phase 0 alignment):
-  - [ ] Any API returning a *set/list* of modules/descriptors MUST define stable ordering:
-    - [ ] sort by `moduleId` ascending using byte-order (`strcmp`), locale-independent
-  - [ ] `moduleId` derivation MUST be purely metadata-based:
-    - [ ] derived from `{layer, slug}` only (no filesystem scan requirement in contracts)
-    - [ ] MUST NOT rely on locale/`setlocale`/`LC_ALL`
-- [ ] Lock-source alignment:
-  - [ ] module identity rules MUST NOT contradict Phase 0 workspace package-index fields and ordering (0.100.0)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] No forbidden deps in contracts (static scan/deptrac)
+- [x] Tests green
+- [x] Docs match contracts shape (`modules-and-manifests.md`, `modes.md`)
+- [x] Non-goals / out of scope:
+  - [x] Module discovery is NOT implemented in contracts (Kernel `ComposerManifestReader` is responsible).
+  - [x] No runtime wiring / DI tags in contracts.
+  - [x] No HTTP/PSR-7 types in contracts (format-neutral hard rule).
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] Kernel implements `ManifestReaderInterface` using the Phase 0 workspace package-index shape (0.100.0) as the canonical source of `{layer, slug}`.
+  - [x] Composer metadata is allowed only for OPTIONAL fields (e.g. `moduleClass`), but MUST NOT affect `moduleId` derivation.
+- [x] Determinism invariants (cemented; Phase 0 alignment):
+  - [x] Any API returning a *set/list* of modules/descriptors MUST define stable ordering:
+    - [x] sort by `moduleId` ascending using byte-order (`strcmp`), locale-independent
+  - [x] `moduleId` derivation MUST be purely metadata-based:
+    - [x] derived from `{layer, slug}` only (no filesystem scan requirement in contracts)
+    - [x] MUST NOT rely on locale/`setlocale`/`LC_ALL`
+- [x] Lock-source alignment:
+  - [x] module identity rules MUST NOT contradict Phase 0 workspace package-index fields and ordering (0.100.0)
 
 ---
 
@@ -2582,10 +2586,10 @@ Tests:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
 - [ ] `docs/ssot/config-roots.md`
-  - `config/rules.php` MUST return a plain declarative ruleset array.
-  - `config/rules.php` MUST NOT return a callable, closure, object, or executable validator.
-  - Package-owned rules files define validation rules as data only.
-  - Runtime validation logic is kernel-owned and MUST be implemented by ConfigKernel / ConfigValidator.
+  - [ ] `config/rules.php` MUST return a plain declarative ruleset array.
+  - [ ] `config/rules.php` MUST NOT return a callable, closure, object, or executable validator.
+  - [ ] Package-owned rules files define validation rules as data only.
+  - [ ] Runtime validation logic is kernel-owned and MUST be implemented by ConfigKernel / ConfigValidator.
 
 #### Package skeleton (if type=package)
 

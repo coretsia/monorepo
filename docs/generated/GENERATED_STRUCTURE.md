@@ -11,13 +11,23 @@ Coretsia/
 ├── .githooks/
 │   └── pre-commit
 ├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── architecture_policy.yml
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   ├── documentation.yml
+│   │   └── feature_request.yml
 │   ├── scripts/
 │   │   ├── split-plan.php (SplitPlan - main()/parseArgs()/listDirs()/assertValidSlug()/assertValidComposerName()/readJsonFile()/jsonBytes()/assertJsonEncodable()/gitHead()/writeFileAtomic())
 │   │   └── split-plan.schema.md
-│   └── workflows/
-│       ├── ci.yml
-│       └── release.yml
+│   ├── workflows/
+│   │   ├── ci.yml
+│   │   └── release.yml
+│   └── pull_request_template.md
 ├── docs/
+│   ├── adr/
+│   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
+│   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
@@ -82,6 +92,8 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-roots.md
 │       ├── dto-policy.md
+│       ├── modes.md
+│       ├── modules-and-manifests.md
 │       ├── observability.md
 │       └── tags.md
 ├── framework/
@@ -91,16 +103,30 @@ Coretsia/
 │   │   ├── core/
 │   │   │   ├── contracts/
 │   │   │   │   ├── src/
-│   │   │   │   │   └── Cli/
-│   │   │   │   │       ├── Command/
-│   │   │   │   │       │   └── CommandInterface.php (CommandInterface [interface] - name()/run())
-│   │   │   │   │       ├── Input/
-│   │   │   │   │       │   └── InputInterface.php (InputInterface [interface] - tokens())
-│   │   │   │   │       └── Output/
-│   │   │   │   │           └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
+│   │   │   │   │   ├── Cli/
+│   │   │   │   │   │   ├── Command/
+│   │   │   │   │   │   │   └── CommandInterface.php (CommandInterface [interface] - name()/run())
+│   │   │   │   │   │   ├── Input/
+│   │   │   │   │   │   │   └── InputInterface.php (InputInterface [interface] - tokens())
+│   │   │   │   │   │   └── Output/
+│   │   │   │   │   │       └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
+│   │   │   │   │   └── Module/
+│   │   │   │   │       ├── Capability/
+│   │   │   │   │       │   └── CapabilityInterface.php (CapabilityInterface [interface])
+│   │   │   │   │       ├── ManifestReaderInterface.php (ManifestReaderInterface [interface] - readInstalled())
+│   │   │   │   │       ├── ModePresetInterface.php (ModePresetInterface [interface] - name()/description()/moduleIds()/metadata())
+│   │   │   │   │       ├── ModePresetLoaderInterface.php (ModePresetLoaderInterface [interface] - load())
+│   │   │   │   │       ├── ModuleDescriptor.php (ModuleDescriptor - fromLayerAndSlug()/schemaVersion()/id()/moduleId()/layer()/slug()/composerName()/packageKind()/moduleClass()/capabilities()/metadata()/toArray()/assertRuntimeLayer()/normalizeOptionalString()/normalizeStringList()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue())
+│   │   │   │   │       ├── ModuleId.php (ModuleId - fromString()/fromLayerAndSlug()/isValid()/value()/layer()/slug()/equals()/normalize()/normalizePart()/asciiLower())
+│   │   │   │   │       └── ModuleInterface.php (ModuleInterface [interface] - descriptor())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
-│   │   │   │   │   │   └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php (ContractsDoNotDependOnPlatformTest - test_contracts_source_has_no_forbidden_compile_time_dependencies()/phpFiles()/forbiddenPatterns()/phpCodeWithoutCommentsAndStrings()/relativePath())
+│   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php (ModuleDescriptorIdIsDerivedFromLayerAndSlugTest - test_derives_module_id_from_layer_and_slug()/test_composer_metadata_does_not_affect_module_identity()/test_exports_internal_module_id_as_scalars_not_object_identity()/test_sorts_capabilities_and_metadata_deterministically()/test_rejects_tooling_only_layer_as_runtime_descriptor()/assertNoObjectsInExportedShape())
+│   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php (ModuleDescriptorSchemaVersionTest - test_exposes_initial_schema_version()/test_exports_stable_descriptor_shape()/test_rejects_non_json_like_metadata_values()/test_rejects_resource_metadata_value()/invalidMetadataValues()/assertExportedJsonLikeValue())
+│   │   │   │   │   ├── Unit/
+│   │   │   │   │   │   └── ModuleIdFormatTest.php (ModuleIdFormatTest - test_accepts_canonical_module_id()/test_normalizes_ascii_case_and_outer_whitespace_without_locale()/test_builds_from_layer_and_slug()/test_compares_by_canonical_value()/test_rejects_non_ascii_locale_sensitive_letters()/test_rejects_dot_inside_layer_or_slug_parts()/test_rejects_invalid_module_ids()/invalidModuleIds())
 │   │   │   │   │   └── .gitkeep
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE

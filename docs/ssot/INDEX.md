@@ -43,7 +43,8 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Shapes and Contracts
 
-_Empty for now (Prelude)._
+- [Modes SSoT](./modes.md) — owner: core/contracts — scope: contracts,mode-preset,modes,presets
+- [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,module-id
 
 ## Runtime Invariants
 
@@ -55,4 +56,5 @@ _Empty for now (Prelude)._
 
 ## Cross-references (non-SSoT)
 
+- [ADR Index](../adr/INDEX.md) — owner: repo — scope: navigation
 - [Roadmap](../roadmap/ROADMAP.md) — owner: repo — scope: navigation

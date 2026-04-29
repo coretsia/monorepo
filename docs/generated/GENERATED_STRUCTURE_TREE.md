@@ -11,13 +11,23 @@ Coretsia/
 ├── .githooks/
 │   └── pre-commit
 ├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── architecture_policy.yml
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   ├── documentation.yml
+│   │   └── feature_request.yml
 │   ├── scripts/
 │   │   ├── split-plan.php
 │   │   └── split-plan.schema.md
-│   └── workflows/
-│       ├── ci.yml
-│       └── release.yml
+│   ├── workflows/
+│   │   ├── ci.yml
+│   │   └── release.yml
+│   └── pull_request_template.md
 ├── docs/
+│   ├── adr/
+│   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
+│   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
@@ -82,6 +92,8 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-roots.md
 │       ├── dto-policy.md
+│       ├── modes.md
+│       ├── modules-and-manifests.md
 │       ├── observability.md
 │       └── tags.md
 ├── framework/
@@ -91,16 +103,30 @@ Coretsia/
 │   │   ├── core/
 │   │   │   ├── contracts/
 │   │   │   │   ├── src/
-│   │   │   │   │   └── Cli/
-│   │   │   │   │       ├── Command/
-│   │   │   │   │       │   └── CommandInterface.php
-│   │   │   │   │       ├── Input/
-│   │   │   │   │       │   └── InputInterface.php
-│   │   │   │   │       └── Output/
-│   │   │   │   │           └── OutputInterface.php
+│   │   │   │   │   ├── Cli/
+│   │   │   │   │   │   ├── Command/
+│   │   │   │   │   │   │   └── CommandInterface.php
+│   │   │   │   │   │   ├── Input/
+│   │   │   │   │   │   │   └── InputInterface.php
+│   │   │   │   │   │   └── Output/
+│   │   │   │   │   │       └── OutputInterface.php
+│   │   │   │   │   └── Module/
+│   │   │   │   │       ├── Capability/
+│   │   │   │   │       │   └── CapabilityInterface.php
+│   │   │   │   │       ├── ManifestReaderInterface.php
+│   │   │   │   │       ├── ModePresetInterface.php
+│   │   │   │   │       ├── ModePresetLoaderInterface.php
+│   │   │   │   │       ├── ModuleDescriptor.php
+│   │   │   │   │       ├── ModuleId.php
+│   │   │   │   │       └── ModuleInterface.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
-│   │   │   │   │   │   └── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
+│   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
+│   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php
+│   │   │   │   │   ├── Unit/
+│   │   │   │   │   │   └── ModuleIdFormatTest.php
 │   │   │   │   │   └── .gitkeep
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE

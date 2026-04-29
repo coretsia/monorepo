@@ -43,7 +43,6 @@ Current public implementation baseline:
 Authoritative planning and invariants:
 
 - [Roadmap (canonical)](docs/roadmap/ROADMAP.md)
-- [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
 - [Single Source of Truth (invariants/shapes/policies)](docs/ssot/INDEX.md)
 - [Security policy](SECURITY.md)
 

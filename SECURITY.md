@@ -37,8 +37,6 @@ At the moment, Coretsia does **not** provide long-term-supported stable release 
 
 \* "Supported" here means vulnerability reports are reviewed and may be fixed in the active development branch. It does **not** mean a stable security SLA is available.
 
-> If your public repository keeps `master` as the default branch instead of `main`, replace `main` in this document with `master`.
-
 ## Reporting a Vulnerability
 
 Please **do not** open public GitHub issues for suspected security vulnerabilities.

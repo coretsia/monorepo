@@ -1,0 +1,137 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: Bug report
+description: Report a reproducible defect in Coretsia.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for reproducible defects only.
+
+        Do not include secrets, tokens, private paths, private customer data, or full environment dumps.
+        If this is a security vulnerability, do not open a public issue. Use the repository security policy.
+
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing issues
+      description: Confirm that this is not already tracked.
+      options:
+        - label: I have searched existing issues and pull requests.
+          required: true
+
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Affected area
+      description: Select the closest affected area.
+      options:
+        - Platform CLI
+        - Core contracts
+        - DTO attribute / DTO gates
+        - Foundation / Kernel policy
+        - Tooling gates
+        - Architecture / Deptrac
+        - Package compliance / scaffold
+        - Skeleton / app defaults
+        - Documentation / SSoT / roadmap
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: Describe what happens now.
+      placeholder: The command/test/gate currently fails with...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe the expected behavior or invariant.
+      placeholder: The expected deterministic result is...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest reproducible case.
+      placeholder: |
+        1. Checkout branch/commit ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands and sanitized output
+      description: Paste the exact command(s) and sanitized output. Remove secrets, absolute private paths, tokens, and environment values.
+      render: shell
+      placeholder: |
+        composer gates
+        composer framework:test
+        composer spike:test
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide only relevant environment details.
+      value: |
+        - OS:
+        - PHP:
+        - Composer:
+        - Git:
+        - Branch/commit:
+    validations:
+      required: true
+
+  - type: textarea
+    id: related-policy
+    attributes:
+      label: Related policy / SSoT / epic
+      description: Link related roadmap item, SSoT document, gate, package, or policy if known.
+      placeholder: |
+        - docs/roadmap/...
+        - docs/ssot/...
+        - framework/tools/gates/...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I removed secrets, credentials, tokens, private customer data, and irrelevant environment dumps.
+          required: true
+        - label: I included deterministic reproduction evidence or explained why reproduction is not available.
+          required: true
+
+  - type: checkboxes
+    id: code-of-conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the Coretsia Code of Conduct.
+          required: true

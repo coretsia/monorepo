@@ -16,7 +16,7 @@
 
 All notable changes to this monorepo are documented in this file.
 
-The format is based on Keep a Changelog, with a single-choice heading rule: release sections MUST start with "## vMAJOR.MINOR.PATCH" (no brackets).
+The format is based on Keep a Changelog, with a single-choice heading rule: released version sections MUST start with "## vMAJOR.MINOR.PATCH" (no brackets). The unreleased section remains "## [Unreleased]".
 
 > Version source of truth: monorepo git tags `vMAJOR.MINOR.PATCH` at the repository root.  
 > Per-package independent versions **MUST NOT** be used.

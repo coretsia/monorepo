@@ -1,0 +1,99 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: Documentation issue
+description: Report missing, stale, ambiguous, or inconsistent documentation.
+title: "[Docs]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for documentation defects or documentation improvement requests.
+
+        If the documentation change affects commands, config roots, tags, artifacts, gates, or roadmap scope, include the related SSoT or epic reference.
+
+  - type: dropdown
+    id: docs-area
+    attributes:
+      label: Documentation area
+      options:
+        - SSoT
+        - Roadmap / epic
+        - Commands
+        - Development workflow
+        - Architecture
+        - Package documentation
+        - Skeleton documentation
+        - Generated structure
+        - README / contributing
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Location
+      description: Link or list the affected documentation path(s).
+      placeholder: |
+        - docs/guides/commands.md
+        - docs/ssot/...
+        - docs/roadmap/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Problem
+      description: What is wrong, stale, missing, or ambiguous?
+      placeholder: The document says..., but the current implementation/policy is...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected documentation
+      description: What should the documentation say or clarify?
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Provide links to code, tests, commands, or policy that support the correction.
+      placeholder: |
+        - composer ...
+        - framework/composer.json
+        - framework/tools/gates/...
+        - test output...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: docs-policy
+    attributes:
+      label: Documentation policy checklist
+      options:
+        - label: I checked whether this affects the canonical command catalog, SSoT docs, roadmap, or generated docs.
+          required: true
+        - label: I removed secrets, private paths, and irrelevant environment details.
+          required: true
+
+  - type: checkboxes
+    id: code-of-conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the Coretsia Code of Conduct.
+          required: true

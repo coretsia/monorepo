@@ -1,0 +1,125 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: Architecture / policy issue
+description: Propose or report a problem with SSoT, gates, architecture rails, deterministic policy, or roadmap invariants.
+title: "[Policy]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for Coretsia architecture and policy issues.
+
+        This includes SSoT drift, gate policy, deterministic output, package boundaries, roadmap invariants, public API boundaries, config roots, tags, artifacts, and CI rails.
+
+  - type: dropdown
+    id: policy-area
+    attributes:
+      label: Policy area
+      options:
+        - SSoT / registry
+        - Roadmap / epic
+        - Gate / CI rail
+        - Determinism / rerun-no-diff
+        - Package boundary / deptrac
+        - Public API
+        - Config roots
+        - Tags
+        - Artifacts
+        - Observability
+        - DTO policy
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-policy
+    attributes:
+      label: Current policy or behavior
+      description: Describe the current rule, behavior, or drift.
+      placeholder: |
+        Current rule:
+        Current implementation:
+        Current failure mode:
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-policy
+    attributes:
+      label: Proposed policy or correction
+      description: Describe the proposed invariant or correction.
+      placeholder: |
+        Proposed rule:
+        Reason:
+        Enforcement:
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-sources
+    attributes:
+      label: Affected sources
+      description: List affected docs, gates, packages, CI jobs, generated artifacts, or tests.
+      placeholder: |
+        - docs/ssot/...
+        - docs/roadmap/...
+        - framework/tools/gates/...
+        - framework/packages/...
+        - .github/workflows/ci.yml
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification strategy
+      description: How should this policy be verified?
+      placeholder: |
+        - Gate:
+        - Test:
+        - CI rail:
+        - Rerun-no-diff evidence:
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and compatibility
+      description: Describe compatibility, migration, false positive risk, and false negative risk.
+      placeholder: |
+        Compatibility:
+        Migration:
+        False positives:
+        False negatives:
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: policy-checklist
+    attributes:
+      label: Policy checklist
+      options:
+        - label: I checked for overlap with existing deptrac, gates, SSoT, and roadmap policy.
+          required: true
+        - label: I considered deterministic diagnostics and secret-safe output.
+          required: true
+        - label: I included concrete verification criteria.
+          required: true
+
+  - type: checkboxes
+    id: code-of-conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the Coretsia Code of Conduct.
+          required: true

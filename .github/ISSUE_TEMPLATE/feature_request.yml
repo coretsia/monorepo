@@ -1,0 +1,144 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: Feature request
+description: Propose a new capability, package behavior, tool, gate, or public API.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for planned, non-security feature proposals.
+
+        Coretsia is roadmap- and SSoT-driven. Feature requests should define scope, invariants, affected packages, and verification evidence.
+
+  - type: checkboxes
+    id: existing-work
+    attributes:
+      label: Existing work
+      options:
+        - label: I have searched existing issues, pull requests, roadmap entries, and SSoT docs.
+          required: true
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: Feature area
+      options:
+        - Runtime package
+        - Core contracts
+        - Foundation / Kernel
+        - Platform CLI
+        - Tooling / gates
+        - Architecture / Deptrac
+        - Package scaffold / compliance
+        - Skeleton / presets
+        - Documentation / SSoT
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve?
+      placeholder: |
+        Current limitation:
+        Why it matters:
+        Who is affected:
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the desired behavior and public contract.
+      placeholder: |
+        Proposed behavior:
+        New/changed entrypoints:
+        New/changed config roots:
+        New/changed tags:
+        New/changed artifacts:
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Define what is included and explicitly excluded.
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: Expected affected areas
+      description: List packages, docs, gates, tests, or generated artifacts likely to change.
+      placeholder: |
+        - framework/packages/...
+        - framework/tools/gates/...
+        - docs/ssot/...
+        - docs/roadmap/...
+    validations:
+      required: false
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and migration
+      description: Describe backward compatibility, breaking changes, and migration needs.
+      placeholder: |
+        Breaking change: yes/no
+        Migration path:
+        Deprecation plan:
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Provide verifiable criteria.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: Policy checklist
+      options:
+        - label: I considered whether SSoT docs need to change.
+          required: true
+        - label: I considered whether commands, config roots, tags, artifacts, gates, or public API policy need to change.
+          required: true
+        - label: I understand that roadmap alignment may be required before implementation.
+          required: true
+
+  - type: checkboxes
+    id: code-of-conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the Coretsia Code of Conduct.
+          required: true

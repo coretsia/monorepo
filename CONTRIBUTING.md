@@ -117,7 +117,7 @@ Spikes are strictly tools-only.
 - Spikes **MUST NOT**:
   - import runtime packages `core/*`, `platform/*`, `integrations/*` (any `Coretsia\*` runtime API),
   - do path-based imports from `framework/packages/**` (`require/include` pointing into `packages/**/src/**`).
-- The **only exception** is deterministic primitives in `coretsia/internal-toolkit` (tooling-only library), used only via Composer autoload (namespace), never via path `require`.
+- The **only exception** is deterministic primitives in `coretsia/devtools-internal-toolkit` (tooling-only library), used only via Composer autoload (namespace), never via path `require`.
 
 If you touch tooling determinism/generators, run the spikes rails (if present in scripts):
 

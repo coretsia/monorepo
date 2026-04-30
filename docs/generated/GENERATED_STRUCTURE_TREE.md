@@ -27,6 +27,7 @@ Coretsia/
 ├── docs/
 │   ├── adr/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
+│   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -90,6 +91,7 @@ Coretsia/
 │   └── ssot/
 │       ├── INDEX.md
 │       ├── artifacts.md
+│       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── dto-policy.md
 │       ├── modes.md
@@ -110,6 +112,21 @@ Coretsia/
 │   │   │   │   │   │   │   └── InputInterface.php
 │   │   │   │   │   │   └── Output/
 │   │   │   │   │   │       └── OutputInterface.php
+│   │   │   │   │   ├── Config/
+│   │   │   │   │   │   ├── ConfigDirective.php
+│   │   │   │   │   │   ├── ConfigLoaderInterface.php
+│   │   │   │   │   │   ├── ConfigRepositoryInterface.php
+│   │   │   │   │   │   ├── ConfigRuleset.php
+│   │   │   │   │   │   ├── ConfigSourceType.php
+│   │   │   │   │   │   ├── ConfigValidationResult.php
+│   │   │   │   │   │   ├── ConfigValidationViolation.php
+│   │   │   │   │   │   ├── ConfigValidatorInterface.php
+│   │   │   │   │   │   ├── ConfigValueSource.php
+│   │   │   │   │   │   └── MergeStrategyInterface.php
+│   │   │   │   │   ├── Env/
+│   │   │   │   │   │   ├── EnvPolicy.php
+│   │   │   │   │   │   ├── EnvRepositoryInterface.php
+│   │   │   │   │   │   └── EnvValue.php
 │   │   │   │   │   └── Module/
 │   │   │   │   │       ├── Capability/
 │   │   │   │   │       │   └── CapabilityInterface.php
@@ -121,13 +138,24 @@ Coretsia/
 │   │   │   │   │       └── ModuleInterface.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
+│   │   │   │   │   │   ├── ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php
+│   │   │   │   │   │   ├── ConfigDirectiveInvariantsContractTest.php
+│   │   │   │   │   │   ├── ConfigRulesetJsonLikeModelContractTest.php
+│   │   │   │   │   │   ├── ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php
+│   │   │   │   │   │   ├── ConfigSourceTypeIsStableContractTest.php
+│   │   │   │   │   │   ├── ConfigTraceModelNeverContainsRawValuesContractTest.php
+│   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php
+│   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php
+│   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php
+│   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
 │   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php
-│   │   │   │   │   ├── Unit/
-│   │   │   │   │   │   └── ModuleIdFormatTest.php
-│   │   │   │   │   └── .gitkeep
+│   │   │   │   │   └── Unit/
+│   │   │   │   │       └── ModuleIdFormatTest.php
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md

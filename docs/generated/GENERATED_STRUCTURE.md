@@ -27,6 +27,7 @@ Coretsia/
 ├── docs/
 │   ├── adr/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
+│   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -90,6 +91,7 @@ Coretsia/
 │   └── ssot/
 │       ├── INDEX.md
 │       ├── artifacts.md
+│       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── dto-policy.md
 │       ├── modes.md
@@ -110,6 +112,21 @@ Coretsia/
 │   │   │   │   │   │   │   └── InputInterface.php (InputInterface [interface] - tokens())
 │   │   │   │   │   │   └── Output/
 │   │   │   │   │   │       └── OutputInterface.php (OutputInterface [interface] - text()/json()/error())
+│   │   │   │   │   ├── Config/
+│   │   │   │   │   │   ├── ConfigDirective.php
+│   │   │   │   │   │   ├── ConfigLoaderInterface.php (ConfigLoaderInterface [interface] - load())
+│   │   │   │   │   │   ├── ConfigRepositoryInterface.php (ConfigRepositoryInterface [interface] - has()/get()/source())
+│   │   │   │   │   │   ├── ConfigRuleset.php (ConfigRuleset - fromArray()/root()/rules()/toArray()/normalizeRoot()/normalizeRules()/normalizeJsonLikeMap()/normalizeJsonLikeValue())
+│   │   │   │   │   │   ├── ConfigSourceType.php
+│   │   │   │   │   │   ├── ConfigValidationResult.php (ConfigValidationResult - success()/failure()/isSuccess()/isFailure()/violations()/toArray()/normalizeViolations())
+│   │   │   │   │   │   ├── ConfigValidationViolation.php (ConfigValidationViolation - root()/path()/reason()/expected()/actualType()/toArray()/normalizeRoot()/normalizeReason()/normalizeOptionalSafeText()/normalizeOptionalActualType()/normalizeSafeText())
+│   │   │   │   │   │   ├── ConfigValidatorInterface.php (ConfigValidatorInterface [interface] - validate())
+│   │   │   │   │   │   ├── ConfigValueSource.php (ConfigValueSource - type()/root()/path()/keyPath()/sourceId()/precedence()/isRedacted()/toArray()/normalizeRoot()/normalizeOptionalLogicalIdentifier()/normalizeLogicalIdentifier()/assertSafeLogicalIdentifier())
+│   │   │   │   │   │   └── MergeStrategyInterface.php (MergeStrategyInterface [interface] - merge())
+│   │   │   │   │   ├── Env/
+│   │   │   │   │   │   ├── EnvPolicy.php
+│   │   │   │   │   │   ├── EnvRepositoryInterface.php (EnvRepositoryInterface [interface] - get())
+│   │   │   │   │   │   └── EnvValue.php (EnvValue - missing()/present()/isPresent()/isMissing()/isEmptyString()/value())
 │   │   │   │   │   └── Module/
 │   │   │   │   │       ├── Capability/
 │   │   │   │   │       │   └── CapabilityInterface.php (CapabilityInterface [interface])
@@ -121,13 +138,24 @@ Coretsia/
 │   │   │   │   │       └── ModuleInterface.php (ModuleInterface [interface] - descriptor())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php (ConfigDirectiveEmptyArrayRuleIsCementedContractTest - test_empty_array_rule_covers_exactly_the_directive_allowlist()/test_append_empty_array_is_cemented_as_no_op()/test_prepend_empty_array_is_cemented_as_no_op()/test_remove_empty_array_is_cemented_as_no_op()/test_merge_empty_array_is_cemented_as_no_op()/test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array()/test_empty_array_payload_is_explicit_and_not_missing())
+│   │   │   │   │   │   ├── ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php (ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest - test_phase0_aligned_directive_error_precedence_is_locked()/test_contract_codes_map_to_phase0_lock_source_codes()/test_validation_codes_are_stable_ascii_strings()/test_unknown_reserved_directive_key_is_reported_before_exclusive_level_violation()/test_unknown_reserved_directive_key_is_the_single_reserved_namespace_guard_bucket()/test_exclusive_level_violation_is_reported_before_payload_shape_violation()/test_payload_shape_violation_is_reported_before_json_like_value_violation()/test_json_like_value_violation_is_reported_after_payload_shape_is_valid()/test_replace_accepts_scalar_payload_shape_before_json_like_validation()/test_merge_rejects_non_empty_list_payload_shape()/firstDirectiveProblemCode()/hasValidDirectivePayloadShape()/isJsonLikeValue())
+│   │   │   │   │   │   ├── ConfigDirectiveInvariantsContractTest.php (ConfigDirectiveInvariantsContractTest - test_directive_names_are_canonical_and_ordered()/test_directive_keys_are_canonical_and_ordered()/test_directive_key_is_prefixed_name()/test_allowed_name_detection_is_strict()/test_allowed_key_detection_is_strict()/test_reserved_directive_namespace_detection_is_prefix_based()/test_try_from_key_resolves_only_allowed_directive_keys()/test_from_key_rejects_unknown_or_unprefixed_keys())
+│   │   │   │   │   │   ├── ConfigRulesetJsonLikeModelContractTest.php (ConfigRulesetJsonLikeModelContractTest - test_ruleset_accepts_json_like_declarative_rules_data()/test_ruleset_map_keys_are_sorted_deterministically_at_every_map_level()/test_ruleset_lists_preserve_declared_order()/test_empty_ruleset_is_valid_empty_declarative_map()/test_float_values_are_forbidden_at_contract_boundary()/test_nested_float_values_are_forbidden_at_any_depth()/test_runtime_or_executable_values_are_forbidden_in_ruleset_data()/test_resource_values_are_forbidden_in_ruleset_data()/test_root_rules_must_be_a_map_not_a_non_empty_list()/test_map_keys_must_be_non_empty_strings_without_control_bytes()/test_root_must_be_lowercase_config_root_identifier()/test_exported_ruleset_shape_is_json_like_without_floats_objects_resources_or_callables()/forbiddenFloatValues()/forbiddenNestedFloatValues()/forbiddenRuntimeValues()/assertJsonLikeWithoutForbiddenRuntimeValues())
+│   │   │   │   │   │   ├── ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php (ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest - test_source_type_enum_matches_phase0_source_tracking_vocabulary()/test_source_type_enum_does_not_define_intrinsic_precedence()/test_precedence_is_explicit_source_trace_metadata_not_source_type_metadata()/test_source_type_vocabulary_order_is_not_a_merge_precedence_contract()/test_source_type_expansion_requires_contract_test_update())
+│   │   │   │   │   │   ├── ConfigSourceTypeIsStableContractTest.php (ConfigSourceTypeIsStableContractTest - test_source_type_values_are_canonical_and_ordered()/test_source_type_enum_cases_are_canonical()/test_source_type_cases_match_values_without_extra_cases()/test_source_type_values_are_lowercase_ascii_identifiers()/test_source_type_known_check_is_strict())
+│   │   │   │   │   │   ├── ConfigTraceModelNeverContainsRawValuesContractTest.php (ConfigTraceModelNeverContainsRawValuesContractTest - test_constructor_does_not_accept_raw_value_arguments()/test_model_properties_do_not_store_raw_config_or_env_values()/test_exported_source_trace_contains_only_safe_contract_keys()/test_exported_source_trace_is_json_like_without_floats_objects_resources_or_callables()/test_source_trace_rejects_absolute_paths_urls_and_traversal_identifiers()/test_redaction_marker_is_metadata_not_raw_value_storage()/assertJsonLikeWithoutForbiddenRuntimeValues())
+│   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php (ConfigTraceOrderingIsDeterministicContractTest - test_trace_entries_can_be_ordered_by_phase0_aligned_safe_trace_order()/test_trace_ordering_is_independent_from_input_order()/test_source_id_null_sorts_deterministically_as_empty_string()/test_precedence_is_exported_and_part_of_phase0_aligned_safe_trace_sort_key()/test_path_is_safe_source_file_equivalent_in_phase0_aligned_sort_key()/test_trace_export_key_order_is_stable_after_sorting()/sortTraceEntries()/traceSortKey())
+│   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php (ConfigValueSourceShapeContractTest - test_config_value_source_exposes_canonical_safe_shape()/test_default_source_id_precedence_and_redaction_are_canonical()/test_exported_array_key_order_is_deterministic()/test_root_must_be_non_empty_lowercase_config_root_identifier()/test_precedence_must_be_non_negative()/test_path_key_path_and_source_id_must_not_contain_control_bytes()/test_path_key_path_and_source_id_must_not_be_absolute_paths_or_urls()/test_path_key_path_and_source_id_must_not_contain_path_traversal()/test_source_id_must_not_be_empty_when_provided()/sourceWithField())
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php (ContractsDoNotDependOnPlatformTest - test_contracts_source_has_no_forbidden_compile_time_dependencies()/phpFiles()/forbiddenPatterns()/phpCodeWithoutCommentsAndStrings()/relativePath())
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php (DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest - test_directive_names_match_phase0_config_merge_lock()/test_directive_keys_match_phase0_config_merge_lock()/test_directive_enum_cases_match_phase0_config_merge_lock_without_extra_cases()/test_forbidden_legacy_or_non_phase0_directives_are_not_allowed()/test_directive_values_are_lowercase_ascii_and_unprefixed())
+│   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php (EnvMissingVsEmptyIsDistinctContractTest - test_missing_value_is_not_present_and_has_no_string_value()/test_present_empty_string_is_present_and_distinct_from_missing()/test_present_non_empty_string_is_present_and_not_empty_string()/test_missing_empty_string_and_non_empty_string_are_three_distinct_states()/test_php_truthiness_must_not_define_env_presence())
+│   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php (EnvPolicyPrecedenceContractTest - test_env_policy_values_are_canonical_and_ordered()/test_required_policy_treats_missing_value_as_validation_violation()/test_optional_policy_keeps_missing_value_missing()/test_defaulted_policy_allows_safe_default_only_for_missing_value()/test_present_empty_string_wins_over_default_for_every_policy()/test_policy_known_check_is_strict())
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php (ModuleDescriptorIdIsDerivedFromLayerAndSlugTest - test_derives_module_id_from_layer_and_slug()/test_composer_metadata_does_not_affect_module_identity()/test_exports_internal_module_id_as_scalars_not_object_identity()/test_sorts_capabilities_and_metadata_deterministically()/test_rejects_tooling_only_layer_as_runtime_descriptor()/assertNoObjectsInExportedShape())
 │   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php (ModuleDescriptorSchemaVersionTest - test_exposes_initial_schema_version()/test_exports_stable_descriptor_shape()/test_rejects_non_json_like_metadata_values()/test_rejects_resource_metadata_value()/invalidMetadataValues()/assertExportedJsonLikeValue())
-│   │   │   │   │   ├── Unit/
-│   │   │   │   │   │   └── ModuleIdFormatTest.php (ModuleIdFormatTest - test_accepts_canonical_module_id()/test_normalizes_ascii_case_and_outer_whitespace_without_locale()/test_builds_from_layer_and_slug()/test_compares_by_canonical_value()/test_rejects_non_ascii_locale_sensitive_letters()/test_rejects_dot_inside_layer_or_slug_parts()/test_rejects_invalid_module_ids()/invalidModuleIds())
-│   │   │   │   │   └── .gitkeep
+│   │   │   │   │   └── Unit/
+│   │   │   │   │       └── ModuleIdFormatTest.php (ModuleIdFormatTest - test_accepts_canonical_module_id()/test_normalizes_ascii_case_and_outer_whitespace_without_locale()/test_builds_from_layer_and_slug()/test_compares_by_canonical_value()/test_rejects_non_ascii_locale_sensitive_letters()/test_rejects_dot_inside_layer_or_slug_parts()/test_rejects_invalid_module_ids()/invalidModuleIds())
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md

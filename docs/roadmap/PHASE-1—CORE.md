@@ -2529,67 +2529,69 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
-- [ ] `framework/packages/core/contracts/src/Config/ConfigLoaderInterface.php`
-- [ ] `framework/packages/core/contracts/src/Config/MergeStrategyInterface.php`
-- [ ] `framework/packages/core/contracts/src/Config/ConfigValidatorInterface.php`
-  - [ ] validates a merged global config against loaded declarative rulesets
-  - [ ] MUST NOT expose package-specific callable validators
-- [ ] `framework/packages/core/contracts/src/Config/ConfigSourceType.php`
-- [ ] `framework/packages/core/contracts/src/Config/ConfigValueSource.php`
-- [ ] `framework/packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
-- [ ] `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php`
-- [ ] `framework/packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
-- [ ] `framework/packages/core/contracts/src/Env/EnvPolicy.php`
+- [x] `framework/packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+- [x] `framework/packages/core/contracts/src/Config/ConfigLoaderInterface.php`
+- [x] `framework/packages/core/contracts/src/Config/MergeStrategyInterface.php`
+- [x] `framework/packages/core/contracts/src/Config/ConfigValidatorInterface.php`
+  - [x] validates a merged global config against loaded declarative rulesets
+  - [x] MUST NOT expose package-specific callable validators
+- [x] `framework/packages/core/contracts/src/Config/ConfigSourceType.php`
+- [x] `framework/packages/core/contracts/src/Config/ConfigValueSource.php`
+- [x] `framework/packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
+- [x] `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php`
+- [x] `framework/packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
+- [x] `framework/packages/core/contracts/src/Env/EnvPolicy.php`
 
-- [ ] `framework/packages/core/contracts/src/Config/ConfigValidationResult.php`
-  - [ ] immutable result
-  - [ ] exposes success/failure and deterministic violations
+- [x] `framework/packages/core/contracts/src/Config/ConfigValidationResult.php`
+  - [x] immutable result
+  - [x] exposes success/failure and deterministic violations
 
-- [ ] `framework/packages/core/contracts/src/Config/ConfigValidationViolation.php`
-  - [ ] immutable violation shape:
-    - [ ] `root`
-    - [ ] `path`
-    - [ ] `reason`
-    - [ ] optional safe `expected`
-    - [ ] optional safe `actualType`
-  - [ ] MUST NOT contain raw config values
+- [x] `framework/packages/core/contracts/src/Config/ConfigValidationViolation.php`
+  - [x] immutable violation shape:
+    - [x] `root`
+    - [x] `path`
+    - [x] `reason`
+    - [x] optional safe `expected`
+    - [x] optional safe `actualType`
+  - [x] MUST NOT contain raw config values
 
-- [ ] `framework/packages/core/contracts/src/Config/ConfigRuleset.php`
-  - [ ] optional readonly DTO/shape wrapper for validated declarative rules
-  - [ ] MUST represent rules data, not executable validation logic
+- [x] `framework/packages/core/contracts/src/Config/ConfigRuleset.php`
+  - [x] optional readonly DTO/shape wrapper for validated declarative rules
+  - [x] MUST represent rules data, not executable validation logic
 
-- [ ] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
-- [ ] `docs/ssot/config-and-env.md` — env policy precedence + directives allowlist + exclusive-level rule + safe explain trace contract
-  - [ ] In this document, `descriptor/result/shape/model` terminology follows `docs/ssot/dto-policy.md`; these models are not DTO-marker classes unless explicitly marked.
+- [x] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
+- [x] `docs/ssot/config-and-env.md` — env policy precedence + directives allowlist + exclusive-level rule + safe explain trace contract
+  - [x] In this document, `descriptor/result/shape/model` terminology follows `docs/ssot/dto-policy.md`; these models are not DTO-marker classes unless explicitly marked.
 
 Tests:
-- [ ] `framework/packages/core/contracts/tests/Contract/EnvPolicyPrecedenceContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/EnvMissingVsEmptyIsDistinctContractTest.php`
-
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveInvariantsContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php`
-
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeIsStableContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php`
-
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigValueSourceShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigTraceModelNeverContainsRawValuesContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ConfigTraceOrderingIsDeterministicContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/EnvPolicyPrecedenceContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/EnvMissingVsEmptyIsDistinctContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveInvariantsContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeIsStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigValueSourceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigTraceModelNeverContainsRawValuesContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigTraceOrderingIsDeterministicContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigRulesetJsonLikeModelContractTest.php`
+  - [x] locks float-forbidden JSON-like ruleset model against Phase 0 `0.70.0`
+  - [x] rejects floats, `NAN`, `INF`, `-INF` at any nesting depth
+  - [x] rejects executable/runtime values in declarative rulesets
+  - [x] proves deterministic map key ordering and list order preservation
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/config-and-env.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
-- [ ] `docs/ssot/config-roots.md`
-  - [ ] `config/rules.php` MUST return a plain declarative ruleset array.
-  - [ ] `config/rules.php` MUST NOT return a callable, closure, object, or executable validator.
-  - [ ] Package-owned rules files define validation rules as data only.
-  - [ ] Runtime validation logic is kernel-owned and MUST be implemented by ConfigKernel / ConfigValidator.
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/config-and-env.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
+- [x] `docs/ssot/config-roots.md`
+  - [x] `config/rules.php` MUST return a plain declarative ruleset array.
+  - [x] `config/rules.php` MUST NOT return a callable, closure, object, or executable validator.
+  - [x] Package-owned rules files define validation rules as data only.
+  - [x] Runtime validation logic is kernel-owned and MUST be implemented by ConfigKernel / ConfigValidator.
 
 #### Package skeleton (if type=package)
 
@@ -2611,44 +2613,44 @@ N/A
 
 #### Errors
 
-- [ ] Unknown `@directive` MUST fail validation with a deterministic code BEFORE merge (documented in `docs/ssot/config-and-env.md`).
+- [x] Unknown `@directive` MUST fail validation with a deterministic code BEFORE merge (documented in `docs/ssot/config-and-env.md`).
 
 #### Security / Redaction
 
-- [ ] Explain/source tracking MUST NOT require storing raw values (contracts-level rule)
-- [ ] MUST NOT leak `.env` values, passwords, tokens.
-- [ ] Implementation outputs may use `hash(value)` / `len(value)` only (never print raw values).
-- [ ] Config/Env trace models are canonical contracts shapes, not DTO-marker classes by default
+- [x] Explain/source tracking MUST NOT require storing raw values (contracts-level rule)
+- [x] MUST NOT leak `.env` values, passwords, tokens.
+- [x] Implementation outputs may use `hash(value)` / `len(value)` only (never print raw values).
+- [x] Config/Env trace models are canonical contracts shapes, not DTO-marker classes by default
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Contract evidence locks Phase 0 invariants:
-  - [ ] directives allowlist + reserved `@*` namespace guard are cemented (0.90.0)
-  - [ ] exclusive-level rule + error precedence are cemented (0.90.0)
-  - [ ] float-forbidden json-like model is enforced at contracts boundary (0.70.0)
-  - [ ] config trace never stores raw values; ordering is deterministic (0.90.0)
-  - [ ] env missing vs empty is distinguishable (0.60.0 / 0.70.0 policy alignment)
+- [x] Contract evidence locks Phase 0 invariants:
+  - [x] directives allowlist + reserved `@*` namespace guard are cemented (0.90.0)
+  - [x] exclusive-level rule + error precedence are cemented (0.90.0)
+  - [x] float-forbidden json-like model is enforced at contracts boundary (0.70.0)
+  - [x] config trace never stores raw values; ordering is deterministic (0.90.0)
+  - [x] env missing vs empty is distinguishable (0.60.0 / 0.70.0 policy alignment)
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] tests listed in Creates
+  - [x] tests listed in Creates
 
 ### DoD (MUST)
 
-- [ ] Contracts compile without forbidden deps
-- [ ] Contract tests green
-- [ ] `docs/ssot/config-and-env.md` exists and matches contracts invariants
-- [ ] Directives allowlist cannot expand without ADR + updated locks
-- [ ] Lock source (Phase 0):
-  - [ ] Directives semantics + precedence + explain trace are SSoT-locked and MUST match Phase 0 spikes:
-    - [ ] 0.90.0 — config_merge directive semantics + explain ordering + reserved namespace guard
-    - [ ] 0.70.0 — float-forbidden json-like model
-  - [ ] Any expansion of directives/source-types MUST require ADR update + SSoT update + contract test update (non-optional)
-- [ ] Non-goals / out of scope:
-  - [ ] No merge/loader/explain implementation here (Kernel config engine owns it).
-  - [ ] No secrets in explain/trace (contracts define metadata only: type/path/keyPath).
-  - [ ] Directives allowlist MUST NOT expand without ADR + updated spike locks.
+- [x] Contracts compile without forbidden deps
+- [x] Contract tests green
+- [x] `docs/ssot/config-and-env.md` exists and matches contracts invariants
+- [x] Directives allowlist cannot expand without ADR + updated locks
+- [x] Lock source (Phase 0):
+  - [x] Directives semantics + precedence + explain trace are SSoT-locked and MUST match Phase 0 spikes:
+    - [x] 0.90.0 — config_merge directive semantics + explain ordering + reserved namespace guard
+    - [x] 0.70.0 — float-forbidden json-like model
+  - [x] Any expansion of directives/source-types MUST require ADR update + SSoT update + contract test update (non-optional)
+- [x] Non-goals / out of scope:
+  - [x] No merge/loader/explain implementation here (Kernel config engine owns it).
+  - [x] No secrets in explain/trace (contracts define metadata only: type/path/keyPath).
+  - [x] Directives allowlist MUST NOT expand without ADR + updated spike locks.
 
 ---
 

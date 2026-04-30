@@ -33,6 +33,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 ## Architecture Decision Records
 
 - [ADR-0001: Module descriptor, manifest reader, and mode preset contracts](./ADR-0001-module-descriptor-manifest-modepreset-ports.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,mode-preset
+- [ADR-0002: Config, env, source tracking, and directive invariants](./ADR-0002-config-env-source-tracking-directives-invariants.md) — owner: core/contracts — scope: config,contracts,directives,env,source-tracking
 
 ## Cross-references
 

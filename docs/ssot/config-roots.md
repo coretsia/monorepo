@@ -18,13 +18,17 @@ This document is the canonical registry for reserved configuration roots.
 
 ## Goal
 
-A single SSoT defines reserved config roots, ownership, and invariants so configuration stays predictable across packages.
+A single SSoT defines reserved config roots, ownership, defaults-file authority, rules-file authority, and declarative config ruleset invariants so configuration stays predictable across packages.
 
 ## Invariants (MUST)
 
 - `config/<name>.php` **MUST** return the subtree for that root and **MUST NOT** repeat the root wrapper.
 - Defaults for a config root **MUST** live in the owning package only.
 - `config/rules.php` for a config root **MUST** be owned by the owning package only.
+- Package `config/rules.php` files **MUST** return plain declarative ruleset arrays.
+- Package `config/rules.php` files **MUST NOT** return callables, closures, objects, service instances, executable validators, or runtime wiring objects.
+- Package-owned rules files define validation rules as data only.
+- Runtime validation logic is kernel-owned and **MUST** be implemented by `ConfigKernel` / `ConfigValidator` using contracts such as `ConfigValidatorInterface`.
 - Configuration ownership is defined exclusively by this config roots registry.
 - Config roots and DTO policy are orthogonal mechanisms.
 - PHP attributes **MUST NOT** replace package-owned config defaults or package-owned config rules.
@@ -67,6 +71,43 @@ Runtime code reads from the global config under the root key. Example:
 ```text
 foundation.container.*
 ```
+
+## Declarative Ruleset Files (MUST)
+
+Package `config/rules.php` files define validation rules as declarative data.
+
+A valid rules file returns a plain array:
+
+```php
+return [
+    'container' => [
+        'type' => 'map',
+        'required' => false,
+    ],
+];
+```
+
+An invalid rules file returns executable behavior:
+
+```php
+return static function (array $config): void {
+    // invalid
+};
+```
+
+Invalid rule values include:
+
+- callables
+- closures
+- objects
+- service instances
+- container references
+- executable validators
+- resources
+- filesystem handles
+- runtime wiring objects
+
+Ruleset files are input data for `ConfigKernel` / `ConfigValidator`; they are consumed through contracts and are not validators themselves.
 
 ## Ownership Model (MUST)
 
@@ -124,11 +165,15 @@ Parallel placeholder notes are not a substitute for updating the canonical regis
 
 ## Non-goals / Clarifications (MUST)
 
-- This registry governs reserved config roots, ownership, defaults-file authority, and rules-file authority.
+- This registry governs reserved config roots, ownership, defaults-file authority, rules-file authority, and declarative rules-file authority.
+- This registry does not define config merge implementation.
+- This registry does not define config validation implementation.
+- This registry does not define config artifact schema.
 - This registry does not turn DTO attributes into configuration ownership.
 - PHP attributes and configuration roots are orthogonal and **MUST NOT** be conflated.
 
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [Config and env SSoT](./config-and-env.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

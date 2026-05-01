@@ -3212,30 +3212,30 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Routing/RouteDefinition.php`
-  - [ ] safe scalar/json-like fields only
-  - [ ] deterministic order for multi-route provider outputs
-- [ ] `framework/packages/core/contracts/src/Routing/RouteMatch.php`
-  - [ ] safe scalar/json-like fields only
-  - [ ] deterministic order for multi-route provider outputs
-- [ ] `framework/packages/core/contracts/src/Routing/RouterInterface.php`
-- [ ] `framework/packages/core/contracts/src/Routing/RouteProviderInterface.php`
-- [ ] `framework/packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
-- [ ] `framework/packages/core/contracts/src/HttpApp/ArgumentResolverInterface.php`
+- [x] `framework/packages/core/contracts/src/Routing/RouteDefinition.php`
+  - [x] safe scalar/json-like fields only
+  - [x] deterministic exported shape/order for descriptor maps
+- [x] `framework/packages/core/contracts/src/Routing/RouteMatch.php`
+  - [x] safe scalar/json-like fields only
+  - [x] deterministic exported shape/order for descriptor maps
+- [x] `framework/packages/core/contracts/src/Routing/RouterInterface.php`
+- [x] `framework/packages/core/contracts/src/Routing/RouteProviderInterface.php`
+- [x] `framework/packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
+- [x] `framework/packages/core/contracts/src/HttpApp/ArgumentResolverInterface.php`
 
-- [ ] `docs/adr/ADR-0005-routing-httpapp-ports.md`
-- [ ] `docs/ssot/routing-and-http-app-contracts.md` — boundary rules + examples (no PSR-7)
+- [x] `docs/adr/ADR-0005-routing-httpapp-ports.md`
+- [x] `docs/ssot/routing-and-http-app-contracts.md` — boundary rules + examples (no PSR-7)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/routing-and-http-app-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0005-routing-httpapp-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/routing-and-http-app-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0005-routing-httpapp-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -3257,38 +3257,38 @@ N/A
 
 #### Observability (policy-compliant)
 
-- [ ] Route template (not raw path) is canonical routing metadata/context and MAY be used for matching/debugging/span context.
-- [ ] It MUST NOT become a metric label unless `docs/ssot/observability.md` explicitly extends the label allowlist.
+- [x] Route template (not raw path) is canonical routing metadata/context and MAY be used for matching/debugging/span context.
+- [x] It MUST NOT become a metric label unless `docs/ssot/observability.md` explicitly extends the label allowlist.
 
 #### Security / Redaction
 
-- [ ] Contracts VOs MUST NOT include raw headers/cookies/body/payloads (format-neutral boundary)
+- [x] Contracts VOs MUST NOT include raw headers/cookies/body/payloads (format-neutral boundary)
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] tests listed above
+  - [x] tests listed above
 
 ### DoD (MUST)
 
-- [ ] Ports exist + tested
-- [ ] Docs exist
-- [ ] No PSR-7 leakage in contracts
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/routing` compiles routes artifact and sets canonical routing metadata/context key `path_template` after match.
-  - [ ] Any concrete Foundation constant or key-carrier class for that context key is owned and introduced only by the corresponding Foundation epic.
-  - [ ] `platform/http-app` supplies RouterMiddleware and wires it into the app middleware slot at priority `100`.
-    - [ ] Slot/tag naming MUST be explicit: canonical tag is `http.middleware.app`.
-    - [ ] Legacy `http.middleware.user` MUST be treated only as deprecated/renamed terminology and MUST NOT appear as a current tag name in contracts, SSoT, defaults, or gates.
-- [ ] Middleware slot alignment (cemented):
-  - [ ] Router middleware wiring policy MUST use the canonical slot taxonomy `system/app/route`, with canonical tag names reserved in `docs/ssot/tags.md`.
-  - [ ] Any mention of legacy `http.middleware.user*` MUST be treated as deprecated/renamed and MUST NOT appear in new contracts/SSoT
-- [ ] `RouteDefinition` and `RouteMatch` are contracts routing shapes/descriptors, not DTO-marker classes by default
+- [x] Ports exist + tested
+- [x] Docs exist
+- [x] No PSR-7 leakage in contracts
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/routing` compiles routes artifact and sets canonical routing metadata/context key `path_template` after match.
+  - [x] Any concrete Foundation constant or key-carrier class for that context key is owned and introduced only by the corresponding Foundation epic.
+  - [x] `platform/http-app` supplies RouterMiddleware and wires it into the app middleware slot at priority `100`.
+    - [x] Slot/tag naming MUST be explicit: canonical tag is `http.middleware.app`.
+    - [x] Legacy `http.middleware.user` MUST be treated only as deprecated/renamed terminology and MUST NOT appear as a current tag name in contracts, SSoT, defaults, or gates.
+- [x] Middleware slot alignment (cemented):
+  - [x] Router middleware wiring policy MUST use the canonical slot taxonomy `system/app/route`, with canonical tag names reserved in `docs/ssot/tags.md`.
+  - [x] Any mention of legacy `http.middleware.user*` MUST be treated as deprecated/renamed and MUST NOT appear in new contracts/SSoT
+- [x] `RouteDefinition` and `RouteMatch` are contracts routing shapes/descriptors, not DTO-marker classes by default
 
 ---
 

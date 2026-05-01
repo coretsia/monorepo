@@ -50,6 +50,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,module-id
 - [Observability and Errors SSoT](./observability-and-errors.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,observability,redaction
 - [Profiling Ports SSoT](./profiling-ports.md) — owner: core/contracts — scope: contracts,observability,profiling,redaction,uow
+- [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — scope: contracts,http-app,routing,ports,redaction
 
 ## Runtime Invariants
 

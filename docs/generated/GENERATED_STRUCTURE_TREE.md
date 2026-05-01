@@ -29,6 +29,7 @@ Coretsia/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
+│   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -102,6 +103,7 @@ Coretsia/
 │       ├── observability-and-errors.md
 │       ├── observability.md
 │       ├── profiling-ports.md
+│       ├── routing-and-http-app-contracts.md
 │       └── tags.md
 ├── framework/
 │   ├── bin/
@@ -134,6 +136,9 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php
 │   │   │   │   │   │   └── EnvValue.php
+│   │   │   │   │   ├── HttpApp/
+│   │   │   │   │   │   ├── ActionInvokerInterface.php
+│   │   │   │   │   │   └── ArgumentResolverInterface.php
 │   │   │   │   │   ├── Module/
 │   │   │   │   │   │   ├── Capability/
 │   │   │   │   │   │   │   └── CapabilityInterface.php
@@ -143,32 +148,37 @@ Coretsia/
 │   │   │   │   │   │   ├── ModuleDescriptor.php
 │   │   │   │   │   │   ├── ModuleId.php
 │   │   │   │   │   │   └── ModuleInterface.php
-│   │   │   │   │   └── Observability/
-│   │   │   │   │       ├── Errors/
-│   │   │   │   │       │   ├── ErrorDescriptor.php
-│   │   │   │   │       │   ├── ErrorHandlerInterface.php
-│   │   │   │   │       │   ├── ErrorHandlingContext.php
-│   │   │   │   │       │   ├── ErrorReporterPortInterface.php
-│   │   │   │   │       │   ├── ErrorSeverity.php
-│   │   │   │   │       │   └── ExceptionMapperInterface.php
-│   │   │   │   │       ├── Health/
-│   │   │   │   │       │   ├── HealthCheckInterface.php
-│   │   │   │   │       │   └── HealthStatus.php
-│   │   │   │   │       ├── Metrics/
-│   │   │   │   │       │   ├── MeterPortInterface.php
-│   │   │   │   │       │   └── MetricsRendererInterface.php
-│   │   │   │   │       ├── Profiling/
-│   │   │   │   │       │   ├── ProfileArtifact.php
-│   │   │   │   │       │   ├── ProfileExporterInterface.php
-│   │   │   │   │       │   └── ProfilerPortInterface.php
-│   │   │   │   │       ├── Tracing/
-│   │   │   │   │       │   ├── ContextPropagationInterface.php
-│   │   │   │   │       │   ├── SamplerInterface.php
-│   │   │   │   │       │   ├── SamplingDecision.php
-│   │   │   │   │       │   ├── SpanExporterInterface.php
-│   │   │   │   │       │   ├── SpanInterface.php
-│   │   │   │   │       │   └── TracerPortInterface.php
-│   │   │   │   │       └── CorrelationIdProviderInterface.php
+│   │   │   │   │   ├── Observability/
+│   │   │   │   │   │   ├── Errors/
+│   │   │   │   │   │   │   ├── ErrorDescriptor.php
+│   │   │   │   │   │   │   ├── ErrorHandlerInterface.php
+│   │   │   │   │   │   │   ├── ErrorHandlingContext.php
+│   │   │   │   │   │   │   ├── ErrorReporterPortInterface.php
+│   │   │   │   │   │   │   ├── ErrorSeverity.php
+│   │   │   │   │   │   │   └── ExceptionMapperInterface.php
+│   │   │   │   │   │   ├── Health/
+│   │   │   │   │   │   │   ├── HealthCheckInterface.php
+│   │   │   │   │   │   │   └── HealthStatus.php
+│   │   │   │   │   │   ├── Metrics/
+│   │   │   │   │   │   │   ├── MeterPortInterface.php
+│   │   │   │   │   │   │   └── MetricsRendererInterface.php
+│   │   │   │   │   │   ├── Profiling/
+│   │   │   │   │   │   │   ├── ProfileArtifact.php
+│   │   │   │   │   │   │   ├── ProfileExporterInterface.php
+│   │   │   │   │   │   │   └── ProfilerPortInterface.php
+│   │   │   │   │   │   ├── Tracing/
+│   │   │   │   │   │   │   ├── ContextPropagationInterface.php
+│   │   │   │   │   │   │   ├── SamplerInterface.php
+│   │   │   │   │   │   │   ├── SamplingDecision.php
+│   │   │   │   │   │   │   ├── SpanExporterInterface.php
+│   │   │   │   │   │   │   ├── SpanInterface.php
+│   │   │   │   │   │   │   └── TracerPortInterface.php
+│   │   │   │   │   │   └── CorrelationIdProviderInterface.php
+│   │   │   │   │   └── Routing/
+│   │   │   │   │       ├── RouteDefinition.php
+│   │   │   │   │       ├── RouteMatch.php
+│   │   │   │   │       ├── RouteProviderInterface.php
+│   │   │   │   │       └── RouterInterface.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
@@ -196,12 +206,15 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorSchemaVersionTest.php
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
+│   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
 │   │   │   │   │   │   └── SpanExporterInterfaceShapeContractTest.php
 │   │   │   │   │   └── Unit/

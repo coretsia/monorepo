@@ -126,6 +126,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigValidatorInterface.php
 │   │   │   │   │   │   ├── ConfigValueSource.php
 │   │   │   │   │   │   └── MergeStrategyInterface.php
+│   │   │   │   │   ├── Context/
+│   │   │   │   │   │   └── ContextAccessorInterface.php
 │   │   │   │   │   ├── Env/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php
@@ -176,6 +178,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigTraceModelNeverContainsRawValuesContractTest.php
 │   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php
 │   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php
+│   │   │   │   │   │   ├── ContextAccessorInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php

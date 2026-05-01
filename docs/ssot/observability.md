@@ -87,6 +87,10 @@ The reserved baseline allowlist is single-choice:
 - Allowed labels **MUST** still carry safe, bounded-cardinality values.
 - Allowlisted keys do not permit raw sensitive values.
 - New canonical label keys require direct modification of this SSoT.
+- Metric label values are safe bounded scalar labels, not generic json-like payloads.
+- Metric label values MUST be `string`, `int`, or `bool`.
+- `null` MUST NOT be emitted as a metric label value; omit the label key instead.
+- Metric label values MUST NOT be lists, maps, floats, objects, resources, closures, raw payloads, or transport/runtime objects.
 
 ## Forbidden Data (MUST NOT LEAK)
 

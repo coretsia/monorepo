@@ -28,6 +28,7 @@ Coretsia/
 │   ├── adr/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
+│   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -96,7 +97,9 @@ Coretsia/
 │       ├── dto-policy.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
+│       ├── observability-and-errors.md
 │       ├── observability.md
+│       ├── profiling-ports.md
 │       └── tags.md
 ├── framework/
 │   ├── bin/
@@ -127,15 +130,41 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php (EnvRepositoryInterface [interface] - get())
 │   │   │   │   │   │   └── EnvValue.php (EnvValue - missing()/present()/isPresent()/isMissing()/isEmptyString()/value())
-│   │   │   │   │   └── Module/
-│   │   │   │   │       ├── Capability/
-│   │   │   │   │       │   └── CapabilityInterface.php (CapabilityInterface [interface])
-│   │   │   │   │       ├── ManifestReaderInterface.php (ManifestReaderInterface [interface] - readInstalled())
-│   │   │   │   │       ├── ModePresetInterface.php (ModePresetInterface [interface] - name()/description()/moduleIds()/metadata())
-│   │   │   │   │       ├── ModePresetLoaderInterface.php (ModePresetLoaderInterface [interface] - load())
-│   │   │   │   │       ├── ModuleDescriptor.php (ModuleDescriptor - fromLayerAndSlug()/schemaVersion()/id()/moduleId()/layer()/slug()/composerName()/packageKind()/moduleClass()/capabilities()/metadata()/toArray()/assertRuntimeLayer()/normalizeOptionalString()/normalizeStringList()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue())
-│   │   │   │   │       ├── ModuleId.php (ModuleId - fromString()/fromLayerAndSlug()/isValid()/value()/layer()/slug()/equals()/normalize()/normalizePart()/asciiLower())
-│   │   │   │   │       └── ModuleInterface.php (ModuleInterface [interface] - descriptor())
+│   │   │   │   │   ├── Module/
+│   │   │   │   │   │   ├── Capability/
+│   │   │   │   │   │   │   └── CapabilityInterface.php (CapabilityInterface [interface])
+│   │   │   │   │   │   ├── ManifestReaderInterface.php (ManifestReaderInterface [interface] - readInstalled())
+│   │   │   │   │   │   ├── ModePresetInterface.php (ModePresetInterface [interface] - name()/description()/moduleIds()/metadata())
+│   │   │   │   │   │   ├── ModePresetLoaderInterface.php (ModePresetLoaderInterface [interface] - load())
+│   │   │   │   │   │   ├── ModuleDescriptor.php (ModuleDescriptor - fromLayerAndSlug()/schemaVersion()/id()/moduleId()/layer()/slug()/composerName()/packageKind()/moduleClass()/capabilities()/metadata()/toArray()/assertRuntimeLayer()/normalizeOptionalString()/normalizeStringList()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue())
+│   │   │   │   │   │   ├── ModuleId.php (ModuleId - fromString()/fromLayerAndSlug()/isValid()/value()/layer()/slug()/equals()/normalize()/normalizePart()/asciiLower())
+│   │   │   │   │   │   └── ModuleInterface.php (ModuleInterface [interface] - descriptor())
+│   │   │   │   │   └── Observability/
+│   │   │   │   │       ├── Errors/
+│   │   │   │   │       │   ├── ErrorDescriptor.php (ErrorDescriptor - code()/message()/severity()/httpStatus()/extensions()/toArray()/normalizeCode()/normalizeMessage()/normalizeHttpStatus()/normalizeExtensions()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │       │   ├── ErrorHandlerInterface.php (ErrorHandlerInterface [interface] - handle())
+│   │   │   │   │       │   ├── ErrorHandlingContext.php (ErrorHandlingContext - operation()/correlationId()/metadata()/toArray()/normalizeOptionalString()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │       │   ├── ErrorReporterPortInterface.php (ErrorReporterPortInterface [interface] - report())
+│   │   │   │   │       │   ├── ErrorSeverity.php
+│   │   │   │   │       │   └── ExceptionMapperInterface.php (ExceptionMapperInterface [interface] - map())
+│   │   │   │   │       ├── Health/
+│   │   │   │   │       │   ├── HealthCheckInterface.php (HealthCheckInterface [interface] - name()/check())
+│   │   │   │   │       │   └── HealthStatus.php
+│   │   │   │   │       ├── Metrics/
+│   │   │   │   │       │   ├── MeterPortInterface.php (MeterPortInterface [interface] - increment()/observe())
+│   │   │   │   │       │   └── MetricsRendererInterface.php (MetricsRendererInterface [interface] - render())
+│   │   │   │   │       ├── Profiling/
+│   │   │   │   │       │   ├── ProfileArtifact.php (ProfileArtifact - name()/metadata()/payload()/toArray()/normalizeName()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │       │   ├── ProfileExporterInterface.php (ProfileExporterInterface [interface] - export())
+│   │   │   │   │       │   └── ProfilerPortInterface.php (ProfilerPortInterface [interface] - start()/stop())
+│   │   │   │   │       ├── Tracing/
+│   │   │   │   │       │   ├── ContextPropagationInterface.php (ContextPropagationInterface [interface] - inject()/extract())
+│   │   │   │   │       │   ├── SamplerInterface.php (SamplerInterface [interface] - shouldSample())
+│   │   │   │   │       │   ├── SamplingDecision.php
+│   │   │   │   │       │   ├── SpanExporterInterface.php (SpanExporterInterface [interface] - export())
+│   │   │   │   │       │   ├── SpanInterface.php (SpanInterface [interface] - name()/setAttribute()/setAttributes()/addEvent()/end())
+│   │   │   │   │       │   └── TracerPortInterface.php (TracerPortInterface [interface] - startSpan()/currentSpan())
+│   │   │   │   │       └── CorrelationIdProviderInterface.php (CorrelationIdProviderInterface [interface] - correlationId())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php (ConfigDirectiveEmptyArrayRuleIsCementedContractTest - test_empty_array_rule_covers_exactly_the_directive_allowlist()/test_append_empty_array_is_cemented_as_no_op()/test_prepend_empty_array_is_cemented_as_no_op()/test_remove_empty_array_is_cemented_as_no_op()/test_merge_empty_array_is_cemented_as_no_op()/test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array()/test_empty_array_payload_is_explicit_and_not_missing())
@@ -148,12 +177,28 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php (ConfigTraceOrderingIsDeterministicContractTest - test_trace_entries_can_be_ordered_by_phase0_aligned_safe_trace_order()/test_trace_ordering_is_independent_from_input_order()/test_source_id_null_sorts_deterministically_as_empty_string()/test_precedence_is_exported_and_part_of_phase0_aligned_safe_trace_sort_key()/test_path_is_safe_source_file_equivalent_in_phase0_aligned_sort_key()/test_trace_export_key_order_is_stable_after_sorting()/sortTraceEntries()/traceSortKey())
 │   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php (ConfigValueSourceShapeContractTest - test_config_value_source_exposes_canonical_safe_shape()/test_default_source_id_precedence_and_redaction_are_canonical()/test_exported_array_key_order_is_deterministic()/test_root_must_be_non_empty_lowercase_config_root_identifier()/test_precedence_must_be_non_negative()/test_path_key_path_and_source_id_must_not_contain_control_bytes()/test_path_key_path_and_source_id_must_not_be_absolute_paths_or_urls()/test_path_key_path_and_source_id_must_not_contain_path_traversal()/test_source_id_must_not_be_empty_when_provided()/sourceWithField())
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php (ContractsDoNotDependOnPlatformTest - test_contracts_source_has_no_forbidden_compile_time_dependencies()/phpFiles()/forbiddenPatterns()/phpCodeWithoutCommentsAndStrings()/relativePath())
+│   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php (ContractsDoNotReferencePsr7ContractTest - test_core_contracts_source_does_not_reference_psr7_types()/phpFiles())
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php (DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest - test_directive_names_match_phase0_config_merge_lock()/test_directive_keys_match_phase0_config_merge_lock()/test_directive_enum_cases_match_phase0_config_merge_lock_without_extra_cases()/test_forbidden_legacy_or_non_phase0_directives_are_not_allowed()/test_directive_values_are_lowercase_ascii_and_unprefixed())
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php (EnvMissingVsEmptyIsDistinctContractTest - test_missing_value_is_not_present_and_has_no_string_value()/test_present_empty_string_is_present_and_distinct_from_missing()/test_present_non_empty_string_is_present_and_not_empty_string()/test_missing_empty_string_and_non_empty_string_are_three_distinct_states()/test_php_truthiness_must_not_define_env_presence())
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php (EnvPolicyPrecedenceContractTest - test_env_policy_values_are_canonical_and_ordered()/test_required_policy_treats_missing_value_as_validation_violation()/test_optional_policy_keeps_missing_value_missing()/test_defaulted_policy_allows_safe_default_only_for_missing_value()/test_present_empty_string_wins_over_default_for_every_policy()/test_policy_known_check_is_strict())
+│   │   │   │   │   │   ├── ErrorDescriptorExtensionsAreJsonLikeContractTest.php (ErrorDescriptorExtensionsAreJsonLikeContractTest - test_extensions_accept_json_like_values_and_normalize_maps_deterministically()/test_extensions_preserve_list_order()/test_extensions_reject_non_empty_root_lists()/test_extensions_reject_floats_nan_and_infinity()/test_extensions_reject_objects_closures_and_invalid_keys())
+│   │   │   │   │   │   ├── ErrorDescriptorFieldSetIsStableContractTest.php (ErrorDescriptorFieldSetIsStableContractTest - test_error_descriptor_declared_property_field_set_is_stable()/test_error_descriptor_public_array_field_set_and_order_are_stable()/test_error_descriptor_does_not_expose_throwable_or_transport_fields())
+│   │   │   │   │   │   ├── ErrorDescriptorHttpStatusIsOptionalContractTest.php (ErrorDescriptorHttpStatusIsOptionalContractTest - test_http_status_defaults_to_null()/test_http_status_accepts_valid_hint_range()/test_http_status_rejects_values_outside_http_status_range()/test_http_status_is_only_a_hint_field_in_public_shape())
+│   │   │   │   │   │   ├── ErrorDescriptorSeverityEnumContractTest.php (ErrorDescriptorSeverityEnumContractTest - test_error_severity_cases_are_stable()/test_error_severity_values_helper_is_stable()/test_error_severity_is_not_a_logger_level_enum())
+│   │   │   │   │   │   ├── ErrorDescriptorShapeContractTest.php (ErrorDescriptorShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_array_shape_are_stable()/test_descriptor_rejects_empty_code()/test_descriptor_rejects_empty_message()/test_descriptor_rejects_invalid_code_shape()/assertParameterNamedType())
+│   │   │   │   │   │   ├── ErrorHandlingContextMetadataIsJsonLikeContractTest.php (ErrorHandlingContextMetadataIsJsonLikeContractTest - test_metadata_accepts_json_like_values_and_normalizes_maps_deterministically()/test_metadata_preserves_list_order()/test_metadata_rejects_non_empty_root_lists()/test_metadata_rejects_floats_nan_and_infinity()/test_metadata_rejects_objects_closures_and_invalid_keys())
+│   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php (ErrorHandlingContextShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_public_array_shape_are_stable()/test_default_context_is_empty_and_format_neutral()/test_context_rejects_empty_operation()/test_context_rejects_empty_correlation_id()/test_context_rejects_multiline_operation()/test_context_rejects_multiline_correlation_id()/assertParameterNamedType())
+│   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php (ErrorPortsShapeContractTest - test_exception_mapper_interface_shape_is_stable()/test_error_reporter_interface_shape_is_stable()/test_error_handler_interface_shape_is_stable()/test_error_ports_can_compose_through_format_neutral_contracts()/map()/report()/handle()/assertInterfaceMethods()/assertParameterNamedType()/assertMethodReturnType())
+│   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php (HealthCheckInterfaceShapeContractTest - test_health_check_interface_shape_is_stable()/test_health_status_cases_are_stable()/test_health_check_implementations_can_return_health_status()/name()/check()/assertMethodReturnType())
+│   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php (MeterPortInterfaceShapeContractTest - test_meter_port_interface_shape_is_stable()/test_meter_port_accepts_safe_bounded_scalar_label_values_without_null_labels()/increment()/observe()/assertLabelsDoNotContainNull()/test_meter_label_phpdoc_documents_non_null_bounded_scalar_labels()/assertParameterNamedType()/assertMethodReturnType())
+│   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php (MetricsRendererInterfaceShapeContractTest - test_metrics_renderer_interface_shape_is_stable()/test_metrics_renderer_returns_string_without_vendor_api_requirement()/render()/assertMethodReturnType())
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php (ModuleDescriptorIdIsDerivedFromLayerAndSlugTest - test_derives_module_id_from_layer_and_slug()/test_composer_metadata_does_not_affect_module_identity()/test_exports_internal_module_id_as_scalars_not_object_identity()/test_sorts_capabilities_and_metadata_deterministically()/test_rejects_tooling_only_layer_as_runtime_descriptor()/assertNoObjectsInExportedShape())
-│   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php (ModuleDescriptorSchemaVersionTest - test_exposes_initial_schema_version()/test_exports_stable_descriptor_shape()/test_rejects_non_json_like_metadata_values()/test_rejects_resource_metadata_value()/invalidMetadataValues()/assertExportedJsonLikeValue())
+│   │   │   │   │   │   ├── ModuleDescriptorSchemaVersionTest.php (ModuleDescriptorSchemaVersionTest - test_exposes_initial_schema_version()/test_exports_stable_descriptor_shape()/test_rejects_non_json_like_metadata_values()/test_rejects_resource_metadata_value()/invalidMetadataValues()/assertExportedJsonLikeValue())
+│   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php (ProfilingContractsDoNotDependOnPsr7ContractTest - test_profiling_contracts_do_not_reference_psr7_types()/phpFiles())
+│   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php (ProfilingContractsShapeContractTest - test_profile_artifact_shape_is_stable_and_payload_is_opaque()/test_profile_artifact_rejects_invalid_metadata()/test_profiler_port_interface_shape_is_stable()/test_profile_exporter_interface_shape_is_stable()/test_profiler_and_exporter_implementations_can_compose_through_contracts()/start()/stop()/export()/assertMethodReturnType())
+│   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php (SamplerInterfaceShapeContractTest - test_sampler_interface_shape_is_stable()/test_sampler_implementations_can_return_sampling_decision()/shouldSample()/assertMethodReturnType())
+│   │   │   │   │   │   └── SpanExporterInterfaceShapeContractTest.php (SpanExporterInterfaceShapeContractTest - test_span_exporter_interface_shape_is_stable()/test_span_exporter_accepts_iterable_of_span_interfaces()/name()/setAttribute()/setAttributes()/addEvent()/end()/export()/assertMethodReturnType())
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php (ModuleIdFormatTest - test_accepts_canonical_module_id()/test_normalizes_ascii_case_and_outer_whitespace_without_locale()/test_builds_from_layer_and_slug()/test_compares_by_canonical_value()/test_rejects_non_ascii_locale_sensitive_letters()/test_rejects_dot_inside_layer_or_slug_parts()/test_rejects_invalid_module_ids()/invalidModuleIds())
 │   │   │   │   ├── LICENSE

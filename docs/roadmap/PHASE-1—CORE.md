@@ -2761,74 +2761,79 @@ N/A
 #### Creates
 
 Observability:
-- [ ] `framework/packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php`
 
 Tracing:
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/SpanExporterInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/SamplerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Tracing/SamplingDecision.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/SpanExporterInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/SamplerInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Tracing/SamplingDecision.php`
 
 Metrics:
-- [ ] `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Metrics/MetricsRendererInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Metrics/MetricsRendererInterface.php`
 
 Errors:
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ErrorReporterPortInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ErrorSeverity.php` — severity enum (stable)
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
-  - [ ] extensions strictly json-like
-  - [ ] stable field set
-  - [ ] no raw throwable payload
-- [ ] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorReporterPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorSeverity.php` — severity enum (stable)
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - [x] extensions strictly json-like
+  - [x] stable field set
+  - [x] no raw throwable payload
+- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
 
 Health:
-- [ ] `framework/packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Health/HealthStatus.php`
+- [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Health/HealthStatus.php`
 
 Profiling:
-- [ ] `framework/packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
-- [ ] `framework/packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
+- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
 
 Documentation:
-- [ ] `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
-- [ ] `docs/ssot/observability-and-errors.md` — ports overview, ErrorDescriptor format-neutral rule, redaction rules
-  - [ ] Json-like payload rules (cemented)
-    - [ ] Any json-like payload exposed by contracts (e.g. `ErrorDescriptor.extensions`, profiling metadata envelopes, etc.) MUST follow Phase 0 json-like rules:
-      - [ ] Allowed scalars: `string|int|bool|null`
-      - [ ] Floats are FORBIDDEN everywhere (including `NaN`, `INF`, `-INF`)
-      - [ ] Containers:
-        - [ ] lists preserve order
-        - [ ] maps are key-ordered deterministically (byte-order), locale-independent
-      - [ ] Implementations MUST NOT log/print raw payload values; only `hash(value)` / `len(value)` is allowed for diagnostics.
-  - [ ] In this document, `descriptor/result/shape/model` terminology follows `docs/ssot/dto-policy.md`; these models are not DTO-marker classes unless explicitly marked.
-- [ ] `docs/ssot/profiling-ports.md` — profiling policy + invariants (payload opaque)
+- [x] `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
+- [x] `docs/ssot/observability-and-errors.md` — ports overview, ErrorDescriptor format-neutral rule, redaction rules
+  - [x] Json-like payload rules (cemented)
+    - [x] Any json-like payload exposed by contracts (e.g. `ErrorDescriptor.extensions`, profiling metadata envelopes, etc.) MUST follow Phase 0 json-like rules:
+      - [x] Allowed scalars: `string|int|bool|null`
+      - [x] Floats are FORBIDDEN everywhere (including `NaN`, `INF`, `-INF`)
+      - [x] Containers:
+        - [x] lists preserve order
+        - [x] maps are key-ordered deterministically (byte-order), locale-independent
+      - [x] Implementations MUST NOT log/print raw payload values; only `hash(value)` / `len(value)` is allowed for diagnostics.
+  - [x] In this document, `descriptor/result/shape/model` terminology follows `docs/ssot/dto-policy.md`; these models are not DTO-marker classes unless explicitly marked.
+- [x] `docs/ssot/profiling-ports.md` — profiling policy + invariants (payload opaque)
 
 Tests:
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HealthCheckInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextMetadataIsJsonLikeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/MeterPortInterfaceShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] `docs/ssot/profiling-ports.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/observability-and-errors.md`
+  - [x] `docs/ssot/profiling-ports.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -2850,44 +2855,44 @@ N/A
 
 #### Observability (policy-compliant)
 
-- [ ] Contracts remain format-neutral; label allowlist is policy-level (`docs/ssot/observability.md`).
-- [ ] Metric label keys MUST stay within allowlist: `method,status,driver,operation,table,outcome`.
-- [ ] Spans/logs MUST NOT contain PII/secrets.
-- [ ] Profiling: `ProfileArtifact.payload` is opaque and MUST NEVER be logged or used as metric label.
+- [x] Contracts remain format-neutral; label allowlist is policy-level (`docs/ssot/observability.md`).
+- [x] Metric label keys MUST stay within allowlist: `method,status,driver,operation,table,outcome`.
+- [x] Spans/logs MUST NOT contain PII/secrets.
+- [x] Profiling: `ProfileArtifact.payload` is opaque and MUST NEVER be logged or used as metric label.
 
 #### Errors
 
-- [ ] `ErrorDescriptor` is format-neutral; `httpStatus` is an optional hint only; `extensions` are json-like only.
+- [x] `ErrorDescriptor` is format-neutral; `httpStatus` is an optional hint only; `extensions` are json-like only.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak: auth/cookies/session ids/tokens/raw SQL/payload/profile payload
-- [ ] Allowed (implementation-side): `hash(value)` / `len(value)` / safe ids
+- [x] MUST NOT leak: auth/cookies/session ids/tokens/raw SQL/payload/profile payload
+- [x] Allowed (implementation-side): `hash(value)` / `len(value)` / safe ids
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] tests listed above
+  - [x] tests listed above
 
 ### DoD (MUST)
 
-- [ ] Contracts remain format-neutral (no PSR-7)
-- [ ] ErrorDescriptor stable and contract-tested
-- [ ] Profiling ports stable and contract-tested
-- [ ] Docs exist and match ports model
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/logging|tracing|metrics` provide noop-safe implementations.
-  - [ ] `platform/errors` provides `ErrorHandlerInterface` implementation + mapper registry (discovery via tag `error.mapper`).
-  - [ ] `platform/problem-details` adapts `ErrorDescriptor` → RFC7807 and wires `HttpErrorHandlingMiddleware` into `http.middleware.system_pre` (priority 1000) — when installed.
-  - [ ] Health checks are discovered via tag `health.check`.
-  - [ ] Profiling is implemented in `platform/profiling` (Phase 6+) and wired via kernel hook tags.
-- [ ] `ErrorDescriptor` is a canonical descriptor model, not a DTO-marker class by default
-- [ ] descriptor shape rules are enforced by contracts tests, not DTO gates
+- [x] Contracts remain format-neutral (no PSR-7)
+- [x] ErrorDescriptor stable and contract-tested
+- [x] Profiling ports stable and contract-tested
+- [x] Docs exist and match ports model
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/logging|tracing|metrics` provide noop-safe implementations.
+  - [x] `platform/errors` provides `ErrorHandlerInterface` implementation + mapper registry (discovery via tag `error.mapper`).
+  - [x] `platform/problem-details` adapts `ErrorDescriptor` → RFC7807 and wires `HttpErrorHandlingMiddleware` into `http.middleware.system_pre` (priority 1000) — when installed.
+  - [x] Health checks are discovered via tag `health.check`.
+  - [x] Profiling is implemented in `platform/profiling` (Phase 6+) and wired via kernel hook tags.
+- [x] `ErrorDescriptor` is a canonical descriptor model, not a DTO-marker class by default
+- [x] descriptor shape rules are enforced by contracts tests, not DTO gates
 
 ---
 

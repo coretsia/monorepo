@@ -28,6 +28,7 @@ Coretsia/
 │   ├── adr/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
+│   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -96,7 +97,9 @@ Coretsia/
 │       ├── dto-policy.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
+│       ├── observability-and-errors.md
 │       ├── observability.md
+│       ├── profiling-ports.md
 │       └── tags.md
 ├── framework/
 │   ├── bin/
@@ -127,15 +130,41 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php
 │   │   │   │   │   │   └── EnvValue.php
-│   │   │   │   │   └── Module/
-│   │   │   │   │       ├── Capability/
-│   │   │   │   │       │   └── CapabilityInterface.php
-│   │   │   │   │       ├── ManifestReaderInterface.php
-│   │   │   │   │       ├── ModePresetInterface.php
-│   │   │   │   │       ├── ModePresetLoaderInterface.php
-│   │   │   │   │       ├── ModuleDescriptor.php
-│   │   │   │   │       ├── ModuleId.php
-│   │   │   │   │       └── ModuleInterface.php
+│   │   │   │   │   ├── Module/
+│   │   │   │   │   │   ├── Capability/
+│   │   │   │   │   │   │   └── CapabilityInterface.php
+│   │   │   │   │   │   ├── ManifestReaderInterface.php
+│   │   │   │   │   │   ├── ModePresetInterface.php
+│   │   │   │   │   │   ├── ModePresetLoaderInterface.php
+│   │   │   │   │   │   ├── ModuleDescriptor.php
+│   │   │   │   │   │   ├── ModuleId.php
+│   │   │   │   │   │   └── ModuleInterface.php
+│   │   │   │   │   └── Observability/
+│   │   │   │   │       ├── Errors/
+│   │   │   │   │       │   ├── ErrorDescriptor.php
+│   │   │   │   │       │   ├── ErrorHandlerInterface.php
+│   │   │   │   │       │   ├── ErrorHandlingContext.php
+│   │   │   │   │       │   ├── ErrorReporterPortInterface.php
+│   │   │   │   │       │   ├── ErrorSeverity.php
+│   │   │   │   │       │   └── ExceptionMapperInterface.php
+│   │   │   │   │       ├── Health/
+│   │   │   │   │       │   ├── HealthCheckInterface.php
+│   │   │   │   │       │   └── HealthStatus.php
+│   │   │   │   │       ├── Metrics/
+│   │   │   │   │       │   ├── MeterPortInterface.php
+│   │   │   │   │       │   └── MetricsRendererInterface.php
+│   │   │   │   │       ├── Profiling/
+│   │   │   │   │       │   ├── ProfileArtifact.php
+│   │   │   │   │       │   ├── ProfileExporterInterface.php
+│   │   │   │   │       │   └── ProfilerPortInterface.php
+│   │   │   │   │       ├── Tracing/
+│   │   │   │   │       │   ├── ContextPropagationInterface.php
+│   │   │   │   │       │   ├── SamplerInterface.php
+│   │   │   │   │       │   ├── SamplingDecision.php
+│   │   │   │   │       │   ├── SpanExporterInterface.php
+│   │   │   │   │       │   ├── SpanInterface.php
+│   │   │   │   │       │   └── TracerPortInterface.php
+│   │   │   │   │       └── CorrelationIdProviderInterface.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
@@ -148,12 +177,28 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php
 │   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
+│   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorFieldSetIsStableContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorHttpStatusIsOptionalContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorSeverityEnumContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorShapeContractTest.php
+│   │   │   │   │   │   ├── ErrorHandlingContextMetadataIsJsonLikeContractTest.php
+│   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php
+│   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
+│   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
-│   │   │   │   │   │   └── ModuleDescriptorSchemaVersionTest.php
+│   │   │   │   │   │   ├── ModuleDescriptorSchemaVersionTest.php
+│   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
+│   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
+│   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
+│   │   │   │   │   │   └── SpanExporterInterfaceShapeContractTest.php
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php
 │   │   │   │   ├── LICENSE

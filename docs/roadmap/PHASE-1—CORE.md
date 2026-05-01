@@ -2963,17 +2963,17 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php`
-  - [ ] MUST:
-    - [ ] namespace: `Coretsia\Contracts\Context`
-    - [ ] signature: `public function get(string $key): mixed;`
-    - [ ] MUST NOT: default параметр, сеттери, мутація, storage details
-- [ ] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
-  - [ ] MUST assert:
-    - [ ] method exists
-    - [ ] parameter name/type = `string $key`
-    - [ ] return type = `mixed`
-    - [ ] no extra public methods introduced accidentally
+- [x] `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php`
+  - [x] MUST:
+    - [x] namespace: `Coretsia\Contracts\Context`
+    - [x] signature: `public function get(string $key): mixed;`
+    - [x] MUST NOT: default параметр, сеттери, мутація, storage details
+- [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
+  - [x] MUST assert:
+    - [x] method exists
+    - [x] parameter name/type = `string $key`
+    - [x] return type = `mixed`
+    - [x] no extra public methods introduced accidentally
 
 #### Modifies
 
@@ -2985,18 +2985,18 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- Contract test proving signature stability.
+- [x] Contract test proving signature stability.
 
 ### Tests (MUST)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates), paths exact
-- [ ] No runtime dependencies added
-- [ ] Signature is cemented and covered by contract test
-- [ ] Context accessor is a runtime read port, not a DTO/result/descriptor model
+- [x] Deliverables complete (creates), paths exact
+- [x] No runtime dependencies added
+- [x] Signature is cemented and covered by contract test
+- [x] Context accessor is a runtime read port, not a DTO/result/descriptor model
 
 ---
 

@@ -29,6 +29,7 @@ Coretsia/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
+│   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -102,6 +103,7 @@ Coretsia/
 │       ├── observability-and-errors.md
 │       ├── observability.md
 │       ├── profiling-ports.md
+│       ├── routing-and-http-app-contracts.md
 │       └── tags.md
 ├── framework/
 │   ├── bin/
@@ -134,6 +136,9 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php (EnvRepositoryInterface [interface] - get())
 │   │   │   │   │   │   └── EnvValue.php (EnvValue - missing()/present()/isPresent()/isMissing()/isEmptyString()/value())
+│   │   │   │   │   ├── HttpApp/
+│   │   │   │   │   │   ├── ActionInvokerInterface.php (ActionInvokerInterface [interface] - invoke())
+│   │   │   │   │   │   └── ArgumentResolverInterface.php (ArgumentResolverInterface [interface] - resolve())
 │   │   │   │   │   ├── Module/
 │   │   │   │   │   │   ├── Capability/
 │   │   │   │   │   │   │   └── CapabilityInterface.php (CapabilityInterface [interface])
@@ -143,32 +148,37 @@ Coretsia/
 │   │   │   │   │   │   ├── ModuleDescriptor.php (ModuleDescriptor - fromLayerAndSlug()/schemaVersion()/id()/moduleId()/layer()/slug()/composerName()/packageKind()/moduleClass()/capabilities()/metadata()/toArray()/assertRuntimeLayer()/normalizeOptionalString()/normalizeStringList()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue())
 │   │   │   │   │   │   ├── ModuleId.php (ModuleId - fromString()/fromLayerAndSlug()/isValid()/value()/layer()/slug()/equals()/normalize()/normalizePart()/asciiLower())
 │   │   │   │   │   │   └── ModuleInterface.php (ModuleInterface [interface] - descriptor())
-│   │   │   │   │   └── Observability/
-│   │   │   │   │       ├── Errors/
-│   │   │   │   │       │   ├── ErrorDescriptor.php (ErrorDescriptor - code()/message()/severity()/httpStatus()/extensions()/toArray()/normalizeCode()/normalizeMessage()/normalizeHttpStatus()/normalizeExtensions()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
-│   │   │   │   │       │   ├── ErrorHandlerInterface.php (ErrorHandlerInterface [interface] - handle())
-│   │   │   │   │       │   ├── ErrorHandlingContext.php (ErrorHandlingContext - operation()/correlationId()/metadata()/toArray()/normalizeOptionalString()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
-│   │   │   │   │       │   ├── ErrorReporterPortInterface.php (ErrorReporterPortInterface [interface] - report())
-│   │   │   │   │       │   ├── ErrorSeverity.php
-│   │   │   │   │       │   └── ExceptionMapperInterface.php (ExceptionMapperInterface [interface] - map())
-│   │   │   │   │       ├── Health/
-│   │   │   │   │       │   ├── HealthCheckInterface.php (HealthCheckInterface [interface] - name()/check())
-│   │   │   │   │       │   └── HealthStatus.php
-│   │   │   │   │       ├── Metrics/
-│   │   │   │   │       │   ├── MeterPortInterface.php (MeterPortInterface [interface] - increment()/observe())
-│   │   │   │   │       │   └── MetricsRendererInterface.php (MetricsRendererInterface [interface] - render())
-│   │   │   │   │       ├── Profiling/
-│   │   │   │   │       │   ├── ProfileArtifact.php (ProfileArtifact - name()/metadata()/payload()/toArray()/normalizeName()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
-│   │   │   │   │       │   ├── ProfileExporterInterface.php (ProfileExporterInterface [interface] - export())
-│   │   │   │   │       │   └── ProfilerPortInterface.php (ProfilerPortInterface [interface] - start()/stop())
-│   │   │   │   │       ├── Tracing/
-│   │   │   │   │       │   ├── ContextPropagationInterface.php (ContextPropagationInterface [interface] - inject()/extract())
-│   │   │   │   │       │   ├── SamplerInterface.php (SamplerInterface [interface] - shouldSample())
-│   │   │   │   │       │   ├── SamplingDecision.php
-│   │   │   │   │       │   ├── SpanExporterInterface.php (SpanExporterInterface [interface] - export())
-│   │   │   │   │       │   ├── SpanInterface.php (SpanInterface [interface] - name()/setAttribute()/setAttributes()/addEvent()/end())
-│   │   │   │   │       │   └── TracerPortInterface.php (TracerPortInterface [interface] - startSpan()/currentSpan())
-│   │   │   │   │       └── CorrelationIdProviderInterface.php (CorrelationIdProviderInterface [interface] - correlationId())
+│   │   │   │   │   ├── Observability/
+│   │   │   │   │   │   ├── Errors/
+│   │   │   │   │   │   │   ├── ErrorDescriptor.php (ErrorDescriptor - code()/message()/severity()/httpStatus()/extensions()/toArray()/normalizeCode()/normalizeMessage()/normalizeHttpStatus()/normalizeExtensions()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   │   ├── ErrorHandlerInterface.php (ErrorHandlerInterface [interface] - handle())
+│   │   │   │   │   │   │   ├── ErrorHandlingContext.php (ErrorHandlingContext - operation()/correlationId()/metadata()/toArray()/normalizeOptionalString()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   │   ├── ErrorReporterPortInterface.php (ErrorReporterPortInterface [interface] - report())
+│   │   │   │   │   │   │   ├── ErrorSeverity.php
+│   │   │   │   │   │   │   └── ExceptionMapperInterface.php (ExceptionMapperInterface [interface] - map())
+│   │   │   │   │   │   ├── Health/
+│   │   │   │   │   │   │   ├── HealthCheckInterface.php (HealthCheckInterface [interface] - name()/check())
+│   │   │   │   │   │   │   └── HealthStatus.php
+│   │   │   │   │   │   ├── Metrics/
+│   │   │   │   │   │   │   ├── MeterPortInterface.php (MeterPortInterface [interface] - increment()/observe())
+│   │   │   │   │   │   │   └── MetricsRendererInterface.php (MetricsRendererInterface [interface] - render())
+│   │   │   │   │   │   ├── Profiling/
+│   │   │   │   │   │   │   ├── ProfileArtifact.php (ProfileArtifact - name()/metadata()/payload()/toArray()/normalizeName()/normalizeMetadata()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   │   ├── ProfileExporterInterface.php (ProfileExporterInterface [interface] - export())
+│   │   │   │   │   │   │   └── ProfilerPortInterface.php (ProfilerPortInterface [interface] - start()/stop())
+│   │   │   │   │   │   ├── Tracing/
+│   │   │   │   │   │   │   ├── ContextPropagationInterface.php (ContextPropagationInterface [interface] - inject()/extract())
+│   │   │   │   │   │   │   ├── SamplerInterface.php (SamplerInterface [interface] - shouldSample())
+│   │   │   │   │   │   │   ├── SamplingDecision.php
+│   │   │   │   │   │   │   ├── SpanExporterInterface.php (SpanExporterInterface [interface] - export())
+│   │   │   │   │   │   │   ├── SpanInterface.php (SpanInterface [interface] - name()/setAttribute()/setAttributes()/addEvent()/end())
+│   │   │   │   │   │   │   └── TracerPortInterface.php (TracerPortInterface [interface] - startSpan()/currentSpan())
+│   │   │   │   │   │   └── CorrelationIdProviderInterface.php (CorrelationIdProviderInterface [interface] - correlationId())
+│   │   │   │   │   └── Routing/
+│   │   │   │   │       ├── RouteDefinition.php (RouteDefinition - name()/methods()/pathTemplate()/handler()/requirements()/defaults()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizeMethods()/normalizeRequirements()/normalizeRootJsonLikeMap()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │       ├── RouteMatch.php (RouteMatch - name()/pathTemplate()/handler()/parameters()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizeRootJsonLikeMap()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │       ├── RouteProviderInterface.php (RouteProviderInterface [interface] - id()/routes())
+│   │   │   │   │       └── RouterInterface.php (RouterInterface [interface])
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php (ConfigDirectiveEmptyArrayRuleIsCementedContractTest - test_empty_array_rule_covers_exactly_the_directive_allowlist()/test_append_empty_array_is_cemented_as_no_op()/test_prepend_empty_array_is_cemented_as_no_op()/test_remove_empty_array_is_cemented_as_no_op()/test_merge_empty_array_is_cemented_as_no_op()/test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array()/test_empty_array_payload_is_explicit_and_not_missing())
@@ -196,12 +206,15 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php (ErrorHandlingContextShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_public_array_shape_are_stable()/test_default_context_is_empty_and_format_neutral()/test_context_rejects_empty_operation()/test_context_rejects_empty_correlation_id()/test_context_rejects_multiline_operation()/test_context_rejects_multiline_correlation_id()/assertParameterNamedType())
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php (ErrorPortsShapeContractTest - test_exception_mapper_interface_shape_is_stable()/test_error_reporter_interface_shape_is_stable()/test_error_handler_interface_shape_is_stable()/test_error_ports_can_compose_through_format_neutral_contracts()/map()/report()/handle()/assertInterfaceMethods()/assertParameterNamedType()/assertMethodReturnType())
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php (HealthCheckInterfaceShapeContractTest - test_health_check_interface_shape_is_stable()/test_health_status_cases_are_stable()/test_health_check_implementations_can_return_health_status()/name()/check()/assertMethodReturnType())
+│   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php (HttpAppContractsAreFormatNeutralTest - testArgumentResolverInterfaceShapeIsFormatNeutral()/testActionInvokerInterfaceShapeIsFormatNeutral()/testHttpAppContractsDoNotReferencePsr7PlatformOrConcreteHttpPackages()/testHttpAppContractsDoNotUseRawTransportGlobals()/assertNamedType()/contractsRoot()/phpFiles())
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php (MeterPortInterfaceShapeContractTest - test_meter_port_interface_shape_is_stable()/test_meter_port_accepts_safe_bounded_scalar_label_values_without_null_labels()/increment()/observe()/assertLabelsDoNotContainNull()/test_meter_label_phpdoc_documents_non_null_bounded_scalar_labels()/assertParameterNamedType()/assertMethodReturnType())
 │   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php (MetricsRendererInterfaceShapeContractTest - test_metrics_renderer_interface_shape_is_stable()/test_metrics_renderer_returns_string_without_vendor_api_requirement()/render()/assertMethodReturnType())
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php (ModuleDescriptorIdIsDerivedFromLayerAndSlugTest - test_derives_module_id_from_layer_and_slug()/test_composer_metadata_does_not_affect_module_identity()/test_exports_internal_module_id_as_scalars_not_object_identity()/test_sorts_capabilities_and_metadata_deterministically()/test_rejects_tooling_only_layer_as_runtime_descriptor()/assertNoObjectsInExportedShape())
 │   │   │   │   │   │   ├── ModuleDescriptorSchemaVersionTest.php (ModuleDescriptorSchemaVersionTest - test_exposes_initial_schema_version()/test_exports_stable_descriptor_shape()/test_rejects_non_json_like_metadata_values()/test_rejects_resource_metadata_value()/invalidMetadataValues()/assertExportedJsonLikeValue())
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php (ProfilingContractsDoNotDependOnPsr7ContractTest - test_profiling_contracts_do_not_reference_psr7_types()/phpFiles())
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php (ProfilingContractsShapeContractTest - test_profile_artifact_shape_is_stable_and_payload_is_opaque()/test_profile_artifact_rejects_invalid_metadata()/test_profiler_port_interface_shape_is_stable()/test_profile_exporter_interface_shape_is_stable()/test_profiler_and_exporter_implementations_can_compose_through_contracts()/start()/stop()/export()/assertMethodReturnType())
+│   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php (RouteProviderInterfaceShapeContractTest - testRouteProviderInterfaceExposesStableProviderIdAndRoutesOnly()/testRouteProviderIdMethodShapeIsStable()/testRouteProviderRoutesMethodShapeIsStable()/testRouteProviderCanReturnDeterministicRouteDefinitionList()/id()/routes()/uniqueRouteNames())
+│   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php (RoutingContractsDoNotUsePsr7Test - testRouterInterfaceMatchShapeIsStableAndFormatNeutral()/testRoutingContractsDoNotReferencePsr7OrRuntimePackages()/testRoutingContractsDoNotUseTransportGlobals()/assertNamedType()/contractsRoot()/phpFiles())
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php (SamplerInterfaceShapeContractTest - test_sampler_interface_shape_is_stable()/test_sampler_implementations_can_return_sampling_decision()/shouldSample()/assertMethodReturnType())
 │   │   │   │   │   │   └── SpanExporterInterfaceShapeContractTest.php (SpanExporterInterfaceShapeContractTest - test_span_exporter_interface_shape_is_stable()/test_span_exporter_accepts_iterable_of_span_interfaces()/name()/setAttribute()/setAttributes()/addEvent()/end()/export()/assertMethodReturnType())
 │   │   │   │   │   └── Unit/

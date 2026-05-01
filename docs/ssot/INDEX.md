@@ -44,6 +44,8 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 ## Shapes and Contracts
 
 - [Config and env SSoT](./config-and-env.md) — owner: core/contracts — scope: config,contracts,directives,env,ruleset,source-tracking
+- [ErrorDescriptor SSoT](./error-descriptor.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,redaction,shape
+- [Errors Boundary SSoT](./errors-boundary.md) — owner: core/contracts — scope: boundary,contracts,errors,normalization,runtime
 - [Modes SSoT](./modes.md) — owner: core/contracts — scope: contracts,mode-preset,modes,presets
 - [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,module-id
 - [Observability and Errors SSoT](./observability-and-errors.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,observability,redaction

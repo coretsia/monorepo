@@ -95,6 +95,8 @@ Coretsia/
 │       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── dto-policy.md
+│       ├── error-descriptor.md
+│       ├── errors-boundary.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
 │       ├── observability-and-errors.md

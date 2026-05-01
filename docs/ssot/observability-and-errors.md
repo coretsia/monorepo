@@ -16,7 +16,7 @@
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia observability contracts, error descriptor shape policy, error mapping semantics, redaction invariants, and format-neutral error handling boundaries.
+This document is the Single Source of Truth for Coretsia observability contracts, error descriptor boundary policy, error mapping semantics, redaction invariants, and format-neutral error handling boundaries.
 
 This document governs contracts introduced by epic `1.90.0` under:
 
@@ -27,6 +27,8 @@ framework/packages/core/contracts/src/Observability/
 It complements:
 
 ```text
+docs/ssot/error-descriptor.md
+docs/ssot/errors-boundary.md
 docs/ssot/observability.md
 docs/ssot/tags.md
 docs/ssot/dto-policy.md
@@ -384,7 +386,17 @@ It is not a DTO-marker class by default.
 
 It MUST be format-neutral.
 
-It MUST NOT expose:
+The single human-readable field-by-field reference for `ErrorDescriptor` is:
+
+```text
+docs/ssot/error-descriptor.md
+```
+
+This SSoT records the observability/error boundary, payload safety, redaction policy, and port relationships only.
+
+This SSoT MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema.
+
+`ErrorDescriptor` MUST NOT expose:
 
 - raw `Throwable` objects;
 - stack traces by default;
@@ -401,137 +413,13 @@ It MUST NOT expose:
 - credentials;
 - private customer data.
 
-## ErrorDescriptor field policy
-
-The `ErrorDescriptor` field set MUST be stable and contract-tested.
-
-The canonical logical fields are:
-
-```text
-code
-message
-severity
-httpStatus
-extensions
-```
-
-Field meanings:
-
-| field        | meaning                                                                |
-|--------------|------------------------------------------------------------------------|
-| `code`       | Stable machine-readable error code.                                    |
-| `message`    | Safe human-readable message.                                           |
-| `severity`   | Stable severity enum.                                                  |
-| `httpStatus` | Optional HTTP status hint only; not a transport dependency.            |
-| `extensions` | Json-like extension map for safe deterministic non-transport metadata. |
-
-The logical field list defines the stable field set, not serialization order.
-
-When exported as a PHP array shape, `ErrorDescriptor` MUST use deterministic
-top-level key ordering by byte-order `strcmp`:
-
-```text
-code
-extensions
-httpStatus
-message
-severity
-```
-
-## Error code policy
-
-`ErrorDescriptor.code` MUST be a stable ASCII string.
-
-It MUST NOT contain raw exception messages, raw paths, raw values, tokens, credentials, or environment-specific bytes.
-
-Runtime owner packages MAY define package-specific error code namespaces.
-
-Error codes SHOULD be stable across repeated runs.
-
-## Error message policy
-
-`ErrorDescriptor.message` MUST be safe for user-facing or operator-facing contexts.
-
-It MUST NOT contain secrets, raw payloads, tokens, credentials, raw SQL, raw headers, cookies, request bodies, response bodies, private customer data, or absolute local paths.
-
-Detailed unsafe information belongs outside the descriptor.
-
-## Error severity
-
-`ErrorSeverity` defines the stable severity vocabulary for normalized errors.
-
-The canonical severity values are:
-
-```text
-info
-warning
-error
-critical
-```
-
-Severity values MUST be stable.
-
-Severity values MUST be lowercase ASCII strings.
-
-Severity values MUST be compared byte-for-byte.
-
-Severity values MUST NOT depend on locale, translated labels, vendor logger levels, or transport-specific status codes.
-
-Severity values MUST NOT encode transport details.
-
-Severity values MUST NOT encode vendor-specific logging levels as a hard dependency.
-
-A runtime logger MAY map severity to its own log levels.
-
-`ErrorSeverity` is not a logger-level enum. Logger-specific levels such as `debug`, `notice`, `alert`, or `emergency` belong to runtime logging implementations unless a future SSoT explicitly promotes them into the normalized error severity vocabulary.
-
-## Optional HTTP status hint
-
-`ErrorDescriptor.httpStatus` is optional.
-
-It is a hint for adapters such as problem-details.
-
-It MUST NOT make the contracts package depend on HTTP packages or PSR-7.
-
-Non-HTTP runtimes MAY ignore `httpStatus`.
-
-HTTP adapters MAY use `httpStatus` when converting `ErrorDescriptor` into RFC7807 or another HTTP-specific representation.
-
 Problem-details adaptation is platform-owned and MUST NOT be implemented in `core/contracts`.
 
-## ErrorDescriptor extensions
+HTTP adapters MAY use `ErrorDescriptor` through the boundary policy defined in:
 
-`ErrorDescriptor.extensions` MUST be a json-like map.
-
-The root value MUST be a map with string keys.
-
-Extension values MUST follow the json-like value model in this document.
-
-`extensions` MUST NOT contain:
-
-- floats;
-- `NaN`;
-- `INF`;
-- `-INF`;
-- PHP objects;
-- closures;
-- resources;
-- streams;
-- service instances;
-- runtime wiring objects;
-- throwable instances;
-- raw request or response objects;
-- raw headers;
-- raw cookies;
-- raw bodies;
-- raw SQL;
-- profile payloads;
-- credentials;
-- tokens;
-- private customer data;
-- absolute local paths.
-
-Extension map ordering MUST be deterministic by byte-order `strcmp`.
+```text
+docs/ssot/errors-boundary.md
+```
 
 ## Exception mapper interface
 

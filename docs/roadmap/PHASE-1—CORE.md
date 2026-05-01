@@ -3078,31 +3078,32 @@ N/A
 
 #### Creates
 
-- [ ] `docs/ssot/errors-boundary.md` — boundary + forbidden deps + canonical flow
-- [ ] `docs/ssot/error-descriptor.md` — fields + rules + examples (no secrets)
-  - [ ] Extensions payload constraints (cemented)
-    - [ ] `ErrorDescriptor.extensions` MUST be json-like and MUST follow Phase 0 float-forbidden policy:
-      - [ ] floats (including NaN/INF) are forbidden at any nesting depth
-      - [ ] extensions MUST be safe-by-design: MUST NOT contain raw headers/cookies/auth/session/token/payload/sql
-      - [ ] examples in this document MUST NOT contain secrets/PII
-  - [ ] `ErrorDescriptor` is a canonical descriptor shape for normalized errors
-  - [ ] it is NOT automatically a DTO under DTO marker policy
-  - [ ] DTO gates apply only to explicitly marked DTO transport classes
-  - [ ] `docs/ssot/error-descriptor.md` is the single human-readable field reference for `ErrorDescriptor`
-  - [ ] `docs/ssot/observability-and-errors.md` remains ports/boundary/redaction overview and MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema
+- [x] `docs/ssot/errors-boundary.md` — boundary + forbidden deps + canonical flow
+- [x] `docs/ssot/error-descriptor.md` — fields + rules + examples (no secrets)
+  - [x] Extensions payload constraints (cemented)
+    - [x] `ErrorDescriptor.extensions` MUST be json-like and MUST follow Phase 0 float-forbidden policy:
+      - [x] floats (including NaN/INF) are forbidden at any nesting depth
+      - [x] extensions MUST be safe-by-design: MUST NOT contain raw headers/cookies/auth/session/token/payload/sql
+      - [x] examples in this document MUST NOT contain secrets/PII
+  - [x] `ErrorDescriptor` is a canonical descriptor shape for normalized errors
+  - [x] it is NOT automatically a DTO under DTO marker policy
+  - [x] DTO gates apply only to explicitly marked DTO transport classes
+  - [x] `docs/ssot/error-descriptor.md` is the single human-readable field reference for `ErrorDescriptor`
+  - [x] `docs/ssot/observability-and-errors.md` remains ports/boundary/redaction overview and MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/errors-boundary.md`
-  - [ ] `docs/ssot/error-descriptor.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/errors-boundary.md`
+  - [x] `docs/ssot/error-descriptor.md`
+- [x] `docs/ssot/observability-and-errors.md` — delegate the field-by-field `ErrorDescriptor` schema to `docs/ssot/error-descriptor.md` and keep this document as the ports/boundary/redaction overview
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak secrets/PII in errors/logs/spans
-- [ ] MUST NOT leak secrets/PII in examples
+- [x] MUST NOT leak secrets/PII in errors/logs/spans
+- [x] MUST NOT leak secrets/PII in examples
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -3112,22 +3113,22 @@ N/A (doc-only; shape is enforced by existing contract tests)
 
 N/A (doc-only), but MUST reference enforcement evidence in:
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
 
 Future runtime evidence (NOT a precondition of this doc epic; referenced once available):
 
-- [ ] `framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
+- [x] `framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Docs exist and match contracts model (`ErrorDescriptor`)
-- [ ] No contradictions with tags registry and dep-law
-- [ ] No duplicate alternative shapes elsewhere
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/errors` implements error normalization + mapper registry (discovery via tag `error.mapper`).
-  - [ ] `platform/problem-details` wires `HttpErrorHandlingMiddleware` into `http.middleware.system_pre` with priority `1000`.
+- [x] Docs exist and match contracts model (`ErrorDescriptor`)
+- [x] No contradictions with tags registry and dep-law
+- [x] No duplicate alternative shapes elsewhere
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/errors` implements error normalization + mapper registry (discovery via tag `error.mapper`).
+  - [x] `platform/problem-details` wires `HttpErrorHandlingMiddleware` into `http.middleware.system_pre` with priority `1000`.
 
 ---
 

@@ -31,6 +31,7 @@ Coretsia/
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
+│   │   ├── ADR-0007-validation-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -106,7 +107,8 @@ Coretsia/
 │       ├── profiling-ports.md
 │       ├── routing-and-http-app-contracts.md
 │       ├── tags.md
-│       └── uow-and-reset-contracts.md
+│       ├── uow-and-reset-contracts.md
+│       └── validation-contracts.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -184,11 +186,16 @@ Coretsia/
 │   │   │   │   │   │   ├── RouteMatch.php (RouteMatch - schemaVersion()/name()/pathTemplate()/handler()/parameters()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeRootJsonLikeMap()/normalizeParameters()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
 │   │   │   │   │   │   ├── RouteProviderInterface.php (RouteProviderInterface [interface] - id()/routes())
 │   │   │   │   │   │   └── RouterInterface.php (RouterInterface [interface])
-│   │   │   │   │   └── Runtime/
-│   │   │   │   │       ├── Hook/
-│   │   │   │   │       │   ├── AfterUowHookInterface.php (AfterUowHookInterface [interface] - afterUow())
-│   │   │   │   │       │   └── BeforeUowHookInterface.php (BeforeUowHookInterface [interface] - beforeUow())
-│   │   │   │   │       └── ResetInterface.php (ResetInterface [interface] - reset())
+│   │   │   │   │   ├── Runtime/
+│   │   │   │   │   │   ├── Hook/
+│   │   │   │   │   │   │   ├── AfterUowHookInterface.php (AfterUowHookInterface [interface] - afterUow())
+│   │   │   │   │   │   │   └── BeforeUowHookInterface.php (BeforeUowHookInterface [interface] - beforeUow())
+│   │   │   │   │   │   └── ResetInterface.php (ResetInterface [interface] - reset())
+│   │   │   │   │   └── Validation/
+│   │   │   │   │       ├── ValidationException.php (ValidationException - errorCode()/result())
+│   │   │   │   │       ├── ValidationResult.php (ValidationResult - success()/failure()/schemaVersion()/isSuccess()/isFailure()/violations()/toArray()/normalizeViolations())
+│   │   │   │   │       ├── ValidatorInterface.php (ValidatorInterface [interface] - validate())
+│   │   │   │   │       └── Violation.php (Violation - schemaVersion()/path()/code()/rule()/index()/message()/meta()/toArray()/normalizePath()/looksLikeAbsolutePath()/normalizeCode()/normalizeOptionalSingleLineString()/normalizeIndex()/normalizeMeta()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php (ConfigDirectiveEmptyArrayRuleIsCementedContractTest - test_empty_array_rule_covers_exactly_the_directive_allowlist()/test_append_empty_array_is_cemented_as_no_op()/test_prepend_empty_array_is_cemented_as_no_op()/test_remove_empty_array_is_cemented_as_no_op()/test_merge_empty_array_is_cemented_as_no_op()/test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array()/test_empty_array_payload_is_explicit_and_not_missing())
@@ -243,7 +250,10 @@ Coretsia/
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php (SamplerInterfaceShapeContractTest - test_sampler_interface_shape_is_stable()/test_sampler_implementations_can_return_sampling_decision()/shouldSample()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php (SpanExporterInterfaceShapeContractTest - test_span_exporter_interface_shape_is_stable()/test_span_exporter_accepts_iterable_of_span_interfaces()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/export()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php (SpanInterfaceShapeContractTest - test_span_interface_shape_is_stable()/test_name_shape_is_stable()/test_set_attribute_shape_is_stable()/test_set_attributes_shape_is_stable()/test_add_event_shape_is_stable()/test_record_exception_shape_is_stable()/test_end_shape_is_stable()/test_span_implementation_can_record_attributes_events_exception_and_end()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/assertMethodReturnType())
-│   │   │   │   │   │   └── TracerPortInterfaceShapeContractTest.php (TracerPortInterfaceShapeContractTest - test_tracer_port_interface_shape_is_stable()/test_tracer_implementation_can_run_callback_inside_span()/startSpan()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/inSpan()/currentSpan()/assertMethodReturnType())
+│   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php (TracerPortInterfaceShapeContractTest - test_tracer_port_interface_shape_is_stable()/test_tracer_implementation_can_run_callback_inside_span()/startSpan()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/inSpan()/currentSpan()/assertMethodReturnType())
+│   │   │   │   │   │   ├── ValidationContractsTest.php (ValidationContractsTest - testValidatorInterfaceExistsAndHasCanonicalValidateMethodOnly()/testValidatorInterfaceSignatureDoesNotUseForbiddenRuntimeTypes()/testValidationResultHasStableSurface()/testValidationResultSuccessShapeIsStable()/testValidationResultFailureShapePreservesOrderedViolationList()/testValidationResultRejectsEmptyFailure()/testValidationResultRejectsNonListViolations()/testValidationResultRejectsNonViolationItems()/testViolationHasStableSurface()/testViolationExposesDeterministicSortKeys()/testValidationExceptionSurfaceIsContractsOnly()/testValidationContractsDoNotDeclareDiTagConstants()/testValidationContractsPublicTypesDoNotUseForbiddenRuntimeNamespaces()/declaredPublicMethodNames()/assertTypeIsNotForbidden()/namedTypeName()/assertStringDoesNotStartWith())
+│   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php (ValidationExceptionHasDeterministicCodeTest - testValidationExceptionExistsAndExtendsRuntimeException()/testValidationExceptionExposesDeterministicStringErrorCode()/testValidationExceptionCarriesFailedValidationResult()/testValidationExceptionRejectsSuccessfulValidationResult()/testValidationExceptionMessageIsSafeAndGeneric()/testValidationExceptionPreservesPreviousThrowable()/testValidationExceptionDoesNotExposeErrorDescriptorBehavior())
+│   │   │   │   │   │   └── ValidationViolationShapeIsSafeContractTest.php (ValidationViolationShapeIsSafeContractTest - testViolationCreatesSafeScalarShape()/testToArrayUsesStableKeyOrderWhenOptionalFieldsArePresent()/testToArrayOmitsNullOptionalFieldsAndKeepsStableKeyOrder()/testMetaAcceptsJsonLikeValuesAndNormalizesMapOrderRecursively()/testListsInsideMetaPreserveOrder()/testMetaRejectsFloats()/invalidFloatProvider()/testMetaRejectsObjects()/testMetaRejectsClosures()/testMetaRejectsResources()/testMetaRejectsRootNonEmptyList()/testMetaRejectsNonStringMapKeys()/testMetaRejectsUnsafeMapKeys()/testMetaRejectsUnsafeStrings()/testPathRejectsUnsafeValues()/invalidPathProvider()/testCodeRejectsUnsafeOrNonCanonicalValues()/invalidCodeProvider()/testRuleRejectsUnsafeValues()/testMessageRejectsUnsafeValues()/invalidOptionalSingleLineProvider()/testIndexRejectsNegativeValues())
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php (ModuleIdFormatTest - test_accepts_canonical_module_id()/test_normalizes_ascii_case_and_outer_whitespace_without_locale()/test_builds_from_layer_and_slug()/test_compares_by_canonical_value()/test_rejects_non_ascii_locale_sensitive_letters()/test_rejects_dot_inside_layer_or_slug_parts()/test_rejects_invalid_module_ids()/invalidModuleIds())
 │   │   │   │   ├── LICENSE

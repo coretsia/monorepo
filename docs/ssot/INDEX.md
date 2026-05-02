@@ -52,6 +52,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [Profiling Ports SSoT](./profiling-ports.md) — owner: core/contracts — scope: contracts,observability,profiling,redaction,uow
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — scope: contracts,http-app,routing,ports,redaction
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
+- [Validation Contracts SSoT](./validation-contracts.md) — owner: core/contracts — scope: contracts,errors,redaction,validation
 
 ## Runtime Invariants
 

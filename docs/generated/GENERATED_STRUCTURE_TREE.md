@@ -30,6 +30,7 @@ Coretsia/
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   ├── ADR-0005-routing-httpapp-ports.md
+│   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -104,7 +105,8 @@ Coretsia/
 │       ├── observability.md
 │       ├── profiling-ports.md
 │       ├── routing-and-http-app-contracts.md
-│       └── tags.md
+│       ├── tags.md
+│       └── uow-and-reset-contracts.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -177,11 +179,16 @@ Coretsia/
 │   │   │   │   │   │   │   ├── SpanInterface.php
 │   │   │   │   │   │   │   └── TracerPortInterface.php
 │   │   │   │   │   │   └── CorrelationIdProviderInterface.php
-│   │   │   │   │   └── Routing/
-│   │   │   │   │       ├── RouteDefinition.php
-│   │   │   │   │       ├── RouteMatch.php
-│   │   │   │   │       ├── RouteProviderInterface.php
-│   │   │   │   │       └── RouterInterface.php
+│   │   │   │   │   ├── Routing/
+│   │   │   │   │   │   ├── RouteDefinition.php
+│   │   │   │   │   │   ├── RouteMatch.php
+│   │   │   │   │   │   ├── RouteProviderInterface.php
+│   │   │   │   │   │   └── RouterInterface.php
+│   │   │   │   │   └── Runtime/
+│   │   │   │   │       ├── Hook/
+│   │   │   │   │       │   ├── AfterUowHookInterface.php
+│   │   │   │   │       │   └── BeforeUowHookInterface.php
+│   │   │   │   │       └── ResetInterface.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
@@ -214,6 +221,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php
+│   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
@@ -227,6 +235,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ResetInterfaceIsMinimalContractTest.php
 │   │   │   │   │   │   ├── RouteDefinitionShapeContractTest.php
 │   │   │   │   │   │   ├── RouteMatchShapeContractTest.php
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php

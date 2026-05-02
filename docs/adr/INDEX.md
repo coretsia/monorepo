@@ -36,6 +36,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0002: Config, env, source tracking, and directive invariants](./ADR-0002-config-env-source-tracking-directives-invariants.md) — owner: core/contracts — scope: config,contracts,directives,env,source-tracking
 - [ADR-0003: Observability, ErrorDescriptor, health, and profiling ports](./ADR-0003-observability-errordescriptor-health-profiling-ports.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,health,observability,profiling
 - [ADR-0005: Routing and HttpApp ports](./ADR-0005-routing-httpapp-ports.md) — owner: core/contracts — scope: contracts,http-app,routing,ports
+- [ADR-0006: Reset interface and UoW hooks](./ADR-0006-reset-interface-uow-hooks.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
 
 ## Cross-references
 

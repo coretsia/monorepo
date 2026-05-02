@@ -30,6 +30,7 @@ Coretsia/
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   ├── ADR-0005-routing-httpapp-ports.md
+│   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -104,7 +105,8 @@ Coretsia/
 │       ├── observability.md
 │       ├── profiling-ports.md
 │       ├── routing-and-http-app-contracts.md
-│       └── tags.md
+│       ├── tags.md
+│       └── uow-and-reset-contracts.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -177,11 +179,16 @@ Coretsia/
 │   │   │   │   │   │   │   ├── SpanInterface.php (SpanInterface [interface] - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end())
 │   │   │   │   │   │   │   └── TracerPortInterface.php (TracerPortInterface [interface] - startSpan()/inSpan()/currentSpan())
 │   │   │   │   │   │   └── CorrelationIdProviderInterface.php (CorrelationIdProviderInterface [interface] - correlationId())
-│   │   │   │   │   └── Routing/
-│   │   │   │   │       ├── RouteDefinition.php (RouteDefinition - schemaVersion()/name()/methods()/pathTemplate()/handler()/requirements()/defaults()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeMethods()/normalizeRequirements()/normalizeRootJsonLikeMap()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
-│   │   │   │   │       ├── RouteMatch.php (RouteMatch - schemaVersion()/name()/pathTemplate()/handler()/parameters()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeRootJsonLikeMap()/normalizeParameters()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
-│   │   │   │   │       ├── RouteProviderInterface.php (RouteProviderInterface [interface] - id()/routes())
-│   │   │   │   │       └── RouterInterface.php (RouterInterface [interface])
+│   │   │   │   │   ├── Routing/
+│   │   │   │   │   │   ├── RouteDefinition.php (RouteDefinition - schemaVersion()/name()/methods()/pathTemplate()/handler()/requirements()/defaults()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeMethods()/normalizeRequirements()/normalizeRootJsonLikeMap()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   ├── RouteMatch.php (RouteMatch - schemaVersion()/name()/pathTemplate()/handler()/parameters()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeRootJsonLikeMap()/normalizeParameters()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   ├── RouteProviderInterface.php (RouteProviderInterface [interface] - id()/routes())
+│   │   │   │   │   │   └── RouterInterface.php (RouterInterface [interface])
+│   │   │   │   │   └── Runtime/
+│   │   │   │   │       ├── Hook/
+│   │   │   │   │       │   ├── AfterUowHookInterface.php (AfterUowHookInterface [interface] - afterUow())
+│   │   │   │   │       │   └── BeforeUowHookInterface.php (BeforeUowHookInterface [interface] - beforeUow())
+│   │   │   │   │       └── ResetInterface.php (ResetInterface [interface] - reset())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php (ConfigDirectiveEmptyArrayRuleIsCementedContractTest - test_empty_array_rule_covers_exactly_the_directive_allowlist()/test_append_empty_array_is_cemented_as_no_op()/test_prepend_empty_array_is_cemented_as_no_op()/test_remove_empty_array_is_cemented_as_no_op()/test_merge_empty_array_is_cemented_as_no_op()/test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array()/test_empty_array_payload_is_explicit_and_not_missing())
@@ -214,6 +221,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php (ErrorPortsShapeContractTest - test_exception_mapper_interface_shape_is_stable()/test_error_reporter_interface_shape_is_stable()/test_error_handler_interface_shape_is_stable()/test_error_ports_can_compose_through_format_neutral_contracts()/map()/report()/handle()/assertInterfaceMethods()/assertParameterNamedType()/assertMethodReturnType())
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php (HealthCheckInterfaceShapeContractTest - test_health_check_interface_shape_is_stable()/test_health_status_cases_are_stable()/test_health_check_implementations_can_return_health_result()/id()/check()/assertMethodReturnType())
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php (HealthCheckResultShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_array_shape_are_stable()/test_empty_message_normalizes_to_null()/test_details_preserve_list_order_and_sort_maps()/test_details_reject_non_empty_root_lists()/test_details_reject_floats_objects_closures_and_invalid_keys()/test_message_rejects_multiline_values()/assertParameterNamedType())
+│   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php (HookInterfacesDoNotDependOnPlatformTest - testBeforeUowHookInterfaceExistsAndIsAnInterface()/testBeforeUowHookInterfaceExposesOnlyBeforeUowVoidWithoutParameters()/testAfterUowHookInterfaceExistsAndIsAnInterface()/testAfterUowHookInterfaceExposesOnlyAfterUowVoidWithoutParameters()/assertHookInterfaceShape()/assertMethodSignatureDoesNotReferenceForbiddenTypes()/assertParameterSignatureDoesNotReferenceForbiddenTypes()/assertTypeDoesNotReferenceForbiddenTypes()/typeNames())
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php (HttpAppContractsAreFormatNeutralTest - testArgumentResolverInterfaceShapeIsFormatNeutral()/testActionInvokerInterfaceShapeIsFormatNeutral()/testHttpAppContractsDoNotReferencePsr7PlatformOrConcreteHttpPackages()/testHttpAppContractsDoNotUseRawTransportGlobals()/assertNamedType()/contractsRoot()/phpFiles())
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php (ManifestReaderInterfaceShapeContractTest - test_manifest_reader_interface_exposes_read_only()/test_read_returns_module_manifest_not_descriptor_list())
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php (MergeStrategyInterfaceShapeContractTest - test_merge_strategy_interface_exposes_merge_only()/test_merge_method_shape_is_binary_node_merge_boundary()/test_merge_method_docblock_cements_side_effect_free_binary_policy())
@@ -227,6 +235,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php (ProfilingContractsDoNotDependOnPsr7ContractTest - test_profiling_contracts_do_not_reference_psr7_types()/phpFiles())
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php (ProfilingContractsShapeContractTest - test_profile_artifact_shape_is_stable_and_payload_is_opaque()/test_profile_artifact_rejects_invalid_metadata()/test_profiler_port_interface_shape_is_stable()/test_profile_exporter_interface_shape_is_stable()/test_profiler_session_and_exporter_implementations_can_compose_through_contracts()/start()/stop()/name()/export()/assertMethodReturnType())
 │   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php (ProfilingSessionInterfaceShapeContractTest - test_profiling_session_interface_shape_is_stable()/test_session_stop_can_return_artifact_then_null()/stop()/assertMethodReturnType())
+│   │   │   │   │   │   ├── ResetInterfaceIsMinimalContractTest.php (ResetInterfaceIsMinimalContractTest - testResetInterfaceExistsAndIsAnInterface()/testResetInterfaceExposesOnlyResetVoidWithoutParameters())
 │   │   │   │   │   │   ├── RouteDefinitionShapeContractTest.php (RouteDefinitionShapeContractTest - test_constructor_shape_is_stable()/test_accessors_and_array_shape_are_stable()/test_methods_are_normalized_uppercase_unique_and_sorted()/test_path_template_must_start_with_slash()/test_identity_fields_reject_whitespace()/test_json_like_maps_reject_invalid_values()/assertParameterNamedType())
 │   │   │   │   │   │   ├── RouteMatchShapeContractTest.php (RouteMatchShapeContractTest - test_constructor_shape_is_stable()/test_accessors_and_array_shape_are_stable()/test_path_template_must_start_with_slash()/test_parameters_reject_root_lists()/test_parameters_reject_invalid_keys_and_values()/test_metadata_rejects_invalid_json_like_values()/assertParameterNamedType())
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php (RouteProviderInterfaceShapeContractTest - testRouteProviderInterfaceExposesStableProviderIdAndRoutesOnly()/testRouteProviderIdMethodShapeIsStable()/testRouteProviderRoutesMethodShapeIsStable()/testRouteProviderCanReturnDeterministicRouteDefinitionList()/id()/routes()/uniqueRouteNames())

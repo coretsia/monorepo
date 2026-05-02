@@ -3452,22 +3452,22 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Runtime/ResetInterface.php`
-- [ ] `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
-- [ ] `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
+- [x] `framework/packages/core/contracts/src/Runtime/ResetInterface.php`
+- [x] `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
+- [x] `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
 
-- [ ] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
-- [ ] `docs/ssot/uow-and-reset-contracts.md` — rules: format-neutral hooks, reset discipline, tags used (refer to tag registry)
+- [x] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
+- [x] `docs/ssot/uow-and-reset-contracts.md` — rules: format-neutral hooks, reset discipline, tags used (refer to tag registry)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/uow-and-reset-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/uow-and-reset-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
 
 #### Package skeleton (if type=package)
 
@@ -3491,23 +3491,23 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] tests listed above
+  - [x] tests listed above
 
 ### DoD (MUST)
 
-- [ ] Ports exist + tested
-- [ ] Docs exist
-- [ ] No forbidden deps
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] Foundation reset orchestrator calls `reset()` on services discovered through the effective Foundation reset tag.
-  - [ ] Kernel executes hooks via tags `kernel.hook.before_uow` / `kernel.hook.after_uow` in deterministic order.
-- [ ] Acceptance scenario (policy intent):
-  - [ ] When a worker processes two jobs, stateful services are reset between them and hooks run deterministically.
+- [x] Ports exist + tested
+- [x] Docs exist
+- [x] No forbidden deps
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] Foundation reset orchestrator calls `reset()` on services discovered through the effective Foundation reset tag.
+  - [x] Kernel executes hooks via tags `kernel.hook.before_uow` / `kernel.hook.after_uow` in deterministic order.
+- [x] Acceptance scenario (policy intent):
+  - [x] When a worker processes two jobs, stateful services are reset between them and hooks run deterministically.
 
 ---
 

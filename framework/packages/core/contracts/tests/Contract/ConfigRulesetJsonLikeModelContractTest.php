@@ -81,8 +81,18 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
             [
                 'root' => 'foundation',
                 'rules' => $ruleset->rules(),
+                'schemaVersion' => 1,
             ],
             $ruleset->toArray(),
+        );
+
+        self::assertSame(
+            [
+                'root',
+                'rules',
+                'schemaVersion',
+            ],
+            array_keys($ruleset->toArray()),
         );
     }
 
@@ -143,10 +153,12 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
 
         self::assertSame('foundation', $ruleset->root());
         self::assertSame([], $ruleset->rules());
+        self::assertSame(1, $ruleset->schemaVersion());
         self::assertSame(
             [
                 'root' => 'foundation',
                 'rules' => [],
+                'schemaVersion' => 1,
             ],
             $ruleset->toArray(),
         );

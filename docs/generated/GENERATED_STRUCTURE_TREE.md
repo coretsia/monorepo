@@ -194,6 +194,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigSourceTypeIsStableContractTest.php
 │   │   │   │   │   │   ├── ConfigTraceModelNeverContainsRawValuesContractTest.php
 │   │   │   │   │   │   ├── ConfigTraceOrderingIsDeterministicContractTest.php
+│   │   │   │   │   │   ├── ConfigValidationShapeContractTest.php
 │   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php
 │   │   │   │   │   │   ├── ContextAccessorInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php

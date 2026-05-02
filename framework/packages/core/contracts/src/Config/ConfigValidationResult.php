@@ -23,6 +23,8 @@ namespace Coretsia\Contracts\Config;
  */
 final readonly class ConfigValidationResult
 {
+    public const int SCHEMA_VERSION = 1;
+
     /**
      * @var list<ConfigValidationViolation>
      */
@@ -34,6 +36,11 @@ final readonly class ConfigValidationResult
     public function __construct(array $violations = [])
     {
         $this->violations = self::normalizeViolations($violations);
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public static function success(): self
@@ -73,19 +80,22 @@ final readonly class ConfigValidationResult
 
     /**
      * @return array{
+     *     schemaVersion: int,
      *     success: bool,
      *     violations: list<array{
      *         actualType?: string,
      *         expected?: string,
      *         path: string,
      *         reason: string,
-     *         root: string
+     *         root: string,
+     *         schemaVersion: int
      *     }>
      * }
      */
     public function toArray(): array
     {
         return [
+            'schemaVersion' => self::SCHEMA_VERSION,
             'success' => $this->isSuccess(),
             'violations' => array_map(
                 static fn (ConfigValidationViolation $violation): array => $violation->toArray(),

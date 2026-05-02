@@ -26,6 +26,8 @@ namespace Coretsia\Contracts\Config;
  */
 final readonly class ConfigValidationViolation
 {
+    public const int SCHEMA_VERSION = 1;
+
     /**
      * @var list<string>
      */
@@ -67,6 +69,11 @@ final readonly class ConfigValidationViolation
         $this->actualType = self::normalizeOptionalActualType($actualType);
     }
 
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
+    }
+
     public function root(): string
     {
         return $this->root;
@@ -98,7 +105,8 @@ final readonly class ConfigValidationViolation
      *     expected?: string,
      *     path: string,
      *     reason: string,
-     *     root: string
+     *     root: string,
+     *     schemaVersion: int
      * }
      */
     public function toArray(): array
@@ -116,6 +124,7 @@ final readonly class ConfigValidationViolation
         $out['path'] = $this->path;
         $out['reason'] = $this->reason;
         $out['root'] = $this->root;
+        $out['schemaVersion'] = self::SCHEMA_VERSION;
 
         return $out;
     }

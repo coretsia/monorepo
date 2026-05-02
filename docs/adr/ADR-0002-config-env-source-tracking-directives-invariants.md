@@ -119,6 +119,43 @@ They must not return:
 
 Runtime validation logic belongs to the Kernel config engine and consumes declarative rules through contracts.
 
+## Versioned config shape decision
+
+Config source tracking, ruleset, validation result, and validation violation models expose stable schema versions.
+
+The versioned contracts models introduced by epic `1.80.0` are:
+
+```text
+ConfigValueSource
+ConfigRuleset
+ConfigValidationResult
+ConfigValidationViolation
+```
+
+The initial schema version for each versioned config/env shape is:
+
+```text
+1
+```
+
+Their safe exported public shapes include:
+
+```text
+schemaVersion
+```
+
+Schema versions are positive integers.
+
+A schema version must change only when exported shape compatibility changes.
+
+Adding safe optional metadata keys does not necessarily require a schema version bump.
+
+Removing, renaming, or changing the meaning of canonical exported fields requires a schema version bump and policy review.
+
+`EnvValue` is not a versioned exported shape. It is a lookup value object for distinguishing missing, present empty string, and present non-empty string states.
+
+`ConfigSourceType`, `ConfigDirective`, and `EnvPolicy` are stable vocabularies and are not schema-versioned exported shape models.
+
 ## Env semantics
 
 Env-derived values must distinguish:
@@ -238,7 +275,15 @@ Source tracking must not require storing raw config values or raw env values.
 
 `ConfigValueSource` includes `schemaVersion`, `directive`, and metadata-only `meta` fields.
 
-It keeps explicit `root`, `sourceId`, `precedence`, and `redacted` fields so explain trace ordering and redaction semantics remain contract-level and deterministic.
+`ConfigRuleset`, `ConfigValidationResult`, and `ConfigValidationViolation` also expose `schemaVersion` in their safe exported public shapes.
+
+The initial schema version for these versioned config/env contract shapes is:
+
+```text
+1
+```
+
+`ConfigValueSource` keeps explicit `root`, `sourceId`, `precedence`, and `redacted` fields so explain trace ordering and redaction semantics remain contract-level and deterministic.
 
 `ConfigSourceType` is vocabulary only and MUST NOT define merge precedence.
 

@@ -26,6 +26,8 @@ namespace Coretsia\Contracts\Config;
  */
 final readonly class ConfigRuleset
 {
+    public const int SCHEMA_VERSION = 1;
+
     private string $root;
 
     /**
@@ -40,6 +42,11 @@ final readonly class ConfigRuleset
     {
         $this->root = self::normalizeRoot($root);
         $this->rules = self::normalizeRules($rules);
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     /**
@@ -66,7 +73,8 @@ final readonly class ConfigRuleset
     /**
      * @return array{
      *     root: string,
-     *     rules: array<string,mixed>
+     *     rules: array<string,mixed>,
+     *     schemaVersion: int
      * }
      */
     public function toArray(): array
@@ -74,6 +82,7 @@ final readonly class ConfigRuleset
         return [
             'root' => $this->root,
             'rules' => $this->rules,
+            'schemaVersion' => self::SCHEMA_VERSION,
         ];
     }
 

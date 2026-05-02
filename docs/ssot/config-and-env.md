@@ -275,14 +275,120 @@ Package `config/rules.php` files MUST NOT return callable, closure, object, or e
 
 Runtime validation logic is Kernel-owned and MUST consume rules through contracts and kernel implementation.
 
+### ConfigRuleset logical fields
+
+The canonical `ConfigRuleset` logical field set is:
+
+```text
+schemaVersion
+root
+rules
+```
+
+Field meanings:
+
+| field           | meaning                                                        |
+|-----------------|----------------------------------------------------------------|
+| `schemaVersion` | Stable config ruleset schema version.                          |
+| `root`          | Config root validated by this ruleset.                         |
+| `rules`         | Deterministic json-like declarative validation rules data map. |
+
+No field may expose executable validators, runtime service objects, closures, resources, raw config values, raw env values, or secrets.
+
+### ConfigRuleset field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigRuleset` schema version is:
+
+```text
+1
+```
+
+`root` MUST be a non-empty lowercase config root identifier.
+
+`rules` MUST be a json-like map.
+
+The root `rules` value MUST NOT be a non-empty list.
+
+An empty `rules` array represents an empty declarative rules map at this contract boundary.
+
+`rules` MUST follow the JSON-like value model in this document.
+
+`rules` maps MUST use deterministic key ordering by byte-order `strcmp`.
+
+Lists inside `rules` MUST preserve declared order.
+
+### ConfigRuleset accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+root(): string
+rules(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
+### ConfigRuleset exported order
+
+When exported as a PHP array shape, `ConfigRuleset` SHOULD use deterministic top-level key ordering by byte-order `strcmp`:
+
+```text
+root
+rules
+schemaVersion
+```
+
+Contract tests cement this order as part of the ruleset shape contract.
+
 ## Config validation result
 
 `ConfigValidationResult` is an immutable contracts result.
 
 It MUST expose:
 
+- schema version;
 - success/failure state;
 - deterministic list of violations.
+
+### ConfigValidationResult logical fields
+
+The canonical `ConfigValidationResult` logical field set is:
+
+```text
+schemaVersion
+success
+violations
+```
+
+Field meanings:
+
+| field           | meaning                                                            |
+|-----------------|--------------------------------------------------------------------|
+| `schemaVersion` | Stable config validation result schema version.                    |
+| `success`       | Whether validation completed without violations.                   |
+| `violations`    | Deterministic list of exported `ConfigValidationViolation` shapes. |
+
+### ConfigValidationResult field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigValidationResult` schema version is:
+
+```text
+1
+```
+
+`success` MUST be a boolean.
+
+`violations` MUST be a list of `ConfigValidationViolation` objects at the PHP boundary.
+
+The exported `violations` value MUST be a list of deterministic `ConfigValidationViolation::toArray()` shapes.
+
+A successful result MUST contain an empty violations list.
+
+A failed result MUST contain at least one violation.
 
 Violation ordering MUST be deterministic.
 
@@ -292,27 +398,89 @@ Violations SHOULD be ordered by:
 root ascending using byte-order strcmp
 path ascending using byte-order strcmp
 reason ascending using byte-order strcmp
+expected ascending using byte-order strcmp, with null treated as empty string
+actualType ascending using byte-order strcmp, with null treated as empty string
 ```
+
+### ConfigValidationResult accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+isSuccess(): bool
+isFailure(): bool
+violations(): array
+toArray(): array<string,mixed>
+```
+
+### ConfigValidationResult exported order
+
+When exported as a PHP array shape, `ConfigValidationResult` SHOULD use deterministic top-level key ordering by byte-order `strcmp`:
+
+```text
+schemaVersion
+success
+violations
+```
+
+Contract tests cement this order as part of the validation result shape contract.
 
 ## Config validation violation
 
 `ConfigValidationViolation` is an immutable safe violation shape.
 
-It MUST expose:
-
-```text
-root
-path
-reason
-expected?
-actualType?
-```
+It MUST expose structural diagnostics only.
 
 It MUST NOT contain raw config values.
 
-The optional `expected` field MUST be safe, stable, and non-sensitive.
+### ConfigValidationViolation logical fields
 
-The optional `actualType` field MUST describe type only, not value.
+The canonical `ConfigValidationViolation` logical field set is:
+
+```text
+schemaVersion
+root
+path
+reason
+expected
+actualType
+```
+
+Field meanings:
+
+| field           | meaning                                            |
+|-----------------|----------------------------------------------------|
+| `schemaVersion` | Stable config validation violation schema version. |
+| `root`          | Config root where the violation occurred.          |
+| `path`          | Safe logical path under the config root.           |
+| `reason`        | Stable validation reason/code.                     |
+| `expected`      | Optional safe expected type/shape description.     |
+| `actualType`    | Optional safe actual type description.             |
+
+### ConfigValidationViolation field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigValidationViolation` schema version is:
+
+```text
+1
+```
+
+`root` MUST be a non-empty lowercase config root identifier.
+
+`path` MUST be safe text and MAY be empty to represent the root node.
+
+`reason` MUST be a non-empty stable ASCII-compatible validation reason/code.
+
+`expected` MAY be null.
+
+When present, `expected` MUST be safe, stable, and non-sensitive.
+
+`actualType` MAY be null.
+
+When present, `actualType` MUST describe type only, not value.
 
 Examples of safe `actualType` values:
 
@@ -343,6 +511,41 @@ The violation shape MUST NOT expose:
 - authorization headers;
 - private customer data;
 - absolute local paths.
+
+### ConfigValidationViolation accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+root(): string
+path(): string
+reason(): string
+expected(): ?string
+actualType(): ?string
+toArray(): array<string,mixed>
+```
+
+### ConfigValidationViolation exported order
+
+When exported as a PHP array shape, `ConfigValidationViolation` SHOULD use deterministic top-level key ordering by byte-order `strcmp`.
+
+When all optional fields are present, the canonical exported key order is:
+
+```text
+actualType
+expected
+path
+reason
+root
+schemaVersion
+```
+
+Optional fields with null values SHOULD be omitted from the exported shape.
+
+When optional fields are omitted, the remaining exported key order MUST stay deterministic.
+
+Contract tests cement this order as part of the validation violation shape contract.
 
 ## JSON-like value model
 

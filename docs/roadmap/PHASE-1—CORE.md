@@ -2568,10 +2568,12 @@ N/A
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidationResult.php`
   - [x] immutable result
+  - [x] exposes schemaVersion in public shape
   - [x] exposes success/failure and deterministic violations
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidationViolation.php`
   - [x] immutable violation shape:
+    - [x] `schemaVersion`
     - [x] `root`
     - [x] `path`
     - [x] `reason`
@@ -2581,6 +2583,7 @@ N/A
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigRuleset.php`
   - [x] optional readonly DTO/shape wrapper for validated declarative rules
+  - [x] exposes schemaVersion in public shape
   - [x] MUST represent rules data, not executable validation logic
 
 - [x] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
@@ -2608,6 +2611,7 @@ Tests:
 - [x] `framework/packages/core/contracts/tests/Contract/ConfigLoaderInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/MergeStrategyInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/EnvRepositoryInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigValidationShapeContractTest.php`
 
 #### Modifies
 

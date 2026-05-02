@@ -2347,9 +2347,13 @@ N/A
     - [x] internal VO fields such as `ModuleId $id` are allowed and are not part of the exported descriptor shape
   - [x] exported metadata contains no closures/resources/objects/floats
   - [x] deterministic map ordering expectation for any exported array-like methods
-- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module descriptors
+- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module manifest
 - [x] `framework/packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
 - [x] `framework/packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
+- [x] `framework/packages/core/contracts/src/Module/ModuleManifest.php` — installed module manifest VO
+  - [x] rejects duplicate module ids
+  - [x] exposes deterministic module id ordering
+  - [x] exports scalar/json-like manifest shape
 - [x] `framework/packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
 - [x] `framework/packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
 
@@ -2366,6 +2370,10 @@ N/A
 - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -2409,6 +2417,10 @@ N/A (contracts-only; proven by contract tests listed below)
   - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
   - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
   - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -2432,6 +2444,9 @@ N/A (contracts-only; proven by contract tests listed below)
     - [x] MUST NOT rely on locale/`setlocale`/`LC_ALL`
 - [x] Lock-source alignment:
   - [x] module identity rules MUST NOT contradict Phase 0 workspace package-index fields and ordering (0.100.0)
+- [x] Manifest reader returns deterministic `ModuleManifest`, not a loose descriptor list.
+- [x] Mode preset required/optional/disabled sets are represented explicitly.
+- [x] Mode preset loader supports deterministic listing, existence checks, strict load, and nullable try-load.
 
 ---
 
@@ -2530,8 +2545,15 @@ N/A
 #### Creates
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+  - [x] exposes key existence check
+  - [x] exposes default-aware read access
+  - [x] exposes full merged config tree
+  - [x] exposes safe source lookup
+  - [x] exposes deterministic safe explain trace
 - [x] `framework/packages/core/contracts/src/Config/ConfigLoaderInterface.php`
+  - [x] returns `ConfigRepositoryInterface`, not loose raw config array
 - [x] `framework/packages/core/contracts/src/Config/MergeStrategyInterface.php`
+  - [x] defines deterministic binary node merge boundary
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidatorInterface.php`
   - [x] validates a merged global config against loaded declarative rulesets
   - [x] MUST NOT expose package-specific callable validators
@@ -2539,6 +2561,8 @@ N/A
 - [x] `framework/packages/core/contracts/src/Config/ConfigValueSource.php`
 - [x] `framework/packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
 - [x] `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php`
+  - [x] distinguishes present empty string via `EnvValue`
+  - [x] exposes `has()`, `get()`, `all()`, and safe `sourceOf()`
 - [x] `framework/packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
 - [x] `framework/packages/core/contracts/src/Env/EnvPolicy.php`
 
@@ -2580,6 +2604,10 @@ Tests:
   - [x] rejects floats, `NAN`, `INF`, `-INF` at any nesting depth
   - [x] rejects executable/runtime values in declarative rulesets
   - [x] proves deterministic map key ordering and list order preservation
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigRepositoryInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigLoaderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/MergeStrategyInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/EnvRepositoryInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -2649,8 +2677,12 @@ N/A
   - [x] Any expansion of directives/source-types MUST require ADR update + SSoT update + contract test update (non-optional)
 - [x] Non-goals / out of scope:
   - [x] No merge/loader/explain implementation here (Kernel config engine owns it).
-  - [x] No secrets in explain/trace (contracts define metadata only: type/path/keyPath).
+  - [x] No secrets in explain/trace. Source tracking metadata is limited to safe contract fields: type, root, sourceId, path, keyPath, directive, precedence, redacted, and metadata-only meta.
   - [x] Directives allowlist MUST NOT expand without ADR + updated spike locks.
+- [x] Config repository exposes safe explain trace without raw values.
+- [x] Config source type vocabulary distinguishes package defaults, skeleton config, app config, dotenv, process env, CLI overrides, runtime sources, and generated artifacts.
+- [x] Config source tracking keeps explicit precedence metadata and does not infer precedence from source type.
+- [x] Env repository keeps canonical `EnvValue` lookup and does not collapse empty string into missing.
 
 ---
 

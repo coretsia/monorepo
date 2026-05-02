@@ -53,6 +53,7 @@ The contracts introduced by epic `1.70.0` define:
 
 - `ModuleId`
 - `ModuleDescriptor`
+- `ModuleManifest`
 - `ModuleInterface`
 - `ManifestReaderInterface`
 - `ModePresetInterface`
@@ -76,11 +77,23 @@ Composer/package-index metadata may provide optional descriptor input fields suc
 
 Only fields explicitly defined by the descriptor exported shape are exposed by `ModuleDescriptor::toArray()`.
 
-Contracts define metadata-only discovery semantics. `ManifestReaderInterface` is a port for reading installed module descriptors; it does not prescribe how the implementation discovers or loads them.
+Contracts define metadata-only discovery semantics.
+
+`ModuleManifest` is the contracts-level deterministic wrapper for installed module descriptors.
+
+It rejects duplicate module ids, exposes stable lookup by module id, and returns module descriptors sorted by module id using byte-order `strcmp`.
+
+`ManifestReaderInterface` is a port for reading the installed `ModuleManifest`; it does not prescribe how the implementation discovers or loads the manifest.
 
 The Kernel owner package is responsible for implementing concrete manifest reading later. A future Kernel implementation may use the Phase 0 workspace package-index shape as its canonical metadata source, but this implementation is not part of `core/contracts`.
 
-Mode presets are represented by stable contracts only. `ModePresetLoaderInterface` loads a preset by canonical preset name. `ModePresetInterface` exposes the preset shape without leaking its source format.
+Mode presets are represented by stable contracts only.
+
+`ModePresetInterface` exposes schema version, preset name, description, required module ids, optional module ids, explicitly disabled module ids, a compatibility module id projection, feature bundle policy knobs, metadata, and a deterministic exported scalar/json-like shape.
+
+`ModePresetLoaderInterface` lists available preset names, checks preset availability, loads presets by name, and provides a nullable `tryLoad()` convenience method.
+
+The mode preset contracts do not expose their storage format.
 
 ## Determinism
 

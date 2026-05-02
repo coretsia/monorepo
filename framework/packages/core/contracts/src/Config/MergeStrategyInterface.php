@@ -22,21 +22,17 @@ namespace Coretsia\Contracts\Config;
  * Deterministic config merge strategy port.
  *
  * This interface defines the merge boundary only. Concrete directive handling,
- * validation-before-merge, trace generation, and artifact writing are owned by
- * the Kernel config engine implementation.
+ * validation-before-merge, trace generation, layer folding, and artifact
+ * writing are owned by the Kernel config engine implementation.
  */
 interface MergeStrategyInterface
 {
     /**
-     * Merges config layers deterministically.
+     * Merges two config nodes deterministically.
      *
-     * Layers must be supplied in explicit precedence order by the caller or
-     * implementation owner. This contract does not infer merge precedence from
-     * ConfigSourceType.
-     *
-     * @param list<array<string,mixed>> $layers
-     *
-     * @return array<string,mixed>
+     * Implementations MUST follow directive policy and MUST be side-effect free.
+     * Multi-layer merge is performed by owner code by folding this operation in
+     * explicit precedence order.
      */
-    public function merge(array $layers): array;
+    public function merge(mixed $base, mixed $patch): mixed;
 }

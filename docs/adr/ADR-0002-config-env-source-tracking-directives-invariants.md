@@ -37,6 +37,14 @@ Contracts introduced by epic `1.80.0` define ports and value objects only. The K
 
 ## Decision
 
+`ConfigLoaderInterface` loads config into a read-only `ConfigRepositoryInterface`, not into a loose array.
+
+`ConfigRepositoryInterface` exposes merged config access, full-tree access, safe key-level source lookup, and deterministic explain traces.
+
+`EnvRepositoryInterface` exposes explicit env presence checks, canonical `EnvValue` lookup, present-value enumeration for runtime owner code, and safe source lookup.
+
+`MergeStrategyInterface` defines deterministic binary config node merge. Multi-layer merge is Kernel-owned and may fold the binary operation over explicit source precedence.
+
 Introduce config/env contracts under:
 
 ```text
@@ -228,6 +236,12 @@ Objects, closures, resources, streams, filesystem handles, service instances, an
 
 Source tracking must not require storing raw config values or raw env values.
 
+`ConfigValueSource` includes `schemaVersion`, `directive`, and metadata-only `meta` fields.
+
+It keeps explicit `root`, `sourceId`, `precedence`, and `redacted` fields so explain trace ordering and redaction semantics remain contract-level and deterministic.
+
+`ConfigSourceType` is vocabulary only and MUST NOT define merge precedence.
+
 A config value source may expose safe metadata such as:
 
 - source type;
@@ -241,6 +255,7 @@ A config value source may expose safe metadata such as:
 It must not expose:
 
 - raw config values;
+- raw env values;
 - raw `.env` values;
 - passwords;
 - credentials;

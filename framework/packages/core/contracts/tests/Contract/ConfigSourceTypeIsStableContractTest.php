@@ -27,10 +27,13 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
     {
         self::assertSame(
             [
-                'package_defaults',
-                'application_config',
-                'environment',
-                'runtime_override',
+                'package_default',
+                'skeleton_config',
+                'app_config',
+                'dotenv',
+                'env',
+                'cli',
+                'runtime',
                 'generated_artifact',
             ],
             ConfigSourceType::values(),
@@ -39,10 +42,13 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
 
     public function test_source_type_enum_cases_are_canonical(): void
     {
-        self::assertSame('package_defaults', ConfigSourceType::PackageDefaults->value);
-        self::assertSame('application_config', ConfigSourceType::ApplicationConfig->value);
-        self::assertSame('environment', ConfigSourceType::Environment->value);
-        self::assertSame('runtime_override', ConfigSourceType::RuntimeOverride->value);
+        self::assertSame('package_default', ConfigSourceType::PackageDefault->value);
+        self::assertSame('skeleton_config', ConfigSourceType::SkeletonConfig->value);
+        self::assertSame('app_config', ConfigSourceType::AppConfig->value);
+        self::assertSame('dotenv', ConfigSourceType::Dotenv->value);
+        self::assertSame('env', ConfigSourceType::Env->value);
+        self::assertSame('cli', ConfigSourceType::Cli->value);
+        self::assertSame('runtime', ConfigSourceType::Runtime->value);
         self::assertSame('generated_artifact', ConfigSourceType::GeneratedArtifact->value);
     }
 
@@ -56,7 +62,7 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
             ),
         );
 
-        self::assertCount(5, ConfigSourceType::cases());
+        self::assertCount(8, ConfigSourceType::cases());
     }
 
     public function test_source_type_values_are_lowercase_ascii_identifiers(): void
@@ -73,18 +79,19 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
 
     public function test_source_type_known_check_is_strict(): void
     {
-        self::assertTrue(ConfigSourceType::isKnown('package_defaults'));
-        self::assertTrue(ConfigSourceType::isKnown('application_config'));
-        self::assertTrue(ConfigSourceType::isKnown('environment'));
-        self::assertTrue(ConfigSourceType::isKnown('runtime_override'));
-        self::assertTrue(ConfigSourceType::isKnown('generated_artifact'));
+        foreach (ConfigSourceType::values() as $value) {
+            self::assertTrue(ConfigSourceType::isKnown($value));
+        }
 
         self::assertFalse(ConfigSourceType::isKnown(''));
-        self::assertFalse(ConfigSourceType::isKnown('PackageDefaults'));
-        self::assertFalse(ConfigSourceType::isKnown('package-defaults'));
-        self::assertFalse(ConfigSourceType::isKnown('package_defaults '));
+        self::assertFalse(ConfigSourceType::isKnown('PackageDefault'));
+        self::assertFalse(ConfigSourceType::isKnown('package-default'));
+        self::assertFalse(ConfigSourceType::isKnown('package_default '));
+        self::assertFalse(ConfigSourceType::isKnown('package_defaults'));
+        self::assertFalse(ConfigSourceType::isKnown('application_config'));
+        self::assertFalse(ConfigSourceType::isKnown('environment'));
+        self::assertFalse(ConfigSourceType::isKnown('runtime_override'));
         self::assertFalse(ConfigSourceType::isKnown('filesystem'));
         self::assertFalse(ConfigSourceType::isKnown('composer'));
-        self::assertFalse(ConfigSourceType::isKnown('dotenv'));
     }
 }

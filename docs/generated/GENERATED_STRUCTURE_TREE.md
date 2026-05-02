@@ -147,7 +147,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ModePresetLoaderInterface.php
 │   │   │   │   │   │   ├── ModuleDescriptor.php
 │   │   │   │   │   │   ├── ModuleId.php
-│   │   │   │   │   │   └── ModuleInterface.php
+│   │   │   │   │   │   ├── ModuleInterface.php
+│   │   │   │   │   │   └── ModuleManifest.php
 │   │   │   │   │   ├── Observability/
 │   │   │   │   │   │   ├── Errors/
 │   │   │   │   │   │   │   ├── ErrorDescriptor.php
@@ -184,6 +185,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
 │   │   │   │   │   │   ├── ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php
 │   │   │   │   │   │   ├── ConfigDirectiveInvariantsContractTest.php
+│   │   │   │   │   │   ├── ConfigLoaderInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ConfigRepositoryInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ConfigRulesetJsonLikeModelContractTest.php
 │   │   │   │   │   │   ├── ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php
 │   │   │   │   │   │   ├── ConfigSourceTypeIsStableContractTest.php
@@ -197,6 +200,7 @@ Coretsia/
 │   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php
+│   │   │   │   │   │   ├── EnvRepositoryInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorExtensionsAreJsonLikeContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorFieldSetIsStableContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorHttpStatusIsOptionalContractTest.php
@@ -207,10 +211,15 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
+│   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ModePresetInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ModePresetLoaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorSchemaVersionTest.php
+│   │   │   │   │   │   ├── ModuleManifestContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php

@@ -28,43 +28,43 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
     {
         $entries = [
             new ConfigValueSource(
-                ConfigSourceType::RuntimeOverride,
-                'kernel',
-                'runtime/override',
-                'boot.providers',
-                'runtime.kernel',
+                type: ConfigSourceType::Runtime,
+                root: 'kernel',
+                sourceId: 'runtime.kernel',
+                path: 'runtime/override',
+                keyPath: 'boot.providers',
                 precedence: 40,
             ),
             new ConfigValueSource(
-                ConfigSourceType::ApplicationConfig,
-                'foundation',
-                'app.config/foundation',
-                'container.bindings',
-                'app.foundation',
+                type: ConfigSourceType::AppConfig,
+                root: 'foundation',
+                sourceId: 'app.foundation',
+                path: 'app.config/foundation',
+                keyPath: 'container.bindings',
                 precedence: 20,
             ),
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'package.defaults/foundation',
-                'container.bindings',
-                'core.foundation',
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults/foundation',
+                keyPath: 'container.bindings',
                 precedence: 10,
             ),
             new ConfigValueSource(
-                ConfigSourceType::Environment,
-                'foundation',
-                'env/runtime',
-                'container.cache',
-                'env.runtime',
+                type: ConfigSourceType::Env,
+                root: 'foundation',
+                sourceId: 'env.runtime',
+                path: 'env/runtime',
+                keyPath: 'container.cache',
                 precedence: 30,
             ),
             new ConfigValueSource(
-                ConfigSourceType::GeneratedArtifact,
-                'kernel',
-                'generated/config',
-                'boot.providers',
-                'compiled.kernel',
+                type: ConfigSourceType::GeneratedArtifact,
+                root: 'kernel',
+                sourceId: 'compiled.kernel',
+                path: 'generated/config',
+                keyPath: 'boot.providers',
                 precedence: 50,
             ),
         ];
@@ -90,44 +90,44 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
     {
         $entries = [
             new ConfigValueSource(
-                ConfigSourceType::GeneratedArtifact,
-                'kernel',
-                'generated/config',
-                'boot.providers',
-                'compiled.kernel',
-                50
+                type: ConfigSourceType::GeneratedArtifact,
+                root: 'kernel',
+                sourceId: 'compiled.kernel',
+                path: 'generated/config',
+                keyPath: 'boot.providers',
+                precedence: 50,
             ),
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'package.defaults/foundation',
-                'container.bindings',
-                'core.foundation',
-                10
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults/foundation',
+                keyPath: 'container.bindings',
+                precedence: 10,
             ),
             new ConfigValueSource(
-                ConfigSourceType::Environment,
-                'foundation',
-                'env/runtime',
-                'container.cache',
-                'env.runtime',
-                30
+                type: ConfigSourceType::Env,
+                root: 'foundation',
+                sourceId: 'env.runtime',
+                path: 'env/runtime',
+                keyPath: 'container.cache',
+                precedence: 30,
             ),
             new ConfigValueSource(
-                ConfigSourceType::RuntimeOverride,
-                'kernel',
-                'runtime/override',
-                'boot.providers',
-                'runtime.kernel',
-                40
+                type: ConfigSourceType::Runtime,
+                root: 'kernel',
+                sourceId: 'runtime.kernel',
+                path: 'runtime/override',
+                keyPath: 'boot.providers',
+                precedence: 40,
             ),
             new ConfigValueSource(
-                ConfigSourceType::ApplicationConfig,
-                'foundation',
-                'app.config/foundation',
-                'container.bindings',
-                'app.foundation',
-                20
+                type: ConfigSourceType::AppConfig,
+                root: 'foundation',
+                sourceId: 'app.foundation',
+                path: 'app.config/foundation',
+                keyPath: 'container.bindings',
+                precedence: 20,
             ),
         ];
 
@@ -162,50 +162,77 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         );
     }
 
-    public function test_source_id_null_sorts_deterministically_as_empty_string(): void
+    public function test_nullable_key_path_sorts_deterministically_as_empty_string(): void
     {
         $entries = [
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'package.defaults/foundation',
-                'container.bindings',
-                'core.foundation',
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults/foundation',
+                keyPath: 'container.bindings',
                 precedence: 10,
             ),
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'package.defaults/foundation',
-                'container.bindings',
-                null,
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults/foundation',
+                keyPath: null,
                 precedence: 10,
             ),
         ];
 
         $sorted = self::sortTraceEntries($entries);
 
-        self::assertSame(null, $sorted[0]->sourceId());
-        self::assertSame('core.foundation', $sorted[1]->sourceId());
+        self::assertNull($sorted[0]->keyPath());
+        self::assertSame('container.bindings', $sorted[1]->keyPath());
+    }
+
+    public function test_nullable_path_sorts_deterministically_as_empty_string(): void
+    {
+        $entries = [
+            new ConfigValueSource(
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults/foundation',
+                keyPath: 'container.bindings',
+                precedence: 10,
+            ),
+            new ConfigValueSource(
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: null,
+                keyPath: 'container.bindings',
+                precedence: 10,
+            ),
+        ];
+
+        $sorted = self::sortTraceEntries($entries);
+
+        self::assertNull($sorted[0]->path());
+        self::assertSame('package.defaults/foundation', $sorted[1]->path());
     }
 
     public function test_precedence_is_exported_and_part_of_phase0_aligned_safe_trace_sort_key(): void
     {
         $lowerPrecedence = new ConfigValueSource(
-            ConfigSourceType::PackageDefaults,
-            'foundation',
-            'package.defaults/foundation',
-            'container.bindings',
-            'z.source',
+            type: ConfigSourceType::PackageDefault,
+            root: 'foundation',
+            sourceId: 'z.source',
+            path: 'package.defaults/foundation',
+            keyPath: 'container.bindings',
             precedence: 10,
         );
 
         $higherPrecedence = new ConfigValueSource(
-            ConfigSourceType::PackageDefaults,
-            'foundation',
-            'package.defaults/foundation',
-            'container.bindings',
-            'a.source',
+            type: ConfigSourceType::PackageDefault,
+            root: 'foundation',
+            sourceId: 'a.source',
+            path: 'package.defaults/foundation',
+            keyPath: 'container.bindings',
             precedence: 90,
         );
 
@@ -222,19 +249,19 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
     {
         $entries = [
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'z.source',
-                'container.bindings',
-                'same.source',
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'same.source',
+                path: 'z.source',
+                keyPath: 'container.bindings',
                 precedence: 10,
             ),
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'a.source',
-                'container.bindings',
-                'same.source',
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'same.source',
+                path: 'a.source',
+                keyPath: 'container.bindings',
                 precedence: 10,
             ),
         ];
@@ -249,31 +276,34 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
     {
         $entries = self::sortTraceEntries([
             new ConfigValueSource(
-                ConfigSourceType::Environment,
-                'foundation',
-                'env/runtime',
-                'container.cache',
-                'env.runtime',
-                30
+                type: ConfigSourceType::Env,
+                root: 'foundation',
+                sourceId: 'env.runtime',
+                path: 'env/runtime',
+                keyPath: 'container.cache',
+                precedence: 30,
             ),
             new ConfigValueSource(
-                ConfigSourceType::PackageDefaults,
-                'foundation',
-                'package.defaults',
-                'container.cache',
-                'core.foundation',
-                10
+                type: ConfigSourceType::PackageDefault,
+                root: 'foundation',
+                sourceId: 'core.foundation',
+                path: 'package.defaults',
+                keyPath: 'container.cache',
+                precedence: 10,
             ),
         ]);
 
         foreach ($entries as $entry) {
             self::assertSame(
                 [
+                    'directive',
                     'keyPath',
+                    'meta',
                     'path',
                     'precedence',
                     'redacted',
                     'root',
+                    'schemaVersion',
                     'sourceId',
                     'type',
                 ],
@@ -299,10 +329,10 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
             $entries,
             static function (ConfigValueSource $a, ConfigValueSource $b): int {
                 return strcmp($a->root(), $b->root())
-                    ?: strcmp($a->keyPath(), $b->keyPath())
+                    ?: strcmp(self::nullableString($a->keyPath()), self::nullableString($b->keyPath()))
                         ?: ($a->precedence() <=> $b->precedence())
-                            ?: strcmp($a->path(), $b->path())
-                                ?: strcmp($a->sourceId() ?? '', $b->sourceId() ?? '');
+                            ?: strcmp(self::nullableString($a->path()), self::nullableString($b->path()))
+                                ?: strcmp($a->sourceId(), $b->sourceId());
             },
         );
 
@@ -316,11 +346,16 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
             '|',
             [
                 $source->root(),
-                $source->keyPath(),
+                self::nullableString($source->keyPath()),
                 (string)$source->precedence(),
-                $source->path(),
-                $source->sourceId() ?? '',
+                self::nullableString($source->path()),
+                $source->sourceId(),
             ],
         );
+    }
+
+    private static function nullableString(?string $value): string
+    {
+        return $value ?? '';
     }
 }

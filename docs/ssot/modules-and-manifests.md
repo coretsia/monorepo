@@ -16,7 +16,7 @@
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, manifest reader semantics, and deterministic module descriptor ordering.
+This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, and deterministic module descriptor ordering.
 
 This document governs contracts introduced by epic `1.70.0` under:
 
@@ -392,9 +392,74 @@ sort stable string sets by byte-order strcmp
 
 The exported descriptor shape MUST be stable across operating systems.
 
+## Module manifest
+
+`ModuleManifest` is the contracts-level wrapper for installed module descriptors.
+
+It is not a generated artifact and is not a runtime discovery implementation.
+
+It MUST contain only `ModuleDescriptor` instances.
+
+It MUST reject duplicate module ids.
+
+It MUST expose descriptors in deterministic order:
+
+```text
+moduleId ascending using byte-order strcmp
+```
+
+The canonical manifest schema version is:
+
+```text
+1
+```
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+modules(): list<ModuleDescriptor>
+ids(): list<string>
+has(string $moduleId): bool
+get(string $moduleId): ?ModuleDescriptor
+toArray(): array
+```
+
+`has()` and `get()` MAY normalize lookup input through `ModuleId` normalization rules.
+
+Invalid lookup ids MUST be treated as absent.
+
+### ModuleManifest exported shape
+
+`ModuleManifest::toArray()` MUST return a deterministic scalar/json-like shape.
+
+The canonical top-level exported key order is:
+
+```text
+moduleIds
+modules
+schemaVersion
+```
+
+Field meanings:
+
+| field           | meaning                                             |
+|-----------------|-----------------------------------------------------|
+| `moduleIds`     | Installed module ids sorted by byte-order strcmp.   |
+| `modules`       | Installed module descriptors exported by `toArray`. |
+| `schemaVersion` | Manifest schema version.                            |
+
+The exported manifest shape MUST NOT expose PHP objects, service instances, runtime wiring objects, closures, resources, filesystem handles, absolute paths, secrets, raw environment values, or implementation-only VO instances.
+
 ## Manifest reader port
 
-`ManifestReaderInterface` is a contracts port for reading installed module descriptors.
+`ManifestReaderInterface` is a contracts port for reading the installed module manifest.
+
+The canonical interface shape is:
+
+```text
+read(): ModuleManifest
+```
 
 It MUST expose installed module descriptors without prescribing the implementation source.
 
@@ -403,7 +468,6 @@ A manifest reader implementation MAY read from:
 - Composer metadata
 - generated package index
 - generated Kernel artifact
-- framework-owned preset files
 - another future owner-defined source
 
 A manifest reader implementation MUST NOT be required by contracts to perform filesystem scanning.
@@ -412,7 +476,9 @@ The contracts package MUST NOT implement a concrete manifest reader.
 
 ## Manifest reader ordering
 
-Any API returning multiple module descriptors MUST return them sorted by:
+`ManifestReaderInterface::read()` MUST return a `ModuleManifest`.
+
+The returned manifest MUST expose module descriptors sorted by:
 
 ```text
 moduleId ascending using byte-order strcmp

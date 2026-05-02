@@ -56,11 +56,13 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
             [
                 'type',
                 'root',
+                'sourceId',
                 'path',
                 'keyPath',
-                'sourceId',
+                'directive',
                 'precedence',
                 'redacted',
+                'meta',
             ],
             array_map(
                 static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
@@ -77,11 +79,13 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
             [
                 'type',
                 'root',
+                'sourceId',
                 'path',
                 'keyPath',
-                'sourceId',
+                'directive',
                 'precedence',
                 'redacted',
+                'meta',
             ],
             array_map(
                 static fn (\ReflectionProperty $property): string => $property->getName(),
@@ -93,11 +97,11 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
     public function test_exported_source_trace_contains_only_safe_contract_keys(): void
     {
         $source = new ConfigValueSource(
-            ConfigSourceType::Environment,
-            'foundation',
-            'env/runtime',
-            'container.cache',
-            'env.runtime',
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.cache',
             precedence: 30,
             redacted: true,
         );
@@ -106,11 +110,14 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
 
         self::assertSame(
             [
+                'directive',
                 'keyPath',
+                'meta',
                 'path',
                 'precedence',
                 'redacted',
                 'root',
+                'schemaVersion',
                 'sourceId',
                 'type',
             ],
@@ -127,13 +134,20 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
     public function test_exported_source_trace_is_json_like_without_floats_objects_resources_or_callables(): void
     {
         $source = new ConfigValueSource(
-            ConfigSourceType::GeneratedArtifact,
-            'kernel',
-            'generated/config',
-            'boot.providers',
-            'compiled.kernel',
+            type: ConfigSourceType::GeneratedArtifact,
+            root: 'kernel',
+            sourceId: 'compiled.kernel',
+            path: 'generated/config',
+            keyPath: 'boot.providers',
             precedence: 50,
-            redacted: false,
+            meta: [
+                'safeHash' => 'sha256:abc',
+                'valueLength' => 12,
+                'nested' => [
+                    'a' => true,
+                    'b' => null,
+                ],
+            ],
         );
 
         self::assertJsonLikeWithoutForbiddenRuntimeValues($source->toArray());
@@ -144,11 +158,11 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         foreach (['/tmp/config.php', 'C:\\app\\config.php', 'https://example.test/config', '../secret'] as $unsafe) {
             try {
                 new ConfigValueSource(
-                    ConfigSourceType::ApplicationConfig,
-                    'foundation',
-                    $unsafe,
-                    'container',
-                    'app.foundation',
+                    type: ConfigSourceType::AppConfig,
+                    root: 'foundation',
+                    sourceId: 'app.foundation',
+                    path: $unsafe,
+                    keyPath: 'container',
                 );
 
                 self::fail('Expected unsafe path to be rejected.');
@@ -158,11 +172,11 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
 
             try {
                 new ConfigValueSource(
-                    ConfigSourceType::ApplicationConfig,
-                    'foundation',
-                    'app.config',
-                    'container',
-                    $unsafe,
+                    type: ConfigSourceType::AppConfig,
+                    root: 'foundation',
+                    sourceId: $unsafe,
+                    path: 'app.config',
+                    keyPath: 'container',
                 );
 
                 self::fail('Expected unsafe sourceId to be rejected.');
@@ -172,24 +186,56 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         }
     }
 
+    public function test_meta_rejects_float_object_resource_and_closure_values(): void
+    {
+        $resource = fopen('php://memory', 'rb');
+        self::assertIsResource($resource);
+
+        try {
+            foreach (
+                [
+                    ['float' => 1.1],
+                    ['object' => new \stdClass()],
+                    ['resource' => $resource],
+                    ['closure' => static fn (): string => 'invalid'],
+                ] as $meta
+            ) {
+                try {
+                    new ConfigValueSource(
+                        type: ConfigSourceType::Runtime,
+                        root: 'kernel',
+                        sourceId: 'runtime.kernel',
+                        meta: $meta,
+                    );
+
+                    self::fail('Expected invalid meta to be rejected.');
+                } catch (InvalidArgumentException $exception) {
+                    self::assertStringContainsString('metadata', $exception->getMessage());
+                }
+            }
+        } finally {
+            fclose($resource);
+        }
+    }
+
     public function test_redaction_marker_is_metadata_not_raw_value_storage(): void
     {
         $redacted = new ConfigValueSource(
-            ConfigSourceType::Environment,
-            'foundation',
-            'env/runtime',
-            'container.password',
-            'env.runtime',
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.password',
             precedence: 30,
             redacted: true,
         );
 
         $notRedacted = new ConfigValueSource(
-            ConfigSourceType::PackageDefaults,
-            'foundation',
-            'package.defaults',
-            'container.cache',
-            'core.foundation',
+            type: ConfigSourceType::PackageDefault,
+            root: 'foundation',
+            sourceId: 'core.foundation',
+            path: 'package.defaults',
+            keyPath: 'container.cache',
             precedence: 10,
             redacted: false,
         );

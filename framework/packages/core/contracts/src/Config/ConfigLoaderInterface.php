@@ -21,19 +21,18 @@ namespace Coretsia\Contracts\Config;
 /**
  * Format-neutral config loader port.
  *
- * Implementations own concrete source discovery and parsing. Callers must not
- * be required to pass filesystem paths, Composer metadata paths, or concrete
- * file-format details through this contract.
+ * Implementations own concrete source discovery, parsing, ordering, merging,
+ * and repository construction. Callers must not be required to pass filesystem
+ * paths, Composer metadata paths, or concrete file-format details through this
+ * contract.
  */
 interface ConfigLoaderInterface
 {
     /**
-     * Loads config input into a contract-level config shape.
+     * Loads config into a read-only merged config repository.
      *
-     * The returned map is config data only. Concrete loading, parsing, source
-     * discovery, and source ordering are implementation-owned.
-     *
-     * @return array<string,mixed>
+     * The repository may expose safe source metadata and deterministic explain
+     * traces through contracts-level shapes only.
      */
-    public function load(): array;
+    public function load(): ConfigRepositoryInterface;
 }

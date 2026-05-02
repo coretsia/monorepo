@@ -163,13 +163,25 @@ Contracts MUST NOT register mode presets in DI.
 
 It MUST expose deterministic preset data without leaking the source format.
 
-The interface shape is:
+The canonical interface shape is:
 
 ```text
+schemaVersion(): int
 name(): string
 description(): ?string
+required(): list<ModuleId>
+optional(): list<ModuleId>
+disabled(): list<ModuleId>
 moduleIds(): list<ModuleId>
+featureBundles(): array<string,mixed>
 metadata(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
+The canonical preset schema version is:
+
+```text
+1
 ```
 
 The canonical preset name constants are:
@@ -181,30 +193,50 @@ HYBRID = hybrid
 ENTERPRISE = enterprise
 ```
 
-`moduleIds()` returns contract-level `ModuleId` value objects.
+`required()` returns module ids that the preset requires.
+
+`optional()` returns module ids that the preset may enable when available.
+
+`disabled()` returns module ids that the preset explicitly disables.
+
+The `required`, `optional`, and `disabled` lists MUST be pairwise disjoint within one loaded preset.
+
+A preset implementation MUST NOT silently resolve conflicts between these three lists.
+
+Conflict resolution between a framework preset and application/user override is future owner policy and is outside `core/contracts`.
+
+`moduleIds()` is a compatibility projection of enabled preset module ids.
+
+It SHOULD be derived from:
+
+```text
+required + optional - disabled
+```
+
+and sorted by module id value using byte-order `strcmp`.
+
+`required()`, `optional()`, `disabled()`, and `moduleIds()` return contract-level `ModuleId` value objects.
 
 This is an internal contracts API shape, not an exported scalar descriptor shape.
 
-Any implementation returning module ids MUST return them in deterministic order unless a future SSoT explicitly defines semantic list order.
+`featureBundles()` returns deterministic schema-owned policy knobs.
 
-Module id list ordering rule:
+`featureBundles()` MUST be a JSON-like map.
 
-```text
-sort by moduleId value ascending using byte-order strcmp unless the API explicitly documents semantic list order
-```
+The exact feature bundle key semantics are owned by this SSoT and future mode/preset owner policy.
 
 `metadata()` MUST return deterministic JSON-like preset metadata.
 
-Allowed metadata value types are:
+Allowed metadata and feature bundle value types are:
 
 - `null`
 - `bool`
 - `int`
 - `string`
-- list of allowed metadata values
-- map with string keys and allowed metadata values
+- list of allowed values
+- map with string keys and allowed values
 
-Preset metadata MUST NOT contain:
+Preset metadata and feature bundles MUST NOT contain:
 
 - floating-point values
 - PHP objects
@@ -221,17 +253,83 @@ Map ordering rule:
 sort string keys recursively by byte-order strcmp
 ```
 
-## ModePresetLoaderInterface policy
+### ModePreset exported shape
 
-`ModePresetLoaderInterface` is a contracts port for loading a mode preset by name.
+`ModePresetInterface::toArray()` MUST return a stable scalar/json-like shape.
 
-The interface shape is:
+The canonical exported shape fields are:
 
 ```text
-load(string $name): ModePresetInterface
+description
+disabled
+featureBundles
+metadata
+moduleIds
+name
+optional
+required
+schemaVersion
 ```
 
-The loader input MUST be a canonical lowercase mode preset name.
+The `required`, `optional`, `disabled`, and `moduleIds` fields MUST export module ids as strings.
+
+The exported shape MUST NOT expose `ModuleId` objects.
+
+The exported shape MUST NOT expose PHP objects, service instances, runtime wiring objects, closures, resources, filesystem handles, absolute paths, secrets, raw environment values, or implementation-owned source handles.
+
+## ModePresetLoaderInterface policy
+
+`ModePresetLoaderInterface` is a contracts port for loading mode presets by name.
+
+The canonical interface shape is:
+
+```text
+listNames(): list<string>
+has(string $name): bool
+load(string $name): ModePresetInterface
+tryLoad(string $name): ?ModePresetInterface
+```
+
+`listNames()` MUST return available preset names in deterministic order:
+
+```text
+name ascending using byte-order strcmp
+```
+
+`has()` returns whether a preset exists.
+
+`load()` loads a preset by name.
+
+Missing preset behavior for `load()` is implementation-owned.
+
+Implementations SHOULD throw deterministic owner-defined exceptions for missing or invalid names.
+
+`tryLoad()` loads a preset by name or returns `null` when absent.
+
+`tryLoad()` SHOULD NOT throw for missing names.
+
+The loader input MUST be a safe preset name.
+
+Framework canonical preset names are:
+
+```text
+micro
+express
+hybrid
+enterprise
+```
+
+Owner-defined custom preset names MAY exist.
+
+Custom preset names MUST NOT redefine framework canonical preset names.
+
+Preset names MUST be safe lowercase ASCII identifiers.
+
+Recommended preset name pattern:
+
+```text
+^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+```
 
 The loader MUST NOT require callers to pass a filesystem path.
 

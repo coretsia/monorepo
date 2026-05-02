@@ -26,28 +26,68 @@ namespace Coretsia\Contracts\Config;
  */
 final readonly class ConfigValueSource
 {
+    public const int SCHEMA_VERSION = 1;
+
+    /**
+     * @var list<string>
+     */
+    private const array FORBIDDEN_META_KEYS = [
+        'value',
+        'rawValue',
+        'configValue',
+        'envValue',
+        'rawEnvValue',
+        'secret',
+        'password',
+        'token',
+        'credential',
+        'credentials',
+        'privateKey',
+        'authorizationHeader',
+        'cookie',
+        'requestBody',
+        'responseBody',
+    ];
+
     private ConfigSourceType $type;
 
     private string $root;
 
-    private string $path;
+    private string $sourceId;
 
-    private string $keyPath;
+    private ?string $path;
 
-    private ?string $sourceId;
+    private ?string $keyPath;
+
+    private ?string $directive;
 
     private int $precedence;
 
     private bool $redacted;
 
+    /**
+     * @var array<string,mixed>
+     */
+    private array $meta;
+
+    /**
+     * @param non-empty-string $root
+     * @param non-empty-string $sourceId
+     * @param non-empty-string|null $path Repo-relative path or logical source path. Absolute paths are forbidden.
+     * @param non-empty-string|null $keyPath Logical dotted config key path.
+     * @param non-empty-string|null $directive Directive name without "@" prefix.
+     * @param array<string,mixed> $meta Metadata-only, json-like, no raw values.
+     */
     public function __construct(
         ConfigSourceType $type,
         string $root,
-        string $path,
-        string $keyPath,
-        ?string $sourceId = null,
+        string $sourceId,
+        ?string $path = null,
+        ?string $keyPath = null,
+        ?string $directive = null,
         int $precedence = 0,
         bool $redacted = false,
+        array $meta = [],
     ) {
         if ($precedence < 0) {
             throw new \InvalidArgumentException('Config value source precedence must be non-negative.');
@@ -55,11 +95,18 @@ final readonly class ConfigValueSource
 
         $this->type = $type;
         $this->root = self::normalizeRoot($root);
-        $this->path = self::normalizeLogicalIdentifier($path, 'path', allowEmpty: true);
-        $this->keyPath = self::normalizeLogicalIdentifier($keyPath, 'keyPath', allowEmpty: true);
-        $this->sourceId = self::normalizeOptionalLogicalIdentifier($sourceId, 'sourceId');
+        $this->sourceId = self::normalizeRequiredLogicalIdentifier($sourceId, 'sourceId');
+        $this->path = self::normalizeOptionalRepoRelativePath($path);
+        $this->keyPath = self::normalizeOptionalLogicalIdentifier($keyPath, 'keyPath');
+        $this->directive = self::normalizeOptionalDirective($directive);
         $this->precedence = $precedence;
         $this->redacted = $redacted;
+        $this->meta = self::normalizeJsonLikeMap($meta, 'meta');
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public function type(): ConfigSourceType
@@ -67,24 +114,44 @@ final readonly class ConfigValueSource
         return $this->type;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function root(): string
     {
         return $this->root;
     }
 
-    public function path(): string
+    /**
+     * @return non-empty-string
+     */
+    public function sourceId(): string
+    {
+        return $this->sourceId;
+    }
+
+    /**
+     * @return non-empty-string|null
+     */
+    public function path(): ?string
     {
         return $this->path;
     }
 
-    public function keyPath(): string
+    /**
+     * @return non-empty-string|null
+     */
+    public function keyPath(): ?string
     {
         return $this->keyPath;
     }
 
-    public function sourceId(): ?string
+    /**
+     * @return non-empty-string|null
+     */
+    public function directive(): ?string
     {
-        return $this->sourceId;
+        return $this->directive;
     }
 
     /**
@@ -104,24 +171,40 @@ final readonly class ConfigValueSource
     }
 
     /**
+     * @return array<string,mixed>
+     */
+    public function meta(): array
+    {
+        return $this->meta;
+    }
+
+    /**
+     * Stable metadata-only exported shape.
+     *
      * @return array{
-     *     keyPath: string,
-     *     path: string,
+     *     directive: string|null,
+     *     keyPath: string|null,
+     *     meta: array<string,mixed>,
+     *     path: string|null,
      *     precedence: int,
      *     redacted: bool,
      *     root: string,
-     *     sourceId: string|null,
+     *     schemaVersion: int,
+     *     sourceId: string,
      *     type: string
      * }
      */
     public function toArray(): array
     {
         return [
+            'directive' => $this->directive,
             'keyPath' => $this->keyPath,
+            'meta' => $this->meta,
             'path' => $this->path,
             'precedence' => $this->precedence,
             'redacted' => $this->redacted,
             'root' => $this->root,
+            'schemaVersion' => self::SCHEMA_VERSION,
             'sourceId' => $this->sourceId,
             'type' => $this->type->value,
         ];
@@ -142,24 +225,11 @@ final readonly class ConfigValueSource
         return $root;
     }
 
-    private static function normalizeOptionalLogicalIdentifier(?string $value, string $field): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        return self::normalizeLogicalIdentifier($value, $field, allowEmpty: false);
-    }
-
-    private static function normalizeLogicalIdentifier(string $value, string $field, bool $allowEmpty): string
+    private static function normalizeRequiredLogicalIdentifier(string $value, string $field): string
     {
         $value = trim($value);
 
         if ($value === '') {
-            if ($allowEmpty) {
-                return '';
-            }
-
             throw new \InvalidArgumentException('Config value source ' . $field . ' must be non-empty.');
         }
 
@@ -168,8 +238,93 @@ final readonly class ConfigValueSource
         return $value;
     }
 
+    private static function normalizeOptionalLogicalIdentifier(?string $value, string $field): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        self::assertSafeLogicalIdentifier($value, $field);
+
+        return $value;
+    }
+
+    private static function normalizeOptionalRepoRelativePath(?string $path): ?string
+    {
+        if ($path === null) {
+            return null;
+        }
+
+        $path = trim(str_replace('\\', '/', $path));
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_contains($path, "\0") || str_contains($path, "\r") || str_contains($path, "\n")) {
+            throw new \InvalidArgumentException('Invalid config value source path.');
+        }
+
+        if (preg_match('/^[A-Za-z]:\//', $path) === 1) {
+            throw new \InvalidArgumentException('Config value source path must not be an absolute path.');
+        }
+
+        if (str_starts_with($path, '/')) {
+            throw new \InvalidArgumentException('Config value source path must not be an absolute path.');
+        }
+
+        if (str_contains($path, ':')) {
+            throw new \InvalidArgumentException('Config value source path must be a safe repo-relative path.');
+        }
+
+        if (str_contains($path, '://')) {
+            throw new \InvalidArgumentException('Config value source path must be a safe repo-relative path.');
+        }
+
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '..') {
+                throw new \InvalidArgumentException('Config value source path must not contain path traversal.');
+            }
+        }
+
+        return $path;
+    }
+
+    private static function normalizeOptionalDirective(?string $directive): ?string
+    {
+        if ($directive === null) {
+            return null;
+        }
+
+        $directive = trim($directive);
+
+        if ($directive === '') {
+            return null;
+        }
+
+        if (str_starts_with($directive, '@')) {
+            $directive = substr($directive, 1);
+        }
+
+        if (!ConfigDirective::isAllowed($directive)) {
+            throw new \InvalidArgumentException('Invalid config value source directive.');
+        }
+
+        return $directive;
+    }
+
     private static function assertSafeLogicalIdentifier(string $value, string $field): void
     {
+        if (preg_match('/\s/', $value) === 1) {
+            throw new \InvalidArgumentException('Config value source ' . $field . ' must not contain whitespace.');
+        }
+
         if (str_contains($value, "\0") || str_contains($value, "\r") || str_contains($value, "\n")) {
             throw new \InvalidArgumentException('Invalid config value source ' . $field . '.');
         }
@@ -180,6 +335,12 @@ final readonly class ConfigValueSource
 
         if (str_starts_with($value, '/') || str_starts_with($value, '\\')) {
             throw new \InvalidArgumentException('Config value source ' . $field . ' must not be an absolute path.');
+        }
+
+        if (str_contains($value, ':')) {
+            throw new \InvalidArgumentException(
+                'Config value source ' . $field . ' must be a safe logical identifier.'
+            );
         }
 
         if (str_contains($value, '://')) {
@@ -198,5 +359,71 @@ final readonly class ConfigValueSource
         ) {
             throw new \InvalidArgumentException('Config value source ' . $field . ' must not contain path traversal.');
         }
+    }
+
+    /**
+     * @param array<mixed> $map
+     *
+     * @return array<string,mixed>
+     */
+    private static function normalizeJsonLikeMap(array $map, string $path): array
+    {
+        if (array_is_list($map) && $map !== []) {
+            throw new \InvalidArgumentException('Config value source ' . $path . ' must be a map.');
+        }
+
+        $out = [];
+
+        foreach ($map as $key => $value) {
+            if (!is_string($key)) {
+                throw new \InvalidArgumentException('Invalid config value source metadata key at ' . $path . '.');
+            }
+
+            if ($key === '') {
+                throw new \InvalidArgumentException('Invalid config value source metadata key at ' . $path . '.');
+            }
+
+            if (str_contains($key, "\0") || str_contains($key, "\r") || str_contains($key, "\n")) {
+                throw new \InvalidArgumentException('Invalid config value source metadata key at ' . $path . '.');
+            }
+
+            if (in_array($key, self::FORBIDDEN_META_KEYS, true)) {
+                throw new \InvalidArgumentException('Invalid config value source metadata key at ' . $path . '.');
+            }
+
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
+        }
+
+        ksort($out, \SORT_STRING);
+
+        /** @var array<string,mixed> $out */
+        return $out;
+    }
+
+    private static function normalizeJsonLikeValue(mixed $value, string $path): mixed
+    {
+        if ($value === null || is_bool($value) || is_int($value) || is_string($value)) {
+            return $value;
+        }
+
+        if (is_float($value)) {
+            throw new \InvalidArgumentException('Invalid float config value source metadata at ' . $path . '.');
+        }
+
+        if (is_array($value)) {
+            if (array_is_list($value)) {
+                $out = [];
+
+                foreach ($value as $item) {
+                    $out[] = self::normalizeJsonLikeValue($item, $path . '[]');
+                }
+
+                return $out;
+            }
+
+            return self::normalizeJsonLikeMap($value, $path);
+        }
+
+        throw new \InvalidArgumentException('Invalid config value source metadata at ' . $path . '.');
     }
 }

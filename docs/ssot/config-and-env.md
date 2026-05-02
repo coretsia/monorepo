@@ -85,17 +85,26 @@ A future owner epic MAY explicitly opt a class into DTO policy. Until such an ep
 
 `EnvRepositoryInterface` is a contracts port for reading env-derived values.
 
-It MUST expose env lookup results without prescribing the implementation source.
+The canonical interface shape is:
 
-An env repository implementation MAY read from:
+```text
+has(string $name): bool
+get(string $name): EnvValue
+all(): array<string,string>
+sourceOf(string $name): ?ConfigValueSource
+```
 
-- process environment;
-- `.env` parser output;
-- generated config artifact;
-- in-memory test source;
-- another future owner-defined source.
+`has()` MUST return true for present empty string.
 
-The contracts package MUST NOT implement a concrete env repository.
+`get()` MUST return `EnvValue` so missing and present-empty-string remain distinct.
+
+`all()` returns present env values only.
+
+`all()` exposes raw env values to runtime owner code. Diagnostics, traces, logs, validation errors, source tracking, and explain output MUST NOT print this map directly.
+
+`sourceOf()` returns safe source metadata for an env name when available.
+
+`sourceOf()` MUST NOT expose raw env values.
 
 ## Env value model
 
@@ -171,9 +180,37 @@ It MUST NOT expose raw source traces unless those traces use safe contracts shap
 
 It MUST NOT require filesystem paths.
 
+The canonical interface shape is:
+
+```text
+has(string $keyPath): bool
+get(string $keyPath, mixed $default = null): mixed
+all(): array<string,mixed>
+sourceOf(string $keyPath): ?ConfigValueSource
+explain(): list<ConfigValueSource>
+```
+
+`all()` returns the full merged config tree.
+
+The returned tree MUST contain config data only.
+
+It MUST NOT contain closures, objects, resources, service instances, executable validators, filesystem handles, or runtime wiring objects.
+
+`sourceOf()` returns safe source metadata for a concrete key path when available.
+
+`explain()` returns a deterministic safe explain trace.
+
+`sourceOf()` and `explain()` MUST NOT expose raw config values, raw env values, secrets, absolute local paths, timestamps, random values, or host-specific bytes.
+
 ## Config loader port
 
-`ConfigLoaderInterface` is a contracts port for loading config input into a contract-defined config shape.
+`ConfigLoaderInterface` is a contracts port for loading config into a read-only merged config repository.
+
+The canonical interface shape is:
+
+```text
+load(): ConfigRepositoryInterface
+```
 
 It MUST remain format-neutral.
 
@@ -181,9 +218,23 @@ It MUST NOT require callers to pass filesystem paths.
 
 It MUST NOT expose whether the source came from PHP, JSON, YAML, Composer metadata, generated artifact, env source, or another implementation source.
 
+Concrete source discovery, parsing, source ordering, merging, and repository construction are implementation-owned.
+
 ## Merge strategy port
 
-`MergeStrategyInterface` is a contracts port for deterministic config merge behavior.
+`MergeStrategyInterface` is a contracts port for deterministic config node merge behavior.
+
+The canonical interface shape is:
+
+```text
+merge(mixed $base, mixed $patch): mixed
+```
+
+Implementations MUST be side-effect free.
+
+Implementations MUST follow directive policy.
+
+Multi-layer merge is owner-owned and SHOULD be implemented by folding this binary merge operation in explicit precedence order.
 
 The contracts package defines directive invariants and safe shape requirements.
 
@@ -327,10 +378,13 @@ If a future owner needs decimal values, they MUST be represented as strings with
 The canonical source type values are:
 
 ```text
-package_defaults
-application_config
-environment
-runtime_override
+package_default
+skeleton_config
+app_config
+dotenv
+env
+cli
+runtime
 generated_artifact
 ```
 
@@ -338,15 +392,24 @@ Meaning:
 
 | source type          | meaning                                                                   |
 |----------------------|---------------------------------------------------------------------------|
-| `package_defaults`   | package-owned default config data                                         |
-| `application_config` | application-owned config override data                                    |
-| `environment`        | env-derived config input                                                  |
-| `runtime_override`   | runtime-provided override from a future owner-defined source              |
+| `package_default`    | package-owned default config data, normally from package config files     |
+| `skeleton_config`    | skeleton-level config data                                                |
+| `app_config`         | application-specific config data                                          |
+| `dotenv`             | parsed `.env` source data                                                 |
+| `env`                | process environment source data                                           |
+| `cli`                | explicit CLI override source data                                         |
+| `runtime`            | runtime-computed or owner-derived config source data                      |
 | `generated_artifact` | generated config artifact source or compiled config source representation |
+
+Source type values are vocabulary only.
+
+Concrete source trace entries MAY expose explicit precedence through `ConfigValueSource::precedence()`.
 
 Source type values MUST be lowercase ASCII strings.
 
 Source type values MUST be compared byte-for-byte.
+
+They MUST NOT define merge precedence by themselves.
 
 Source type handling MUST NOT depend on locale, filesystem casing, or translated labels.
 
@@ -362,43 +425,66 @@ Any expansion of source types requires:
 
 It MUST identify where a config value came from without storing the raw value.
 
+The canonical schema version is:
+
+```text
+1
+```
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+type(): ConfigSourceType
+root(): string
+sourceId(): string
+path(): ?string
+keyPath(): ?string
+directive(): ?string
+precedence(): int
+isRedacted(): bool
+meta(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
 It MAY expose safe metadata such as:
 
 ```text
 type
 root
+sourceId
 path
 keyPath
-sourceId
+directive
 precedence
 redacted
+meta
 ```
 
 The `precedence` field is explicit metadata of a concrete source trace entry.
 
 `precedence` MUST NOT be inferred from `ConfigSourceType` alone.
 
-`ConfigSourceType` defines source vocabulary only. It does not define merge order by itself.
+`directive` stores the directive name without the `@` prefix.
 
-It MUST NOT expose:
+`meta` MUST be metadata-only and JSON-like.
 
-- raw config value;
-- raw env value;
-- raw `.env` value;
-- passwords;
-- credentials;
-- tokens;
-- private keys;
-- cookies;
-- authorization headers;
-- request bodies;
-- response bodies;
-- private customer data;
-- absolute local paths.
+`meta` MUST NOT contain raw config values, raw env values, secrets, absolute paths, objects, closures, resources, service instances, or runtime wiring objects.
 
-`path` and `sourceId` MUST be safe logical identifiers.
+The canonical exported key order for `ConfigValueSource::toArray()` is:
 
-They MUST NOT be absolute local filesystem paths.
+```text
+directive
+keyPath
+meta
+path
+precedence
+redacted
+root
+schemaVersion
+sourceId
+type
+```
 
 ## Safe explain trace contract
 
@@ -452,11 +538,15 @@ Contract-level safe trace entries SHOULD be ordered by:
 
 ```text
 root ascending using byte-order strcmp
-keyPath ascending using byte-order strcmp
+keyPath ascending using byte-order strcmp, with null treated as empty string
 precedence ascending as integer
-path ascending using byte-order strcmp
-sourceId ascending using byte-order strcmp, with null treated as empty string
+path ascending using byte-order strcmp, with null treated as empty string
+sourceId ascending using byte-order strcmp
 ```
+
+`sourceId` is non-null at the contracts boundary.
+
+`keyPath` and `path` are nullable source-tracking fields. For ordering only, `null` MUST be compared as an empty string.
 
 This is the contracts-level safe equivalent of the Phase 0 `0.90.0` explain trace ordering:
 
@@ -722,7 +812,7 @@ This SSoT does not define config artifact schema.
 
 Config/env contracts MUST NOT require storing secrets.
 
-Config/env contracts MUST NOT leak:
+Config/env diagnostic shapes, source traces, validation results, explain output, logs, and exported artifacts MUST NOT leak:
 
 - `.env` values;
 - passwords;
@@ -735,6 +825,15 @@ Config/env contracts MUST NOT leak:
 - response bodies;
 - private customer data;
 - absolute local paths.
+
+Runtime access ports MAY return raw env values to owner implementation code where this is their explicit purpose, but those values MUST NOT be copied into:
+
+- diagnostics;
+- traces;
+- validation errors;
+- source metadata;
+- logs;
+- artifacts.
 
 Secret-backed runtime behavior belongs to owner packages, not to contracts shapes.
 

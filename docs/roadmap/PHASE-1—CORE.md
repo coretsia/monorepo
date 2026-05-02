@@ -2950,7 +2950,7 @@ kind: library
 
 goal: "Introduce a minimal contracts read-port for context access without a Foundation dependency: ContextAccessorInterface."
 provides:
-- "Coretsia\\Contracts\\Context\\ContextAccessorInterface with cemented signature `get(string $key): mixed` (no default parameter)."
+- "Coretsia\\Contracts\\Context\\ContextAccessorInterface with cemented signatures `has(string $key): bool` and `get(string $key): mixed` (no default parameter on `get`)."
 - "A single stable API for optional dependency usage in cross-cutting packages (database/secrets/health/logging/tracing/metrics)."
 
 tags_introduced: []
@@ -3006,13 +3006,20 @@ N/A
 - [x] `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php`
   - [x] MUST:
     - [x] namespace: `Coretsia\Contracts\Context`
+    - [x] signature: `public function has(string $key): bool;`
     - [x] signature: `public function get(string $key): mixed;`
-    - [x] MUST NOT: default параметр, сеттери, мутація, storage details
+    - [x] `get()` MUST NOT have a default parameter
+    - [x] `has()` MUST distinguish key presence from a present `null` value
+    - [x] MUST NOT: `all()`, default параметр, сеттери, мутація, storage details, full context snapshots
 - [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
   - [x] MUST assert:
-    - [x] method exists
-    - [x] parameter name/type = `string $key`
-    - [x] return type = `mixed`
+    - [x] methods exist: `has`, `get`
+    - [x] no `all()` method exists
+    - [x] `has()` parameter name/type = `string $key`
+    - [x] `has()` return type = `bool`
+    - [x] `get()` parameter name/type = `string $key`
+    - [x] `get()` return type = `mixed`
+    - [x] `get()` has no default parameter
     - [x] no extra public methods introduced accidentally
 
 #### Modifies
@@ -3035,7 +3042,7 @@ N/A
 
 - [x] Deliverables complete (creates), paths exact
 - [x] No runtime dependencies added
-- [x] Signature is cemented and covered by contract test
+- [x] Signatures are cemented and covered by contract tests
 - [x] Context accessor is a runtime read port, not a DTO/result/descriptor model
 
 ---

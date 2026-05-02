@@ -45,13 +45,34 @@ final class ContextAccessorInterfaceShapeContractTest extends TestCase
         self::assertSame(
             [
                 'get',
+                'has',
             ],
             $publicMethodNames,
         );
 
-        self::assertTrue($reflection->hasMethod('get'));
+        self::assertFalse($reflection->hasMethod('all'));
+    }
 
-        $method = $reflection->getMethod('get');
+    public function test_has_method_shape_is_stable(): void
+    {
+        $method = new ReflectionMethod(ContextAccessorInterface::class, 'has');
+
+        self::assertTrue($method->isPublic());
+        self::assertSame(1, $method->getNumberOfParameters());
+        self::assertSame(1, $method->getNumberOfRequiredParameters());
+
+        $parameters = $method->getParameters();
+
+        self::assertSame('key', $parameters[0]->getName());
+        self::assertParameterNamedType($parameters[0], 'string', false);
+        self::assertFalse($parameters[0]->isDefaultValueAvailable());
+
+        self::assertMethodReturnType($method, 'bool', false);
+    }
+
+    public function test_get_method_shape_is_stable(): void
+    {
+        $method = new ReflectionMethod(ContextAccessorInterface::class, 'get');
 
         self::assertTrue($method->isPublic());
         self::assertSame(1, $method->getNumberOfParameters());
@@ -64,6 +85,38 @@ final class ContextAccessorInterfaceShapeContractTest extends TestCase
         self::assertFalse($parameters[0]->isDefaultValueAvailable());
 
         self::assertMethodReturnType($method, 'mixed', true);
+    }
+
+    public function test_context_accessor_can_distinguish_missing_key_from_present_null_value(): void
+    {
+        $accessor = new class([ 'presentNull' => null, 'operation' => 'contract-test', ]) implements ContextAccessorInterface {
+            /**
+             * @param array<string,mixed> $values
+             */
+            public function __construct(
+                private readonly array $values,
+            ) {
+            }
+
+            public function has(string $key): bool
+            {
+                return array_key_exists($key, $this->values);
+            }
+
+            public function get(string $key): mixed
+            {
+                return $this->values[$key] ?? null;
+            }
+        };
+
+        self::assertTrue($accessor->has('presentNull'));
+        self::assertNull($accessor->get('presentNull'));
+
+        self::assertTrue($accessor->has('operation'));
+        self::assertSame('contract-test', $accessor->get('operation'));
+
+        self::assertFalse($accessor->has('missing'));
+        self::assertNull($accessor->get('missing'));
     }
 
     private static function assertParameterNamedType(

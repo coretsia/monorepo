@@ -37,6 +37,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0003: Observability, ErrorDescriptor, health, and profiling ports](./ADR-0003-observability-errordescriptor-health-profiling-ports.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,health,observability,profiling
 - [ADR-0005: Routing and HttpApp ports](./ADR-0005-routing-httpapp-ports.md) — owner: core/contracts — scope: contracts,http-app,routing,ports
 - [ADR-0006: Reset interface and UoW hooks](./ADR-0006-reset-interface-uow-hooks.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
+- [ADR-0007: Validation ports](./ADR-0007-validation-ports.md) — owner: core/contracts — scope: contracts,errors,validation,ports
 
 ## Cross-references
 

@@ -31,6 +31,7 @@ Coretsia/
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
 │   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
+│   │   ├── ADR-0007-validation-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -106,7 +107,8 @@ Coretsia/
 │       ├── profiling-ports.md
 │       ├── routing-and-http-app-contracts.md
 │       ├── tags.md
-│       └── uow-and-reset-contracts.md
+│       ├── uow-and-reset-contracts.md
+│       └── validation-contracts.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -184,11 +186,16 @@ Coretsia/
 │   │   │   │   │   │   ├── RouteMatch.php
 │   │   │   │   │   │   ├── RouteProviderInterface.php
 │   │   │   │   │   │   └── RouterInterface.php
-│   │   │   │   │   └── Runtime/
-│   │   │   │   │       ├── Hook/
-│   │   │   │   │       │   ├── AfterUowHookInterface.php
-│   │   │   │   │       │   └── BeforeUowHookInterface.php
-│   │   │   │   │       └── ResetInterface.php
+│   │   │   │   │   ├── Runtime/
+│   │   │   │   │   │   ├── Hook/
+│   │   │   │   │   │   │   ├── AfterUowHookInterface.php
+│   │   │   │   │   │   │   └── BeforeUowHookInterface.php
+│   │   │   │   │   │   └── ResetInterface.php
+│   │   │   │   │   └── Validation/
+│   │   │   │   │       ├── ValidationException.php
+│   │   │   │   │       ├── ValidationResult.php
+│   │   │   │   │       ├── ValidatorInterface.php
+│   │   │   │   │       └── Violation.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
@@ -243,7 +250,10 @@ Coretsia/
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
-│   │   │   │   │   │   └── TracerPortInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ValidationContractsTest.php
+│   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php
+│   │   │   │   │   │   └── ValidationViolationShapeIsSafeContractTest.php
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php
 │   │   │   │   ├── LICENSE

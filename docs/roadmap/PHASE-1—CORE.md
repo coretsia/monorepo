@@ -3560,7 +3560,7 @@ ssot_refs:
   - none
 
 - Required tags:
-  - `error.mapper` — runtime maps ValidationException to ErrorDescriptor
+  - `error.mapper` — existing runtime discovery tag for documented ValidationException mapping policy
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` — mapping target (policy)
@@ -3599,44 +3599,45 @@ N/A
 ### Entry points / integration points (MUST)
 
 - Runtime expectation (policy):
-  - `platform/validation` provides validator + mapper for `ValidationException` → `ErrorDescriptor(422)`
+  - `platform/validation` provides validator behavior.
+  - Runtime error mapping is discovered through `error.mapper` owned by `platform/errors`.
+  - A future runtime mapper maps `ValidationException` → `ErrorDescriptor(422)`.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Validation/ValidatorInterface.php`
-- [ ] `framework/packages/core/contracts/src/Validation/ValidationResult.php`
-  - [ ] contains deterministic violation collection shape
-  - [ ] exposes violations as ordered list shape
-  - [ ] carries no raw input payload values
+- [x] `framework/packages/core/contracts/src/Validation/ValidatorInterface.php`
+- [x] `framework/packages/core/contracts/src/Validation/ValidationResult.php`
+  - [x] contains deterministic violation collection shape
+  - [x] exposes violations as ordered list shape
+  - [x] carries no raw input payload values
+- [x] `framework/packages/core/contracts/src/Validation/Violation.php`
+  - [x] Violation fields are scalar/json-like only
+  - [x] meta/extensions float-forbidden
+  - [x] meta must be json-like / float-free / safe only
+  - [x] no raw input values
+  - [x] stable order of violations is runtime concern, but shape must support deterministic sort keys:
+    - [x] `path`
+    - [x] `code`
+    - [x] `rule`
+    - [x] `index`
+- [x] `framework/packages/core/contracts/src/Validation/ValidationException.php`
 
-- [ ] `framework/packages/core/contracts/src/Validation/Violation.php`
-  - [ ] Violation fields are scalar/json-like only
-  - [ ] meta/extensions float-forbidden
-  - [ ] meta must be json-like / float-free / safe only
-  - [ ] no raw input values
-  - [ ] stable order of violations is runtime concern, but shape must support deterministic sort keys:
-    - [ ] `path`
-    - [ ] `code`
-    - [ ] `rule`
-    - [ ] `index`
-- [ ] `framework/packages/core/contracts/src/Validation/ValidationException.php`
+- [x] `docs/adr/ADR-0007-validation-ports.md`
+- [x] `docs/ssot/validation-contracts.md` — shape + deterministic exception code + mapping notes
+  - [x] `ValidationResult` and `Violation` are contracts result/descriptor shapes, not DTO-marker classes by default
 
-- [ ] `docs/adr/ADR-0007-validation-ports.md`
-- [ ] `docs/ssot/validation-contracts.md` — shape + deterministic exception code + mapping notes
-  - [ ] `ValidationResult` and `Violation` are contracts result/descriptor shapes, not DTO-marker classes by default
-
-- [ ] `framework/packages/core/contracts/tests/Contract/ValidationContractsTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ValidationContractsTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/validation-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0007-validation-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/validation-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0007-validation-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -3658,27 +3659,28 @@ N/A
 
 #### Errors
 
-- [ ] `ValidationException` MUST use deterministic code `CORETSIA_VALIDATION_FAILED`.
-- [ ] Runtime maps it via `error.mapper` to `ErrorDescriptor` with HTTP status hint `422` (format-neutral; adapter-owned).
+- [x] `ValidationException` MUST use deterministic code `CORETSIA_VALIDATION_FAILED`.
+- [x] Runtime mapping policy is documented: `ValidationException` maps via `error.mapper` to `ErrorDescriptor` with HTTP status hint `422`.
 
 #### Security / Redaction
 
-- [ ] Violations meta MUST be json-like only; MUST NOT include secrets/PII by default (policy note)
+- [x] Violations meta MUST be json-like only.
+- [x] Violations MUST NOT include secrets/PII by default — policy documented.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] tests listed above
+  - [x] tests listed above
 
 ### DoD (MUST)
 
-- [ ] Ports exist + tested
-- [ ] Docs exist
-- [ ] No forbidden deps
+- [x] Ports exist + tested
+- [x] Docs exist
+- [x] No forbidden deps
 
 ---
 

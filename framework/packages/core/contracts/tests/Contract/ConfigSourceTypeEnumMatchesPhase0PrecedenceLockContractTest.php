@@ -27,17 +27,20 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
     /**
      * @var list<string>
      */
-    private const array PHASE0_SOURCE_TYPE_VALUES = [
-        'package_defaults',
-        'application_config',
-        'environment',
-        'runtime_override',
+    private const array SOURCE_TYPE_VALUES = [
+        'package_default',
+        'skeleton_config',
+        'app_config',
+        'dotenv',
+        'env',
+        'cli',
+        'runtime',
         'generated_artifact',
     ];
 
-    public function test_source_type_enum_matches_phase0_source_tracking_vocabulary(): void
+    public function test_source_type_enum_matches_source_tracking_vocabulary(): void
     {
-        self::assertSame(self::PHASE0_SOURCE_TYPE_VALUES, ConfigSourceType::values());
+        self::assertSame(self::SOURCE_TYPE_VALUES, ConfigSourceType::values());
     }
 
     public function test_source_type_enum_does_not_define_intrinsic_precedence(): void
@@ -50,25 +53,25 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
     public function test_precedence_is_explicit_source_trace_metadata_not_source_type_metadata(): void
     {
         $lowRank = new ConfigValueSource(
-            ConfigSourceType::Environment,
-            'foundation',
-            'env/runtime',
-            'container.cache',
-            'env.runtime',
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.cache',
             precedence: 10,
         );
 
         $highRank = new ConfigValueSource(
-            ConfigSourceType::Environment,
-            'foundation',
-            'env/runtime',
-            'container.cache',
-            'env.runtime',
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.cache',
             precedence: 40,
         );
 
-        self::assertSame(ConfigSourceType::Environment, $lowRank->type());
-        self::assertSame(ConfigSourceType::Environment, $highRank->type());
+        self::assertSame(ConfigSourceType::Env, $lowRank->type());
+        self::assertSame(ConfigSourceType::Env, $highRank->type());
 
         self::assertSame(10, $lowRank->precedence());
         self::assertSame(40, $highRank->precedence());
@@ -77,30 +80,30 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
     public function test_source_type_vocabulary_order_is_not_a_merge_precedence_contract(): void
     {
         $trace = new ConfigValueSource(
-            ConfigSourceType::PackageDefaults,
-            'foundation',
-            'package.defaults',
-            'container.autowire',
-            'core.foundation',
+            type: ConfigSourceType::PackageDefault,
+            root: 'foundation',
+            sourceId: 'core.foundation',
+            path: 'packages/core/foundation/config/foundation.php',
+            keyPath: 'container.autowire',
             precedence: 90,
         );
 
-        self::assertSame(ConfigSourceType::PackageDefaults, $trace->type());
+        self::assertSame(ConfigSourceType::PackageDefault, $trace->type());
         self::assertSame(90, $trace->precedence());
-        self::assertSame('package_defaults', $trace->toArray()['type']);
+        self::assertSame('package_default', $trace->toArray()['type']);
         self::assertSame(90, $trace->toArray()['precedence']);
     }
 
     public function test_source_type_expansion_requires_contract_test_update(): void
     {
         self::assertSame(
-            self::PHASE0_SOURCE_TYPE_VALUES,
+            self::SOURCE_TYPE_VALUES,
             array_map(
                 static fn (ConfigSourceType $type): string => $type->value,
                 ConfigSourceType::cases(),
             ),
         );
 
-        self::assertCount(count(self::PHASE0_SOURCE_TYPE_VALUES), ConfigSourceType::cases());
+        self::assertCount(count(self::SOURCE_TYPE_VALUES), ConfigSourceType::cases());
     }
 }

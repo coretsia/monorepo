@@ -20,13 +20,19 @@ namespace Coretsia\Contracts\Config;
 
 /**
  * Stable source type vocabulary for config source tracking.
+ *
+ * Source type values are vocabulary only. They do not define merge precedence
+ * by themselves.
  */
 enum ConfigSourceType: string
 {
-    case PackageDefaults = 'package_defaults';
-    case ApplicationConfig = 'application_config';
-    case Environment = 'environment';
-    case RuntimeOverride = 'runtime_override';
+    case PackageDefault = 'package_default';
+    case SkeletonConfig = 'skeleton_config';
+    case AppConfig = 'app_config';
+    case Dotenv = 'dotenv';
+    case Env = 'env';
+    case Cli = 'cli';
+    case Runtime = 'runtime';
     case GeneratedArtifact = 'generated_artifact';
 
     /**
@@ -35,10 +41,13 @@ enum ConfigSourceType: string
     public static function values(): array
     {
         return [
-            self::PackageDefaults->value,
-            self::ApplicationConfig->value,
-            self::Environment->value,
-            self::RuntimeOverride->value,
+            self::PackageDefault->value,
+            self::SkeletonConfig->value,
+            self::AppConfig->value,
+            self::Dotenv->value,
+            self::Env->value,
+            self::Cli->value,
+            self::Runtime->value,
             self::GeneratedArtifact->value,
         ];
     }

@@ -26,15 +26,29 @@ namespace Coretsia\Contracts\Context;
  * storage details.
  *
  * The port intentionally does not expose default values, setters, mutation
- * APIs, context storage, lifecycle hooks, or transport/runtime objects.
+ * APIs, context storage, lifecycle hooks, full context snapshots, or
+ * transport/runtime objects.
  */
 interface ContextAccessorInterface
 {
+    /**
+     * Returns whether the context contains the given key.
+     *
+     * This method allows callers to distinguish an absent key from a present
+     * key whose value is null, without adding a default parameter to get().
+     */
+    public function has(string $key): bool;
+
     /**
      * Returns the context value associated with the given key.
      *
      * Missing-key semantics are implementation-owned. This contract deliberately
      * has no default parameter.
+     *
+     * Returned values are implementation-owned safe context values. Callers and
+     * implementations MUST NOT use this port to expose secrets, credentials,
+     * tokens, raw payloads, raw SQL, private customer data, or transport/runtime
+     * objects.
      */
     public function get(string $key): mixed;
 }

@@ -98,6 +98,20 @@ It does not implement:
 
 `RouteMatch` is the contracts descriptor for a successful route match.
 
+Both routing descriptor models expose a stable schema version.
+
+The initial schema version is:
+
+```text
+1
+```
+
+The safe exported public shapes include `schemaVersion`.
+
+`RouteDefinition` methods are normalized to uppercase, deduplicated, and sorted by byte-order `strcmp`.
+
+`RouteMatch` parameters are a deterministic string map, not a generic object or runtime payload carrier.
+
 Both are format-neutral routing shapes/descriptors.
 
 They are not DTO-marker classes by default.
@@ -389,7 +403,9 @@ Any json-like payload exposed by routing or HttpApp contracts must follow the sa
 - raw payload values must not be printed or logged;
 - diagnostics may expose only safe derivations such as `hash(value)` or `len(value)`.
 
-This applies to safe routing metadata, route defaults, route requirements where applicable, route parameters, and route match metadata.
+This applies to safe routing metadata, route defaults, route requirements where applicable, and route match metadata.
+
+`RouteMatch.parameters` is a deterministic string map for matched path parameters and is not a generic json-like payload carrier.
 
 The optional `ArgumentResolverInterface` context map SHOULD be json-like whenever possible and MUST obey the redaction policy.
 

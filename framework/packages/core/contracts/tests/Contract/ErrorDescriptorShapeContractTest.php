@@ -37,6 +37,7 @@ final class ErrorDescriptorShapeContractTest extends TestCase
         $parameters = $constructor->getParameters();
 
         self::assertCount(5, $parameters);
+        self::assertSame(2, $constructor->getNumberOfRequiredParameters());
 
         self::assertSame('code', $parameters[0]->getName());
         self::assertParameterNamedType($parameters[0], 'string', false);
@@ -48,7 +49,8 @@ final class ErrorDescriptorShapeContractTest extends TestCase
 
         self::assertSame('severity', $parameters[2]->getName());
         self::assertParameterNamedType($parameters[2], ErrorSeverity::class, false);
-        self::assertFalse($parameters[2]->isDefaultValueAvailable());
+        self::assertTrue($parameters[2]->isDefaultValueAvailable());
+        self::assertSame(ErrorSeverity::Error, $parameters[2]->getDefaultValue());
 
         self::assertSame('httpStatus', $parameters[3]->getName());
         self::assertParameterNamedType($parameters[3], 'int', true);
@@ -74,6 +76,7 @@ final class ErrorDescriptorShapeContractTest extends TestCase
             ],
         );
 
+        self::assertSame(1, $descriptor->schemaVersion());
         self::assertSame('core.example', $descriptor->code());
         self::assertSame('Example message.', $descriptor->message());
         self::assertSame(ErrorSeverity::Error, $descriptor->severity());
@@ -95,6 +98,7 @@ final class ErrorDescriptorShapeContractTest extends TestCase
                 ],
                 'httpStatus' => 500,
                 'message' => 'Example message.',
+                'schemaVersion' => 1,
                 'severity' => 'error',
             ],
             $descriptor->toArray(),
@@ -106,31 +110,43 @@ final class ErrorDescriptorShapeContractTest extends TestCase
                 'extensions',
                 'httpStatus',
                 'message',
+                'schemaVersion',
                 'severity',
             ],
             array_keys($descriptor->toArray()),
         );
     }
 
+    public function test_severity_defaults_to_error(): void
+    {
+        $descriptor = new ErrorDescriptor(
+            code: 'core.example',
+            message: 'Example message.',
+        );
+
+        self::assertSame(ErrorSeverity::Error, $descriptor->severity());
+        self::assertSame('error', $descriptor->toArray()['severity']);
+    }
+
     public function test_descriptor_rejects_empty_code(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new ErrorDescriptor('', 'Example message.', ErrorSeverity::Error);
+        new ErrorDescriptor('', 'Example message.');
     }
 
     public function test_descriptor_rejects_empty_message(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new ErrorDescriptor('core.example', '', ErrorSeverity::Error);
+        new ErrorDescriptor('core.example', '');
     }
 
     public function test_descriptor_rejects_invalid_code_shape(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new ErrorDescriptor('123.invalid', 'Example message.', ErrorSeverity::Error);
+        new ErrorDescriptor('123.invalid', 'Example message.');
     }
 
     private static function assertParameterNamedType(

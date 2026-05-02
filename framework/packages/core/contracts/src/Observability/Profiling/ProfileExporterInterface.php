@@ -29,6 +29,15 @@ namespace Coretsia\Contracts\Observability\Profiling;
 interface ProfileExporterInterface
 {
     /**
+     * Returns exporter stable name.
+     *
+     * The name MUST be safe, deterministic, and suitable for diagnostics.
+     *
+     * @return non-empty-string
+     */
+    public function name(): string;
+
+    /**
      * Exports a profile artifact to an implementation-owned sink.
      *
      * Implementations MUST NOT expose raw profile payloads in logs, metrics,

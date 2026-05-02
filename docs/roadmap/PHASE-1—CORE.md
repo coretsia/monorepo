@@ -2347,9 +2347,13 @@ N/A
     - [x] internal VO fields such as `ModuleId $id` are allowed and are not part of the exported descriptor shape
   - [x] exported metadata contains no closures/resources/objects/floats
   - [x] deterministic map ordering expectation for any exported array-like methods
-- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module descriptors
+- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module manifest
 - [x] `framework/packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
 - [x] `framework/packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
+- [x] `framework/packages/core/contracts/src/Module/ModuleManifest.php` — installed module manifest VO
+  - [x] rejects duplicate module ids
+  - [x] exposes deterministic module id ordering
+  - [x] exports scalar/json-like manifest shape
 - [x] `framework/packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
 - [x] `framework/packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
 
@@ -2366,6 +2370,10 @@ N/A
 - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -2409,6 +2417,10 @@ N/A (contracts-only; proven by contract tests listed below)
   - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
   - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
   - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -2432,6 +2444,9 @@ N/A (contracts-only; proven by contract tests listed below)
     - [x] MUST NOT rely on locale/`setlocale`/`LC_ALL`
 - [x] Lock-source alignment:
   - [x] module identity rules MUST NOT contradict Phase 0 workspace package-index fields and ordering (0.100.0)
+- [x] Manifest reader returns deterministic `ModuleManifest`, not a loose descriptor list.
+- [x] Mode preset required/optional/disabled sets are represented explicitly.
+- [x] Mode preset loader supports deterministic listing, existence checks, strict load, and nullable try-load.
 
 ---
 
@@ -2530,8 +2545,15 @@ N/A
 #### Creates
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+  - [x] exposes key existence check
+  - [x] exposes default-aware read access
+  - [x] exposes full merged config tree
+  - [x] exposes safe source lookup
+  - [x] exposes deterministic safe explain trace
 - [x] `framework/packages/core/contracts/src/Config/ConfigLoaderInterface.php`
+  - [x] returns `ConfigRepositoryInterface`, not loose raw config array
 - [x] `framework/packages/core/contracts/src/Config/MergeStrategyInterface.php`
+  - [x] defines deterministic binary node merge boundary
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidatorInterface.php`
   - [x] validates a merged global config against loaded declarative rulesets
   - [x] MUST NOT expose package-specific callable validators
@@ -2539,15 +2561,19 @@ N/A
 - [x] `framework/packages/core/contracts/src/Config/ConfigValueSource.php`
 - [x] `framework/packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
 - [x] `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php`
+  - [x] distinguishes present empty string via `EnvValue`
+  - [x] exposes `has()`, `get()`, `all()`, and safe `sourceOf()`
 - [x] `framework/packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
 - [x] `framework/packages/core/contracts/src/Env/EnvPolicy.php`
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidationResult.php`
   - [x] immutable result
+  - [x] exposes schemaVersion in public shape
   - [x] exposes success/failure and deterministic violations
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigValidationViolation.php`
   - [x] immutable violation shape:
+    - [x] `schemaVersion`
     - [x] `root`
     - [x] `path`
     - [x] `reason`
@@ -2557,6 +2583,7 @@ N/A
 
 - [x] `framework/packages/core/contracts/src/Config/ConfigRuleset.php`
   - [x] optional readonly DTO/shape wrapper for validated declarative rules
+  - [x] exposes schemaVersion in public shape
   - [x] MUST represent rules data, not executable validation logic
 
 - [x] `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
@@ -2580,6 +2607,11 @@ Tests:
   - [x] rejects floats, `NAN`, `INF`, `-INF` at any nesting depth
   - [x] rejects executable/runtime values in declarative rulesets
   - [x] proves deterministic map key ordering and list order preservation
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigRepositoryInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigLoaderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/MergeStrategyInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/EnvRepositoryInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ConfigValidationShapeContractTest.php`
 
 #### Modifies
 
@@ -2649,8 +2681,12 @@ N/A
   - [x] Any expansion of directives/source-types MUST require ADR update + SSoT update + contract test update (non-optional)
 - [x] Non-goals / out of scope:
   - [x] No merge/loader/explain implementation here (Kernel config engine owns it).
-  - [x] No secrets in explain/trace (contracts define metadata only: type/path/keyPath).
+  - [x] No secrets in explain/trace. Source tracking metadata is limited to safe contract fields: type, root, sourceId, path, keyPath, directive, precedence, redacted, and metadata-only meta.
   - [x] Directives allowlist MUST NOT expand without ADR + updated spike locks.
+- [x] Config repository exposes safe explain trace without raw values.
+- [x] Config source type vocabulary distinguishes package defaults, skeleton config, app config, dotenv, process env, CLI overrides, runtime sources, and generated artifacts.
+- [x] Config source tracking keeps explicit precedence metadata and does not infer precedence from source type.
+- [x] Env repository keeps canonical `EnvValue` lookup and does not collapse empty string into missing.
 
 ---
 
@@ -2783,15 +2819,19 @@ Errors:
 - [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
   - [x] extensions strictly json-like
   - [x] stable field set
+  - [x] schemaVersion exported in public shape
+  - [x] default severity is `ErrorSeverity::Error`
   - [x] no raw throwable payload
 - [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
 
 Health:
 - [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckResult.php`
 - [x] `framework/packages/core/contracts/src/Observability/Health/HealthStatus.php`
 
 Profiling:
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilingSessionInterface.php`
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
 
@@ -2816,12 +2856,16 @@ Tests:
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SpanInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/TracerPortInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ProfilingSessionInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HealthCheckInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HealthCheckResultShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextMetadataIsJsonLikeContractTest.php`
@@ -2910,7 +2954,7 @@ kind: library
 
 goal: "Introduce a minimal contracts read-port for context access without a Foundation dependency: ContextAccessorInterface."
 provides:
-- "Coretsia\\Contracts\\Context\\ContextAccessorInterface with cemented signature `get(string $key): mixed` (no default parameter)."
+- "Coretsia\\Contracts\\Context\\ContextAccessorInterface with cemented signatures `has(string $key): bool` and `get(string $key): mixed` (no default parameter on `get`)."
 - "A single stable API for optional dependency usage in cross-cutting packages (database/secrets/health/logging/tracing/metrics)."
 
 tags_introduced: []
@@ -2966,13 +3010,20 @@ N/A
 - [x] `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php`
   - [x] MUST:
     - [x] namespace: `Coretsia\Contracts\Context`
+    - [x] signature: `public function has(string $key): bool;`
     - [x] signature: `public function get(string $key): mixed;`
-    - [x] MUST NOT: default параметр, сеттери, мутація, storage details
+    - [x] `get()` MUST NOT have a default parameter
+    - [x] `has()` MUST distinguish key presence from a present `null` value
+    - [x] MUST NOT: `all()`, default параметр, сеттери, мутація, storage details, full context snapshots
 - [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
   - [x] MUST assert:
-    - [x] method exists
-    - [x] parameter name/type = `string $key`
-    - [x] return type = `mixed`
+    - [x] methods exist: `has`, `get`
+    - [x] no `all()` method exists
+    - [x] `has()` parameter name/type = `string $key`
+    - [x] `has()` return type = `bool`
+    - [x] `get()` parameter name/type = `string $key`
+    - [x] `get()` return type = `mixed`
+    - [x] `get()` has no default parameter
     - [x] no extra public methods introduced accidentally
 
 #### Modifies
@@ -2995,7 +3046,7 @@ N/A
 
 - [x] Deliverables complete (creates), paths exact
 - [x] No runtime dependencies added
-- [x] Signature is cemented and covered by contract test
+- [x] Signatures are cemented and covered by contract tests
 - [x] Context accessor is a runtime read port, not a DTO/result/descriptor model
 
 ---
@@ -3042,6 +3093,8 @@ ssot_refs:
   - `docs/ssot/observability-and-errors.md` — contracts payload/redaction policy exists (1.90.0)
   - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php` — enforcement evidence (contracts)
   - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php` — enforcement evidence (contracts)
+  - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php` — exported field set/order evidence (contracts)
+  - `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php` — nullable mapper/context evidence (contracts)
 
 - Required config roots/keys:
   - none
@@ -3116,6 +3169,8 @@ N/A (doc-only), but MUST reference enforcement evidence in:
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
 
 Future runtime evidence (NOT a precondition of this doc epic; referenced once available):
 
@@ -3215,9 +3270,15 @@ N/A
 - [x] `framework/packages/core/contracts/src/Routing/RouteDefinition.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
+  - [x] schemaVersion exported in public shape
+  - [x] methods normalized to uppercase, unique, sorted list
+  - [x] pathTemplate requires leading `/`
 - [x] `framework/packages/core/contracts/src/Routing/RouteMatch.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
+  - [x] schemaVersion exported in public shape
+  - [x] parameters are deterministic string map
+  - [x] pathTemplate requires leading `/`
 - [x] `framework/packages/core/contracts/src/Routing/RouterInterface.php`
 - [x] `framework/packages/core/contracts/src/Routing/RouteProviderInterface.php`
 - [x] `framework/packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
@@ -3229,6 +3290,8 @@ N/A
 - [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 #### Modifies
 
@@ -3268,6 +3331,9 @@ N/A
 
 - [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 ### Tests (MUST)
 

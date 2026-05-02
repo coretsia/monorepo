@@ -85,17 +85,26 @@ A future owner epic MAY explicitly opt a class into DTO policy. Until such an ep
 
 `EnvRepositoryInterface` is a contracts port for reading env-derived values.
 
-It MUST expose env lookup results without prescribing the implementation source.
+The canonical interface shape is:
 
-An env repository implementation MAY read from:
+```text
+has(string $name): bool
+get(string $name): EnvValue
+all(): array<string,string>
+sourceOf(string $name): ?ConfigValueSource
+```
 
-- process environment;
-- `.env` parser output;
-- generated config artifact;
-- in-memory test source;
-- another future owner-defined source.
+`has()` MUST return true for present empty string.
 
-The contracts package MUST NOT implement a concrete env repository.
+`get()` MUST return `EnvValue` so missing and present-empty-string remain distinct.
+
+`all()` returns present env values only.
+
+`all()` exposes raw env values to runtime owner code. Diagnostics, traces, logs, validation errors, source tracking, and explain output MUST NOT print this map directly.
+
+`sourceOf()` returns safe source metadata for an env name when available.
+
+`sourceOf()` MUST NOT expose raw env values.
 
 ## Env value model
 
@@ -171,9 +180,37 @@ It MUST NOT expose raw source traces unless those traces use safe contracts shap
 
 It MUST NOT require filesystem paths.
 
+The canonical interface shape is:
+
+```text
+has(string $keyPath): bool
+get(string $keyPath, mixed $default = null): mixed
+all(): array<string,mixed>
+sourceOf(string $keyPath): ?ConfigValueSource
+explain(): list<ConfigValueSource>
+```
+
+`all()` returns the full merged config tree.
+
+The returned tree MUST contain config data only.
+
+It MUST NOT contain closures, objects, resources, service instances, executable validators, filesystem handles, or runtime wiring objects.
+
+`sourceOf()` returns safe source metadata for a concrete key path when available.
+
+`explain()` returns a deterministic safe explain trace.
+
+`sourceOf()` and `explain()` MUST NOT expose raw config values, raw env values, secrets, absolute local paths, timestamps, random values, or host-specific bytes.
+
 ## Config loader port
 
-`ConfigLoaderInterface` is a contracts port for loading config input into a contract-defined config shape.
+`ConfigLoaderInterface` is a contracts port for loading config into a read-only merged config repository.
+
+The canonical interface shape is:
+
+```text
+load(): ConfigRepositoryInterface
+```
 
 It MUST remain format-neutral.
 
@@ -181,9 +218,23 @@ It MUST NOT require callers to pass filesystem paths.
 
 It MUST NOT expose whether the source came from PHP, JSON, YAML, Composer metadata, generated artifact, env source, or another implementation source.
 
+Concrete source discovery, parsing, source ordering, merging, and repository construction are implementation-owned.
+
 ## Merge strategy port
 
-`MergeStrategyInterface` is a contracts port for deterministic config merge behavior.
+`MergeStrategyInterface` is a contracts port for deterministic config node merge behavior.
+
+The canonical interface shape is:
+
+```text
+merge(mixed $base, mixed $patch): mixed
+```
+
+Implementations MUST be side-effect free.
+
+Implementations MUST follow directive policy.
+
+Multi-layer merge is owner-owned and SHOULD be implemented by folding this binary merge operation in explicit precedence order.
 
 The contracts package defines directive invariants and safe shape requirements.
 
@@ -224,14 +275,120 @@ Package `config/rules.php` files MUST NOT return callable, closure, object, or e
 
 Runtime validation logic is Kernel-owned and MUST consume rules through contracts and kernel implementation.
 
+### ConfigRuleset logical fields
+
+The canonical `ConfigRuleset` logical field set is:
+
+```text
+schemaVersion
+root
+rules
+```
+
+Field meanings:
+
+| field           | meaning                                                        |
+|-----------------|----------------------------------------------------------------|
+| `schemaVersion` | Stable config ruleset schema version.                          |
+| `root`          | Config root validated by this ruleset.                         |
+| `rules`         | Deterministic json-like declarative validation rules data map. |
+
+No field may expose executable validators, runtime service objects, closures, resources, raw config values, raw env values, or secrets.
+
+### ConfigRuleset field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigRuleset` schema version is:
+
+```text
+1
+```
+
+`root` MUST be a non-empty lowercase config root identifier.
+
+`rules` MUST be a json-like map.
+
+The root `rules` value MUST NOT be a non-empty list.
+
+An empty `rules` array represents an empty declarative rules map at this contract boundary.
+
+`rules` MUST follow the JSON-like value model in this document.
+
+`rules` maps MUST use deterministic key ordering by byte-order `strcmp`.
+
+Lists inside `rules` MUST preserve declared order.
+
+### ConfigRuleset accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+root(): string
+rules(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
+### ConfigRuleset exported order
+
+When exported as a PHP array shape, `ConfigRuleset` SHOULD use deterministic top-level key ordering by byte-order `strcmp`:
+
+```text
+root
+rules
+schemaVersion
+```
+
+Contract tests cement this order as part of the ruleset shape contract.
+
 ## Config validation result
 
 `ConfigValidationResult` is an immutable contracts result.
 
 It MUST expose:
 
+- schema version;
 - success/failure state;
 - deterministic list of violations.
+
+### ConfigValidationResult logical fields
+
+The canonical `ConfigValidationResult` logical field set is:
+
+```text
+schemaVersion
+success
+violations
+```
+
+Field meanings:
+
+| field           | meaning                                                            |
+|-----------------|--------------------------------------------------------------------|
+| `schemaVersion` | Stable config validation result schema version.                    |
+| `success`       | Whether validation completed without violations.                   |
+| `violations`    | Deterministic list of exported `ConfigValidationViolation` shapes. |
+
+### ConfigValidationResult field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigValidationResult` schema version is:
+
+```text
+1
+```
+
+`success` MUST be a boolean.
+
+`violations` MUST be a list of `ConfigValidationViolation` objects at the PHP boundary.
+
+The exported `violations` value MUST be a list of deterministic `ConfigValidationViolation::toArray()` shapes.
+
+A successful result MUST contain an empty violations list.
+
+A failed result MUST contain at least one violation.
 
 Violation ordering MUST be deterministic.
 
@@ -241,27 +398,89 @@ Violations SHOULD be ordered by:
 root ascending using byte-order strcmp
 path ascending using byte-order strcmp
 reason ascending using byte-order strcmp
+expected ascending using byte-order strcmp, with null treated as empty string
+actualType ascending using byte-order strcmp, with null treated as empty string
 ```
+
+### ConfigValidationResult accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+isSuccess(): bool
+isFailure(): bool
+violations(): array
+toArray(): array<string,mixed>
+```
+
+### ConfigValidationResult exported order
+
+When exported as a PHP array shape, `ConfigValidationResult` SHOULD use deterministic top-level key ordering by byte-order `strcmp`:
+
+```text
+schemaVersion
+success
+violations
+```
+
+Contract tests cement this order as part of the validation result shape contract.
 
 ## Config validation violation
 
 `ConfigValidationViolation` is an immutable safe violation shape.
 
-It MUST expose:
-
-```text
-root
-path
-reason
-expected?
-actualType?
-```
+It MUST expose structural diagnostics only.
 
 It MUST NOT contain raw config values.
 
-The optional `expected` field MUST be safe, stable, and non-sensitive.
+### ConfigValidationViolation logical fields
 
-The optional `actualType` field MUST describe type only, not value.
+The canonical `ConfigValidationViolation` logical field set is:
+
+```text
+schemaVersion
+root
+path
+reason
+expected
+actualType
+```
+
+Field meanings:
+
+| field           | meaning                                            |
+|-----------------|----------------------------------------------------|
+| `schemaVersion` | Stable config validation violation schema version. |
+| `root`          | Config root where the violation occurred.          |
+| `path`          | Safe logical path under the config root.           |
+| `reason`        | Stable validation reason/code.                     |
+| `expected`      | Optional safe expected type/shape description.     |
+| `actualType`    | Optional safe actual type description.             |
+
+### ConfigValidationViolation field rules
+
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `ConfigValidationViolation` schema version is:
+
+```text
+1
+```
+
+`root` MUST be a non-empty lowercase config root identifier.
+
+`path` MUST be safe text and MAY be empty to represent the root node.
+
+`reason` MUST be a non-empty stable ASCII-compatible validation reason/code.
+
+`expected` MAY be null.
+
+When present, `expected` MUST be safe, stable, and non-sensitive.
+
+`actualType` MAY be null.
+
+When present, `actualType` MUST describe type only, not value.
 
 Examples of safe `actualType` values:
 
@@ -292,6 +511,41 @@ The violation shape MUST NOT expose:
 - authorization headers;
 - private customer data;
 - absolute local paths.
+
+### ConfigValidationViolation accessor shape
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+root(): string
+path(): string
+reason(): string
+expected(): ?string
+actualType(): ?string
+toArray(): array<string,mixed>
+```
+
+### ConfigValidationViolation exported order
+
+When exported as a PHP array shape, `ConfigValidationViolation` SHOULD use deterministic top-level key ordering by byte-order `strcmp`.
+
+When all optional fields are present, the canonical exported key order is:
+
+```text
+actualType
+expected
+path
+reason
+root
+schemaVersion
+```
+
+Optional fields with null values SHOULD be omitted from the exported shape.
+
+When optional fields are omitted, the remaining exported key order MUST stay deterministic.
+
+Contract tests cement this order as part of the validation violation shape contract.
 
 ## JSON-like value model
 
@@ -327,10 +581,13 @@ If a future owner needs decimal values, they MUST be represented as strings with
 The canonical source type values are:
 
 ```text
-package_defaults
-application_config
-environment
-runtime_override
+package_default
+skeleton_config
+app_config
+dotenv
+env
+cli
+runtime
 generated_artifact
 ```
 
@@ -338,15 +595,24 @@ Meaning:
 
 | source type          | meaning                                                                   |
 |----------------------|---------------------------------------------------------------------------|
-| `package_defaults`   | package-owned default config data                                         |
-| `application_config` | application-owned config override data                                    |
-| `environment`        | env-derived config input                                                  |
-| `runtime_override`   | runtime-provided override from a future owner-defined source              |
+| `package_default`    | package-owned default config data, normally from package config files     |
+| `skeleton_config`    | skeleton-level config data                                                |
+| `app_config`         | application-specific config data                                          |
+| `dotenv`             | parsed `.env` source data                                                 |
+| `env`                | process environment source data                                           |
+| `cli`                | explicit CLI override source data                                         |
+| `runtime`            | runtime-computed or owner-derived config source data                      |
 | `generated_artifact` | generated config artifact source or compiled config source representation |
+
+Source type values are vocabulary only.
+
+Concrete source trace entries MAY expose explicit precedence through `ConfigValueSource::precedence()`.
 
 Source type values MUST be lowercase ASCII strings.
 
 Source type values MUST be compared byte-for-byte.
+
+They MUST NOT define merge precedence by themselves.
 
 Source type handling MUST NOT depend on locale, filesystem casing, or translated labels.
 
@@ -362,43 +628,66 @@ Any expansion of source types requires:
 
 It MUST identify where a config value came from without storing the raw value.
 
+The canonical schema version is:
+
+```text
+1
+```
+
+The canonical accessor shape is:
+
+```text
+schemaVersion(): int
+type(): ConfigSourceType
+root(): string
+sourceId(): string
+path(): ?string
+keyPath(): ?string
+directive(): ?string
+precedence(): int
+isRedacted(): bool
+meta(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
 It MAY expose safe metadata such as:
 
 ```text
 type
 root
+sourceId
 path
 keyPath
-sourceId
+directive
 precedence
 redacted
+meta
 ```
 
 The `precedence` field is explicit metadata of a concrete source trace entry.
 
 `precedence` MUST NOT be inferred from `ConfigSourceType` alone.
 
-`ConfigSourceType` defines source vocabulary only. It does not define merge order by itself.
+`directive` stores the directive name without the `@` prefix.
 
-It MUST NOT expose:
+`meta` MUST be metadata-only and JSON-like.
 
-- raw config value;
-- raw env value;
-- raw `.env` value;
-- passwords;
-- credentials;
-- tokens;
-- private keys;
-- cookies;
-- authorization headers;
-- request bodies;
-- response bodies;
-- private customer data;
-- absolute local paths.
+`meta` MUST NOT contain raw config values, raw env values, secrets, absolute paths, objects, closures, resources, service instances, or runtime wiring objects.
 
-`path` and `sourceId` MUST be safe logical identifiers.
+The canonical exported key order for `ConfigValueSource::toArray()` is:
 
-They MUST NOT be absolute local filesystem paths.
+```text
+directive
+keyPath
+meta
+path
+precedence
+redacted
+root
+schemaVersion
+sourceId
+type
+```
 
 ## Safe explain trace contract
 
@@ -452,11 +741,15 @@ Contract-level safe trace entries SHOULD be ordered by:
 
 ```text
 root ascending using byte-order strcmp
-keyPath ascending using byte-order strcmp
+keyPath ascending using byte-order strcmp, with null treated as empty string
 precedence ascending as integer
-path ascending using byte-order strcmp
-sourceId ascending using byte-order strcmp, with null treated as empty string
+path ascending using byte-order strcmp, with null treated as empty string
+sourceId ascending using byte-order strcmp
 ```
+
+`sourceId` is non-null at the contracts boundary.
+
+`keyPath` and `path` are nullable source-tracking fields. For ordering only, `null` MUST be compared as an empty string.
 
 This is the contracts-level safe equivalent of the Phase 0 `0.90.0` explain trace ordering:
 
@@ -722,7 +1015,7 @@ This SSoT does not define config artifact schema.
 
 Config/env contracts MUST NOT require storing secrets.
 
-Config/env contracts MUST NOT leak:
+Config/env diagnostic shapes, source traces, validation results, explain output, logs, and exported artifacts MUST NOT leak:
 
 - `.env` values;
 - passwords;
@@ -735,6 +1028,15 @@ Config/env contracts MUST NOT leak:
 - response bodies;
 - private customer data;
 - absolute local paths.
+
+Runtime access ports MAY return raw env values to owner implementation code where this is their explicit purpose, but those values MUST NOT be copied into:
+
+- diagnostics;
+- traces;
+- validation errors;
+- source metadata;
+- logs;
+- artifacts.
 
 Secret-backed runtime behavior belongs to owner packages, not to contracts shapes.
 

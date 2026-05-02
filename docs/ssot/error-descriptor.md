@@ -102,6 +102,7 @@ A class is a DTO only when explicitly marked with:
 The canonical logical fields are:
 
 ```text
+schemaVersion
 code
 message
 severity
@@ -124,22 +125,44 @@ code
 extensions
 httpStatus
 message
+schemaVersion
 severity
 ```
 
-This order follows byte-order `strcmp` for the current field set.
+This order follows byte-order `strcmp` for the current exported field set.
 
 The exported array shape MUST remain stable and contract-tested.
 
 ## Field reference
 
-| field        | type                  | required | meaning                                                                |
-|--------------|-----------------------|----------|------------------------------------------------------------------------|
-| `code`       | `string`              | yes      | Stable machine-readable normalized error code.                         |
-| `extensions` | `array<string,mixed>` | no       | Safe json-like extension map for deterministic non-transport metadata. |
-| `httpStatus` | `int\|null`           | no       | Optional HTTP status hint only.                                        |
-| `message`    | `string`              | yes      | Safe human-readable message.                                           |
-| `severity`   | `string`              | yes      | Stable normalized severity value.                                      |
+| field           | type                  | required | meaning                                                                |
+|-----------------|-----------------------|----------|------------------------------------------------------------------------|
+| `code`          | `string`              | yes      | Stable machine-readable normalized error code.                         |
+| `extensions`    | `array<string,mixed>` | no       | Safe json-like extension map for deterministic non-transport metadata. |
+| `httpStatus`    | `int\|null`           | no       | Optional HTTP status hint only.                                        |
+| `message`       | `string`              | yes      | Safe human-readable message.                                           |
+| `schemaVersion` | `int`                 | yes      | Stable descriptor schema version.                                      |
+| `severity`      | `string`              | yes      | Stable normalized severity value.                                      |
+
+## `schemaVersion`
+
+`schemaVersion` is the stable descriptor schema version.
+
+The initial canonical schema version is:
+
+```text
+1
+```
+
+`schemaVersion` MUST be a positive integer.
+
+`schemaVersion` MUST be exported by `ErrorDescriptor::toArray()`.
+
+`schemaVersion` MUST change only when descriptor shape compatibility changes.
+
+Adding safe optional extension keys does not require a schema version bump.
+
+Removing, renaming, or changing the meaning of canonical descriptor fields requires a schema version bump and policy review.
 
 ## Constructor shape
 
@@ -149,11 +172,15 @@ The canonical constructor shape is:
 public function __construct(
     string $code,
     string $message,
-    ErrorSeverity $severity,
+    ErrorSeverity $severity = ErrorSeverity::Error,
     ?int $httpStatus = null,
     array $extensions = [],
 )
 ```
+
+Only `code` and `message` are required constructor parameters.
+
+`severity` MUST default to `ErrorSeverity::Error`.
 
 `httpStatus` MUST default to `null`.
 
@@ -166,6 +193,7 @@ public function __construct(
 The canonical accessor shape is:
 
 ```php
+schemaVersion(): int
 code(): string
 message(): string
 severity(): ErrorSeverity
@@ -499,6 +527,7 @@ Exported shape:
     'extensions' => [],
     'httpStatus' => 500,
     'message' => 'Unexpected internal error.',
+    'schemaVersion' => 1,
     'severity' => 'error',
 ]
 ```
@@ -531,6 +560,7 @@ Exported shape:
     ],
     'httpStatus' => 400,
     'message' => 'Configuration validation failed.',
+    'schemaVersion' => 1,
     'severity' => 'warning',
 ]
 ```
@@ -561,6 +591,7 @@ Exported shape:
     ],
     'httpStatus' => null,
     'message' => 'Worker message was rejected.',
+    'schemaVersion' => 1,
     'severity' => 'error',
 ]
 ```
@@ -679,15 +710,23 @@ Metric labels MUST use only allowlisted label keys.
 Current contracts-level enforcement evidence includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
 framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
 ```
 
 The extension json-like and float-forbidden policy is enforced by:
 
 ```text
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+```
+
+The exported field set and deterministic top-level key order are enforced by:
+
+```text
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
 ```
 
 ## Non-goals

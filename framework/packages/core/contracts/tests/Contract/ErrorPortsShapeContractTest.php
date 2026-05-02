@@ -44,7 +44,7 @@ final class ErrorPortsShapeContractTest extends TestCase
         $method = $reflection->getMethod('map');
 
         self::assertTrue($method->isPublic());
-        self::assertSame(1, $method->getNumberOfParameters());
+        self::assertSame(2, $method->getNumberOfParameters());
         self::assertSame(1, $method->getNumberOfRequiredParameters());
 
         $parameters = $method->getParameters();
@@ -52,7 +52,11 @@ final class ErrorPortsShapeContractTest extends TestCase
         self::assertParameterNamedType($parameters[0], 'throwable', Throwable::class, false);
         self::assertFalse($parameters[0]->isDefaultValueAvailable());
 
-        self::assertMethodReturnType($method, ErrorDescriptor::class, false);
+        self::assertParameterNamedType($parameters[1], 'context', ErrorHandlingContext::class, true);
+        self::assertTrue($parameters[1]->isDefaultValueAvailable());
+        self::assertNull($parameters[1]->getDefaultValue());
+
+        self::assertMethodReturnType($method, ErrorDescriptor::class, true);
     }
 
     public function test_error_reporter_interface_shape_is_stable(): void
@@ -108,8 +112,10 @@ final class ErrorPortsShapeContractTest extends TestCase
     public function test_error_ports_can_compose_through_format_neutral_contracts(): void
     {
         $mapper = new class() implements ExceptionMapperInterface {
-            public function map(Throwable $throwable): ErrorDescriptor
-            {
+            public function map(
+                Throwable $throwable,
+                ?ErrorHandlingContext $context = null,
+            ): ?ErrorDescriptor {
                 return new ErrorDescriptor(
                     code: 'core.runtime_error',
                     message: 'Runtime error.',
@@ -147,7 +153,11 @@ final class ErrorPortsShapeContractTest extends TestCase
                 Throwable $throwable,
                 ?ErrorHandlingContext $context = null,
             ): ErrorDescriptor {
-                $descriptor = $this->mapper->map($throwable);
+                $descriptor = $this->mapper->map($throwable, $context)
+                    ?? new ErrorDescriptor(
+                        code: 'core.unmapped_error',
+                        message: 'Unhandled error.',
+                    );
 
                 $this->reporter->report($descriptor, $context);
 

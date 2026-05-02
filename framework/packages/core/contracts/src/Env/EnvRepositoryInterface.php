@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Contracts\Env;
 
+use Coretsia\Contracts\Config\ConfigValueSource;
+
 /**
  * Format-neutral env access port.
  *
@@ -29,9 +31,34 @@ namespace Coretsia\Contracts\Env;
 interface EnvRepositoryInterface
 {
     /**
+     * Returns whether the env name is present.
+     *
+     * Present empty string MUST return true.
+     */
+    public function has(string $name): bool;
+
+    /**
      * Returns the env lookup result for the given name.
      *
      * Missing and present-empty-string must remain distinct through EnvValue.
      */
     public function get(string $name): EnvValue;
+
+    /**
+     * Returns present env values.
+     *
+     * This method exposes raw env values to the runtime owner. Diagnostics,
+     * traces, logs, validation errors, and explain output MUST NOT print this
+     * map directly.
+     *
+     * @return array<string,string>
+     */
+    public function all(): array;
+
+    /**
+     * Returns safe source metadata for the given env name, when available.
+     *
+     * The returned source must not contain raw env values.
+     */
+    public function sourceOf(string $name): ?ConfigValueSource;
 }

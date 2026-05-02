@@ -19,15 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Module;
 
 /**
- * Port for reading installed module descriptors.
+ * Port for reading the installed module manifest.
  *
- * Implementations must return descriptors sorted by module id ascending using
- * byte-order strcmp. The contracts package does not prescribe the source.
+ * Implementations must return a ModuleManifest whose descriptors are ordered
+ * by module id ascending using byte-order strcmp. The contracts package does
+ * not prescribe the source.
  */
 interface ManifestReaderInterface
 {
-    /**
-     * @return list<ModuleDescriptor>
-     */
-    public function readInstalled(): array;
+    public function read(): ModuleManifest;
 }

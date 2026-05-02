@@ -29,7 +29,6 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
             message: 'Example message.',
-            severity: ErrorSeverity::Error,
         );
 
         self::assertNull($descriptor->httpStatus());
@@ -58,7 +57,6 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
                 new ErrorDescriptor(
                     code: 'core.example',
                     message: 'Example message.',
-                    severity: ErrorSeverity::Error,
                     httpStatus: $status,
                 );
 
@@ -84,6 +82,7 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
                 'extensions',
                 'httpStatus',
                 'message',
+                'schemaVersion',
                 'severity',
             ],
             array_keys($descriptor->toArray()),

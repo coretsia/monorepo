@@ -159,6 +159,10 @@ Throwable
   ↓
 ExceptionMapperInterface implementations
   ↓
+?ErrorDescriptor
+  ↓
+platform/errors mapper registry fallback resolution
+  ↓
 ErrorDescriptor
   ↓
 ErrorHandlerInterface / ErrorReporterPortInterface
@@ -167,6 +171,10 @@ Runtime adapter
   ↓
 HTTP response / CLI output / worker failure result / logs / spans / metrics
 ```
+
+`ExceptionMapperInterface::map()` MAY return `null`.
+
+A `null` mapper result means that the mapper does not handle the throwable and the owner registry may try the next mapper or use its fallback descriptor.
 
 The stable normalization point is:
 
@@ -365,6 +373,10 @@ Raw values MUST NOT be printed, logged, traced, exported, or rendered.
 
 Mappers MAY inspect `Throwable` internally.
 
+Mappers MAY return `null` when they do not handle the throwable.
+
+Mapper registries owned by `platform/errors` SHOULD continue through registered mappers until a non-null `ErrorDescriptor` is returned or a safe fallback descriptor is selected.
+
 Mappers MUST NOT expose raw `Throwable` objects through `ErrorDescriptor`.
 
 Mappers MUST NOT expose stack traces by default.
@@ -389,8 +401,11 @@ Current contracts-level enforcement evidence includes:
 
 ```text
 framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php
 ```
 
 Future runtime evidence may include:

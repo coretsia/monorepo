@@ -33,19 +33,41 @@ interface ConfigRepositoryInterface
      * Key format is implementation-owned and must remain logical, not a
      * filesystem path contract.
      */
-    public function has(string $key): bool;
+    public function has(string $keyPath): bool;
 
     /**
      * Returns a merged config value for the given logical key.
      *
-     * Implementations define missing-key behavior.
+     * The default is returned when the key is missing. The default value is
+     * caller-owned and is not source-tracked by this contract.
      */
-    public function get(string $key): mixed;
+    public function get(string $keyPath, mixed $default = null): mixed;
+
+    /**
+     * Returns the full merged config tree.
+     *
+     * The returned tree is config data only. It MUST NOT contain executable
+     * validators, closures, objects, resources, service instances, or runtime
+     * wiring objects.
+     *
+     * @return array<string,mixed>
+     */
+    public function all(): array;
 
     /**
      * Returns safe source metadata for the given logical key, when available.
      *
      * The returned source must not contain raw config/env values.
      */
-    public function source(string $key): ?ConfigValueSource;
+    public function sourceOf(string $keyPath): ?ConfigValueSource;
+
+    /**
+     * Returns a deterministic safe explain trace.
+     *
+     * Trace entries must not contain raw config values, raw env values, secrets,
+     * absolute local paths, timestamps, random values, or host-specific bytes.
+     *
+     * @return list<ConfigValueSource>
+     */
+    public function explain(): array;
 }

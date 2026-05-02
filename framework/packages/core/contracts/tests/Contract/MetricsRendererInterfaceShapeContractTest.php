@@ -31,26 +31,52 @@ final class MetricsRendererInterfaceShapeContractTest extends TestCase
         $reflection = new ReflectionClass(MetricsRendererInterface::class);
 
         self::assertTrue($reflection->isInterface());
-        self::assertTrue($reflection->hasMethod('render'));
 
-        $method = $reflection->getMethod('render');
+        $methodNames = array_map(
+            static fn (ReflectionMethod $method): string => $method->getName(),
+            $reflection->getMethods(),
+        );
 
-        self::assertTrue($method->isPublic());
-        self::assertSame(0, $method->getNumberOfParameters());
-        self::assertSame(0, $method->getNumberOfRequiredParameters());
+        sort($methodNames, \SORT_STRING);
 
-        self::assertMethodReturnType($method, 'string', false);
+        self::assertSame(
+            [
+                'contentType',
+                'render',
+            ],
+            $methodNames,
+        );
+
+        $contentType = $reflection->getMethod('contentType');
+
+        self::assertTrue($contentType->isPublic());
+        self::assertSame(0, $contentType->getNumberOfParameters());
+        self::assertSame(0, $contentType->getNumberOfRequiredParameters());
+        self::assertMethodReturnType($contentType, 'string', false);
+
+        $render = $reflection->getMethod('render');
+
+        self::assertTrue($render->isPublic());
+        self::assertSame(0, $render->getNumberOfParameters());
+        self::assertSame(0, $render->getNumberOfRequiredParameters());
+        self::assertMethodReturnType($render, 'string', false);
     }
 
     public function test_metrics_renderer_returns_string_without_vendor_api_requirement(): void
     {
         $renderer = new class() implements MetricsRendererInterface {
+            public function contentType(): string
+            {
+                return 'text/plain; version=0.0.4';
+            }
+
             public function render(): string
             {
                 return "core_metric_total 1\n";
             }
         };
 
+        self::assertSame('text/plain; version=0.0.4', $renderer->contentType());
         self::assertSame("core_metric_total 1\n", $renderer->render());
     }
 

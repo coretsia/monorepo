@@ -19,12 +19,45 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Module;
 
 /**
- * Port for loading mode presets by canonical preset name.
+ * Port for loading mode presets by canonical or owner-defined preset name.
  *
- * The input is a lowercase canonical preset name such as "micro", "express",
- * "hybrid", or "enterprise". The implementation source is intentionally hidden.
+ * Framework canonical names are "micro", "express", "hybrid", and
+ * "enterprise". The implementation source is intentionally hidden.
  */
 interface ModePresetLoaderInterface
 {
+    /**
+     * Returns available preset names in deterministic order.
+     *
+     * @return list<non-empty-string>
+     */
+    public function listNames(): array;
+
+    /**
+     * Returns whether a preset exists.
+     *
+     * Invalid or missing names SHOULD return false.
+     *
+     * @param non-empty-string $name
+     */
+    public function has(string $name): bool;
+
+    /**
+     * Loads a preset by name.
+     *
+     * Missing preset behavior is implementation-owned.
+     * Implementations SHOULD throw deterministic owner-defined exceptions.
+     *
+     * @param non-empty-string $name
+     */
     public function load(string $name): ModePresetInterface;
+
+    /**
+     * Loads a preset by name or returns null when missing.
+     *
+     * Invalid or missing names SHOULD return null.
+     *
+     * @param non-empty-string $name
+     */
+    public function tryLoad(string $name): ?ModePresetInterface;
 }

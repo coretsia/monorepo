@@ -26,32 +26,23 @@ namespace Coretsia\Contracts\Observability\Profiling;
  * objects, CLI concrete input/output objects, queue vendor messages, worker
  * vendor contexts, or profiler SDK types.
  *
- * Implementations may be no-op. Calling stop() without an active profile MUST
- * be safe and MAY return null.
+ * Implementations may be no-op. Stopping is owned by the returned
+ * ProfilingSessionInterface handle.
  */
 interface ProfilerPortInterface
 {
     /**
-     * Starts profiling a runtime boundary or nested operation.
+     * Starts profiling a unit of work or nested operation.
      *
-     * The profile name MUST be safe and MUST NOT contain secrets, raw paths,
+     * The UoW type MUST be safe and MUST NOT contain secrets, raw paths,
      * raw queries, raw SQL, tokens, credentials, request/response bodies,
      * private customer data, or absolute local paths.
      *
      * Metadata MUST be a safe json-like map:
      * null, bool, int, string, list, or string-keyed map. Floats are forbidden.
      *
+     * @param non-empty-string $uowType
      * @param array<string,mixed> $metadata
      */
-    public function start(string $name, array $metadata = []): void;
-
-    /**
-     * Stops the active profile and returns the captured artifact when one is
-     * available.
-     *
-     * The returned ProfileArtifact payload is opaque. Consumers MUST NOT log,
-     * print, trace, use as metric labels, embed into error descriptor
-     * extensions, or expose raw payload contents through diagnostics.
-     */
-    public function stop(): ?ProfileArtifact;
+    public function start(string $uowType, array $metadata = []): ProfilingSessionInterface;
 }

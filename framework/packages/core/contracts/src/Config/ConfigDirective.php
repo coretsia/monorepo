@@ -59,6 +59,11 @@ enum ConfigDirective: string
         return self::tryFrom(substr($key, strlen(self::PREFIX)));
     }
 
+    public static function isAllowed(string $name): bool
+    {
+        return self::isAllowedName($name);
+    }
+
     public static function isAllowedName(string $name): bool
     {
         return self::tryFrom($name) !== null;

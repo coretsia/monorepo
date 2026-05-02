@@ -28,6 +28,14 @@ namespace Coretsia\Contracts\Observability\Metrics;
 interface MetricsRendererInterface
 {
     /**
+     * Returns the rendered metrics content type.
+     *
+     * The value is implementation-owned and MUST NOT require concrete vendor
+     * classes. Example: "text/plain; version=0.0.4".
+     */
+    public function contentType(): string;
+
+    /**
      * Renders implementation-owned metric state.
      *
      * The returned representation MUST NOT contain secrets, raw payloads, raw

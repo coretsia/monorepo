@@ -39,6 +39,26 @@ interface TracerPortInterface
     public function startSpan(string $name, array $attributes = []): SpanInterface;
 
     /**
+     * Runs code under a span and always ends it.
+     *
+     * Implementations MUST end the span in a finally block. If the callable throws,
+     * the throwable MUST be re-thrown after safe exception recording policy is
+     * applied by the implementation.
+     *
+     * @template T
+     *
+     * @param array<string,mixed> $attributes
+     * @param callable(SpanInterface):T $callback
+     *
+     * @return T
+     */
+    public function inSpan(
+        string $name,
+        callable $callback,
+        array $attributes = [],
+    ): mixed;
+
+    /**
      * Returns the current span for the runtime boundary, or null when no span
      * is active or the tracer implementation is no-op.
      */

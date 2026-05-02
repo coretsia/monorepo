@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Tests\Contract;
 
 use Coretsia\Contracts\Observability\Health\HealthCheckInterface;
+use Coretsia\Contracts\Observability\Health\HealthCheckResult;
 use Coretsia\Contracts\Observability\Health\HealthStatus;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -43,24 +44,24 @@ final class HealthCheckInterfaceShapeContractTest extends TestCase
         self::assertSame(
             [
                 'check',
-                'name',
+                'id',
             ],
             $methodNames,
         );
 
-        $name = $reflection->getMethod('name');
+        $id = $reflection->getMethod('id');
 
-        self::assertTrue($name->isPublic());
-        self::assertSame(0, $name->getNumberOfParameters());
-        self::assertSame(0, $name->getNumberOfRequiredParameters());
-        self::assertMethodReturnType($name, 'string', false);
+        self::assertTrue($id->isPublic());
+        self::assertSame(0, $id->getNumberOfParameters());
+        self::assertSame(0, $id->getNumberOfRequiredParameters());
+        self::assertMethodReturnType($id, 'string', false);
 
         $check = $reflection->getMethod('check');
 
         self::assertTrue($check->isPublic());
         self::assertSame(0, $check->getNumberOfParameters());
         self::assertSame(0, $check->getNumberOfRequiredParameters());
-        self::assertMethodReturnType($check, HealthStatus::class, false);
+        self::assertMethodReturnType($check, HealthCheckResult::class, false);
     }
 
     public function test_health_status_cases_are_stable(): void
@@ -87,22 +88,33 @@ final class HealthCheckInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_health_check_implementations_can_return_health_status(): void
+    public function test_health_check_implementations_can_return_health_result(): void
     {
         $check = new class() implements HealthCheckInterface {
-            public function name(): string
+            public function id(): string
             {
                 return 'core.health';
             }
 
-            public function check(): HealthStatus
+            public function check(): HealthCheckResult
             {
-                return HealthStatus::Pass;
+                return new HealthCheckResult(
+                    status: HealthStatus::Pass,
+                    message: 'Healthy.',
+                    details: [
+                        'component' => 'core',
+                    ],
+                );
             }
         };
 
-        self::assertSame('core.health', $check->name());
-        self::assertSame(HealthStatus::Pass, $check->check());
+        self::assertSame('core.health', $check->id());
+
+        $result = $check->check();
+
+        self::assertSame(HealthStatus::Pass, $result->status());
+        self::assertSame('Healthy.', $result->message());
+        self::assertSame(['component' => 'core'], $result->details());
     }
 
     private static function assertMethodReturnType(

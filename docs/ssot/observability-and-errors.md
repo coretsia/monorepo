@@ -220,6 +220,22 @@ A correlation identifier MUST NOT be used as a metric label unless a future SSoT
 
 The tracing contracts MUST remain vendor-agnostic.
 
+The canonical interface shape is:
+
+```text
+startSpan(string $name, array $attributes = []): SpanInterface
+inSpan(string $name, callable $callback, array $attributes = []): mixed
+currentSpan(): ?SpanInterface
+```
+
+`startSpan()` starts a span with safe json-like attributes.
+
+`inSpan()` runs code under a span and MUST end that span in a `finally` block.
+
+If the callback passed to `inSpan()` throws, the implementation MUST re-throw the original throwable after applying safe exception-recording policy.
+
+`currentSpan()` returns the current span for the runtime boundary, or `null` when no span is active or the tracer implementation is no-op.
+
 Tracing contracts MUST NOT expose:
 
 - OpenTelemetry SDK classes;
@@ -241,7 +257,30 @@ Span attributes MUST obey the global redaction law.
 
 It MUST expose only stable operations needed by runtime packages.
 
-It MUST NOT expose vendor-specific span handles.
+The canonical interface shape is:
+
+```text
+name(): string
+setAttribute(string $key, mixed $value): void
+setAttributes(array $attributes): void
+addEvent(string $name, array $attributes = []): void
+recordException(Throwable $throwable, array $attributes = []): void
+end(): void
+```
+
+`setAttribute()` and `setAttributes()` accept safe json-like values.
+
+`addEvent()` accepts a safe event name and safe json-like event attributes.
+
+`recordException()` records an exception safely.
+
+Implementations MUST NOT export stack traces, raw Throwable messages, raw payloads, raw SQL, credentials, tokens, cookies, request/response bodies, or profile payloads by default.
+
+`end()` ends the span.
+
+Calling `end()` more than once SHOULD be noop-safe.
+
+`SpanInterface` MUST NOT expose vendor-specific span handles.
 
 It MUST NOT expose raw payloads, raw request data, raw SQL, headers, cookies, tokens, or credentials.
 
@@ -365,10 +404,17 @@ Metric labels MUST NOT include:
 The canonical interface shape is:
 
 ```text
+contentType(): string
 render(): string
 ```
 
-The returned string is implementation-owned and MUST NOT contain secrets, raw payloads, raw SQL, tokens, cookies, or private customer data.
+`contentType()` returns the rendered metrics content type.
+
+The content type value is implementation-owned and MUST NOT require concrete vendor classes.
+
+`render()` returns implementation-owned metric state as a string.
+
+The returned string MUST NOT contain secrets, raw payloads, raw SQL, tokens, cookies, private customer data, profile payloads, or other unsafe diagnostics.
 
 The interface MUST remain vendor-neutral.
 
@@ -386,15 +432,41 @@ It is not a DTO-marker class by default.
 
 It MUST be format-neutral.
 
-The single human-readable field-by-field reference for `ErrorDescriptor` is:
+The canonical exported field set is:
 
 ```text
-docs/ssot/error-descriptor.md
+code
+extensions
+httpStatus
+message
+schemaVersion
+severity
 ```
 
-This SSoT records the observability/error boundary, payload safety, redaction policy, and port relationships only.
+The canonical descriptor schema version is:
 
-This SSoT MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema.
+```text
+1
+```
+
+The logical descriptor fields are:
+
+```text
+schemaVersion
+code
+message
+severity
+httpStatus
+extensions
+```
+
+`schemaVersion` is a positive integer and MUST be exported by `ErrorDescriptor::toArray()`.
+
+`httpStatus` is optional and is only a transport hint.
+
+`extensions` MUST be a json-like map.
+
+`extensions` MUST NOT contain floats, throwable objects, raw payloads, raw SQL, credentials, tokens, cookies, private customer data, absolute paths, or transport objects.
 
 `ErrorDescriptor` MUST NOT expose:
 
@@ -428,10 +500,14 @@ docs/ssot/errors-boundary.md
 The canonical interface shape is:
 
 ```text
-map(Throwable $throwable): ErrorDescriptor
+map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor
 ```
 
 The mapper MAY inspect a throwable internally.
+
+The mapper MAY use safe context metadata when available.
+
+Returning `null` means this mapper does not handle the throwable and the owner registry may try the next mapper or use its fallback descriptor.
 
 The returned descriptor MUST NOT expose the raw throwable.
 
@@ -518,14 +594,49 @@ Health contracts under:
 framework/packages/core/contracts/src/Observability/Health/
 ```
 
-define health check port shape and health status vocabulary only.
+define health check port shape, typed health result shape, and health status vocabulary only.
 
-The canonical interface shape is:
+The canonical `HealthCheckInterface` shape is:
 
 ```text
-name(): string
-check(): HealthStatus
+id(): string
+check(): HealthCheckResult
 ```
+
+`id()` returns the stable safe health check id.
+
+`check()` executes the check and returns the normalized health result.
+
+The canonical `HealthCheckResult` shape is:
+
+```text
+schemaVersion(): int
+status(): HealthStatus
+message(): ?string
+details(): array<string,mixed>
+toArray(): array<string,mixed>
+```
+
+`HealthCheckResult` is a safe json-like result model.
+
+The canonical health result schema version is:
+
+```text
+1
+```
+
+The canonical exported `HealthCheckResult::toArray()` field order is:
+
+```text
+details
+message
+schemaVersion
+status
+```
+
+`details` MUST be a json-like map.
+
+`details` MUST NOT contain floats, PHP objects, closures, resources, streams, service instances, runtime wiring objects, raw credentials, tokens, cookies, raw SQL, request/response bodies, profile payloads, private customer data, or absolute local paths.
 
 The canonical health status values are:
 

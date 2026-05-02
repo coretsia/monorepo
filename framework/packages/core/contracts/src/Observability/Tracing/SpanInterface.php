@@ -36,13 +36,13 @@ interface SpanInterface
     public function name(): string;
 
     /**
-     * Sets a safe scalar span attribute.
+     * Sets a safe json-like span attribute.
      *
      * Attribute names and values MUST obey the global redaction law.
      * Raw payloads, raw request data, raw SQL, headers, cookies, tokens,
      * credentials, profile payloads, and private customer data are forbidden.
      */
-    public function setAttribute(string $key, string|int|bool|null $value): void;
+    public function setAttribute(string $key, mixed $value): void;
 
     /**
      * Sets safe json-like span attributes.
@@ -62,6 +62,17 @@ interface SpanInterface
      * @param array<string,mixed> $attributes
      */
     public function addEvent(string $name, array $attributes = []): void;
+
+    /**
+     * Records an exception safely.
+     *
+     * Implementations MUST NOT export stack traces, raw Throwable messages,
+     * raw payloads, raw SQL, credentials, tokens, cookies, request/response
+     * bodies, or profile payloads by default.
+     *
+     * @param array<string,mixed> $attributes
+     */
+    public function recordException(\Throwable $throwable, array $attributes = []): void;
 
     /**
      * Ends the span.

@@ -27,23 +27,23 @@ namespace Coretsia\Contracts\Observability\Health;
  *
  * Implementations MUST NOT expose raw credentials, tokens, cookies, raw SQL,
  * raw request/response bodies, profile payloads, private customer data, or
- * absolute local paths through the health check name or status.
+ * absolute local paths through the health check id or result.
  */
 interface HealthCheckInterface
 {
     /**
-     * Returns the stable safe health check name.
+     * Returns the stable safe health check id.
      *
-     * The name SHOULD identify the checked component without exposing raw
+     * The id SHOULD identify the checked component without exposing raw
      * connection strings, host-specific paths, secrets, tenant ids, user ids,
      * or unbounded runtime values.
      */
-    public function name(): string;
+    public function id(): string;
 
     /**
-     * Executes the check and returns the normalized health status.
+     * Executes the check and returns the normalized health result.
      *
      * Endpoint-specific representation belongs to platform health packages.
      */
-    public function check(): HealthStatus;
+    public function check(): HealthCheckResult;
 }

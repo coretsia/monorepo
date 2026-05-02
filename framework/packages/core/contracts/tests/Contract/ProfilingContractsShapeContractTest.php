@@ -21,6 +21,7 @@ namespace Coretsia\Contracts\Tests\Contract;
 use Coretsia\Contracts\Observability\Profiling\ProfileArtifact;
 use Coretsia\Contracts\Observability\Profiling\ProfileExporterInterface;
 use Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface;
+use Coretsia\Contracts\Observability\Profiling\ProfilingSessionInterface;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -43,6 +44,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
             payload: 'raw-private-profile-payload',
         );
 
+        self::assertSame(1, $artifact->schemaVersion());
         self::assertSame('core.profile', $artifact->name());
         self::assertSame(
             [
@@ -67,6 +69,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
                 ],
                 'name' => 'core.profile',
                 'payload' => null,
+                'schemaVersion' => 1,
             ],
             $artifact->toArray(),
         );
@@ -76,6 +79,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
                 'metadata',
                 'name',
                 'payload',
+                'schemaVersion',
             ],
             array_keys($artifact->toArray()),
         );
@@ -128,8 +132,17 @@ final class ProfilingContractsShapeContractTest extends TestCase
         $reflection = new ReflectionClass(ProfilerPortInterface::class);
 
         self::assertTrue($reflection->isInterface());
-        self::assertTrue($reflection->hasMethod('start'));
-        self::assertTrue($reflection->hasMethod('stop'));
+
+        $methodNames = array_map(
+            static fn (ReflectionMethod $method): string => $method->getName(),
+            $reflection->getMethods(),
+        );
+
+        sort($methodNames, \SORT_STRING);
+
+        self::assertSame(['start'], $methodNames);
+
+        self::assertFalse($reflection->hasMethod('stop'));
 
         $start = $reflection->getMethod('start');
 
@@ -139,7 +152,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
 
         $startParameters = $start->getParameters();
 
-        self::assertSame('name', $startParameters[0]->getName());
+        self::assertSame('uowType', $startParameters[0]->getName());
         self::assertInstanceOf(ReflectionNamedType::class, $startParameters[0]->getType());
         self::assertSame('string', $startParameters[0]->getType()->getName());
 
@@ -149,13 +162,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
         self::assertTrue($startParameters[1]->isDefaultValueAvailable());
         self::assertSame([], $startParameters[1]->getDefaultValue());
 
-        self::assertMethodReturnType($start, 'void', false);
-
-        $stop = $reflection->getMethod('stop');
-
-        self::assertTrue($stop->isPublic());
-        self::assertSame(0, $stop->getNumberOfParameters());
-        self::assertMethodReturnType($stop, ProfileArtifact::class, true);
+        self::assertMethodReturnType($start, ProfilingSessionInterface::class, false);
     }
 
     public function test_profile_exporter_interface_shape_is_stable(): void
@@ -163,48 +170,82 @@ final class ProfilingContractsShapeContractTest extends TestCase
         $reflection = new ReflectionClass(ProfileExporterInterface::class);
 
         self::assertTrue($reflection->isInterface());
-        self::assertTrue($reflection->hasMethod('export'));
 
-        $method = $reflection->getMethod('export');
+        $methodNames = array_map(
+            static fn (ReflectionMethod $method): string => $method->getName(),
+            $reflection->getMethods(),
+        );
 
-        self::assertTrue($method->isPublic());
-        self::assertSame(1, $method->getNumberOfParameters());
-        self::assertSame(1, $method->getNumberOfRequiredParameters());
+        sort($methodNames, \SORT_STRING);
 
-        $parameters = $method->getParameters();
+        self::assertSame(
+            [
+                'export',
+                'name',
+            ],
+            $methodNames,
+        );
+
+        $name = $reflection->getMethod('name');
+
+        self::assertTrue($name->isPublic());
+        self::assertSame(0, $name->getNumberOfParameters());
+        self::assertSame(0, $name->getNumberOfRequiredParameters());
+        self::assertMethodReturnType($name, 'string', false);
+
+        $export = $reflection->getMethod('export');
+
+        self::assertTrue($export->isPublic());
+        self::assertSame(1, $export->getNumberOfParameters());
+        self::assertSame(1, $export->getNumberOfRequiredParameters());
+
+        $parameters = $export->getParameters();
 
         self::assertSame('artifact', $parameters[0]->getName());
         self::assertInstanceOf(ReflectionNamedType::class, $parameters[0]->getType());
         self::assertSame(ProfileArtifact::class, $parameters[0]->getType()->getName());
 
-        self::assertMethodReturnType($method, 'void', false);
+        self::assertMethodReturnType($export, 'void', false);
     }
 
-    public function test_profiler_and_exporter_implementations_can_compose_through_contracts(): void
+    public function test_profiler_session_and_exporter_implementations_can_compose_through_contracts(): void
     {
         $profiler = new class() implements ProfilerPortInterface {
-            private ?ProfileArtifact $artifact = null;
-
             /**
              * @param array<string,mixed> $metadata
              */
-            public function start(string $name, array $metadata = []): void
+            public function start(string $uowType, array $metadata = []): ProfilingSessionInterface
             {
-                $this->artifact = new ProfileArtifact(
-                    name: $name,
+                $artifact = new ProfileArtifact(
+                    name: $uowType,
                     metadata: $metadata,
                     payload: 'raw-private-profile-payload',
                 );
-            }
 
-            public function stop(): ?ProfileArtifact
-            {
-                return $this->artifact;
+                return new class($artifact) implements ProfilingSessionInterface {
+                    public function __construct(
+                        private ?ProfileArtifact $artifact,
+                    ) {
+                    }
+
+                    public function stop(): ?ProfileArtifact
+                    {
+                        $artifact = $this->artifact;
+                        $this->artifact = null;
+
+                        return $artifact;
+                    }
+                };
             }
         };
 
         $exporter = new class() implements ProfileExporterInterface {
             public ?ProfileArtifact $exported = null;
+
+            public function name(): string
+            {
+                return 'noop';
+            }
 
             public function export(ProfileArtifact $artifact): void
             {
@@ -212,17 +253,19 @@ final class ProfilingContractsShapeContractTest extends TestCase
             }
         };
 
-        $profiler->start('core.profile', ['operation' => 'test']);
+        $session = $profiler->start('core.profile', ['operation' => 'test']);
 
-        $artifact = $profiler->stop();
+        $artifact = $session->stop();
 
         self::assertInstanceOf(ProfileArtifact::class, $artifact);
 
         $exporter->export($artifact);
 
+        self::assertSame('noop', $exporter->name());
         self::assertSame($artifact, $exporter->exported);
         self::assertSame('raw-private-profile-payload', $artifact->payload());
         self::assertNull($artifact->toArray()['payload']);
+        self::assertNull($session->stop());
     }
 
     private static function assertMethodReturnType(

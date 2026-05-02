@@ -35,6 +35,12 @@ interface ExceptionMapperInterface
 {
     /**
      * Maps a Throwable to a safe normalized error descriptor.
+     *
+     * Returning null means this mapper does not handle the throwable and the
+     * owner registry may try the next mapper or use its fallback descriptor.
      */
-    public function map(Throwable $throwable): ErrorDescriptor;
+    public function map(
+        Throwable $throwable,
+        ?ErrorHandlingContext $context = null,
+    ): ?ErrorDescriptor;
 }

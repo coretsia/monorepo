@@ -29,6 +29,7 @@ namespace Coretsia\Contracts\Observability\Profiling;
  */
 final readonly class ProfileArtifact
 {
+    public const int SCHEMA_VERSION = 1;
     private string $name;
 
     /**
@@ -62,6 +63,11 @@ final readonly class ProfileArtifact
         $this->name = self::normalizeName($name);
         $this->metadata = self::normalizeMetadata($metadata);
         $this->payload = $payload;
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public function name(): string
@@ -98,7 +104,8 @@ final readonly class ProfileArtifact
      * @return array{
      *     metadata: array<string, mixed>,
      *     name: string,
-     *     payload: null
+     *     payload: null,
+     *     schemaVersion: int
      * }
      */
     public function toArray(): array
@@ -107,6 +114,7 @@ final readonly class ProfileArtifact
             'metadata' => $this->metadata,
             'name' => $this->name,
             'payload' => null,
+            'schemaVersion' => self::SCHEMA_VERSION,
         ];
     }
 

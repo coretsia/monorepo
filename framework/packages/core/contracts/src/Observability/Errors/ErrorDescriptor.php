@@ -29,12 +29,10 @@ namespace Coretsia\Contracts\Observability\Errors;
  */
 final readonly class ErrorDescriptor
 {
+    public const int SCHEMA_VERSION = 1;
     private string $code;
-
     private string $message;
-
     private ErrorSeverity $severity;
-
     private ?int $httpStatus;
 
     /**
@@ -55,7 +53,7 @@ final readonly class ErrorDescriptor
     public function __construct(
         string $code,
         string $message,
-        ErrorSeverity $severity,
+        ErrorSeverity $severity = ErrorSeverity::Error,
         ?int $httpStatus = null,
         array $extensions = [],
     ) {
@@ -64,6 +62,11 @@ final readonly class ErrorDescriptor
         $this->severity = $severity;
         $this->httpStatus = self::normalizeHttpStatus($httpStatus);
         $this->extensions = self::normalizeExtensions($extensions);
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public function code(): string
@@ -107,6 +110,7 @@ final readonly class ErrorDescriptor
      *     extensions: array<string, mixed>,
      *     httpStatus: int|null,
      *     message: string,
+     *     schemaVersion: int,
      *     severity: string
      * }
      */
@@ -117,6 +121,7 @@ final readonly class ErrorDescriptor
             'extensions' => $this->extensions,
             'httpStatus' => $this->httpStatus,
             'message' => $this->message,
+            'schemaVersion' => self::SCHEMA_VERSION,
             'severity' => $this->severity->value,
         ];
     }

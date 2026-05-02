@@ -75,6 +75,7 @@ final class ErrorDescriptorFieldSetIsStableContractTest extends TestCase
                 'extensions',
                 'httpStatus',
                 'message',
+                'schemaVersion',
                 'severity',
             ],
             array_keys($descriptor->toArray()),
@@ -86,7 +87,6 @@ final class ErrorDescriptorFieldSetIsStableContractTest extends TestCase
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
             message: 'Example message.',
-            severity: ErrorSeverity::Error,
         );
 
         $fieldNames = array_keys($descriptor->toArray());

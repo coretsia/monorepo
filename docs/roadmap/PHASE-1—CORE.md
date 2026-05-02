@@ -2815,15 +2815,19 @@ Errors:
 - [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
   - [x] extensions strictly json-like
   - [x] stable field set
+  - [x] schemaVersion exported in public shape
+  - [x] default severity is `ErrorSeverity::Error`
   - [x] no raw throwable payload
 - [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
 
 Health:
 - [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckResult.php`
 - [x] `framework/packages/core/contracts/src/Observability/Health/HealthStatus.php`
 
 Profiling:
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
+- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilingSessionInterface.php`
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
 - [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
 
@@ -2848,12 +2852,16 @@ Tests:
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SpanInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/TracerPortInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ProfilingSessionInterfaceShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HealthCheckInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/HealthCheckResultShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextMetadataIsJsonLikeContractTest.php`

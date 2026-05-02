@@ -138,13 +138,20 @@ A future owner epic MAY explicitly opt a profiling model into DTO policy. Until 
 The canonical interface shape is:
 
 ```text
-start(string $name, array $metadata = []): void
-stop(): ?ProfileArtifact
+start(string $uowType, array $metadata = []): ProfilingSessionInterface
 ```
+
+`start()` starts profiling a unit of work or nested operation and returns a profiling session handle.
+
+The `uowType` value MUST be safe and MUST NOT contain secrets, raw paths, raw queries, raw SQL, tokens, credentials, request/response bodies, private customer data, or absolute local paths.
 
 `metadata` MUST be a safe json-like map.
 
-Calling `stop()` without an active profile MUST be noop-safe and MAY return `null`.
+The profiler port does not expose `stop()` directly.
+
+Stopping belongs to the returned `ProfilingSessionInterface`.
+
+This session-handle model supports nested or concurrent profiling without requiring an implicit global active profile on the port.
 
 It MUST be safe to call from any runtime boundary.
 
@@ -174,6 +181,24 @@ kernel.hook.after_uow
 
 The contracts package MUST NOT declare these tags as constants.
 
+## Profiling session interface
+
+`ProfilingSessionInterface` is the profiling session handle returned by `ProfilerPortInterface`.
+
+The canonical interface shape is:
+
+```text
+stop(): ?ProfileArtifact
+```
+
+`stop()` stops profiling and returns the captured artifact when available.
+
+Calling `stop()` more than once SHOULD be noop-safe and MAY return `null` after the first completed stop.
+
+The returned `ProfileArtifact` payload is opaque.
+
+Consumers MUST NOT log, print, trace, use as metric labels, embed into error descriptor extensions, or expose raw payload contents through diagnostics.
+
 ## Profile artifact
 
 `ProfileArtifact` is the canonical contracts model for a captured profiling result.
@@ -183,6 +208,7 @@ It is not a DTO-marker class by default.
 The canonical logical profile artifact fields are:
 
 ```text
+schemaVersion
 name
 metadata
 payload
@@ -190,11 +216,12 @@ payload
 
 Field meanings:
 
-| field      | meaning                                                                 |
-|------------|-------------------------------------------------------------------------|
-| `name`     | Stable safe profile artifact name or implementation-owned profile kind. |
-| `metadata` | Json-like safe metadata map.                                            |
-| `payload`  | Opaque implementation-owned profile payload carrier.                    |
+| field           | meaning                                                                 |
+|-----------------|-------------------------------------------------------------------------|
+| `schemaVersion` | Stable profile artifact schema version.                                 |
+| `name`          | Stable safe profile artifact name or implementation-owned profile kind. |
+| `metadata`      | Json-like safe metadata map.                                            |
+| `payload`       | Opaque implementation-owned profile payload carrier.                    |
 
 `ProfileArtifact::toArray()` MUST return a safe public shape only.
 
@@ -204,7 +231,16 @@ The safe public shape MUST contain exactly these top-level fields:
 metadata
 name
 payload
+schemaVersion
 ```
+
+The canonical profile artifact schema version is:
+
+```text
+1
+```
+
+The `schemaVersion` field MUST be exported by `ProfileArtifact::toArray()`.
 
 The `payload` field in `ProfileArtifact::toArray()` MUST always be `null`.
 
@@ -373,8 +409,15 @@ Raw values MUST NOT be printed or logged.
 The canonical interface shape is:
 
 ```text
+name(): string
 export(ProfileArtifact $artifact): void
 ```
+
+`name()` returns exporter stable name.
+
+The exporter name MUST be safe, deterministic, non-empty, and suitable for diagnostics.
+
+`export()` exports a profile artifact to an implementation-owned sink.
 
 The exporter interface MUST remain vendor-neutral.
 

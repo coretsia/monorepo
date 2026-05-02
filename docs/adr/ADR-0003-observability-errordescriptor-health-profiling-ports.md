@@ -75,11 +75,23 @@ It is not a DTO-marker class by default.
 Its logical field set is:
 
 ```text
+schemaVersion
 code
 message
 severity
 httpStatus
 extensions
+```
+
+Its exported public array field order is:
+
+```text
+code
+extensions
+httpStatus
+message
+schemaVersion
+severity
 ```
 
 `httpStatus` is optional and is only a transport hint.
@@ -92,9 +104,17 @@ HTTP-specific adaptation, including RFC7807/problem-details conversion, belongs 
 
 ## Error mapping decision
 
-Coretsia will introduce an exception mapper port that maps `Throwable` to `ErrorDescriptor`.
+Coretsia will introduce an exception mapper port that maps `Throwable` and optional safe error handling context to `?ErrorDescriptor`.
+
+The canonical mapper shape is:
+
+```text
+map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor
+```
 
 Mapper implementations may inspect throwables internally, but the returned descriptor must not expose the raw throwable.
+
+Returning `null` means that the mapper does not handle the throwable and the owner registry may try the next mapper or use a fallback descriptor.
 
 Runtime discovery of exception mappers is platform-owned through the existing reserved tag:
 
@@ -126,9 +146,38 @@ docs/ssot/observability.md
 
 ## Health decision
 
-Coretsia will introduce health check contracts and a health status vocabulary.
+Coretsia will introduce health check contracts, a typed health result model, and a health status vocabulary.
 
-Health endpoint routing and health check discovery are platform-owned.
+The canonical health check shape is:
+
+```text
+id(): string
+check(): HealthCheckResult
+```
+
+`HealthCheckResult` is a typed safe json-like result model.
+
+It replaces loose health result arrays at the contracts boundary.
+
+The canonical health result logical fields are:
+
+```text
+schemaVersion
+status
+message
+details
+```
+
+Its exported public array field order is:
+
+```text
+details
+message
+schemaVersion
+status
+```
+
+Health endpoint routing, response rendering, aggregation, and health check discovery are platform-owned.
 
 Runtime discovery is through the existing reserved tag:
 
@@ -142,7 +191,34 @@ The contracts package does not introduce or own this tag.
 
 Coretsia will introduce vendor-agnostic profiling ports usable across HTTP, CLI, worker, scheduler, queue consumer, and custom unit-of-work boundaries.
 
+Profiling uses a session-handle model.
+
+The canonical profiler shape is:
+
+```text
+start(string $uowType, array $metadata = []): ProfilingSessionInterface
+```
+
+The returned `ProfilingSessionInterface` owns stopping:
+
+```text
+stop(): ?ProfileArtifact
+```
+
+This avoids an implicit global active profile on `ProfilerPortInterface` and supports nested or concurrent profiling boundaries.
+
 `ProfileArtifact` is the canonical contracts model for profiling output.
+
+Its safe exported public array field order is:
+
+```text
+metadata
+name
+payload
+schemaVersion
+```
+
+The exported `payload` field is always `null`.
 
 `ProfileArtifact.payload` is opaque.
 
@@ -179,7 +255,12 @@ This applies to:
 ```text
 ErrorDescriptor.extensions
 ErrorHandlingContext safe metadata
+HealthCheckResult.details
 ProfileArtifact.metadata
+SpanInterface attributes
+SpanInterface event attributes
+TracerPortInterface attributes
+SamplerInterface attributes
 any future json-like observability metadata introduced by this epic
 ```
 

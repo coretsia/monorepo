@@ -53,7 +53,7 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
     {
         $span = new class() implements SpanInterface {
             /**
-             * @var array<string,string|int|bool|null>
+             * @var array<string,mixed>
              */
             public array $attributes = [];
 
@@ -62,6 +62,8 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
              */
             public array $events = [];
 
+            public int $recordedExceptions = 0;
+
             public bool $ended = false;
 
             public function name(): string
@@ -69,7 +71,7 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
                 return 'core.test';
             }
 
-            public function setAttribute(string $key, string|int|bool|null $value): void
+            public function setAttribute(string $key, mixed $value): void
             {
                 $this->attributes[$key] = $value;
             }
@@ -80,9 +82,7 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
             public function setAttributes(array $attributes): void
             {
                 foreach ($attributes as $key => $value) {
-                    if (is_string($value) || is_int($value) || is_bool($value) || $value === null) {
-                        $this->attributes[$key] = $value;
-                    }
+                    $this->attributes[$key] = $value;
                 }
             }
 
@@ -95,6 +95,15 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
                     'name' => $name,
                     'attributes' => $attributes,
                 ];
+            }
+
+            /**
+             * @param array<string,mixed> $attributes
+             */
+            public function recordException(\Throwable $throwable, array $attributes = []): void
+            {
+                $this->recordedExceptions++;
+                $this->attributes['exception.recorded'] = true;
             }
 
             public function end(): void

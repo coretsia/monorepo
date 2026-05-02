@@ -159,6 +159,7 @@ Coretsia/
 │   │   │   │   │   │   │   └── ExceptionMapperInterface.php
 │   │   │   │   │   │   ├── Health/
 │   │   │   │   │   │   │   ├── HealthCheckInterface.php
+│   │   │   │   │   │   │   ├── HealthCheckResult.php
 │   │   │   │   │   │   │   └── HealthStatus.php
 │   │   │   │   │   │   ├── Metrics/
 │   │   │   │   │   │   │   ├── MeterPortInterface.php
@@ -166,7 +167,8 @@ Coretsia/
 │   │   │   │   │   │   ├── Profiling/
 │   │   │   │   │   │   │   ├── ProfileArtifact.php
 │   │   │   │   │   │   │   ├── ProfileExporterInterface.php
-│   │   │   │   │   │   │   └── ProfilerPortInterface.php
+│   │   │   │   │   │   │   ├── ProfilerPortInterface.php
+│   │   │   │   │   │   │   └── ProfilingSessionInterface.php
 │   │   │   │   │   │   ├── Tracing/
 │   │   │   │   │   │   │   ├── ContextPropagationInterface.php
 │   │   │   │   │   │   │   ├── SamplerInterface.php
@@ -210,6 +212,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
@@ -222,10 +225,13 @@ Coretsia/
 │   │   │   │   │   │   ├── ModuleManifestContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
+│   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
-│   │   │   │   │   │   └── SpanExporterInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
+│   │   │   │   │   │   └── TracerPortInterfaceShapeContractTest.php
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php
 │   │   │   │   ├── LICENSE

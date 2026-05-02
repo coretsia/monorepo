@@ -432,41 +432,15 @@ It is not a DTO-marker class by default.
 
 It MUST be format-neutral.
 
-The canonical exported field set is:
+The single human-readable field-by-field reference for `ErrorDescriptor` is:
 
 ```text
-code
-extensions
-httpStatus
-message
-schemaVersion
-severity
+docs/ssot/error-descriptor.md
 ```
 
-The canonical descriptor schema version is:
+This SSoT records the observability/error boundary, payload safety, redaction policy, and port relationships only.
 
-```text
-1
-```
-
-The logical descriptor fields are:
-
-```text
-schemaVersion
-code
-message
-severity
-httpStatus
-extensions
-```
-
-`schemaVersion` is a positive integer and MUST be exported by `ErrorDescriptor::toArray()`.
-
-`httpStatus` is optional and is only a transport hint.
-
-`extensions` MUST be a json-like map.
-
-`extensions` MUST NOT contain floats, throwable objects, raw payloads, raw SQL, credentials, tokens, cookies, private customer data, absolute paths, or transport objects.
+This SSoT MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema.
 
 `ErrorDescriptor` MUST NOT expose:
 

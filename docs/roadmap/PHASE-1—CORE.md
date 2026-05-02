@@ -3089,6 +3089,8 @@ ssot_refs:
   - `docs/ssot/observability-and-errors.md` — contracts payload/redaction policy exists (1.90.0)
   - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php` — enforcement evidence (contracts)
   - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php` — enforcement evidence (contracts)
+  - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php` — exported field set/order evidence (contracts)
+  - `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php` — nullable mapper/context evidence (contracts)
 
 - Required config roots/keys:
   - none
@@ -3163,6 +3165,8 @@ N/A (doc-only), but MUST reference enforcement evidence in:
 - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
 
 Future runtime evidence (NOT a precondition of this doc epic; referenced once available):
 

@@ -31,6 +31,8 @@ namespace Coretsia\Contracts\Routing;
  */
 final readonly class RouteMatch
 {
+    public const int SCHEMA_VERSION = 1;
+
     private string $name;
 
     private string $pathTemplate;
@@ -38,7 +40,7 @@ final readonly class RouteMatch
     private string $handler;
 
     /**
-     * @var array<string,mixed>
+     * @var array<string,string>
      */
     private array $parameters;
 
@@ -48,7 +50,7 @@ final readonly class RouteMatch
     private array $metadata;
 
     /**
-     * @param array<string,mixed> $parameters
+     * @param array<string,string> $parameters
      * @param array<string,mixed> $metadata
      */
     public function __construct(
@@ -59,10 +61,15 @@ final readonly class RouteMatch
         array $metadata = [],
     ) {
         $this->name = self::normalizeSafeSingleLineField($name, 'name');
-        $this->pathTemplate = self::normalizeSafeSingleLineField($pathTemplate, 'pathTemplate');
+        $this->pathTemplate = self::normalizePathTemplate($pathTemplate);
         $this->handler = self::normalizeSafeSingleLineField($handler, 'handler');
-        $this->parameters = self::normalizeRootJsonLikeMap($parameters, 'parameters');
+        $this->parameters = self::normalizeParameters($parameters);
         $this->metadata = self::normalizeRootJsonLikeMap($metadata, 'metadata');
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public function name(): string
@@ -84,7 +91,7 @@ final readonly class RouteMatch
      * Route parameters MAY originate from user-controlled path segments.
      * They MUST NOT be treated as observability-safe by default.
      *
-     * @return array<string,mixed>
+     * @return array<string,string>
      */
     public function parameters(): array
     {
@@ -104,8 +111,9 @@ final readonly class RouteMatch
      *     handler: string,
      *     metadata: array<string,mixed>,
      *     name: string,
-     *     parameters: array<string,mixed>,
-     *     pathTemplate: string
+     *     parameters: array<string,string>,
+     *     pathTemplate: string,
+     *     schemaVersion: int
      * }
      */
     public function toArray(): array
@@ -116,6 +124,7 @@ final readonly class RouteMatch
             'name' => $this->name,
             'parameters' => $this->parameters,
             'pathTemplate' => $this->pathTemplate,
+            'schemaVersion' => self::SCHEMA_VERSION,
         ];
     }
 
@@ -129,6 +138,33 @@ final readonly class RouteMatch
 
         if (!self::isSafeSingleLineString($value)) {
             throw new \InvalidArgumentException('Invalid route match ' . $field . '.');
+        }
+
+        if (preg_match('/\s/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid route match ' . $field . '.');
+        }
+
+        return $value;
+    }
+
+    private static function normalizePathTemplate(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new \InvalidArgumentException('Invalid route match pathTemplate.');
+        }
+
+        if (!str_starts_with($value, '/')) {
+            throw new \InvalidArgumentException('Invalid route match pathTemplate.');
+        }
+
+        if (!self::isSafeSingleLineString($value)) {
+            throw new \InvalidArgumentException('Invalid route match pathTemplate.');
+        }
+
+        if (preg_match('/\s/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid route match pathTemplate.');
         }
 
         return $value;
@@ -146,6 +182,58 @@ final readonly class RouteMatch
         }
 
         return self::normalizeJsonLikeMap($map, $path);
+    }
+
+    /**
+     * @param array<mixed> $parameters
+     *
+     * @return array<string,string>
+     */
+    private static function normalizeParameters(array $parameters): array
+    {
+        if (array_is_list($parameters) && $parameters !== []) {
+            throw new \InvalidArgumentException('Route match parameters must be a map.');
+        }
+
+        $out = [];
+
+        foreach ($parameters as $key => $value) {
+            if (!is_string($key)) {
+                throw new \InvalidArgumentException('Invalid route match parameter key.');
+            }
+
+            $key = trim($key);
+
+            if ($key === '') {
+                throw new \InvalidArgumentException('Invalid route match parameter key.');
+            }
+
+            if (!self::isSafeSingleLineString($key)) {
+                throw new \InvalidArgumentException('Invalid route match parameter key.');
+            }
+
+            if (preg_match('/\s/', $key) === 1) {
+                throw new \InvalidArgumentException('Invalid route match parameter key.');
+            }
+
+            if (!is_string($value)) {
+                throw new \InvalidArgumentException('Invalid route match parameter value at ' . $key . '.');
+            }
+
+            if ($value === '') {
+                throw new \InvalidArgumentException('Invalid route match parameter value at ' . $key . '.');
+            }
+
+            if (!self::isSafeString($value)) {
+                throw new \InvalidArgumentException('Invalid route match parameter value at ' . $key . '.');
+            }
+
+            $out[$key] = $value;
+        }
+
+        ksort($out, \SORT_STRING);
+
+        return $out;
     }
 
     /**

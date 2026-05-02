@@ -3266,9 +3266,15 @@ N/A
 - [x] `framework/packages/core/contracts/src/Routing/RouteDefinition.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
+  - [x] schemaVersion exported in public shape
+  - [x] methods normalized to uppercase, unique, sorted list
+  - [x] pathTemplate requires leading `/`
 - [x] `framework/packages/core/contracts/src/Routing/RouteMatch.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
+  - [x] schemaVersion exported in public shape
+  - [x] parameters are deterministic string map
+  - [x] pathTemplate requires leading `/`
 - [x] `framework/packages/core/contracts/src/Routing/RouterInterface.php`
 - [x] `framework/packages/core/contracts/src/Routing/RouteProviderInterface.php`
 - [x] `framework/packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
@@ -3280,6 +3286,8 @@ N/A
 - [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
 - [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 #### Modifies
 
@@ -3319,6 +3327,9 @@ N/A
 
 - [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
 - [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 ### Tests (MUST)
 

@@ -321,6 +321,7 @@ It MUST NOT contain:
 The canonical `RouteDefinition` logical field set is:
 
 ```text
+schemaVersion
 name
 methods
 pathTemplate
@@ -332,27 +333,46 @@ metadata
 
 Field meanings:
 
-| field          | meaning                                                                                                     |
-|----------------|-------------------------------------------------------------------------------------------------------------|
-| `name`         | Stable route name / route identity within the provider output.                                              |
-| `methods`      | Deterministic list of safe method tokens accepted by the route.                                             |
-| `pathTemplate` | Safe route template, not a raw request path.                                                                |
-| `handler`      | Stable implementation-owned action reference string. In HttpApp ports this is usually passed as `actionId`. |
-| `requirements` | Safe string-keyed map of placeholder constraints or matching requirements.                                  |
-| `defaults`     | Json-like map of safe default route values.                                                                 |
-| `metadata`     | Json-like map of safe deterministic non-transport route metadata.                                           |
+| field           | meaning                                                                                                     |
+|-----------------|-------------------------------------------------------------------------------------------------------------|
+| `schemaVersion` | Stable route definition schema version.                                                                     |
+| `name`          | Stable route name / route identity within the provider output.                                              |
+| `methods`       | Deterministic list of safe method tokens accepted by the route.                                             |
+| `pathTemplate`  | Safe route template, not a raw request path.                                                                |
+| `handler`       | Stable implementation-owned action reference string. In HttpApp ports this is usually passed as `actionId`. |
+| `requirements`  | Safe string-keyed map of placeholder constraints or matching requirements.                                  |
+| `defaults`      | Json-like map of safe default route values.                                                                 |
+| `metadata`      | Json-like map of safe deterministic non-transport route metadata.                                           |
 
 No field may expose transport objects or runtime service objects.
 
 ### RouteDefinition field rules
 
-`name` MUST be a non-empty safe single-line string.
+`schemaVersion` MUST be a positive integer.
 
-`methods` MUST be a deterministic list of non-empty safe single-line strings.
+The initial canonical `RouteDefinition` schema version is:
+
+```text
+1
+```
+
+`name` MUST be a non-empty safe single-line string and MUST NOT contain whitespace.
+
+`methods` MUST be a deterministic list of non-empty safe method tokens.
+
+`methods` MUST be normalized to uppercase.
+
+`methods` MUST be unique.
+
+`methods` MUST be sorted ascending using byte-order `strcmp`.
 
 `pathTemplate` MUST be a non-empty safe single-line string.
 
-`handler` MUST be a non-empty safe single-line string.
+`pathTemplate` MUST start with `/`.
+
+`pathTemplate` MUST NOT contain whitespace.
+
+`handler` MUST be a non-empty safe single-line string and MUST NOT contain whitespace.
 
 `requirements` MUST be a map with string keys and string values.
 
@@ -388,9 +408,10 @@ methods
 name
 pathTemplate
 requirements
+schemaVersion
 ```
 
-Contract tests MAY cement this order once the PHP implementation exists.
+Contract tests cement this order as part of the descriptor shape contract.
 
 ## RouteMatch
 
@@ -425,6 +446,7 @@ It MUST NOT contain:
 The canonical `RouteMatch` logical field set is:
 
 ```text
+schemaVersion
 name
 pathTemplate
 handler
@@ -434,27 +456,44 @@ metadata
 
 Field meanings:
 
-| field          | meaning                                                                                                     |
-|----------------|-------------------------------------------------------------------------------------------------------------|
-| `name`         | Stable matched route name.                                                                                  |
-| `pathTemplate` | Safe route template for the matched route.                                                                  |
-| `handler`      | Stable implementation-owned action reference string. In HttpApp ports this is usually passed as `actionId`. |
-| `parameters`   | Json-like map of route parameters needed for invocation.                                                    |
-| `metadata`     | Json-like map of safe deterministic route match metadata.                                                   |
+| field           | meaning                                                                                                     |
+|-----------------|-------------------------------------------------------------------------------------------------------------|
+| `schemaVersion` | Stable route match schema version.                                                                          |
+| `name`          | Stable matched route name.                                                                                  |
+| `pathTemplate`  | Safe route template for the matched route.                                                                  |
+| `handler`       | Stable implementation-owned action reference string. In HttpApp ports this is usually passed as `actionId`. |
+| `parameters`    | Deterministic string map of matched route parameters needed for invocation.                                 |
+| `metadata`      | Json-like map of safe deterministic route match metadata.                                                   |
 
 ### RouteMatch field rules
 
-`name` MUST be a non-empty safe single-line string.
+`schemaVersion` MUST be a positive integer.
+
+The initial canonical `RouteMatch` schema version is:
+
+```text
+1
+```
+
+`name` MUST be a non-empty safe single-line string and MUST NOT contain whitespace.
 
 `pathTemplate` MUST be a non-empty safe single-line string.
 
-`handler` MUST be a non-empty safe single-line string.
+`pathTemplate` MUST start with `/`.
 
-`parameters` MUST be a json-like map.
+`pathTemplate` MUST NOT contain whitespace.
+
+`handler` MUST be a non-empty safe single-line string and MUST NOT contain whitespace.
+
+`parameters` MUST be a string-keyed map of string values.
+
+`parameters` keys MUST be non-empty safe single-line strings and MUST NOT contain whitespace.
+
+`parameters` values MUST be non-empty safe strings.
 
 `metadata` MUST be a json-like map.
 
-`parameters` and `metadata` MUST follow the json-like value model in this document.
+`metadata` MUST follow the json-like value model in this document.
 
 `parameters` and `metadata` maps MUST use deterministic key ordering by byte-order `strcmp`.
 
@@ -481,9 +520,10 @@ metadata
 name
 parameters
 pathTemplate
+schemaVersion
 ```
 
-Contract tests MAY cement this order once the PHP implementation exists.
+Contract tests cement this order as part of the descriptor shape contract.
 
 ## RouteProviderInterface
 
@@ -937,6 +977,8 @@ Current and future contracts-level enforcement evidence for this epic includes:
 framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php
 framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php
 framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php
+framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php
+framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php
 ```
 
 These tests are expected to verify:

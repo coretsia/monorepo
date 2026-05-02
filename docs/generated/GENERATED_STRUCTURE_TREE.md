@@ -226,6 +226,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── RouteDefinitionShapeContractTest.php
+│   │   │   │   │   │   ├── RouteMatchShapeContractTest.php
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php

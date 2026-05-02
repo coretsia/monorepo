@@ -31,6 +31,8 @@ namespace Coretsia\Contracts\Routing;
  */
 final readonly class RouteDefinition
 {
+    public const int SCHEMA_VERSION = 1;
+
     private string $name;
 
     /**
@@ -74,11 +76,16 @@ final readonly class RouteDefinition
     ) {
         $this->name = self::normalizeSafeSingleLineField($name, 'name');
         $this->methods = self::normalizeMethods($methods);
-        $this->pathTemplate = self::normalizeSafeSingleLineField($pathTemplate, 'pathTemplate');
+        $this->pathTemplate = self::normalizePathTemplate($pathTemplate);
         $this->handler = self::normalizeSafeSingleLineField($handler, 'handler');
         $this->requirements = self::normalizeRequirements($requirements);
         $this->defaults = self::normalizeRootJsonLikeMap($defaults, 'defaults');
         $this->metadata = self::normalizeRootJsonLikeMap($metadata, 'metadata');
+    }
+
+    public function schemaVersion(): int
+    {
+        return self::SCHEMA_VERSION;
     }
 
     public function name(): string
@@ -136,7 +143,8 @@ final readonly class RouteDefinition
      *     methods: list<string>,
      *     name: string,
      *     pathTemplate: string,
-     *     requirements: array<string,string>
+     *     requirements: array<string,string>,
+     *     schemaVersion: int
      * }
      */
     public function toArray(): array
@@ -149,6 +157,7 @@ final readonly class RouteDefinition
             'name' => $this->name,
             'pathTemplate' => $this->pathTemplate,
             'requirements' => $this->requirements,
+            'schemaVersion' => self::SCHEMA_VERSION,
         ];
     }
 
@@ -162,6 +171,33 @@ final readonly class RouteDefinition
 
         if (!self::isSafeSingleLineString($value)) {
             throw new \InvalidArgumentException('Invalid route definition ' . $field . '.');
+        }
+
+        if (preg_match('/\s/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid route definition ' . $field . '.');
+        }
+
+        return $value;
+    }
+
+    private static function normalizePathTemplate(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new \InvalidArgumentException('Invalid route definition pathTemplate.');
+        }
+
+        if (!str_starts_with($value, '/')) {
+            throw new \InvalidArgumentException('Invalid route definition pathTemplate.');
+        }
+
+        if (!self::isSafeSingleLineString($value)) {
+            throw new \InvalidArgumentException('Invalid route definition pathTemplate.');
+        }
+
+        if (preg_match('/\s/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid route definition pathTemplate.');
         }
 
         return $value;
@@ -189,7 +225,7 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition method.');
             }
 
-            $method = trim($method);
+            $method = strtoupper(trim($method));
 
             if ($method === '') {
                 throw new \InvalidArgumentException('Invalid route definition method.');
@@ -199,10 +235,18 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition method.');
             }
 
-            $out[] = $method;
+            if (preg_match('/^[A-Z][A-Z0-9_-]*$/', $method) !== 1) {
+                throw new \InvalidArgumentException('Invalid route definition method.');
+            }
+
+            $out[$method] = true;
         }
 
-        return $out;
+        $methods = array_keys($out);
+
+        sort($methods, \SORT_STRING);
+
+        return $methods;
     }
 
     /**

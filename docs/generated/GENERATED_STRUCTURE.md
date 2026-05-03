@@ -33,6 +33,7 @@ Coretsia/
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   ├── ADR-0007-validation-ports.md
 │   │   ├── ADR-0008-filesystem-ports.md
+│   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -98,10 +99,12 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-and-env.md
 │       ├── config-roots.md
+│       ├── database-contracts.md
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
+│       ├── migrations-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
 │       ├── observability-and-errors.md
@@ -138,6 +141,13 @@ Coretsia/
 │   │   │   │   │   │   └── MergeStrategyInterface.php (MergeStrategyInterface [interface] - merge())
 │   │   │   │   │   ├── Context/
 │   │   │   │   │   │   └── ContextAccessorInterface.php (ContextAccessorInterface [interface] - has()/get())
+│   │   │   │   │   ├── Database/
+│   │   │   │   │   │   ├── ConnectionInterface.php (ConnectionInterface [interface] - name()/driverId()/execute()/beginTransaction()/commit()/rollBack()/dialect())
+│   │   │   │   │   │   ├── DatabaseDriverInterface.php (DatabaseDriverInterface [interface] - id()/connect())
+│   │   │   │   │   │   ├── QueryResultInterface.php (QueryResultInterface [interface] - rows()/affectedRows())
+│   │   │   │   │   │   ├── SqlDialectInterface.php (SqlDialectInterface [interface] - id()/quoteIdentifier()/booleanLiteral()/applyLimitOffset()/supportsReturning()/supportsIdentityColumns()/supportsTransactionalDdl())
+│   │   │   │   │   │   ├── SqlQuery.php (SqlQuery - sql()/bindings())
+│   │   │   │   │   │   └── SqlQueryInterface.php (SqlQueryInterface [interface] - sql()/bindings())
 │   │   │   │   │   ├── Env/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php (EnvRepositoryInterface [interface] - has()/get()/all()/sourceOf())
@@ -147,6 +157,8 @@ Coretsia/
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php (ActionInvokerInterface [interface] - invoke())
 │   │   │   │   │   │   └── ArgumentResolverInterface.php (ArgumentResolverInterface [interface] - resolve())
+│   │   │   │   │   ├── Migrations/
+│   │   │   │   │   │   └── MigrationInterface.php (MigrationInterface [interface] - up()/down())
 │   │   │   │   │   ├── Module/
 │   │   │   │   │   │   ├── Capability/
 │   │   │   │   │   │   │   └── CapabilityInterface.php (CapabilityInterface [interface])
@@ -218,6 +230,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php (ContractsDoNotDependOnPlatformTest - test_contracts_source_has_no_forbidden_compile_time_dependencies()/phpFiles()/forbiddenPatterns()/phpCodeWithoutCommentsAndStrings()/relativePath())
 │   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php (ContractsDoNotReferencePsr7ContractTest - test_core_contracts_source_does_not_reference_psr7_types()/phpFiles())
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │   │   │   │   ├── DatabaseContractsNeverExposeFloatTypeContractTest.php (DatabaseContractsNeverExposeFloatTypeContractTest - testSqlQueryRejectsFloatBindings()/testPublicMethodSignaturesNeverDeclareFloat()/testSqlQueryBindingPhpDocUsesCanonicalDbValueUnionOnly()/testQueryResultRowsPhpDocUsesCanonicalDbRowsShapeWithoutFloat()/testDatabaseDriverConfigAndTuningMayRemainMixedMapsAtContractSurface()/testAllowedDbValuePhpDocUnionsDoNotIncludeFloat()/databaseContractTypes()/methodTypeNames()/reflectionTypeNames()/phpDocReturnType()/phpDocParamType())
+│   │   │   │   │   │   ├── DatabaseContractsShapeContractTest.php (DatabaseContractsShapeContractTest - testDatabaseDriverInterfaceHasCanonicalSurface()/testConnectionInterfaceHasCanonicalSurface()/testQueryResultInterfaceHasCanonicalSurface()/testSqlDialectInterfaceHasCanonicalSurface()/testDatabaseContractsDeclareNoTagConfigOrArtifactConstants()/testPublicMethodSignaturesDoNotExposeVendorPlatformIntegrationOrPsrTypes()/testMinimalConnectionFixtureCanExposeNonEmptyConnectionNameAndRegexValidDriverId()/id()/quoteIdentifier()/booleanLiteral()/applyLimitOffset()/supportsReturning()/supportsIdentityColumns()/supportsTransactionalDdl()/rows()/affectedRows()/name()/driverId()/execute()/beginTransaction()/commit()/rollBack()/dialect()/testRuntimeDriverImplementationsRemainResponsibleForProducedConnectionInvariants()/databaseContractInterfaces()/publicMethodNames()/assertNamedReturnType()/assertNamedParameterType()/assertMethodDocblockContainsLine()/methodTypeNames()/reflectionTypeNames()/assertNotForbiddenVendorOrRuntimeType())
 │   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php (DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest - test_directive_names_match_phase0_config_merge_lock()/test_directive_keys_match_phase0_config_merge_lock()/test_directive_enum_cases_match_phase0_config_merge_lock_without_extra_cases()/test_forbidden_legacy_or_non_phase0_directives_are_not_allowed()/test_directive_values_are_lowercase_ascii_and_unprefixed())
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php (EnvMissingVsEmptyIsDistinctContractTest - test_missing_value_is_not_present_and_has_no_string_value()/test_present_empty_string_is_present_and_distinct_from_missing()/test_present_non_empty_string_is_present_and_not_empty_string()/test_missing_empty_string_and_non_empty_string_are_three_distinct_states()/test_php_truthiness_must_not_define_env_presence())
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php (EnvPolicyPrecedenceContractTest - test_env_policy_values_are_canonical_and_ordered()/test_required_policy_treats_missing_value_as_validation_violation()/test_optional_policy_keeps_missing_value_missing()/test_defaulted_policy_allows_safe_default_only_for_missing_value()/test_present_empty_string_wins_over_default_for_every_policy()/test_policy_known_check_is_strict())
@@ -239,6 +253,7 @@ Coretsia/
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php (MergeStrategyInterfaceShapeContractTest - test_merge_strategy_interface_exposes_merge_only()/test_merge_method_shape_is_binary_node_merge_boundary()/test_merge_method_docblock_cements_side_effect_free_binary_policy())
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php (MeterPortInterfaceShapeContractTest - test_meter_port_interface_shape_is_stable()/test_meter_port_accepts_safe_bounded_scalar_label_values_without_null_labels()/increment()/observe()/assertLabelsDoNotContainNull()/test_meter_label_phpdoc_documents_non_null_bounded_scalar_labels()/assertParameterNamedType()/assertMethodReturnType())
 │   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php (MetricsRendererInterfaceShapeContractTest - test_metrics_renderer_interface_shape_is_stable()/test_metrics_renderer_returns_string_without_vendor_api_requirement()/contentType()/render()/assertMethodReturnType())
+│   │   │   │   │   │   ├── MigrationInterfaceShapeContractTest.php (MigrationInterfaceShapeContractTest - testMigrationInterfaceExistsInCanonicalNamespace()/testMigrationInterfaceHasExactPublicSurface()/testUpAcceptsOnlyConnectionInterfaceAndReturnsVoid()/testDownAcceptsOnlyConnectionInterfaceAndReturnsVoid()/testMigrationInterfaceDoesNotExposeMetadataDiscoveryOrderingOrRunnerMethods()/testMigrationInterfaceDependsOnlyOnConnectionInterfaceAsObjectType()/testMigrationInterfaceDoesNotExposeVendorPlatformIntegrationOrPsrTypes()/testMigrationInterfaceDeclaresNoTagConfigOrArtifactConstants()/publicMethodNames()/assertNamedReturnType()/assertNamedParameterType()/methodTypeNames()/reflectionTypeNames()/isBuiltinTypeName()/assertNotForbiddenVendorOrRuntimeType())
 │   │   │   │   │   │   ├── ModePresetInterfaceShapeContractTest.php (ModePresetInterfaceShapeContractTest - testModePresetConstantsAreStable()/testModePresetInterfaceShapeIsStable()/testModePresetAccessorReturnTypesAreStable()/testModePresetDocblocksCementModuleIdListsAndExportedShape()/assertMethodReturnType()/assertMethodDocContains())
 │   │   │   │   │   │   ├── ModePresetLoaderInterfaceShapeContractTest.php (ModePresetLoaderInterfaceShapeContractTest - testModePresetLoaderInterfaceShapeIsStable()/testListNamesShapeIsStable()/testHasShapeIsStable()/testLoadShapeIsStable()/testTryLoadShapeIsStable()/assertNamedType())
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php (ModuleDescriptorIdIsDerivedFromLayerAndSlugTest - test_derives_module_id_from_layer_and_slug()/test_composer_metadata_does_not_affect_module_identity()/test_exports_internal_module_id_as_scalars_not_object_identity()/test_sorts_capabilities_and_metadata_deterministically()/test_rejects_tooling_only_layer_as_runtime_descriptor()/assertNoObjectsInExportedShape())
@@ -255,6 +270,7 @@ Coretsia/
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php (SamplerInterfaceShapeContractTest - test_sampler_interface_shape_is_stable()/test_sampler_implementations_can_return_sampling_decision()/shouldSample()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php (SpanExporterInterfaceShapeContractTest - test_span_exporter_interface_shape_is_stable()/test_span_exporter_accepts_iterable_of_span_interfaces()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/export()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php (SpanInterfaceShapeContractTest - test_span_interface_shape_is_stable()/test_name_shape_is_stable()/test_set_attribute_shape_is_stable()/test_set_attributes_shape_is_stable()/test_add_event_shape_is_stable()/test_record_exception_shape_is_stable()/test_end_shape_is_stable()/test_span_implementation_can_record_attributes_events_exception_and_end()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/assertMethodReturnType())
+│   │   │   │   │   │   ├── SqlQueryShapeContractTest.php (SqlQueryShapeContractTest - testSqlQueryInterfaceExistsAndHasCanonicalSurface()/testSqlQueryClassExistsAndHasCanonicalShape()/testSqlQueryHasNoDtoMarkerAttribute()/testBindingsPreserveListOrder()/testAssociativeBindingsAreRejected()/testInvalidBindingValuesAreRejected()/invalidBindingProvider()/testResourceBindingIsRejected()/testEmptySqlStringIsRejected()/testWhitespaceOnlySqlStringIsRejected()/testMultilineNonEmptySqlStringIsAccepted()/testRawSqlIsNotExposedThroughValidationExceptionMessages()/testPublicMethodSignaturesDoNotExposeVendorTypes()/publicMethodNames()/assertNamedReturnType()/assertNamedParameterType()/assertMethodDocblockContainsLine()/methodTypeNames()/reflectionTypeNames()/assertNotForbiddenVendorOrRuntimeType())
 │   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php (TracerPortInterfaceShapeContractTest - test_tracer_port_interface_shape_is_stable()/test_tracer_implementation_can_run_callback_inside_span()/startSpan()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/inSpan()/currentSpan()/assertMethodReturnType())
 │   │   │   │   │   │   ├── ValidationContractsTest.php (ValidationContractsTest - testValidatorInterfaceExistsAndHasCanonicalValidateMethodOnly()/testValidatorInterfaceSignatureDoesNotUseForbiddenRuntimeTypes()/testValidationResultHasStableSurface()/testValidationResultSuccessShapeIsStable()/testValidationResultFailureShapePreservesOrderedViolationList()/testValidationResultRejectsEmptyFailure()/testValidationResultRejectsNonListViolations()/testValidationResultRejectsNonViolationItems()/testViolationHasStableSurface()/testViolationExposesDeterministicSortKeys()/testValidationExceptionSurfaceIsContractsOnly()/testValidationContractsDoNotDeclareDiTagConstants()/testValidationContractsPublicTypesDoNotUseForbiddenRuntimeNamespaces()/declaredPublicMethodNames()/assertTypeIsNotForbidden()/namedTypeName()/assertStringDoesNotStartWith())
 │   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php (ValidationExceptionHasDeterministicCodeTest - testValidationExceptionExistsAndExtendsRuntimeException()/testValidationExceptionExposesDeterministicStringErrorCode()/testValidationExceptionCarriesFailedValidationResult()/testValidationExceptionRejectsSuccessfulValidationResult()/testValidationExceptionMessageIsSafeAndGeneric()/testValidationExceptionPreservesPreviousThrowable()/testValidationExceptionDoesNotExposeErrorDescriptorBehavior())

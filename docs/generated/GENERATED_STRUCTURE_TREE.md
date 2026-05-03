@@ -33,6 +33,7 @@ Coretsia/
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   ├── ADR-0007-validation-ports.md
 │   │   ├── ADR-0008-filesystem-ports.md
+│   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -98,10 +99,12 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-and-env.md
 │       ├── config-roots.md
+│       ├── database-contracts.md
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
+│       ├── migrations-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
 │       ├── observability-and-errors.md
@@ -138,6 +141,13 @@ Coretsia/
 │   │   │   │   │   │   └── MergeStrategyInterface.php
 │   │   │   │   │   ├── Context/
 │   │   │   │   │   │   └── ContextAccessorInterface.php
+│   │   │   │   │   ├── Database/
+│   │   │   │   │   │   ├── ConnectionInterface.php
+│   │   │   │   │   │   ├── DatabaseDriverInterface.php
+│   │   │   │   │   │   ├── QueryResultInterface.php
+│   │   │   │   │   │   ├── SqlDialectInterface.php
+│   │   │   │   │   │   ├── SqlQuery.php
+│   │   │   │   │   │   └── SqlQueryInterface.php
 │   │   │   │   │   ├── Env/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php
@@ -147,6 +157,8 @@ Coretsia/
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php
 │   │   │   │   │   │   └── ArgumentResolverInterface.php
+│   │   │   │   │   ├── Migrations/
+│   │   │   │   │   │   └── MigrationInterface.php
 │   │   │   │   │   ├── Module/
 │   │   │   │   │   │   ├── Capability/
 │   │   │   │   │   │   │   └── CapabilityInterface.php
@@ -218,6 +230,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   │   │   ├── DatabaseContractsNeverExposeFloatTypeContractTest.php
+│   │   │   │   │   │   ├── DatabaseContractsShapeContractTest.php
 │   │   │   │   │   │   ├── DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php
@@ -239,6 +253,7 @@ Coretsia/
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MetricsRendererInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── MigrationInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModePresetInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModePresetLoaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php
@@ -255,6 +270,7 @@ Coretsia/
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── SqlQueryShapeContractTest.php
 │   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ValidationContractsTest.php
 │   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php

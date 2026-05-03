@@ -3911,78 +3911,99 @@ N/A
 #### Creates
 
 Database:
-- [ ] `framework/packages/core/contracts/src/Database/SqlQueryInterface.php`
-- [ ] `framework/packages/core/contracts/src/Database/SqlQuery.php` — immutable contracts query model for migrations/low-level calls
-  - [ ] `SqlQuery` is an immutable contracts VO and is outside DTO marker policy by default
-- [ ] `framework/packages/core/contracts/src/Database/DatabaseDriverInterface.php` MUST:
-  - [ ] MUST treat `$config` as **secrets-allowed** driver-owned config (connection-scoped)
-  - [ ] MUST treat `$tuning` as **NO-secrets** driver tuning (driver default + per-connection override)
-  - [ ] MUST NOT read global config directly (driver is pure function of inputs)
-  - [ ] `id(): string`
-    - [ ] MUST be non-empty logical driver id (stable across runs)
-    - [ ] MUST match regex: `^[a-z][a-z0-9_-]*$` (deterministic, vendor-neutral)
-    - [ ] Canonical allowlist for platform-supported drivers is owned by future `platform/database` config SSoT, NOT by contracts.
-    - [ ] Contracts lock only the generic logical driver-id shape/regex and must not enumerate the platform-supported driver set.
-  - [ ] `connect(string $connectionName, array $config, array $tuning): ConnectionInterface`
-    - [ ] `config` is driver-owned allowlisted (`database.connections.<name>.config`)
-    - [ ] `$tuning` is EFFECTIVE driver tuning (NO secrets):
-      - [ ] computed by platform/database as merge of:
-        - [ ] driver defaults: `database.drivers.<driverId>.tuning`
-        - [ ] per-connection override: `database.connections.<name>.tuning` (optional)
-      - [ ] driver MUST treat `$tuning` as final input (no global reads)
-    - [ ] PDO canonical options are NOT passed via contract surface as PDO attrs (they remain canonical string-key map inside config/tuning; driver may read them from `config.pdo_options`)
-    - [ ] для multi-connection `DatabaseDriverInterface::connect(...)` вже приймає `$connectionName`, тож реалізація проста: драйвер зберігає name/driverId у connection object.
-- [ ] `framework/packages/core/contracts/src/Database/ConnectionInterface.php` MUST:
-  - [ ] `execute(SqlQueryInterface $query): QueryResultInterface`
-  - [ ] `beginTransaction(): void`
-  - [ ] `commit(): void`
-  - [ ] `rollBack(): void`
-  - [ ] `dialect(): SqlDialectInterface` *(critical for migrations + compiler parity; no vendor types)*
-  - [ ] `ConnectionInterface::name(): string` — connection name (`main`, `analytics`, …)
-    - [ ] MUST be non-empty
-    - [ ] MUST equal the `$connectionName` argument passed into `DatabaseDriverInterface::connect(...)`
-  - [ ] `ConnectionInterface::driverId(): string` — logical driver id
-    - [ ] MUST be non-empty
-    - [ ] MUST equal `DatabaseDriverInterface::id()` of the driver instance that produced this connection
-    - [ ] MUST match regex: `^[a-z][a-z0-9_-]*$`
-    - [ ] Platform-supported allowlist is enforced by `platform/database` config rules (not contracts)
-- [ ] `framework/packages/core/contracts/src/Database/QueryResultInterface.php`
-  - [ ] query results expose canonical scalar-only DB value domain (`int|string|bool|null`)
-  - [ ] contracts never expose float values
-- [ ] `framework/packages/core/contracts/src/Database/SqlDialectInterface.php`
-  - [ ] Bridge для driver-specific SQL діалекту: відповідає за відмінності типу limit/offset (SQL Server), returning/identity, boolean literals, etc. Це робить інтеграції “реальними”.
+- [x] `framework/packages/core/contracts/src/Database/SqlQueryInterface.php`
+- [x] `framework/packages/core/contracts/src/Database/SqlQuery.php` — immutable contracts query model for migrations/low-level calls
+  - [x] `SqlQuery` is an immutable contracts VO and is outside DTO marker policy by default
+- [x] `framework/packages/core/contracts/src/Database/DatabaseDriverInterface.php` MUST:
+  - [x] MUST treat `$config` as secrets-allowed driver-owned config (connection-scoped)
+  - [x] MUST treat `$tuning` as NO-secrets driver tuning (driver default + per-connection override)
+  - [x] MUST NOT read global config directly (driver is pure function of inputs)
+  - [x] `id(): string`
+    - [x] MUST be non-empty logical driver id (stable across runs)
+    - [x] MUST match regex: `^[a-z][a-z0-9_-]*$` (deterministic, vendor-neutral)
+    - [x] Canonical allowlist for platform-supported drivers is owned by future `platform/database` config SSoT, NOT by contracts.
+    - [x] Contracts lock only the generic logical driver-id shape/regex and must not enumerate the platform-supported driver set.
+  - [x] `connect(string $connectionName, array $config, array $tuning): ConnectionInterface`
+    - [x] `config` is driver-owned allowlisted (`database.connections.<name>.config`)
+    - [x] `$tuning` is EFFECTIVE driver tuning (NO secrets):
+      - [x] computed by platform/database as merge of:
+        - [x] driver defaults: `database.drivers.<driverId>.tuning`
+        - [x] per-connection override: `database.connections.<name>.tuning` (optional)
+      - [x] driver MUST treat `$tuning` as final input (no global reads)
+    - [x] PDO canonical options are NOT passed via contract surface as PDO attrs (they remain canonical string-key map inside config/tuning; driver may read them from `config.pdo_options`)
+    - [x] для multi-connection `DatabaseDriverInterface::connect(...)` вже приймає `$connectionName`, тож реалізація проста: драйвер зберігає name/driverId у connection object.
+- [x] `framework/packages/core/contracts/src/Database/ConnectionInterface.php` MUST:
+  - [x] `execute(SqlQueryInterface $query): QueryResultInterface`
+  - [x] `beginTransaction(): void`
+  - [x] `commit(): void`
+  - [x] `rollBack(): void`
+  - [x] `dialect(): SqlDialectInterface` *(critical for migrations + compiler parity; no vendor types)*
+  - [x] `ConnectionInterface::name(): string` — connection name (`main`, `analytics`, …)
+    - [x] MUST be non-empty
+    - [x] MUST equal the `$connectionName` argument passed into `DatabaseDriverInterface::connect(...)`
+  - [x] `ConnectionInterface::driverId(): string` — logical driver id
+    - [x] MUST be non-empty
+    - [x] MUST equal `DatabaseDriverInterface::id()` of the driver instance that produced this connection
+    - [x] MUST match regex: `^[a-z][a-z0-9_-]*$`
+    - [x] Platform-supported allowlist is enforced by `platform/database` config rules (not contracts)
+- [x] `framework/packages/core/contracts/src/Database/QueryResultInterface.php`
+  - [x] query results expose canonical scalar-only DB value domain (`int|string|bool|null`)
+  - [x] contracts never expose float values
+- [x] `framework/packages/core/contracts/src/Database/SqlDialectInterface.php`
+  - [x] Bridge для driver-specific SQL діалекту: відповідає за відмінності типу limit/offset (SQL Server), returning/identity, boolean literals, etc. Це робить інтеграції “реальними”.
 
 Migrations:
-- [ ] `framework/packages/core/contracts/src/Migrations/MigrationInterface.php`
+- [x] `framework/packages/core/contracts/src/Migrations/MigrationInterface.php`
+  - [x] up(ConnectionInterface $connection): void
+  - [x] down(ConnectionInterface $connection): void
+  - [x] no metadata methods
+  - [x] no discovery/order policy
+  - [x] no migration runner/context/output dependency
+  - [x] no PDO/vendor/platform/integration types
 
 Documentation:
-- [ ] `docs/adr/ADR-0009-database-and-migrations-ports.md`
-- [ ] `docs/ssot/database-contracts.md` — contracts + policy notes
-  - [ ] `DbValue` MUST be `int|string|bool|null` (NO float anywhere)
-  - [ ] `DbRow` MUST be `array<string, DbValue>`
-  - [ ] `DbRows` MUST be `list<DbRow>`
-  - [ ] `SqlQueryInterface`:
-    - [ ] `sql(): string`
-    - [ ] `bindings(): list<DbValue>` *(order preserved; MUST match placeholder order; no associative maps here)*
-  - [ ] Add the `name()` / `driverId()` invariants above
-  - [ ] Explicitly state: driver id is logical id (NOT vendor driver name like `sqlsrv`)
-- [ ] `docs/ssot/migrations-contracts.md` — rules + determinism notes
+- [x] `docs/adr/ADR-0009-database-and-migrations-ports.md`
+- [x] `docs/ssot/database-contracts.md` — contracts + policy notes
+  - [x] `DbValue` MUST be `int|string|bool|null` (NO float anywhere)
+  - [x] `DbRow` MUST be `array<string, DbValue>`
+  - [x] `DbRows` MUST be `list<DbRow>`
+  - [x] `SqlQueryInterface`:
+    - [x] `sql(): string`
+    - [x] `bindings(): list<DbValue>` *(order preserved; MUST match placeholder order; no associative maps here)*
+  - [x] Add the `name()` / `driverId()` invariants above
+  - [x] Explicitly state: driver id is logical id (NOT vendor driver name like `sqlsrv`)
+- [x] `docs/ssot/migrations-contracts.md` — rules + determinism notes
 
 Tests:
-- [ ] `framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php` (asserts no `__toString` leakage + shape types)
-- [ ] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` MUST assert that `ConnectionInterface` exposes:
-  - [ ] `driverId()` is non-empty and matches regex
-  - [ ] `name()` is non-empty
-- [ ] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
-- [ ] `framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php` MUST assert:
+  - [x] no `__toString` leakage
+  - [x] canonical method shapes
+  - [x] immutable/final/readonly value object shape
+  - [x] binding order is preserved
+  - [x] associative bindings are rejected
+  - [x] float bindings are rejected
+  - [x] nested arrays/objects/resources/closures are rejected
+  - [x] empty SQL strings are rejected
+  - [x] whitespace-only SQL strings are rejected
+  - [x] multiline non-empty SQL strings are accepted
+  - [x] raw SQL is not exposed through exception messages
+  - [x] structural validation failures throw `InvalidArgumentException`
+- [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` MUST assert that:
+  - [x] `ConnectionInterface` exposes `name(): string`
+  - [x] `ConnectionInterface` exposes `driverId(): string`
+  - [x] a minimal fixture implementation can expose a non-empty `name()`
+  - [x] a minimal fixture implementation can expose a non-empty regex-valid `driverId()`
+  - [x] actual runtime driver implementations remain responsible for enforcing produced connection invariants
+- [x] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/database-contracts.md`
-  - [ ] `docs/ssot/migrations-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0009-database-and-migrations-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/database-contracts.md`
+  - [x] `docs/ssot/migrations-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0009-database-and-migrations-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -4004,13 +4025,13 @@ N/A
 
 #### Security / Redaction
 
-- [ ] raw SQL MUST NOT be logged/used as metric label (policy note; implemented in platform/database)
-- [ ] migrations tooling MUST NOT log raw SQL (policy note)
-- [ ] Database result values exposed by contracts MUST NOT use `float` anywhere.
-  - Integers → `int` (when representable safely)
-  - Decimals / floats / bigints → `string`
-  - Booleans → `bool`
-  - NULL → `null`
+- [x] raw SQL MUST NOT be logged/used as metric label (policy note; implemented in platform/database)
+- [x] migrations tooling MUST NOT log raw SQL (policy note)
+- [x] Database result values exposed by contracts MUST NOT use `float` anywhere.
+  - [x] Integers → `int` (when representable safely)
+  - [x] Decimals / floats / bigints → `string`
+  - [x] Booleans → `bool`
+  - [x] NULL → `null`
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -4019,17 +4040,19 @@ N/A (contracts-only; proven by contract tests)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Contracts exist + tested
-- [ ] Docs exist
-- [ ] No vendor concretes in contracts
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/database` uses only these ports; driver packages (e.g. `platform/database-driver-*`) implement them.
-  - [ ] `platform/migrations` executes `MigrationInterface` migrations; discovery/CLI is runtime-owned.
+- [x] Contracts exist + tested
+- [x] Docs exist
+- [x] No vendor concretes in contracts
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/database` uses only these ports; driver packages (e.g. `platform/database-driver-*`) implement them.
+  - [x] `platform/migrations` executes `MigrationInterface` migrations; discovery/CLI is runtime-owned.
 
 ---
 

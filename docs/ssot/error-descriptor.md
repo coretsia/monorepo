@@ -188,6 +188,16 @@ Only `code` and `message` are required constructor parameters.
 
 `extensions` MUST NOT be a non-empty list at the root.
 
+## Constructor input normalization policy
+
+`code` and `message` constructor input MUST be validated exactly as supplied.
+
+`ErrorDescriptor` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `code` or `message` before validation.
+
+`code` MUST match the canonical safe error code grammar and therefore rejects whitespace by grammar.
+
+`message` MUST be a non-empty safe single-line string and MUST NOT contain leading or trailing whitespace.
+
 ## Accessor shape
 
 The canonical accessor shape is:

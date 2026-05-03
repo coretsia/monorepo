@@ -580,6 +580,18 @@ Lists inside `meta` MUST preserve order.
 
 `meta` MUST be safe-only.
 
+`Violation` constructor input MUST be validated exactly as supplied.
+
+`Violation` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `path`, `code`, `rule`, or `message` before validation.
+
+`path` MAY be an empty string to represent the root input.
+
+Non-empty `path`, `rule`, and `message` values MUST NOT contain leading or trailing whitespace.
+
+`message` MAY contain inner spaces when they are part of safe human-readable text.
+
+`code` MUST match the canonical validation code grammar and therefore rejects whitespace by grammar.
+
 ### Violation forbidden data
 
 A violation MUST NOT expose:

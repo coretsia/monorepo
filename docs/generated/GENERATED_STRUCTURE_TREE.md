@@ -236,6 +236,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ContextAccessorInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php
+│   │   │   │   │   │   ├── CoreContractsDoNotTrimInputContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   │   ├── DatabaseContractsNeverExposeFloatTypeContractTest.php
 │   │   │   │   │   │   ├── DatabaseContractsShapeContractTest.php

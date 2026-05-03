@@ -90,6 +90,116 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
+    public function test_descriptor_optional_strings_reject_unsafe_control_characters(): void
+    {
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                composerName: "coretsia/http\0hidden",
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                packageKind: "runtime\x01kind",
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                moduleClass: "Coretsia\\Platform\\Http\\HttpModule\x7F",
+            ),
+        );
+    }
+
+    public function test_descriptor_capabilities_reject_unsafe_control_characters(): void
+    {
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                capabilities: ["http.server\0hidden"],
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                capabilities: ["http.server\x01hidden"],
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                capabilities: ["http.server\x7F"],
+            ),
+        );
+    }
+
+    public function test_descriptor_metadata_keys_reject_unsafe_control_characters(): void
+    {
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                metadata: [
+                    "owner\0hidden" => 'platform',
+                ],
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                metadata: [
+                    "owner\x01hidden" => 'platform',
+                ],
+            ),
+        );
+    }
+
+    public function test_descriptor_metadata_string_values_reject_unsafe_control_characters(): void
+    {
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                metadata: [
+                    'owner' => "platform\0hidden",
+                ],
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                metadata: [
+                    'owner' => "platform\x01hidden",
+                ],
+            ),
+        );
+
+        self::assertInvalidArgument(
+            static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
+                layer: 'platform',
+                slug: 'http',
+                metadata: [
+                    'owner' => "platform\x7F",
+                ],
+            ),
+        );
+    }
+
     public function test_rejects_resource_metadata_value(): void
     {
         $resource = fopen('php://memory', 'rb');
@@ -126,6 +236,19 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         yield 'nested-float' => [['value' => 1.25]];
         yield 'list-containing-float' => [[1, 1.25]];
         yield 'integer-keyed-map' => [[1 => 'value']];
+    }
+
+    private static function assertInvalidArgument(callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (\InvalidArgumentException) {
+            self::assertTrue(true);
+
+            return;
+        }
+
+        self::fail('Expected InvalidArgumentException to be thrown.');
     }
 
     private static function assertExportedJsonLikeValue(mixed $value): void

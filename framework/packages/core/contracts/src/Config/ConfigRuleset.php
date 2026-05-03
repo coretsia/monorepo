@@ -93,8 +93,6 @@ final readonly class ConfigRuleset
 
     private static function normalizeRoot(string $root): string
     {
-        $root = trim($root);
-
         if ($root === '') {
             throw new \InvalidArgumentException('Config ruleset root must be non-empty.');
         }

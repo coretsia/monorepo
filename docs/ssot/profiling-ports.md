@@ -248,6 +248,14 @@ Raw opaque payload contents MAY be accessed only through the explicit payload ac
 
 Contract tests MUST verify that `ProfileArtifact::toArray()` never exports raw payload contents.
 
+## Profile artifact input normalization policy
+
+`ProfileArtifact` name input MUST be validated exactly as supplied.
+
+`ProfileArtifact` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `name` before validation.
+
+`name` MUST be a non-empty safe single-line string and MUST NOT contain leading or trailing whitespace.
+
 ## Opaque payload law
 
 `ProfileArtifact.payload` is opaque.

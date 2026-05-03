@@ -101,6 +101,16 @@ The canonical validation pattern is:
 ^[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
 ```
 
+Constructor input MAY be normalized by ASCII-only lowercase conversion before validation.
+
+Constructor input MUST NOT be trimmed before validation.
+
+A module id containing leading whitespace, trailing whitespace, inner whitespace, control characters, path separators, namespace separators, or extra dot separators MUST be rejected.
+
+Layer and slug input passed to `ModuleId::fromLayerAndSlug()` MAY be normalized by ASCII-only lowercase conversion before composing the module id.
+
+Layer and slug input MUST NOT be trimmed before validation.
+
 The validation rule is intentionally ASCII-only and locale-independent.
 
 Implementations MUST NOT rely on:
@@ -242,6 +252,42 @@ Optional fields MUST NOT affect module id derivation.
 
 Optional fields MUST NOT be required for a package to have a valid module identity.
 
+## Descriptor textual input policy
+
+`ModuleDescriptor` textual exported values MUST be validated exactly as supplied.
+
+`ModuleDescriptor` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from descriptor optional strings, capability strings, metadata keys, or metadata string values before validation.
+
+Optional descriptor strings include:
+
+```text
+composerName
+packageKind
+moduleClass
+```
+
+Optional descriptor strings MUST be either `null` or non-empty safe single-line strings.
+
+Optional descriptor strings MUST NOT contain leading whitespace, trailing whitespace, CR, LF, NUL, unsafe control characters, or environment-specific bytes.
+
+Capability strings MUST be non-empty safe single-line strings.
+
+Capability strings MUST NOT contain leading whitespace, trailing whitespace, CR, LF, NUL, unsafe control characters, or environment-specific bytes.
+
+Capability duplicate collapse and sorting are deterministic set canonicalization only.
+
+Capability canonicalization MUST NOT trim, collapse, lowercase, uppercase, or otherwise change capability string values.
+
+Metadata keys MUST be non-empty safe single-line strings.
+
+Metadata keys MUST NOT contain CR, LF, NUL, or unsafe control characters.
+
+Metadata string values MUST be safe strings.
+
+Metadata string values MUST NOT contain NUL or unsafe control characters.
+
+Metadata string values MAY contain ordinary spaces when those spaces are part of the safe value.
+
 ## Descriptor exported shape
 
 The canonical exported descriptor shape is `ModuleDescriptor::toArray()`.
@@ -309,9 +355,10 @@ The `capabilities` field MUST be exported as a deterministic list of strings.
 Capabilities are a stable string set at descriptor-export level:
 
 - duplicate capability strings MUST be collapsed;
-- each capability MUST be a non-empty string;
-- capability strings MUST NOT contain CR or LF;
-- exported capabilities MUST be sorted by byte-order `strcmp`.
+- each capability MUST be a non-empty safe single-line string;
+- capability strings MUST NOT contain leading whitespace, trailing whitespace, CR, LF, NUL, unsafe control characters, or environment-specific bytes;
+- exported capabilities MUST be sorted by byte-order `strcmp`;
+- capability sorting and duplicate collapse MUST NOT change the capability string values themselves.
 
 The `metadata` field MUST be exported as a deterministic metadata map.
 
@@ -326,6 +373,16 @@ The root `metadata` value MUST be a map with string keys.
 An empty metadata map is allowed.
 
 A non-empty list MUST NOT be used as the root metadata value.
+
+Metadata map keys MUST be non-empty safe single-line strings.
+
+Metadata map keys MUST NOT contain CR, LF, NUL, or unsafe control characters.
+
+Metadata string values MUST be safe strings.
+
+Metadata string values MUST NOT contain NUL or unsafe control characters.
+
+Metadata validation MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from metadata keys or metadata string values before validation.
 
 Allowed metadata value types are:
 
@@ -425,7 +482,11 @@ get(string $moduleId): ?ModuleDescriptor
 toArray(): array
 ```
 
-`has()` and `get()` MAY normalize lookup input through `ModuleId` normalization rules.
+`has()` and `get()` MAY normalize lookup input through `ModuleId` ASCII-only lowercase normalization rules.
+
+`has()` and `get()` MUST NOT trim lookup input.
+
+Lookup ids with leading whitespace, trailing whitespace, inner whitespace, or otherwise invalid module id shape MUST be treated as absent.
 
 Invalid lookup ids MUST be treated as absent.
 

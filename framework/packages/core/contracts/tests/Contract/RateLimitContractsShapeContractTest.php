@@ -351,6 +351,21 @@ final class RateLimitContractsShapeContractTest extends TestCase
         self::assertInvalidArgument(
             static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, 'bad/reason')
         );
+        self::assertInvalidArgument(
+            static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, ' denied')
+        );
+        self::assertInvalidArgument(
+            static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, 'denied ')
+        );
+        self::assertInvalidArgument(
+            static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, ' denied ')
+        );
+        self::assertInvalidArgument(
+            static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, "\tdenied")
+        );
+        self::assertInvalidArgument(
+            static fn (): RateLimitDecision => new RateLimitDecision(true, $state, null, "denied\t")
+        );
 
         self::assertForbiddenPublicMethodsAreAbsent($reflection);
     }

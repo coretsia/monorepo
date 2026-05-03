@@ -34,9 +34,9 @@ final class ModuleIdFormatTest extends TestCase
         self::assertSame('platform.cli', (string)$id);
     }
 
-    public function test_normalizes_ascii_case_and_outer_whitespace_without_locale(): void
+    public function test_normalizes_ascii_case_without_locale(): void
     {
-        $id = ModuleId::fromString('  Platform.Http-Server  ');
+        $id = ModuleId::fromString('Platform.Http-Server');
 
         self::assertSame('platform.http-server', $id->value());
         self::assertSame('platform', $id->layer());
@@ -98,6 +98,9 @@ final class ModuleIdFormatTest extends TestCase
         yield 'underscore' => ['core.kernel_api'];
         yield 'slash' => ['core/kernel'];
         yield 'backslash' => ['core\\kernel'];
+        yield 'leading-whitespace' => [' core.kernel'];
+        yield 'trailing-whitespace' => ['core.kernel '];
+        yield 'outer-whitespace' => [' core.kernel '];
         yield 'whitespace-inside' => ['core.kernel api'];
         yield 'slug-leading-hyphen' => ['core.-kernel'];
         yield 'slug-trailing-hyphen' => ['core.kernel-'];

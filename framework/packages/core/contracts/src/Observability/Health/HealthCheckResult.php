@@ -100,10 +100,12 @@ final readonly class HealthCheckResult
             return null;
         }
 
-        $message = trim($message);
-
         if ($message === '') {
             return null;
+        }
+
+        if (preg_match('/^\s|\s$/', $message) === 1) {
+            throw new \InvalidArgumentException('Invalid health check result message.');
         }
 
         if (!self::isSafeSingleLineString($message)) {

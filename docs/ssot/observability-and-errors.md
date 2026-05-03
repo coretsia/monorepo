@@ -560,6 +560,12 @@ operation
 
 `metadata` MUST be a json-like map.
 
+`operation` and `correlationId` input MUST be validated exactly as supplied.
+
+`ErrorHandlingContext` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `operation` or `correlationId` before validation.
+
+When present, `operation` and `correlationId` MUST be non-empty safe single-line strings and MUST NOT contain leading or trailing whitespace.
+
 ## Health contracts
 
 Health contracts under:
@@ -611,6 +617,18 @@ status
 `details` MUST be a json-like map.
 
 `details` MUST NOT contain floats, PHP objects, closures, resources, streams, service instances, runtime wiring objects, raw credentials, tokens, cookies, raw SQL, request/response bodies, profile payloads, private customer data, or absolute local paths.
+
+`message` MAY be `null`.
+
+An exact empty string message MAY be normalized to `null`.
+
+A whitespace-only message MUST NOT be normalized to `null`; it MUST be rejected.
+
+A non-empty message MUST be validated exactly as supplied.
+
+`HealthCheckResult` MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `message` before validation.
+
+A non-empty message MUST NOT contain leading whitespace, trailing whitespace, CR, LF, NUL, or unsafe control characters.
 
 The canonical health status values are:
 

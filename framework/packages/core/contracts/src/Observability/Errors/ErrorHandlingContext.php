@@ -112,9 +112,11 @@ final readonly class ErrorHandlingContext
             return null;
         }
 
-        $value = trim($value);
-
         if ($value === '') {
+            throw new \InvalidArgumentException('Invalid error handling context ' . $field);
+        }
+
+        if (preg_match('/^\s|\s$/', $value) === 1) {
             throw new \InvalidArgumentException('Invalid error handling context ' . $field);
         }
 

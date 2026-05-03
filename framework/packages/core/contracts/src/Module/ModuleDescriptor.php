@@ -235,13 +235,15 @@ final readonly class ModuleDescriptor
             return null;
         }
 
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
         }
 
-        if (str_contains($value, "\r") || str_contains($value, "\n")) {
+        if (preg_match('/^\s|\s$/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
+        }
+
+        if (!self::isSafeSingleLineString($value)) {
             throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
         }
 
@@ -266,13 +268,15 @@ final readonly class ModuleDescriptor
                 throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
             }
 
-            $value = trim($value);
-
             if ($value === '') {
                 throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
             }
 
-            if (str_contains($value, "\r") || str_contains($value, "\n")) {
+            if (preg_match('/^\s|\s$/', $value) === 1) {
+                throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
+            }
+
+            if (!self::isSafeSingleLineString($value)) {
                 throw new \InvalidArgumentException('Invalid module descriptor ' . $field . '.');
             }
 
@@ -321,6 +325,10 @@ final readonly class ModuleDescriptor
                 throw new \InvalidArgumentException('Invalid module descriptor metadata key at ' . $path . '.');
             }
 
+            if (!self::isSafeSingleLineString($key)) {
+                throw new \InvalidArgumentException('Invalid module descriptor metadata key at ' . $path . '.');
+            }
+
             $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
@@ -332,7 +340,15 @@ final readonly class ModuleDescriptor
 
     private static function normalizeJsonLikeValue(mixed $value, string $path): mixed
     {
-        if ($value === null || is_bool($value) || is_int($value) || is_string($value)) {
+        if ($value === null || is_bool($value) || is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            if (!self::isSafeString($value)) {
+                throw new \InvalidArgumentException('Invalid module descriptor metadata string at ' . $path . '.');
+            }
+
             return $value;
         }
 
@@ -355,5 +371,17 @@ final readonly class ModuleDescriptor
         }
 
         throw new \InvalidArgumentException('Invalid module descriptor metadata at ' . $path . '.');
+    }
+
+    private static function isSafeSingleLineString(string $value): bool
+    {
+        return self::isSafeString($value)
+            && !str_contains($value, "\r")
+            && !str_contains($value, "\n");
+    }
+
+    private static function isSafeString(string $value): bool
+    {
+        return preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) !== 1;
     }
 }

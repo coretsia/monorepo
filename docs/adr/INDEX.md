@@ -38,6 +38,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0005: Routing and HttpApp ports](./ADR-0005-routing-httpapp-ports.md) — owner: core/contracts — scope: contracts,http-app,routing,ports
 - [ADR-0006: Reset interface and UoW hooks](./ADR-0006-reset-interface-uow-hooks.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
 - [ADR-0007: Validation ports](./ADR-0007-validation-ports.md) — owner: core/contracts — scope: contracts,errors,validation,ports
+- [ADR-0008: Filesystem ports](./ADR-0008-filesystem-ports.md) — owner: core/contracts — scope: contracts,filesystem,ports
 
 ## Cross-references
 

@@ -32,6 +32,7 @@ Coretsia/
 │   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   ├── ADR-0007-validation-ports.md
+│   │   ├── ADR-0008-filesystem-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -100,6 +101,7 @@ Coretsia/
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
+│       ├── filesystem-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
 │       ├── observability-and-errors.md
@@ -140,6 +142,8 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php
 │   │   │   │   │   │   └── EnvValue.php
+│   │   │   │   │   ├── Filesystem/
+│   │   │   │   │   │   └── DiskInterface.php
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php
 │   │   │   │   │   │   └── ArgumentResolverInterface.php
@@ -226,6 +230,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorHandlingContextMetadataIsJsonLikeContractTest.php
 │   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php
+│   │   │   │   │   │   ├── FilesystemDiskInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php
 │   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php

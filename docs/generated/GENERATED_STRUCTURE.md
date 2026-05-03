@@ -32,6 +32,7 @@ Coretsia/
 │   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   ├── ADR-0007-validation-ports.md
+│   │   ├── ADR-0008-filesystem-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -100,6 +101,7 @@ Coretsia/
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
+│       ├── filesystem-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
 │       ├── observability-and-errors.md
@@ -140,6 +142,8 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvPolicy.php
 │   │   │   │   │   │   ├── EnvRepositoryInterface.php (EnvRepositoryInterface [interface] - has()/get()/all()/sourceOf())
 │   │   │   │   │   │   └── EnvValue.php (EnvValue - missing()/present()/isPresent()/isMissing()/isEmptyString()/value())
+│   │   │   │   │   ├── Filesystem/
+│   │   │   │   │   │   └── DiskInterface.php (DiskInterface [interface] - exists()/read()/write()/delete()/listPaths())
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php (ActionInvokerInterface [interface] - invoke())
 │   │   │   │   │   │   └── ArgumentResolverInterface.php (ArgumentResolverInterface [interface] - resolve())
@@ -226,6 +230,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ErrorHandlingContextMetadataIsJsonLikeContractTest.php (ErrorHandlingContextMetadataIsJsonLikeContractTest - test_metadata_accepts_json_like_values_and_normalizes_maps_deterministically()/test_metadata_preserves_list_order()/test_metadata_rejects_non_empty_root_lists()/test_metadata_rejects_floats_nan_and_infinity()/test_metadata_rejects_objects_closures_and_invalid_keys())
 │   │   │   │   │   │   ├── ErrorHandlingContextShapeContractTest.php (ErrorHandlingContextShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_public_array_shape_are_stable()/test_default_context_is_empty_and_format_neutral()/test_context_rejects_empty_operation()/test_context_rejects_empty_correlation_id()/test_context_rejects_multiline_operation()/test_context_rejects_multiline_correlation_id()/assertParameterNamedType())
 │   │   │   │   │   │   ├── ErrorPortsShapeContractTest.php (ErrorPortsShapeContractTest - test_exception_mapper_interface_shape_is_stable()/test_error_reporter_interface_shape_is_stable()/test_error_handler_interface_shape_is_stable()/test_error_ports_can_compose_through_format_neutral_contracts()/map()/report()/handle()/assertInterfaceMethods()/assertParameterNamedType()/assertMethodReturnType())
+│   │   │   │   │   │   ├── FilesystemDiskInterfaceShapeContractTest.php (FilesystemDiskInterfaceShapeContractTest - testDiskInterfaceExistsAndIsInterface()/testDiskInterfaceExposesExactlyCanonicalPublicMethodSurface()/testDiskInterfacePublicTypesDoNotUseForbiddenDependencies()/testDiskInterfaceDoesNotDeclareConstants()/testDiskInterfaceDoesNotDeclareConfigArtifactOrTagConcepts()/assertMethodShape()/assertTypeIsAllowed()/flattenTypeNames()/typeToString()/forbiddenTypePrefixes()/forbiddenExactTypes())
 │   │   │   │   │   │   ├── HealthCheckInterfaceShapeContractTest.php (HealthCheckInterfaceShapeContractTest - test_health_check_interface_shape_is_stable()/test_health_status_cases_are_stable()/test_health_check_implementations_can_return_health_result()/id()/check()/assertMethodReturnType())
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php (HealthCheckResultShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_array_shape_are_stable()/test_empty_message_normalizes_to_null()/test_details_preserve_list_order_and_sort_maps()/test_details_reject_non_empty_root_lists()/test_details_reject_floats_objects_closures_and_invalid_keys()/test_message_rejects_multiline_values()/assertParameterNamedType())
 │   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php (HookInterfacesDoNotDependOnPlatformTest - testBeforeUowHookInterfaceExistsAndIsAnInterface()/testBeforeUowHookInterfaceExposesOnlyBeforeUowVoidWithoutParameters()/testAfterUowHookInterfaceExistsAndIsAnInterface()/testAfterUowHookInterfaceExposesOnlyAfterUowVoidWithoutParameters()/assertHookInterfaceShape()/assertMethodSignatureDoesNotReferenceForbiddenTypes()/assertParameterSignatureDoesNotReferenceForbiddenTypes()/assertTypeDoesNotReferenceForbiddenTypes()/typeNames())

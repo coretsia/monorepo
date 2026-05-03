@@ -53,6 +53,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,module-id
 - [Observability and Errors SSoT](./observability-and-errors.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,observability,redaction
 - [Profiling Ports SSoT](./profiling-ports.md) — owner: core/contracts — scope: contracts,observability,profiling,redaction,uow
+- [Rate Limit Contracts SSoT](./rate-limit-contracts.md) — owner: core/contracts — scope: contracts,ports,rate-limit,redaction
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — scope: contracts,http-app,routing,ports,redaction
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
 - [Validation Contracts SSoT](./validation-contracts.md) — owner: core/contracts — scope: contracts,errors,redaction,validation

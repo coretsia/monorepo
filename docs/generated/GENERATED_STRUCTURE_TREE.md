@@ -34,6 +34,7 @@ Coretsia/
 │   │   ├── ADR-0007-validation-ports.md
 │   │   ├── ADR-0008-filesystem-ports.md
 │   │   ├── ADR-0009-database-and-migrations-ports.md
+│   │   ├── ADR-0011-ratelimit-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -110,6 +111,7 @@ Coretsia/
 │       ├── observability-and-errors.md
 │       ├── observability.md
 │       ├── profiling-ports.md
+│       ├── rate-limit-contracts.md
 │       ├── routing-and-http-app-contracts.md
 │       ├── tags.md
 │       ├── uow-and-reset-contracts.md
@@ -197,6 +199,11 @@ Coretsia/
 │   │   │   │   │   │   │   ├── SpanInterface.php
 │   │   │   │   │   │   │   └── TracerPortInterface.php
 │   │   │   │   │   │   └── CorrelationIdProviderInterface.php
+│   │   │   │   │   ├── RateLimit/
+│   │   │   │   │   │   ├── RateLimitDecision.php
+│   │   │   │   │   │   ├── RateLimitKeyHasherInterface.php
+│   │   │   │   │   │   ├── RateLimitState.php
+│   │   │   │   │   │   └── RateLimitStoreInterface.php
 │   │   │   │   │   ├── Routing/
 │   │   │   │   │   │   ├── RouteDefinition.php
 │   │   │   │   │   │   ├── RouteMatch.php
@@ -262,6 +269,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── RateLimitContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ResetInterfaceIsMinimalContractTest.php
 │   │   │   │   │   │   ├── RouteDefinitionShapeContractTest.php
 │   │   │   │   │   │   ├── RouteMatchShapeContractTest.php

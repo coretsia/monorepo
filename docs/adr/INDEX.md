@@ -40,6 +40,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0007: Validation ports](./ADR-0007-validation-ports.md) — owner: core/contracts — scope: contracts,errors,validation,ports
 - [ADR-0008: Filesystem ports](./ADR-0008-filesystem-ports.md) — owner: core/contracts — scope: contracts,filesystem,ports
 - [ADR-0009: Database and migrations ports](./ADR-0009-database-and-migrations-ports.md) — owner: core/contracts — scope: contracts,database,migrations,ports
+- [ADR-0011: Rate limit ports](./ADR-0011-ratelimit-ports.md) — owner: core/contracts — scope: contracts,ports,rate-limit,redaction
 
 ## Cross-references
 

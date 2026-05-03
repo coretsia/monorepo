@@ -4150,35 +4150,35 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php`
-- [ ] `framework/packages/core/contracts/src/RateLimit/RateLimitState.php`
-- [ ] `framework/packages/core/contracts/src/RateLimit/RateLimitDecision.php`
-- [ ] `framework/packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php`
+- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php`
+- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitState.php`
+- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitDecision.php`
+- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php`
 
-- [ ] `docs/adr/ADR-0011-ratelimit-ports.md`
-- [ ] `docs/ssot/rate-limit-contracts.md` — invariants (no correlation_id/request_id in keys; no raw path labels)
-  - [ ] rate-limit decision/state models are contracts models, not DTO-marker classes by default
+- [x] `docs/adr/ADR-0011-ratelimit-ports.md`
+- [x] `docs/ssot/rate-limit-contracts.md` — invariants (no correlation_id/request_id in keys; no raw path labels)
+  - [x] rate-limit decision/state models are contracts models, not DTO-marker classes by default
 
-- [ ] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/rate-limit-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0011-ratelimit-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/rate-limit-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0011-ratelimit-ports.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Observability (policy-compliant)
 
-- [ ] labels only from allowlist; no user_id/correlation_id/request_id/tenant_id as labels
-- [ ] Keys MUST NOT be logged; only `hash/len` if needed (implementation-side).
-- [ ] No correlation_id/request_id in keys; no raw path labels.
+- [x] labels only from allowlist; no user_id/correlation_id/request_id/tenant_id as labels
+- [x] Keys MUST NOT be logged; only `hash/len` if needed (implementation-side).
+- [x] No correlation_id/request_id in keys; no raw path labels.
 
 #### Security / Redaction
 
-- [ ] do not log keys/tokens/ids; only `hash/len` if needed (implementation-side)
+- [x] do not log keys/tokens/ids; only `hash/len` if needed (implementation-side)
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -4187,15 +4187,15 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Contracts exist + tested
-- [ ] Docs exist
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/http` RateLimit middleware uses these ports when enabled (`http.rate_limit.early.enabled`, `http.rate_limit.enabled`).
-  - [ ] Identity-aware key building MUST prefer `actor_id` (safe) then `client_ip`.
+- [x] Contracts exist + tested
+- [x] Docs exist
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/http` RateLimit middleware uses these ports when enabled (`http.rate_limit.early.enabled`, `http.rate_limit.enabled`).
+  - [x] Identity-aware key building MUST prefer `actor_id` (safe) then `client_ip`.
 
 ---
 

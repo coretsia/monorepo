@@ -34,6 +34,7 @@ Coretsia/
 │   │   ├── ADR-0007-validation-ports.md
 │   │   ├── ADR-0008-filesystem-ports.md
 │   │   ├── ADR-0009-database-and-migrations-ports.md
+│   │   ├── ADR-0011-ratelimit-ports.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -110,6 +111,7 @@ Coretsia/
 │       ├── observability-and-errors.md
 │       ├── observability.md
 │       ├── profiling-ports.md
+│       ├── rate-limit-contracts.md
 │       ├── routing-and-http-app-contracts.md
 │       ├── tags.md
 │       ├── uow-and-reset-contracts.md
@@ -197,6 +199,11 @@ Coretsia/
 │   │   │   │   │   │   │   ├── SpanInterface.php (SpanInterface [interface] - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end())
 │   │   │   │   │   │   │   └── TracerPortInterface.php (TracerPortInterface [interface] - startSpan()/inSpan()/currentSpan())
 │   │   │   │   │   │   └── CorrelationIdProviderInterface.php (CorrelationIdProviderInterface [interface] - correlationId())
+│   │   │   │   │   ├── RateLimit/
+│   │   │   │   │   │   ├── RateLimitDecision.php (RateLimitDecision - schemaVersion()/allowed()/isAllowed()/retryAfterSeconds()/reason()/state()/toArray()/normalizeRetryAfterSeconds()/normalizeReason()/isSafeSingleLineString()/isSafeString())
+│   │   │   │   │   │   ├── RateLimitKeyHasherInterface.php (RateLimitKeyHasherInterface [interface] - hash())
+│   │   │   │   │   │   ├── RateLimitState.php (RateLimitState - schemaVersion()/limit()/remaining()/resetAfterSeconds()/windowSeconds()/toArray()/normalizeLimit()/normalizeRemaining()/normalizeResetAfterSeconds()/normalizeWindowSeconds())
+│   │   │   │   │   │   └── RateLimitStoreInterface.php (RateLimitStoreInterface [interface] - name()/consume()/state()/reset())
 │   │   │   │   │   ├── Routing/
 │   │   │   │   │   │   ├── RouteDefinition.php (RouteDefinition - schemaVersion()/name()/methods()/pathTemplate()/handler()/requirements()/defaults()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeMethods()/normalizeRequirements()/normalizeRootJsonLikeMap()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
 │   │   │   │   │   │   ├── RouteMatch.php (RouteMatch - schemaVersion()/name()/pathTemplate()/handler()/parameters()/metadata()/toArray()/normalizeSafeSingleLineField()/normalizePathTemplate()/normalizeRootJsonLikeMap()/normalizeParameters()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/isSafeSingleLineString()/isSafeString())
@@ -262,6 +269,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ProfilingContractsDoNotDependOnPsr7ContractTest.php (ProfilingContractsDoNotDependOnPsr7ContractTest - test_profiling_contracts_do_not_reference_psr7_types()/phpFiles())
 │   │   │   │   │   │   ├── ProfilingContractsShapeContractTest.php (ProfilingContractsShapeContractTest - test_profile_artifact_shape_is_stable_and_payload_is_opaque()/test_profile_artifact_rejects_invalid_metadata()/test_profiler_port_interface_shape_is_stable()/test_profile_exporter_interface_shape_is_stable()/test_profiler_session_and_exporter_implementations_can_compose_through_contracts()/start()/stop()/name()/export()/assertMethodReturnType())
 │   │   │   │   │   │   ├── ProfilingSessionInterfaceShapeContractTest.php (ProfilingSessionInterfaceShapeContractTest - test_profiling_session_interface_shape_is_stable()/test_session_stop_can_return_artifact_then_null()/stop()/assertMethodReturnType())
+│   │   │   │   │   │   ├── RateLimitContractsShapeContractTest.php (RateLimitContractsShapeContractTest - testRateLimitStoreInterfaceShapeIsLocked()/testRateLimitKeyHasherInterfaceShapeIsLocked()/testRateLimitStateShapeIsLocked()/testRateLimitDecisionShapeIsLocked()/testRateLimitContractsAreNotDtoMarked()/testRateLimitContractsPublicSurfaceDoesNotExposeForbiddenTypesOrFloats()/testRateLimitContractsSourceDoesNotImportForbiddenDependencies()/contractReflections()/sourceFiles()/forbiddenSourceTokens()/publicMethodNames()/publicConstantNames()/assertSchemaVersionConstantIsLocked()/assertForbiddenPublicMethodsAreAbsent()/assertMethodHasNoParameters()/assertReturnType()/assertParameterShape()/assertMethodDocContains()/assertMethodDocDoesNotContainTopLevelGenericArrayReturn()/assertMethodDoesNotExposeForbiddenTypes()/assertTypeIsAllowedPublicSurfaceType()/assertStringDoesNotStartWith()/phpCodeWithoutComments()/assertInvalidArgument())
 │   │   │   │   │   │   ├── ResetInterfaceIsMinimalContractTest.php (ResetInterfaceIsMinimalContractTest - testResetInterfaceExistsAndIsAnInterface()/testResetInterfaceExposesOnlyResetVoidWithoutParameters())
 │   │   │   │   │   │   ├── RouteDefinitionShapeContractTest.php (RouteDefinitionShapeContractTest - test_constructor_shape_is_stable()/test_accessors_and_array_shape_are_stable()/test_methods_are_normalized_uppercase_unique_and_sorted()/test_path_template_must_start_with_slash()/test_identity_fields_reject_whitespace()/test_json_like_maps_reject_invalid_values()/assertParameterNamedType())
 │   │   │   │   │   │   ├── RouteMatchShapeContractTest.php (RouteMatchShapeContractTest - test_constructor_shape_is_stable()/test_accessors_and_array_shape_are_stable()/test_path_template_must_start_with_slash()/test_parameters_reject_root_lists()/test_parameters_reject_invalid_keys_and_values()/test_metadata_rejects_invalid_json_like_values()/assertParameterNamedType())

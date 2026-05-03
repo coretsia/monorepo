@@ -57,18 +57,20 @@ final class ModuleManifestContractTest extends TestCase
         ]);
     }
 
-    public function testManifestLookupIsStableAndNormalizesModuleIdInput(): void
+    public function testManifestLookupIsStableAndNormalizesModuleIdCaseOnly(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug('platform', 'http');
 
         $manifest = new ModuleManifest([$descriptor]);
 
         self::assertTrue($manifest->has('platform.http'));
-        self::assertTrue($manifest->has(' Platform.Http '));
+        self::assertTrue($manifest->has('Platform.Http'));
+        self::assertFalse($manifest->has(' Platform.Http '));
         self::assertFalse($manifest->has('invalid'));
 
         self::assertSame($descriptor, $manifest->get('platform.http'));
-        self::assertSame($descriptor, $manifest->get(' Platform.Http '));
+        self::assertSame($descriptor, $manifest->get('Platform.Http'));
+        self::assertNull($manifest->get(' Platform.Http '));
         self::assertNull($manifest->get('invalid'));
     }
 

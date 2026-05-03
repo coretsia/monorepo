@@ -124,9 +124,11 @@ final readonly class ProfileArtifact
 
     private static function normalizeName(string $name): string
     {
-        $name = trim($name);
-
         if ($name === '') {
+            throw new \InvalidArgumentException('Invalid profile artifact name.');
+        }
+
+        if (preg_match('/^\s|\s$/', $name) === 1) {
             throw new \InvalidArgumentException('Invalid profile artifact name.');
         }
 

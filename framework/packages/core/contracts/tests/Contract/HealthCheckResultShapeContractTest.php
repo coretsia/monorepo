@@ -114,11 +114,21 @@ final class HealthCheckResultShapeContractTest extends TestCase
     {
         $result = new HealthCheckResult(
             status: HealthStatus::Pass,
-            message: ' ',
+            message: '',
         );
 
         self::assertNull($result->message());
         self::assertNull($result->toArray()['message']);
+    }
+
+    public function test_message_rejects_outer_whitespace(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new HealthCheckResult(
+            status: HealthStatus::Pass,
+            message: ' ',
+        );
     }
 
     public function test_details_preserve_list_order_and_sort_maps(): void

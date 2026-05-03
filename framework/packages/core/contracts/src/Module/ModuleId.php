@@ -122,7 +122,7 @@ final readonly class ModuleId
      */
     private static function normalize(string $value): string
     {
-        return self::asciiLower(trim($value));
+        return self::asciiLower($value);
     }
 
     /**
@@ -130,7 +130,7 @@ final readonly class ModuleId
      */
     private static function normalizePart(string $value): string
     {
-        return self::asciiLower(trim($value));
+        return self::asciiLower($value);
     }
 
     /**

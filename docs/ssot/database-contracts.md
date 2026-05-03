@@ -400,6 +400,12 @@ framework/packages/core/contracts/src/Database/SqlQuery.php
 
 `SqlQuery` MUST accept any non-empty SQL string, including multiline SQL.
 
+`SqlQuery` MUST preserve the SQL string exactly as supplied.
+
+`SqlQuery` MUST NOT trim, collapse, lowercase, uppercase, strip comments, rewrite whitespace, or otherwise normalize SQL text before storing it.
+
+Whitespace-only rejection MUST be implemented as structural validation only. It MUST NOT imply that leading or trailing SQL whitespace is removed from accepted SQL strings.
+
 `SqlQuery` MUST throw `InvalidArgumentException` for structural validation failures.
 
 Validation exception messages MUST be stable and MUST NOT include:

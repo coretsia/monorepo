@@ -692,6 +692,12 @@ The canonical safe `reason` string grammar is:
 
 `RateLimitDecision` MUST NOT use floats for retry durations, rates, counters, or limits.
 
+Constructor input for `reason` MUST be validated exactly as supplied.
+
+`RateLimitDecision` MUST NOT trim, lowercase, uppercase, collapse, or otherwise remove whitespace from `reason` before validation.
+
+A `reason` value that contains leading whitespace, trailing whitespace, inner whitespace, or control characters MUST be rejected.
+
 ### RateLimitDecision accessor shape
 
 The canonical accessor shape is:

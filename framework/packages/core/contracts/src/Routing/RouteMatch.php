@@ -140,8 +140,6 @@ final readonly class RouteMatch
 
     private static function normalizeSafeSingleLineField(string $value, string $field): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Invalid route match ' . $field . '.');
         }
@@ -159,8 +157,6 @@ final readonly class RouteMatch
 
     private static function normalizePathTemplate(string $value): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Invalid route match pathTemplate.');
         }
@@ -211,8 +207,6 @@ final readonly class RouteMatch
             if (!is_string($key)) {
                 throw new \InvalidArgumentException('Invalid route match parameter key.');
             }
-
-            $key = trim($key);
 
             if ($key === '') {
                 throw new \InvalidArgumentException('Invalid route match parameter key.');

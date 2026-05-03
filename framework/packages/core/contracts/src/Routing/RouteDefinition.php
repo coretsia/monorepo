@@ -176,8 +176,6 @@ final readonly class RouteDefinition
      */
     private static function normalizeSafeSingleLineField(string $value, string $field): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Invalid route definition ' . $field . '.');
         }
@@ -198,8 +196,6 @@ final readonly class RouteDefinition
      */
     private static function normalizePathTemplate(string $value): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Invalid route definition pathTemplate.');
         }
@@ -241,8 +237,6 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition method.');
             }
 
-            $method = strtoupper(trim($method));
-
             if ($method === '') {
                 throw new \InvalidArgumentException('Invalid route definition method.');
             }
@@ -250,6 +244,12 @@ final readonly class RouteDefinition
             if (!self::isSafeSingleLineString($method)) {
                 throw new \InvalidArgumentException('Invalid route definition method.');
             }
+
+            if (preg_match('/\s/', $method) === 1) {
+                throw new \InvalidArgumentException('Invalid route definition method.');
+            }
+
+            $method = strtoupper($method);
 
             if (preg_match('/^[A-Z][A-Z0-9_-]*$/', $method) !== 1) {
                 throw new \InvalidArgumentException('Invalid route definition method.');
@@ -283,8 +283,6 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition requirement key.');
             }
 
-            $key = trim($key);
-
             if ($key === '') {
                 throw new \InvalidArgumentException('Invalid route definition requirement key.');
             }
@@ -293,11 +291,13 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition requirement key.');
             }
 
+            if (preg_match('/\s/', $key) === 1) {
+                throw new \InvalidArgumentException('Invalid route definition requirement key.');
+            }
+
             if (!is_string($value)) {
                 throw new \InvalidArgumentException('Invalid route definition requirement value at ' . $key . '.');
             }
-
-            $value = trim($value);
 
             if ($value === '') {
                 throw new \InvalidArgumentException('Invalid route definition requirement value at ' . $key . '.');

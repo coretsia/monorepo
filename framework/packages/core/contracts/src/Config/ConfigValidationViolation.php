@@ -145,8 +145,6 @@ final readonly class ConfigValidationViolation
 
     private static function normalizeRoot(string $root): string
     {
-        $root = trim($root);
-
         if ($root === '') {
             throw new \InvalidArgumentException('Config validation violation root must be non-empty.');
         }
@@ -160,8 +158,6 @@ final readonly class ConfigValidationViolation
 
     private static function normalizeReason(string $reason): string
     {
-        $reason = trim($reason);
-
         if ($reason === '') {
             throw new \InvalidArgumentException('Config validation violation reason must be non-empty.');
         }
@@ -199,14 +195,16 @@ final readonly class ConfigValidationViolation
 
     private static function normalizeSafeText(string $value, string $field, bool $allowEmpty): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             if ($allowEmpty) {
                 return '';
             }
 
             throw new \InvalidArgumentException('Config validation violation ' . $field . ' must be non-empty.');
+        }
+
+        if (preg_match('/^\s|\s$/', $value) === 1) {
+            throw new \InvalidArgumentException('Invalid config validation violation ' . $field . '.');
         }
 
         if (str_contains($value, "\0") || str_contains($value, "\r") || str_contains($value, "\n")) {

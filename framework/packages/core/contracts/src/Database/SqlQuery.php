@@ -26,11 +26,11 @@ use InvalidArgumentException;
  * This value object carries opaque SQL text and positional bindings through the
  * database contracts boundary without making SQL stringification implicit.
  *
- * SQL text is structurally validated only. It must be non-empty after trimming,
- * but it is otherwise treated as opaque application data. This class does not
- * parse, normalize, classify, validate SQL grammar, strip comments, infer query
- * operation kind, quote identifiers, compile SQL, or provide raw SQL
- * diagnostics.
+ * SQL text is structurally validated only. It must contain at least one
+ * non-whitespace character, but it is otherwise preserved exactly as supplied.
+ * This class does not trim, parse, normalize, classify, validate SQL grammar,
+ * strip comments, infer query operation kind, quote identifiers, compile SQL,
+ * or provide raw SQL diagnostics.
  *
  * Bindings are positional only and preserve order. Binding values are limited
  * to the canonical database value domain:
@@ -49,7 +49,7 @@ final readonly class SqlQuery implements SqlQueryInterface
     private array $bindings;
 
     /**
-     * @param non-empty-string $sql Opaque SQL text. Must be non-empty after trimming.
+     * @param non-empty-string $sql Opaque SQL text. Must contain at least one non-whitespace character.
      * @param list<int|string|bool|null> $bindings
      *
      * @throws InvalidArgumentException when the SQL string is empty,
@@ -59,7 +59,7 @@ final readonly class SqlQuery implements SqlQueryInterface
      */
     public function __construct(string $sql, array $bindings = [])
     {
-        if (trim($sql) === '') {
+        if (preg_match('/\S/', $sql) !== 1) {
             throw new InvalidArgumentException('SQL query must be a non-empty string.');
         }
 

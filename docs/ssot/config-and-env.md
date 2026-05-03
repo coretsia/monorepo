@@ -307,6 +307,12 @@ The initial canonical `ConfigRuleset` schema version is:
 
 `root` MUST be a non-empty lowercase config root identifier.
 
+`root` MUST be validated exactly as supplied.
+
+`ConfigRuleset` MUST NOT trim, lowercase, uppercase, collapse, or otherwise normalize `root` before validation.
+
+A `root` value containing leading whitespace, trailing whitespace, inner whitespace, control characters, or invalid identifier characters MUST be rejected.
+
 `rules` MUST be a json-like map.
 
 The root `rules` value MUST NOT be a non-empty list.
@@ -498,6 +504,14 @@ callable
 unknown
 ```
 
+`ConfigValidationViolation` constructor input MUST be validated exactly as supplied.
+
+It MUST NOT trim, collapse, lowercase, uppercase, or otherwise remove whitespace from `root`, `path`, `reason`, `expected`, or `actualType` before validation.
+
+`path` MAY be an empty string to represent the root node. Other optional textual fields use `null` to represent absence.
+
+Leading or trailing whitespace in non-empty textual fields MUST be rejected.
+
 The violation shape MUST NOT expose:
 
 - raw config values;
@@ -673,6 +687,16 @@ The `precedence` field is explicit metadata of a concrete source trace entry.
 `meta` MUST be metadata-only and JSON-like.
 
 `meta` MUST NOT contain raw config values, raw env values, secrets, absolute paths, objects, closures, resources, service instances, or runtime wiring objects.
+
+`ConfigValueSource` constructor input MUST NOT be trimmed.
+
+`root`, `sourceId`, `keyPath`, `path`, and `directive` MUST reject leading or trailing whitespace according to their field rules.
+
+Optional source fields MAY treat the exact empty string as absent when the field is nullable. Whitespace-only strings MUST NOT be treated as absent.
+
+Repo-relative `path` input MAY be canonicalized by replacing backslash separators with `/` before validation. This separator canonicalization MUST NOT remove whitespace.
+
+Directive input MAY accept one leading `@` prefix and store the canonical directive name without the prefix. This directive-prefix projection MUST NOT trim or otherwise remove whitespace.
 
 The canonical exported key order for `ConfigValueSource::toArray()` is:
 

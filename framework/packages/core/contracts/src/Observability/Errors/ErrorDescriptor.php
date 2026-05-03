@@ -142,8 +142,6 @@ final readonly class ErrorDescriptor
      */
     private static function normalizeCode(string $code): string
     {
-        $code = trim($code);
-
         if ($code === '') {
             throw new \InvalidArgumentException('Invalid error descriptor code.');
         }
@@ -164,9 +162,11 @@ final readonly class ErrorDescriptor
      */
     private static function normalizeMessage(string $message): string
     {
-        $message = trim($message);
-
         if ($message === '') {
+            throw new \InvalidArgumentException('Invalid error descriptor message.');
+        }
+
+        if (preg_match('/^\s|\s$/', $message) === 1) {
             throw new \InvalidArgumentException('Invalid error descriptor message.');
         }
 

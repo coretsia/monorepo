@@ -384,6 +384,12 @@ The initial canonical `RouteDefinition` schema version is:
 
 `requirements`, `defaults`, and `metadata` maps MUST use deterministic key ordering by byte-order `strcmp`.
 
+Route identity/token fields MUST be validated exactly as supplied unless this SSoT explicitly defines a canonical transformation.
+
+Constructors MUST NOT trim leading or trailing whitespace from `name`, `pathTemplate`, `handler`, route method tokens, requirement keys, or parameter keys before validation.
+
+Route method tokens MAY be normalized to uppercase after the original token has passed empty, safe single-line, and no-whitespace validation.
+
 ### RouteDefinition identity
 
 The route name is the stable route identity at the contracts boundary.
@@ -509,6 +515,10 @@ Safe diagnostics for route parameters MAY use only safe derivations such as:
 hash(value)
 len(value)
 ```
+
+Route identity/token fields MUST be validated exactly as supplied unless this SSoT explicitly defines a canonical transformation.
+
+Constructors MUST NOT trim leading or trailing whitespace from `name`, `pathTemplate`, `handler`, parameter keys, or parameter values before validation.
 
 ### RouteMatch exported order
 

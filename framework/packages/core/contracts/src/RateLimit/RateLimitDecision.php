@@ -162,8 +162,6 @@ final readonly class RateLimitDecision
             return null;
         }
 
-        $reason = trim($reason);
-
         if ($reason === '') {
             throw new \InvalidArgumentException('Invalid rate limit decision reason.');
         }

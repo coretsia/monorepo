@@ -164,7 +164,7 @@ final readonly class Violation
 
     private static function normalizePath(string $path): string
     {
-        if ($path !== trim($path)) {
+        if (preg_match('/^\s|\s$/', $path) === 1) {
             throw new \InvalidArgumentException('Invalid validation violation path.');
         }
 
@@ -195,8 +195,6 @@ final readonly class Violation
      */
     private static function normalizeCode(string $code): string
     {
-        $code = trim($code);
-
         if ($code === '') {
             throw new \InvalidArgumentException('Invalid validation violation code.');
         }
@@ -221,9 +219,11 @@ final readonly class Violation
             return null;
         }
 
-        $value = trim($value);
-
         if ($value === '') {
+            throw new \InvalidArgumentException('Invalid validation violation ' . $field . '.');
+        }
+
+        if (preg_match('/^\s|\s$/', $value) === 1) {
             throw new \InvalidArgumentException('Invalid validation violation ' . $field . '.');
         }
 

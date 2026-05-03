@@ -208,8 +208,6 @@ final readonly class ConfigValueSource
      */
     private static function normalizeRoot(string $root): string
     {
-        $root = trim($root);
-
         if ($root === '') {
             throw new \InvalidArgumentException('Config value source root must be non-empty.');
         }
@@ -226,8 +224,6 @@ final readonly class ConfigValueSource
      */
     private static function normalizeRequiredLogicalIdentifier(string $value, string $field): string
     {
-        $value = trim($value);
-
         if ($value === '') {
             throw new \InvalidArgumentException('Config value source ' . $field . ' must be non-empty.');
         }
@@ -245,8 +241,6 @@ final readonly class ConfigValueSource
         if ($value === null) {
             return null;
         }
-
-        $value = trim($value);
 
         if ($value === '') {
             return null;
@@ -266,10 +260,14 @@ final readonly class ConfigValueSource
             return null;
         }
 
-        $path = trim(str_replace('\\', '/', $path));
+        $path = str_replace('\\', '/', $path);
 
         if ($path === '') {
             return null;
+        }
+
+        if (preg_match('/^\s|\s$/', $path) === 1) {
+            throw new \InvalidArgumentException('Invalid config value source path.');
         }
 
         if (str_contains($path, "\0") || str_contains($path, "\r") || str_contains($path, "\n")) {
@@ -310,14 +308,24 @@ final readonly class ConfigValueSource
             return null;
         }
 
-        $directive = trim($directive);
-
         if ($directive === '') {
             return null;
         }
 
+        if (preg_match('/^\s|\s$/', $directive) === 1) {
+            throw new \InvalidArgumentException('Invalid config value source directive.');
+        }
+
         if (str_starts_with($directive, '@')) {
             $directive = substr($directive, 1);
+        }
+
+        if ($directive === '') {
+            throw new \InvalidArgumentException('Invalid config value source directive.');
+        }
+
+        if (preg_match('/^\s|\s$/', $directive) === 1) {
+            throw new \InvalidArgumentException('Invalid config value source directive.');
         }
 
         if (!ConfigDirective::isAllowed($directive)) {

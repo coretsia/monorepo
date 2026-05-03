@@ -36,7 +36,7 @@ enum ConfigSourceType: string
     case GeneratedArtifact = 'generated_artifact';
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function values(): array
     {

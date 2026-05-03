@@ -33,6 +33,8 @@ interface CorrelationIdProviderInterface
     /**
      * Returns the current safe correlation id, or null when no correlation id
      * is available in the current runtime boundary.
+     *
+     * @return non-empty-string|null
      */
     public function correlationId(): ?string;
 }

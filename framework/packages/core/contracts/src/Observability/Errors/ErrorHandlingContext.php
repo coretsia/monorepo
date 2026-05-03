@@ -32,7 +32,6 @@ namespace Coretsia\Contracts\Observability\Errors;
 final readonly class ErrorHandlingContext
 {
     private ?string $operation;
-
     private ?string $correlationId;
 
     /**
@@ -48,6 +47,8 @@ final readonly class ErrorHandlingContext
     private array $metadata;
 
     /**
+     * @param non-empty-string|null $operation
+     * @param non-empty-string|null $correlationId
      * @param array<string,mixed> $metadata
      */
     public function __construct(
@@ -60,11 +61,17 @@ final readonly class ErrorHandlingContext
         $this->metadata = self::normalizeMetadata($metadata);
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function operation(): ?string
     {
         return $this->operation;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function correlationId(): ?string
     {
         return $this->correlationId;
@@ -82,9 +89,9 @@ final readonly class ErrorHandlingContext
 
     /**
      * @return array{
-     *     correlationId: string|null,
-     *     metadata: array<string, mixed>,
-     *     operation: string|null
+     *     correlationId: non-empty-string|null,
+     *     metadata: array<string,mixed>,
+     *     operation: non-empty-string|null
      * }
      */
     public function toArray(): array
@@ -96,6 +103,9 @@ final readonly class ErrorHandlingContext
         ];
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalString(?string $value, string $field): ?string
     {
         if ($value === null) {

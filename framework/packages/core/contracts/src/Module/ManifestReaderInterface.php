@@ -27,5 +27,18 @@ namespace Coretsia\Contracts\Module;
  */
 interface ManifestReaderInterface
 {
+    /**
+     * Reads the installed module manifest.
+     *
+     * Implementations own manifest discovery, parsing, cache/artifact access,
+     * and source selection. This method returns only the contracts-level
+     * manifest shape and MUST NOT expose Composer internals, filesystem paths,
+     * generated artifact paths, package scanning details, service container
+     * state, or runtime wiring objects through the contract.
+     *
+     * The returned manifest MUST be deterministic. Its descriptors are expected
+     * to be ordered by module id ascending using byte-order strcmp, as enforced
+     * by ModuleManifest.
+     */
     public function read(): ModuleManifest;
 }

@@ -31,7 +31,7 @@ enum SamplingDecision: string
     case Defer = 'defer';
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function values(): array
     {

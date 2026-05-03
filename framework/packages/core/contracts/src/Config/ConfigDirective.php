@@ -34,6 +34,9 @@ enum ConfigDirective: string
     case Merge = 'merge';
     case Replace = 'replace';
 
+    /**
+     * @return non-empty-string
+     */
     public function key(): string
     {
         return self::PREFIX . $this->value;
@@ -80,7 +83,7 @@ enum ConfigDirective: string
     }
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function names(): array
     {
@@ -94,7 +97,7 @@ enum ConfigDirective: string
     }
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function keys(): array
     {

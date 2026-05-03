@@ -34,6 +34,7 @@ interface TracerPortInterface
      * Attributes MUST be a safe json-like map:
      * null, bool, int, string, list, or string-keyed map. Floats are forbidden.
      *
+     * @param non-empty-string $name
      * @param array<string,mixed> $attributes
      */
     public function startSpan(string $name, array $attributes = []): SpanInterface;
@@ -47,6 +48,7 @@ interface TracerPortInterface
      *
      * @template T
      *
+     * @param non-empty-string $name
      * @param array<string,mixed> $attributes
      * @param callable(SpanInterface):T $callback
      *

@@ -35,7 +35,6 @@ namespace Coretsia\Contracts\Validation;
 final class ValidationException extends \RuntimeException
 {
     public const string CODE = 'CORETSIA_VALIDATION_FAILED';
-
     public const string MESSAGE = 'Validation failed.';
 
     private readonly ValidationResult $result;
@@ -53,6 +52,9 @@ final class ValidationException extends \RuntimeException
         parent::__construct(self::MESSAGE, 0, $previous);
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function errorCode(): string
     {
         return self::CODE;

@@ -65,7 +65,7 @@ final readonly class ValidationResult
     }
 
     /**
-     * @param array<array-key,Violation> $violations
+     * @param non-empty-list<Violation> $violations
      */
     public static function failure(array $violations): self
     {

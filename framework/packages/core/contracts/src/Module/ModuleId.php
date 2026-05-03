@@ -51,11 +51,18 @@ final readonly class ModuleId
         $this->value = $normalized;
     }
 
+    /**
+     * @param non-empty-string $value
+     */
     public static function fromString(string $value): self
     {
         return new self($value);
     }
 
+    /**
+     * @param non-empty-string $layer
+     * @param non-empty-string $slug
+     */
     public static function fromLayerAndSlug(string $layer, string $slug): self
     {
         $normalizedLayer = self::normalizePart($layer);
@@ -73,16 +80,25 @@ final readonly class ModuleId
         return preg_match(self::PATTERN, $value) === 1;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function value(): string
     {
         return $this->value;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function layer(): string
     {
         return explode('.', $this->value, 2)[0];
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function slug(): string
     {
         return explode('.', $this->value, 2)[1];
@@ -93,16 +109,25 @@ final readonly class ModuleId
         return $this->value === $other->value;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function __toString(): string
     {
         return $this->value;
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalize(string $value): string
     {
         return self::asciiLower(trim($value));
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizePart(string $value): string
     {
         return self::asciiLower(trim($value));

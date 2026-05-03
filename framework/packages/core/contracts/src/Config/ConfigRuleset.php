@@ -36,6 +36,7 @@ final readonly class ConfigRuleset
     private array $rules;
 
     /**
+     * @param non-empty-string $root
      * @param array<string,mixed> $rules
      */
     public function __construct(string $root, array $rules)
@@ -50,6 +51,7 @@ final readonly class ConfigRuleset
     }
 
     /**
+     * @param non-empty-string $root
      * @param array<string,mixed> $rules
      */
     public static function fromArray(string $root, array $rules): self
@@ -57,6 +59,9 @@ final readonly class ConfigRuleset
         return new self($root, $rules);
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function root(): string
     {
         return $this->root;
@@ -72,7 +77,7 @@ final readonly class ConfigRuleset
 
     /**
      * @return array{
-     *     root: string,
+     *     root: non-empty-string,
      *     rules: array<string,mixed>,
      *     schemaVersion: int
      * }

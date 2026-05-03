@@ -33,7 +33,7 @@ enum ErrorSeverity: string
     case Critical = 'critical';
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function values(): array
     {

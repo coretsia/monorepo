@@ -48,6 +48,9 @@ final readonly class ErrorDescriptor
     private array $extensions;
 
     /**
+     * @param non-empty-string $code
+     * @param non-empty-string $message
+     * @param int<100,599>|null $httpStatus
      * @param array<string,mixed> $extensions
      */
     public function __construct(
@@ -69,11 +72,17 @@ final readonly class ErrorDescriptor
         return self::SCHEMA_VERSION;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function code(): string
     {
         return $this->code;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function message(): string
     {
         return $this->message;
@@ -88,6 +97,8 @@ final readonly class ErrorDescriptor
      * Optional HTTP status hint only.
      *
      * Non-HTTP runtimes may ignore this value.
+     *
+     * @return int<100,599>|null
      */
     public function httpStatus(): ?int
     {
@@ -106,12 +117,12 @@ final readonly class ErrorDescriptor
 
     /**
      * @return array{
-     *     code: string,
-     *     extensions: array<string, mixed>,
-     *     httpStatus: int|null,
-     *     message: string,
+     *     code: non-empty-string,
+     *     extensions: array<string,mixed>,
+     *     httpStatus: int<100,599>|null,
+     *     message: non-empty-string,
      *     schemaVersion: int,
-     *     severity: string
+     *     severity: non-empty-string
      * }
      */
     public function toArray(): array
@@ -126,6 +137,9 @@ final readonly class ErrorDescriptor
         ];
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeCode(string $code): string
     {
         $code = trim($code);
@@ -145,6 +159,9 @@ final readonly class ErrorDescriptor
         return $code;
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeMessage(string $message): string
     {
         $message = trim($message);
@@ -160,6 +177,9 @@ final readonly class ErrorDescriptor
         return $message;
     }
 
+    /**
+     * @return int<100,599>|null
+     */
     private static function normalizeHttpStatus(?int $httpStatus): ?int
     {
         if ($httpStatus === null) {

@@ -132,7 +132,7 @@ interface DiskInterface
      * No matching paths return an empty list. Backend failure behavior is
      * implementation-owned.
      *
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public function listPaths(string $prefix = ''): array;
 }

@@ -34,6 +34,8 @@ interface EnvRepositoryInterface
      * Returns whether the env name is present.
      *
      * Present empty string MUST return true.
+     *
+     * @param non-empty-string $name
      */
     public function has(string $name): bool;
 
@@ -41,6 +43,8 @@ interface EnvRepositoryInterface
      * Returns the env lookup result for the given name.
      *
      * Missing and present-empty-string must remain distinct through EnvValue.
+     *
+     * @param non-empty-string $name
      */
     public function get(string $name): EnvValue;
 
@@ -59,6 +63,8 @@ interface EnvRepositoryInterface
      * Returns safe source metadata for the given env name, when available.
      *
      * The returned source must not contain raw env values.
+     *
+     * @param non-empty-string $name
      */
     public function sourceOf(string $name): ?ConfigValueSource;
 }

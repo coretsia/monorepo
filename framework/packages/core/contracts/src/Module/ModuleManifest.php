@@ -35,7 +35,7 @@ final class ModuleManifest
     private array $modules;
 
     /**
-     * @var array<string,ModuleDescriptor>
+     * @var array<non-empty-string,ModuleDescriptor>
      */
     private array $byId;
 
@@ -90,7 +90,7 @@ final class ModuleManifest
     /**
      * Returns installed module ids in deterministic byte-order strcmp order.
      *
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public function ids(): array
     {
@@ -133,7 +133,7 @@ final class ModuleManifest
      * Stable exported scalar/json-like manifest shape.
      *
      * @return array{
-     *     moduleIds: list<string>,
+     *     moduleIds: list<non-empty-string>,
      *     modules: list<array<string,mixed>>,
      *     schemaVersion: int
      * }

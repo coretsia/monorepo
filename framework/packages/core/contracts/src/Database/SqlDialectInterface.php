@@ -50,6 +50,8 @@ interface SqlDialectInterface
      *
      * The dialect id is not a PHP extension name, class name, vendor object
      * name, Doctrine platform name, PDO driver name, or platform service id.
+     *
+     * @return non-empty-string
      */
     public function id(): string;
 
@@ -63,6 +65,9 @@ interface SqlDialectInterface
      *
      * The input identifier and returned SQL-adjacent string are sensitive by
      * default and MUST NOT be exposed through unsafe diagnostics by default.
+     *
+     * @param non-empty-string $identifier
+     * @return non-empty-string
      */
     public function quoteIdentifier(string $identifier): string;
 
@@ -71,6 +76,8 @@ interface SqlDialectInterface
      *
      * The returned string is SQL text and MUST be treated as SQL-adjacent data.
      * Runtime owners must not expose it through unsafe diagnostics by default.
+     *
+     * @return non-empty-string
      */
     public function booleanLiteral(bool $value): string;
 
@@ -89,6 +96,9 @@ interface SqlDialectInterface
      *
      * Unsupported combinations may be rejected by implementation-owned
      * exceptions, but those exceptions MUST NOT expose raw SQL by default.
+     *
+     * @param int<0,max>|null $limit
+     * @param int<0,max>|null $offset
      */
     public function applyLimitOffset(
         SqlQueryInterface $query,

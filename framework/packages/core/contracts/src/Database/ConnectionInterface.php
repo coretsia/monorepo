@@ -54,6 +54,8 @@ interface ConnectionInterface
      *
      * Connection names are still subject to owner-approved bounded-cardinality
      * and redaction policy before use in diagnostics.
+     *
+     * @return non-empty-string
      */
     public function name(): string;
 
@@ -72,6 +74,8 @@ interface ConnectionInterface
      *
      * The platform-supported driver allowlist is runtime-owned by future
      * platform/database configuration policy, not by this contracts interface.
+     *
+     * @return non-empty-string
      */
     public function driverId(): string;
 

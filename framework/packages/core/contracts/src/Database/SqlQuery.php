@@ -49,6 +49,7 @@ final readonly class SqlQuery implements SqlQueryInterface
     private array $bindings;
 
     /**
+     * @param non-empty-string $sql Opaque SQL text. Must be non-empty after trimming.
      * @param list<int|string|bool|null> $bindings
      *
      * @throws InvalidArgumentException when the SQL string is empty,
@@ -91,6 +92,8 @@ final readonly class SqlQuery implements SqlQueryInterface
      * The returned string is opaque SQL text and MUST NOT be logged, traced,
      * exported as a metric label, copied into error descriptors, printed by
      * migration tooling, or exposed through unsafe diagnostics by default.
+     *
+     * @return non-empty-string
      */
     public function sql(): string
     {

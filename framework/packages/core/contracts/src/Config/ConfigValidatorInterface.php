@@ -30,6 +30,9 @@ interface ConfigValidatorInterface
     /**
      * Validates merged global config against loaded declarative rulesets.
      *
+     * An empty ruleset list is valid and means there are no loaded contracts-level
+     * config rules to apply.
+     *
      * @param array<string,mixed> $config
      * @param list<ConfigRuleset> $rulesets
      */

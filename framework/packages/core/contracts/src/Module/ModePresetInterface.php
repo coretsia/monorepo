@@ -29,11 +29,8 @@ interface ModePresetInterface
     public const int SCHEMA_VERSION = 1;
 
     public const string MICRO = 'micro';
-
     public const string EXPRESS = 'express';
-
     public const string HYBRID = 'hybrid';
-
     public const string ENTERPRISE = 'enterprise';
 
     public function schemaVersion(): int;
@@ -43,6 +40,9 @@ interface ModePresetInterface
      */
     public function name(): string;
 
+    /**
+     * @return non-empty-string|null
+     */
     public function description(): ?string;
 
     /**

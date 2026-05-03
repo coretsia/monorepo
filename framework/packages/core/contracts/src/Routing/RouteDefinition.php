@@ -36,16 +36,14 @@ final readonly class RouteDefinition
     private string $name;
 
     /**
-     * @var list<string>
+     * @var list<non-empty-string>
      */
     private array $methods;
-
     private string $pathTemplate;
-
     private string $handler;
 
     /**
-     * @var array<string,string>
+     * @var array<non-empty-string,non-empty-string>
      */
     private array $requirements;
 
@@ -60,8 +58,11 @@ final readonly class RouteDefinition
     private array $metadata;
 
     /**
-     * @param list<string> $methods
-     * @param array<string,string> $requirements
+     * @param non-empty-string $name
+     * @param list<non-empty-string> $methods
+     * @param non-empty-string $pathTemplate
+     * @param non-empty-string $handler
+     * @param array<non-empty-string,non-empty-string> $requirements
      * @param array<string,mixed> $defaults
      * @param array<string,mixed> $metadata
      */
@@ -88,31 +89,40 @@ final readonly class RouteDefinition
         return self::SCHEMA_VERSION;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function name(): string
     {
         return $this->name;
     }
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public function methods(): array
     {
         return $this->methods;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function pathTemplate(): string
     {
         return $this->pathTemplate;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function handler(): string
     {
         return $this->handler;
     }
 
     /**
-     * @return array<string,string>
+     * @return array<non-empty-string,non-empty-string>
      */
     public function requirements(): array
     {
@@ -138,12 +148,12 @@ final readonly class RouteDefinition
     /**
      * @return array{
      *     defaults: array<string,mixed>,
-     *     handler: string,
+     *     handler: non-empty-string,
      *     metadata: array<string,mixed>,
-     *     methods: list<string>,
-     *     name: string,
-     *     pathTemplate: string,
-     *     requirements: array<string,string>,
+     *     methods: list<non-empty-string>,
+     *     name: non-empty-string,
+     *     pathTemplate: non-empty-string,
+     *     requirements: array<non-empty-string,non-empty-string>,
      *     schemaVersion: int
      * }
      */
@@ -161,6 +171,9 @@ final readonly class RouteDefinition
         ];
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeSafeSingleLineField(string $value, string $field): string
     {
         $value = trim($value);
@@ -180,6 +193,9 @@ final readonly class RouteDefinition
         return $value;
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizePathTemplate(string $value): string
     {
         $value = trim($value);
@@ -206,7 +222,7 @@ final readonly class RouteDefinition
     /**
      * @param array<mixed> $methods
      *
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     private static function normalizeMethods(array $methods): array
     {
@@ -252,7 +268,7 @@ final readonly class RouteDefinition
     /**
      * @param array<mixed> $requirements
      *
-     * @return array<string,string>
+     * @return array<non-empty-string,non-empty-string>
      */
     private static function normalizeRequirements(array $requirements): array
     {

@@ -34,13 +34,11 @@ final readonly class RouteMatch
     public const int SCHEMA_VERSION = 1;
 
     private string $name;
-
     private string $pathTemplate;
-
     private string $handler;
 
     /**
-     * @var array<string,string>
+     * @var array<non-empty-string,non-empty-string>
      */
     private array $parameters;
 
@@ -50,7 +48,10 @@ final readonly class RouteMatch
     private array $metadata;
 
     /**
-     * @param array<string,string> $parameters
+     * @param non-empty-string $name
+     * @param non-empty-string $pathTemplate
+     * @param non-empty-string $handler
+     * @param array<non-empty-string,non-empty-string> $parameters
      * @param array<string,mixed> $metadata
      */
     public function __construct(
@@ -72,16 +73,25 @@ final readonly class RouteMatch
         return self::SCHEMA_VERSION;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function name(): string
     {
         return $this->name;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function pathTemplate(): string
     {
         return $this->pathTemplate;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function handler(): string
     {
         return $this->handler;
@@ -91,7 +101,7 @@ final readonly class RouteMatch
      * Route parameters MAY originate from user-controlled path segments.
      * They MUST NOT be treated as observability-safe by default.
      *
-     * @return array<string,string>
+     * @return array<non-empty-string,non-empty-string>
      */
     public function parameters(): array
     {
@@ -108,11 +118,11 @@ final readonly class RouteMatch
 
     /**
      * @return array{
-     *     handler: string,
+     *     handler: non-empty-string,
      *     metadata: array<string,mixed>,
-     *     name: string,
-     *     parameters: array<string,string>,
-     *     pathTemplate: string,
+     *     name: non-empty-string,
+     *     parameters: array<non-empty-string,non-empty-string>,
+     *     pathTemplate: non-empty-string,
      *     schemaVersion: int
      * }
      */
@@ -187,7 +197,7 @@ final readonly class RouteMatch
     /**
      * @param array<mixed> $parameters
      *
-     * @return array<string,string>
+     * @return array<non-empty-string,non-empty-string>
      */
     private static function normalizeParameters(array $parameters): array
     {

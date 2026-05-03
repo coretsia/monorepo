@@ -33,7 +33,7 @@ final readonly class ModuleDescriptor
      *
      * Tooling-only package layers are intentionally not included.
      *
-     * @var list<string>
+     * @var list<non-empty-string>
      */
     private const array RUNTIME_LAYERS = [
         'core',
@@ -44,15 +44,12 @@ final readonly class ModuleDescriptor
     ];
 
     private ModuleId $id;
-
     private ?string $composerName;
-
     private ?string $packageKind;
-
     private ?string $moduleClass;
 
     /**
-     * @var list<string>
+     * @var list<non-empty-string>
      */
     private array $capabilities;
 
@@ -123,38 +120,56 @@ final readonly class ModuleDescriptor
         return $this->id;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function moduleId(): string
     {
         return $this->id->value();
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function layer(): string
     {
         return $this->id->layer();
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function slug(): string
     {
         return $this->id->slug();
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function composerName(): ?string
     {
         return $this->composerName;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function packageKind(): ?string
     {
         return $this->packageKind;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function moduleClass(): ?string
     {
         return $this->moduleClass;
     }
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public function capabilities(): array
     {
@@ -179,14 +194,14 @@ final readonly class ModuleDescriptor
     /**
      * @return array{
      *     schemaVersion: int,
-     *     moduleId: string,
-     *     layer: string,
-     *     slug: string,
-     *     composerName: string|null,
-     *     packageKind: string|null,
-     *     moduleClass: string|null,
-     *     capabilities: list<string>,
-     *     metadata: array<string, mixed>
+     *     moduleId: non-empty-string,
+     *     layer: non-empty-string,
+     *     slug: non-empty-string,
+     *     composerName: non-empty-string|null,
+     *     packageKind: non-empty-string|null,
+     *     moduleClass: non-empty-string|null,
+     *     capabilities: list<non-empty-string>,
+     *     metadata: array<string,mixed>
      * }
      */
     public function toArray(): array
@@ -211,6 +226,9 @@ final readonly class ModuleDescriptor
         }
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalString(?string $value, string $field): ?string
     {
         if ($value === null) {
@@ -231,9 +249,9 @@ final readonly class ModuleDescriptor
     }
 
     /**
-     * @param array<int,string> $values
+     * @param list<string> $values
      *
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     private static function normalizeStringList(array $values, string $field): array
     {

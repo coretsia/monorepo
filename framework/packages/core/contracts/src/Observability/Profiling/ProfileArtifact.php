@@ -53,6 +53,7 @@ final readonly class ProfileArtifact
     private ?string $payload;
 
     /**
+     * @param non-empty-string $name
      * @param array<string,mixed> $metadata
      */
     public function __construct(
@@ -70,6 +71,9 @@ final readonly class ProfileArtifact
         return self::SCHEMA_VERSION;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function name(): string
     {
         return $this->name;
@@ -102,8 +106,8 @@ final readonly class ProfileArtifact
      * The opaque payload is intentionally not included in this exported shape.
      *
      * @return array{
-     *     metadata: array<string, mixed>,
-     *     name: string,
+     *     metadata: array<string,mixed>,
+     *     name: non-empty-string,
      *     payload: null,
      *     schemaVersion: int
      * }

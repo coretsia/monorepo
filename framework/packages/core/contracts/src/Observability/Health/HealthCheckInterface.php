@@ -37,6 +37,8 @@ interface HealthCheckInterface
      * The id SHOULD identify the checked component without exposing raw
      * connection strings, host-specific paths, secrets, tenant ids, user ids,
      * or unbounded runtime values.
+     *
+     * @return non-empty-string
      */
     public function id(): string;
 

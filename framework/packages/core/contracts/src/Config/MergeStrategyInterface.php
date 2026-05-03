@@ -30,6 +30,10 @@ interface MergeStrategyInterface
     /**
      * Merges two config nodes deterministically.
      *
+     * Inputs are implementation-owned config data nodes. Implementations MUST NOT
+     * require executable validators, closures, service instances, resources, or
+     * runtime wiring objects to perform a merge.
+     *
      * Implementations MUST follow directive policy and MUST be side-effect free.
      * Multi-layer merge is performed by owner code by folding this operation in
      * explicit precedence order.

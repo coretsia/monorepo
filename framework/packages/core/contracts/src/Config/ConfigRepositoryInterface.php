@@ -31,7 +31,8 @@ interface ConfigRepositoryInterface
      * Returns whether a merged config key exists.
      *
      * Key format is implementation-owned and must remain logical, not a
-     * filesystem path contract.
+     * filesystem path contract. Empty-key/root-key semantics, if supported, are
+     * implementation-owned.
      */
     public function has(string $keyPath): bool;
 

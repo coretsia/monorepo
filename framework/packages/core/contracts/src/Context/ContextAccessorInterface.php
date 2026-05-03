@@ -34,6 +34,7 @@ interface ContextAccessorInterface
     /**
      * Returns whether the context contains the given key.
      *
+     * Key naming, namespacing, and empty-key handling are implementation-owned.
      * This method allows callers to distinguish an absent key from a present
      * key whose value is null, without adding a default parameter to get().
      */

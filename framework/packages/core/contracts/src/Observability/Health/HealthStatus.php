@@ -31,7 +31,7 @@ enum HealthStatus: string
     case Fail = 'fail';
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     public static function values(): array
     {

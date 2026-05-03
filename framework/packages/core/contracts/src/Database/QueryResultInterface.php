@@ -65,6 +65,8 @@ interface QueryResultInterface
      *
      * If a driver cannot determine the number of affected rows, it SHOULD
      * return 0 unless a future owner SSoT defines a more precise policy.
+     *
+     * @return int<0,max>
      */
     public function affectedRows(): int;
 }

@@ -26,5 +26,17 @@ namespace Coretsia\Contracts\Module;
  */
 interface ModuleInterface
 {
+    /**
+     * Returns the module descriptor exposed by this module.
+     *
+     * The descriptor is metadata only. Calling this method MUST NOT require
+     * runtime boot, service registration, config loading, filesystem scanning,
+     * container access, lifecycle execution, or integration-specific runtime
+     * state.
+     *
+     * The returned descriptor MUST be a contracts-level safe module descriptor
+     * and MUST NOT expose service instances, closures, resources, executable
+     * validators, runtime wiring objects, or environment-specific details.
+     */
     public function descriptor(): ModuleDescriptor;
 }

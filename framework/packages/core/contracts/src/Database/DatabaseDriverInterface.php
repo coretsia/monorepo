@@ -68,6 +68,8 @@ interface DatabaseDriverInterface
      * The platform-supported driver allowlist is owned by future
      * platform/database configuration policy, not by this contracts interface.
      * This contracts surface locks only the generic logical driver-id shape.
+     *
+     * @return non-empty-string
      */
     public function id(): string;
 
@@ -100,6 +102,7 @@ interface DatabaseDriverInterface
      * Driver implementations own backend-specific connection behavior, failure
      * handling, diagnostics, and produced connection invariants.
      *
+     * @param non-empty-string $connectionName
      * @param array<string,mixed> $config Secrets-allowed driver-owned config.
      * @param array<string,mixed> $tuning No-secrets effective driver tuning.
      */

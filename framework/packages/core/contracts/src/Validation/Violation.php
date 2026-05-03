@@ -33,13 +33,9 @@ final readonly class Violation
     public const int SCHEMA_VERSION = 1;
 
     private string $path;
-
     private string $code;
-
     private ?string $rule;
-
     private ?int $index;
-
     private ?string $message;
 
     /**
@@ -55,6 +51,10 @@ final readonly class Violation
     private array $meta;
 
     /**
+     * @param non-empty-string $code
+     * @param non-empty-string|null $rule
+     * @param int<0,max>|null $index
+     * @param non-empty-string|null $message
      * @param array<string,mixed> $meta
      */
     public function __construct(
@@ -83,21 +83,33 @@ final readonly class Violation
         return $this->path;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function code(): string
     {
         return $this->code;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function rule(): ?string
     {
         return $this->rule;
     }
 
+    /**
+     * @return int<0,max>|null
+     */
     public function index(): ?int
     {
         return $this->index;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function message(): ?string
     {
         return $this->message;
@@ -115,12 +127,12 @@ final readonly class Violation
 
     /**
      * @return array{
-     *     code: string,
-     *     index?: int,
-     *     message?: string,
-     *     meta: array<string, mixed>,
+     *     code: non-empty-string,
+     *     index?: int<0,max>,
+     *     message?: non-empty-string,
+     *     meta: array<string,mixed>,
      *     path: string,
-     *     rule?: string,
+     *     rule?: non-empty-string,
      *     schemaVersion: int
      * }
      */
@@ -178,6 +190,9 @@ final readonly class Violation
             || preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeCode(string $code): string
     {
         $code = trim($code);
@@ -197,6 +212,9 @@ final readonly class Violation
         return $code;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalSingleLineString(?string $value, string $field): ?string
     {
         if ($value === null) {
@@ -216,6 +234,9 @@ final readonly class Violation
         return $value;
     }
 
+    /**
+     * @return int<0,max>|null
+     */
     private static function normalizeIndex(?int $index): ?int
     {
         if ($index === null) {

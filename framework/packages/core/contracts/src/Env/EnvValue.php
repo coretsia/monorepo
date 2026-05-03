@@ -27,7 +27,6 @@ namespace Coretsia\Contracts\Env;
 final readonly class EnvValue
 {
     private bool $present;
-
     private ?string $value;
 
     private function __construct(bool $present, ?string $value)
@@ -49,6 +48,11 @@ final readonly class EnvValue
         return new self(false, null);
     }
 
+    /**
+     * Creates a present env value.
+     *
+     * Empty string is valid and remains distinct from missing().
+     */
     public static function present(string $value): self
     {
         return new self(true, $value);
@@ -69,6 +73,15 @@ final readonly class EnvValue
         return $this->present && $this->value === '';
     }
 
+    /**
+     * Returns the present raw env string value.
+     *
+     * The returned value MAY be an empty string. Missing and present-empty-string
+     * states are intentionally distinct; callers should use isPresent(),
+     * isMissing(), or isEmptyString() when that distinction matters.
+     *
+     * @throws \LogicException when called on a missing env value.
+     */
     public function value(): string
     {
         if (!$this->present) {

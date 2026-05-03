@@ -37,6 +37,7 @@ interface SamplerInterface
      * tokens, credentials, cookies, raw SQL, profile payloads, or private
      * customer data.
      *
+     * @param non-empty-string $spanName
      * @param array<string,mixed> $attributes
      */
     public function shouldSample(string $spanName, array $attributes = []): SamplingDecision;

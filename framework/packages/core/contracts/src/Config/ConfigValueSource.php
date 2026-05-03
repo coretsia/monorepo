@@ -29,7 +29,7 @@ final readonly class ConfigValueSource
     public const int SCHEMA_VERSION = 1;
 
     /**
-     * @var list<string>
+     * @var list<non-empty-string>
      */
     private const array FORBIDDEN_META_KEYS = [
         'value',
@@ -50,19 +50,12 @@ final readonly class ConfigValueSource
     ];
 
     private ConfigSourceType $type;
-
     private string $root;
-
     private string $sourceId;
-
     private ?string $path;
-
     private ?string $keyPath;
-
     private ?string $directive;
-
     private int $precedence;
-
     private bool $redacted;
 
     /**
@@ -159,6 +152,8 @@ final readonly class ConfigValueSource
      *
      * This rank belongs to the concrete source trace entry. It is intentionally
      * not derived from ConfigSourceType.
+     *
+     * @return int<0,max>
      */
     public function precedence(): int
     {
@@ -179,19 +174,17 @@ final readonly class ConfigValueSource
     }
 
     /**
-     * Stable metadata-only exported shape.
-     *
      * @return array{
-     *     directive: string|null,
-     *     keyPath: string|null,
+     *     directive: non-empty-string|null,
+     *     keyPath: non-empty-string|null,
      *     meta: array<string,mixed>,
-     *     path: string|null,
-     *     precedence: int,
+     *     path: non-empty-string|null,
+     *     precedence: int<0,max>,
      *     redacted: bool,
-     *     root: string,
+     *     root: non-empty-string,
      *     schemaVersion: int,
-     *     sourceId: string,
-     *     type: string
+     *     sourceId: non-empty-string,
+     *     type: non-empty-string
      * }
      */
     public function toArray(): array
@@ -210,6 +203,9 @@ final readonly class ConfigValueSource
         ];
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeRoot(string $root): string
     {
         $root = trim($root);
@@ -225,6 +221,9 @@ final readonly class ConfigValueSource
         return $root;
     }
 
+    /**
+     * @return non-empty-string
+     */
     private static function normalizeRequiredLogicalIdentifier(string $value, string $field): string
     {
         $value = trim($value);
@@ -238,6 +237,9 @@ final readonly class ConfigValueSource
         return $value;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalLogicalIdentifier(?string $value, string $field): ?string
     {
         if ($value === null) {
@@ -255,6 +257,9 @@ final readonly class ConfigValueSource
         return $value;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalRepoRelativePath(?string $path): ?string
     {
         if ($path === null) {
@@ -296,6 +301,9 @@ final readonly class ConfigValueSource
         return $path;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     private static function normalizeOptionalDirective(?string $directive): ?string
     {
         if ($directive === null) {

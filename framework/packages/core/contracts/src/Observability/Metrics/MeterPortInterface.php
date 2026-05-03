@@ -37,6 +37,7 @@ interface MeterPortInterface
      * response bodies, auth identifiers, session identifiers, tokens, raw SQL,
      * profile payloads, arbitrary user identifiers, or private customer data.
      *
+     * @param non-empty-string $name
      * @param array<string,string|int|bool> $labels
      */
     public function increment(string $name, int $delta = 1, array $labels = []): void;
@@ -50,6 +51,7 @@ interface MeterPortInterface
      * Label keys and values MUST follow the same allowlist and redaction rules
      * as counter labels.
      *
+     * @param non-empty-string $name
      * @param array<string,string|int|bool> $labels
      */
     public function observe(string $name, int $value, array $labels = []): void;

@@ -32,6 +32,8 @@ interface MetricsRendererInterface
      *
      * The value is implementation-owned and MUST NOT require concrete vendor
      * classes. Example: "text/plain; version=0.0.4".
+     *
+     * @return non-empty-string
      */
     public function contentType(): string;
 

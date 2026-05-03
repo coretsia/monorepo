@@ -32,6 +32,8 @@ interface SpanInterface
      *
      * Span names MUST NOT contain raw paths, raw queries, raw SQL, user ids,
      * tokens, credentials, headers, cookies, or request/response bodies.
+     *
+     * @return non-empty-string
      */
     public function name(): string;
 
@@ -41,6 +43,8 @@ interface SpanInterface
      * Attribute names and values MUST obey the global redaction law.
      * Raw payloads, raw request data, raw SQL, headers, cookies, tokens,
      * credentials, profile payloads, and private customer data are forbidden.
+     *
+     * @param non-empty-string $key
      */
     public function setAttribute(string $key, mixed $value): void;
 
@@ -59,6 +63,7 @@ interface SpanInterface
      *
      * Event attributes MUST be json-like and redacted.
      *
+     * @param non-empty-string $name
      * @param array<string,mixed> $attributes
      */
     public function addEvent(string $name, array $attributes = []): void;

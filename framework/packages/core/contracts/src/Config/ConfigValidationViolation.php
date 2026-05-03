@@ -46,15 +46,17 @@ final readonly class ConfigValidationViolation
     ];
 
     private string $root;
-
     private string $path;
-
     private string $reason;
-
     private ?string $expected;
-
     private ?string $actualType;
 
+    /**
+     * @param non-empty-string $root
+     * @param non-empty-string $reason
+     * @param non-empty-string|null $expected
+     * @param non-empty-string|null $actualType
+     */
     public function __construct(
         string $root,
         string $path,
@@ -74,6 +76,9 @@ final readonly class ConfigValidationViolation
         return self::SCHEMA_VERSION;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function root(): string
     {
         return $this->root;
@@ -84,16 +89,25 @@ final readonly class ConfigValidationViolation
         return $this->path;
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function reason(): string
     {
         return $this->reason;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function expected(): ?string
     {
         return $this->expected;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function actualType(): ?string
     {
         return $this->actualType;
@@ -101,11 +115,11 @@ final readonly class ConfigValidationViolation
 
     /**
      * @return array{
-     *     actualType?: string,
-     *     expected?: string,
+     *     actualType?: non-empty-string,
+     *     expected?: non-empty-string,
      *     path: string,
-     *     reason: string,
-     *     root: string,
+     *     reason: non-empty-string,
+     *     root: non-empty-string,
      *     schemaVersion: int
      * }
      */

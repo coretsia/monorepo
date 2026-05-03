@@ -49,7 +49,7 @@ final readonly class ConfigValidationResult
     }
 
     /**
-     * @param list<ConfigValidationViolation> $violations
+     * @param non-empty-list<ConfigValidationViolation> $violations
      */
     public static function failure(array $violations): self
     {
@@ -83,11 +83,11 @@ final readonly class ConfigValidationResult
      *     schemaVersion: int,
      *     success: bool,
      *     violations: list<array{
-     *         actualType?: string,
-     *         expected?: string,
+     *         actualType?: non-empty-string,
+     *         expected?: non-empty-string,
      *         path: string,
-     *         reason: string,
-     *         root: string,
+     *         reason: non-empty-string,
+     *         root: non-empty-string,
      *         schemaVersion: int
      *     }>
      * }

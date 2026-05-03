@@ -30,7 +30,6 @@ final readonly class HealthCheckResult
     public const int SCHEMA_VERSION = 1;
 
     private HealthStatus $status;
-
     private ?string $message;
 
     /**
@@ -61,6 +60,9 @@ final readonly class HealthCheckResult
         return $this->status;
     }
 
+    /**
+     * @return non-empty-string|null
+     */
     public function message(): ?string
     {
         return $this->message;
@@ -77,9 +79,9 @@ final readonly class HealthCheckResult
     /**
      * @return array{
      *     details: array<string,mixed>,
-     *     message: string|null,
+     *     message: non-empty-string|null,
      *     schemaVersion: int,
-     *     status: string
+     *     status: non-empty-string
      * }
      */
     public function toArray(): array

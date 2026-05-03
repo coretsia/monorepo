@@ -3774,25 +3774,26 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Filesystem/DiskInterface.php`
+- [x] `framework/packages/core/contracts/src/Filesystem/DiskInterface.php`
 
-- [ ] `docs/adr/ADR-0008-filesystem-ports.md`
-- [ ] `docs/ssot/filesystem-contracts.md` — ports + invariants
+- [x] `docs/adr/ADR-0008-filesystem-ports.md`
+- [x] `docs/ssot/filesystem-contracts.md` — ports + invariants
 
-- [ ] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/filesystem-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0008-filesystem-ports.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/filesystem-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0008-filesystem-ports.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] Path strings are treated as sensitive in logs (policy note; implemented in platform/filesystem)
+- [x] Path strings are treated as sensitive in logs and diagnostics by default — policy documented.
+- [x] Raw logical paths and file contents MUST NOT be logged, traced, exported as metric labels, or copied into unsafe diagnostics by default.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -3801,17 +3802,17 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Contract exists + tested
-- [ ] Docs exist
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `DiskInterface` is used by `platform/filesystem`, `platform/session`, `platform/uploads`, `platform/lock`.
-  - [ ] Drivers live in `integrations/*` and MUST implement this contracts interface.
-- [ ] Non-goals / out of scope:
-  - [ ] Path safety policy is owned by `platform/filesystem` (not contracts).
+- [x] Contract exists + tested
+- [x] Docs exist
+- [x] Runtime usage policy is documented:
+  - [x] `DiskInterface` is the contracts boundary for future `platform/filesystem`, `platform/session`, `platform/uploads`, and `platform/lock`.
+  - [x] Future `integrations/*` filesystem drivers MUST implement `DiskInterface`.
+- [x] Non-goals / out of scope are documented:
+  - [x] Path safety policy is owned by future `platform/filesystem`, not `core/contracts`.
 
 ---
 

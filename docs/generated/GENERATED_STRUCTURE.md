@@ -36,6 +36,7 @@ Coretsia/
 │   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   ├── ADR-0011-ratelimit-ports.md
 │   │   ├── ADR-0012-mail-port.md
+│   │   ├── ADR-0013-secrets-port.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -115,6 +116,7 @@ Coretsia/
 │       ├── profiling-ports.md
 │       ├── rate-limit-contracts.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── secrets-contracts.md
 │       ├── tags.md
 │       ├── uow-and-reset-contracts.md
 │       └── validation-contracts.md
@@ -221,6 +223,8 @@ Coretsia/
 │   │   │   │   │   │   │   ├── AfterUowHookInterface.php (AfterUowHookInterface [interface] - afterUow())
 │   │   │   │   │   │   │   └── BeforeUowHookInterface.php (BeforeUowHookInterface [interface] - beforeUow())
 │   │   │   │   │   │   └── ResetInterface.php (ResetInterface [interface] - reset())
+│   │   │   │   │   ├── Secrets/
+│   │   │   │   │   │   └── SecretsResolverInterface.php (SecretsResolverInterface [interface] - resolve())
 │   │   │   │   │   └── Validation/
 │   │   │   │   │       ├── ValidationException.php (ValidationException - errorCode()/result())
 │   │   │   │   │       ├── ValidationResult.php (ValidationResult - success()/failure()/schemaVersion()/isSuccess()/isFailure()/violations()/toArray()/normalizeViolations())
@@ -285,6 +289,7 @@ Coretsia/
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php (RouteProviderInterfaceShapeContractTest - testRouteProviderInterfaceExposesStableProviderIdAndRoutesOnly()/testRouteProviderIdMethodShapeIsStable()/testRouteProviderRoutesMethodShapeIsStable()/testRouteProviderCanReturnDeterministicRouteDefinitionList()/id()/routes()/uniqueRouteNames())
 │   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php (RoutingContractsDoNotUsePsr7Test - testRouterInterfaceMatchShapeIsStableAndFormatNeutral()/testRoutingContractsDoNotReferencePsr7OrRuntimePackages()/testRoutingContractsDoNotUseTransportGlobals()/assertNamedType()/contractsRoot()/phpFiles())
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php (SamplerInterfaceShapeContractTest - test_sampler_interface_shape_is_stable()/test_sampler_implementations_can_return_sampling_decision()/shouldSample()/assertMethodReturnType())
+│   │   │   │   │   │   ├── SecretsResolverInterfaceShapeContractTest.php (SecretsResolverInterfaceShapeContractTest - testSecretsResolverInterfaceShapeIsLocked()/testSecretsResolverInterfaceDoesNotExposeRuntimeOrBackendSurface()/testSecretsResolverInterfaceDoesNotDependOnForbiddenPackagesOrTypes()/testSecretsResolverInterfaceDoesNotOptIntoDtoPolicyOrDeclareDiscoveryConstants()/publicMethodNames()/publicConstantNames()/assertParameterShape()/assertParameterType()/assertReturnType()/assertMethodDocContains()/assertForbiddenPublicMethodsAreAbsent()/sourceOf()/assertSourceDoesNotContain())
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php (SpanExporterInterfaceShapeContractTest - test_span_exporter_interface_shape_is_stable()/test_span_exporter_accepts_iterable_of_span_interfaces()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/export()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php (SpanInterfaceShapeContractTest - test_span_interface_shape_is_stable()/test_name_shape_is_stable()/test_set_attribute_shape_is_stable()/test_set_attributes_shape_is_stable()/test_add_event_shape_is_stable()/test_record_exception_shape_is_stable()/test_end_shape_is_stable()/test_span_implementation_can_record_attributes_events_exception_and_end()/name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/assertMethodReturnType())
 │   │   │   │   │   │   ├── SqlQueryShapeContractTest.php (SqlQueryShapeContractTest - testSqlQueryInterfaceExistsAndHasCanonicalSurface()/testSqlQueryClassExistsAndHasCanonicalShape()/testSqlQueryHasNoDtoMarkerAttribute()/testBindingsPreserveListOrder()/testAssociativeBindingsAreRejected()/testInvalidBindingValuesAreRejected()/invalidBindingProvider()/testResourceBindingIsRejected()/testEmptySqlStringIsRejected()/testWhitespaceOnlySqlStringIsRejected()/testMultilineNonEmptySqlStringIsAccepted()/testRawSqlIsNotExposedThroughValidationExceptionMessages()/testPublicMethodSignaturesDoNotExposeVendorTypes()/publicMethodNames()/assertNamedReturnType()/assertNamedParameterType()/assertMethodDocblockContainsLine()/methodTypeNames()/reflectionTypeNames()/assertNotForbiddenVendorOrRuntimeType())

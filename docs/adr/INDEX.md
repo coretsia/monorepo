@@ -42,6 +42,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0009: Database and migrations ports](./ADR-0009-database-and-migrations-ports.md) — owner: core/contracts — scope: contracts,database,migrations,ports
 - [ADR-0011: Rate limit ports](./ADR-0011-ratelimit-ports.md) — owner: core/contracts — scope: contracts,ports,rate-limit,redaction
 - [ADR-0012: Mail port](./ADR-0012-mail-port.md) — owner: core/contracts — scope: contracts,mail,ports,redaction
+- [ADR-0013: Secrets port](./ADR-0013-secrets-port.md) — owner: core/contracts — scope: contracts,secrets,redaction
 
 ## Cross-references
 

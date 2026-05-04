@@ -2587,7 +2587,7 @@ N/A
   - [x] Tag format: `vMAJOR.MINOR.PATCH`
   - [x] Source of release notes: `CHANGELOG.md` (human-maintained)
   - [x] Publishing MUST be source-only (no built artifacts) in Phase 0 / early phases
-- [ ] Packagist: split repositories (coretsia/<layer>-<slug>) MUST be connected in Packagist via GitHub integration (auto-update enabled); no manual publish step in the canonical procedure (blocked until first public evidence).
+- [x] Packagist: split repositories (coretsia/<layer>-<slug>) MUST be connected in Packagist via GitHub integration (auto-update enabled); no manual publish step in the canonical procedure.
 
 #### Wiring / DI tags
 
@@ -2684,8 +2684,12 @@ N/A
 - [x] Split plan rails exist (dry-run only):
   - [x] `ci/split-plan.json` + `ci/split-plan.sha256` are produced as workflow artifacts
   - [x] rerun-no-diff is enforced (double generation in one run must match byte-for-byte)
-- [ ] Packagist integration checkbox remains `[ ]` with status: blocked until first public release
-  - [ ] No claim of Packagist verification is allowed without public evidence (tag appears in Packagist without manual Update)
+- [x] Packagist integration verified by first public release evidence:
+  - [x] Public split repository `coretsia/core-contracts` exists.
+  - [x] Packagist package `coretsia/core-contracts` exists.
+  - [x] Packagist package is connected via GitHub integration / auto-update.
+  - [x] tag `v0.2.0` appears on Packagist without manual Update.
+  - [x] external smoke test installs `coretsia/core-contracts:^0.2` and resolves `Coretsia\Contracts\Runtime\ResetInterface`.
 
 ---
 

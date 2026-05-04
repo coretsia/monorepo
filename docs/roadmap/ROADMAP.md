@@ -17,11 +17,7 @@
 ## Рекомендована “канонічна інструкція читання”:
 
 - [x] PRELUDE — Repo bootstrap
-- [ ] PHASE 0 — SPIKES (Prototype найризиковіших частин)
-  - 0.110.0 Publishing rails:
-    - [ ] Packagist: repository MUST be connected in Packagist with GitHub integration (auto-update enabled); no manual publish step in the canonical procedure
-    - [ ] Packagist integration checkbox remains `[ ]` with status: blocked until first public release
-      - [ ] No claim of Packagist verification is allowed without public evidence (tag appears in Packagist without manual Update)
+- [x] PHASE 0 — SPIKES (Prototype найризиковіших частин)
 - [ ] PHASE 1 — CORE (повний core/*: contracts + foundation + kernel)
 - [ ] PHASE 2 — Mode Infrastructure & CLI
 - [ ] PHASE 3 — RELEASE: micro (перший релізний режим)
@@ -60,9 +56,6 @@
 ### 0.90.0 Two-phase config merge + directives + explain prototype (MUST) [TOOLING]
 ### 0.100.0 Composer workspace SPOF prototype: package-index + repositories sync (MUST) [TOOLING]
 ### 0.110.0 Publishing rails (GitHub/Packagist) (MUST) [TOOLING]
-  - [ ] Packagist: repository MUST be connected in Packagist with GitHub integration (auto-update enabled); no manual publish step in the canonical procedure
-  - [ ] Packagist integration checkbox remains `[ ]` with status: blocked until first public release
-    - [ ] No claim of Packagist verification is allowed without public evidence (tag appears in Packagist without manual Update)
 ### 0.120.0 CLI ports in `coretsia/contracts` (MUST) [CONTRACTS]
 ### 0.130.0 Minimal `coretsia` CLI base (prod-safe) (MUST) [TOOLING]
 ### 0.140.0 `coretsia/cli-spikes` Phase 0 command pack (require-dev) (MUST) [TOOLING]

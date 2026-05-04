@@ -4289,32 +4289,33 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Mail/MailerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Mail/MailTransportInterface.php`
-- [ ] `framework/packages/core/contracts/src/Mail/MailMessage.php`
-  - [ ] message data shape MUST NOT be logged raw
-  - [ ] mail message model is a contracts transport model but is outside DTO marker policy unless explicitly marked
-- [ ] `framework/packages/core/contracts/src/Mail/MailException.php`
+- [x] `framework/packages/core/contracts/src/Mail/MailerInterface.php`
+- [x] `framework/packages/core/contracts/src/Mail/MailTransportInterface.php`
+- [x] `framework/packages/core/contracts/src/Mail/MailMessage.php`
+  - [x] message data shape MUST NOT be logged raw
+  - [x] mail message model is a contracts transport model but is outside DTO marker policy unless explicitly marked
+- [x] `framework/packages/core/contracts/src/Mail/MailException.php`
 
-- [ ] `docs/adr/ADR-0012-mail-port.md`
-- [ ] `docs/ssot/mail-contracts.md` — ports + redaction rules
+- [x] `docs/adr/ADR-0012-mail-port.md`
+- [x] `docs/ssot/mail-contracts.md` — ports + redaction rules
 
-- [ ] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/mail-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0012-mail-port.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/mail-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0012-mail-port.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak recipients/body/credentials; only counts + safe hashes (implementation-side)
-- [ ] MUST NOT leak recipients, message body, or credentials in logs/errors/metrics.
-- [ ] On transport failure, error reporting MUST NOT log recipients or body (only safe counts/hashes).
+- [x] Contract-level redaction policy is documented: raw recipients, subject, body, credentials, provider payloads, and provider responses MUST NOT be exposed through diagnostics.
+- [x] `MailMessage::toArray()` exposes only safe deterministic shape data: counts, lengths, safe headers, and safe metadata; it MUST NOT expose raw recipients, raw subject, or raw body.
+- [x] Runtime redaction expectation is documented as policy: future implementations MUST NOT leak recipients, message body, credentials, provider payloads, or provider responses in logs, errors, metrics, spans, health output, CLI output, or debug output.
+- [x] Transport failure reporting policy is documented: future transports MUST redact provider, transport, queue, credential, recipient, subject, body, and backend details before reporting through `MailException` or runtime-owned error reporting.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -4323,15 +4324,16 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Contracts exist + tested
-- [ ] Docs exist
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/mail` uses these contracts; transports live in `integrations/*`.
-  - [ ] Credentials/secrets are resolved via the secrets port (never printed).
+- [x] Contracts exist + tested
+- [x] Docs exist
+- [x] Runtime expectation is documented as policy, NOT implemented by this epic:
+  - [x] Future `platform/mail` is documented as the expected runtime owner that uses these contracts.
+  - [x] Future mail transports are documented as owner packages outside `core/contracts`, including future `integrations/*`.
+  - [x] Future runtime owners are documented to resolve credentials/secrets through the canonical secrets port or owner-approved secret mechanism, never through mail contracts and never by printing/logging secrets.
 
 ---
 

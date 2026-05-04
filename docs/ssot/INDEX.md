@@ -48,6 +48,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [ErrorDescriptor SSoT](./error-descriptor.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,redaction,shape
 - [Errors Boundary SSoT](./errors-boundary.md) — owner: core/contracts — scope: boundary,contracts,errors,normalization,runtime
 - [Filesystem Contracts SSoT](./filesystem-contracts.md) — owner: core/contracts — scope: contracts,filesystem,ports,redaction
+- [Mail Contracts SSoT](./mail-contracts.md) — owner: core/contracts — scope: contracts,mail,ports,redaction
 - [Migrations Contracts SSoT](./migrations-contracts.md) — owner: core/contracts — scope: contracts,database,migrations,ports
 - [Modes SSoT](./modes.md) — owner: core/contracts — scope: contracts,mode-preset,modes,presets
 - [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — scope: contracts,manifest,module,module-descriptor,module-id

@@ -35,6 +35,7 @@ Coretsia/
 │   │   ├── ADR-0008-filesystem-ports.md
 │   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   ├── ADR-0011-ratelimit-ports.md
+│   │   ├── ADR-0012-mail-port.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,7 @@ Coretsia/
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
+│       ├── mail-contracts.md
 │       ├── migrations-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
@@ -159,6 +161,11 @@ Coretsia/
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php (ActionInvokerInterface [interface] - invoke())
 │   │   │   │   │   │   └── ArgumentResolverInterface.php (ArgumentResolverInterface [interface] - resolve())
+│   │   │   │   │   ├── Mail/
+│   │   │   │   │   │   ├── MailException.php (MailException - errorCode())
+│   │   │   │   │   │   ├── MailMessage.php (MailMessage - schemaVersion()/to()/cc()/bcc()/replyTo()/subject()/body()/headers()/metadata()/toArray()/normalizeRecipientList()/normalizeJsonLikeMap()/normalizeJsonLikeValue()/assertSafeSingleLineString()/assertSafeBodyString()/assertSafeString())
+│   │   │   │   │   │   ├── MailTransportInterface.php (MailTransportInterface [interface] - name()/send())
+│   │   │   │   │   │   └── MailerInterface.php (MailerInterface [interface] - send())
 │   │   │   │   │   ├── Migrations/
 │   │   │   │   │   │   └── MigrationInterface.php (MigrationInterface [interface] - up()/down())
 │   │   │   │   │   ├── Module/
@@ -257,6 +264,7 @@ Coretsia/
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php (HealthCheckResultShapeContractTest - test_constructor_shape_is_stable()/test_getters_and_array_shape_are_stable()/test_empty_message_normalizes_to_null()/test_message_rejects_outer_whitespace()/test_details_preserve_list_order_and_sort_maps()/test_details_reject_non_empty_root_lists()/test_details_reject_floats_objects_closures_and_invalid_keys()/test_message_rejects_multiline_values()/assertParameterNamedType())
 │   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php (HookInterfacesDoNotDependOnPlatformTest - testBeforeUowHookInterfaceExistsAndIsAnInterface()/testBeforeUowHookInterfaceExposesOnlyBeforeUowVoidWithoutParameters()/testAfterUowHookInterfaceExistsAndIsAnInterface()/testAfterUowHookInterfaceExposesOnlyAfterUowVoidWithoutParameters()/assertHookInterfaceShape()/assertMethodSignatureDoesNotReferenceForbiddenTypes()/assertParameterSignatureDoesNotReferenceForbiddenTypes()/assertTypeDoesNotReferenceForbiddenTypes()/typeNames())
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php (HttpAppContractsAreFormatNeutralTest - testArgumentResolverInterfaceShapeIsFormatNeutral()/testActionInvokerInterfaceShapeIsFormatNeutral()/testHttpAppContractsDoNotReferencePsr7PlatformOrConcreteHttpPackages()/testHttpAppContractsDoNotUseRawTransportGlobals()/assertNamedType()/contractsRoot()/phpFiles())
+│   │   │   │   │   │   ├── MailContractsShapeContractTest.php (MailContractsShapeContractTest - testMailerInterfaceShapeIsLocked()/testMailTransportInterfaceShapeIsLocked()/testMailMessageClassShapeIsLocked()/testMailMessageConstructorShapeIsLocked()/testMailMessageAccessorShapeIsLocked()/testMailMessagePreservesRawDeliveryAccessorsExactly()/testMailMessageExportedSafeShapeIsLocked()/testMailMessageRequiresNonEmptyToRecipientList()/testMailMessageRejectsInvalidRecipientStrings()/testMailMessageRejectsInvalidSubjectStringsWithoutTrimming()/testMailMessageBodyAllowsOrdinaryWhitespaceButRejectsUnsafeControls()/testMailMessageHeadersAndMetadataAreJsonLikeAndDeterministic()/testMailMessageRejectsInvalidHeadersAndMetadata()/testMailExceptionShapeIsLocked()/testMailContractsDoNotContainForbiddenSourceTokens()/assertMethodHasNoParameters()/assertReturnType()/assertParameterShape()/assertParameterNamedType()/assertMethodDocContains()/publicMethodNames()/declaredPublicMethodNames()/publicConstantNames()/declaredPropertyNames()/assertForbiddenPublicMethodsAreAbsent()/assertPublicMethodsAreAbsent()/assertHasNoDtoMarkerAttribute()/assertInvalidArgument()/encodeForLeakAssertion())
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php (ManifestReaderInterfaceShapeContractTest - test_manifest_reader_interface_exposes_read_only()/test_read_returns_module_manifest_not_descriptor_list())
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php (MergeStrategyInterfaceShapeContractTest - test_merge_strategy_interface_exposes_merge_only()/test_merge_method_shape_is_binary_node_merge_boundary()/test_merge_method_docblock_cements_side_effect_free_binary_policy())
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php (MeterPortInterfaceShapeContractTest - test_meter_port_interface_shape_is_stable()/test_meter_port_accepts_safe_bounded_scalar_label_values_without_null_labels()/increment()/observe()/assertLabelsDoNotContainNull()/test_meter_label_phpdoc_documents_non_null_bounded_scalar_labels()/assertParameterNamedType()/assertMethodReturnType())

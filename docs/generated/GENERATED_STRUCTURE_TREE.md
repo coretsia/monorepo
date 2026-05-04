@@ -35,6 +35,7 @@ Coretsia/
 │   │   ├── ADR-0008-filesystem-ports.md
 │   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   ├── ADR-0011-ratelimit-ports.md
+│   │   ├── ADR-0012-mail-port.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,7 @@ Coretsia/
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
+│       ├── mail-contracts.md
 │       ├── migrations-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
@@ -159,6 +161,11 @@ Coretsia/
 │   │   │   │   │   ├── HttpApp/
 │   │   │   │   │   │   ├── ActionInvokerInterface.php
 │   │   │   │   │   │   └── ArgumentResolverInterface.php
+│   │   │   │   │   ├── Mail/
+│   │   │   │   │   │   ├── MailException.php
+│   │   │   │   │   │   ├── MailMessage.php
+│   │   │   │   │   │   ├── MailTransportInterface.php
+│   │   │   │   │   │   └── MailerInterface.php
 │   │   │   │   │   ├── Migrations/
 │   │   │   │   │   │   └── MigrationInterface.php
 │   │   │   │   │   ├── Module/
@@ -257,6 +264,7 @@ Coretsia/
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php
 │   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
+│   │   │   │   │   │   ├── MailContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MeterPortInterfaceShapeContractTest.php

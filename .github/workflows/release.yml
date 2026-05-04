@@ -221,10 +221,10 @@ jobs:
           # - A release section starts with "## vMAJOR.MINOR.PATCH"
           # - Notes are all lines until the next "## " heading (or EOF).
           awk -v tag="${TAG}" '
-            BEGIN { in=0; found=0 }
-            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { in=1; found=1; next }
-            $0 ~ "^##[[:space:]]+" && in==1 { exit }
-            in==1 { print }
+            BEGIN { inside=0; found=0 }
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+            $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+            inside==1 { print }
             END { if (found==0) exit 2 }
           ' "CHANGELOG.md" > "${NOTES_FILE}" || {
             echo "Missing CHANGELOG section for ${TAG}"
@@ -275,10 +275,10 @@ jobs:
           NOTES_FILE="release_notes.md"
 
           awk -v tag="${TAG}" '
-            BEGIN { in=0; found=0 }
-            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { in=1; found=1; next }
-            $0 ~ "^##[[:space:]]+" && in==1 { exit }
-            in==1 { print }
+            BEGIN { inside=0; found=0 }
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+            $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+            inside==1 { print }
             END { if (found==0) exit 2 }
           ' "CHANGELOG.md" > "${NOTES_FILE}" || {
             echo "Missing CHANGELOG section for ${TAG}"

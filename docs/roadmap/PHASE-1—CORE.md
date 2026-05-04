@@ -4428,26 +4428,26 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
+- [x] `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
 
-- [ ] `docs/adr/ADR-0013-secrets-port.md`
-- [ ] `docs/ssot/secrets-contracts.md` — usage rules + redaction requirements
+- [x] `docs/adr/ADR-0013-secrets-port.md`
+- [x] `docs/ssot/secrets-contracts.md` — usage rules + redaction requirements
 
-- [ ] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/secrets-contracts.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0013-secrets-port.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/secrets-contracts.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0013-secrets-port.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak secret values anywhere (logs/spans/metrics/stdout/http debug)
-- [ ] Allowed: `ref`, `hash(value)` (without printing value), `len(value)`
+- [x] MUST NOT leak secret values anywhere (logs/spans/metrics/stdout/http debug)
+- [x] Allowed: `ref`, `hash(value)` (without printing value), `len(value)`
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -4456,16 +4456,16 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
-- [ ] Contract exists + tested
-- [ ] Docs exist
-- [ ] Downstream packages can rely on this port without new deps
-- [ ] Runtime expectation (policy, NOT deps):
-  - [ ] `platform/secrets` binds a resolver (Null/Env/Vault/…); downstream packages depend ONLY on `SecretsResolverInterface`.
-  - [ ] Debug outputs (CLI/HTTP debug endpoints) MUST redact and MUST NOT print resolved secret values.
+- [x] Contract exists + tested
+- [x] Docs exist
+- [x] Downstream packages can rely on this port without new deps
+- [x] Runtime expectation (policy, NOT deps):
+  - [x] `platform/secrets` binds a resolver (Null/Env/Vault/…); downstream packages depend ONLY on `SecretsResolverInterface`.
+  - [x] Debug outputs (CLI/HTTP debug endpoints) MUST redact and MUST NOT print resolved secret values.
 
 ---
 

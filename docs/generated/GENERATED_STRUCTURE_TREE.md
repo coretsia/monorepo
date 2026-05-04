@@ -36,6 +36,7 @@ Coretsia/
 │   │   ├── ADR-0009-database-and-migrations-ports.md
 │   │   ├── ADR-0011-ratelimit-ports.md
 │   │   ├── ADR-0012-mail-port.md
+│   │   ├── ADR-0013-secrets-port.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -115,6 +116,7 @@ Coretsia/
 │       ├── profiling-ports.md
 │       ├── rate-limit-contracts.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── secrets-contracts.md
 │       ├── tags.md
 │       ├── uow-and-reset-contracts.md
 │       └── validation-contracts.md
@@ -221,6 +223,8 @@ Coretsia/
 │   │   │   │   │   │   │   ├── AfterUowHookInterface.php
 │   │   │   │   │   │   │   └── BeforeUowHookInterface.php
 │   │   │   │   │   │   └── ResetInterface.php
+│   │   │   │   │   ├── Secrets/
+│   │   │   │   │   │   └── SecretsResolverInterface.php
 │   │   │   │   │   └── Validation/
 │   │   │   │   │       ├── ValidationException.php
 │   │   │   │   │       ├── ValidationResult.php
@@ -285,6 +289,7 @@ Coretsia/
 │   │   │   │   │   │   ├── RouteProviderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── RoutingContractsDoNotUsePsr7Test.php
 │   │   │   │   │   │   ├── SamplerInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── SecretsResolverInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanExporterInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SqlQueryShapeContractTest.php

@@ -82,6 +82,7 @@ jobs:
           test -f "UPGRADE.md"
           test -f "CONTRIBUTING.md"
           test -f "docs/guides/releasing.md"
+          test -f ".github/workflows/split-publish.yml"
           test -f ".github/scripts/split-plan.php"
           test -f ".github/scripts/split-plan.schema.md"
 

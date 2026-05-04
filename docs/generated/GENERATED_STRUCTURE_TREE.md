@@ -22,7 +22,8 @@ Coretsia/
 │   │   └── split-plan.schema.md
 │   ├── workflows/
 │   │   ├── ci.yml
-│   │   └── release.yml
+│   │   ├── release.yml
+│   │   └── split-publish.yml
 │   └── pull_request_template.md
 ├── docs/
 │   ├── adr/
@@ -79,6 +80,7 @@ Coretsia/
 │   │   ├── development-workflow.md
 │   │   ├── git-hooks.md
 │   │   ├── onboarding.md
+│   │   ├── packagist-split-publishing-guide.md
 │   │   ├── quickstart.md
 │   │   └── releasing.md
 │   ├── roadmap/

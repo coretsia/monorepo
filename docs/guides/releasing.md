@@ -37,7 +37,8 @@ This guide defines the **canonical** (single-choice) release procedure for the C
   - no built binaries
   - no generated artifacts attached to GitHub Releases
 - GitHub Release is created from the tag.
-- Packagist publishing is **automatic** via GitHub integration (see below).
+- Packagist package updates are **automatic** via GitHub integration after the package has been submitted once.
+- The first Packagist package submission is a one-time bootstrap action per public split repository.
 
 ## Packagist policy (MUST)
 
@@ -68,6 +69,10 @@ Before cutting a release, ensure these files exist in the repo root:
 - `CHANGELOG.md`
 - `UPGRADE.md`
 - `CONTRIBUTING.md`
+- `.github/workflows/release.yml`
+- `.github/workflows/split-publish.yml`
+- `.github/scripts/split-plan.php`
+- `.github/scripts/split-plan.schema.md`
 
 ## Canonical procedure (MUST)
 
@@ -112,14 +117,30 @@ git push origin vMAJOR.MINOR.PATCH
 
 ### 5) Automation outcome
 
-After the tag is pushed:
+After the monorepo tag is pushed:
 
 - GitHub Actions workflow `.github/workflows/release.yml` runs and:
-  - validates the tag format
-  - validates required files
-  - extracts notes from `CHANGELOG.md`
-  - creates a GitHub Release for the tag (source-only)
-- Packagist auto-updates via GitHub integration (no manual UI step).
+  - validates the tag format;
+  - validates required files;
+  - extracts notes from `CHANGELOG.md`;
+  - creates a GitHub Release for the tag (source-only).
+
+For packages published through Packagist, package publishing is handled by the split publishing workflow:
+
+```text
+monorepo tag vMAJOR.MINOR.PATCH
+  -> split workflow pushes the package subtree to the public split repository
+  -> split workflow pushes the same tag to the public split repository
+  -> Packagist GitHub integration updates the package
+```
+
+Packagist watches the split repository, not the monorepo.
+
+For the detailed split publishing procedure, see:
+
+```text
+docs/guides/packagist-split-publishing-guide.md
+```
 
 ## Validation / dry-run mode (MUST)
 

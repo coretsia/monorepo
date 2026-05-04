@@ -1,0 +1,193 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+name: split-publish
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: split-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  core-contracts:
+    name: "split publish / core/contracts"
+    runs-on: ubuntu-latest
+
+    env:
+      LAYER: core
+      SLUG: contracts
+      PREFIX: framework/packages/core/contracts
+      SPLIT_REPO: coretsia/core-contracts
+      SPLIT_DEPLOY_KEY: ${{ secrets.SPLIT_CORE_CONTRACTS_DEPLOY_KEY }}
+
+    steps:
+      - name: "Checkout: monorepo"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Validate release tag invariants"
+        if: ${{ github.ref_type == 'tag' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: ${TAG}" >&2
+            echo "Expected: vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+
+          test -f "CHANGELOG.md"
+
+          NOTES_FILE="release_notes.md"
+
+          awk -v tag="${TAG}" '
+            BEGIN { inside=0; found=0 }
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+            $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+            inside==1 { print }
+            END { if (found==0) exit 2 }
+          ' "CHANGELOG.md" > "${NOTES_FILE}" || {
+            echo "Missing CHANGELOG section for ${TAG}" >&2
+            echo "Expected heading: \"## ${TAG}\"" >&2
+            exit 1
+          }
+
+          if [[ ! -s "${NOTES_FILE}" ]]; then
+            echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
+            exit 1
+          fi
+
+          rm -f "${NOTES_FILE}"
+
+      - name: "Validate split publishing secret exists"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SPLIT_DEPLOY_KEY}" ]; then
+            echo "Missing required Actions secret: SPLIT_CORE_CONTRACTS_DEPLOY_KEY" >&2
+            exit 1
+          fi
+
+      - name: "Configure SSH for split repository"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${SPLIT_DEPLOY_KEY}" > ~/.ssh/split_deploy_key
+          chmod 600 ~/.ssh/split_deploy_key
+
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: "Validate package composer identity"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED="coretsia/${LAYER}-${SLUG}"
+
+          ACTUAL="$(
+            php -r '
+              $path = getenv("PREFIX") . "/composer.json";
+              $raw = file_get_contents($path);
+              if ($raw === false) {
+                  fwrite(STDERR, "Cannot read composer.json\n");
+                  exit(1);
+              }
+
+              $json = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+              echo is_array($json) ? ($json["name"] ?? "") : "";
+            '
+          )"
+
+          if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+            echo "Composer name mismatch: expected ${EXPECTED}, got ${ACTUAL}" >&2
+            exit 1
+          fi
+
+      - name: "Create split branch"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SPLIT_BRANCH="split-${LAYER}-${SLUG}-${GITHUB_SHA}"
+
+          git branch -D "${SPLIT_BRANCH}" 2>/dev/null || true
+
+          git subtree split \
+            --prefix="${PREFIX}" \
+            -b "${SPLIT_BRANCH}"
+
+          echo "SPLIT_BRANCH=${SPLIT_BRANCH}" >> "${GITHUB_ENV}"
+
+      - name: "Push split main on monorepo main push"
+        if: ${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
+            git push "git@github.com:${SPLIT_REPO}.git" \
+            "${SPLIT_BRANCH}:refs/heads/main"
+
+      - name: "Push split release tag on monorepo tag push"
+        if: ${{ github.ref_type == 'tag' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: ${TAG}" >&2
+            exit 1
+          fi
+
+          # Ensure split main is at least up to date with this package state.
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
+            git push "git@github.com:${SPLIT_REPO}.git" \
+            "${SPLIT_BRANCH}:refs/heads/main"
+
+          # The monorepo tag already exists locally, but it points to the monorepo commit.
+          # The split repo tag must point to the split commit, so recreate the local tag.
+          git tag -d "${TAG}" 2>/dev/null || true
+
+          git \
+            -c user.name="coretsia-split-publisher" \
+            -c user.email="actions@users.noreply.github.com" \
+            tag -a "${TAG}" -m "${TAG}" "${SPLIT_BRANCH}"
+
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
+            git push "git@github.com:${SPLIT_REPO}.git" \
+            "refs/tags/${TAG}:refs/tags/${TAG}"
+
+      - name: "Cleanup SSH key"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -f ~/.ssh/split_deploy_key

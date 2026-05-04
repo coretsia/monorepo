@@ -25,28 +25,11 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 ### Added
 
-- Canonical monorepo packaging law:
-  - `framework/packages/<layer>/<slug>/`
-  - composer name `coretsia/<layer>-<slug>`
-  - deterministic namespace mapping.
-- Canonical repo entrypoints and “run from repo root” workflow:
-  - `composer setup`, `composer test`, `composer ci`.
-- Managed Composer repositories policy:
-  - `repositories` blocks are managed solely by `php framework/tools/build/sync_composer_repositories.php`,
-  - pre-commit drift check via `--check`.
-- Lock determinism policy:
-  - lock files committed (root/framework/skeleton),
-  - CI uses `composer install`, fails on any lock drift.
-- Spikes boundary law:
-  - spikes live only under `framework/tools/spikes/**`,
-  - no runtime package imports; internal exception only for `coretsia/internal-toolkit`.
-- SSoT-first development workflow:
-  - invariants, shapes, policies in `docs/ssot/**`,
-  - deliverables tracked in `docs/roadmap/**`.
+- _TBD_
 
 ### Changed
 
-- Documentation strategy: single-source invariants moved into focused SSoT docs; non-SSoT docs must link to SSoT for truth.
+- _TBD_
 
 ### Deprecated
 
@@ -62,9 +45,20 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 ### Security
 
-- Deterministic output & redaction policy for tooling/gates:
-  - code-first output,
-  - no secrets/PII in diagnostics, logs, artifacts, or docs.
+- _TBD_
+
+## v0.2.0
+
+### Added
+
+- Publish-ready `coretsia/core-contracts` package as the first public split package.
+- Phase 1 contracts baseline for context, observability, errors, runtime reset/UoW, modules, modes, config/env, routing/http-app, validation, mail, database, filesystem, secrets, profiling, and rate-limit ports.
+- Cross-cutting noop contract test coverage for contract-only noop implementations.
+
+### Changed
+
+- Lock HTTP middleware taxonomy and cross-cutting runtime invariants in `docs/ssot/http-middleware-catalog.md`.
+- Register the HTTP Middleware Catalog SSoT in `docs/ssot/INDEX.md`.
 
 ## v0.1.0
 
@@ -73,6 +67,29 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 - Initial monorepo structure:
   - `framework/`, `skeleton/`, `docs/`, `framework/tools/`.
 - Roadmap scaffolding (`docs/roadmap/**`) and SSoT index layout (`docs/ssot/**`).
-- Phase 0 / Prelude rails baseline (gates, determinism expectations, boundary rules).
+- Phase 0 / Prelude rails baseline:
+  - gates,
+  - determinism expectations,
+  - boundary rules.
+- Canonical monorepo packaging law:
+  - `framework/packages/<layer>/<slug>/`,
+  - composer name `coretsia/<layer>-<slug>`,
+  - deterministic namespace mapping.
+- Canonical repo entrypoints and “run from repo root” workflow:
+  - `composer setup`,
+  - `composer test`,
+  - `composer ci`.
+- Managed Composer repositories policy.
+- Lock determinism policy.
+- Spikes boundary law.
+- SSoT-first development workflow.
 
-> Add the release date inside the section body if needed; the heading format is fixed: "## vMAJOR.MINOR.PATCH".
+### Changed
+
+- Documentation strategy: single-source invariants moved into focused SSoT docs; non-SSoT docs must link to SSoT for truth.
+
+### Security
+
+- Deterministic output and redaction policy for tooling/gates:
+  - code-first output,
+  - no secrets/PII in diagnostics, logs, artifacts, or docs.

@@ -107,6 +107,7 @@ Coretsia/
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
+│       ├── http-middleware-catalog.md
 │       ├── mail-contracts.md
 │       ├── migrations-contracts.md
 │       ├── modes.md

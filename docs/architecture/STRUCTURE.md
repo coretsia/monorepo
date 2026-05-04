@@ -42,7 +42,20 @@
     - (e.g. `platform/http-client` → `Coretsia\Platform\HttpClient\...`)
   - `src/` → the corresponding root namespace, `tests/` → `...\Tests\...`
 - Collision safety (MUST):
-  - slugs `Core`, `Platform`, `Integrations`, `Devtools` **MUST NOT** be used as slugs under `core/*`.
+  - For `core/*` packages, the value of `Studly(<slug>)` **MUST NOT** equal any of:
+    - `Core`
+    - `Platform`
+    - `Integrations`
+    - `Enterprise`
+    - `Devtools`
+    - `Presets`
+  - Equivalent forbidden slug values under `core/*` are:
+    - `core`
+    - `platform`
+    - `integrations`
+    - `enterprise`
+    - `devtools`
+    - `presets`
 - Versioning **MUST** be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions **MUST NOT** be used.
 
 > Note: tooling-only libs that live outside `framework/packages/**` (for example `framework/tools/**`)

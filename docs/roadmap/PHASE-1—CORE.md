@@ -4604,57 +4604,57 @@ Forbidden:
   - Canonical middleware slots (SSoT) — system/app/route taxonomy (MUST match Phase 0 spikes slot keys):
 
     - Slot `http.middleware.system_pre`:
-      - prio 950  `platform/http` → `\Coretsia\Http\Middleware\CorrelationIdMiddleware::class` (auto)
-      - prio 940  `platform/http` → `\Coretsia\Http\Middleware\RequestIdMiddleware::class` (auto if `http.request_id.enabled`)
-      - prio 930  `platform/http` → `\Coretsia\Http\Middleware\TraceContextMiddleware::class` (auto)
-      - prio 920  `platform/http` → `\Coretsia\Http\Middleware\HttpMetricsMiddleware::class` (auto)
-      - prio 910  `platform/http` → `\Coretsia\Http\Middleware\AccessLogMiddleware::class` (auto)
-      - prio 900  `platform/http` → `\Coretsia\Http\Maintenance\MaintenanceMiddleware::class` (auto if enabled)
-      - prio 880  `platform/http` → `\Coretsia\Http\Middleware\TrustedProxyMiddleware::class` (auto if `http.proxy.enabled`)
-      - prio 870  `platform/http` → `\Coretsia\Http\Middleware\RequestContextMiddleware::class` (auto if `http.context.enrich.enabled`)
-      - prio 860  `platform/http` → `\Coretsia\Http\Middleware\TrustedHostMiddleware::class` (auto if `http.hosts.enabled`)
-      - prio 850  `platform/http` → `\Coretsia\Http\Middleware\HttpsRedirectMiddleware::class` (auto if `http.https_redirect.enabled`)
-      - prio 840  `platform/http` → `\Coretsia\Http\Middleware\CorsMiddleware::class` (auto if `http.cors.enabled`)
-      - prio 830  `platform/http` → `\Coretsia\Http\Middleware\RequestBodySizeLimitMiddleware::class` (auto)
-      - prio 820  `platform/http` → `\Coretsia\Http\Middleware\MethodOverrideMiddleware::class` (auto if `http.method_override.enabled`)
-      - prio 810  `platform/http` → `\Coretsia\Http\Middleware\ContentNegotiationMiddleware::class` (auto if `http.negotiation.enabled`)
-      - prio 800  `platform/http` → `\Coretsia\Http\Middleware\JsonBodyParserMiddleware::class` (auto if `http.request.json.enabled`)
-      - prio 790  `platform/http` → `\Coretsia\Http\Middleware\EarlyRateLimitMiddleware::class` (auto if `http.rate_limit.early.enabled`)
-      - prio 580  `platform/http` → `\Coretsia\Http\Debug\DebugEndpointsMiddleware::class` (OPTIONAL SHAPE, dev-only; must be opt-in)
+      - prio 950  `platform/http` → `\Coretsia\Platform\Http\Middleware\CorrelationIdMiddleware::class` (auto)
+      - prio 940  `platform/http` → `\Coretsia\Platform\Http\Middleware\RequestIdMiddleware::class` (auto if `http.request_id.enabled`)
+      - prio 930  `platform/http` → `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class` (auto)
+      - prio 920  `platform/http` → `\Coretsia\Platform\Http\Middleware\HttpMetricsMiddleware::class` (auto)
+      - prio 910  `platform/http` → `\Coretsia\Platform\Http\Middleware\AccessLogMiddleware::class` (auto)
+      - prio 900  `platform/http` → `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class` (auto if enabled)
+      - prio 880  `platform/http` → `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class` (auto if `http.proxy.enabled`)
+      - prio 870  `platform/http` → `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class` (auto if `http.context.enrich.enabled`)
+      - prio 860  `platform/http` → `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class` (auto if `http.hosts.enabled`)
+      - prio 850  `platform/http` → `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class` (auto if `http.https_redirect.enabled`)
+      - prio 840  `platform/http` → `\Coretsia\Platform\Http\Middleware\CorsMiddleware::class` (auto if `http.cors.enabled`)
+      - prio 830  `platform/http` → `\Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware::class` (auto)
+      - prio 820  `platform/http` → `\Coretsia\Platform\Http\Middleware\MethodOverrideMiddleware::class` (auto if `http.method_override.enabled`)
+      - prio 810  `platform/http` → `\Coretsia\Platform\Http\Middleware\ContentNegotiationMiddleware::class` (auto if `http.negotiation.enabled`)
+      - prio 800  `platform/http` → `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class` (auto if `http.request.json.enabled`)
+      - prio 790  `platform/http` → `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class` (auto if `http.rate_limit.early.enabled`)
+      - prio 580  `platform/http` → `\Coretsia\Platform\Http\Debug\DebugEndpointsMiddleware::class` (OPTIONAL SHAPE, dev-only; must be opt-in)
 
       - (optional packages; NOT referenced by `platform/http` defaults; they self-register if installed):
-        - prio 1000 `platform/problem-details` → `\Coretsia\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 600  `platform/health` → `\Coretsia\Health\Http\Middleware\HealthEndpointsMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 590  `platform/metrics` → `\Coretsia\Metrics\Http\Middleware\MetricsEndpointMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 1000 `platform/problem-details` → `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 600  `platform/health` → `\Coretsia\Platform\Health\Http\Middleware\HealthEndpointsMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 590  `platform/metrics` → `\Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware::class` (if installed, it SHOULD register itself)
 
     - Slot `http.middleware.system`:
       - (reserved; empty by default)
 
     - Slot `http.middleware.system_post`:
-      - prio 900  `platform/http` → `\Coretsia\Http\Middleware\CacheHeadersMiddleware::class` (auto if `http.cache_headers.enabled`)
-      - prio 800  `platform/http` → `\Coretsia\Http\Middleware\EtagMiddleware::class` (auto if `http.etag.enabled`)
-      - prio 700  `platform/http` → `\Coretsia\Http\Middleware\CompressionMiddleware::class` (auto if `http.compression.enabled`)
-      - prio 600  `platform/http` → `\Coretsia\Http\Middleware\SecurityHeadersMiddleware::class` (auto if `http.security_headers.enabled`)
+      - prio 900  `platform/http` → `\Coretsia\Platform\Http\Middleware\CacheHeadersMiddleware::class` (auto if `http.cache_headers.enabled`)
+      - prio 800  `platform/http` → `\Coretsia\Platform\Http\Middleware\EtagMiddleware::class` (auto if `http.etag.enabled`)
+      - prio 700  `platform/http` → `\Coretsia\Platform\Http\Middleware\CompressionMiddleware::class` (auto if `http.compression.enabled`)
+      - prio 600  `platform/http` → `\Coretsia\Platform\Http\Middleware\SecurityHeadersMiddleware::class` (auto if `http.security_headers.enabled`)
 
       - (optional packages; NOT referenced by `platform/http` defaults; they self-register if installed):
-        - prio 650  `platform/streaming` → `\Coretsia\Streaming\Http\Middleware\DisableBufferingMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 500  `devtools/dev-tools` → `\Coretsia\DevTools\Http\Middleware\DebugbarMiddleware::class` (if installed, dev-only, it SHOULD register itself)
+        - prio 650  `platform/streaming` → `\Coretsia\Platform\Streaming\Http\Middleware\DisableBufferingMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 500  `devtools/dev-tools` → `\Coretsia\Devtools\DevTools\Http\Middleware\DebugbarMiddleware::class` (if installed, dev-only, it SHOULD register itself)
 
     - Slot `http.middleware.app_pre`:
-      - prio 150  `platform/http` → `\Coretsia\Http\Middleware\RateLimitMiddleware::class` (auto if `http.rate_limit.enabled`; identity-aware placement)
+      - prio 150  `platform/http` → `\Coretsia\Platform\Http\Middleware\RateLimitMiddleware::class` (auto if `http.rate_limit.enabled`; identity-aware placement)
 
       - (optional packages; NOT referenced by `platform/http` defaults; they self-register if installed):
-        - prio 500  `enterprise/tenancy` → `\Coretsia\Tenancy\Http\Middleware\TenantContextMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 350  `platform/async` → `\Coretsia\Async\Http\Middleware\RequestTimeoutMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 300  `platform/session` → `\Coretsia\Session\Http\Middleware\SessionMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 200  `platform/auth` → `\Coretsia\Auth\Http\Middleware\AuthMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 100  `platform/security` → `\Coretsia\Security\Http\Middleware\CsrfMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 80   `platform/uploads` → `\Coretsia\Uploads\Http\Middleware\MultipartFormDataMiddleware::class` (if installed, it SHOULD register itself)
-        - prio 50   `platform/inbox` → `\Coretsia\Inbox\Http\Middleware\IdempotencyKeyMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 500  `enterprise/tenancy` → `\Coretsia\Enterprise\Tenancy\Http\Middleware\TenantContextMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 350  `platform/async` → `\Coretsia\Platform\Async\Http\Middleware\RequestTimeoutMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 300  `platform/session` → `\Coretsia\Platform\Session\Http\Middleware\SessionMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 200  `platform/auth` → `\Coretsia\Platform\Auth\Http\Middleware\AuthMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 100  `platform/security` → `\Coretsia\Platform\Security\Http\Middleware\CsrfMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 80   `platform/uploads` → `\Coretsia\Platform\Uploads\Http\Middleware\MultipartFormDataMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 50   `platform/inbox` → `\Coretsia\Platform\Inbox\Http\Middleware\IdempotencyKeyMiddleware::class` (if installed, it SHOULD register itself)
 
     - Slot `http.middleware.app`:
       - (optional packages; NOT referenced by `platform/http` defaults; they self-register if installed):
-        - prio 100  `platform/http-app` → `\Coretsia\HttpApp\Middleware\RouterMiddleware::class` (if installed, it SHOULD register itself)
+        - prio 100  `platform/http-app` → `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class` (if installed, it SHOULD register itself)
 
     - Slot `http.middleware.app_post`:
       - (reserved; empty by default)
@@ -4670,8 +4670,8 @@ Forbidden:
 
   - Opt-in middlewares (MUST NOT be auto-wired):
     - `platform/auth`:
-      - `\Coretsia\Auth\Http\Middleware\RequireAuthMiddleware::class`
-      - `\Coretsia\Auth\Http\Middleware\RequireAbilityMiddleware::class`
+      - `\Coretsia\Platform\Auth\Http\Middleware\RequireAuthMiddleware::class`
+      - `\Coretsia\Platform\Auth\Http\Middleware\RequireAbilityMiddleware::class`
 
 - Kernel hooks/tags:
   - consumer MUST NOT enumerate reset tags directly (reset all stateful services; deterministic)
@@ -4688,14 +4688,14 @@ Forbidden:
 
 #### Creates
 
-- [ ] `docs/ssot/http-middleware-catalog.md` — canonical catalog reference (slot/priority/owner/toggle), single-choice MUST include:
-  - [ ] Early pre-identity throttling and identity-aware throttling are distinct middleware roles:
-    - [ ] `\Coretsia\Http\Middleware\EarlyRateLimitMiddleware::class` → `http.middleware.system_pre`
-    - [ ] `\Coretsia\Http\Middleware\RateLimitMiddleware::class` → `http.middleware.app_pre`
+- [x] `docs/ssot/http-middleware-catalog.md` — canonical catalog reference (slot/priority/owner/toggle), single-choice MUST include:
+  - [x] Early pre-identity throttling and identity-aware throttling are distinct middleware roles:
+    - [x] `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class` → `http.middleware.system_pre`
+    - [x] `\Coretsia\Platform\Http\Middleware\RateLimitMiddleware::class` → `http.middleware.app_pre`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register `docs/ssot/http-middleware-catalog.md`
+- [x] `docs/ssot/INDEX.md` — register `docs/ssot/http-middleware-catalog.md`
 
 #### Configuration (keys + defaults)
 
@@ -4716,69 +4716,69 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] semantic context keys:
-    - [ ] `correlation_id`
-    - [ ] `uow_id`
-    - [ ] `uow_type`
-- [ ] Context writes (safe only):
-  - [ ] semantic context keys:
-    - [ ] `correlation_id`
-    - [ ] `uow_id`
-    - [ ] `uow_type`
-  - [ ] request-safe semantic keys only:
-    - [ ] `client_ip`
-    - [ ] `scheme`
-    - [ ] `host`
-    - [ ] `path`
-    - [ ] `user_agent`
-  - [ ] reserved later safe keys (introduced only by their owner epics + `ContextKeys` SSoT; not baseline writers here):
-    - [ ] `request_id`
-    - [ ] `path_template`
-    - [ ] `http_response_format`
-    - [ ] `actor_id`
-    - [ ] `tenant_id`
-- [ ] Reset discipline:
-  - [ ] stateful services implement `ResetInterface`
-  - [ ] stateful services MUST be tagged `kernel.stateful` as the fixed enforcement marker
-  - [ ] stateful services MUST also be discoverable through Foundation reset discovery (effective reset tag; reserved default `kernel.reset`)
-  - [ ] runtime execution MUST NOT depend on `kernel.stateful`; it is enforcement-only
+- [x] Context reads:
+  - [x] semantic context keys:
+    - [x] `correlation_id`
+    - [x] `uow_id`
+    - [x] `uow_type`
+- [x] Context writes (safe only):
+  - [x] semantic context keys:
+    - [x] `correlation_id`
+    - [x] `uow_id`
+    - [x] `uow_type`
+  - [x] request-safe semantic keys only:
+    - [x] `client_ip`
+    - [x] `scheme`
+    - [x] `host`
+    - [x] `path`
+    - [x] `user_agent`
+  - [x] reserved later safe keys (introduced only by their owner epics + `ContextKeys` SSoT; not baseline writers here):
+    - [x] `request_id`
+    - [x] `path_template`
+    - [x] `http_response_format`
+    - [x] `actor_id`
+    - [x] `tenant_id`
+- [x] Reset discipline:
+  - [x] stateful services implement `ResetInterface`
+  - [x] stateful services MUST be tagged `kernel.stateful` as the fixed enforcement marker
+  - [x] stateful services MUST also be discoverable through Foundation reset discovery (effective reset tag; reserved default `kernel.reset`)
+  - [x] runtime execution MUST NOT depend on `kernel.stateful`; it is enforcement-only
 
-- [ ] Concrete `Coretsia\Foundation\Context\ContextKeys` constants are introduced and locked only by the owning Foundation epic; this coordination epic MUST NOT require that class before the owner package is reviewed and fixed.
+- [x] Concrete `Coretsia\Foundation\Context\ContextKeys` constants are introduced and locked only by the owning Foundation epic; this coordination epic MUST NOT require that class before the owner package is reviewed and fixed.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `http.request` (attrs safe; per `docs/ssot/observability.md`)
-- [ ] Metrics:
-  - [ ] `http.request_total` (labels: `method,status,outcome` only)
-  - [ ] `http.request_duration_ms` (labels: `method,status,outcome` only)
-- [ ] Label normalization applied (if needed):
-  - [ ] `uow_type -> operation` (for cross-runtime metrics if used)
-- [ ] Rate-limit observability policy:
-  - [ ] early and identity-aware rate limiting MUST remain distinguishable in code/docs/tests
-  - [ ] no new metric label keys are introduced for this distinction unless separately allowed by observability SSoT
-  - [ ] any distinction between early vs identity-aware rate limiting MUST be encoded via metric name choice, event name, or internal wiring — not via forbidden high-cardinality labels
-- [ ] Logs:
-  - [ ] structured access log per request; MUST NOT emit raw path, raw query, headers, cookies, body, auth/session ids, tokens, or raw SQL
-  - [ ] if path-like information is needed, use `path_template` or `hash(value)` / `len(value)`, never raw `path`
-  - [ ] redaction applied; no secrets/PII/raw payloads
+- [x] Spans:
+  - [x] `http.request` (attrs safe; per `docs/ssot/observability.md`)
+- [x] Metrics:
+  - [x] `http.request_total` (labels: `method,status,outcome` only)
+  - [x] `http.request_duration_ms` (labels: `method,status,outcome` only)
+- [x] Label normalization applied (if needed):
+  - [x] `uow_type -> operation` (for cross-runtime metrics if used)
+- [x] Rate-limit observability policy:
+  - [x] early and identity-aware rate limiting MUST remain distinguishable in code/docs/tests
+  - [x] no new metric label keys are introduced for this distinction unless separately allowed by observability SSoT
+  - [x] any distinction between early vs identity-aware rate limiting MUST be encoded via metric name choice, event name, or internal wiring — not via forbidden high-cardinality labels
+- [x] Logs:
+  - [x] structured access log per request; MUST NOT emit raw path, raw query, headers, cookies, body, auth/session ids, tokens, or raw SQL
+  - [x] if path-like information is needed, use `path_template` or `hash(value)` / `len(value)`, never raw `path`
+  - [x] redaction applied; no secrets/PII/raw payloads
 
 #### Errors
 
 - Exceptions introduced:
   - N/A (no new exception taxonomy in this epic)
-- [ ] Policy anchors:
-  - [ ] error taxonomy is defined in `core/contracts` contracts/descriptor models and related contracts epics
-  - [ ] concrete error flow is implemented by `platform/errors`
-  - [ ] error rendering is owned by `platform/problem-details` middleware (outermost wrapper)
+- [x] Policy anchors:
+  - [x] error taxonomy is defined in `core/contracts` contracts/descriptor models and related contracts epics
+  - [x] concrete error flow is implemented by `platform/errors`
+  - [x] error rendering is owned by `platform/problem-details` middleware (outermost wrapper)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] auth/cookies/session ids/tokens/raw SQL/raw payload
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids
+- [x] MUST NOT leak:
+  - [x] auth/cookies/session ids/tokens/raw SQL/raw payload
+- [x] Allowed:
+  - [x] `hash(value)` / `len(value)` / safe ids
 
 ### Canonical baseline catalog rules (MUST)
 
@@ -4792,49 +4792,49 @@ N/A
 ### Canonical baseline placement (single-choice) (MUST)
 
 - Rate limit middleware placement is single-choice and non-negotiable:
-  - `\Coretsia\Http\Middleware\EarlyRateLimitMiddleware::class` MAY be registered ONLY into `http.middleware.system_pre`.
+  - `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class` MAY be registered ONLY into `http.middleware.system_pre`.
   - It MUST NOT be present in `http.middleware.system|system_post|app_pre|app|app_post|route_pre|route|route_post`.
   - Rationale: early anonymous/IP/infra throttling must happen before app identity context is available and before deeper app work is performed.
 
-  - `\Coretsia\Http\Middleware\RateLimitMiddleware::class` MAY be registered ONLY into `http.middleware.app_pre`.
+  - `\Coretsia\Platform\Http\Middleware\RateLimitMiddleware::class` MAY be registered ONLY into `http.middleware.app_pre`.
   - It MUST NOT be present in `http.middleware.system_pre|system|system_post|app|app_post|route_pre|route|route_post`.
   - Rationale: identity-aware decisions must run after app-level identity context is available.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - Future owner-package evidence (reference only; NOT owned by this epic):
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
-  - [ ] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+  - [x] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [x] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
 
 ### Tests (MUST)
 
 - Gates/Arch:
-  - [ ] CI runs `framework/tools/gates/cross_cutting_contract_gate.php` (from 1.50.0 rails)
+  - [x] CI runs `framework/tools/gates/cross_cutting_contract_gate.php` (from 1.50.0 rails)
 - Referenced owner-package contract/integration tests are evidence inputs for this coordination policy, but they are owned by their respective package epics, not by this epic.
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] No forward references in Preconditions
-- [ ] Middleware taxonomy is single-choice (system/app/route)
-- [ ] platform/http defaults do not reference optional package class names
-- [ ] Noop-safe invariant is explicitly locked by this epic; concrete contract evidence is owned by the relevant package epics.
-- [ ] Observability policy matches `docs/ssot/observability.md`
-- [ ] Cross-cutting policy is anchored by referenced owner-package contract/integration evidence (noop never throws; keys stable; propagation deterministic).
-- [ ] Middleware catalog snapshot exists and is stable as reference for later epics
-- [ ] Does NOT implement business features (routing/http-app/session/auth/…); only baseline cross-cutting invariants + SSoT catalog snapshot.
-- [ ] Does NOT introduce new metric label keys outside the allowlist (`method,status,driver,operation,table,outcome`) defined in `docs/ssot/observability.md`.
-- [ ] Does NOT log/export secrets or PII (only `hash(value)` / `len(value)` / safe ids).
-- [ ] Expected runtime acceptance outcome is documented: when the Micro preset handles a request, correlation/tracing/metrics/log envelope is present and noop implementations never throw; concrete proof is owned by future package epics.
-- [ ] Rate limiting ambiguity is removed:
-  - [ ] early anonymous/IP throttling uses `EarlyRateLimitMiddleware`
-  - [ ] identity-aware throttling uses `RateLimitMiddleware`
-  - [ ] no single middleware class is listed in both `system_pre` and `app_pre`
-  - [ ] config toggles for early vs identity-aware rate limiting are distinct
-- [ ] This epic is coordination/policy-only for cross-cutting invariants and catalog snapshot.
-- [ ] Concrete package files for `platform/http`, `platform/logging`, `platform/tracing`, and `platform/metrics` MUST be created/modified only by their owning package epics.
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] No forward references in Preconditions
+- [x] Middleware taxonomy is single-choice (system/app/route)
+- [x] platform/http defaults do not reference optional package class names
+- [x] Noop-safe invariant is explicitly locked by this epic; concrete contract evidence is owned by the relevant package epics.
+- [x] Observability policy matches `docs/ssot/observability.md`
+- [x] Cross-cutting policy is anchored by referenced owner-package contract/integration evidence (noop never throws; keys stable; propagation deterministic).
+- [x] Middleware catalog snapshot exists and is stable as reference for later epics
+- [x] Does NOT implement business features (routing/http-app/session/auth/…); only baseline cross-cutting invariants + SSoT catalog snapshot.
+- [x] Does NOT introduce new metric label keys outside the allowlist (`method,status,driver,operation,table,outcome`) defined in `docs/ssot/observability.md`.
+- [x] Does NOT log/export secrets or PII (only `hash(value)` / `len(value)` / safe ids).
+- [x] Expected runtime acceptance outcome is documented: when the Micro preset handles a request, correlation/tracing/metrics/log envelope is present and noop implementations never throw; concrete proof is owned by future package epics.
+- [x] Rate limiting ambiguity is removed:
+  - [x] early anonymous/IP throttling uses `EarlyRateLimitMiddleware`
+  - [x] identity-aware throttling uses `RateLimitMiddleware`
+  - [x] no single middleware class is listed in both `system_pre` and `app_pre`
+  - [x] config toggles for early vs identity-aware rate limiting are distinct
+- [x] This epic is coordination/policy-only for cross-cutting invariants and catalog snapshot.
+- [x] Concrete package files for `platform/http`, `platform/logging`, `platform/tracing`, and `platform/metrics` MUST be created/modified only by their owning package epics.
 
 ---
 

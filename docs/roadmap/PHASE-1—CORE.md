@@ -5046,7 +5046,7 @@ Forbidden:
 - [ ] `framework/packages/core/foundation/src/Module/FoundationModule.php` — runtime module
 - [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — DI wiring entrypoint
 - [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
+- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
 
 Container:
 - [ ] `framework/packages/core/foundation/src/Container/Container.php` — PSR-11 container runtime
@@ -5160,8 +5160,8 @@ Reset orchestration:
   - [ ] `public const KERNEL_STATEFUL = 'kernel.stateful';` - fixed reserved enforcement marker
 
 Configuration:
-- [ ] `framework/packages/core/foundation/config/foundation.php` — config subtree under `foundation`
-- [ ] `framework/packages/core/foundation/config/rules.php` — enforces shape
+- [x] `framework/packages/core/foundation/config/foundation.php` — config subtree under `foundation`
+- [x] `framework/packages/core/foundation/config/rules.php` — enforces shape
 
 Documentation:
 - [ ] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
@@ -5238,30 +5238,30 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
-  - [ ] MUST require runtime package:
-    - [ ] `psr/container`
-- [ ] `framework/packages/core/foundation/src/Module/FoundationModule.php`
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
-- [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] `framework/packages/core/foundation/config/rules.php`
-- [ ] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
-  - [ ] Observability section MUST describe only the bindings actually introduced by this epic
-  - [ ] default noop observability/logger bindings are introduced later by `1.205.0` and MUST be documented there once implemented
+- [x] `framework/packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
+  - [x] MUST require runtime package:
+    - [x] `psr/container`
+- [x] `framework/packages/core/foundation/src/Module/FoundationModule.php`
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+- [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] `framework/packages/core/foundation/config/rules.php`
+- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
+  - [x] Observability section MUST describe only the bindings actually introduced by this epic
+  - [x] default noop observability/logger bindings are introduced later by `1.205.0` and MUST be documented there once implemented
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] Keys (dot):
-  - [ ] `foundation.container.autowire_concrete` = true
-  - [ ] `foundation.container.allow_reflection_for_concrete` = true
-  - [ ] `foundation.reset.tag` = "kernel.reset"
-    - [ ] runtime-effective reset discovery tag
-    - [ ] reserved default value is `kernel.reset`
-    - [ ] consumers outside Foundation MUST NOT read or hardcode this key/string
-- [ ] Rules:
-  - [ ] `framework/packages/core/foundation/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] Keys (dot):
+  - [x] `foundation.container.autowire_concrete` = true
+  - [x] `foundation.container.allow_reflection_for_concrete` = true
+  - [x] `foundation.reset.tag` = "kernel.reset"
+    - [x] runtime-effective reset discovery tag
+    - [x] reserved default value is `kernel.reset`
+    - [x] consumers outside Foundation MUST NOT read or hardcode this key/string
+- [x] Rules:
+  - [x] `framework/packages/core/foundation/config/rules.php` enforces shape
 
 - IMPORTANT:
   - Tag discovery and reset orchestration are baseline runtime safety mechanisms in Foundation.
@@ -5385,7 +5385,7 @@ N/A
 - [ ] Verification tests present where applicable
 - [ ] Determinism: rerun-no-diff (ordering/registry behavior)
 - [ ] Docs updated:
-  - [ ] `framework/packages/core/foundation/README.md`
+  - [x] `framework/packages/core/foundation/README.md`
   - [ ] `docs/ssot/di-tags-and-middleware-ordering.md`
   - [ ] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
 - [ ] Typical consumers (when enabled in presets/bundles):

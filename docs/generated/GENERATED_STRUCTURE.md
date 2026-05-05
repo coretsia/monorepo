@@ -305,18 +305,37 @@ Coretsia/
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
 │   │   │   │   └── composer.json
-│   │   │   └── dto-attribute/
+│   │   │   ├── dto-attribute/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── Attribute/
+│   │   │   │   │       └── Dto.php (Dto)
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── Contract/
+│   │   │   │   │       ├── AttributeExistsTest.php (AttributeExistsTest - testDtoAttributeExists()/testDtoAttributeTargetsClassesOnly())
+│   │   │   │   │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
+│   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
+│   │   │   │   └── composer.json
+│   │   │   └── foundation/
+│   │   │       ├── config/
+│   │   │       │   ├── foundation.php
+│   │   │       │   └── rules.php
 │   │   │       ├── src/
-│   │   │       │   └── Attribute/
-│   │   │       │       └── Dto.php (Dto)
+│   │   │       │   ├── Module/
+│   │   │       │   │   └── FoundationModule.php (FoundationModule)
+│   │   │       │   └── Provider/
+│   │   │       │       └── FoundationServiceProvider.php (FoundationServiceProvider)
 │   │   │       ├── tests/
 │   │   │       │   └── Contract/
-│   │   │       │       ├── AttributeExistsTest.php (AttributeExistsTest - testDtoAttributeExists()/testDtoAttributeTargetsClassesOnly())
 │   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md
+│   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
 │   │   │   ├── cli-spikes/
@@ -361,6 +380,7 @@ Coretsia/
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
 │   │   │   │   └── composer.json
 │   │   │   └── internal-toolkit/
 │   │   │       ├── src/
@@ -377,6 +397,7 @@ Coretsia/
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md
+│   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
 │   │   └── platform/
 │   │       └── cli/
@@ -426,6 +447,7 @@ Coretsia/
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md
+│   │           ├── SECURITY.md
 │   │           └── composer.json
 │   ├── tools/
 │   │   ├── build/
@@ -683,6 +705,7 @@ Coretsia/
 │   │       │   │       │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
 │   │       │   │       │       ├── LICENSE
 │   │       │   │       │       ├── NOTICE
+│   │       │   │       │       ├── SECURITY.md
 │   │       │   │       │       └── composer.json
 │   │       │   │       └── platform/
 │   │       │   │           └── broken-runtime/
@@ -699,6 +722,7 @@ Coretsia/
 │   │       │   │               ├── LICENSE
 │   │       │   │               ├── NOTICE
 │   │       │   │               ├── README.md
+│   │       │   │               ├── SECURITY.md
 │   │       │   │               └── composer.json
 │   │       │   └── package_good/
 │   │       │       └── packages/
@@ -712,6 +736,7 @@ Coretsia/
 │   │       │           │       ├── LICENSE
 │   │       │           │       ├── NOTICE
 │   │       │           │       ├── README.md
+│   │       │           │       ├── SECURITY.md
 │   │       │           │       └── composer.json
 │   │       │           └── platform/
 │   │       │               └── sample-runtime/
@@ -729,6 +754,7 @@ Coretsia/
 │   │       │                   ├── LICENSE
 │   │       │                   ├── NOTICE
 │   │       │                   ├── README.md
+│   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
 │   │       └── Integration/
 │   │           ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeFoundationTags()/writeFoundationConfig()/writeStatefulService())
@@ -740,7 +766,7 @@ Coretsia/
 │   │           ├── NoRuntimeToolingArtifactsGateTest.php (NoRuntimeToolingArtifactsGateTest - testRuntimeSourceImportingToolsSpikesFails()/testRuntimeSourceImportingDevtoolsFails()/testRuntimeSourceReferencingDevtoolsPackageFails()/testRuntimeConfigReferencingFrameworkToolsFails()/testRuntimeSourceRequiringToolsBuildFails()/testRuntimeSourceShellingOutToToolsGatesFails()/testRuntimeSourceReadingArchitectureArtifactFails()/testDocsTestsFixturesAndDevtoolsMentionsAreIgnored()/testGateIsDeterministicNoopWhenNoRuntimePackageScanRootsExist()/testDiagnosticsAreSortedAndRepoRelative()/testDiagnosticsDoNotContainSourceSnippetsAbsolutePathsEnvValuesOrSecrets()/createNoRuntimeToolingArtifactsGateSandbox()/runNoRuntimeToolingArtifactsGate()/writeRuntimePhp()/assertSafeGateOutput())
 │   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php (PackageComplianceGateAcceptsGoodFixtureTest - testGoodFixturePasses()/runPackageComplianceGate()/fixtureRoot())
 │   │           ├── PackageComplianceGateRejectsBadFixtureTest.php (PackageComplianceGateRejectsBadFixtureTest - testBadFixtureFailsWithDeterministicDiagnostics()/testAllowlistIsLoadedDeterministicallyAndSuppressesAllowlistedPackage()/runPackageComplianceGate()/fixtureRoot()/assertDiagnosticsAreRelativeAndSorted()/writeTemporaryAllowlist()/renderAllowlistEntries())
-│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php (SyncPackageScaffoldCheckRejectsDriftTest - testCheckModeRejectsMissingAndDriftedLegalFilesWithoutWrites()/runSyncPackageScaffoldCheck()/prepareTempRoot()/createCompleteLibraryPackage()/createCompleteRuntimePackage()/composerJson()/readme()/noopContractTest()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/assertDiagnosticsAreRelativeAndSorted()/repoRoot()/ensureDir()/removePath())
+│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php (SyncPackageScaffoldCheckRejectsDriftTest - testCheckModeRejectsMissingAndDriftedCanonicalPackageFilesWithoutWrites()/runSyncPackageScaffoldCheck()/prepareTempRoot()/createCompleteLibraryPackage()/createCompleteRuntimePackage()/composerJson()/readme()/noopContractTest()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/assertDiagnosticsAreRelativeAndSorted()/repoRoot()/ensureDir()/removePath())
 │   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php (SyncPackageScaffoldCreatesMissingFilesTest - testApplyModeCreatesMissingScaffoldWithoutRewritingUserOwnedContent()/runSyncPackageScaffold()/prepareTempRoot()/createLibraryPackageSkeleton()/createRuntimePackageSkeleton()/composerJson()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/repoRoot()/ensureDir()/removePath())
 │   ├── var/
 │   │   ├── backups/

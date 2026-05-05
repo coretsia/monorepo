@@ -116,14 +116,15 @@ declare(strict_types=1);
         $repoRoot = coretsia_sync_package_scaffold_resolve_repo_root($toolsRootRuntime);
         $options = coretsia_sync_package_scaffold_resolve_options($argv, $toolsRootRuntime . '/..', $repoRoot);
 
-        $canonicalLegalFiles = [
+        $canonicalPackageFiles = [
             'LICENSE' => coretsia_sync_package_scaffold_read_file($repoRoot . '/LICENSE'),
             'NOTICE' => coretsia_sync_package_scaffold_read_file($repoRoot . '/NOTICE'),
+            'SECURITY.md' => coretsia_sync_package_scaffold_read_file($repoRoot . '/SECURITY.md'),
         ];
 
         $diagnostics = coretsia_sync_package_scaffold_run(
             $options['scan_root'],
-            $canonicalLegalFiles,
+            $canonicalPackageFiles,
             $options['check'],
         );
 
@@ -143,7 +144,9 @@ declare(strict_types=1);
 
         exit(1);
     }
-})(isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []);
+})(
+    isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []
+);
 
 /**
  * @param list<string> $argv
@@ -252,11 +255,11 @@ function coretsia_sync_package_scaffold_resolve_repo_root(string $toolsRootRunti
 
     $repoRoot = \rtrim(\str_replace('\\', '/', $repoRoot), '/');
 
-    foreach (['LICENSE', 'NOTICE'] as $file) {
+    foreach (['LICENSE', 'NOTICE', 'SECURITY.md'] as $file) {
         $path = $repoRoot . '/' . $file;
 
         if (!\is_file($path) || !\is_readable($path)) {
-            throw new \RuntimeException('repo-legal-file-missing');
+            throw new \RuntimeException('repo-canonical-package-file-missing');
         }
     }
 
@@ -264,13 +267,13 @@ function coretsia_sync_package_scaffold_resolve_repo_root(string $toolsRootRunti
 }
 
 /**
- * @param array{LICENSE:string,NOTICE:string} $canonicalLegalFiles
+ * @param array<string,string> $canonicalPackageFiles
  * @return list<string>
  */
 function coretsia_sync_package_scaffold_run(
     string $scanRoot,
-    array  $canonicalLegalFiles,
-    bool   $check,
+    array $canonicalPackageFiles,
+    bool $check,
 ): array {
     $packageRoots = coretsia_sync_package_scaffold_collect_package_roots($scanRoot);
 
@@ -282,7 +285,7 @@ function coretsia_sync_package_scaffold_run(
             coretsia_sync_package_scaffold_sync_package(
                 $scanRoot,
                 $packageRoot,
-                $canonicalLegalFiles,
+                $canonicalPackageFiles,
                 $check,
             ) as $diagnostic
         ) {
@@ -356,14 +359,14 @@ function coretsia_sync_package_scaffold_collect_package_roots(string $scanRoot):
 }
 
 /**
- * @param array{LICENSE:string,NOTICE:string} $canonicalLegalFiles
+ * @param array<string,string> $canonicalPackageFiles
  * @return list<string>
  */
 function coretsia_sync_package_scaffold_sync_package(
     string $scanRoot,
     string $packageRoot,
-    array  $canonicalLegalFiles,
-    bool   $check,
+    array $canonicalPackageFiles,
+    bool $check,
 ): array {
     $identity = coretsia_sync_package_scaffold_package_identity($scanRoot, $packageRoot);
 
@@ -375,10 +378,10 @@ function coretsia_sync_package_scaffold_sync_package(
     $diagnostics = [];
 
     foreach (
-        coretsia_sync_package_scaffold_sync_legal_files(
+        coretsia_sync_package_scaffold_sync_canonical_package_files(
             $packageRoot,
             $relativeRoot,
-            $canonicalLegalFiles,
+            $canonicalPackageFiles,
             $check,
         ) as $diagnostic
     ) {
@@ -459,25 +462,25 @@ function coretsia_sync_package_scaffold_package_identity(string $scanRoot, strin
 }
 
 /**
- * @param array{LICENSE:string,NOTICE:string} $canonicalLegalFiles
+ * @param array<string,string> $canonicalPackageFiles
  * @return list<string>
  */
-function coretsia_sync_package_scaffold_sync_legal_files(
+function coretsia_sync_package_scaffold_sync_canonical_package_files(
     string $packageRoot,
     string $relativeRoot,
-    array  $canonicalLegalFiles,
-    bool   $check,
+    array $canonicalPackageFiles,
+    bool $check,
 ): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
 
-    foreach ($canonicalLegalFiles as $file => $canonicalContent) {
+    foreach ($canonicalPackageFiles as $file => $canonicalContent) {
         $path = $packageRoot . '/' . $file;
         $relativePath = $relativeRoot . '/' . $file;
 
         if (!\is_file($path)) {
             if ($check) {
-                $diagnostics[] = $relativePath . ': missing-canonical-legal-file';
+                $diagnostics[] = $relativePath . ': missing-canonical-package-file';
                 continue;
             }
 
@@ -487,7 +490,7 @@ function coretsia_sync_package_scaffold_sync_legal_files(
 
         if (coretsia_sync_package_scaffold_read_file($path) !== $canonicalContent) {
             if ($check) {
-                $diagnostics[] = $relativePath . ': canonical-legal-file-drift';
+                $diagnostics[] = $relativePath . ': canonical-package-file-drift';
                 continue;
             }
 
@@ -506,7 +509,7 @@ function coretsia_sync_package_scaffold_sync_baseline_files(
     string $relativeRoot,
     string $layer,
     string $slug,
-    bool   $check,
+    bool $check,
 ): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
@@ -546,7 +549,7 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
     string $relativeRoot,
     string $layer,
     string $slug,
-    bool   $check,
+    bool $check,
 ): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
@@ -575,8 +578,14 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
     }
 
     $runtimeFiles = [
-        'src/Module/' . $studlySlug . 'Module.php' => coretsia_sync_package_scaffold_runtime_module_template($layer, $slug),
-        'src/Provider/' . $studlySlug . 'ServiceProvider.php' => coretsia_sync_package_scaffold_runtime_provider_template($layer, $slug),
+        'src/Module/' . $studlySlug . 'Module.php' => coretsia_sync_package_scaffold_runtime_module_template(
+            $layer,
+            $slug
+        ),
+        'src/Provider/' . $studlySlug . 'ServiceProvider.php' => coretsia_sync_package_scaffold_runtime_provider_template(
+            $layer,
+            $slug
+        ),
         'config/' . $slug . '.php' => coretsia_sync_package_scaffold_runtime_defaults_config_template(),
         'config/rules.php' => coretsia_sync_package_scaffold_runtime_rules_config_template(),
     ];
@@ -623,15 +632,12 @@ function coretsia_sync_package_scaffold_readme_template(string $layer, string $s
     $title = 'Coretsia ' . coretsia_sync_package_scaffold_readable_title($layer, $slug);
 
     return '<!--' . "\n"
-        . '  Coretsia Framework (Monorepo)' . "\n"
-        . '  ' . "\n"
+        . '  Coretsia Framework (Monorepo)' . "\n\n"
         . '  Project: Coretsia Framework (Monorepo)' . "\n"
         . '  Authors: Vladyslav Mudrichenko and contributors' . "\n"
-        . '  Copyright (c) 2026 Vladyslav Mudrichenko' . "\n"
-        . '  ' . "\n"
+        . '  Copyright (c) 2026 Vladyslav Mudrichenko' . "\n\n"
         . '  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko' . "\n"
-        . '  SPDX-License-Identifier: Apache-2.0' . "\n"
-        . '  ' . "\n"
+        . '  SPDX-License-Identifier: Apache-2.0' . "\n\n"
         . '  For contributors list, see git history.' . "\n"
         . '  See LICENSE and NOTICE in the project root for full license information.' . "\n"
         . '-->' . "\n\n"

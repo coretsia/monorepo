@@ -38,6 +38,7 @@ Coretsia/
 │   │   ├── ADR-0011-ratelimit-ports.md
 │   │   ├── ADR-0012-mail-port.md
 │   │   ├── ADR-0013-secrets-port.md
+│   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,7 @@ Coretsia/
 │       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── database-contracts.md
+│       ├── di-tags-and-middleware-ordering.md
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
@@ -305,18 +307,57 @@ Coretsia/
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
 │   │   │   │   └── composer.json
-│   │   │   └── dto-attribute/
+│   │   │   ├── dto-attribute/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── Attribute/
+│   │   │   │   │       └── Dto.php
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── Contract/
+│   │   │   │   │       ├── AttributeExistsTest.php
+│   │   │   │   │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
+│   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
+│   │   │   │   └── composer.json
+│   │   │   └── foundation/
+│   │   │       ├── config/
+│   │   │       │   ├── foundation.php
+│   │   │       │   └── rules.php
 │   │   │       ├── src/
-│   │   │       │   └── Attribute/
-│   │   │       │       └── Dto.php
+│   │   │       │   ├── Container/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ContainerException.php
+│   │   │       │   │   │   └── NotFoundException.php
+│   │   │       │   │   ├── Container.php
+│   │   │       │   │   ├── ContainerBuilder.php
+│   │   │       │   │   ├── ContainerDiagnostics.php
+│   │   │       │   │   └── ServiceProviderInterface.php
+│   │   │       │   ├── Discovery/
+│   │   │       │   │   └── DeterministicOrder.php
+│   │   │       │   ├── Module/
+│   │   │       │   │   └── FoundationModule.php
+│   │   │       │   ├── Provider/
+│   │   │       │   │   ├── FoundationServiceFactory.php
+│   │   │       │   │   ├── FoundationServiceProvider.php
+│   │   │       │   │   └── Tags.php
+│   │   │       │   ├── Runtime/
+│   │   │       │   │   └── Reset/
+│   │   │       │   │       └── ResetOrchestrator.php
+│   │   │       │   ├── Serialization/
+│   │   │       │   │   └── StableJsonEncoder.php
+│   │   │       │   └── Tag/
+│   │   │       │       ├── TagRegistry.php
+│   │   │       │       └── TaggedService.php
 │   │   │       ├── tests/
 │   │   │       │   └── Contract/
-│   │   │       │       ├── AttributeExistsTest.php
 │   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md
+│   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
 │   │   ├── devtools/
 │   │   │   ├── cli-spikes/
@@ -361,6 +402,7 @@ Coretsia/
 │   │   │   │   ├── LICENSE
 │   │   │   │   ├── NOTICE
 │   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
 │   │   │   │   └── composer.json
 │   │   │   └── internal-toolkit/
 │   │   │       ├── src/
@@ -377,6 +419,7 @@ Coretsia/
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md
+│   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
 │   │   └── platform/
 │   │       └── cli/
@@ -426,6 +469,7 @@ Coretsia/
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md
+│   │           ├── SECURITY.md
 │   │           └── composer.json
 │   ├── tools/
 │   │   ├── build/
@@ -683,6 +727,7 @@ Coretsia/
 │   │       │   │       │       │       └── CrossCuttingNoopDoesNotThrowTest.php
 │   │       │   │       │       ├── LICENSE
 │   │       │   │       │       ├── NOTICE
+│   │       │   │       │       ├── SECURITY.md
 │   │       │   │       │       └── composer.json
 │   │       │   │       └── platform/
 │   │       │   │           └── broken-runtime/
@@ -699,6 +744,7 @@ Coretsia/
 │   │       │   │               ├── LICENSE
 │   │       │   │               ├── NOTICE
 │   │       │   │               ├── README.md
+│   │       │   │               ├── SECURITY.md
 │   │       │   │               └── composer.json
 │   │       │   └── package_good/
 │   │       │       └── packages/
@@ -712,6 +758,7 @@ Coretsia/
 │   │       │           │       ├── LICENSE
 │   │       │           │       ├── NOTICE
 │   │       │           │       ├── README.md
+│   │       │           │       ├── SECURITY.md
 │   │       │           │       └── composer.json
 │   │       │           └── platform/
 │   │       │               └── sample-runtime/
@@ -729,6 +776,7 @@ Coretsia/
 │   │       │                   ├── LICENSE
 │   │       │                   ├── NOTICE
 │   │       │                   ├── README.md
+│   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
 │   │       └── Integration/
 │   │           ├── CrossCuttingContractGateTest.php

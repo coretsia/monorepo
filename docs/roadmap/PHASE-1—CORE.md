@@ -5043,157 +5043,162 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/core/foundation/src/Module/FoundationModule.php` — runtime module
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — DI wiring entrypoint
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
+- [x] `framework/packages/core/foundation/src/Module/FoundationModule.php` — runtime module
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — DI wiring entrypoint
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
 
 Container:
-- [ ] `framework/packages/core/foundation/src/Container/Container.php` — PSR-11 container runtime
-- [ ] `framework/packages/core/foundation/src/Container/ContainerBuilder.php` — deterministic container build from providers
-  - [ ] MUST preserve the caller-supplied provider order exactly (single-choice):
-    - [ ] `ContainerBuilder` MUST NOT re-sort providers
-    - [ ] upstream owner (later kernel/module-plan boot) MUST supply a deterministic provider list
-    - [ ] rationale:
-      - [ ] keeps DI override semantics aligned with deterministic module/provider order
-      - [ ] keeps TagRegistry dedupe (“first wins”) deterministic without imposing an arbitrary global FQCN sort
-  - [ ] Container definition collision policy (single-choice; cemented):
-    - [ ] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically
-    - [ ] this rule applies to container bindings/definitions only
-    - [ ] tag dedupe remains independent and unchanged:
-      - [ ] `TagRegistry` keeps first occurrence per `(tag, serviceId)`
-  - [ ] Rationale:
-    - [ ] makes TagRegistry dedupe (“first wins”) deterministic across OS/runs
-- [ ] `framework/packages/core/foundation/src/Container/ServiceProviderInterface.php` — provider contract
-- [ ] `framework/packages/core/foundation/src/Container/Exception/ContainerException.php` — implements PSR-11 ContainerExceptionInterface
-- [ ] `framework/packages/core/foundation/src/Container/Exception/NotFoundException.php` — implements PSR-11 NotFoundExceptionInterface
-- [ ] `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php` — deterministic diagnostics snapshot (services + tags)
-  - [ ] ContainerDiagnostics / runtime artifacts often require **byte-stable JSON**.
-  - [ ] MUST be safe by construction:
-    - [ ] MUST NOT dump service instances, constructor args, or reflection data
-    - [ ] MUST NOT include tag meta values (meta can contain arbitrary user data)
-      - [ ] allowed: tag name, service id, priority
-      - [ ] forbidden: serializing `meta` values
-  - [ ] MUST provide deterministic export:
-    - [ ] `toArray(): array` — normalized structure (maps already sorted; lists stable)
-    - [ ] `toJson(): string` — uses `Coretsia\Foundation\Serialization\StableJsonEncoder`
-      - [ ] because it uses `StableJsonEncoder`, the serialized JSON MUST end with a final newline
-  - [ ] Determinism:
-    - [ ] ordering MUST be locale-independent (`strcmp`)
-    - [ ] output MUST be rerun-no-diff across OS
+- [x] `framework/packages/core/foundation/src/Container/Container.php` — PSR-11 container runtime
+- [x] `framework/packages/core/foundation/src/Container/ContainerBuilder.php` — deterministic container build from providers
+  - [x] MUST preserve the caller-supplied provider order exactly (single-choice):
+    - [x] `ContainerBuilder` MUST NOT re-sort providers
+    - [x] upstream owner (later kernel/module-plan boot) MUST supply a deterministic provider list
+    - [x] rationale:
+      - [x] keeps DI override semantics aligned with deterministic module/provider order
+      - [x] keeps TagRegistry dedupe (“first wins”) deterministic without imposing an arbitrary global FQCN sort
+  - [x] Container definition collision policy (single-choice; cemented):
+    - [x] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically
+    - [x] this rule applies to container bindings/definitions only
+    - [x] tag dedupe remains independent and unchanged:
+      - [x] `TagRegistry` keeps first occurrence per `(tag, serviceId)`
+  - [x] Rationale:
+    - [x] makes TagRegistry dedupe (“first wins”) deterministic across OS/runs
+- [x] `framework/packages/core/foundation/src/Container/ServiceProviderInterface.php` — provider contract
+- [x] `framework/packages/core/foundation/src/Container/Exception/ContainerException.php` — implements PSR-11 ContainerExceptionInterface
+- [x] `framework/packages/core/foundation/src/Container/Exception/NotFoundException.php` — implements PSR-11 NotFoundExceptionInterface
+- [x] `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php` — deterministic diagnostics snapshot (services + tags)
+  - [x] ContainerDiagnostics / runtime artifacts often require **byte-stable JSON**.
+  - [x] MUST be safe by construction:
+    - [x] MUST NOT dump service instances, constructor args, or reflection data
+    - [x] MUST NOT include tag meta values (meta can contain arbitrary user data)
+      - [x] allowed: tag name, service id, priority
+      - [x] forbidden: serializing `meta` values
+  - [x] MUST provide deterministic export:
+    - [x] `toArray(): array` — normalized structure (maps already sorted; lists stable)
+    - [x] `toJson(): string` — uses `Coretsia\Foundation\Serialization\StableJsonEncoder`
+      - [x] because it uses `StableJsonEncoder`, the serialized JSON MUST end with a final newline
+  - [x] Determinism:
+    - [x] ordering MUST be locale-independent (`strcmp`)
+    - [x] output MUST be rerun-no-diff across OS
 
 Serialization:
-- [ ] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php` — deterministic JSON encoder (runtime-safe)
-  - [ ] Purpose:
-    - [ ] produce stable JSON bytes for diagnostics/artifacts
-    - [ ] prevent “accidental json_encode drift” (key order, whitespace, newline, floats)
-  - [ ] Inputs (single-choice; cemented):
-    - [ ] accepts only JSON-safe deterministic types:
-      - [ ] `null|bool|int|string|list|array<string, value>`
-    - [ ] MUST reject:
-      - [ ] `float` (incl. `NaN`, `INF`, `-INF`)
-      - [ ] `resource`, `object`, `Closure`
-      - [ ] non-string map keys (incl. int keys outside list semantics)
-    - [ ] Note:
-      - [ ] callable-ness is NOT treated as a standalone runtime type check here
-      - [ ] plain strings remain plain strings even if PHP could call them as function names
-  - [ ] Output (single-choice; cemented):
-    - [ ] maps: keys sorted by `strcmp` at **every** nesting level
-    - [ ] lists: preserve order, no implicit reorder
-    - [ ] LF-only
-    - [ ] MUST end with a final newline
-    - [ ] MUST NOT leak secrets (encoder itself must not inspect env; redaction is caller responsibility)
+- [x] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php` — deterministic JSON encoder (runtime-safe)
+  - [x] Purpose:
+    - [x] produce stable JSON bytes for diagnostics/artifacts
+    - [x] prevent “accidental json_encode drift” (key order, whitespace, newline, floats)
+  - [x] Inputs (single-choice; cemented):
+    - [x] accepts only JSON-safe deterministic types:
+      - [x] `null|bool|int|string|list|array<string, value>`
+    - [x] MUST reject:
+      - [x] `float` (incl. `NaN`, `INF`, `-INF`)
+      - [x] `resource`, `object`, `Closure`
+      - [x] non-string map keys (incl. int keys outside list semantics)
+    - [x] Note:
+      - [x] callable-ness is NOT treated as a standalone runtime type check here
+      - [x] plain strings remain plain strings even if PHP could call them as function names
+  - [x] Output (single-choice; cemented):
+    - [x] maps: keys sorted by `strcmp` at **every** nesting level
+    - [x] lists: preserve order, no implicit reorder
+    - [x] LF-only
+    - [x] MUST end with a final newline
+    - [x] MUST NOT leak secrets (encoder itself must not inspect env; redaction is caller responsibility)
 
 Tags + deterministic order:
-- [ ] `framework/packages/core/foundation/src/Tag/TagRegistry.php` — add/list tagged services (deterministic)
-- [ ] `framework/packages/core/foundation/src/Tag/TaggedService.php` — VO `{id, priority, meta}`
-- [ ] `framework/packages/core/foundation/src/Discovery/DeterministicOrder.php` — canonical sort rule (priority DESC, id ASC)
+- [x] `framework/packages/core/foundation/src/Tag/TagRegistry.php` — add/list tagged services (deterministic)
+- [x] `framework/packages/core/foundation/src/Tag/TaggedService.php` — VO `{id, priority, meta}`
+- [x] `framework/packages/core/foundation/src/Discovery/DeterministicOrder.php` — canonical sort rule (priority DESC, id ASC)
 
 ### TagRegistry API (cemented)
 
-`Coretsia\Foundation\Tag\TagRegistry` is the single source of truth for tagged service discovery.
+- [x] `Coretsia\Foundation\Tag\TagRegistry` is the single source of truth for tagged service discovery.
 
 #### Data model
 
-- Tag name: `string` (e.g. `kernel.reset`, `http.middleware.app`, `cli.command`)
-- Service id: `string` (PSR-11 container service id)
-- Tagged item: `Coretsia\Foundation\Tag\TaggedService`:
-  - `id: string` (service id)
-  - `priority: int`
-  - `meta: array<string, mixed>` (optional)
+- [x] Tag name: `string` (e.g. `kernel.reset`, `http.middleware.app`, `cli.command`)
+- [x] Service id: `string` (PSR-11 container service id)
+- [x] Tagged item: `Coretsia\Foundation\Tag\TaggedService`:
+  - [x] `id: string` (service id)
+  - [x] `priority: int`
+  - [x] `meta: array<string, mixed>` (optional)
 
 #### Methods (single-choice; cemented)
 
-- `add(string $tag, string $serviceId, int $priority = 0, array $meta = []): void`
-- `all(string $tag): list<TaggedService>` (semantic contract; NOT ids)
-  - ordering MUST be deterministic via `DeterministicOrder`:
-    - `priority DESC, id ASC` (`strcmp`, locale-independent)
+- [x] `add(string $tag, string $serviceId, int $priority = 0, array $meta = []): void`
+- [x] `all(string $tag): list<TaggedService>` (semantic contract; NOT ids)
+  - [x] ordering MUST be deterministic via `DeterministicOrder`:
+    - [x] `priority DESC, id ASC` (`strcmp`, locale-independent)
 
 #### Dedupe policy (single-choice; cemented)
 
-- If the same `serviceId` is added multiple times for the same `tag`,
+- [x] If the same `serviceId` is added multiple times for the same `tag`,
   TagRegistry MUST keep the **first occurrence** (“first wins”) deterministically.
-- Rationale: prevents accidental double-registration while keeping stable results across OS/runs.
+- [x] Rationale: prevents accidental double-registration while keeping stable results across OS/runs.
 
 Reset orchestration:
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
-  - [ ] Uses:
-    - [ ] `Psr\Container\ContainerInterface` — resolve services by id
-    - [ ] `Coretsia\Foundation\Tag\TagRegistry` — source of truth for the effective reset discovery list
-    - [ ] `Coretsia\Contracts\Runtime\ResetInterface` — invoked contract
-  - [ ] Must:
-    - [ ] read the effective reset discovery tag from Foundation wiring/config (`foundation.reset.tag`, default `kernel.reset`)
-    - [ ] obtain the reset discovery list ONLY via `TagRegistry->all($effectiveResetTag)`
-    - [ ] call `reset()` exactly once per service per invocation
-    - [ ] be safely callable when the discovery list is empty
-    - [ ] **MUST NOT re-sort** `TagRegistry->all(...)` output in legacy/base mode
-    - [ ] never rely on reflection/autowire during reset execution
-    - [ ] never emit stdout/stderr
-    - [ ] never leak secrets (no dumping service instances / constructor args)
-    - [ ] deterministically hard-fail on reset-tag misuse.
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
+  - [x] Uses:
+    - [x] `Psr\Container\ContainerInterface` — resolve services by id
+    - [x] `Coretsia\Foundation\Tag\TagRegistry` — source of truth for the effective reset discovery list
+    - [x] `Coretsia\Contracts\Runtime\ResetInterface` — invoked contract
+  - [x] Must:
+    - [x] read the effective reset discovery tag from Foundation wiring/config (`foundation.reset.tag`, default `kernel.reset`)
+    - [x] obtain the reset discovery list ONLY via `TagRegistry->all($effectiveResetTag)`
+    - [x] call `reset()` exactly once per service per invocation
+    - [x] be safely callable when the discovery list is empty
+    - [x] **MUST NOT re-sort** `TagRegistry->all(...)` output in legacy/base mode
+    - [x] never rely on reflection/autowire during reset execution
+    - [x] never emit stdout/stderr
+    - [x] never leak secrets (no dumping service instances / constructor args)
+    - [x] deterministically hard-fail on reset-tag misuse.
     - [ ] Before `1.250.0`, tests MUST lock behavior only (hard-fail, deterministic, safe).
-    - [ ] From `1.250.0` onward, the canonical failure becomes:
-      - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+    - [x] `1.200.0` prepares the future `1.250.0` canonical reset failure by using the stable machine-readable failure message:
+      - [x] `reset-not-resettable`
+    - [x] Typed reset failure is intentionally deferred to `1.250.0`:
+      - [x] `ResetException`
+      - [x] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
+      - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+    - [ ] `1.200.0` tests MUST lock deterministic hard-fail behavior only and MUST NOT require the future typed exception class/code.
 
-- [ ] `framework/packages/core/foundation/src/Provider/Tags.php` — constants:
-  - [ ] `public const KERNEL_RESET = 'kernel.reset';` - reserved canonical default reset tag name
-  - [ ] `public const KERNEL_STATEFUL = 'kernel.stateful';` - fixed reserved enforcement marker
+- [x] `framework/packages/core/foundation/src/Provider/Tags.php` — constants:
+  - [x] `public const KERNEL_RESET = 'kernel.reset';` - reserved canonical default reset tag name
+  - [x] `public const KERNEL_STATEFUL = 'kernel.stateful';` - fixed reserved enforcement marker
 
 Configuration:
-- [ ] `framework/packages/core/foundation/config/foundation.php` — config subtree under `foundation`
-- [ ] `framework/packages/core/foundation/config/rules.php` — enforces shape
+- [x] `framework/packages/core/foundation/config/foundation.php` — config subtree under `foundation`
+- [x] `framework/packages/core/foundation/config/rules.php` — enforces shape
 
 Documentation:
-- [ ] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
-- [ ] `docs/ssot/di-tags-and-middleware-ordering.md` — MUST explain:
-  - [ ] This document MUST NOT redefine tag ownership or registry rows from `docs/ssot/tags.md`.
-  - [ ] Canonical HTTP middleware catalog ownership and slot contents live in `docs/ssot/http-middleware-catalog.md`.
-  - [ ] This document owns only:
-    - [ ] discovery consumption rules,
-    - [ ] deterministic ordering rule,
-    - [ ] dedupe rule,
-    - [ ] consumer obligations (`MUST NOT re-sort`, `MUST NOT re-dedupe`).
-  - [ ] canonical middleware slots/tags (cemented):
-    - [ ] `http.middleware.system_pre`
-    - [ ] `http.middleware.system`
-    - [ ] `http.middleware.system_post`
-    - [ ] `http.middleware.app_pre`
-    - [ ] `http.middleware.app`
-    - [ ] `http.middleware.app_post`
-    - [ ] `http.middleware.route_pre`
-    - [ ] `http.middleware.route`
-    - [ ] `http.middleware.route_post`
-  - [ ] canonical sort rule (single-choice): `priority DESC, id ASC`
-    - [ ] implemented by `Coretsia\Foundation\Discovery\DeterministicOrder`
-    - [ ] ordering MUST be locale-independent (`strcmp`, byte-order)
-  - [ ] dedupe policy (single-choice; cemented): “first wins”
-    - [ ] implemented by `Coretsia\Foundation\Tag\TagRegistry`
-    - [ ] consumers MUST treat `TagRegistry->all($tag)` output as canonical:
-      - [ ] MUST NOT re-sort
-      - [ ] MUST NOT apply a different dedupe rule
-  - [ ] priority bands guidance + reference to the canonical HTTP catalog SSoT:
-    - [ ] `docs/ssot/http-middleware-catalog.md`
-  - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock-source/alignment input, NOT as SSoT
+- [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+- [x] `docs/ssot/di-tags-and-middleware-ordering.md` — MUST explain:
+  - [x] This document MUST NOT redefine tag ownership or registry rows from `docs/ssot/tags.md`.
+  - [x] Canonical HTTP middleware catalog ownership and slot contents live in `docs/ssot/http-middleware-catalog.md`.
+  - [x] This document owns only:
+    - [x] discovery consumption rules,
+    - [x] deterministic ordering rule,
+    - [x] dedupe rule,
+    - [x] consumer obligations (`MUST NOT re-sort`, `MUST NOT re-dedupe`).
+  - [x] canonical middleware slots/tags (cemented):
+    - [x] `http.middleware.system_pre`
+    - [x] `http.middleware.system`
+    - [x] `http.middleware.system_post`
+    - [x] `http.middleware.app_pre`
+    - [x] `http.middleware.app`
+    - [x] `http.middleware.app_post`
+    - [x] `http.middleware.route_pre`
+    - [x] `http.middleware.route`
+    - [x] `http.middleware.route_post`
+  - [x] canonical sort rule (single-choice): `priority DESC, id ASC`
+    - [x] implemented by `Coretsia\Foundation\Discovery\DeterministicOrder`
+    - [x] ordering MUST be locale-independent (`strcmp`, byte-order)
+  - [x] dedupe policy (single-choice; cemented): “first wins”
+    - [x] implemented by `Coretsia\Foundation\Tag\TagRegistry`
+    - [x] consumers MUST treat `TagRegistry->all($tag)` output as canonical:
+      - [x] MUST NOT re-sort
+      - [x] MUST NOT apply a different dedupe rule
+  - [x] priority bands guidance + reference to the canonical HTTP catalog SSoT:
+    - [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock-source/alignment input, NOT as SSoT
 
 Tests:
 - [ ] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
@@ -5204,8 +5209,9 @@ Tests:
 - [ ] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
 - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
 - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
-  - [ ] before `1.250.0`: locks deterministic hard-fail behavior only
-  - [ ] from `1.250.0` onward: MUST also assert `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+  - [ ] for `1.200.0`: locks deterministic hard-fail behavior and stable message `reset-not-resettable` only
+  - [ ] MUST NOT require `ResetException` or `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` before `1.250.0`
+  - [ ] from `1.250.0` onward: MUST be upgraded to assert `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
 - [ ] `framework/packages/core/foundation/tests/Integration/ContainerBuilderProviderOrderIsDeterministicTest.php`
   - [ ] asserts `ContainerBuilder` preserves the caller-supplied deterministic provider order exactly
@@ -5231,37 +5237,37 @@ Tests:
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/di-tags-and-middleware-ordering.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/di-tags-and-middleware-ordering.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
-  - [ ] MUST require runtime package:
-    - [ ] `psr/container`
-- [ ] `framework/packages/core/foundation/src/Module/FoundationModule.php`
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
-- [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] `framework/packages/core/foundation/config/rules.php`
-- [ ] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
-  - [ ] Observability section MUST describe only the bindings actually introduced by this epic
-  - [ ] default noop observability/logger bindings are introduced later by `1.205.0` and MUST be documented there once implemented
+- [x] `framework/packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
+  - [x] MUST require runtime package:
+    - [x] `psr/container`
+- [x] `framework/packages/core/foundation/src/Module/FoundationModule.php`
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+- [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] `framework/packages/core/foundation/config/rules.php`
+- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
+  - [x] Observability section MUST describe only the bindings actually introduced by this epic
+  - [x] default noop observability/logger bindings are introduced later by `1.205.0` and MUST be documented there once implemented
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] Keys (dot):
-  - [ ] `foundation.container.autowire_concrete` = true
-  - [ ] `foundation.container.allow_reflection_for_concrete` = true
-  - [ ] `foundation.reset.tag` = "kernel.reset"
-    - [ ] runtime-effective reset discovery tag
-    - [ ] reserved default value is `kernel.reset`
-    - [ ] consumers outside Foundation MUST NOT read or hardcode this key/string
-- [ ] Rules:
-  - [ ] `framework/packages/core/foundation/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] Keys (dot):
+  - [x] `foundation.container.autowire_concrete` = true
+  - [x] `foundation.container.allow_reflection_for_concrete` = true
+  - [x] `foundation.reset.tag` = "kernel.reset"
+    - [x] runtime-effective reset discovery tag
+    - [x] reserved default value is `kernel.reset`
+    - [x] consumers outside Foundation MUST NOT read or hardcode this key/string
+- [x] Rules:
+  - [x] `framework/packages/core/foundation/config/rules.php` enforces shape
 
 - IMPORTANT:
   - Tag discovery and reset orchestration are baseline runtime safety mechanisms in Foundation.
@@ -5276,15 +5282,22 @@ Tests:
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Foundation constants for already-canonical tags:
-  - [ ] `framework/packages/core/foundation/src/Provider/Tags.php`
-  - [ ] constants:
-    - [ ] `KERNEL_RESET`
-    - [ ] `KERNEL_STATEFUL`
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Foundation\Tag\TagRegistry`
-  - [ ] registers: `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
-  - [ ] registers: `Coretsia\Foundation\Discovery\DeterministicOrder` (optional as stateless utility service)
+- [x] Foundation constants for already-canonical tags:
+  - [x] `framework/packages/core/foundation/src/Provider/Tags.php`
+  - [x] constants:
+    - [x] `KERNEL_RESET`
+    - [x] `KERNEL_STATEFUL`
+- [x] `FoundationServiceProvider` реєструє:
+  - [x] `TagRegistry::class` як instance з `$builder->tagRegistry()`
+  - [x] `ResetOrchestrator::class` через `factory`
+  - [x] does not register `DeterministicOrder::class`; it remains a non-instantiable static canonical ordering primitive
+  - [x] `FoundationServiceProvider` implements `ServiceProviderInterface`;
+  - [x] `FoundationServiceFactory` створює `ResetOrchestrator`;
+  - [x] `DeterministicOrder::class` is intentionally not registered as a container service:
+    - [x] it is a stateless static canonical ordering primitive
+    - [x] it has no runtime dependencies, lifecycle, config, reset behavior, or mutable state
+    - [x] registering it would incorrectly expose the canonical sort rule as a replaceable DI service/strategy
+    - [ ] behavior is locked by direct unit/contract tests and by `TagRegistry->all($tag)` integration tests
 
 - Foundation-owned providers that register stateful services MUST tag them with the effective reset tag resolved from `foundation.reset.tag`, not with a hardcoded string.
 
@@ -5313,10 +5326,10 @@ N/A
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Foundation\Container\Exception\ContainerException` — errorCode `CORETSIA_CONTAINER_ERROR`
-    - [ ] `Container::canAutowire` strict: якщо `config['foundation']` або `config['foundation']['container']` відсутні → `ContainerException`
-  - [ ] `Coretsia\Foundation\Container\Exception\NotFoundException` — errorCode `CORETSIA_CONTAINER_NOT_FOUND`
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Foundation\Container\Exception\ContainerException` — errorCode `CORETSIA_CONTAINER_ERROR`
+    - [x] `Container::canAutowire` strict: якщо `config['foundation']` або `config['foundation']['container']` відсутні → `ContainerException`
+  - [x] `Coretsia\Foundation\Container\Exception\NotFoundException` — errorCode `CORETSIA_CONTAINER_NOT_FOUND`
 - Mapping:
   - N/A (higher layers adapt/mapping if needed)
 
@@ -5384,10 +5397,10 @@ N/A
 - [ ] deps/forbidden respected (deptrac; no cycles)
 - [ ] Verification tests present where applicable
 - [ ] Determinism: rerun-no-diff (ordering/registry behavior)
-- [ ] Docs updated:
-  - [ ] `framework/packages/core/foundation/README.md`
-  - [ ] `docs/ssot/di-tags-and-middleware-ordering.md`
-  - [ ] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+- [x] Docs updated:
+  - [x] `framework/packages/core/foundation/README.md`
+  - [x] `docs/ssot/di-tags-and-middleware-ordering.md`
+  - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
 - [ ] Typical consumers (when enabled in presets/bundles):
   - [ ] `platform/http` (owner package; implementation expands across later HTTP epics) composes middleware stacks from DI tags `http.middleware.*` and MUST consume discovery lists via `TagRegistry->all(<slotTag>)` (canonical ordering + dedupe).
   - [ ] `core/kernel` triggers reset discipline via foundation reset orchestration: services discovered through the effective Foundation reset tag are reset after each UoW.
@@ -5406,30 +5419,30 @@ N/A
     - [ ] `http.middleware.route`
     - [ ] `http.middleware.route_post`
   - [ ] `cli.command`, `error.mapper`, `health.check` — typical cross-package discovery tags (owners: `platform/cli`, `platform/errors`, `platform/health`, etc.)
-- [ ] **Locale independence (single-choice):**
-  - [ ] Будь-яке сортування в `core/foundation` MUST бути **locale-independent**.
-  - [ ] Sorting MUST використовувати **byte-order** порівняння (`strcmp`) і MUST NOT покладатися на `setlocale(...)`, `LC_ALL`, ICU-collation тощо.
-- [ ] **Single canonical ordering rule (cemented):**
-  - [ ] `DeterministicOrder` MUST реалізовувати єдине правило: **priority DESC, id ASC**.
-  - [ ] `TagRegistry->all($tag)` MUST повертати список **у цьому порядку** завжди (rerun-stable).
-- [ ] **Diagnostics serialization stability (MUST):**
-  - [ ] Якщо `ContainerDiagnostics` серіалізує структури у JSON/рядок — байти MUST бути стабільні:
-    - [ ] maps: ключі відсортовані на кожному рівні за `strcmp`
-    - [ ] lists: порядок збережено, без неявних reorder
-  - [ ] Diagnostics MUST NOT включати secrets/PII/Authorization/Cookie/env values.
-- [ ] **Reserved namespace parity (from config-merge spikes) (MUST):**
-  - [ ] Будь-який ключ, що починається з `@`, є **reserved**.
-  - [ ] `foundation` config subtree MUST NOT містити `@*` ключів на будь-якій глибині.
-  - [ ] `framework/packages/core/foundation/config/rules.php` MUST enforce: `@*` → hard fail.
-- [ ] `core/foundation` (runtime) MUST NOT залежати від Phase 0 devtools/tooling пакетів:
-  - [ ] Forbidden deps: `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
-  - [ ] Rationale: Phase 0 tooling libs і gates — tools-only; runtime не має тягнути їх як compile-time deps.
+- [x] **Locale independence (single-choice):**
+  - [x] Будь-яке сортування в `core/foundation` MUST бути **locale-independent**.
+  - [x] Sorting MUST використовувати **byte-order** порівняння (`strcmp`) і MUST NOT покладатися на `setlocale(...)`, `LC_ALL`, ICU-collation тощо.
+- [x] **Single canonical ordering rule (cemented):**
+  - [x] `DeterministicOrder` MUST реалізовувати єдине правило: **priority DESC, id ASC**.
+  - [x] `TagRegistry->all($tag)` MUST повертати список **у цьому порядку** завжди (rerun-stable).
+- [x] **Diagnostics serialization stability (MUST):**
+  - [x] Якщо `ContainerDiagnostics` серіалізує структури у JSON/рядок — байти MUST бути стабільні:
+    - [x] maps: ключі відсортовані на кожному рівні за `strcmp`
+    - [x] lists: порядок збережено, без неявних reorder
+  - [x] Diagnostics MUST NOT включати secrets/PII/Authorization/Cookie/env values.
+- [x] **Reserved namespace parity (from config-merge spikes) (MUST):**
+  - [x] Будь-який ключ, що починається з `@`, є **reserved**.
+  - [x] `foundation` config subtree MUST NOT містити `@*` ключів на будь-якій глибині.
+  - [x] `framework/packages/core/foundation/config/rules.php` MUST enforce: `@*` → hard fail.
+- [x] `core/foundation` (runtime) MUST NOT залежати від Phase 0 devtools/tooling пакетів:
+  - [x] Forbidden deps: `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
+  - [x] Rationale: Phase 0 tooling libs і gates — tools-only; runtime не має тягнути їх як compile-time deps.
 - [ ] **Deterministic ordering authority (cemented):**
-  - [ ] `TagRegistry->all($tag)` is canonical for tag discovery lists:
-    - [ ] ordering is `priority DESC, id ASC` via `DeterministicOrder`
-    - [ ] consumers MUST NOT re-sort or apply different dedupe rules
+  - [x] `TagRegistry->all($tag)` is canonical for tag discovery lists:
+    - [x] ordering is `priority DESC, id ASC` via `DeterministicOrder`
+    - [x] consumers MUST NOT re-sort or apply different dedupe rules
   - [ ] Reset execution ordering is owned by the Foundation reset executor:
-    - [ ] when enhanced reset is disabled → MUST execute in EXACT `TagRegistry->all($effectiveResetTag)` order, where `$effectiveResetTag` is resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
+    - [x] when enhanced reset is disabled → MUST execute in EXACT `TagRegistry->all($effectiveResetTag)` order, where `$effectiveResetTag` is resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
     - [ ] when enhanced reset is enabled (1.250.0) → MUST execute in deterministic planned order: `priority DESC, group ASC, serviceId ASC`
 - [ ] `StableJsonEncoder` semantics are locked directly by contract tests, not only indirectly through ContainerDiagnostics
 

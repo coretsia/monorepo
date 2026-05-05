@@ -46,6 +46,23 @@ return array(
     ),
     2 =>
     array(
+      'composerName' => 'coretsia/core-foundation',
+      'defaultsConfigPath' => 'config/foundation.php',
+      'id' => 'core.foundation',
+      'kind' => 'runtime',
+      'layer' => 'core',
+      'moduleClass' => 'Coretsia\\Foundation\\Module\\FoundationModule',
+      'moduleId' => 'core.foundation',
+      'path' => 'framework/packages/core/foundation',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Foundation\\Provider\\FoundationServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Foundation\\',
+      'slug' => 'foundation',
+    ),
+    3 =>
+    array(
       'composerName' => 'coretsia/devtools-cli-spikes',
       'defaultsConfigPath' => null,
       'id' => 'devtools.cli-spikes',
@@ -60,7 +77,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\CliSpikes\\',
       'slug' => 'cli-spikes',
     ),
-    3 =>
+    4 =>
     array(
       'composerName' => 'coretsia/devtools-internal-toolkit',
       'defaultsConfigPath' => null,
@@ -76,7 +93,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\InternalToolkit\\',
       'slug' => 'internal-toolkit',
     ),
-    4 =>
+    5 =>
     array(
       'composerName' => 'coretsia/platform-cli',
       'defaultsConfigPath' => 'config/cli.php',

@@ -139,13 +139,15 @@ declare(strict_types=1);
 
         exit(1);
     }
-})(isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []);
+})(
+    isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []
+);
 
 /**
  * @param list<string> $argv
  */
 function coretsia_package_compliance_gate_resolve_scan_root(
-    array  $argv,
+    array $argv,
     string $defaultScanRoot,
     string $repoRoot,
 ): string {
@@ -348,7 +350,14 @@ function coretsia_package_compliance_gate_scan(string $scanRoot, string $repoRoo
     $diagnostics = [];
 
     foreach ($packageRoots as $packageRoot) {
-        foreach (coretsia_package_compliance_gate_validate_package($scanRoot, $repoRoot, $packageRoot, $allowlist) as $diagnostic) {
+        foreach (
+            coretsia_package_compliance_gate_validate_package(
+                $scanRoot,
+                $repoRoot,
+                $packageRoot,
+                $allowlist
+            ) as $diagnostic
+        ) {
             $diagnostics[] = $diagnostic;
         }
     }
@@ -418,7 +427,7 @@ function coretsia_package_compliance_gate_validate_package(
     string $scanRoot,
     string $repoRoot,
     string $packageRoot,
-    array  $allowlist,
+    array $allowlist,
 ): array {
     $identity = coretsia_package_compliance_gate_package_identity($scanRoot, $packageRoot);
     $relativeRoot = $identity['relative_root'];
@@ -429,7 +438,14 @@ function coretsia_package_compliance_gate_validate_package(
     /** @var list<string> $diagnostics */
     $diagnostics = [];
 
-    foreach (coretsia_package_compliance_gate_validate_package_identity($relativeRoot, $layer, $slug, $packageId) as $diagnostic) {
+    foreach (
+        coretsia_package_compliance_gate_validate_package_identity(
+            $relativeRoot,
+            $layer,
+            $slug,
+            $packageId
+        ) as $diagnostic
+    ) {
         $diagnostics[] = $diagnostic;
     }
 
@@ -441,7 +457,13 @@ function coretsia_package_compliance_gate_validate_package(
         $diagnostics[] = $diagnostic;
     }
 
-    foreach (coretsia_package_compliance_gate_validate_legal_files($packageRoot, $relativeRoot, $repoRoot) as $diagnostic) {
+    foreach (
+        coretsia_package_compliance_gate_validate_legal_files(
+            $packageRoot,
+            $relativeRoot,
+            $repoRoot
+        ) as $diagnostic
+    ) {
         $diagnostics[] = $diagnostic;
     }
 
@@ -489,7 +511,12 @@ function coretsia_package_compliance_gate_validate_package(
     }
 
     if (\is_file($packageRoot . '/README.md')) {
-        foreach (coretsia_package_compliance_gate_validate_readme($packageRoot . '/README.md', $relativeRoot . '/README.md') as $diagnostic) {
+        foreach (
+            coretsia_package_compliance_gate_validate_readme(
+                $packageRoot . '/README.md',
+                $relativeRoot . '/README.md'
+            ) as $diagnostic
+        ) {
             $diagnostics[] = $diagnostic;
         }
     }
@@ -544,7 +571,11 @@ function coretsia_package_compliance_gate_validate_package_identity(
         $diagnostics[] = $relativeRoot . ': forbidden-slug';
     }
 
-    if ($layer === 'core' && \in_array($slug, ['core', 'platform', 'integrations', 'enterprise', 'devtools', 'presets'], true)) {
+    if ($layer === 'core' && \in_array(
+        $slug,
+        ['core', 'platform', 'integrations', 'enterprise', 'devtools', 'presets'],
+        true
+    )) {
         $diagnostics[] = $relativeRoot . ': core-namespace-collision-slug';
     }
 
@@ -567,7 +598,15 @@ function coretsia_package_compliance_gate_validate_required_scaffold(string $pac
     /** @var list<string> $diagnostics */
     $diagnostics = [];
 
-    foreach (['composer.json', 'README.md', 'LICENSE', 'NOTICE', 'tests/Contract/CrossCuttingNoopDoesNotThrowTest.php'] as $file) {
+    foreach (
+        [
+            'composer.json',
+            'README.md',
+            'LICENSE',
+            'NOTICE',
+            'tests/Contract/CrossCuttingNoopDoesNotThrowTest.php'
+        ] as $file
+    ) {
         if (!\is_file($packageRoot . '/' . $file)) {
             $diagnostics[] = $relativeRoot . '/' . $file . ': missing-required-file';
         }
@@ -585,8 +624,11 @@ function coretsia_package_compliance_gate_validate_required_scaffold(string $pac
 /**
  * @return list<string>
  */
-function coretsia_package_compliance_gate_validate_legal_files(string $packageRoot, string $relativeRoot, string $repoRoot): array
-{
+function coretsia_package_compliance_gate_validate_legal_files(
+    string $packageRoot,
+    string $relativeRoot,
+    string $repoRoot
+): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
 
@@ -597,7 +639,9 @@ function coretsia_package_compliance_gate_validate_legal_files(string $packageRo
             continue;
         }
 
-        if (coretsia_package_compliance_gate_read_file($packageFile) !== coretsia_package_compliance_gate_read_file($repoRoot . '/' . $file)) {
+        if (coretsia_package_compliance_gate_read_file($packageFile) !== coretsia_package_compliance_gate_read_file(
+            $repoRoot . '/' . $file
+        )) {
             $diagnostics[] = $relativeRoot . '/' . $file . ': legal-file-drift';
         }
     }
@@ -629,7 +673,7 @@ function coretsia_package_compliance_gate_decode_composer_json(string $composerP
  * @return list<string>
  */
 function coretsia_package_compliance_gate_validate_composer_json(
-    array  $composer,
+    array $composer,
     string $relativeRoot,
     string $layer,
     string $slug,
@@ -694,7 +738,7 @@ function coretsia_package_compliance_gate_validate_runtime_package(
     string $layer,
     string $slug,
     string $namespaceRoot,
-    array  $composer,
+    array $composer,
 ): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
@@ -794,10 +838,10 @@ function coretsia_package_compliance_gate_validate_runtime_defaults_config(
     }
 
     $topLevelKeys = coretsia_package_compliance_gate_extract_php_array_string_keys($arrayBlock);
-    $wrapperCandidates = [$slug, \str_replace('-', '_', $slug)];
+    $wrapperCandidates = \array_values(\array_unique([$slug, \str_replace('-', '_', $slug)]));
 
     foreach ($wrapperCandidates as $candidate) {
-        if (isset($topLevelKeys[$candidate]) && \count($topLevelKeys) === 1) {
+        if (isset($topLevelKeys[$candidate])) {
             return [$relativePath . ': config-defaults-wrapper-root'];
         }
     }
@@ -906,44 +950,110 @@ function coretsia_package_compliance_gate_studly(string $value): string
 
 function coretsia_package_compliance_gate_php_source_has_return_array(string $contents): bool
 {
-    return \preg_match('/\breturn\s*(?:array\s*\(|\[)/u', $contents) === 1;
+    return coretsia_package_compliance_gate_find_php_return_array_open_offset($contents) !== null;
 }
 
 function coretsia_package_compliance_gate_extract_php_return_array_block(string $contents): ?string
 {
-    if (
-        \preg_match(
-            '/\breturn\s*(array\s*\(|\[)/u',
-            $contents,
-            $matches,
-            \PREG_OFFSET_CAPTURE,
-        ) !== 1
-    ) {
+    $openPos = coretsia_package_compliance_gate_find_php_return_array_open_offset($contents);
+
+    if ($openPos === null) {
         return null;
     }
 
-    $matchText = (string)$matches[1][0];
-    $matchOffset = (int)$matches[1][1];
+    $open = $contents[$openPos] ?? null;
 
-    if (\str_ends_with($matchText, '[')) {
-        $openPos = $matchOffset + \strlen($matchText) - 1;
-    } else {
-        $openPos = \strpos($contents, '(', $matchOffset);
-    }
-
-    if ($openPos === false) {
+    if ($open !== '[' && $open !== '(') {
         return null;
     }
 
-    $open = $contents[$openPos];
     $close = $open === '[' ? ']' : ')';
 
     return coretsia_package_compliance_gate_extract_balanced_block($contents, $openPos, $open, $close);
 }
 
+function coretsia_package_compliance_gate_find_php_return_array_open_offset(string $contents): ?int
+{
+    $tokens = \token_get_all($contents);
+    $tokenCount = \count($tokens);
+
+    /** @var list<int> $offsets */
+    $offsets = [];
+
+    $offset = 0;
+
+    for ($i = 0; $i < $tokenCount; $i++) {
+        $token = $tokens[$i];
+        $offsets[$i] = $offset;
+
+        $text = \is_array($token) ? $token[1] : $token;
+        $offset += \strlen($text);
+    }
+
+    for ($i = 0; $i < $tokenCount; $i++) {
+        $token = $tokens[$i];
+
+        if (!\is_array($token) || $token[0] !== T_RETURN) {
+            continue;
+        }
+
+        $nextIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $i + 1);
+
+        if ($nextIndex === null) {
+            continue;
+        }
+
+        $next = $tokens[$nextIndex];
+
+        if ($next === '[') {
+            return $offsets[$nextIndex];
+        }
+
+        if (!\is_array($next) || $next[0] !== T_ARRAY) {
+            continue;
+        }
+
+        $openIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $nextIndex + 1);
+
+        if ($openIndex !== null && ($tokens[$openIndex] ?? null) === '(') {
+            return $offsets[$openIndex];
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param array<int, array{0:int,1:string,2:int}|string> $tokens
+ */
+function coretsia_package_compliance_gate_next_meaningful_token_index(array $tokens, int $start): ?int
+{
+    $tokenCount = \count($tokens);
+
+    for ($i = $start; $i < $tokenCount; $i++) {
+        $token = $tokens[$i];
+
+        if (!\is_array($token)) {
+            return $i;
+        }
+
+        if (
+            $token[0] === T_WHITESPACE
+            || $token[0] === T_COMMENT
+            || $token[0] === T_DOC_COMMENT
+        ) {
+            continue;
+        }
+
+        return $i;
+    }
+
+    return null;
+}
+
 function coretsia_package_compliance_gate_extract_balanced_block(
     string $source,
-    int    $openPos,
+    int $openPos,
     string $open,
     string $close,
 ): ?string {

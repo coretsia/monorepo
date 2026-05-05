@@ -38,6 +38,7 @@ Coretsia/
 │   │   ├── ADR-0011-ratelimit-ports.md
 │   │   ├── ADR-0012-mail-port.md
 │   │   ├── ADR-0013-secrets-port.md
+│   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,7 @@ Coretsia/
 │       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── database-contracts.md
+│       ├── di-tags-and-middleware-ordering.md
 │       ├── dto-policy.md
 │       ├── error-descriptor.md
 │       ├── errors-boundary.md
@@ -325,10 +327,30 @@ Coretsia/
 │   │   │       │   ├── foundation.php
 │   │   │       │   └── rules.php
 │   │   │       ├── src/
+│   │   │       │   ├── Container/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ContainerException.php (ContainerException - errorCode())
+│   │   │       │   │   │   └── NotFoundException.php (NotFoundException - serviceId())
+│   │   │       │   │   ├── Container.php (Container - get()/has()/canAutowire()/serviceIds()/config()/resolveDefinition()/autowire()/containerConfig()/assertServiceId()/isValidServiceId())
+│   │   │       │   │   ├── ContainerBuilder.php (ContainerBuilder - registerProviders()/register()/set()/bind()/instance()/factory()/tag()/build()/tagRegistry()/serviceIds()/config()/configRoot()/assertServiceId())
+│   │   │       │   │   ├── ContainerDiagnostics.php (ContainerDiagnostics - fromContainer()/fromBuilder()/toArray()/toJson()/normalizeServiceIds()/normalizeTags()/taggedServiceToDiagnostics()/diagnosticSafeId()/looksLikeAbsolutePath())
+│   │   │       │   │   └── ServiceProviderInterface.php (ServiceProviderInterface [interface] - register())
+│   │   │       │   ├── Discovery/
+│   │   │       │   │   └── DeterministicOrder.php (DeterministicOrder - compare()/sort())
 │   │   │       │   ├── Module/
-│   │   │       │   │   └── FoundationModule.php (FoundationModule)
-│   │   │       │   └── Provider/
-│   │   │       │       └── FoundationServiceProvider.php (FoundationServiceProvider)
+│   │   │       │   │   └── FoundationModule.php (FoundationModule - id()/packageId()/composerPackage()/kind()/configRoot()/providers())
+│   │   │       │   ├── Provider/
+│   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/effectiveResetTag())
+│   │   │       │   │   ├── FoundationServiceProvider.php (FoundationServiceProvider - register())
+│   │   │       │   │   └── Tags.php (Tags)
+│   │   │       │   ├── Runtime/
+│   │   │       │   │   └── Reset/
+│   │   │       │   │       └── ResetOrchestrator.php (ResetOrchestrator - resetAll()/effectiveResetTag()/assertValidResetTag())
+│   │   │       │   ├── Serialization/
+│   │   │       │   │   └── StableJsonEncoder.php (StableJsonEncoder - encode()/encodeStable()/normalize())
+│   │   │       │   └── Tag/
+│   │   │       │       ├── TagRegistry.php (TagRegistry - add()/tagNames()/all()/assertValidTag())
+│   │   │       │       └── TaggedService.php (TaggedService - id()/priority()/meta()/assertStringMap())
 │   │   │       ├── tests/
 │   │   │       │   └── Contract/
 │   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())

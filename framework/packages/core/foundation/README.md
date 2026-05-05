@@ -228,15 +228,23 @@ Forbidden in diagnostics:
 - credentials;
 - secrets;
 - tokens;
+- private keys;
 - authorization headers;
 - cookies;
 - raw request or response payloads;
 - raw queue messages;
+- raw SQL;
+- raw config payloads;
 - constructor arguments;
 - service instances;
-- absolute local paths.
+- arbitrary tag metadata;
+- reflection dumps;
+- absolute local paths;
+- private customer data / PII.
 
-Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, and priorities.
+Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+
+Runtime owners MUST prefer omission over unsafe emission.
 
 ## References
 

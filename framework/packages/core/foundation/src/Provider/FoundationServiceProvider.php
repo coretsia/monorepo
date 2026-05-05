@@ -18,6 +18,45 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Provider;
 
-final class FoundationServiceProvider
+use Coretsia\Foundation\Container\Container;
+use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\TagRegistry;
+
+/**
+ * Foundation DI wiring entrypoint.
+ *
+ * This provider registers Foundation-owned runtime services without changing
+ * provider ordering semantics. `ContainerBuilder` still preserves the exact
+ * caller-supplied provider order.
+ *
+ * Wiring decisions:
+ *
+ * - `TagRegistry` is registered as the exact builder-owned instance;
+ * - `ResetOrchestrator` is created through `FoundationServiceFactory`;
+ * - `DeterministicOrder` is not registered because it is a stateless static
+ *   utility and the epic marks service registration for it as optional.
+ *
+ * This provider must not emit stdout/stderr, must not use tooling-only
+ * packages, and must not introduce static mutable snapshots.
+ */
+final class FoundationServiceProvider implements ServiceProviderInterface
 {
+    public function register(ContainerBuilder $builder): void
+    {
+        $tagRegistry = $builder->tagRegistry();
+        $foundationConfig = $builder->configRoot('foundation');
+
+        $builder->instance(TagRegistry::class, $tagRegistry);
+
+        $builder->factory(
+            ResetOrchestrator::class,
+            static fn (Container $container): ResetOrchestrator => FoundationServiceFactory::resetOrchestrator(
+                container: $container,
+                tagRegistry: $tagRegistry,
+                foundationConfig: $foundationConfig,
+            ),
+        );
+    }
 }

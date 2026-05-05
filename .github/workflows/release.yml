@@ -37,7 +37,7 @@ jobs:
       contents: read
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -201,7 +201,7 @@ jobs:
           '
 
       - name: "Upload CI evidence artifacts (split plan)"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: "split-plan-${{ steps.tag.outputs.tag }}"
           if-no-files-found: error
@@ -254,7 +254,7 @@ jobs:
       contents: write
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

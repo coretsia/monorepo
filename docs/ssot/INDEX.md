@@ -63,7 +63,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Runtime Invariants
 
-_Empty for now (Prelude)._
+- [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — scope: di,discovery,middleware,ordering,runtime,tags
 
 ## Tooling and CI Contracts
 

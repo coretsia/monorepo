@@ -35,6 +35,7 @@
     "ext-libxml": "*",
     "coretsia/core-contracts": "dev-main",
     "coretsia/core-dto-attribute": "dev-main",
+    "coretsia/core-foundation": "dev-main",
     "coretsia/devtools-cli-spikes": "dev-main",
     "coretsia/devtools-internal-toolkit": "dev-main",
     "coretsia/platform-cli": "dev-main",

@@ -14,25 +14,67 @@
 
 # coretsia/devtools-cli-spikes
 
-Phase 0 package: **Devtools-only command pack** for the `coretsia` CLI.
+`devtools/cli-spikes` is the **devtools-only deterministic command pack** for the Phase 0 `coretsia` CLI.
 
-This package provides deterministic **spike command implementations** (e.g. `coretsia doctor`, `coretsia spike:*`)
-without shipping them in production runtime.
+It provides command adapters for repository diagnostics, spike execution, deptrac graph rendering, and workspace sync operations.
 
-## Scope (Phase 0 constraints)
+These commands are intended for development and CI workflows only. They MUST NOT become production runtime dependencies.
 
-- **Devtools-only by policy**: this package MUST be installed in `require-dev` only.
-- **No `core/kernel` dependency** (compile-time forbidden).
-- **No duplicated spike logic**:
-  - commands are thin adapters;
-  - actual spike algorithms remain under `framework/tools/spikes/**`.
-- **Output authority is single-choice**:
-  - all user-visible output MUST go through `Coretsia\Contracts\Cli\Output\OutputInterface`;
-  - commands MUST NOT print to stdout/stderr directly.
+## Package identity
+
+- **Path:** `framework/packages/devtools/cli-spikes`
+- **Package id:** `devtools/cli-spikes`
+- **Composer name:** `coretsia/devtools-cli-spikes`
+- **Namespace:** `Coretsia\Devtools\CliSpikes\*` (PSR-4: `src/`)
+- **Kind:** library
+- **Lifecycle:** Phase 0 devtools package
+
+Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+
+Per-package independent versions **MUST NOT** be used.
+
+## Dependency policy
+
+This package is devtools-only and MUST be installed through development dependencies only.
+
+- **Depends on:**
+  - `core/contracts`
+  - `platform/cli`
+- **Suggested only:**
+  - `devtools/internal-toolkit`
+- **Forbidden:**
+  - `core/kernel`
+  - production runtime packages as operational dependencies
+  - integrations as command execution dependencies
+
+This package may depend on `platform/cli` because Phase 0 CLI command execution is owned by `platform/cli`.
+
+It MUST NOT depend on `core/kernel`, `core/foundation`, container wiring, runtime lifecycle orchestration, or kernel-backed discovery.
+
+## Scope
+
+This package owns thin command adapters only.
+
+Commands MUST:
+
+- implement `Coretsia\Contracts\Cli\Command\CommandInterface`;
+- receive raw input through `Coretsia\Contracts\Cli\Input\InputInterface`;
+- emit all user-visible output through `Coretsia\Contracts\Cli\Output\OutputInterface`;
+- return deterministic process exit codes;
+- avoid direct stdout or stderr writes;
+- avoid leaking absolute local paths or secrets.
+
+Commands MUST NOT duplicate spike business logic.
+
+Tools-only spike algorithms remain under:
+
+```text
+framework/tools/spikes/**
+```
 
 ## Provided commands
 
-When installed and registered via the preset config, the CLI exposes:
+When this package is installed and its preset is loaded, the CLI exposes:
 
 - `coretsia doctor`
 - `coretsia spike:fingerprint`
@@ -41,109 +83,164 @@ When installed and registered via the preset config, the CLI exposes:
 - `coretsia workspace:sync --dry-run`
 - `coretsia workspace:sync --apply`
 
-## Registration (single source of truth)
+## Registration
 
-This package ships a **config preset**:
+This package ships a CLI config preset:
 
-- `config/cli.php`
+```text
+framework/packages/devtools/cli-spikes/config/cli.php
+```
 
-The Phase 0 CLI base (`coretsia/platform-cli`) loads this preset deterministically when:
+The preset MUST return the `cli` subtree only.
 
-- `Composer\InstalledVersions::isInstalled('coretsia/devtools-cli-spikes') === true`
+Valid shape:
 
-and merges it into the `cli` subtree using the fixed merge order:
+```php
+return [
+    'commands' => [
+        CommandClass::class,
+    ],
+];
+```
 
-1) platform-cli defaults
-2) devtools preset (this package)
-3) skeleton overrides
+Invalid shape:
 
-The preset file MUST return the **`cli` subtree** (NO repeated root key wrapper).
+```php
+return [
+    'cli' => [
+        'commands' => [],
+    ],
+];
+```
 
-## Dispatch boundary (tools-only spikes)
+Phase 0 command discovery is config-based. There is no tag-based command discovery in Phase 0.
 
-Commands in this package MUST NOT implement spike business logic.
-They MUST dispatch through a single canonical mechanism:
+Tag-based command discovery may exist only in a future kernel/container-backed CLI mode.
 
-- `Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrap`
+## Dispatch boundary
 
-This bootstrap is responsible for loading the tooling bootstrap:
+Commands in this package MUST NOT implement spike algorithms directly.
 
-- `framework/tools/spikes/_support/bootstrap.php`
+They dispatch through the canonical spike bootstrap boundary:
 
-Determinism + safety rules:
+```text
+Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrap
+```
 
-- no directory probing/search;
-- paths MUST be derived deterministically from the launcher path;
-- no absolute paths MUST be rendered to the user.
+The bootstrap loads the tools-only spike support bootstrap:
+
+```text
+framework/tools/spikes/_support/bootstrap.php
+```
+
+Determinism and safety rules:
+
+- no nondeterministic directory probing;
+- no locale-dependent ordering;
+- no absolute local paths in user-visible output;
+- no direct output from command business logic;
+- no process-global mutation beyond explicitly owned tooling bootstrap behavior.
 
 ## Output model
 
-All commands receive:
+All command output goes through `OutputInterface`.
 
-- `Coretsia\Contracts\Cli\Input\InputInterface` (raw tokens)
-- `Coretsia\Contracts\Cli\Output\OutputInterface` (deterministic safe output)
+Text output MUST:
 
-### Text and JSON output
+- be deterministic;
+- end with a single newline;
+- avoid environment-specific bytes;
+- avoid raw secrets and absolute local paths.
 
-- Text output MUST end with a single `\n`.
-- JSON output MUST be deterministic (stable key ordering for maps, list order preserved).
-- Any secret-like values MUST be redacted by output implementation (Phase 0 default is redaction-enabled).
+JSON output MUST:
+
+- be deterministic;
+- use stable map key ordering where the output shape is owned by this package;
+- preserve list order;
+- contain safe structural diagnostics only.
+
+The output implementation owns final redaction behavior, but commands MUST NOT pass known-sensitive raw values to output.
 
 ## Errors
 
-Phase 0 error handling is **code-first** and deterministic.
+Phase 0 error handling is deterministic and code-first.
 
-### Spikes errors (tools registry)
+Tools-only spikes under `framework/tools/spikes/**` define deterministic error codes in:
 
-Tools-only spikes under `framework/tools/spikes/**` define deterministic codes in:
+```text
+framework/tools/spikes/_support/ErrorCodes.php
+```
 
-- `framework/tools/spikes/_support/ErrorCodes.php`
+When a tool spike fails deterministically, commands SHOULD forward the stable spike code and a short safe reason to:
 
-When a tool spike fails deterministically (e.g. throws the tooling deterministic exception),
-commands SHOULD forward the spike code and a short safe reason to:
+```php
+$output->error($code, $message);
+```
 
-- `OutputInterface::error($code, $message)`
+Failures outside spike execution, such as invalid CLI command wiring, invalid config preset shape, or generic command failures, are owned by `platform/cli`.
 
-### CLI base errors (platform/cli)
+This package MUST NOT redefine platform CLI base error codes.
 
-Failures outside spikes (invalid config/preset, invalid command wiring, etc.) are owned by the CLI base:
+## Exit code policy
 
-- `Coretsia\Platform\Cli\Error\ErrorCodes`
+Phase 0 devtools command pack uses a binary exit policy:
 
-This package MUST NOT redefine CLI base codes.
+- `0` for success;
+- `1` for any failure.
 
-### Exit code policy (cemented)
-
-Phase 0 devtools command pack uses a binary policy:
-
-- `0` success
-- `1` any failure (including deterministic spike failures and uncaught exceptions)
+This includes deterministic spike failures, bootstrap failures, invalid command execution, and uncaught exceptions.
 
 ## Security / Redaction
 
-**MUST NOT leak**:
+This package MUST NOT leak:
 
-- `.env` / `.env.local*` values
-- tokens, passwords, cookies, Authorization headers
-- raw config dumps (e.g. `composer.json` contents)
-- absolute filesystem paths (Windows drive/UNC, `/home/`, `/Users/`)
+- `.env` or `.env.local*` values;
+- tokens;
+- passwords;
+- cookies;
+- authorization headers;
+- private keys;
+- raw config dumps;
+- raw `composer.json` contents in diagnostics;
+- absolute filesystem paths;
+- Windows drive paths;
+- UNC paths;
+- `/home/` paths;
+- `/Users/` paths.
 
-**Allowed diagnostics** (deterministic + safe):
+Allowed diagnostics are limited to:
 
-- repo-relative normalized paths (forward slashes)
-- stable codes and short fixed reason tokens
-- hashes/lengths instead of raw secret values
+- stable error codes;
+- short fixed reason tokens;
+- repo-relative normalized paths using forward slashes;
+- stable hashes or lengths instead of raw sensitive values.
 
 ## Observability
 
-Phase 0 observability is intentionally minimal:
+Phase 0 observability is intentionally minimal.
 
-- commands MAY emit safe diagnostics via `OutputInterface` only;
-- no logging/tracing/metrics ports are introduced here;
-- any diagnostics MUST remain deterministic and redaction-safe.
+Commands MAY emit safe diagnostics through `OutputInterface` only.
 
-## Non-goals (Phase 0)
+This package does not introduce logging, tracing, metrics, health, profiler, or event ports.
 
-- plugin system (dynamic discovery) — out of scope
-- kernel/container integration — out of scope
-- vendor-only install UX guarantees — out of scope
+Any diagnostics MUST remain deterministic and redaction-safe.
+
+## Non-goals
+
+This package does not provide:
+
+- production runtime commands;
+- kernel integration;
+- container integration;
+- tag-based command discovery;
+- dynamic plugin discovery;
+- HTTP middleware integration;
+- runtime lifecycle hooks;
+- vendor-only install UX guarantees;
+- long-running runtime reset orchestration.
+
+## References
+
+- `docs/roadmap/ROADMAP.md`
+- `docs/ssot/tags.md`
+- `docs/ssot/config-roots.md`

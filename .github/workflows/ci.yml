@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -73,7 +73,7 @@ jobs:
           git config --global core.safecrlf true
 
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Windows rails: assert git symlink mode (MUST)"
         shell: bash
@@ -144,7 +144,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -187,7 +187,7 @@ jobs:
         run: composer --no-interaction arch:deptrac:analyze
 
       - name: "Upload: dep graph artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coretsia-deptrac-graph
           path: |
@@ -218,7 +218,7 @@ jobs:
           git config --global core.safecrlf true
 
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Windows rails: assert git symlink mode (MUST)"
         shell: bash
@@ -292,7 +292,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -331,7 +331,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -366,7 +366,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -418,7 +418,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -467,7 +467,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -503,7 +503,7 @@ jobs:
 
     steps:
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -553,7 +553,7 @@ jobs:
           git config --global core.safecrlf true
 
       - name: "Checkout: repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Windows rails: assert git symlink mode (MUST)"
         if: ${{ runner.os == 'Windows' }}

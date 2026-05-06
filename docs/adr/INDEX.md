@@ -43,6 +43,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0011: Rate limit ports](./ADR-0011-ratelimit-ports.md) — owner: core/contracts — scope: contracts,ports,rate-limit,redaction
 - [ADR-0012: Mail port](./ADR-0012-mail-port.md) — owner: core/contracts — scope: contracts,mail,ports,redaction
 - [ADR-0013: Secrets port](./ADR-0013-secrets-port.md) — owner: core/contracts — scope: contracts,secrets,redaction
+- [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](./ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md) — owner: core/foundation — scope: container,di,ordering,reset,runtime,tags
 
 ## Cross-references
 

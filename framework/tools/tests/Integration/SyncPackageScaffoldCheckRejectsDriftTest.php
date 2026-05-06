@@ -22,38 +22,45 @@ use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
 
 final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCase
 {
-    public function testCheckModeRejectsMissingAndDriftedLegalFilesWithoutWrites(): void
+    public function testCheckModeRejectsMissingAndDriftedCanonicalPackageFilesWithoutWrites(): void
     {
         $scanRoot = $this->prepareTempRoot('package-scaffold-check');
 
-        $missingLegalRoot = $scanRoot . '/packages/core/missing-legal';
+        $missingCanonicalRoot = $scanRoot . '/packages/core/missing-canonical';
         $driftedRuntimeRoot = $scanRoot . '/packages/platform/drifted-runtime';
 
-        $this->createCompleteLibraryPackage($missingLegalRoot, 'core', 'missing-legal', false, false);
-        $this->createCompleteRuntimePackage($driftedRuntimeRoot, 'platform', 'drifted-runtime', true, true);
+        $this->createCompleteLibraryPackage($missingCanonicalRoot, 'core', 'missing-canonical', false, false, false);
+        $this->createCompleteRuntimePackage($driftedRuntimeRoot, 'platform', 'drifted-runtime', true, true, true);
 
         $driftedLicense = "Drifted LICENSE fixture.\n";
         $driftedNotice = "Drifted NOTICE fixture.\n";
+        $driftedSecurity = "Drifted SECURITY fixture.\n";
 
         $this->writeBytesExact($driftedRuntimeRoot . '/LICENSE', $driftedLicense);
         $this->writeBytesExact($driftedRuntimeRoot . '/NOTICE', $driftedNotice);
+        $this->writeBytesExact($driftedRuntimeRoot . '/SECURITY.md', $driftedSecurity);
 
         [$code, $output] = $this->runSyncPackageScaffoldCheck($scanRoot);
 
         self::assertSame(1, $code);
         self::assertSame(
             "CORETSIA_PACKAGE_SCAFFOLD_OUT_OF_SYNC\n"
-            . "packages/core/missing-legal/LICENSE: missing-canonical-legal-file\n"
-            . "packages/core/missing-legal/NOTICE: missing-canonical-legal-file\n"
-            . "packages/platform/drifted-runtime/LICENSE: canonical-legal-file-drift\n"
-            . "packages/platform/drifted-runtime/NOTICE: canonical-legal-file-drift\n",
+            . "packages/core/missing-canonical/LICENSE: missing-canonical-package-file\n"
+            . "packages/core/missing-canonical/NOTICE: missing-canonical-package-file\n"
+            . "packages/core/missing-canonical/SECURITY.md: missing-canonical-package-file\n"
+            . "packages/platform/drifted-runtime/LICENSE: canonical-package-file-drift\n"
+            . "packages/platform/drifted-runtime/NOTICE: canonical-package-file-drift\n"
+            . "packages/platform/drifted-runtime/SECURITY.md: canonical-package-file-drift\n",
             $output,
         );
 
-        self::assertFileDoesNotExist($missingLegalRoot . '/LICENSE');
-        self::assertFileDoesNotExist($missingLegalRoot . '/NOTICE');
+        self::assertFileDoesNotExist($missingCanonicalRoot . '/LICENSE');
+        self::assertFileDoesNotExist($missingCanonicalRoot . '/NOTICE');
+        self::assertFileDoesNotExist($missingCanonicalRoot . '/SECURITY.md');
+
         self::assertSame($driftedLicense, $this->readBytes($driftedRuntimeRoot . '/LICENSE'));
         self::assertSame($driftedNotice, $this->readBytes($driftedRuntimeRoot . '/NOTICE'));
+        self::assertSame($driftedSecurity, $this->readBytes($driftedRuntimeRoot . '/SECURITY.md'));
 
         $this->assertDiagnosticsAreRelativeAndSorted($output);
     }
@@ -87,8 +94,9 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
         string $packageRoot,
         string $layer,
         string $slug,
-        bool   $withLicense,
-        bool   $withNotice,
+        bool $withLicense,
+        bool $withNotice,
+        bool $withSecurity,
     ): void {
         $this->ensureDir($packageRoot . '/src');
         $this->ensureDir($packageRoot . '/tests/Contract');
@@ -98,7 +106,10 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
 
         $this->writeBytesExact($packageRoot . '/composer.json', $this->composerJson($layer, $slug, 'library'));
         $this->writeBytesExact($packageRoot . '/README.md', $this->readme($studlySlug));
-        $this->writeBytesExact($packageRoot . '/src/' . $studlySlug . '.php', $this->phpClassFile(\rtrim($namespace, '\\'), $studlySlug));
+        $this->writeBytesExact(
+            $packageRoot . '/src/' . $studlySlug . '.php',
+            $this->phpClassFile(\rtrim($namespace, '\\'), $studlySlug)
+        );
         $this->writeBytesExact(
             $packageRoot . '/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php',
             $this->noopContractTest($namespace . 'Tests\\Contract'),
@@ -111,14 +122,19 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
         if ($withNotice) {
             $this->writeBytesExact($packageRoot . '/NOTICE', $this->readBytes($this->repoRoot() . '/NOTICE'));
         }
+
+        if ($withSecurity) {
+            $this->writeBytesExact($packageRoot . '/SECURITY.md', $this->readBytes($this->repoRoot() . '/SECURITY.md'));
+        }
     }
 
     private function createCompleteRuntimePackage(
         string $packageRoot,
         string $layer,
         string $slug,
-        bool   $withLicense,
-        bool   $withNotice,
+        bool $withLicense,
+        bool $withNotice,
+        bool $withSecurity,
     ): void {
         $this->ensureDir($packageRoot . '/src/Module');
         $this->ensureDir($packageRoot . '/src/Provider');
@@ -151,6 +167,10 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
 
         if ($withNotice) {
             $this->writeBytesExact($packageRoot . '/NOTICE', $this->readBytes($this->repoRoot() . '/NOTICE'));
+        }
+
+        if ($withSecurity) {
+            $this->writeBytesExact($packageRoot . '/SECURITY.md', $this->readBytes($this->repoRoot() . '/SECURITY.md'));
         }
     }
 

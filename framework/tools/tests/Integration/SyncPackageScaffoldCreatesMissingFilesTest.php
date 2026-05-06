@@ -51,8 +51,17 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
 
         self::assertSame($this->readBytes($this->repoRoot() . '/LICENSE'), $this->readBytes($libraryRoot . '/LICENSE'));
         self::assertSame($this->readBytes($this->repoRoot() . '/NOTICE'), $this->readBytes($libraryRoot . '/NOTICE'));
+        self::assertSame(
+            $this->readBytes($this->repoRoot() . '/SECURITY.md'),
+            $this->readBytes($libraryRoot . '/SECURITY.md')
+        );
+
         self::assertSame($this->readBytes($this->repoRoot() . '/LICENSE'), $this->readBytes($runtimeRoot . '/LICENSE'));
         self::assertSame($this->readBytes($this->repoRoot() . '/NOTICE'), $this->readBytes($runtimeRoot . '/NOTICE'));
+        self::assertSame(
+            $this->readBytes($this->repoRoot() . '/SECURITY.md'),
+            $this->readBytes($runtimeRoot . '/SECURITY.md')
+        );
 
         self::assertFileExists($libraryRoot . '/README.md');
         self::assertSame($runtimeReadme, $this->readBytes($runtimeRoot . '/README.md'));

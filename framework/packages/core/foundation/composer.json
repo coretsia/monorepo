@@ -1,0 +1,60 @@
+{
+  "name": "coretsia/core-foundation",
+  "type": "library",
+  "description": "Coretsia Foundation runtime package (PSR-11 DI container, deterministic tags, stable diagnostics, and reset orchestration)",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "foundation",
+    "runtime",
+    "container",
+    "dependency-injection",
+    "di",
+    "psr-11",
+    "tags",
+    "deterministic",
+    "reset",
+    "long-running"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "dev-main",
+    "psr/container": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Foundation\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Foundation\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "core.foundation",
+      "moduleClass": "Coretsia\\Foundation\\Module\\FoundationModule",
+      "providers": [
+        "Coretsia\\Foundation\\Provider\\FoundationServiceProvider"
+      ],
+      "defaultsConfigPath": "config/foundation.php"
+    }
+  }
+}

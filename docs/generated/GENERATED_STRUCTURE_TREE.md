@@ -352,8 +352,28 @@ Coretsia/
 │   │   │       │       ├── TagRegistry.php
 │   │   │       │       └── TaggedService.php
 │   │   │       ├── tests/
-│   │   │       │   └── Contract/
-│   │   │       │       └── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │   ├── Contract/
+│   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
+│   │   │       │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
+│   │   │       │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
+│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │   │   ├── DeterministicOrderSortContractTest.php
+│   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
+│   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
+│   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
+│   │   │       │   │   └── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
+│   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
+│   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
+│   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+│   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php
+│   │   │       │   │   ├── TagRegistryDedupeFirstWinsTest.php
+│   │   │       │   │   └── TagRegistryReturnsDeterministicOrderTest.php
+│   │   │       │   └── Unit/
+│   │   │       │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
+│   │   │       │       ├── ContainerDoesNotAutowireInterfacesTest.php
+│   │   │       │       └── DeterministicOrderSortRuleTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md

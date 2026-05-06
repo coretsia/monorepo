@@ -5151,14 +5151,14 @@ Reset orchestration:
     - [x] never emit stdout/stderr
     - [x] never leak secrets (no dumping service instances / constructor args)
     - [x] deterministically hard-fail on reset-tag misuse.
-    - [ ] Before `1.250.0`, tests MUST lock behavior only (hard-fail, deterministic, safe).
+    - [x] Before `1.250.0`, tests MUST lock behavior only (hard-fail, deterministic, safe).
     - [x] `1.200.0` prepares the future `1.250.0` canonical reset failure by using the stable machine-readable failure message:
       - [x] `reset-not-resettable`
     - [x] Typed reset failure is intentionally deferred to `1.250.0`:
       - [x] `ResetException`
       - [x] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
       - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
-    - [ ] `1.200.0` tests MUST lock deterministic hard-fail behavior only and MUST NOT require the future typed exception class/code.
+    - [x] `1.200.0` tests MUST lock deterministic hard-fail behavior only and MUST NOT require the future typed exception class/code.
 
 - [x] `framework/packages/core/foundation/src/Provider/Tags.php` — constants:
   - [x] `public const KERNEL_RESET = 'kernel.reset';` - reserved canonical default reset tag name
@@ -5201,39 +5201,39 @@ Documentation:
   - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock-source/alignment input, NOT as SSoT
 
 Tests:
-- [ ] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
-- [ ] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
-  - [ ] for `1.200.0`: locks deterministic hard-fail behavior and stable message `reset-not-resettable` only
-  - [ ] MUST NOT require `ResetException` or `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` before `1.250.0`
-  - [ ] from `1.250.0` onward: MUST be upgraded to assert `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContainerBuilderProviderOrderIsDeterministicTest.php`
-  - [ ] asserts `ContainerBuilder` preserves the caller-supplied deterministic provider order exactly
-  - [ ] MUST NOT assert global re-sorting by provider FQCN
-- [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
-  - [ ] asserts stable bytes for the same input container snapshot (sorted map keys at all levels, LF-only, final newline)
-- [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
-  - [ ] asserts diagnostics never includes env values/tokens/Authorization/Cookie-like keys and never dumps constructor args/instances
-- [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
-  - [ ] asserts no `/home/`, `/Users/`, `(?i)\b[A-Z]:(\\|/)`, `\\server\share` patterns appear in serialized diagnostics
-- [ ] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsFloatValuesContractTest.php`
-  - [ ] asserts `float/NaN/INF/-INF` are rejected deterministically and messages do not contain raw values
-- [ ] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php`
-  - [ ] asserts `object/resource/Closure/non-string` map keys are rejected deterministically
-- [ ] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderSortsMapKeysRecursivelyContractTest.php`
-  - [ ] asserts maps are sorted recursively by `strcmp` and lists preserve order
-- [ ] `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
-  - [ ] asserts:
-    - [ ] missing `config['foundation']` OR missing `config['foundation']['container']`
+- [x] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
+- [x] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] for `1.200.0`: locks deterministic hard-fail behavior and stable message `reset-not-resettable` only
+  - [x] MUST NOT require `ResetException` or `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` before `1.250.0`
+  - [x] future typed-exception upgrade is deferred to `1.250.0` and tracked there as a `Modifies` item
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContainerBuilderProviderOrderIsDeterministicTest.php`
+  - [x] asserts `ContainerBuilder` preserves the caller-supplied deterministic provider order exactly
+  - [x] MUST NOT assert global re-sorting by provider FQCN
+- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
+  - [x] asserts stable bytes for the same input container snapshot (sorted map keys at all levels, LF-only, final newline)
+- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
+  - [x] asserts diagnostics never includes env values/tokens/Authorization/Cookie-like keys and never dumps constructor args/instances
+- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
+  - [x] asserts no `/home/`, `/Users/`, `(?i)\b[A-Z]:(\\|/)`, `\\server\share` patterns appear in serialized diagnostics
+- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsFloatValuesContractTest.php`
+  - [x] asserts `float/NaN/INF/-INF` are rejected deterministically and messages do not contain raw values
+- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php`
+  - [x] asserts `object/resource/Closure/non-string` map keys are rejected deterministically
+- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderSortsMapKeysRecursivelyContractTest.php`
+  - [x] asserts maps are sorted recursively by `strcmp` and lists preserve order
+- [x] `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
+  - [x] asserts:
+    - [x] missing `config['foundation']` OR missing `config['foundation']['container']`
       → throws `ContainerException` deterministically
-- [ ] `framework/packages/core/foundation/tests/Integration/ContainerBuilderLaterBindingOverridesEarlierBindingTest.php`
-  - [ ] asserts later provider binding replaces earlier one deterministically
+- [x] `framework/packages/core/foundation/tests/Integration/ContainerBuilderLaterBindingOverridesEarlierBindingTest.php`
+  - [x] asserts later provider binding replaces earlier one deterministically
 
 #### Modifies
 
@@ -5297,9 +5297,14 @@ Tests:
     - [x] it is a stateless static canonical ordering primitive
     - [x] it has no runtime dependencies, lifecycle, config, reset behavior, or mutable state
     - [x] registering it would incorrectly expose the canonical sort rule as a replaceable DI service/strategy
-    - [ ] behavior is locked by direct unit/contract tests and by `TagRegistry->all($tag)` integration tests
+    - [x] behavior is locked by direct unit/contract tests and by `TagRegistry->all($tag)` integration tests
 
 - Foundation-owned providers that register stateful services MUST tag them with the effective reset tag resolved from `foundation.reset.tag`, not with a hardcoded string.
+- `kernel.stateful` is a marker tag name only:
+  - it is not a container service
+  - it is not consumed by `ResetOrchestrator`
+  - it is not consumed by `core/kernel` at runtime
+  - it exists for CI/static-analysis enforcement rails
 
 #### Artifacts / outputs (if applicable)
 
@@ -5311,18 +5316,23 @@ N/A
 
 - Context reads/writes:
   - N/A
-- [ ] Reset discipline:
-  - [ ] stateful services implement `Coretsia\Contracts\Runtime\ResetInterface`
-  - [ ] tagged with the effective Foundation reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
-  - [ ] fixed enforcement marker `kernel.stateful` for enforcement rails
-  - [ ] runtime execution MUST NOT depend on `kernel.stateful`
+- [x] Reset discipline:
+  - [x] `core/foundation` provides the runtime reset executor through `ResetOrchestrator`
+  - [x] `ResetOrchestrator` requires discovered reset services to implement `Coretsia\Contracts\Runtime\ResetInterface`
+  - [x] services are discovered through the effective Foundation reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
+  - [x] fixed enforcement marker `kernel.stateful` is reserved through `Coretsia\Foundation\Provider\Tags::KERNEL_STATEFUL`
+  - [x] runtime execution does not depend on `kernel.stateful`
+  - [x] architecture/static-analysis enforcement for “stateful services MUST implement ResetInterface and be reset-tagged” is provided by the external `cross_cutting_contract_gate.php` rail, not by a PHPStan custom rule in this epic
 
 #### Observability (policy-compliant)
 
 - Spans/Metrics:
-  - N/A (foundation itself may stay minimal)
-- [ ] Logs:
-  - [ ] diagnostics output MUST NOT include secrets/PII (redaction if ever added)
+  - N/A — `1.200.0` introduces no spans, metrics, or observability port bindings.
+  - Foundation reset observability is deferred to `1.250.0` after noop-safe observability/logger bindings exist.
+- Logs:
+  - N/A — `1.200.0` introduces no logger binding and emits no runtime logs.
+- Diagnostics:
+  - [x] `ContainerDiagnostics` output MUST NOT include secrets/PII, service instances, constructor args, reflection data, raw config payloads, env values, Authorization/Cookie-like values, or tag meta.
 
 #### Errors
 
@@ -5335,25 +5345,25 @@ N/A
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] env values, secrets, tokens (especially in diagnostics)
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` for potentially sensitive strings in diagnostics (if ever output)
-- [ ] `core/foundation` MUST provide a single canonical encoder to avoid drift across packages.
+- [x] MUST NOT leak:
+  - [x] env values, secrets, tokens (especially in diagnostics)
+- [x] Allowed:
+  - [x] `hash(value)` / `len(value)` for potentially sensitive strings in diagnostics (if ever output)
+- [x] `core/foundation` MUST provide a single canonical encoder to avoid drift across packages.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Referenced enforcement rails (NOT owned by this epic)
 
-- `framework/tools/gates/cross_cutting_contract_gate.php` — cross-cutting contract gate (referenced for traceability; ownership is tooling/gates epics).
-- phpstan rule: “tagged/stateful services MUST implement ResetInterface” — referenced; owned by static-analysis rails epics.
+- `framework/tools/gates/cross_cutting_contract_gate.php` — referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains in tooling/gates epics.
+- Dedicated PHPStan rule is intentionally not introduced by `1.200.0`; detectable `kernel.stateful` reset-discipline violations are currently enforced by `cross_cutting_contract_gate.php`, not PHPStan.
 
 #### Required policy tests matrix
 
-- [ ] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-- [ ] If determinism promised → `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-- [ ] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` (tag misuse is deterministic hard-fail)
-- [ ] if reset discovery tag is config-resolved → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+- [x] If determinism promised → `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` (tag misuse is deterministic hard-fail)
+- [x] if reset discovery tag is config-resolved → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5362,63 +5372,63 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
 - Contract:
-  - [ ] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
-    - [ ] asserts `ResetOrchestrator` discovers resettable services through `foundation.reset.tag`, not a hardcoded `kernel.reset`
+  - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+    - [x] asserts `ResetOrchestrator` discovers resettable services through `foundation.reset.tag`, not a hardcoded `kernel.reset`
 - Gates/Arch:
-  - [ ] `framework/tools/gates/cross_cutting_contract_gate.php` (referenced)
-  - [ ] phpstan rule: “tagged/stateful services MUST implement ResetInterface” (referenced; owned elsewhere)
-- [ ] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
-  - [ ] MUST fail if `framework/packages/core/foundation/config/foundation.php` returns repeated root:
-    - [ ] ✅ returns subtree keys such as: `['container' => [...], 'reset' => [...], ...]`
-    - [ ] ❌ forbidden: `['foundation' => [...]]`
-  - [ ] MUST NOT require an exact final namespace set for the `foundation` subtree.
-  - [ ] Additive namespaces introduced by later `core/foundation` epics are allowed.
-  - [ ] The contract MUST only assert:
-    - [ ] subtree-only return shape (no repeated root)
-    - [ ] no reserved `@*` keys
-    - [ ] absence of namespaces explicitly forbidden by the current epic
-- [ ] If strict autowire config is promised → `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
+  - [x] `framework/tools/gates/cross_cutting_contract_gate.php` passes under `composer gates` as the referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains outside this epic.
+  - [x] Dedicated PHPStan rule is not introduced by `1.200.0`; the invariant is currently enforced by the cross-cutting gate, not PHPStan.
+- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
+  - [x] MUST fail if `framework/packages/core/foundation/config/foundation.php` returns repeated root:
+    - [x] ✅ returns subtree keys such as: `['container' => [...], 'reset' => [...], ...]`
+    - [x] ❌ forbidden: `['foundation' => [...]]`
+  - [x] MUST NOT require an exact final namespace set for the `foundation` subtree.
+  - [x] Additive namespaces introduced by later `core/foundation` epics are allowed.
+  - [x] The contract MUST only assert:
+    - [x] subtree-only return shape (no repeated root)
+    - [x] no reserved `@*` keys
+    - [x] absence of namespaces explicitly forbidden by the current epic
+- [x] If strict autowire config is promised → `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Determinism: rerun-no-diff (ordering/registry behavior)
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Verification tests present where applicable
+- [x] Determinism: rerun-no-diff (ordering/registry behavior)
 - [x] Docs updated:
   - [x] `framework/packages/core/foundation/README.md`
   - [x] `docs/ssot/di-tags-and-middleware-ordering.md`
   - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
-- [ ] Typical consumers (when enabled in presets/bundles):
-  - [ ] `platform/http` (owner package; implementation expands across later HTTP epics) composes middleware stacks from DI tags `http.middleware.*` and MUST consume discovery lists via `TagRegistry->all(<slotTag>)` (canonical ordering + dedupe).
-  - [ ] `core/kernel` triggers reset discipline via foundation reset orchestration: services discovered through the effective Foundation reset tag are reset after each UoW.
-- [ ] Discovery / wiring happens via tags (examples; tag owners are the respective packages):
-  - [ ] `kernel.reset` — reserved canonical default reset-discovery tag name for `foundation.reset.tag` (owner: `core/foundation`)
-  - [ ] `kernel.reset` is NOT a kernel-owned runtime feature; Foundation resolves the effective reset discovery tag through `foundation.reset.tag`
-  - [ ] `kernel.stateful` — enforcement marker (global; owner: `core/foundation`)
-  - [ ] HTTP middleware slots (cemented taxonomy; **future owner: `platform/http`**):
-    - [ ] `http.middleware.system_pre`
-    - [ ] `http.middleware.system`
-    - [ ] `http.middleware.system_post`
-    - [ ] `http.middleware.app_pre`
-    - [ ] `http.middleware.app`
-    - [ ] `http.middleware.app_post`
-    - [ ] `http.middleware.route_pre`
-    - [ ] `http.middleware.route`
-    - [ ] `http.middleware.route_post`
-  - [ ] `cli.command`, `error.mapper`, `health.check` — typical cross-package discovery tags (owners: `platform/cli`, `platform/errors`, `platform/health`, etc.)
+- [x] Typical consumers (when enabled in presets/bundles):
+  - [x] `platform/http` consumption is documented/reserved only; implementation is owned by later HTTP epics and must compose middleware stacks from DI tags `http.middleware.*` via `TagRegistry->all(<slotTag>)`
+  - [x] `core/kernel` consumption is documented/reserved only; implementation is owned by later Kernel epics and must trigger reset through `ResetOrchestrator::resetAll()`
+- [x] Discovery / wiring happens via tags (reserved/documented examples; tag owners are the respective packages):
+  - [x] `kernel.reset` — reserved canonical default reset-discovery tag name for `foundation.reset.tag` (owner: `core/foundation`)
+  - [x] `kernel.reset` is NOT a kernel-owned runtime feature; Foundation resolves the effective reset discovery tag through `foundation.reset.tag`
+  - [x] `kernel.stateful` — enforcement marker reserved through `Coretsia\Foundation\Provider\Tags::KERNEL_STATEFUL`; runtime reset execution does not depend on it
+  - [x] HTTP middleware slots are cemented/reserved taxonomy; implementation owner is future `platform/http`:
+    - [x] `http.middleware.system_pre`
+    - [x] `http.middleware.system`
+    - [x] `http.middleware.system_post`
+    - [x] `http.middleware.app_pre`
+    - [x] `http.middleware.app`
+    - [x] `http.middleware.app_post`
+    - [x] `http.middleware.route_pre`
+    - [x] `http.middleware.route`
+    - [x] `http.middleware.route_post`
+  - [x] `cli.command`, `error.mapper`, `health.check` are typical cross-package discovery tags; owner packages are `platform/cli`, `platform/errors`, `platform/health`, etc.; `core/foundation` provides only the shared registry/order mechanism
 - [x] **Locale independence (single-choice):**
   - [x] Будь-яке сортування в `core/foundation` MUST бути **locale-independent**.
   - [x] Sorting MUST використовувати **byte-order** порівняння (`strcmp`) і MUST NOT покладатися на `setlocale(...)`, `LC_ALL`, ICU-collation тощо.
@@ -5437,14 +5447,14 @@ N/A
 - [x] `core/foundation` (runtime) MUST NOT залежати від Phase 0 devtools/tooling пакетів:
   - [x] Forbidden deps: `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
   - [x] Rationale: Phase 0 tooling libs і gates — tools-only; runtime не має тягнути їх як compile-time deps.
-- [ ] **Deterministic ordering authority (cemented):**
+- [x] **Deterministic ordering authority (cemented):**
   - [x] `TagRegistry->all($tag)` is canonical for tag discovery lists:
     - [x] ordering is `priority DESC, id ASC` via `DeterministicOrder`
     - [x] consumers MUST NOT re-sort or apply different dedupe rules
-  - [ ] Reset execution ordering is owned by the Foundation reset executor:
-    - [x] when enhanced reset is disabled → MUST execute in EXACT `TagRegistry->all($effectiveResetTag)` order, where `$effectiveResetTag` is resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
-    - [ ] when enhanced reset is enabled (1.250.0) → MUST execute in deterministic planned order: `priority DESC, group ASC, serviceId ASC`
-- [ ] `StableJsonEncoder` semantics are locked directly by contract tests, not only indirectly through ContainerDiagnostics
+  - [x] Reset execution ordering is owned by the Foundation reset executor:
+    - [x] legacy/base mode executes in EXACT `TagRegistry->all($effectiveResetTag)` order, where `$effectiveResetTag` is resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
+    - [x] enhanced reset ordering is deferred to `1.250.0` and tracked there as a `Modifies` item
+- [x] `StableJsonEncoder` semantics are locked directly by contract tests, not only indirectly through ContainerDiagnostics
 
 ---
 
@@ -6870,7 +6880,17 @@ Tests:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 - [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
-  - [ ] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes).
+  - [ ] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes)
+  - [ ] when `foundation.reset.priority.enabled=false`, MUST preserve legacy/base mode exactly:
+    - [ ] iterate EXACT `TagRegistry->all($effectiveResetTag)` order
+    - [ ] ignore reset meta completely
+    - [ ] keep compatibility with `1.200.0` tests
+  - [ ] when `foundation.reset.priority.enabled=true`, MUST execute deterministic enhanced reset order:
+    1. `priority` DESC
+    2. `group` ASC by `strcmp` on normalized group id
+    3. `serviceId` ASC by `strcmp`
+  - [ ] MUST reject tagged non-resettable services with:
+    - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
   - [ ] **No feature-disable switch (cemented; inherited from 1.200.0):**
     - [ ] reset discovery and reset orchestration are baseline runtime safety mechanisms and MUST NOT be disabled via config
     - [ ] `ResetOrchestrator::resetAll()` MAY be a deterministic noop only when the effective discovery list is empty
@@ -6902,6 +6922,12 @@ Tests:
 - [ ] `framework/packages/core/foundation/config/rules.php`
   - [ ] MUST enforce shape and defaults for keys below.
   - `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
+
+- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [ ] upgrade the `1.200.0` hard-fail assertion to the typed reset failure:
+    - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+  - [ ] keep the stable message `reset-not-resettable`
+  - [ ] keep the deterministic fail-fast behavior for tagged non-resettable services
 
 #### Configuration (keys + defaults)
 
@@ -7019,6 +7045,9 @@ N/A
   - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
   - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
   - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+    - [ ] upgrades the `1.200.0` assertion from `RuntimeException(message="reset-not-resettable")`
+      to `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 
 ### DoD (MUST)
 
@@ -7034,6 +7063,12 @@ N/A
   - [ ] MUST NOT change `ResetInterface`
   - [ ] MUST NOT introduce plugin systems/extensibility
 - [ ] `docs/ssot/reset-tags.md` updated and aligned with implementation/tests
+- [ ] `ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` upgraded from `1.200.0` hard-fail-only behavior to typed `ResetException` behavior
+- [ ] Enhanced reset order is implemented when `foundation.reset.priority.enabled=true`:
+  - [ ] `priority DESC`
+  - [ ] `group ASC`
+  - [ ] `serviceId ASC`
+- [ ] Legacy/base reset order from `1.200.0` remains unchanged when `foundation.reset.priority.enabled=false`
 
 ---
 

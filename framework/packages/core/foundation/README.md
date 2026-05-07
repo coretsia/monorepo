@@ -40,10 +40,13 @@ This package is runtime-safe and intentionally small:
 - **Depends on:**
   - `core/contracts`
   - `psr/container`
+  - `psr/log`
 - **Forbidden:**
   - `platform/*`
   - `integrations/*`
   - `devtools/*`
+
+`psr/log` is used only for the baseline `Psr\Log\LoggerInterface` noop binding.
 
 `core/foundation` MUST NOT depend on Phase 0 tooling packages such as `devtools/internal-toolkit` or `devtools/cli-spikes`.
 
@@ -202,7 +205,26 @@ This package does not emit telemetry directly.
 
 Foundation diagnostics are structural snapshots only. They MUST be deterministic and redaction-safe.
 
-Default noop observability or logger bindings are not introduced by this package in epic `1.200.0`.
+Foundation provides noop bindings; platform packages override them.
+
+The Foundation baseline registers default noop bindings for:
+
+- `Psr\Log\LoggerInterface`
+- `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+- `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
+- `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+- `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
+- `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
+
+These bindings exist so runtime packages can safely resolve observability and logging ports before any `platform/*` implementation package is installed.
+
+The noop implementations MUST NOT emit stdout/stderr, store raw payloads, store headers, store tokens, store raw SQL, or retain private customer data.
+
+`Coretsia\Contracts\Observability\Tracing\SpanInterface` is intentionally not registered as a root container binding. Noop spans are obtained from `TracerPortInterface`.
+
+`Coretsia\Contracts\Observability\Profiling\ProfilingSessionInterface` is intentionally not registered as a root container binding. Noop profiling sessions are obtained from `ProfilerPortInterface`.
+
+Later platform providers MAY override these defaults by rebinding the same service ids/interfaces. Container collision policy remains deterministic: later bindings override earlier bindings.
 
 ## Errors
 

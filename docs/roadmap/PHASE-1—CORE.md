@@ -5540,74 +5540,76 @@ Forbidden:
 #### Creates
 
 Logging:
-- [ ] `framework/packages/core/foundation/src/Logging/NoopLogger.php`
-  - [ ] implements `Psr\Log\LoggerInterface`
+- [x] `framework/packages/core/foundation/src/Logging/NoopLogger.php`
+  - [x] implements `Psr\Log\LoggerInterface`
 
 Tracing:
-- [ ] `framework/packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-- [ ] `framework/packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Tracing\SpanInterface`
-- [ ] `framework/packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
+  - [x] implements `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
+  - [x] implements `Coretsia\Contracts\Observability\Tracing\SpanInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
+  - [x] implements `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
 
 Metrics:
-- [ ] `framework/packages/core/foundation/src/Observability/Metrics/NoopMeter.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Metrics/NoopMeter.php`
+  - [x] implements `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 
 Errors:
-- [ ] `framework/packages/core/foundation/src/Observability/Errors/NoopErrorReporter.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Errors/NoopErrorReporter.php`
+  - [x] implements `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
 
 Profiling:
-- [ ] `framework/packages/core/foundation/src/Observability/Profiling/NoopProfiler.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Profiling/NoopProfiler.php`
+  - [x] implements `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
+- [x] `framework/packages/core/foundation/src/Observability/Profiling/NoopProfilingSession.php`
+  - [x] implements `Coretsia\Contracts\Observability\Profiling\ProfilingSessionInterface`
 
 #### Modifies
 
-- [ ] `framework/packages/core/foundation/composer.json`
-  - [ ] add runtime requirement:
-    - [ ] `psr/log`
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
-  - [ ] binds:
-    - [ ] `Psr\Log\LoggerInterface` → `Coretsia\Foundation\Logging\NoopLogger`
-    - [ ] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` → `...NoopTracer`
-    - [ ] `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` → `...NoopMeter`
-    - [ ] `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface` → `...NoopErrorReporter`
-    - [ ] `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface` → `...NoopProfiler`
-    - [ ] `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface` → `...NoopContextPropagation`
-      - [ ] invariant: noop implementation MUST NOT throw; MUST NOT emit stdout/stderr; MUST NOT log raw headers.
+- [x] `framework/packages/core/foundation/composer.json`
+  - [x] add runtime requirement:
+    - [x] `psr/log`
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - [x] binds:
+    - [x] `Psr\Log\LoggerInterface` → `Coretsia\Foundation\Logging\NoopLogger`
+    - [x] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` → `...NoopTracer`
+    - [x] `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` → `...NoopMeter`
+    - [x] `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface` → `...NoopErrorReporter`
+    - [x] `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface` → `...NoopProfiler`
+    - [x] `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface` → `...NoopContextPropagation`
+      - [x] invariant: noop implementation MUST NOT throw; MUST NOT emit stdout/stderr; MUST NOT log raw headers.
 
-- [ ] `framework/packages/core/foundation/README.md`
-  - MUST mention: "Foundation provides noop bindings; platform packages override them."
+- [x] `framework/packages/core/foundation/README.md`
+  - [x] MUST mention: "Foundation provides noop bindings; platform packages override them."
 
 ### Tests (MUST)
 
 Contract:
-- [ ] `framework/packages/core/foundation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] MUST cover: NoopLogger/NoopTracer/NoopMeter/NoopErrorReporter/NoopProfiler do not throw
-  - [ ] MUST also cover: `NoopContextPropagation` does not throw
-  - [ ] MUST also cover: `NoopTracer` returns a noop-safe span (`NoopSpan`) that does not throw on its no-op operations
-  - [ ] MUST include one case where `NoopLogger` receives arbitrary PSR-3 context and ignores it safely
-  - [ ] MUST assert: no stdout/stderr sinks in these implementations (token-scan or behavioral)
+- [x] `framework/packages/core/foundation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] MUST cover: NoopLogger/NoopTracer/NoopMeter/NoopErrorReporter/NoopProfiler do not throw
+  - [x] MUST also cover: `NoopContextPropagation` does not throw
+  - [x] MUST also cover: `NoopTracer` returns a noop-safe span (`NoopSpan`) that does not throw on its no-op operations
+  - [x] MUST include one case where `NoopLogger` receives arbitrary PSR-3 context and ignores it safely
+  - [x] MUST assert: no stdout/stderr sinks in these implementations (token-scan or behavioral)
 Integration:
-- [ ] `framework/packages/core/foundation/tests/Integration/FoundationResolvesNoopObservabilityBindingsTest.php`
-  - [ ] asserts container resolves:
-    - [ ] `Psr\Log\LoggerInterface`
-    - [ ] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-    - [ ] `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-    - [ ] `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
-    - [ ] `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
-    - [ ] `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
-  - [ ] without any `platform/*` packages installed
+- [x] `framework/packages/core/foundation/tests/Integration/FoundationResolvesNoopObservabilityBindingsTest.php`
+  - [x] asserts container resolves:
+    - [x] `Psr\Log\LoggerInterface`
+    - [x] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+    - [x] `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+    - [x] `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
+    - [x] `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
+    - [x] `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
+  - [x] without any `platform/*` packages installed
 
 ### DoD (MUST)
 
-- [ ] Container can resolve all listed ports without platform/* packages installed
-- [ ] Noop implementations never throw
-- [ ] No payload/secrets/PII are stored or emitted
-- [ ] Deptrac green: no forbidden deps
-- [ ] Any runtime that references `ContextPropagationInterface` (e.g. platform/http TraceContextMiddleware) MUST have a resolvable default binding in the baseline (Foundation), otherwise “feature toggles default true” becomes unsafe.
+- [x] Container can resolve all listed ports without platform/* packages installed
+- [x] Noop implementations never throw
+- [x] No payload/secrets/PII are stored or emitted
+- [x] Deptrac green: no forbidden deps
+- [x] Any runtime that references `ContextPropagationInterface` (e.g. platform/http TraceContextMiddleware) MUST have a resolvable default binding in the baseline (Foundation), otherwise “feature toggles default true” becomes unsafe.
 
 ---
 

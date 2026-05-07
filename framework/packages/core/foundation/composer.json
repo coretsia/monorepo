@@ -28,7 +28,8 @@
   "require": {
     "php": "^8.4",
     "coretsia/core-contracts": "dev-main",
-    "psr/container": "^2.0"
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
   },
   "autoload": {
     "psr-4": {

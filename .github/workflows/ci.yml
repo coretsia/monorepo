@@ -57,8 +57,8 @@ jobs:
         run: composer --no-interaction lock:check
 
   gates-windows:
-    name: "gates / windows-latest / PHP 8.4"
-    runs-on: windows-latest
+    name: "gates / windows-2025-vs2026 / PHP 8.4"
+    runs-on: windows-2025-vs2026
 
     env:
       MSYS: winsymlinks:nativestrict
@@ -187,7 +187,7 @@ jobs:
         run: composer --no-interaction arch:deptrac:analyze
 
       - name: "Upload: dep graph artifacts"
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coretsia-deptrac-graph
           path: |
@@ -202,8 +202,8 @@ jobs:
         run: composer --no-interaction lock:check
 
   arch-windows:
-    name: "arch-check / windows-latest / PHP 8.4"
-    runs-on: windows-latest
+    name: "arch-check / windows-2025-vs2026 / PHP 8.4"
+    runs-on: windows-2025-vs2026
 
     env:
       MSYS: winsymlinks:nativestrict
@@ -535,7 +535,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-2025-vs2026 ]
         php: [ "8.4" ]
 
     env:

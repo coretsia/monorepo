@@ -18,11 +18,23 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Provider;
 
+use Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface;
+use Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Logging\NoopLogger;
+use Coretsia\Foundation\Observability\Errors\NoopErrorReporter;
+use Coretsia\Foundation\Observability\Metrics\NoopMeter;
+use Coretsia\Foundation\Observability\Profiling\NoopProfiler;
+use Coretsia\Foundation\Observability\Tracing\NoopContextPropagation;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
+use Psr\Log\LoggerInterface;
 
 /**
  * Foundation DI wiring entrypoint.
@@ -35,6 +47,8 @@ use Coretsia\Foundation\Tag\TagRegistry;
  *
  * - `TagRegistry` is registered as the exact builder-owned instance;
  * - `ResetOrchestrator` is created through `FoundationServiceFactory`;
+ * - noop observability and logging ports are registered as explicit instances
+ *   so they remain resolvable without relying on concrete-class autowiring;
  * - `DeterministicOrder` is not registered because it is a stateless static
  *   utility and the epic marks service registration for it as optional.
  *
@@ -49,6 +63,13 @@ final class FoundationServiceProvider implements ServiceProviderInterface
         $foundationConfig = $builder->configRoot('foundation');
 
         $builder->instance(TagRegistry::class, $tagRegistry);
+
+        $builder->instance(LoggerInterface::class, new NoopLogger());
+        $builder->instance(TracerPortInterface::class, new NoopTracer());
+        $builder->instance(MeterPortInterface::class, new NoopMeter());
+        $builder->instance(ErrorReporterPortInterface::class, new NoopErrorReporter());
+        $builder->instance(ProfilerPortInterface::class, new NoopProfiler());
+        $builder->instance(ContextPropagationInterface::class, new NoopContextPropagation());
 
         $builder->factory(
             ResetOrchestrator::class,

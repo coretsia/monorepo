@@ -337,8 +337,22 @@ Coretsia/
 │   │   │       │   │   └── ServiceProviderInterface.php (ServiceProviderInterface [interface] - register())
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php (DeterministicOrder - compare()/sort())
+│   │   │       │   ├── Logging/
+│   │   │       │   │   └── NoopLogger.php (NoopLogger - emergency()/alert()/critical()/error()/warning()/notice()/info()/debug()/log())
 │   │   │       │   ├── Module/
 │   │   │       │   │   └── FoundationModule.php (FoundationModule - id()/packageId()/composerPackage()/kind()/configRoot()/providers())
+│   │   │       │   ├── Observability/
+│   │   │       │   │   ├── Errors/
+│   │   │       │   │   │   └── NoopErrorReporter.php (NoopErrorReporter - report())
+│   │   │       │   │   ├── Metrics/
+│   │   │       │   │   │   └── NoopMeter.php (NoopMeter - increment()/observe())
+│   │   │       │   │   ├── Profiling/
+│   │   │       │   │   │   ├── NoopProfiler.php (NoopProfiler - start())
+│   │   │       │   │   │   └── NoopProfilingSession.php (NoopProfilingSession - stop())
+│   │   │       │   │   └── Tracing/
+│   │   │       │   │       ├── NoopContextPropagation.php (NoopContextPropagation - inject()/extract())
+│   │   │       │   │       ├── NoopSpan.php (NoopSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end())
+│   │   │       │   │       └── NoopTracer.php (NoopTracer - startSpan()/inSpan()/currentSpan())
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/effectiveResetTag())
 │   │   │       │   │   ├── FoundationServiceProvider.php (FoundationServiceProvider - register())
@@ -356,7 +370,7 @@ Coretsia/
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php (ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest - testDiagnosticsRedactsAbsolutePathLikeServiceIds()/testDiagnosticsJsonDoesNotContainAbsolutePathPatterns()/testDiagnosticsKeepsNonPathServiceIdsReadable()/absolutePathLikeServiceIds()/redactedPathId()/validConfig())
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php (ContainerDiagnosticsDoesNotLeakSecretsContractTest - testDiagnosticsDoesNotDumpConfigInstancesFactoriesConstructorArgsOrTagMeta()/testDiagnosticsDoesNotLeakSecretValues()/testDiagnosticsDoesNotSerializeSecretLikeKeysOrRuntimeInternals()/builderWithSecretCarriers()/forbiddenValues()/forbiddenFragments(); ContainerDiagnosticsSecretCarrier - secret())
 │   │   │       │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php (ContainerDiagnosticsJsonIsDeterministicContractTest - testJsonIsStableForEquivalentBuilderSnapshotsWithDifferentRegistrationOrder()/testJsonUsesFinalLfAndNoCrLf()/testArrayShapeIsNormalizedBeforeJsonEncoding()/firstBuilder()/secondBuilder()/validConfig())
-│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopDoesNotThrow())
+│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopLoggerAcceptsArbitraryPsr3ContextAndIgnoresItSafely()/testNoopTracerReturnsNoopSpanAndRunsSuccessfulCallback()/testNoopTracerRethrowsThrowableFromCallback()/testNoopSpanOperationsDoNotThrow()/testNoopMeterOperationsDoNotThrow()/testNoopErrorReporterDoesNotThrow()/testNoopProfilerReturnsNoopSessionAndRepeatedStopDoesNotThrow()/testNoopContextPropagationDoesNotThrowAndDoesNotMutateCarrier()/testNoopImplementationsDoNotContainOutputSinks()/noopImplementationFiles()/assertNoOutputSinksInPhpFile()/isNameToken())
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php (DeterministicOrderSortContractTest - testCanonicalOrderIsPriorityDescThenByteOrderIdAscForDifferentInputOrders()/testCanonicalSortDoesNotDependOnLocaleCollation()/testCanonicalSortPreservesAllEntriesWithoutDedupe()/inputOrders()/idsFrom())
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/foundationConfig()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php (StableJsonEncoderRejectsFloatValuesContractTest - testRejectsTopLevelFloatValuesWithStableMessage()/testRejectsNestedFloatValuesWithStableMessage()/assertEncodingFailsWith())
@@ -365,6 +379,7 @@ Coretsia/
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php (ContainerBuilderLaterBindingOverridesEarlierBindingTest - testLaterProviderBindingOverridesEarlierProviderBindingDeterministically()/testLaterInterfaceBindingOverridesEarlierInterfaceBindingDeterministically()/testLaterInstanceOverridesEarlierDefinitionDeterministically()/testLaterDefinitionOverridesEarlierInstanceDeterministically()/validConfig(); ContainerBuilderOverrideContract [interface] - value(); FirstContainerBuilderOverrideImplementation - value(); SecondContainerBuilderOverrideImplementation - value(); InstanceContainerBuilderOverrideImplementation - value(); FirstContainerBuilderOverrideProvider - register(); SecondContainerBuilderOverrideProvider - register(); InstanceContainerBuilderOverrideProvider - register())
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php (ContainerBuilderProviderOrderIsDeterministicTest - testRegisterPreservesCallerSuppliedProviderOrderExactly()/testRegisterProvidersPreservesIterableOrderExactly()/testProviderOrderIsNotGloballySortedByProviderClassName()/validConfig(); ContainerBuilderProviderOrderRecorder - record()/events(); ZuluContainerBuilderOrderProvider - register(); AlphaContainerBuilderOrderProvider - register(); MiddleContainerBuilderOrderProvider - register())
+│   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php (FoundationResolvesNoopObservabilityBindingsTest - testFoundationProviderResolvesNoopObservabilityBindings()/testFoundationProviderDoesNotRegisterSpanOrProfilingSessionAsRootBindings()/foundationContainer())
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php (ResetOrchestratorInvokesResetExactlyOncePerServiceTest - testInvokesResetExactlyOncePerTaggedResettableServiceInRegistryOrder()/testEachResetCycleInvokesEachServiceOnceAgain()/testEmptyDiscoveryListIsDeterministicNoop()/testResetExecutionDoesNotRequireAutowireConfigForExplicitInstances()/orchestratorFrom()/validConfig(); ResetOrchestratorInvokesRecorder - record()/events(); ResetOrchestratorInvokesResettableService - reset()/resetCount())
 │   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php (ResetOrchestratorRejectsTaggedNonResettableServiceTest - testRejectsTaggedNonResettableServiceWithStableMessageOnly()/testHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder()/orchestratorFrom()/validConfig(); ResetOrchestratorRejectsRecorder - record()/events(); ResetOrchestratorRejectsResettableService - reset()/resetCount(); ResetOrchestratorRejectsNonResettableService)
 │   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php (ResetOrchestratorUsesConfiguredResetTagTest - testFoundationServiceProviderWiresOrchestratorWithConfiguredResetTag()/testFoundationServiceProviderFallsBackToKernelResetWhenResetTagIsAbsent()/configWithResetTag()/configWithoutResetTag(); ResetOrchestratorConfiguredTagRecorder - record()/events(); ResetOrchestratorConfiguredTagResettableService - reset()/resetCount())

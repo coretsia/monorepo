@@ -267,12 +267,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "3d13b92b40808a363aa22ada47822d8beb4647dd"
+                "reference": "414def265406cf477ebb97fc85eb8186fb341b2e"
             },
             "require": {
                 "coretsia/core-contracts": "dev-main",
                 "php": "^8.4",
-                "psr/container": "^2.0"
+                "psr/container": "^2.0",
+                "psr/log": "^3.0"
             },
             "type": "library",
             "extra": {

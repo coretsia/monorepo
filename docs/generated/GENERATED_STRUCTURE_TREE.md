@@ -337,8 +337,22 @@ Coretsia/
 │   │   │       │   │   └── ServiceProviderInterface.php
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php
+│   │   │       │   ├── Logging/
+│   │   │       │   │   └── NoopLogger.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   └── FoundationModule.php
+│   │   │       │   ├── Observability/
+│   │   │       │   │   ├── Errors/
+│   │   │       │   │   │   └── NoopErrorReporter.php
+│   │   │       │   │   ├── Metrics/
+│   │   │       │   │   │   └── NoopMeter.php
+│   │   │       │   │   ├── Profiling/
+│   │   │       │   │   │   ├── NoopProfiler.php
+│   │   │       │   │   │   └── NoopProfilingSession.php
+│   │   │       │   │   └── Tracing/
+│   │   │       │   │       ├── NoopContextPropagation.php
+│   │   │       │   │       ├── NoopSpan.php
+│   │   │       │   │       └── NoopTracer.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── FoundationServiceFactory.php
 │   │   │       │   │   ├── FoundationServiceProvider.php
@@ -365,6 +379,7 @@ Coretsia/
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
 │   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
 │   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php

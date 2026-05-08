@@ -16,9 +16,9 @@
 
 `core/foundation` is the **Foundation runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, stable diagnostics serialization, and reset orchestration for long-running runtimes.
+**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, stable diagnostics serialization, runtime context storage, correlation id baseline services, and reset orchestration for long-running runtimes.
 
-**Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, and tooling-only behavior.
+**Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
 ## Package identity (Prelude rules)
 
@@ -58,6 +58,12 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Deterministic container build behavior from caller-supplied providers.
 - Canonical tag registry for service discovery lists.
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
+- Foundation runtime context storage through `ContextStore`.
+- Immutable context snapshots through `ContextBag`.
+- Canonical context key registry through `ContextKeys`.
+- Always-on context safe-write validation through `ContextStorePolicy`.
+- Correlation id generation through the canonical ULID generator.
+- Correlation id reading through the contracts correlation id provider port.
 - Reset orchestration through the effective Foundation reset discovery tag.
 - Stable JSON encoding for diagnostics and runtime-safe artifacts.
 
@@ -115,6 +121,26 @@ The reserved default value is `kernel.reset`.
 Tag discovery and reset orchestration MUST NOT be feature-disabled through config.
 Empty discovery lists are represented by empty-list semantics only.
 
+This package does not introduce context or correlation feature toggles.
+
+The following keys MUST NOT be introduced by this epic:
+
+```text
+foundation.context.*
+foundation.correlation.*
+```
+
+`ContextStore`, `ContextStorePolicy`, `UlidGenerator`, `CorrelationIdGenerator`, and `CorrelationIdProvider` are baseline runtime infrastructure and MUST NOT be feature-disabled through configuration.
+
+Absence of optional writers/readers is represented by:
+
+```text
+no writes
+no reads
+```
+
+It MUST NOT be represented by disabling Foundation context services.
+
 ## DI container
 
 The package provides a PSR-11-compatible container implementation.
@@ -132,6 +158,8 @@ Autowiring is strict:
 - Interfaces MUST NOT be autowired.
 - Missing `config['foundation']` MUST fail deterministically.
 - Missing `config['foundation']['container']` MUST fail deterministically.
+
+Baseline Foundation services are registered explicitly by the provider and MUST remain resolvable without relying on concrete-class autowiring.
 
 ## Tags and deterministic discovery
 
@@ -156,6 +184,10 @@ Reserved Foundation-owned tags:
 - `kernel.reset`
 - `kernel.stateful`
 
+`kernel.reset` is the reserved default reset-discovery tag.
+
+`kernel.stateful` is an enforcement marker for stateful services. Runtime reset execution MUST NOT use `kernel.stateful` as the reset discovery list.
+
 HTTP middleware tags such as `http.middleware.app` are owned by `platform/http`; Foundation provides the registry and deterministic ordering mechanism only.
 
 ## Reset orchestration
@@ -176,6 +208,353 @@ The orchestrator MUST:
 
 `core/kernel` MUST call only the reset orchestrator and MUST NOT enumerate tagged reset services directly.
 
+`ContextStore` is stateful and MUST be tagged with both:
+
+```text
+kernel.stateful
+<effective reset discovery tag>
+```
+
+The effective reset discovery tag is resolved from:
+
+```text
+foundation.reset.tag
+```
+
+The reserved default is:
+
+```text
+kernel.reset
+```
+
+Provider wiring MUST use the same effective reset tag resolver as `ResetOrchestrator`.
+
+Provider wiring MUST NOT duplicate reset tag validation logic.
+
+`ContextStore` MUST be discovered for reset through the effective reset discovery tag, not through `kernel.stateful`.
+
+## Runtime context
+
+Foundation provides one mutable runtime context store:
+
+```text
+Coretsia\Foundation\Context\ContextStore
+```
+
+`ContextStore` is unit-of-work-local state.
+
+It implements:
+
+```text
+Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Runtime\ResetInterface
+```
+
+The canonical read signature is:
+
+```php
+public function get(string $key): mixed
+```
+
+`ContextStore` MUST NOT add a default parameter to `get()`.
+
+`ContextStore` exposes controlled mutation through write APIs and an immutable snapshot through:
+
+```text
+Coretsia\Foundation\Context\ContextBag
+```
+
+`ContextBag` is a point-in-time immutable snapshot. It MUST NOT observe later mutations to `ContextStore`.
+
+`ContextBag::all()` and `ContextStore::all()` return copies and MUST NOT expose mutable internal arrays.
+
+## Context accessor binding
+
+The Foundation provider registers one `ContextStore` instance.
+
+The same object instance is registered for:
+
+```text
+Coretsia\Foundation\Context\ContextStore
+Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
+Runtime readers SHOULD depend on:
+
+```text
+Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
+Runtime code MUST NOT create independent context stores for the same runtime boundary.
+
+Creating more than one context store for the same container would make context reads non-deterministic and could leak or lose unit-of-work-local data.
+
+## Context keys
+
+The canonical context key registry is:
+
+```text
+Coretsia\Foundation\Context\ContextKeys
+```
+
+It is the runtime implementation of:
+
+```text
+docs/ssot/context-keys.md
+```
+
+`ContextStorePolicy` MUST allow writes only for keys declared in `ContextKeys`.
+
+Unknown context keys MUST be rejected deterministically.
+
+Context keys MUST NOT start with `@`.
+
+The `@*` namespace is reserved for config directives.
+
+Baseline active keys:
+
+```text
+correlation_id
+uow_id
+uow_type
+client_ip
+scheme
+host
+path
+user_agent
+```
+
+Reserved future keys:
+
+```text
+request_id
+path_template
+http_response_format
+actor_id
+tenant_id
+```
+
+Reserved future keys MAY be present in `ContextKeys` to prevent name drift, even when their concrete writers are introduced later by owner packages.
+
+## Context safe-write policy
+
+`Coretsia\Foundation\Context\ContextStorePolicy` is the always-on write guard for `ContextStore`.
+
+`ContextStore` MUST call:
+
+```text
+ContextStorePolicy::assertCanWrite()
+```
+
+for every write.
+
+Allowed values are JSON-safe deterministic values only:
+
+```text
+null
+bool
+int
+string
+list<value>
+array<string,value>
+```
+
+Forbidden values include:
+
+```text
+float
+NaN
+INF
+-INF
+object
+Closure
+resource
+non-string map key
+```
+
+Forbidden values are rejected recursively, including nested arrays.
+
+For PHP arrays:
+
+```text
+array_is_list($value) === true
+```
+
+means list semantics and integer indexes are allowed.
+
+```text
+array_is_list($value) === false
+```
+
+means map semantics and every key MUST be a string.
+
+Callable-ness is not a standalone ContextStore type rule.
+
+Plain strings remain valid strings even if PHP could interpret them as callable names.
+
+Example valid string:
+
+```text
+strlen
+```
+
+Context write failures MUST be deterministic.
+
+Failure messages MUST NOT include raw values.
+
+Failure messages MAY include only safe metadata such as:
+
+```text
+key
+path-to-value
+stable reason code
+safe type name
+```
+
+## Context security / redaction
+
+`ContextStore` MUST NOT store secrets or sensitive payload material.
+
+Forbidden context data includes:
+
+- tokens in any form;
+- session ids;
+- cookies;
+- Authorization headers;
+- credentials;
+- passwords;
+- private keys;
+- raw request bodies;
+- raw response bodies;
+- raw headers;
+- raw SQL;
+- profile payloads;
+- private customer data;
+- direct user identifiers such as email, phone, full name, username, or external account identifiers.
+
+Request metadata keys such as `client_ip`, `user_agent`, `host`, and `path` are allowed only when declared in `ContextKeys` and when values obey `ContextStorePolicy`.
+
+Potentially sensitive request metadata such as `client_ip` SHOULD be normalized or hashed by writers when feasible.
+
+Raw `path` is allowed only as in-process context when deliberately written by an owner.
+
+Raw `path` MUST NOT be emitted to logs, spans, metrics, public diagnostics, generated artifacts, or error descriptor extensions.
+
+When path-like observability data is needed, owners SHOULD use:
+
+```text
+path_template
+hash(value)
+len(value)
+```
+
+## Correlation id baseline
+
+Foundation provides the canonical ULID source:
+
+```text
+Coretsia\Foundation\Id\UlidGenerator
+```
+
+`UlidGenerator` is the single ULID implementation source in the codebase.
+
+Generated ULIDs use uppercase Crockford Base32 format:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+Foundation also provides:
+
+```text
+Coretsia\Foundation\Id\CorrelationIdGenerator
+```
+
+`CorrelationIdGenerator` MUST receive `UlidGenerator` through constructor injection.
+
+`CorrelationIdGenerator` MUST delegate generation to `UlidGenerator`.
+
+`CorrelationIdGenerator` MUST NOT implement timestamp, entropy, or Crockford Base32 encoding logic independently.
+
+`CorrelationIdGenerator` MUST NOT post-process generated values in a way that can create format drift.
+
+## Correlation id provider
+
+Foundation provides:
+
+```text
+Coretsia\Foundation\Observability\CorrelationIdProvider
+```
+
+It implements:
+
+```text
+Coretsia\Contracts\Observability\CorrelationIdProviderInterface
+```
+
+The provider reads the current correlation id from:
+
+```text
+Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
+using:
+
+```text
+Coretsia\Foundation\Context\ContextKeys::CORRELATION_ID
+```
+
+The provider returns `null` when no non-empty string correlation id is available.
+
+It MUST NOT:
+
+- generate a new correlation id as a side effect of reading;
+- normalize stored context values;
+- write to context;
+- emit logs;
+- emit traces;
+- emit metrics;
+- define HTTP header extraction policy;
+- define HTTP header injection policy.
+
+Correlation id generation belongs to the unit-of-work owner.
+
+Transport-specific correlation propagation belongs to platform packages.
+
+## Context lifecycle
+
+All `ContextStore` state is unit-of-work-local.
+
+A unit of work may be:
+
+```text
+HTTP request
+CLI command invocation
+worker job
+queue message
+scheduler tick
+custom runtime boundary
+```
+
+At begin-UoW, a later Kernel runtime integration MUST set base keys:
+
+```text
+correlation_id
+uow_id
+uow_type
+```
+
+At or after the end of a unit of work, reset orchestration MUST clear `ContextStore` before the next unit of work can observe stale context.
+
+Acceptance scenario:
+
+1. one unit of work starts;
+2. owner code writes safe context keys;
+3. runtime packages read context through `ContextAccessorInterface`;
+4. the unit of work finishes;
+5. Foundation reset orchestration calls `ContextStore::reset()`;
+6. the next unit of work starts with an empty store except new base keys set by Kernel.
+
 ## Stable diagnostics and serialization
 
 `core/foundation` provides stable serialization primitives for diagnostics and runtime-safe outputs.
@@ -187,6 +566,7 @@ Diagnostics MUST be safe by construction:
 - MUST NOT dump reflection data.
 - MUST NOT include arbitrary tag metadata values.
 - MUST NOT leak secrets, tokens, cookies, authorization headers, env values, PII, or absolute local paths.
+- MUST NOT dump raw context values.
 
 Stable JSON output MUST:
 
@@ -216,7 +596,12 @@ The Foundation baseline registers default noop bindings for:
 - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
 - `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
 
-These bindings exist so runtime packages can safely resolve observability and logging ports before any `platform/*` implementation package is installed.
+The Foundation baseline also registers correlation id read services:
+
+- `Coretsia\Foundation\Observability\CorrelationIdProvider`
+- `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
+
+These bindings exist so runtime packages can safely resolve observability, logging, context, and correlation ports before any `platform/*` implementation package is installed.
 
 The noop implementations MUST NOT emit stdout/stderr, store raw payloads, store headers, store tokens, store raw SQL, or retain private customer data.
 
@@ -226,6 +611,12 @@ The noop implementations MUST NOT emit stdout/stderr, store raw payloads, store 
 
 Later platform providers MAY override these defaults by rebinding the same service ids/interfaces. Container collision policy remains deterministic: later bindings override earlier bindings.
 
+`correlation_id` is safe for logs/tracing correlation when owner policy allows it.
+
+`correlation_id` MUST NOT be used as a metric label under the baseline observability policy.
+
+Raw `path`, raw query, headers, cookies, Authorization values, tokens, and payloads MUST NOT be exported even if present in `ContextStore`.
+
 ## Errors
 
 This package defines Foundation runtime exceptions for container behavior:
@@ -234,6 +625,17 @@ This package defines Foundation runtime exceptions for container behavior:
   - canonical error code: `CORETSIA_CONTAINER_ERROR`
 - `Coretsia\Foundation\Container\Exception\NotFoundException`
   - canonical error code: `CORETSIA_CONTAINER_NOT_FOUND`
+
+This package also defines Foundation context exceptions:
+
+- `Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException`
+  - canonical error code: `CORETSIA_CONTEXT_WRITE_FORBIDDEN`
+- `Coretsia\Foundation\Context\Exception\ContextInvalidKeyException`
+  - canonical error code: `CORETSIA_CONTEXT_INVALID_KEY`
+
+Context exception messages MUST be deterministic and safe.
+
+Context exception messages MUST NOT contain raw context values.
 
 Reset misuse is a deterministic hard-fail.
 The canonical reset-specific exception shape is introduced by the later reset enhancement epic.
@@ -257,6 +659,7 @@ Forbidden in diagnostics:
 - raw queue messages;
 - raw SQL;
 - raw config payloads;
+- raw context values;
 - constructor arguments;
 - service instances;
 - arbitrary tag metadata;
@@ -264,15 +667,41 @@ Forbidden in diagnostics:
 - absolute local paths;
 - private customer data / PII.
 
+Forbidden in `ContextStore`:
+
+- tokens;
+- session ids;
+- cookies;
+- Authorization headers;
+- credentials;
+- raw request bodies;
+- raw response bodies;
+- raw headers;
+- raw SQL;
+- private customer data;
+- direct user identifiers.
+
 Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+
+Allowed context information is limited to keys declared in `ContextKeys` with values accepted by `ContextStorePolicy`.
 
 Runtime owners MUST prefer omission over unsafe emission.
 
 ## References
 
-- `docs/ssot/tags.md`
-- `docs/ssot/config-roots.md`
-- `docs/ssot/http-middleware-catalog.md`
-- `docs/ssot/di-tags-and-middleware-ordering.md`
-- `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
-- `docs/roadmap/ROADMAP.md`
+- [Coretsia monorepo](https://github.com/coretsia/monorepo)
+- [Foundation package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/foundation)
+- [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
+- [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
+- [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
+- [Tag Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tags.md)
+- [Config Roots SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-roots.md)
+- [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
+- [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
+- [DI Tags and Middleware Ordering SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/di-tags-and-middleware-ordering.md)
+- [Observability Naming and Labels Allowlist](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md)
+- [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)
+- [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
+- [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md)
+- [ADR-0015: ContextBag, ContextStore, and CorrelationId](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0015-context-bag-context-store-correlation-id.md)

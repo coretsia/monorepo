@@ -39,6 +39,7 @@ Coretsia/
 │   │   ├── ADR-0012-mail-port.md
 │   │   ├── ADR-0013-secrets-port.md
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
+│   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,8 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-and-env.md
 │       ├── config-roots.md
+│       ├── context-keys.md
+│       ├── context-store.md
 │       ├── database-contracts.md
 │       ├── di-tags-and-middleware-ordering.md
 │       ├── dto-policy.md
@@ -335,8 +338,19 @@ Coretsia/
 │   │   │       │   │   ├── ContainerBuilder.php (ContainerBuilder - registerProviders()/register()/set()/bind()/instance()/factory()/tag()/build()/tagRegistry()/serviceIds()/config()/configRoot()/assertServiceId())
 │   │   │       │   │   ├── ContainerDiagnostics.php (ContainerDiagnostics - fromContainer()/fromBuilder()/toArray()/toJson()/normalizeServiceIds()/normalizeTags()/taggedServiceToDiagnostics()/diagnosticSafeId()/looksLikeAbsolutePath())
 │   │   │       │   │   └── ServiceProviderInterface.php (ServiceProviderInterface [interface] - register())
+│   │   │       │   ├── Context/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ContextInvalidKeyException.php (ContextInvalidKeyException - errorCode()/message())
+│   │   │       │   │   │   └── ContextWriteForbiddenException.php (ContextWriteForbiddenException - errorCode()/message())
+│   │   │       │   │   ├── ContextBag.php (ContextBag - has()/get()/all()/copyMap()/copyValue())
+│   │   │       │   │   ├── ContextKeys.php (ContextKeys - isKnown()/all())
+│   │   │       │   │   ├── ContextStore.php (ContextStore - has()/get()/set()/remove()/clear()/snapshot()/all()/reset()/copyMap()/copyValue())
+│   │   │       │   │   └── ContextStorePolicy.php (ContextStorePolicy - assertCanWrite()/assertKey()/assertValue()/assertArrayValue()/listPath()/mapPath())
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php (DeterministicOrder - compare()/sort())
+│   │   │       │   ├── Id/
+│   │   │       │   │   ├── CorrelationIdGenerator.php (CorrelationIdGenerator - generate())
+│   │   │       │   │   └── UlidGenerator.php (UlidGenerator - generate()/unixTimeMilliseconds()/timestampBytes()/encode())
 │   │   │       │   ├── Logging/
 │   │   │       │   │   └── NoopLogger.php (NoopLogger - emergency()/alert()/critical()/error()/warning()/notice()/info()/debug()/log())
 │   │   │       │   ├── Module/
@@ -349,10 +363,11 @@ Coretsia/
 │   │   │       │   │   ├── Profiling/
 │   │   │       │   │   │   ├── NoopProfiler.php (NoopProfiler - start())
 │   │   │       │   │   │   └── NoopProfilingSession.php (NoopProfilingSession - stop())
-│   │   │       │   │   └── Tracing/
-│   │   │       │   │       ├── NoopContextPropagation.php (NoopContextPropagation - inject()/extract())
-│   │   │       │   │       ├── NoopSpan.php (NoopSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end())
-│   │   │       │   │       └── NoopTracer.php (NoopTracer - startSpan()/inSpan()/currentSpan())
+│   │   │       │   │   ├── Tracing/
+│   │   │       │   │   │   ├── NoopContextPropagation.php (NoopContextPropagation - inject()/extract())
+│   │   │       │   │   │   ├── NoopSpan.php (NoopSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end())
+│   │   │       │   │   │   └── NoopTracer.php (NoopTracer - startSpan()/inSpan()/currentSpan())
+│   │   │       │   │   └── CorrelationIdProvider.php (CorrelationIdProvider - correlationId())
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/effectiveResetTag())
 │   │   │       │   │   ├── FoundationServiceProvider.php (FoundationServiceProvider - register())
@@ -370,6 +385,9 @@ Coretsia/
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php (ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest - testDiagnosticsRedactsAbsolutePathLikeServiceIds()/testDiagnosticsJsonDoesNotContainAbsolutePathPatterns()/testDiagnosticsKeepsNonPathServiceIdsReadable()/absolutePathLikeServiceIds()/redactedPathId()/validConfig())
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php (ContainerDiagnosticsDoesNotLeakSecretsContractTest - testDiagnosticsDoesNotDumpConfigInstancesFactoriesConstructorArgsOrTagMeta()/testDiagnosticsDoesNotLeakSecretValues()/testDiagnosticsDoesNotSerializeSecretLikeKeysOrRuntimeInternals()/builderWithSecretCarriers()/forbiddenValues()/forbiddenFragments(); ContainerDiagnosticsSecretCarrier - secret())
 │   │   │       │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php (ContainerDiagnosticsJsonIsDeterministicContractTest - testJsonIsStableForEquivalentBuilderSnapshotsWithDifferentRegistrationOrder()/testJsonUsesFinalLfAndNoCrLf()/testArrayShapeIsNormalizedBeforeJsonEncoding()/firstBuilder()/secondBuilder()/validConfig())
+│   │   │       │   │   ├── ContextAccessorSignatureContractTest.php (ContextAccessorSignatureContractTest - testContextStoreImplementsContextAccessorInterface()/testContextStoreGetSignatureIsStable()/testContextAccessorInterfaceGetSignatureIsStable())
+│   │   │       │   │   ├── ContextKeysAreStableContractTest.php (ContextKeysAreStableContractTest - expectedKeys()/testCanonicalKeyListIsStableAndOrdered()/testCanonicalConstantsMatchStableKeyValues()/testCanonicalKeyListContainsNoDuplicates()/testAllCanonicalKeysAreKnown()/testUnknownAndReservedKeysAreNotKnown()/testCanonicalKeysDoNotUseReservedAtPrefix()/testCanonicalKeysUseStableLowercaseSnakeCaseAsciiShape())
+│   │   │       │   │   ├── CorrelationIdFormatContractTest.php (CorrelationIdFormatContractTest - testCorrelationIdUsesCanonicalUppercaseUlidFormat()/testCanonicalUlidSourceUsesSameFormatContract())
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopLoggerAcceptsArbitraryPsr3ContextAndIgnoresItSafely()/testNoopTracerReturnsNoopSpanAndRunsSuccessfulCallback()/testNoopTracerRethrowsThrowableFromCallback()/testNoopSpanOperationsDoNotThrow()/testNoopMeterOperationsDoNotThrow()/testNoopErrorReporterDoesNotThrow()/testNoopProfilerReturnsNoopSessionAndRepeatedStopDoesNotThrow()/testNoopContextPropagationDoesNotThrowAndDoesNotMutateCarrier()/testNoopImplementationsDoNotContainOutputSinks()/noopImplementationFiles()/assertNoOutputSinksInPhpFile()/isNameToken())
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php (DeterministicOrderSortContractTest - testCanonicalOrderIsPriorityDescThenByteOrderIdAscForDifferentInputOrders()/testCanonicalSortDoesNotDependOnLocaleCollation()/testCanonicalSortPreservesAllEntriesWithoutDedupe()/inputOrders()/idsFrom())
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/foundationConfig()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
@@ -379,6 +397,18 @@ Coretsia/
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php (ContainerBuilderLaterBindingOverridesEarlierBindingTest - testLaterProviderBindingOverridesEarlierProviderBindingDeterministically()/testLaterInterfaceBindingOverridesEarlierInterfaceBindingDeterministically()/testLaterInstanceOverridesEarlierDefinitionDeterministically()/testLaterDefinitionOverridesEarlierInstanceDeterministically()/validConfig(); ContainerBuilderOverrideContract [interface] - value(); FirstContainerBuilderOverrideImplementation - value(); SecondContainerBuilderOverrideImplementation - value(); InstanceContainerBuilderOverrideImplementation - value(); FirstContainerBuilderOverrideProvider - register(); SecondContainerBuilderOverrideProvider - register(); InstanceContainerBuilderOverrideProvider - register())
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php (ContainerBuilderProviderOrderIsDeterministicTest - testRegisterPreservesCallerSuppliedProviderOrderExactly()/testRegisterProvidersPreservesIterableOrderExactly()/testProviderOrderIsNotGloballySortedByProviderClassName()/validConfig(); ContainerBuilderProviderOrderRecorder - record()/events(); ZuluContainerBuilderOrderProvider - register(); AlphaContainerBuilderOrderProvider - register(); MiddleContainerBuilderOrderProvider - register())
+│   │   │       │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php (ContextStoreIsTaggedKernelStatefulTest - testContextStoreIsTaggedKernelStateful()/testContextStoreIsNotTaggedThroughContextAccessorInterface()/foundationContainer())
+│   │   │       │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php (ContextStoreIsTaggedWithEffectiveResetTagTest - testContextStoreIsTaggedWithDefaultKernelResetTag()/testResetOrchestratorUsesDefaultKernelResetTagAndResetsContextStore()/testContextStoreIsTaggedWithCustomEffectiveResetTag()/testResetOrchestratorUsesCustomEffectiveResetTagAndResetsContextStore()/foundationContainer())
+│   │   │       │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php (ContextStoreRejectsAtPrefixedKeysTest - testAtPrefixedKeyFailsDeterministically()/reservedDirectiveLikeKeyProvider()/testDirectiveLikeAtPrefixedKeysFailDeterministically())
+│   │   │       │   │   ├── ContextStoreRejectsFloatValuesTest.php (ContextStoreRejectsFloatValuesTest - testNestedFloatFailsDeterministicallyWithSafePathOnly()/forbiddenFloatProvider()/testFloatVariantsFailWithSafeMessage()/testIntegerValuesRemainAllowed())
+│   │   │       │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php (ContextStoreRejectsNonStringMapKeysTest - testNonListArrayWithIntKeyFailsDeterministically()/testNestedNonListArrayWithIntKeyFailsDeterministically()/testValidListsRemainAllowed()/testValidStringKeyedMapsRemainAllowed())
+│   │   │       │   │   ├── ContextStoreRejectsObjectValuesTest.php (ContextStoreRejectsObjectValuesTest - testTopLevelObjectFailsDeterministicallyWithSafeMessage()/testNestedObjectFailsDeterministicallyWithSafePathOnly()/testClosureFailsAsForbiddenClosureWithSafePathOnly())
+│   │   │       │   │   ├── ContextStoreRejectsResourceValuesTest.php (ContextStoreRejectsResourceValuesTest - testTopLevelResourceFailsDeterministicallyWithSafeMessage()/testNestedResourceFailsDeterministicallyWithSafePathOnly())
+│   │   │       │   │   ├── ContextStoreRejectsUnknownKeysTest.php (ContextStoreRejectsUnknownKeysTest - testUnknownKeyFailsDeterministically()/testUnknownKeyFailureMessageDoesNotContainRawValue()/testEmptyKeyFailsDeterministically())
+│   │   │       │   │   ├── ContextStoreResetClearsContextTest.php (ContextStoreResetClearsContextTest - testResetClearsAllStoredContext()/testResetIsIdempotent()/testClearAndResetHaveSameEmptyStoreResult())
+│   │   │       │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php (ContextStoreSafeWriteGuardBlocksForbiddenKeysTest - unsafeNonCanonicalKeyProvider()/testUnsafeNonCanonicalKeysAreRejectedBeforeStorage()/testForbiddenValueShapeIsRejectedBeforeStorage()/testCallableLikeStringIsStillAcceptedAsPlainString())
+│   │   │       │   │   ├── CorrelationIdProviderReadsContextStoreTest.php (CorrelationIdProviderReadsContextStoreTest - testProviderReturnsNullWhenCorrelationIdIsAbsent()/testProviderReturnsCorrelationIdFromContextStore()/testProviderReturnsNullWhenCorrelationIdIsEmptyString()/testProviderReturnsNullWhenCorrelationIdIsNotString()/testProviderDoesNotGenerateCorrelationIdAsReadSideEffect()/testContainerResolvedProviderReadsTheSameContextStoreInstance()/foundationContainer())
+│   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php (FoundationResolvesContextStoreBindingsTest - testFoundationProviderResolvesContextStoreAndAccessorBindingsToSameInstance()/testFoundationProviderResolvesCorrelationProviderBindingsToSameInstance()/testFoundationProviderResolvesUlidAndCorrelationIdGenerators()/testFoundationContextAndCorrelationServicesResolveWithConcreteAutowireDisabled()/foundationContainer())
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php (FoundationResolvesNoopObservabilityBindingsTest - testFoundationProviderResolvesNoopObservabilityBindings()/testFoundationProviderDoesNotRegisterSpanOrProfilingSessionAsRootBindings()/foundationContainer())
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php (ResetOrchestratorInvokesResetExactlyOncePerServiceTest - testInvokesResetExactlyOncePerTaggedResettableServiceInRegistryOrder()/testEachResetCycleInvokesEachServiceOnceAgain()/testEmptyDiscoveryListIsDeterministicNoop()/testResetExecutionDoesNotRequireAutowireConfigForExplicitInstances()/orchestratorFrom()/validConfig(); ResetOrchestratorInvokesRecorder - record()/events(); ResetOrchestratorInvokesResettableService - reset()/resetCount())
 │   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php (ResetOrchestratorRejectsTaggedNonResettableServiceTest - testRejectsTaggedNonResettableServiceWithStableMessageOnly()/testHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder()/orchestratorFrom()/validConfig(); ResetOrchestratorRejectsRecorder - record()/events(); ResetOrchestratorRejectsResettableService - reset()/resetCount(); ResetOrchestratorRejectsNonResettableService)
@@ -388,6 +418,9 @@ Coretsia/
 │   │   │       │   └── Unit/
 │   │   │       │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php (ContainerCanAutowireIsStrictOnMissingConfigTest - testCanAutowireFailsDeterministicallyWhenFoundationConfigIsMissing()/testCanAutowireFailsDeterministicallyWhenFoundationConfigIsNotAMap()/testCanAutowireFailsDeterministicallyWhenFoundationContainerConfigIsMissing()/testCanAutowireFailsDeterministicallyWhenFoundationContainerConfigIsNotAMap()/testCanAutowireFailsDeterministicallyWhenFoundationContainerConfigShapeIsInvalid()/testHasUsesTheSameStrictAutowireConfigPathForConcreteClasses()/assertCanAutowireFailsWith(); ContainerStrictConfigConcreteFixture)
 │   │   │       │       ├── ContainerDoesNotAutowireInterfacesTest.php (ContainerDoesNotAutowireInterfacesTest - testCanAutowireReturnsFalseForInterfaces()/testHasReturnsFalseForUnboundInterfaces()/testGetDoesNotAutowireInterfaces()/testAbstractClassesAreNotAutowired()/validConfig(); ContainerAutowireInterfaceFixtureInterface [interface]; ContainerAutowireAbstractFixture)
+│   │   │       │       ├── ContextBagImmutabilityTest.php (ContextBagImmutabilityTest - testContextBagDoesNotObserveOriginalArrayMutations()/testContextStoreSnapshotDoesNotObserveLaterStoreMutations()/testContextBagReadApisReturnCopies())
+│   │   │       │       ├── CorrelationIdFormatTest.php (CorrelationIdFormatTest - testUlidGeneratorProducesCanonicalUppercaseUlid()/testCorrelationIdGeneratorProducesCanonicalUppercaseUlid())
+│   │   │       │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php (CorrelationIdGeneratorDelegatesToUlidGeneratorTest - testConstructorRequiresCanonicalUlidGenerator()/testGenerateDelegatesToUlidGenerator()/testCorrelationIdGeneratorDoesNotContainOwnUlidImplementationTokens()/correlationIdGeneratorSource()/isNameToken())
 │   │   │       │       └── DeterministicOrderSortRuleTest.php (DeterministicOrderSortRuleTest - testCompareOrdersHigherPriorityBeforeLowerPriority()/testCompareOrdersIdAscendingWhenPriorityIsEqual()/testCompareUsesByteOrderStringComparisonForEqualPriority()/testSortAppliesPriorityDescendingThenIdAscending()/testSortReturnsAList()/idsFrom())
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -814,7 +847,7 @@ Coretsia/
 │   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
 │   │       └── Integration/
-│   │           ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeFoundationTags()/writeFoundationConfig()/writeStatefulService())
+│   │           ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/testFoundationContextOwnerUsageAndEffectiveResetTagVariablePass()/testEffectiveResetTagVariableMustComeFromFoundationServiceFactory()/testUnrelatedNonResettableClassNearStatefulTagDoesNotFailWhenTaggedServiceIsResettable()/testDirectContextStoreUsageOutsideFoundationProviderFails()/testDirectContextKeysUsageOutsideAllowedFoundationOwnersFails()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeFoundationTags()/writeFoundationConfig()/writeStatefulService())
 │   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
 │   │           ├── DtoMarkerConsistencyGateTest.php (DtoMarkerConsistencyGateTest - testCanonicalMarkerUsagePasses()/testAliasImportResolvingToCanonicalMarkerPasses()/testCustomDtoMarkerAttributeFails()/testLegacyDtoInterfaceMarkerFails()/testMixedMarkerStrategyFailsWithMultipleStrategiesReason()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoMarkerConsistencyGate()/writeSyntheticPhpFile())
 │   │           ├── DtoNoLogicGateTest.php (DtoNoLogicGateTest - testDtoWithNoConstructorPasses()/testDtoWithPromotedPublicTypedPropertiesPasses()/testDtoWithTrivialAssignmentConstructorPasses()/testUnmarkedClassWithLogicIsIgnored()/testDtoWithExtraMethodFails()/testConstructorWithFunctionCallFails()/testConstructorWithMethodCallFails()/testConstructorWithStaticCallFails()/testConstructorWithIfFails()/testConstructorWithMatchFails()/testConstructorWithLoopFails()/testConstructorWithTryCatchFails()/testConstructorWithThrowFails()/testConstructorWithNewObjectFails()/testConstructorWithComputedExpressionFails()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoNoLogicGate()/writeSyntheticPhpFile())

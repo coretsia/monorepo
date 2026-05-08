@@ -39,6 +39,7 @@ Coretsia/
 │   │   ├── ADR-0012-mail-port.md
 │   │   ├── ADR-0013-secrets-port.md
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
+│   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -105,6 +106,8 @@ Coretsia/
 │       ├── artifacts.md
 │       ├── config-and-env.md
 │       ├── config-roots.md
+│       ├── context-keys.md
+│       ├── context-store.md
 │       ├── database-contracts.md
 │       ├── di-tags-and-middleware-ordering.md
 │       ├── dto-policy.md
@@ -335,8 +338,19 @@ Coretsia/
 │   │   │       │   │   ├── ContainerBuilder.php
 │   │   │       │   │   ├── ContainerDiagnostics.php
 │   │   │       │   │   └── ServiceProviderInterface.php
+│   │   │       │   ├── Context/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ContextInvalidKeyException.php
+│   │   │       │   │   │   └── ContextWriteForbiddenException.php
+│   │   │       │   │   ├── ContextBag.php
+│   │   │       │   │   ├── ContextKeys.php
+│   │   │       │   │   ├── ContextStore.php
+│   │   │       │   │   └── ContextStorePolicy.php
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php
+│   │   │       │   ├── Id/
+│   │   │       │   │   ├── CorrelationIdGenerator.php
+│   │   │       │   │   └── UlidGenerator.php
 │   │   │       │   ├── Logging/
 │   │   │       │   │   └── NoopLogger.php
 │   │   │       │   ├── Module/
@@ -349,10 +363,11 @@ Coretsia/
 │   │   │       │   │   ├── Profiling/
 │   │   │       │   │   │   ├── NoopProfiler.php
 │   │   │       │   │   │   └── NoopProfilingSession.php
-│   │   │       │   │   └── Tracing/
-│   │   │       │   │       ├── NoopContextPropagation.php
-│   │   │       │   │       ├── NoopSpan.php
-│   │   │       │   │       └── NoopTracer.php
+│   │   │       │   │   ├── Tracing/
+│   │   │       │   │   │   ├── NoopContextPropagation.php
+│   │   │       │   │   │   ├── NoopSpan.php
+│   │   │       │   │   │   └── NoopTracer.php
+│   │   │       │   │   └── CorrelationIdProvider.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── FoundationServiceFactory.php
 │   │   │       │   │   ├── FoundationServiceProvider.php
@@ -370,6 +385,9 @@ Coretsia/
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
 │   │   │       │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
+│   │   │       │   │   ├── ContextAccessorSignatureContractTest.php
+│   │   │       │   │   ├── ContextKeysAreStableContractTest.php
+│   │   │       │   │   ├── CorrelationIdFormatContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
@@ -379,6 +397,18 @@ Coretsia/
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │       │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
+│   │   │       │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
+│   │   │       │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php
+│   │   │       │   │   ├── ContextStoreRejectsFloatValuesTest.php
+│   │   │       │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php
+│   │   │       │   │   ├── ContextStoreRejectsObjectValuesTest.php
+│   │   │       │   │   ├── ContextStoreRejectsResourceValuesTest.php
+│   │   │       │   │   ├── ContextStoreRejectsUnknownKeysTest.php
+│   │   │       │   │   ├── ContextStoreResetClearsContextTest.php
+│   │   │       │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
+│   │   │       │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
+│   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
 │   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
@@ -388,6 +418,9 @@ Coretsia/
 │   │   │       │   └── Unit/
 │   │   │       │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
 │   │   │       │       ├── ContainerDoesNotAutowireInterfacesTest.php
+│   │   │       │       ├── ContextBagImmutabilityTest.php
+│   │   │       │       ├── CorrelationIdFormatTest.php
+│   │   │       │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 │   │   │       │       └── DeterministicOrderSortRuleTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE

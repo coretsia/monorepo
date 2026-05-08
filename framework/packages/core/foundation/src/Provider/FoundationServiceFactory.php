@@ -74,9 +74,21 @@ final class FoundationServiceFactory
     }
 
     /**
+     * Resolves the effective Foundation reset discovery tag.
+     *
+     * The value is read from the supplied Foundation config subtree:
+     *
+     *     foundation.reset.tag
+     *
+     * If the key is absent, the reserved default `kernel.reset` is used.
+     *
+     * This method is intentionally public so provider wiring and reset
+     * orchestrator construction use exactly the same validation and fallback
+     * semantics.
+     *
      * @param array<string, mixed> $foundationConfig
      */
-    private static function effectiveResetTag(array $foundationConfig): string
+    public static function effectiveResetTag(array $foundationConfig): string
     {
         $resetConfig = $foundationConfig['reset'] ?? [];
 

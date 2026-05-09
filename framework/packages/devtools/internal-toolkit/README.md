@@ -14,24 +14,29 @@
 
 # coretsia/devtools-internal-toolkit
 
-`devtools/internal-toolkit` is the **tooling-only deterministic helper library** for Coretsia Framework monorepo tools.
+`coretsia/devtools-internal-toolkit` is the tooling-only deterministic helper library for Coretsia devtools.
 
-It provides shared primitives used by Phase 0 tooling rails, spikes, gates, generators, and runners under `framework/tools/**`.
+It provides shared deterministic primitives for Coretsia tooling, gates, generators, runners, and development-time repository automation.
+
+This repository is a split package generated from the Coretsia monorepo package `framework/packages/devtools/internal-toolkit`.
 
 This package MUST NOT be required by runtime packages and MUST NOT become a production runtime dependency.
 
 ## Package identity
 
-- **Path:** `framework/packages/devtools/internal-toolkit`
+- **Monorepo source path:** `framework/packages/devtools/internal-toolkit`
+- **Split repository:** `coretsia/devtools-internal-toolkit`
 - **Package id:** `devtools/internal-toolkit`
 - **Composer name:** `coretsia/devtools-internal-toolkit`
 - **Namespace:** `Coretsia\Devtools\InternalToolkit\*` (PSR-4: `src/`)
 - **Kind:** library
-- **Lifecycle:** tooling-only / devtools
+- **Lifecycle:** tooling-only / devtools / internal Coretsia tooling support
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Versioning is monorepo-wide.
 
-Per-package independent versions **MUST NOT** be used.
+The monorepo tag `vMAJOR.MINOR.PATCH` is the single version source of truth, and the split repository receives the same tag for the corresponding package subtree.
+
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
@@ -40,17 +45,20 @@ This package is tooling-only and intentionally small.
 - **Depends on:**
   - PHP
   - `ext-json`
-- **Forbidden as consumers:**
+- **Allowed consumers:**
+  - Coretsia devtools packages
+  - Coretsia repository tooling
+  - Coretsia gates, generators, runners, and split/publishing automation
+- **Forbidden consumers:**
   - runtime packages under `core/*`
   - runtime packages under `platform/*`
   - runtime packages under `integrations/*`
   - production skeleton/runtime code
+  - consuming applications
 
 Runtime packages MUST NOT depend on `coretsia/devtools-internal-toolkit`.
 
-If runtime code needs deterministic serialization or ordering, the runtime owner package must provide runtime-safe primitives instead of importing tooling helpers.
-
-For example, `core/foundation` owns runtime-safe serialization through its own Foundation implementation, not through this devtools package.
+If runtime code needs deterministic serialization, ordering, path normalization, or naming helpers, the runtime owner package must provide runtime-safe primitives instead of importing this devtools package.
 
 ## Owned API
 
@@ -104,15 +112,17 @@ Slug helpers MUST NOT depend on process locale, ICU collation, filesystem casing
 
 ## Anti-duplication contract
 
-Tooling code under `framework/tools/**` MUST NOT duplicate these helper implementations.
+Coretsia tooling code under the monorepo `framework/tools/**` MUST NOT duplicate these helper implementations.
 
-The repository enforces this through:
+The monorepo enforces this through:
 
 ```text
 framework/tools/gates/internal_toolkit_no_dup_gate.php
 ```
 
-The same gate also forbids direct `json_encode(...)` usage under `framework/tools/**`, except for explicit allowlisted deliverables.
+That gate is not part of this split repository. The Coretsia monorepo remains the source of truth for repository-level tooling gates.
+
+The same monorepo gate also forbids direct `json_encode(...)` usage under `framework/tools/**`, except for explicit allowlisted deliverables.
 
 ## Usage
 
@@ -175,5 +185,8 @@ JSON helper output is stable, but caller-owned code remains responsible for reda
 
 ## References
 
-- `docs/roadmap/ROADMAP.md`
-- `framework/tools/gates/internal_toolkit_no_dup_gate.php`
+- [Coretsia monorepo](https://github.com/coretsia/monorepo)
+- [Internal Toolkit package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/devtools/internal-toolkit)
+- [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
+- [Monorepo anti-duplication gate](https://github.com/coretsia/monorepo/blob/main/framework/tools/gates/internal_toolkit_no_dup_gate.php)

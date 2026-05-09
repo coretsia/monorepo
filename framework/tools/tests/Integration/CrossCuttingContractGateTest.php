@@ -117,13 +117,88 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
 
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT', $output);
-        self::assertStringContainsString('packages/core/foundation/config/foundation.php: foundation-reset-tag-invalid', $output);
+        self::assertStringContainsString(
+            'packages/core/foundation/config/foundation.php: foundation-reset-tag-invalid',
+            $output
+        );
         self::assertStringNotContainsString('Invalid Tag With Spaces', $output);
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
+    public function testFoundationContextOwnerUsageAndEffectiveResetTagVariablePass(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeFoundationContextProvider($sandbox, verifiedEffectiveResetTagVariable: true);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', trim($output));
+    }
+
+    public function testEffectiveResetTagVariableMustComeFromFoundationServiceFactory(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeFoundationContextProvider($sandbox, verifiedEffectiveResetTagVariable: false);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT', $output);
+        self::assertStringContainsString('kernel-stateful-service-missing-reset-tag', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
+    public function testUnrelatedNonResettableClassNearStatefulTagDoesNotFailWhenTaggedServiceIsResettable(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeUnrelatedNonResettableFoundationClass($sandbox);
+        $this->writeFoundationContextProviderWithNearbyUnrelatedClass($sandbox);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', trim($output));
+    }
+
+    public function testDirectContextStoreUsageOutsideFoundationProviderFails(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeForbiddenContextStoreConsumer($sandbox);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT', $output);
+        self::assertStringContainsString('forbidden-context-store-usage', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
+    public function testDirectContextKeysUsageOutsideAllowedFoundationOwnersFails(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeForbiddenContextKeysConsumer($sandbox);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT', $output);
+        self::assertStringContainsString('forbidden-context-keys-usage', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
     private function createCrossCuttingGateSandbox(
-        bool    $includeFoundationEvidence = true,
+        bool $includeFoundationEvidence = true,
         ?string $foundationResetTag = null,
     ): string {
         $sandbox = $this->tempDir('coretsia-cross-cutting-gate');
@@ -286,5 +361,205 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         self::assertStringNotContainsString('StatefulService::class', $output);
         self::assertStringNotContainsString('return [', $output);
         self::assertStringNotContainsString('Invalid Tag With Spaces', $output);
+    }
+
+    private function writeFoundationContextSymbols(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Context/ContextKeys.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Context;\n\n"
+            . "final class ContextKeys\n"
+            . "{\n"
+            . "    public const string CORRELATION_ID = 'correlation_id';\n\n"
+            . "    public static function isKnown(string \$key): bool\n"
+            . "    {\n"
+            . "        return \$key === self::CORRELATION_ID;\n"
+            . "    }\n"
+            . "}\n",
+        );
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Context/ContextStore.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Context;\n\n"
+            . "use Coretsia\\Contracts\\Runtime\\ResetInterface;\n\n"
+            . "final class ContextStore implements ResetInterface\n"
+            . "{\n"
+            . "    public function reset(): void\n"
+            . "    {\n"
+            . "    }\n"
+            . "}\n",
+        );
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Context/ContextStorePolicy.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Context;\n\n"
+            . "final class ContextStorePolicy\n"
+            . "{\n"
+            . "    public function assertKey(string \$key): void\n"
+            . "    {\n"
+            . "        ContextKeys::isKnown(\$key);\n"
+            . "    }\n"
+            . "}\n",
+        );
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Observability;\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextKeys;\n\n"
+            . "final class CorrelationIdProvider\n"
+            . "{\n"
+            . "    public function key(): string\n"
+            . "    {\n"
+            . "        return ContextKeys::CORRELATION_ID;\n"
+            . "    }\n"
+            . "}\n",
+        );
+    }
+
+    private function writeFoundationContextProvider(string $sandbox, bool $verifiedEffectiveResetTagVariable): void
+    {
+        $assignment = $verifiedEffectiveResetTagVariable
+            ? "        \$effectiveResetTag = FoundationServiceFactory::effectiveResetTag(\$foundationConfig);\n"
+            : "        \$effectiveResetTag = 'kernel.reset';\n";
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "final class FoundationServiceFactory\n"
+            . "{\n"
+            . "    /**\n"
+            . "     * @param array<string,mixed> \$foundationConfig\n"
+            . "     */\n"
+            . "    public static function effectiveResetTag(array \$foundationConfig): string\n"
+            . "    {\n"
+            . "        return 'kernel.reset';\n"
+            . "    }\n"
+            . "}\n",
+        );
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextStore;\n\n"
+            . "final class FoundationServiceProvider\n"
+            . "{\n"
+            . "    /**\n"
+            . "     * @param array<string,mixed> \$foundationConfig\n"
+            . "     */\n"
+            . "    public function register(object \$builder, array \$foundationConfig): void\n"
+            . "    {\n"
+            . $assignment
+            . "        \$contextStore = new ContextStore();\n"
+            . "        \$builder->instance(ContextStore::class, \$contextStore);\n"
+            . "        \$builder->tag(\$effectiveResetTag, ContextStore::class);\n"
+            . "        \$builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);\n"
+            . "    }\n"
+            . "}\n",
+        );
+    }
+
+    private function writeUnrelatedNonResettableFoundationClass(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Provider/UnrelatedService.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "final class UnrelatedService\n"
+            . "{\n"
+            . "}\n",
+        );
+    }
+
+    private function writeFoundationContextProviderWithNearbyUnrelatedClass(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "final class FoundationServiceFactory\n"
+            . "{\n"
+            . "    /**\n"
+            . "     * @param array<string,mixed> \$foundationConfig\n"
+            . "     */\n"
+            . "    public static function effectiveResetTag(array \$foundationConfig): string\n"
+            . "    {\n"
+            . "        return 'kernel.reset';\n"
+            . "    }\n"
+            . "}\n",
+        );
+
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextStore;\n\n"
+            . "final class FoundationServiceProvider\n"
+            . "{\n"
+            . "    /**\n"
+            . "     * @param array<string,mixed> \$foundationConfig\n"
+            . "     */\n"
+            . "    public function register(object \$builder, array \$foundationConfig): void\n"
+            . "    {\n"
+            . "        \$effectiveResetTag = FoundationServiceFactory::effectiveResetTag(\$foundationConfig);\n"
+            . "        \$unrelated = new UnrelatedService();\n"
+            . "        \$contextStore = new ContextStore();\n"
+            . "        \$builder->instance(UnrelatedService::class, \$unrelated);\n"
+            . "        \$builder->instance(ContextStore::class, \$contextStore);\n"
+            . "        \$builder->tag(\$effectiveResetTag, ContextStore::class);\n"
+            . "        \$builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);\n"
+            . "    }\n"
+            . "}\n",
+        );
+    }
+
+    private function writeForbiddenContextStoreConsumer(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/platform/logging/src/BadContextStoreConsumer.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Platform\\Logging;\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextStore;\n\n"
+            . "final class BadContextStoreConsumer\n"
+            . "{\n"
+            . "    public function create(): ContextStore\n"
+            . "    {\n"
+            . "        return new ContextStore();\n"
+            . "    }\n"
+            . "}\n",
+        );
+    }
+
+    private function writeForbiddenContextKeysConsumer(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/platform/logging/src/BadContextKeysConsumer.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Platform\\Logging;\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextKeys;\n\n"
+            . "final class BadContextKeysConsumer\n"
+            . "{\n"
+            . "    public function key(): string\n"
+            . "    {\n"
+            . "        return ContextKeys::CORRELATION_ID;\n"
+            . "    }\n"
+            . "}\n",
+        );
     }
 }

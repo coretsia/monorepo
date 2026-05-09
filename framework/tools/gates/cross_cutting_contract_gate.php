@@ -159,7 +159,10 @@ declare(strict_types=1);
             exit(1);
         }
 
-        [$effectiveResetTag, $effectiveResetTagViolations] = coretsia_cross_cutting_contract_gate_resolve_effective_foundation_reset_tag(
+        [
+            $effectiveResetTag,
+            $effectiveResetTagViolations
+        ] = coretsia_cross_cutting_contract_gate_resolve_effective_foundation_reset_tag(
             $packagesRoot,
             'kernel.reset',
         );
@@ -312,7 +315,11 @@ function coretsia_cross_cutting_contract_gate_extract_string_constants(string $p
             $j++;
         }
 
-        foreach (coretsia_cross_cutting_contract_gate_extract_string_constants_from_declaration($declarationTokens) as $name => $value) {
+        foreach (
+            coretsia_cross_cutting_contract_gate_extract_string_constants_from_declaration(
+                $declarationTokens
+            ) as $name => $value
+        ) {
             $constants[$name] = $value;
         }
 
@@ -618,12 +625,12 @@ function coretsia_cross_cutting_contract_gate_extract_declared_types(string $php
  * @return list<string>
  */
 function coretsia_cross_cutting_contract_gate_extract_type_list_after_keyword(
-    array  $tokens,
-    int    $start,
-    int    $keywordId,
-    array  $stopKeywordIds,
+    array $tokens,
+    int $start,
+    int $keywordId,
+    array $stopKeywordIds,
     string $namespace,
-    array  $imports,
+    array $imports,
 ): array {
     /** @var list<string> $names */
     $names = [];
@@ -696,9 +703,9 @@ function coretsia_cross_cutting_contract_gate_extract_type_list_after_keyword(
  */
 function coretsia_cross_cutting_contract_gate_type_is_resettable(
     string $typeName,
-    array  $declaredTypes,
-    array  &$cache,
-    array  $visiting,
+    array $declaredTypes,
+    array &$cache,
+    array $visiting,
 ): bool {
     if ($typeName === 'Coretsia\\Contracts\\Runtime\\ResetInterface') {
         return true;
@@ -780,7 +787,7 @@ function coretsia_cross_cutting_contract_gate_find_context_symbols(array $declar
  */
 function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
     string $phpFile,
-    array  $classFiles,
+    array $classFiles,
     string $effectiveResetTag,
 ): array {
     $source = coretsia_cross_cutting_contract_gate_read_file($phpFile);
@@ -796,67 +803,355 @@ function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
         return [];
     }
 
-    try {
-        $tokens = \token_get_all($source);
-    } catch (\Throwable) {
-        throw new \RuntimeException('php-tokenize-failed');
-    }
-
     $context = coretsia_cross_cutting_contract_gate_parse_php_context($source);
     $namespace = $context['namespace'];
     $imports = $context['imports'];
 
-    $declaredClassNames = coretsia_cross_cutting_contract_gate_extract_declared_class_names_from_source($source);
+    $effectiveResetTagVariables = coretsia_cross_cutting_contract_gate_extract_effective_reset_tag_variables($source);
+
+    $serviceTags = coretsia_cross_cutting_contract_gate_extract_service_tag_map(
+        source: $source,
+        namespace: $namespace,
+        imports: $imports,
+        classFiles: $classFiles,
+        effectiveResetTag: $effectiveResetTag,
+        effectiveResetTagVariables: $effectiveResetTagVariables,
+    );
 
     /** @var list<array{service_classes:list<string>, has_reset_tag:bool}> $evidence */
     $evidence = [];
 
-    $count = \count($tokens);
-    for ($i = 0; $i < $count; $i++) {
-        if (!coretsia_cross_cutting_contract_gate_is_stateful_tag_token($tokens[$i])) {
+    foreach ($serviceTags as $serviceClass => $tags) {
+        if (!isset($tags['kernel.stateful'])) {
             continue;
         }
 
-        $windowStart = \max(0, $i - 160);
-        $windowEnd = \min($count - 1, $i + 160);
-
-        $hasResetTag = false;
-        for ($j = $windowStart; $j <= $windowEnd; $j++) {
-            if (coretsia_cross_cutting_contract_gate_is_reset_tag_token($tokens[$j], $effectiveResetTag)) {
-                $hasResetTag = true;
-                break;
-            }
-        }
-
-        $serviceClasses = coretsia_cross_cutting_contract_gate_extract_class_references_from_window(
-            $tokens,
-            $windowStart,
-            $windowEnd,
-            $namespace,
-            $imports,
-            $classFiles,
-        );
-
-        if ($serviceClasses === []) {
-            $serviceClasses = coretsia_cross_cutting_contract_gate_declared_classes_in_window(
-                $tokens,
-                $windowStart,
-                $windowEnd,
-                $declaredClassNames,
-            );
-        }
-
-        if ($serviceClasses === [] && \count($declaredClassNames) === 1) {
-            $serviceClasses = $declaredClassNames;
-        }
-
         $evidence[] = [
-            'service_classes' => $serviceClasses,
-            'has_reset_tag' => $hasResetTag,
+            'service_classes' => [$serviceClass],
+            'has_reset_tag' => isset($tags[$effectiveResetTag]),
         ];
     }
 
     return $evidence;
+}
+
+/**
+ * @return array<string, true>
+ */
+function coretsia_cross_cutting_contract_gate_extract_effective_reset_tag_variables(string $source): array
+{
+    /** @var array<string, true> $variables */
+    $variables = [];
+
+    if (
+        \preg_match_all(
+            '/\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:\\\\?[A-Za-z_][A-Za-z0-9_]*\\\\)*FoundationServiceFactory::effectiveResetTag\s*\(/u',
+            $source,
+            $matches,
+            \PREG_SET_ORDER,
+        ) === false
+    ) {
+        throw new \RuntimeException('effective-reset-tag-variable-scan-failed');
+    }
+
+    foreach ($matches as $match) {
+        $variables[$match[1]] = true;
+    }
+
+    \ksort($variables, \SORT_STRING);
+
+    return $variables;
+}
+
+/**
+ * @param array<string, string> $imports
+ * @param array<string, string> $classFiles
+ * @param array<string, true> $effectiveResetTagVariables
+ * @return array<string, array<string, true>>
+ */
+function coretsia_cross_cutting_contract_gate_extract_service_tag_map(
+    string $source,
+    string $namespace,
+    array $imports,
+    array $classFiles,
+    string $effectiveResetTag,
+    array $effectiveResetTagVariables,
+): array {
+    /** @var array<string, array<string, true>> $serviceTags */
+    $serviceTags = [];
+
+    foreach (
+        coretsia_cross_cutting_contract_gate_extract_builder_tag_calls(
+            source: $source,
+            namespace: $namespace,
+            imports: $imports,
+            classFiles: $classFiles,
+            effectiveResetTag: $effectiveResetTag,
+            effectiveResetTagVariables: $effectiveResetTagVariables,
+        ) as $serviceClass => $tags
+    ) {
+        foreach (\array_keys($tags) as $tag) {
+            coretsia_cross_cutting_contract_gate_add_service_tag($serviceTags, $serviceClass, $tag);
+        }
+    }
+
+    foreach (
+        coretsia_cross_cutting_contract_gate_extract_array_definition_tags(
+            source: $source,
+            namespace: $namespace,
+            imports: $imports,
+            classFiles: $classFiles,
+            effectiveResetTag: $effectiveResetTag,
+            effectiveResetTagVariables: $effectiveResetTagVariables,
+        ) as $serviceClass => $tags
+    ) {
+        foreach (\array_keys($tags) as $tag) {
+            coretsia_cross_cutting_contract_gate_add_service_tag($serviceTags, $serviceClass, $tag);
+        }
+    }
+
+    \ksort($serviceTags, \SORT_STRING);
+
+    foreach ($serviceTags as &$tags) {
+        \ksort($tags, \SORT_STRING);
+    }
+    unset($tags);
+
+    return $serviceTags;
+}
+
+/**
+ * @param array<string, string> $imports
+ * @param array<string, string> $classFiles
+ * @param array<string, true> $effectiveResetTagVariables
+ * @return array<string, array<string, true>>
+ */
+function coretsia_cross_cutting_contract_gate_extract_builder_tag_calls(
+    string $source,
+    string $namespace,
+    array $imports,
+    array $classFiles,
+    string $effectiveResetTag,
+    array $effectiveResetTagVariables,
+): array {
+    /** @var array<string, array<string, true>> $serviceTags */
+    $serviceTags = [];
+
+    if (
+        \preg_match_all(
+            '/->\s*tag\s*\(\s*(?<tag>[^,]+?)\s*,\s*(?<service>\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*)::class\s*\)/su',
+            $source,
+            $matches,
+            \PREG_SET_ORDER,
+        ) === false
+    ) {
+        throw new \RuntimeException('builder-tag-call-scan-failed');
+    }
+
+    foreach ($matches as $match) {
+        $serviceClass = coretsia_cross_cutting_contract_gate_resolve_service_class_reference(
+            classReference: $match['service'],
+            namespace: $namespace,
+            imports: $imports,
+            classFiles: $classFiles,
+        );
+
+        if ($serviceClass === null) {
+            continue;
+        }
+
+        $tag = coretsia_cross_cutting_contract_gate_resolve_tag_expression(
+            expression: $match['tag'],
+            effectiveResetTag: $effectiveResetTag,
+            effectiveResetTagVariables: $effectiveResetTagVariables,
+        );
+
+        if ($tag === null) {
+            continue;
+        }
+
+        coretsia_cross_cutting_contract_gate_add_service_tag($serviceTags, $serviceClass, $tag);
+    }
+
+    return $serviceTags;
+}
+
+/**
+ * @param array<string, string> $imports
+ * @param array<string, string> $classFiles
+ * @param array<string, true> $effectiveResetTagVariables
+ * @return array<string, array<string, true>>
+ */
+function coretsia_cross_cutting_contract_gate_extract_array_definition_tags(
+    string $source,
+    string $namespace,
+    array $imports,
+    array $classFiles,
+    string $effectiveResetTag,
+    array $effectiveResetTagVariables,
+): array {
+    /** @var array<string, array<string, true>> $serviceTags */
+    $serviceTags = [];
+
+    if (
+        \preg_match_all(
+            '/(?<service>\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*)::class\s*=>\s*\[\s*([\'"])tags\2\s*=>\s*\[(?<tags>.*?)]\s*,?\s*]/su',
+            $source,
+            $matches,
+            \PREG_SET_ORDER,
+        ) === false
+    ) {
+        throw new \RuntimeException('array-definition-tags-scan-failed');
+    }
+
+    foreach ($matches as $match) {
+        $serviceClass = coretsia_cross_cutting_contract_gate_resolve_service_class_reference(
+            classReference: $match['service'],
+            namespace: $namespace,
+            imports: $imports,
+            classFiles: $classFiles,
+        );
+
+        if ($serviceClass === null) {
+            continue;
+        }
+
+        foreach (coretsia_cross_cutting_contract_gate_split_tag_expressions($match['tags']) as $expression) {
+            $tag = coretsia_cross_cutting_contract_gate_resolve_tag_expression(
+                expression: $expression,
+                effectiveResetTag: $effectiveResetTag,
+                effectiveResetTagVariables: $effectiveResetTagVariables,
+            );
+
+            if ($tag === null) {
+                continue;
+            }
+
+            coretsia_cross_cutting_contract_gate_add_service_tag($serviceTags, $serviceClass, $tag);
+        }
+    }
+
+    return $serviceTags;
+}
+
+/**
+ * @return list<string>
+ */
+function coretsia_cross_cutting_contract_gate_split_tag_expressions(string $tagsBlock): array
+{
+    $parts = \preg_split('/,/u', $tagsBlock);
+
+    if ($parts === false) {
+        throw new \RuntimeException('tag-expression-split-failed');
+    }
+
+    /** @var list<string> $expressions */
+    $expressions = [];
+
+    foreach ($parts as $part) {
+        $expression = \trim($part);
+
+        if ($expression === '') {
+            continue;
+        }
+
+        $expressions[] = $expression;
+    }
+
+    return $expressions;
+}
+
+/**
+ * @param array<string, string> $imports
+ * @param array<string, string> $classFiles
+ */
+function coretsia_cross_cutting_contract_gate_resolve_service_class_reference(
+    string $classReference,
+    string $namespace,
+    array $imports,
+    array $classFiles,
+): ?string {
+    $classReference = \trim($classReference);
+
+    if ($classReference === '') {
+        return null;
+    }
+
+    $resolved = coretsia_cross_cutting_contract_gate_resolve_type_name(
+        $classReference,
+        $namespace,
+        $imports,
+    );
+
+    if (!isset($classFiles[$resolved])) {
+        return null;
+    }
+
+    return $resolved;
+}
+
+/**
+ * @param array<string, true> $effectiveResetTagVariables
+ */
+function coretsia_cross_cutting_contract_gate_resolve_tag_expression(
+    string $expression,
+    string $effectiveResetTag,
+    array $effectiveResetTagVariables,
+): ?string {
+    $expression = \trim($expression);
+
+    if ($expression === '') {
+        return null;
+    }
+
+    $first = $expression[0];
+    $last = $expression[\strlen($expression) - 1] ?? '';
+
+    if (
+        ($first === "'" || $first === '"')
+        && $last === $first
+    ) {
+        return coretsia_cross_cutting_contract_gate_decode_php_string_literal($expression);
+    }
+
+    if (
+        $expression === 'Tags::KERNEL_STATEFUL'
+        || \str_ends_with($expression, '\\Tags::KERNEL_STATEFUL')
+    ) {
+        return 'kernel.stateful';
+    }
+
+    if (
+        $expression === 'Tags::KERNEL_RESET'
+        || \str_ends_with($expression, '\\Tags::KERNEL_RESET')
+    ) {
+        return 'kernel.reset';
+    }
+
+    if (\preg_match('/^\$([A-Za-z_][A-Za-z0-9_]*)$/u', $expression, $matches) === 1) {
+        if (isset($effectiveResetTagVariables[$matches[1]])) {
+            return $effectiveResetTag;
+        }
+
+        return null;
+    }
+
+    return null;
+}
+
+/**
+ * @param array<string, array<string, true>> $serviceTags
+ */
+function coretsia_cross_cutting_contract_gate_add_service_tag(
+    array &$serviceTags,
+    string $serviceClass,
+    string $tag,
+): void {
+    if (!isset($serviceTags[$serviceClass])) {
+        $serviceTags[$serviceClass] = [];
+    }
+
+    $serviceTags[$serviceClass][$tag] = true;
 }
 
 function coretsia_cross_cutting_contract_gate_is_tag_constant_definition_file(string $phpFile): bool
@@ -957,12 +1252,12 @@ function coretsia_cross_cutting_contract_gate_is_reset_tag_token(array|string $t
  * @return list<string>
  */
 function coretsia_cross_cutting_contract_gate_extract_class_references_from_window(
-    array  $tokens,
-    int    $windowStart,
-    int    $windowEnd,
+    array $tokens,
+    int $windowStart,
+    int $windowEnd,
     string $namespace,
-    array  $imports,
-    array  $classFiles,
+    array $imports,
+    array $classFiles,
 ): array {
     /** @var array<string, true> $classes */
     $classes = [];
@@ -1010,7 +1305,10 @@ function coretsia_cross_cutting_contract_gate_extract_class_references_from_wind
             continue;
         }
 
-        $classKeywordIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $doubleColonIndex + 1);
+        $classKeywordIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index(
+            $tokens,
+            $doubleColonIndex + 1
+        );
         if ($classKeywordIndex === null) {
             continue;
         }
@@ -1040,8 +1338,8 @@ function coretsia_cross_cutting_contract_gate_extract_class_references_from_wind
  */
 function coretsia_cross_cutting_contract_gate_declared_classes_in_window(
     array $tokens,
-    int   $windowStart,
-    int   $windowEnd,
+    int $windowStart,
+    int $windowEnd,
     array $declaredClassNames,
 ): array {
     if ($declaredClassNames === []) {
@@ -1092,7 +1390,7 @@ function coretsia_cross_cutting_contract_gate_declared_classes_in_window(
  */
 function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_usage(
     string $phpFile,
-    array  $contextSymbols,
+    array $contextSymbols,
 ): array {
     if ($contextSymbols['ContextStore'] === [] && $contextSymbols['ContextKeys'] === []) {
         return [];
@@ -1147,7 +1445,12 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
             continue;
         }
 
-        if ($token[1] !== 'ContextStore' && $token[1] !== 'ContextKeys' && !\str_ends_with($token[1], '\\ContextStore') && !\str_ends_with($token[1], '\\ContextKeys')) {
+        if (
+            $token[1] !== 'ContextStore'
+            && $token[1] !== 'ContextKeys'
+            && !\str_ends_with($token[1], '\\ContextStore')
+            && !\str_ends_with($token[1], '\\ContextKeys')
+        ) {
             continue;
         }
 
@@ -1163,11 +1466,25 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
         }
 
         if (isset($contextSymbols['ContextStore'][$resolved])) {
+            if (
+                coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_foundation_wiring(
+                    phpFile: $phpFile,
+                    tokens: $tokens,
+                    tokenIndex: $i,
+                )
+            ) {
+                continue;
+            }
+
             $violations['forbidden-context-store-usage'] = true;
             continue;
         }
 
         if (isset($contextSymbols['ContextKeys'][$resolved])) {
+            if (coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_foundation_owner($phpFile)) {
+                continue;
+            }
+
             $violations['forbidden-context-keys-usage'] = true;
         }
     }
@@ -1176,6 +1493,71 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     \sort($result, \SORT_STRING);
 
     return $result;
+}
+
+function coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_foundation_owner(string $phpFile): bool
+{
+    $path = \str_replace('\\', '/', $phpFile);
+
+    return \str_ends_with($path, '/packages/core/foundation/src/Context/ContextStorePolicy.php')
+        || \str_ends_with($path, '/packages/core/foundation/src/Observability/CorrelationIdProvider.php');
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_foundation_wiring(
+    string $phpFile,
+    array $tokens,
+    int $tokenIndex,
+): bool {
+    $path = \str_replace('\\', '/', $phpFile);
+
+    if (!\str_ends_with($path, '/packages/core/foundation/src/Provider/FoundationServiceProvider.php')) {
+        return false;
+    }
+
+    if (coretsia_cross_cutting_contract_gate_is_new_expression_subject($tokens, $tokenIndex)) {
+        return true;
+    }
+
+    return coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex);
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_is_new_expression_subject(array $tokens, int $tokenIndex): bool
+{
+    return coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $tokenIndex - 1) === T_NEW;
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_is_class_constant_reference(array $tokens, int $tokenIndex): bool
+{
+    $doubleColonIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $tokenIndex + 1);
+
+    if ($doubleColonIndex === null) {
+        return false;
+    }
+
+    $doubleColon = $tokens[$doubleColonIndex] ?? null;
+
+    if (!\is_array($doubleColon) || $doubleColon[0] !== T_DOUBLE_COLON) {
+        return false;
+    }
+
+    $classIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $doubleColonIndex + 1);
+
+    if ($classIndex === null) {
+        return false;
+    }
+
+    $class = $tokens[$classIndex] ?? null;
+
+    return \is_array($class) && $class[0] === T_CLASS;
 }
 
 /**
@@ -1216,7 +1598,11 @@ function coretsia_cross_cutting_contract_gate_parse_php_context(string $source):
         foreach ($matches as $match) {
             $useStatement = \trim($match[1]);
 
-            foreach (coretsia_cross_cutting_contract_gate_extract_imports_from_use_statement($useStatement) as $alias => $fqcn) {
+            foreach (
+                coretsia_cross_cutting_contract_gate_extract_imports_from_use_statement(
+                    $useStatement
+                ) as $alias => $fqcn
+            ) {
                 $imports[$alias] = $fqcn;
             }
         }
@@ -1396,7 +1782,7 @@ function coretsia_cross_cutting_contract_gate_parse_import_part(string $part, ?s
 function coretsia_cross_cutting_contract_gate_resolve_type_name(
     string $name,
     string $namespace,
-    array  $imports,
+    array $imports,
 ): string {
     $name = \trim($name);
     if ($name === '') {
@@ -1570,7 +1956,9 @@ function coretsia_cross_cutting_contract_gate_extract_foundation_reset_tag_from_
             $tagMatch,
         ) === 1
     ) {
-        return coretsia_cross_cutting_contract_gate_decode_php_string_literal($tagMatch[2] . $tagMatch[3] . $tagMatch[2]);
+        return coretsia_cross_cutting_contract_gate_decode_php_string_literal(
+            $tagMatch[2] . $tagMatch[3] . $tagMatch[2]
+        );
     }
 
     if (\preg_match('/([\'"])tag\1\s*=>/iu', $resetBlock) === 1) {
@@ -1587,7 +1975,7 @@ function coretsia_cross_cutting_contract_gate_is_valid_tag_name(string $tag): bo
 
 function coretsia_cross_cutting_contract_gate_extract_balanced_block(
     string $source,
-    int    $openPos,
+    int $openPos,
     string $open,
     string $close,
 ): ?string {

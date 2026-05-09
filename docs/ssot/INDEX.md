@@ -63,6 +63,8 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Runtime Invariants
 
+- [Context Keys SSoT](./context-keys.md) — owner: core/foundation — scope: context,keys,registry,redaction,runtime
+- [Context Store SSoT](./context-store.md) — owner: core/foundation — scope: context,context-bag,context-store,correlation-id,reset,runtime
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — scope: di,discovery,middleware,ordering,runtime,tags
 
 ## Tooling and CI Contracts

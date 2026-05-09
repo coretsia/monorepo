@@ -22,15 +22,18 @@
 
 ## Package identity
 
-- **Path:** `framework/packages/core/contracts`
+- **Monorepo source path:** `framework/packages/core/contracts`
+- **Split repository:** `coretsia/core-contracts`
 - **Package id:** `core/contracts`
 - **Composer name:** `coretsia/core-contracts`
 - **Namespace:** `Coretsia\Contracts\*` (PSR-4: `src/`)
 - **Kind:** library
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Versioning is monorepo-wide.
 
-Per-package independent versions **MUST NOT** be used.
+The monorepo tag `vMAJOR.MINOR.PATCH` is the single version source of truth, and the split repository receives the same tag for the corresponding package subtree.
+
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
@@ -178,15 +181,18 @@ Contracts that expose diagnostic or exported shapes MUST be safe by construction
 
 ## References
 
-- `docs/ssot/modules-and-manifests.md`
-- `docs/ssot/config-and-env.md`
-- `docs/ssot/uow-and-reset-contracts.md`
-- `docs/ssot/observability-and-errors.md`
-- `docs/ssot/routing-and-http-app-contracts.md`
-- `docs/ssot/validation-contracts.md`
-- `docs/ssot/filesystem-contracts.md`
-- `docs/ssot/database-contracts.md`
-- `docs/ssot/rate-limit-contracts.md`
-- `docs/ssot/mail-contracts.md`
-- `docs/ssot/secrets-contracts.md`
-- `docs/roadmap/ROADMAP.md`
+- [Coretsia monorepo](https://github.com/coretsia/monorepo)
+- [Contracts package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/contracts)
+- [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
+- [Modules and manifests SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modules-and-manifests.md)
+- [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
+- [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
+- [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)
+- [Routing and HttpApp Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-and-http-app-contracts.md)
+- [Validation Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/validation-contracts.md)
+- [Filesystem Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/filesystem-contracts.md)
+- [Database Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/database-contracts.md)
+- [Rate Limit Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/rate-limit-contracts.md)
+- [Mail Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/mail-contracts.md)
+- [Secrets Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/secrets-contracts.md)

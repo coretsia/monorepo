@@ -47,6 +47,22 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.3.0
+
+### Added
+
+- Publish-ready `coretsia/core-dto-attribute` package as the canonical DTO marker attribute split package.
+- Publish-ready `coretsia/devtools-internal-toolkit` package as the tooling-only deterministic helper split package for Coretsia devtools.
+- Split publishing coverage for:
+  - `framework/packages/core/dto-attribute` -> `coretsia/core-dto-attribute`;
+  - `framework/packages/devtools/internal-toolkit` -> `coretsia/devtools-internal-toolkit`.
+
+### Changed
+
+- Clarify `coretsia/core-dto-attribute` package metadata and README scope around explicit DTO opt-in only.
+- Clarify `coretsia/devtools-internal-toolkit` package metadata and README scope around tooling-only deterministic helpers and forbidden runtime usage.
+- Extend split publishing automation beyond `coretsia/core-contracts` to support the new public split repositories.
+
 ## v0.2.0
 
 ### Added

@@ -1,11 +1,17 @@
 {
   "name": "coretsia/devtools-internal-toolkit",
   "type": "library",
-  "description": "Coretsia tooling-only deterministic helpers (Slug/Path/Json). Not for runtime packages.",
+  "description": "Tooling-only deterministic helpers for Coretsia devtools. Not for runtime packages.",
   "keywords": [
     "coretsia",
+    "php",
+    "php84",
+    "devtools",
     "tooling",
     "determinism",
+    "stable-json",
+    "path-normalization",
+    "slug",
     "internal-toolkit"
   ],
   "license": "Apache-2.0",

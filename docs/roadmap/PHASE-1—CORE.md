@@ -5734,156 +5734,157 @@ Forbidden:
 #### Creates
 
 Context keys + store:
-- [ ] `framework/packages/core/foundation/src/Context/ContextKeys.php`
-  - [ ] canonical keys (Phase 0 list + reserved future list)
-- [ ] `framework/packages/core/foundation/src/Context/ContextBag.php`
-  - [ ] immutable snapshot view
-- [ ] `framework/packages/core/foundation/src/Context/ContextStore.php`
-  - [ ] mutable store
-  - [ ] implements `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - [ ] implements `Coretsia\Contracts\Runtime\ResetInterface`
-  - [ ] MUST implement `ContextAccessorInterface::get(string $key): mixed` exactly
-  - [ ] MUST NOT add a default parameter to `get(...)`
-- [ ] `framework/packages/core/foundation/src/Context/ContextStorePolicy.php`
-  - [ ] safe-write allowlist + guards (no secrets/PII)
+- [x] `framework/packages/core/foundation/src/Context/ContextKeys.php`
+  - [x] canonical keys (Phase 0 list + reserved future list)
+- [x] `framework/packages/core/foundation/src/Context/ContextBag.php`
+  - [x] immutable snapshot view
+- [x] `framework/packages/core/foundation/src/Context/ContextStore.php`
+  - [x] mutable store
+  - [x] implements `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - [x] implements `Coretsia\Contracts\Runtime\ResetInterface`
+  - [x] MUST implement `ContextAccessorInterface::get(string $key): mixed` exactly
+  - [x] MUST NOT add a default parameter to `get(...)`
+- [x] `framework/packages/core/foundation/src/Context/ContextStorePolicy.php`
+  - [x] safe-write allowlist + guards (no secrets/PII)
 
 ### ContextStore value model (single-choice; cemented)
 
-- [ ] `ContextStore` MUST accept only JSON-safe, deterministic value types:
-  - [ ] Scalars:
-    - [ ] `null`, `bool`, `int`, `string`
-  - [ ] Arrays:
-    - [ ] lists: `list<value>`
-    - [ ] maps: `array<string, value>` (string keys only)
-- [ ] Forbidden everywhere (including nested):
-  - [ ] `float` (incl. `NaN`, `INF`, `-INF`)
-  - [ ] `resource`, `object`, `Closure`
-  - [ ] non-string map keys
-- [ ] Note:
-  - [ ] callable-ness is NOT treated as a standalone ContextStore type rule
-  - [ ] plain strings remain valid strings even if PHP could interpret some of them as callable names
-- [ ] Deterministic failure semantics (single-choice):
-  - [ ] On forbidden value/type, throw deterministic exception (or deterministic equivalent).
-  - [ ] Exception message MUST be safe:
-    - [ ] MUST NOT include the raw value
-    - [ ] MAY include only a stable path-to-value (e.g. `a.b[3].c`)
-- [ ] **Context key allowlist (single-choice; cemented):**
-  - [ ] `ContextStorePolicy` MUST allow writes ONLY for keys declared in `Coretsia\Foundation\Context\ContextKeys`.
-  - [ ] Any attempt to write a key not present in `ContextKeys` MUST fail deterministically.
-  - [ ] Rationale: prevents uncontrolled key sprawl; `ContextKeys` remains the only SSoT.
+- [x] `ContextStore` MUST accept only JSON-safe, deterministic value types:
+  - [x] Scalars:
+    - [x] `null`, `bool`, `int`, `string`
+  - [x] Arrays:
+    - [x] lists: `list<value>`
+    - [x] maps: `array<string, value>` (string keys only)
+- [x] Forbidden everywhere (including nested):
+  - [x] `float` (incl. `NaN`, `INF`, `-INF`)
+  - [x] `resource`, `object`, `Closure`
+  - [x] non-string map keys
+- [x] Note:
+  - [x] callable-ness is NOT treated as a standalone ContextStore type rule
+  - [x] plain strings remain valid strings even if PHP could interpret some of them as callable names
+- [x] Deterministic failure semantics (single-choice):
+  - [x] On forbidden value/type, throw deterministic exception (or deterministic equivalent).
+  - [x] Exception message MUST be safe:
+    - [x] MUST NOT include the raw value
+    - [x] MAY include only a stable path-to-value (e.g. `a.b[3].c`)
+- [x] **Context key allowlist (single-choice; cemented):**
+  - [x] `ContextStorePolicy` MUST allow writes ONLY for keys declared in `Coretsia\Foundation\Context\ContextKeys`.
+  - [x] Any attempt to write a key not present in `ContextKeys` MUST fail deterministically.
+  - [x] Rationale: prevents uncontrolled key sprawl; `ContextKeys` remains the only SSoT.
 
 Correlation id:
-- [ ] `framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php` — stable-format correlation id generation (format-deterministic; value is entropy-based)
-  - [ ] MUST receive `Coretsia\Foundation\Id\UlidGenerator` via constructor injection.
-  - [ ] MUST delegate generation to `UlidGenerator` and MUST NOT implement ULID logic independently.
-  - [ ] MUST NOT post-process the generated value in a way that can create format drift.
-  - [ ] `correlation_id` MUST be an opaque safe id with a deterministic string format.
-    - [ ] Canonical format: **ULID** (Crockford Base32), 26 chars:
-      - [ ] matches: `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
-    - [ ] Output normalization:
-      - [ ] MUST be uppercase (as above) to avoid case-drift across implementations
-  - [ ] **Single-source ULID rule (cemented):**
-    - [ ] `CorrelationIdGenerator` MUST NOT implement ULID independently.
-    - [ ] It MUST delegate ULID generation to `Coretsia\Foundation\Id\UlidGenerator` to prevent format drift.
+- [x] `framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php` — stable-format correlation id generation (format-deterministic; value is entropy-based)
+  - [x] MUST receive `Coretsia\Foundation\Id\UlidGenerator` via constructor injection.
+  - [x] MUST delegate generation to `UlidGenerator` and MUST NOT implement ULID logic independently.
+  - [x] MUST NOT post-process the generated value in a way that can create format drift.
+  - [x] `correlation_id` MUST be an opaque safe id with a deterministic string format.
+    - [x] Canonical format: **ULID** (Crockford Base32), 26 chars:
+      - [x] matches: `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
+    - [x] Output normalization:
+      - [x] MUST be uppercase (as above) to avoid case-drift across implementations
+  - [x] **Single-source ULID rule (cemented):**
+    - [x] `CorrelationIdGenerator` MUST NOT implement ULID independently.
+    - [x] It MUST delegate ULID generation to `Coretsia\Foundation\Id\UlidGenerator` to prevent format drift.
 
-- [ ] `framework/packages/core/foundation/src/Id/UlidGenerator.php` — canonical ULID generator (single source)
-  - [ ] **Single-source ULID rule (cemented):**
-    - [ ] this generator is the only ULID implementation in the codebase
-    - [ ] `CorrelationIdGenerator` MUST delegate to it
+- [x] `framework/packages/core/foundation/src/Id/UlidGenerator.php` — canonical ULID generator (single source)
+  - [x] **Single-source ULID rule (cemented):**
+    - [x] this generator is the only ULID implementation in the codebase
+    - [x] `CorrelationIdGenerator` MUST delegate to it
 
-- [ ] `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php` — implements `CorrelationIdProviderInterface`
+- [x] `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php` — implements `CorrelationIdProviderInterface`
 
 Wiring evidence (in provider):
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds store/accessor/provider
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds store/accessor/provider
   and tags `ContextStore` with the effective Foundation reset discovery tag resolved from
   `foundation.reset.tag` (reserved default `kernel.reset`)
 
 Documentation:
-- [ ] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
-- [ ] `docs/ssot/context-store.md` — single store, immutable bag, safe writes, reset між UoW
-- [ ] `docs/ssot/context-keys.md` — canonical key registry only:
-  - [ ] defines canonical key names, meanings, safe-value notes, and owner/lifecycle notes
-  - [ ] MAY name high-level writer categories only:
-    - [ ] kernel
-    - [ ] http
-    - [ ] routing
-    - [ ] auth
-    - [ ] tenancy
-  - [ ] MUST NOT contain the per-middleware `FQCN -> ContextKeys written/read` matrix
-  - [ ] the detailed middleware-to-keys reference map is owned only by `1.230.0` in:
-    - [ ] `docs/ssot/middleware-context-keys-map.md`
+- [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
+- [x] `docs/ssot/context-store.md` — single store, immutable bag, safe writes, reset між UoW
+- [x] `docs/ssot/context-keys.md` — canonical key registry only:
+  - [x] defines canonical key names, meanings, safe-value notes, and owner/lifecycle notes
+  - [x] MAY name high-level writer categories only:
+    - [x] kernel
+    - [x] http
+    - [x] routing
+    - [x] auth
+    - [x] tenancy
+  - [x] MUST NOT contain the per-middleware `FQCN -> ContextKeys written/read` matrix
+  - [x] the detailed middleware-to-keys reference map is owned only by `1.230.0` in:
+    - [x] `docs/ssot/middleware-context-keys-map.md`
 
 Tests:
-- [ ] `framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php`
-- [ ] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
-- [ ] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
-  - [ ] writing key `"@foo"` MUST fail deterministically
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php`
-  - [ ] rejects nested float
-  - [ ] rejects `NaN`, `INF`, `-INF`
-  - [ ] error message MUST NOT contain the raw value
-  - [ ] message MAY contain only path-to-value
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
-  - [ ] writing key `"unknown_key"` MUST fail deterministically
-  - [ ] message MUST be safe (no values)
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php`
-  - [ ] asserts provider wiring tags `ContextStore` using `foundation.reset.tag`
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php`
-  - [ ] rejects any `object` anywhere (incl. nested)
-  - [ ] message MUST be safe (no raw value), MAY include only path-to-value
+- [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php`
+- [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
+- [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+  - [x] writing key `"@foo"` MUST fail deterministically
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php`
+  - [x] rejects nested float
+  - [x] rejects `NaN`, `INF`, `-INF`
+  - [x] error message MUST NOT contain the raw value
+  - [x] message MAY contain only path-to-value
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+  - [x] writing key `"unknown_key"` MUST fail deterministically
+  - [x] message MUST be safe (no values)
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/FoundationResolvesContextStoreBindingsTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php`
+  - [x] asserts provider wiring tags `ContextStore` using `foundation.reset.tag`
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php`
+  - [x] rejects any `object` anywhere (incl. nested)
+  - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php`
-  - [ ] rejects any `resource` anywhere
-  - [ ] message MUST be safe (no raw value), MAY include only path-to-value
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php`
+  - [x] rejects any `resource` anywhere
+  - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
-- [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php`
-  - [ ] rejects maps with any non-string key (including `int` keys) anywhere
-  - [ ] message MUST be safe (no raw value), MAY include only path-to-value
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php`
+  - [x] rejects maps with any non-string key (including `int` keys) anywhere
+  - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/context-store.md`
-  - [ ] `docs/ssot/context-keys.md`
-- [ ] `framework/packages/core/foundation/README.md` — documents ContextStore usage + redaction rules (if referenced)
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/context-store.md`
+  - [x] `docs/ssot/context-keys.md`
+- [x] `framework/packages/core/foundation/README.md` — documents ContextStore usage + redaction rules (if referenced)
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 
 #### Configuration (keys + defaults)
 
 N/A
 
-- [ ] Policy:
-  - [ ] Transport-specific correlation header extraction/injection policy is owned by `platform/http`, not by `core/foundation`.
-  - [ ] `core/foundation` owns only correlation id generation and provider binding.
-  - [ ] `ContextStore` is baseline runtime infrastructure and MUST NOT be feature-disabled via config
-  - [ ] correlation id provisioning is baseline runtime infrastructure and MUST NOT be feature-disabled via config
-  - [ ] absence of optional writers/readers is represented by “no writes/no reads”, NOT by disabling foundation context services
-  - [ ] `ContextStorePolicy` safe-write guard is baseline runtime safety and MUST always be enabled.
-  - [ ] It MUST NOT be feature-disabled via config.
+- [x] Policy:
+  - [x] Transport-specific correlation header extraction/injection policy is owned by `platform/http`, not by `core/foundation`.
+  - [x] `core/foundation` owns only correlation id generation and provider binding.
+  - [x] `ContextStore` is baseline runtime infrastructure and MUST NOT be feature-disabled via config
+  - [x] correlation id provisioning is baseline runtime infrastructure and MUST NOT be feature-disabled via config
+  - [x] absence of optional writers/readers is represented by “no writes/no reads”, NOT by disabling foundation context services
+  - [x] `ContextStorePolicy` safe-write guard is baseline runtime safety and MUST always be enabled.
+  - [x] It MUST NOT be feature-disabled via config.
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Foundation\Context\ContextStore` (singleton)
-  - [ ] binds: `Coretsia\Contracts\Context\ContextAccessorInterface` → `ContextStore`
-  - [ ] registers: `Coretsia\Foundation\Observability\CorrelationIdProvider`
-  - [ ] binds: `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` → `CorrelationIdProvider`
+- [x] ServiceProvider wiring evidence:
+  - [x] registers: `Coretsia\Foundation\Context\ContextStore` (singleton)
+  - [x] binds: `Coretsia\Contracts\Context\ContextAccessorInterface` → `ContextStore`
+  - [x] registers: `Coretsia\Foundation\Observability\CorrelationIdProvider`
+  - [x] binds: `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` → `CorrelationIdProvider`
+  - [x] adds tag: `<effective reset tag>` priority `<int>` meta `<optional>` for `ContextStore`
+  - [x] adds tag: `kernel.stateful` priority `0` meta `{}` for `ContextStore`
 
-  - [ ] adds tag: `<effective reset tag>` priority `<int>` meta `<optional>` for `ContextStore`
-  - [ ] adds tag: `kernel.stateful` priority `0` meta `{}` for `ContextStore`
-
-- [ ] Policy (cemented):
-  - [ ] `ContextStore` is stateful and therefore MUST be both:
-    - [ ] tagged `kernel.stateful`
-    - [ ] tagged with the effective Foundation reset discovery tag (`foundation.reset.tag`, reserved default `kernel.reset`)
+- [x] Policy (cemented):
+  - [x] `ContextStore` is stateful and therefore MUST be both:
+    - [x] tagged `kernel.stateful`
+    - [x] tagged with the effective Foundation reset discovery tag (`foundation.reset.tag`, reserved default `kernel.reset`)
 
 #### Artifacts / outputs (if applicable)
 
@@ -5893,50 +5894,50 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] request keys when present: `CLIENT_IP|SCHEME|HOST|PATH|USER_AGENT`
-  - [ ] reserved future keys: `REQUEST_ID|PATH_TEMPLATE|HTTP_RESPONSE_FORMAT|ACTOR_ID|TENANT_ID`
-- [ ] Context writes (safe only):
-  - [ ] base keys: `correlation_id`, `uow_id`, `uow_type`
-  - [ ] request/app safe keys only (no headers/cookies/body)
-- [ ] Reset discipline:
-  - [ ] `ContextStore` implements `Coretsia\Contracts\Runtime\ResetInterface`
-  - [ ] `ContextStore` is discovered for reset only through the effective Foundation reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
+- [x] Context reads:
+  - [x] `ContextKeys::CORRELATION_ID`
+  - [x] `ContextKeys::UOW_ID`
+  - [x] `ContextKeys::UOW_TYPE`
+  - [x] request keys when present: `CLIENT_IP|SCHEME|HOST|PATH|USER_AGENT`
+  - [x] reserved future keys: `REQUEST_ID|PATH_TEMPLATE|HTTP_RESPONSE_FORMAT|ACTOR_ID|TENANT_ID`
+- [x] Context writes (safe only):
+  - [x] base keys: `correlation_id`, `uow_id`, `uow_type`
+  - [x] request/app safe keys only (no headers/cookies/body)
+- [x] Reset discipline:
+  - [x] `ContextStore` implements `Coretsia\Contracts\Runtime\ResetInterface`
+  - [x] `ContextStore` is discovered for reset only through the effective Foundation reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
 
 #### Observability (policy-compliant)
 
 - Spans/Metrics:
   - N/A (foundation minimal)
-- [ ] Logs:
-  - [ ] MUST NOT include Authorization/Cookie/session id/tokens/payload/raw SQL
-  - [ ] `correlation_id` is safe and may be logged (not as metric label)
+- [x] Logs:
+  - [x] MUST NOT include Authorization/Cookie/session id/tokens/payload/raw SQL
+  - [x] `correlation_id` is safe and may be logged (not as metric label)
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException` — errorCode `CORETSIA_CONTEXT_WRITE_FORBIDDEN` (optional)
-  - [ ] `Coretsia\Foundation\Context\Exception\ContextInvalidKeyException` — errorCode `CORETSIA_CONTEXT_INVALID_KEY` (optional)
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException` — errorCode `CORETSIA_CONTEXT_WRITE_FORBIDDEN` (optional)
+  - [x] `Coretsia\Foundation\Context\Exception\ContextInvalidKeyException` — errorCode `CORETSIA_CONTEXT_INVALID_KEY` (optional)
 - Mapping note:
   - Foundation context exceptions (if enabled) are mapped/adapted in higher layers
     (e.g., `platform/errors`) — no duplicate mappers here.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] session ids, tokens, cookies, Authorization headers, request bodies
-- [ ] Allowed:
-  - [ ] safe ids: `correlation_id`, `uow_id`, `actor_id` (policy: never email/phone)
+- [x] MUST NOT leak:
+  - [x] session ids, tokens, cookies, Authorization headers, request bodies
+- [x] Allowed:
+  - [x] safe ids: `correlation_id`, `uow_id`, `actor_id` (policy: never email/phone)
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
-- [ ] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-- [ ] If key stability is promised → `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] If Context writes exist → `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+- [x] If key stability is promised → `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5945,55 +5946,54 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
 - Contract:
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
 - Integration:
-  - [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
 - Gates/Arch:
-  - [ ] phpstan/gates enforce no stateful without reset (referenced; owned elsewhere)
+  - [x] phpstan/gates enforce no stateful without reset (referenced; owned elsewhere)
 
 ### DoD (MUST)
 
-- [ ] Key list matches SSoT and is contract-tested
-- [ ] Reset clears context deterministically
-- [ ] No secrets/PII can be written by default (guard or discipline + docs)
-- [ ] Docs updated:
-  - [ ] `docs/ssot/context-store.md`
-  - [ ] `docs/ssot/context-keys.md`
-  - [ ] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
-- [ ] Kernel lifecycle (Phase 1 runtime integration):
-  - [ ] In `1.280.0` KernelRuntime MUST set base keys in ContextStore at beginUoW:
-    `correlation_id`, `uow_id`, `uow_type`.
-  - [ ] In `1.280.0` KernelRuntime MUST execute reset orchestration after UoW
-    via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`.
-- [ ] Typical readers:
-  - [ ] `platform/logging` and `platform/tracing` MAY read `Coretsia\Contracts\Context\ContextAccessorInterface`, but any export to `logs/spans/metrics` remains governed by `docs/ssot/observability.md`
-  - [ ] raw `path`, raw query, headers, cookies, Authorization, tokens, and payloads MUST NOT be exported even if present in `ContextStore`
-  - [ ] use `path_template` or `hash(value)` / `len(value)` when path-like observability data is needed
-  - [ ] `platform/tracing` MAY read correlation/uow keys for trace enrichment.
-- [ ] Typical writers (HTTP layer; owners are HTTP packages/middlewares):
-  - [ ] HTTP middlewares MAY write only safe keys (no headers/cookies/body/payload).
-  - [ ] The canonical key list + writers (high-level) are documented in SSoT:
-    - [ ] `docs/ssot/context-keys.md`
-    - [ ] canonical middleware catalog reference: `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be used only as a Phase 0 lock/alignment input, NOT as the primary reference
-- [ ] Context keys MUST NOT start with `@`.
-- [ ] `ContextStorePolicy` MUST reject any write attempt to a key that starts with `@` deterministically.
-- [ ] Rationale: `@*` namespace reserved for config directives (Phase 0 config_merge semantics); runtime context keys must never collide.
-- [ ] `ContextStore` MUST reject `float` values anywhere (including nested structures if supported):
-  - [ ] reject any `float`
-  - [ ] reject `NaN`, `INF`, `-INF` explicitly
-- [ ] Failure MUST be deterministic and MUST NOT reveal raw values:
-  - [ ] throw `ContextWriteForbiddenException` (or deterministic equivalent)
-  - [ ] message MAY include лише шлях до значення (e.g. `a.b[3].c`)
-  - [ ] message MUST NOT include the value itself
-- [ ] **No unknown ContextKeys (cemented):**
-  - [ ] `ContextStore` MUST reject any key not declared in `ContextKeys` deterministically.
+- [x] Key list matches SSoT and is contract-tested
+- [x] Reset clears context deterministically
+- [x] No secrets/PII can be written by default (guard or discipline + docs)
+- [x] Docs updated:
+  - [x] `docs/ssot/context-store.md`
+  - [x] `docs/ssot/context-keys.md`
+  - [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
+- [x] Kernel lifecycle handoff to `1.280.0` recorded:
+  - [x] `1.280.0` KernelRuntime MUST implement begin-UoW base context writes: `correlation_id`, `uow_id`, `uow_type`.
+  - [x] `1.280.0` KernelRuntime MUST execute reset orchestration after UoW via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`.
+  - [x] `1.210.0` owns only Foundation context infrastructure: `ContextStore`, `ContextBag`, `ContextKeys`, `ContextStorePolicy`, correlation id generation/provider wiring, reset tags, and resettable store behavior.
+- [x] Typical readers:
+  - [x] `platform/logging` and `platform/tracing` MAY read `Coretsia\Contracts\Context\ContextAccessorInterface`, but any export to `logs/spans/metrics` remains governed by `docs/ssot/observability.md`
+  - [x] raw `path`, raw query, headers, cookies, Authorization, tokens, and payloads MUST NOT be exported even if present in `ContextStore`
+  - [x] use `path_template` or `hash(value)` / `len(value)` when path-like observability data is needed
+  - [x] `platform/tracing` MAY read correlation/uow keys for trace enrichment.
+- [x] Typical writers (HTTP layer; owners are HTTP packages/middlewares):
+  - [x] HTTP middlewares MAY write only safe keys (no headers/cookies/body/payload).
+  - [x] The canonical key list + writers (high-level) are documented in SSoT:
+    - [x] `docs/ssot/context-keys.md`
+    - [x] canonical middleware catalog reference: `docs/ssot/http-middleware-catalog.md`
+    - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be used only as a Phase 0 lock/alignment input, NOT as the primary reference
+- [x] Context keys MUST NOT start with `@`.
+- [x] `ContextStorePolicy` MUST reject any write attempt to a key that starts with `@` deterministically.
+- [x] Rationale: `@*` namespace reserved for config directives (Phase 0 config_merge semantics); runtime context keys must never collide.
+- [x] `ContextStore` MUST reject `float` values anywhere (including nested structures if supported):
+  - [x] reject any `float`
+  - [x] reject `NaN`, `INF`, `-INF` explicitly
+- [x] Failure MUST be deterministic and MUST NOT reveal raw values:
+  - [x] throw `ContextWriteForbiddenException` (or deterministic equivalent)
+  - [x] message MAY include лише шлях до значення (e.g. `a.b[3].c`)
+  - [x] message MUST NOT include the value itself
+- [x] **No unknown ContextKeys (cemented):**
+  - [x] `ContextStore` MUST reject any key not declared in `ContextKeys` deterministically.
 
 ---
 
@@ -7715,7 +7715,10 @@ ssot_refs:
   - 1.20.0 — Config roots registry exists and includes root `kernel` owned by `core/kernel`
   - 1.200.0 — Foundation tag/reset infrastructure exists (`TagRegistry`, `ResetOrchestrator`, deterministic ordering).
   - 1.205.0 — Foundation noop observability + logger baseline bindings exist, so KernelRuntime observability remains safely resolvable without `platform/*` packages installed.
-  - 1.210.0 — `ContextStore` + `ContextKeys` exist and are canonical for runtime context.
+  - 1.210.0 — `ContextStore`, `ContextKeys`, `CorrelationIdProviderInterface` binding, Foundation `CorrelationIdProvider`, Foundation id generation, and resettable context infrastructure exist and are canonical for runtime context.
+    - KernelRuntime MUST consume this infrastructure and implement the lifecycle handoff recorded by `1.210.0`:
+      - write base context keys at begin-UoW;
+      - execute Foundation reset orchestration after every UoW.
   - 1.220.0 — canonical clock/ids/stopwatch bindings exist in Foundation.
   - 1.270.0 — UnitOfWork shapes are canonical and provide the exported ctx/result model for hooks.
 
@@ -7842,7 +7845,13 @@ Build-time commands (explicit non-goal for KernelRuntime):
 #### Creates
 
 - [ ] `framework/packages/core/kernel/src/Runtime/KernelRuntimeInterface.php` — UoW begin/after API (no PSR-7)
-- [ ] `framework/packages/core/kernel/src/Runtime/KernelRuntime.php` — orchestrator: hooks + reset + base context keys
+- [ ] `framework/packages/core/kernel/src/Runtime/KernelRuntime.php` — orchestrator:
+  begin-UoW base context writes + hooks + external runtime boundary + after hooks + reset
+  - [ ] MUST write base context keys before the external runtime body is executed:
+    - [ ] `ContextKeys::CORRELATION_ID`
+    - [ ] `ContextKeys::UOW_ID`
+    - [ ] `ContextKeys::UOW_TYPE`
+  - [ ] MUST call `ResetOrchestrator::resetAll()` exactly once after every UoW.
 - [ ] `framework/packages/core/kernel/src/Runtime/Hook/HookInvoker.php` — invokes hooks in **exact TagRegistry order** (kernel MUST NOT re-sort/dedupe/priority)
 - [ ] `framework/packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php` — ensures ctx/result payload is json-like
   - [ ] MUST normalize known internal kernel result objects before generic object rejection.
@@ -7896,11 +7905,14 @@ N/A
   - [ ] binds: `Coretsia\Kernel\Runtime\KernelRuntimeInterface` → `KernelRuntime`
 
 - [ ] `KernelRuntime` MUST receive `ResetOrchestrator` via DI (constructor injection).
-- [ ] `KernelRuntime` MUST receive `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` via DI for canonical `correlation_id` provisioning.
+- [ ] `KernelRuntime` MUST receive `Coretsia\Foundation\Context\ContextStore` via DI for begin-UoW base context writes.
+- [ ] `KernelRuntime` MUST receive `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` via DI for reading an already-current `correlation_id`.
+- [ ] `KernelRuntime` MUST receive `Coretsia\Foundation\Id\CorrelationIdGenerator` via DI for generating a new `correlation_id` when the provider returns `null`.
 - [ ] `KernelRuntime` MUST receive `\Psr\Log\LoggerInterface` via DI for lifecycle summary logs.
 - [ ] `KernelRuntime` MUST receive `\Coretsia\Contracts\Observability\Tracing\TracerPortInterface` via DI for canonical `kernel.uow` span emission.
 - [ ] `KernelRuntime` MUST receive `\Coretsia\Contracts\Observability\Metrics\MeterPortInterface` via DI for canonical `kernel.uow_total` / `kernel.uow_duration_ms` metrics.
 - [ ] `KernelRuntime` MUST receive the default Foundation id generator via DI for canonical `uow_id` generation.
+- [ ] `KernelRuntime` MUST receive `Coretsia\Foundation\Id\IdGeneratorInterface` via DI for canonical `uow_id` generation.
 - [ ] `KernelRuntime` MUST receive `Coretsia\Foundation\Time\Stopwatch` via DI for canonical `durationMs` measurement.
 - [ ] `core/kernel` MUST NOT define `KERNEL_RESET` constants.
   - [ ] Tag constant lives in `core/foundation`: `Coretsia\Foundation\Provider\Tags::KERNEL_RESET`.
@@ -7918,14 +7930,22 @@ N/A
   - [ ] `ContextKeys::UOW_ID`
   - [ ] `ContextKeys::UOW_TYPE`
 - [ ] Context writes (safe only):
-  - [ ] `ContextKeys::CORRELATION_ID` (safe id)
-  - [ ] `ContextKeys::UOW_ID` (safe id)
-  - [ ] `ContextKeys::UOW_TYPE` (`http|cli|queue|scheduler`)
-  - [ ] `correlation_id` MUST come only from `CorrelationIdProviderInterface`
-  - [ ] `uow_id` MUST come only from the default Foundation id generator
-  - [ ] `durationMs` MUST be measured only via `Stopwatch` and exported as non-negative `int`
+  - [ ] KernelRuntime MUST write base context keys at begin-UoW before the external runtime body is executed:
+    - [ ] `ContextKeys::CORRELATION_ID` (safe id)
+    - [ ] `ContextKeys::UOW_ID` (safe id)
+    - [ ] `ContextKeys::UOW_TYPE` (`http|cli|queue|scheduler`)
+  - [ ] `correlation_id` source is provider-first, generator-fallback:
+    - [ ] KernelRuntime MUST first read the current correlation id through `CorrelationIdProviderInterface::correlationId()`.
+    - [ ] If the provider returns a non-empty string, KernelRuntime MUST use that value.
+    - [ ] If the provider returns `null`, KernelRuntime MUST generate a new correlation id through `Coretsia\Foundation\Id\CorrelationIdGenerator`.
+    - [ ] KernelRuntime MUST NOT use `Coretsia\Foundation\Id\IdGeneratorInterface` or `foundation.ids.default` for `correlation_id`.
+    - [ ] Rationale: `correlation_id` remains ULID-backed per `1.210.0`, while `IdGeneratorInterface` is runtime-selectable in `1.220.0`.
+  - [ ] `uow_id` MUST come only from the default Foundation `IdGeneratorInterface`.
+  - [ ] `durationMs` MUST be measured only via `Stopwatch` and exported as non-negative `int`.
 - [ ] Reset discipline:
-  - [ ] reset executed via `ResetOrchestrator` against the effective Foundation reset discovery tag (default `kernel.reset`), opaque to kernel
+  - [ ] reset executed via `ResetOrchestrator::resetAll()` against the effective Foundation reset discovery tag, opaque to kernel
+  - [ ] Kernel MUST NOT know, read, hardcode, or enumerate `foundation.reset.tag` / `kernel.reset`
+  - [ ] ContextStore reset MUST happen through Foundation reset orchestration, not by calling `ContextStore::reset()` directly from KernelRuntime
   - [ ] no secrets/PII/session ids written into ContextStore
 
 #### Observability (policy-compliant)
@@ -7993,6 +8013,8 @@ Kernel повертає/кидає детерміновані винятки/р�
 - [ ] Hook payload normalization invariant:
   - [ ] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
+
+- [ ] Foundation context handoff from `1.210.0`:
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationIdProviderAndDefaultIdGeneratorTest.php`
 
@@ -8048,9 +8070,17 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [ ] exported ctx/result passed to hooks are json-like only
     - [ ] if `UnitOfWorkResult.error` exists internally as `ErrorDescriptor`, hooks MUST receive a normalized json-like `error` map, never an object
 - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
-  - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type` before external runtime body is executed
-- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationIdProviderAndDefaultIdGeneratorTest.php`
-  - [ ] asserts `correlation_id` comes from `CorrelationIdProviderInterface`
+  - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type`
+    before the external runtime body is executed
+  - [ ] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`,
+    and `ContextKeys::UOW_TYPE`
+  - [ ] asserts values pass `ContextStorePolicy`
+
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+  - [ ] asserts `correlation_id` comes from `CorrelationIdProviderInterface` when the provider returns a non-empty string
+  - [ ] asserts KernelRuntime falls back to `Coretsia\Foundation\Id\CorrelationIdGenerator` when the provider returns `null`
+  - [ ] asserts fallback `correlation_id` matches canonical ULID format `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
+  - [ ] asserts fallback `correlation_id` is not affected by `foundation.ids.default`
   - [ ] asserts `uow_id` comes from the default Foundation `IdGeneratorInterface`
 
 - Gates/Arch:
@@ -8088,7 +8118,19 @@ Kernel повертає/кидає детерміновані винятки/р�
 - [ ] Kernel MUST NOT care whether enhanced reset (1.250.0) is enabled.
   - [ ] Kernel always calls `ResetOrchestrator::resetAll()`.
   - [ ] Ordering + meta parsing is entirely owned by `core/foundation`.
-- [ ] Base context keys are written at `beginUoW` from canonical providers only (`correlation_id` via `CorrelationIdProviderInterface`, `uow_id` via Foundation default `IdGeneratorInterface`)
+- [ ] Foundation context lifecycle handoff from `1.210.0` implemented:
+  - [ ] Base context keys are written at begin-UoW before the external runtime body is executed:
+    - [ ] `correlation_id`
+    - [ ] `uow_id`
+    - [ ] `uow_type`
+  - [ ] `correlation_id` is resolved provider-first:
+    - [ ] use `CorrelationIdProviderInterface::correlationId()` when it returns a non-empty string;
+    - [ ] otherwise generate through `Coretsia\Foundation\Id\CorrelationIdGenerator`.
+  - [ ] `correlation_id` MUST NOT use `Coretsia\Foundation\Id\IdGeneratorInterface` and MUST NOT be affected by `foundation.ids.default`.
+  - [ ] `uow_id` is sourced from the default Foundation `IdGeneratorInterface`.
+  - [ ] `uow_type` is the normalized runtime operation type.
+  - [ ] Context reset is executed after UoW only through `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator::resetAll(): void`.
+  - [ ] KernelRuntime never calls `ContextStore::reset()` directly.
 
 ---
 

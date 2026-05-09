@@ -16,9 +16,9 @@
 
 `devtools/cli-spikes` is the **devtools-only deterministic command pack** for the Phase 0 `coretsia` CLI.
 
-It provides command adapters for repository diagnostics, spike execution, deptrac graph rendering, and workspace sync operations.
+It provides thin command adapters for repository diagnostics, spike execution, deptrac graph rendering, and workspace sync operations.
 
-These commands are intended for development and CI workflows only. They MUST NOT become production runtime dependencies.
+This package is intended only for Coretsia monorepo development and CI workflows. It remains coupled to tools-only spike support under `framework/tools/spikes/**` and MUST NOT be used as a standalone production runtime dependency.
 
 ## Package identity
 
@@ -241,6 +241,9 @@ This package does not provide:
 
 ## References
 
-- `docs/roadmap/ROADMAP.md`
-- `docs/ssot/tags.md`
-- `docs/ssot/config-roots.md`
+- [Coretsia monorepo](https://github.com/coretsia/monorepo)
+- [CLI Spikes package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/devtools/cli-spikes)
+- [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
+- [Tag Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tags.md)
+- [Config Roots SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-roots.md)

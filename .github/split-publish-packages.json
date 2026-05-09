@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "coretsia.splitPublishPackages.v1",
+  "packages": [
+    {
+      "package_id": "core/contracts"
+    },
+    {
+      "package_id": "core/dto-attribute"
+    },
+    {
+      "package_id": "devtools/internal-toolkit"
+    }
+  ]
+}

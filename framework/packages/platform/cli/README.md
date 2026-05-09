@@ -23,6 +23,37 @@ This package provides a **kernel-free** CLI runtime that:
 - enforces **security redaction** by default,
 - is scoped to the **Coretsia monorepo layout** in Phase 0 (no vendor-only install promises).
 
+## Package identity
+
+- **Path:** `framework/packages/platform/cli`
+- **Package id:** `platform/cli`
+- **Composer name:** `coretsia/platform-cli`
+- **Module id:** `platform.cli`
+- **Namespace:** `Coretsia\Platform\Cli\*` (PSR-4: `src/`)
+- **Kind:** runtime
+- **Lifecycle:** Phase 0 prod-safe CLI base
+
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
+
+Per-package independent versions MUST NOT be used.
+
+## Dependency policy
+
+This package is runtime-safe but intentionally kernel-free in Phase 0.
+
+- **Depends on:**
+  - `core/contracts`
+- **Forbidden:**
+  - `core/kernel`
+  - `core/foundation`
+  - `platform/http`
+  - `integrations/*`
+  - `devtools/*` as runtime dependencies
+
+`platform/cli` MAY load allowlisted devtools presets only when they are installed and explicitly supported by the Phase 0 config merge policy.
+
+Before public stable release, public Composer dependencies MUST use SemVer constraints and MUST NOT use `dev-main`.
+
 ## Scope (Phase 0 constraints)
 
 - **No `core/kernel` dependency** (compile-time forbidden).

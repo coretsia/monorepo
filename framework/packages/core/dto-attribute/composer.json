@@ -1,14 +1,17 @@
 {
   "name": "coretsia/core-dto-attribute",
   "type": "library",
-  "description": "Coretsia DTO marker attribute package",
+  "description": "Canonical Coretsia DTO marker attribute for explicit transport-shape opt-in.",
   "keywords": [
     "coretsia",
     "php",
+    "php84",
     "framework",
     "dto",
+    "data-transfer-object",
     "attribute",
     "marker",
+    "opt-in",
     "transport",
     "policy"
   ],

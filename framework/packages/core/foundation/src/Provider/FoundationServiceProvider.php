@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Provider;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface;
@@ -26,7 +28,11 @@ use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\CorrelationIdGenerator;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
+use Coretsia\Foundation\Observability\CorrelationIdProvider;
 use Coretsia\Foundation\Observability\Errors\NoopErrorReporter;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Profiling\NoopProfiler;
@@ -49,6 +55,12 @@ use Psr\Log\LoggerInterface;
  * - `ResetOrchestrator` is created through `FoundationServiceFactory`;
  * - noop observability and logging ports are registered as explicit instances
  *   so they remain resolvable without relying on concrete-class autowiring;
+ * - context and correlation services are registered as explicit instances so
+ *   they remain resolvable without relying on concrete-class autowiring;
+ * - `ContextStore` is registered once and the context accessor binding points
+ *   to the same object instance;
+ * - `ContextStore` is tagged with the effective Foundation reset discovery tag
+ *   and with the fixed `kernel.stateful` enforcement marker;
  * - `DeterministicOrder` is not registered because it is a stateless static
  *   utility and the epic marks service registration for it as optional.
  *
@@ -61,8 +73,26 @@ final class FoundationServiceProvider implements ServiceProviderInterface
     {
         $tagRegistry = $builder->tagRegistry();
         $foundationConfig = $builder->configRoot('foundation');
+        $effectiveResetTag = FoundationServiceFactory::effectiveResetTag($foundationConfig);
+
+        $contextStore = new ContextStore();
+
+        $ulids = new UlidGenerator();
+        $correlationIds = new CorrelationIdGenerator($ulids);
+        $correlationIdProvider = new CorrelationIdProvider($contextStore);
 
         $builder->instance(TagRegistry::class, $tagRegistry);
+
+        $builder->instance(ContextStore::class, $contextStore);
+        $builder->instance(ContextAccessorInterface::class, $contextStore);
+
+        $builder->instance(UlidGenerator::class, $ulids);
+        $builder->instance(CorrelationIdGenerator::class, $correlationIds);
+        $builder->instance(CorrelationIdProvider::class, $correlationIdProvider);
+        $builder->instance(CorrelationIdProviderInterface::class, $correlationIdProvider);
+
+        $builder->tag($effectiveResetTag, ContextStore::class);
+        $builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);
 
         $builder->instance(LoggerInterface::class, new NoopLogger());
         $builder->instance(TracerPortInterface::class, new NoopTracer());

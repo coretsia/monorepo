@@ -14,7 +14,11 @@
 
 # coretsia/core-dto-attribute
 
-`core/dto-attribute` provides the canonical DTO marker attribute for the Coretsia Framework monorepo.
+`coretsia/core-dto-attribute` provides the canonical DTO marker attribute for explicit Coretsia DTO opt-in.
+
+The package is intentionally tiny: it defines the marker only and does not provide validation, serialization, hydration, normalization, mapping, dependency injection, runtime discovery, or transport execution.
+
+This repository is a split package generated from the Coretsia monorepo package `framework/packages/core/dto-attribute`.
 
 **Scope:** explicit DTO opt-in marker only.
 
@@ -22,15 +26,18 @@
 
 ## Package identity
 
-- **Path:** `framework/packages/core/dto-attribute`
+- **Monorepo source path:** `framework/packages/core/dto-attribute`
+- **Split repository:** `coretsia/core-dto-attribute`
 - **Package id:** `core/dto-attribute`
 - **Composer name:** `coretsia/core-dto-attribute`
 - **Namespace:** `Coretsia\Dto\Attribute\*` (PSR-4: `src/Attribute/`)
 - **Kind:** library
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Versioning is monorepo-wide.
 
-Per-package independent versions **MUST NOT** be used.
+The monorepo tag `vMAJOR.MINOR.PATCH` is the single version source of truth, and the split repository receives the same tag for the corresponding package subtree.
+
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
@@ -74,11 +81,13 @@ A DTO is not:
 - a result object by default;
 - a contract shape by default.
 
-Marking a class as DTO means the class must follow the canonical DTO rules documented in:
+Marking a class as DTO means the class must follow the canonical DTO rules documented in the Coretsia monorepo:
 
 ```text
 docs/ssot/dto-policy.md
 ```
+
+In this split repository, that document is not copied locally. The monorepo remains the source of truth for SSoT policy documents.
 
 ## Design constraints
 
@@ -141,5 +150,8 @@ Redaction, validation, and safe diagnostics are owner-package responsibilities.
 
 ## References
 
-- `docs/ssot/dto-policy.md`
-- `docs/roadmap/ROADMAP.md`
+- [Coretsia monorepo](https://github.com/coretsia/monorepo)
+- [DTO Attribute package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/dto-attribute)
+- [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
+- [DTO policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/dto-policy.md)

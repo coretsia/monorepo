@@ -24,7 +24,8 @@ Coretsia/
 │   │   ├── ci.yml
 │   │   ├── release.yml
 │   │   └── split-publish.yml
-│   └── pull_request_template.md
+│   ├── pull_request_template.md
+│   └── split-publish-packages.json
 ├── docs/
 │   ├── adr/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md

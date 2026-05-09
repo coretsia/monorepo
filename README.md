@@ -112,7 +112,7 @@ Manual edits are forbidden by policy and enforced by pre-commit/CI drift checks.
 
 - The only spikes root is `framework/tools/spikes/**`.
 - Spikes must not import runtime packages (`core/*`, `platform/*`, `integrations/*`) nor path-import `framework/packages/**/src/**`.
-- Single exception: `coretsia/internal-toolkit` (tooling-only) used only via Composer autoload.
+- Single exception: `coretsia/devtools-internal-toolkit` (tooling-only) used only via Composer autoload.
 
 ## Requirements
 
@@ -142,6 +142,7 @@ composer ci
 - [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
 - [Dependency graph (conceptual; truth is in SSoT)](docs/guides/dependency-graph.md)
 - [Releasing (GitHub Release + Packagist)](docs/guides/releasing.md)
+- [Packagist split publishing](docs/guides/packagist-split-publishing-guide.md)
 
 ### References
 

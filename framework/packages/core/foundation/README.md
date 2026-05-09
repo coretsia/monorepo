@@ -20,7 +20,7 @@
 
 **Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
-## Package identity (Prelude rules)
+## Package identity
 
 - **Path:** `framework/packages/core/foundation`
 - **Package id:** `core/foundation`

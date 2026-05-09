@@ -26,22 +26,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  core-contracts:
-    name: "split publish / core/contracts"
+  prepare:
+    name: "prepare split publish matrix"
     runs-on: ubuntu-latest
 
-    env:
-      LAYER: core
-      SLUG: contracts
-      PREFIX: framework/packages/core/contracts
-      SPLIT_REPO: coretsia/core-contracts
-      SPLIT_DEPLOY_KEY: ${{ secrets.SPLIT_CORE_CONTRACTS_DEPLOY_KEY }}
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
 
     steps:
       - name: "Checkout: monorepo"
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: "Setup: PHP 8.4"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          tools: composer:v2
 
       - name: "Validate release tag invariants"
         if: ${{ github.ref_type == 'tag' }}
@@ -80,13 +83,258 @@ jobs:
 
           rm -f "${NOTES_FILE}"
 
+      - name: "Validate release tag points to main HEAD"
+        if: ${{ github.ref_type == 'tag' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+
+          TAG_COMMIT="$(git rev-list -n 1 "${TAG}")"
+          MAIN_COMMIT="$(git rev-parse refs/remotes/origin/main)"
+
+          if [ "${TAG_COMMIT}" != "${MAIN_COMMIT}" ]; then
+            echo "Release tag does not point to origin/main HEAD: ${TAG}" >&2
+            echo "Tag commit:  ${TAG_COMMIT}" >&2
+            echo "Main commit: ${MAIN_COMMIT}" >&2
+            exit 1
+          fi
+
+      - name: "Generate deterministic split plan evidence"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf ci
+          mkdir -p ci
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            php .github/scripts/split-plan.php \
+              --out=ci/split-plan.A.json \
+              --tag="${GITHUB_REF_NAME}"
+
+            php .github/scripts/split-plan.php \
+              --out=ci/split-plan.B.json \
+              --tag="${GITHUB_REF_NAME}"
+          else
+            php .github/scripts/split-plan.php \
+              --out=ci/split-plan.A.json
+
+            php .github/scripts/split-plan.php \
+              --out=ci/split-plan.B.json
+          fi
+
+          sha256sum ci/split-plan.A.json | awk '{print $1}' > ci/split-plan.A.sha256
+          sha256sum ci/split-plan.B.json | awk '{print $1}' > ci/split-plan.B.sha256
+
+          diff -u ci/split-plan.A.sha256 ci/split-plan.B.sha256
+
+          mv ci/split-plan.A.json ci/split-plan.json
+          sha256sum ci/split-plan.json | awk '{print $1}' > ci/split-plan.sha256
+
+          rm -f ci/split-plan.B.json ci/split-plan.A.sha256 ci/split-plan.B.sha256
+
+      - name: "Build publish matrix from allowlist"
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f ".github/split-publish-packages.json"
+          test -f "ci/split-plan.json"
+
+          MATRIX="$(
+            php -r '
+              $allowPath = ".github/split-publish-packages.json";
+              $planPath = "ci/split-plan.json";
+
+              $allowRaw = file_get_contents($allowPath);
+              if ($allowRaw === false) {
+                  fwrite(STDERR, "Cannot read {$allowPath}\n");
+                  exit(1);
+              }
+
+              $planRaw = file_get_contents($planPath);
+              if ($planRaw === false) {
+                  fwrite(STDERR, "Cannot read {$planPath}\n");
+                  exit(1);
+              }
+
+              $allow = json_decode($allowRaw, true, 512, JSON_THROW_ON_ERROR);
+              $plan = json_decode($planRaw, true, 512, JSON_THROW_ON_ERROR);
+
+              if (!is_array($allow) || ($allow["schemaVersion"] ?? null) !== "coretsia.splitPublishPackages.v1") {
+                  fwrite(STDERR, "Invalid split publish allowlist schema\n");
+                  exit(1);
+              }
+
+              if (!is_array($plan) || ($plan["schemaVersion"] ?? null) !== "coretsia.splitPlan.v1") {
+                  fwrite(STDERR, "Invalid split plan schema\n");
+                  exit(1);
+              }
+
+              $allowPackages = $allow["packages"] ?? null;
+              if (!is_array($allowPackages)) {
+                  fwrite(STDERR, "Invalid allowlist packages\n");
+                  exit(1);
+              }
+
+              $planPackages = $plan["packages"] ?? null;
+              if (!is_array($planPackages)) {
+                  fwrite(STDERR, "Invalid split plan packages\n");
+                  exit(1);
+              }
+
+              $byId = [];
+              foreach ($planPackages as $pkg) {
+                  if (!is_array($pkg)) {
+                      fwrite(STDERR, "Invalid split plan package entry\n");
+                      exit(1);
+                  }
+
+                  $id = $pkg["package_id"] ?? null;
+                  if (!is_string($id) || $id === "") {
+                      fwrite(STDERR, "Invalid split plan package_id\n");
+                      exit(1);
+                  }
+
+                  $byId[$id] = $pkg;
+              }
+
+              $seen = [];
+              $include = [];
+
+              foreach ($allowPackages as $entry) {
+                  if (!is_array($entry)) {
+                      fwrite(STDERR, "Invalid allowlist package entry\n");
+                      exit(1);
+                  }
+
+                  $id = $entry["package_id"] ?? null;
+                  $secretName = $entry["secret_name"] ?? null;
+
+                  if (!is_string($id) || $id === "") {
+                      fwrite(STDERR, "Allowlist package_id must be a non-empty string\n");
+                      exit(1);
+                  }
+
+                  if (isset($seen[$id])) {
+                      fwrite(STDERR, "Duplicate package_id in allowlist: {$id}\n");
+                      exit(1);
+                  }
+                  $seen[$id] = true;
+
+                  if (!is_string($secretName) || !preg_match("/\ASPLIT_[A-Z0-9_]+_DEPLOY_KEY\z/", $secretName)) {
+                      fwrite(STDERR, "Invalid secret_name for {$id}: expected SPLIT_*_DEPLOY_KEY\n");
+                      exit(1);
+                  }
+
+                  if (!isset($byId[$id])) {
+                      fwrite(STDERR, "Allowlisted package is missing from split plan: {$id}\n");
+                      exit(1);
+                  }
+
+                  $pkg = $byId[$id];
+
+                  $pathPrefix = $pkg["pathPrefix"] ?? null;
+                  $splitRepo = $pkg["splitRepo"] ?? null;
+                  $composerName = $pkg["composerName"] ?? null;
+
+                  if (!is_string($pathPrefix) || $pathPrefix === "" || !str_ends_with($pathPrefix, "/")) {
+                      fwrite(STDERR, "Invalid pathPrefix for {$id}\n");
+                      exit(1);
+                  }
+
+                  if (!is_string($splitRepo) || $splitRepo === "") {
+                      fwrite(STDERR, "Invalid splitRepo for {$id}\n");
+                      exit(1);
+                  }
+
+                  if (!is_string($composerName) || $composerName === "") {
+                      fwrite(STDERR, "Invalid composerName for {$id}\n");
+                      exit(1);
+                  }
+
+                  $parts = explode("/", $id, 2);
+                  if (count($parts) !== 2) {
+                      fwrite(STDERR, "Invalid package_id format: {$id}\n");
+                      exit(1);
+                  }
+
+                  [$layer, $slug] = $parts;
+
+                  $include[] = [
+                      "package_id" => $id,
+                      "layer" => $layer,
+                      "slug" => $slug,
+                      "prefix" => rtrim($pathPrefix, "/"),
+                      "split_repo" => $splitRepo,
+                      "composer_name" => $composerName,
+                      "secret_name" => $secretName,
+                  ];
+              }
+
+              usort($include, static fn(array $a, array $b): int => strcmp($a["package_id"], $b["package_id"]));
+
+              if ($include === []) {
+                  fwrite(STDERR, "Split publish allowlist is empty\n");
+                  exit(1);
+              }
+
+              echo json_encode(
+                  ["include" => $include],
+                  JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+              );
+            '
+          )"
+
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Upload CI evidence artifacts (split plan)"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "split-publish-plan-${{ github.ref_name }}"
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ci/split-plan.json
+            ci/split-plan.sha256
+
+  publish:
+    name: "split publish / ${{ matrix.package_id }}"
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    env:
+      LAYER: ${{ matrix.layer }}
+      SLUG: ${{ matrix.slug }}
+      PREFIX: ${{ matrix.prefix }}
+      SPLIT_REPO: ${{ matrix.split_repo }}
+      COMPOSER_NAME: ${{ matrix.composer_name }}
+      SECRET_NAME: ${{ matrix.secret_name }}
+      SPLIT_DEPLOY_KEY: ${{ secrets[matrix.secret_name] }}
+
+    steps:
+      - name: "Checkout: monorepo"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: "Validate split publishing secret exists"
         shell: bash
         run: |
           set -euo pipefail
 
           if [ -z "${SPLIT_DEPLOY_KEY}" ]; then
-            echo "Missing required Actions secret: SPLIT_CORE_CONTRACTS_DEPLOY_KEY" >&2
+            echo "Missing required Actions secret: ${SECRET_NAME}" >&2
             exit 1
           fi
 
@@ -101,15 +349,18 @@ jobs:
           printf '%s\n' "${SPLIT_DEPLOY_KEY}" > ~/.ssh/split_deploy_key
           chmod 600 ~/.ssh/split_deploy_key
 
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          printf '%s\n' \
+            'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+            'github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=' \
+            'github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=' \
+            > ~/.ssh/known_hosts
+
           chmod 644 ~/.ssh/known_hosts
 
       - name: "Validate package composer identity"
         shell: bash
         run: |
           set -euo pipefail
-
-          EXPECTED="coretsia/${LAYER}-${SLUG}"
 
           ACTUAL="$(
             php -r '
@@ -125,8 +376,8 @@ jobs:
             '
           )"
 
-          if [ "${ACTUAL}" != "${EXPECTED}" ]; then
-            echo "Composer name mismatch: expected ${EXPECTED}, got ${ACTUAL}" >&2
+          if [ "${ACTUAL}" != "${COMPOSER_NAME}" ]; then
+            echo "Composer name mismatch: expected ${COMPOSER_NAME}, got ${ACTUAL}" >&2
             exit 1
           fi
 
@@ -162,19 +413,25 @@ jobs:
           set -euo pipefail
 
           TAG="${GITHUB_REF_NAME}"
+          SPLIT_REMOTE="git@github.com:${SPLIT_REPO}.git"
+          SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'
 
           if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release tag: ${TAG}" >&2
             exit 1
           fi
 
-          # Ensure split main is at least up to date with this package state.
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
-            git push "git@github.com:${SPLIT_REPO}.git" \
+          if GIT_SSH_COMMAND="${SSH_COMMAND}" \
+            git ls-remote --exit-code --tags "${SPLIT_REMOTE}" "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Split tag already exists in ${SPLIT_REPO}: ${TAG}" >&2
+            echo "Refusing to overwrite immutable release tag." >&2
+            exit 1
+          fi
+
+          GIT_SSH_COMMAND="${SSH_COMMAND}" \
+            git push "${SPLIT_REMOTE}" \
             "${SPLIT_BRANCH}:refs/heads/main"
 
-          # The monorepo tag already exists locally, but it points to the monorepo commit.
-          # The split repo tag must point to the split commit, so recreate the local tag.
           git tag -d "${TAG}" 2>/dev/null || true
 
           git \
@@ -182,8 +439,8 @@ jobs:
             -c user.email="actions@users.noreply.github.com" \
             tag -a "${TAG}" -m "${TAG}" "${SPLIT_BRANCH}"
 
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
-            git push "git@github.com:${SPLIT_REPO}.git" \
+          GIT_SSH_COMMAND="${SSH_COMMAND}" \
+            git push "${SPLIT_REMOTE}" \
             "refs/tags/${TAG}:refs/tags/${TAG}"
 
       - name: "Cleanup SSH key"

@@ -214,7 +214,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "393b150524bc191fc46edef9360e073d97839997"
+                "reference": "73677ae65c624449aa72c9bcf3f14a49f144392f"
             },
             "require": {
                 "php": "^8.4"
@@ -245,14 +245,17 @@
                     "homepage": "https://coretsia.dev/"
                 }
             ],
-            "description": "Coretsia DTO marker attribute package",
+            "description": "Canonical Coretsia DTO marker attribute for explicit transport-shape opt-in.",
             "keywords": [
                 "attribute",
                 "coretsia",
+                "data-transfer-object",
                 "dto",
                 "framework",
                 "marker",
+                "opt-in",
                 "php",
+                "php84",
                 "policy",
                 "transport"
             ],
@@ -391,7 +394,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "59df8880f6e828ad3120a377bdacf88fa24a5296"
+                "reference": "712da78e0498f30622665bd5431637841caea0e1"
             },
             "require": {
                 "ext-json": "*",
@@ -423,11 +426,17 @@
                     "homepage": "https://coretsia.dev/"
                 }
             ],
-            "description": "Coretsia tooling-only deterministic helpers (Slug/Path/Json). Not for runtime packages.",
+            "description": "Tooling-only deterministic helpers for Coretsia devtools. Not for runtime packages.",
             "keywords": [
                 "coretsia",
                 "determinism",
+                "devtools",
                 "internal-toolkit",
+                "path-normalization",
+                "php",
+                "php84",
+                "slug",
+                "stable-json",
                 "tooling"
             ],
             "transport-options": {

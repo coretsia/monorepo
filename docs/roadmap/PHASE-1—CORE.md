@@ -5968,13 +5968,9 @@ N/A
   - [x] `docs/ssot/context-keys.md`
   - [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 - [x] Kernel lifecycle handoff to `1.280.0` recorded:
-  - [x] `1.280.0` KernelRuntime MUST implement begin-UoW base context writes:
-    `correlation_id`, `uow_id`, `uow_type`.
-  - [x] `1.280.0` KernelRuntime MUST execute reset orchestration after UoW
-    via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`.
-  - [x] `1.210.0` owns only Foundation context infrastructure:
-    `ContextStore`, `ContextBag`, `ContextKeys`, `ContextStorePolicy`,
-    correlation id generation/provider wiring, reset tags, and resettable store behavior.
+  - [x] `1.280.0` KernelRuntime MUST implement begin-UoW base context writes: `correlation_id`, `uow_id`, `uow_type`.
+  - [x] `1.280.0` KernelRuntime MUST execute reset orchestration after UoW via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`.
+  - [x] `1.210.0` owns only Foundation context infrastructure: `ContextStore`, `ContextBag`, `ContextKeys`, `ContextStorePolicy`, correlation id generation/provider wiring, reset tags, and resettable store behavior.
 - [x] Typical readers:
   - [x] `platform/logging` and `platform/tracing` MAY read `Coretsia\Contracts\Context\ContextAccessorInterface`, but any export to `logs/spans/metrics` remains governed by `docs/ssot/observability.md`
   - [x] raw `path`, raw query, headers, cookies, Authorization, tokens, and payloads MUST NOT be exported even if present in `ContextStore`

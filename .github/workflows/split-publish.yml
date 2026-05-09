@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: "Setup: PHP 8.4"
         uses: shivammathur/setup-php@v2
@@ -201,6 +202,11 @@ jobs:
                       exit(1);
                   }
 
+                  if (isset($byId[$id])) {
+                      fwrite(STDERR, "Duplicate package_id in split plan: {$id}\n");
+                      exit(1);
+                  }
+
                   $byId[$id] = $pkg;
               }
 
@@ -214,10 +220,15 @@ jobs:
                   }
 
                   $id = $entry["package_id"] ?? null;
-                  $secretName = $entry["secret_name"] ?? null;
 
                   if (!is_string($id) || $id === "") {
                       fwrite(STDERR, "Allowlist package_id must be a non-empty string\n");
+                      exit(1);
+                  }
+
+                  $entryKeys = array_keys($entry);
+                  if ($entryKeys !== ["package_id"]) {
+                      fwrite(STDERR, "Invalid allowlist keys for {$id}: expected only package_id\n");
                       exit(1);
                   }
 
@@ -226,11 +237,6 @@ jobs:
                       exit(1);
                   }
                   $seen[$id] = true;
-
-                  if (!is_string($secretName) || !preg_match("/\ASPLIT_[A-Z0-9_]+_DEPLOY_KEY\z/", $secretName)) {
-                      fwrite(STDERR, "Invalid secret_name for {$id}: expected SPLIT_*_DEPLOY_KEY\n");
-                      exit(1);
-                  }
 
                   if (!isset($byId[$id])) {
                       fwrite(STDERR, "Allowlisted package is missing from split plan: {$id}\n");
@@ -266,14 +272,23 @@ jobs:
 
                   [$layer, $slug] = $parts;
 
+                  $repoParts = explode("/", $splitRepo, 2);
+                  if (count($repoParts) !== 2 || $repoParts[0] === "" || $repoParts[1] === "") {
+                      fwrite(STDERR, "Invalid splitRepo format for {$id}: {$splitRepo}\n");
+                      exit(1);
+                  }
+
+                  [$splitOwner, $splitRepoName] = $repoParts;
+
                   $include[] = [
                       "package_id" => $id,
                       "layer" => $layer,
                       "slug" => $slug,
                       "prefix" => rtrim($pathPrefix, "/"),
                       "split_repo" => $splitRepo,
+                      "split_owner" => $splitOwner,
+                      "split_repo_name" => $splitRepoName,
                       "composer_name" => $composerName,
-                      "secret_name" => $secretName,
                   ];
               }
 
@@ -318,44 +333,16 @@ jobs:
       SLUG: ${{ matrix.slug }}
       PREFIX: ${{ matrix.prefix }}
       SPLIT_REPO: ${{ matrix.split_repo }}
+      SPLIT_OWNER: ${{ matrix.split_owner }}
+      SPLIT_REPO_NAME: ${{ matrix.split_repo_name }}
       COMPOSER_NAME: ${{ matrix.composer_name }}
-      SECRET_NAME: ${{ matrix.secret_name }}
-      SPLIT_DEPLOY_KEY: ${{ secrets[matrix.secret_name] }}
 
     steps:
       - name: "Checkout: monorepo"
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: "Validate split publishing secret exists"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ -z "${SPLIT_DEPLOY_KEY}" ]; then
-            echo "Missing required Actions secret: ${SECRET_NAME}" >&2
-            exit 1
-          fi
-
-      - name: "Configure SSH for split repository"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          printf '%s\n' "${SPLIT_DEPLOY_KEY}" > ~/.ssh/split_deploy_key
-          chmod 600 ~/.ssh/split_deploy_key
-
-          printf '%s\n' \
-            'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
-            'github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=' \
-            'github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=' \
-            > ~/.ssh/known_hosts
-
-          chmod 644 ~/.ssh/known_hosts
+          persist-credentials: false
 
       - name: "Validate package composer identity"
         shell: bash
@@ -396,55 +383,59 @@ jobs:
 
           echo "SPLIT_BRANCH=${SPLIT_BRANCH}" >> "${GITHUB_ENV}"
 
+      - name: "Create GitHub App token for split repository"
+        id: split-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SPLIT_PUBLISH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SPLIT_PUBLISH_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.split_owner }}
+          repositories: ${{ matrix.split_repo_name }}
+          permission-contents: write
+
       - name: "Push split main on monorepo main push"
         if: ${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
         shell: bash
+        env:
+          SPLIT_TOKEN: ${{ steps.split-token.outputs.token }}
         run: |
           set -euo pipefail
 
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
-            git push "git@github.com:${SPLIT_REPO}.git" \
+          git push \
+            "https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git" \
             "${SPLIT_BRANCH}:refs/heads/main"
 
       - name: "Push split release tag on monorepo tag push"
         if: ${{ github.ref_type == 'tag' }}
         shell: bash
+        env:
+          SPLIT_TOKEN: ${{ steps.split-token.outputs.token }}
         run: |
           set -euo pipefail
 
           TAG="${GITHUB_REF_NAME}"
-          SPLIT_REMOTE="git@github.com:${SPLIT_REPO}.git"
-          SSH_COMMAND='ssh -i ~/.ssh/split_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'
+          SPLIT_REMOTE="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
 
           if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release tag: ${TAG}" >&2
             exit 1
           fi
 
-          if GIT_SSH_COMMAND="${SSH_COMMAND}" \
-            git ls-remote --exit-code --tags "${SPLIT_REMOTE}" "refs/tags/${TAG}" >/dev/null 2>&1; then
+          if git ls-remote --exit-code --tags "${SPLIT_REMOTE}" "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Split tag already exists in ${SPLIT_REPO}: ${TAG}" >&2
             echo "Refusing to overwrite immutable release tag." >&2
             exit 1
           fi
 
-          GIT_SSH_COMMAND="${SSH_COMMAND}" \
-            git push "${SPLIT_REMOTE}" \
+          git push "${SPLIT_REMOTE}" \
             "${SPLIT_BRANCH}:refs/heads/main"
 
           git tag -d "${TAG}" 2>/dev/null || true
 
           git \
-            -c user.name="coretsia-split-publisher" \
+            -c user.name="coretsia-split-publisher[bot]" \
             -c user.email="actions@users.noreply.github.com" \
             tag -a "${TAG}" -m "${TAG}" "${SPLIT_BRANCH}"
 
-          GIT_SSH_COMMAND="${SSH_COMMAND}" \
-            git push "${SPLIT_REMOTE}" \
+          git push "${SPLIT_REMOTE}" \
             "refs/tags/${TAG}:refs/tags/${TAG}"
-
-      - name: "Cleanup SSH key"
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          rm -f ~/.ssh/split_deploy_key

@@ -87,8 +87,7 @@ The file MUST use this shape:
   "schemaVersion": "coretsia.splitPublishPackages.v1",
   "packages": [
     {
-      "package_id": "<layer>/<slug>",
-      "secret_name": "SPLIT_<LAYER>_<SLUG_WITH_HYPHENS_REPLACED_BY_UNDERSCORES>_DEPLOY_KEY"
+      "package_id": "<layer>/<slug>"
     }
   ]
 }
@@ -100,22 +99,52 @@ The file MUST use this shape:
 <layer>/<slug>
 ```
 
-`secret_name` MUST be derived from the package id by:
+Example:
 
-```text
-SPLIT_ + uppercase(<layer>) + "_" + uppercase(<slug with "-" replaced by "_">) + "_DEPLOY_KEY"
+```json
+{
+  "schemaVersion": "coretsia.splitPublishPackages.v1",
+  "packages": [
+    {
+      "package_id": "core/contracts"
+    },
+    {
+      "package_id": "core/dto-attribute"
+    },
+    {
+      "package_id": "devtools/internal-toolkit"
+    }
+  ]
+}
 ```
 
-Example derivation:
+The allowlist MUST NOT contain deploy-key secret names or any other authentication material.
+
+Authentication is provided by the Coretsia split publisher GitHub App.
+
+The workflow uses:
 
 ```text
-package_id:  core/dto-attribute
-secret_name: SPLIT_CORE_DTO_ATTRIBUTE_DEPLOY_KEY
+vars.SPLIT_PUBLISH_APP_CLIENT_ID
+secrets.SPLIT_PUBLISH_APP_PRIVATE_KEY
 ```
+
+The workflow creates a short-lived GitHub App installation token for each target split repository and pushes over HTTPS.
 
 Each allowlisted package MUST also exist in the deterministic split plan generated from the monorepo package tree.
 
-The workflow derives `pathPrefix`, split repository name, Composer package name, layer, and slug from the split plan. The allowlist stores only the package id and the deploy-key secret name.
+The workflow derives `pathPrefix`, split repository owner, split repository name, Composer package name, layer, and slug from the split plan. The allowlist stores only the package id.
+
+The split publisher GitHub App MUST be installed on every selected split repository that can receive automated pushes.
+
+The monorepo repository Actions allowlist MUST allow:
+
+```text
+actions/checkout@v6
+actions/upload-artifact@v7
+actions/create-github-app-token@v3
+shivammathur/setup-php@v2
+```
 
 ### Main branch sync
 
@@ -125,7 +154,8 @@ When a pull request is squash-merged into monorepo `main`:
 push to monorepo main
   -> split-publish.yml runs
   -> each allowlisted package subtree is split
-  -> each split repository main branch is updated
+  -> GitHub App installation token is created for each target split repository
+  -> each split repository main branch is updated over HTTPS
   -> Packagist sees updated dev-main for each submitted package
 ```
 
@@ -137,7 +167,8 @@ When a monorepo release tag is pushed:
 push monorepo tag vMAJOR.MINOR.PATCH
   -> release.yml validates release invariants and creates GitHub Release
   -> split-publish.yml splits each allowlisted package subtree at that tag
-  -> split-publish.yml pushes the same tag to each allowlisted split repository
+  -> GitHub App installation token is created for each target split repository
+  -> split-publish.yml pushes main and the same tag to each allowlisted split repository over HTTPS
   -> Packagist exposes the stable Composer version for each submitted package
 ```
 
@@ -192,8 +223,8 @@ perform:
 ```text
 1. Verify package identity with split-plan.
 2. Create public empty split repository: coretsia/<layer>-<slug>.
-3. Add a package-specific deploy key with write access to the split repository.
-4. Add the private deploy key as an Actions secret in coretsia/monorepo.
+3. Add the split repository to the Coretsia split publisher GitHub App selected repositories list.
+4. Verify the GitHub App has Contents: Read and write for the selected split repository.
 5. Add the package to `.github/split-publish-packages.json`.
 6. Merge the allowlist change to monorepo main.
 7. Verify the split repository root contains package files and composer.json.
@@ -206,8 +237,7 @@ The publish allowlist entry MUST use this shape:
 
 ```json
 {
-  "package_id": "<layer>/<slug>",
-  "secret_name": "SPLIT_<LAYER>_<SLUG_WITH_HYPHENS_REPLACED_BY_UNDERSCORES>_DEPLOY_KEY"
+  "package_id": "<layer>/<slug>"
 }
 ```
 
@@ -215,10 +245,13 @@ Example:
 
 ```json
 {
-  "package_id": "core/dto-attribute",
-  "secret_name": "SPLIT_CORE_DTO_ATTRIBUTE_DEPLOY_KEY"
+  "package_id": "core/dto-attribute"
 }
 ```
+
+Do not add a deploy key for the split repository.
+
+Do not add a per-package Actions secret to the monorepo.
 
 Do not add a separate per-package workflow job.
 
@@ -228,212 +261,76 @@ The split repository must contain `composer.json` at its root before submitting 
 
 Do not submit an empty split repository to Packagist.
 
-## Deploy key policy
+## GitHub App publisher policy
 
-Use one deploy key per split repository.
+Split publishing MUST use the Coretsia split publisher GitHub App.
 
-All shell snippets in this section are templates.
+Per-package SSH deploy keys are not part of the canonical split publishing model.
 
-Replace `<layer>` and `<slug>` before running the commands.
-
-Do not execute commands containing literal angle-bracket placeholders.
-
-A deploy key is package-specific:
+The GitHub App must be configured with repository permission:
 
 ```text
-one split repository -> one deploy key pair
+Contents: Read and write
 ```
 
-Do not reuse the same deploy key across multiple split repositories.
-
-Public key:
+The GitHub App installation scope MUST be:
 
 ```text
-coretsia/<layer>-<slug> -> Settings -> Deploy keys
+Only selected repositories
 ```
 
-Required setting:
-
-```text
-Allow write access: enabled
-```
-
-Private key:
-
-```text
-coretsia/monorepo -> Settings -> Secrets and variables -> Actions
-```
-
-Secret naming convention:
-
-```text
-SPLIT_<LAYER>_<SLUG_WITH_HYPHENS_REPLACED_BY_UNDERSCORES>_DEPLOY_KEY
-```
+Each public split repository that should receive automated split pushes MUST be selected in the GitHub App installation.
 
 Examples:
 
 ```text
-package_id:  core/foundation
-secret name: SPLIT_CORE_FOUNDATION_DEPLOY_KEY
-
-package_id:  platform/cli
-secret name: SPLIT_PLATFORM_CLI_DEPLOY_KEY
-
-package_id:  core/dto-attribute
-secret name: SPLIT_CORE_DTO_ATTRIBUTE_DEPLOY_KEY
+coretsia/core-contracts
+coretsia/core-dto-attribute
+coretsia/devtools-internal-toolkit
 ```
 
-Never commit private keys.
-
-### Creating a deploy key pair
-
-Generate the key pair from a temporary directory.
-
-For a package:
-
-```text
-framework/packages/<layer>/<slug>
-```
-
-derive:
-
-```text
-split repo: coretsia/<layer>-<slug>
-key file:   <layer>-<slug>_split_deploy_key
-```
-
-Run:
-
-```bash
-ssh-keygen -t ed25519 -C "coretsia/<layer>-<slug> split publisher" -f ./<layer>-<slug>_split_deploy_key
-```
-
-When prompted for passphrase, press Enter twice.
-
-The key must be passphrase-less because GitHub Actions must use it non-interactively.
-
-This creates:
-
-```text
-<layer>-<slug>_split_deploy_key
-<layer>-<slug>_split_deploy_key.pub
-```
-
-Meaning:
-
-```text
-<layer>-<slug>_split_deploy_key      -> private key
-<layer>-<slug>_split_deploy_key.pub  -> public key
-```
-
-### Copying the public key to the split repository
-
-Copy the public key.
-
-PowerShell:
-
-```powershell
-Get-Content -Raw .\<layer>-<slug>_split_deploy_key.pub | Set-Clipboard
-```
-
-Git Bash:
-
-```bash
-cat ./<layer>-<slug>_split_deploy_key.pub
-```
-
-Then add it to the split repository:
-
-```text
-coretsia/<layer>-<slug>
-  -> Settings
-  -> Deploy keys
-  -> Add deploy key
-```
-
-Fields:
-
-```text
-Title: Coretsia monorepo split publisher
-Key: contents of <layer>-<slug>_split_deploy_key.pub
-Allow write access: enabled
-```
-
-The deploy key must show as read/write.
-
-### Copying the private key to the monorepo Actions secret
-
-Copy the private key.
-
-PowerShell:
-
-```powershell
-Get-Content -Raw .\<layer>-<slug>_split_deploy_key | Set-Clipboard
-```
-
-Git Bash:
-
-```bash
-cat ./<layer>-<slug>_split_deploy_key
-```
-
-Then add it to the monorepo repository:
+The monorepo stores the GitHub App authentication material once:
 
 ```text
 coretsia/monorepo
   -> Settings
   -> Secrets and variables
   -> Actions
-  -> Secrets
-  -> New repository secret
 ```
 
-Fields:
+Required repository variable:
 
 ```text
-Name: SPLIT_<LAYER>_<SLUG_WITH_HYPHENS_REPLACED_BY_UNDERSCORES>_DEPLOY_KEY
-Secret: full contents of <layer>-<slug>_split_deploy_key
+SPLIT_PUBLISH_APP_CLIENT_ID
 ```
 
-The secret belongs to the monorepo because `.github/workflows/split-publish.yml` runs from the monorepo and pushes to the split repository.
-
-### Deleting local key files
-
-After both GitHub settings are saved and verified, delete the local key files.
-
-Git Bash / Linux / WSL:
-
-```bash
-rm -f ./<layer>-<slug>_split_deploy_key ./<layer>-<slug>_split_deploy_key.pub
-```
-
-PowerShell:
-
-```powershell
-Remove-Item .\<layer>-<slug>_split_deploy_key, .\<layer>-<slug>_split_deploy_key.pub -Force
-```
-
-Verify that no key files remain in the working tree:
-
-```bash
-git status --short
-```
-
-There must be no files such as:
+Required repository secret:
 
 ```text
-<layer>-<slug>_split_deploy_key
-<layer>-<slug>_split_deploy_key.pub
+SPLIT_PUBLISH_APP_PRIVATE_KEY
 ```
 
-If a key file was accidentally staged, unstage it and delete it immediately:
+The private key must be generated from the GitHub App settings page.
 
-```bash
-git restore --staged ./<layer>-<slug>_split_deploy_key ./<layer>-<slug>_split_deploy_key.pub
-rm -f ./<layer>-<slug>_split_deploy_key ./<layer>-<slug>_split_deploy_key.pub
+Never commit GitHub App private keys.
+
+Never store GitHub App private keys in package directories.
+
+Never add package-specific deploy-key secrets for split publishing.
+
+The workflow uses `actions/create-github-app-token@v3` to create a short-lived installation token for the selected split repository.
+
+The workflow pushes split branches and tags over HTTPS.
+
+Canonical push target shape:
+
+```text
+https://github.com/coretsia/<layer>-<slug>.git
 ```
 
-For larger scale, prefer a GitHub App based publisher with fine-grained repository write access over many long-lived deploy keys.
+If the GitHub App is not installed on a split repository, token creation for that repository must fail.
+
+This is intentional. Repository write access is controlled through the GitHub App selected repositories list.
 
 ## First release procedure for a new split package
 
@@ -443,10 +340,12 @@ This procedure applies after the package publishing bootstrap is prepared on a f
 
 ```text
 1. The split repository exists.
-2. The package deploy key is configured.
-3. The monorepo Actions secret exists.
-4. The package is listed in `.github/split-publish-packages.json`.
-5. Release notes for the target monorepo tag exist in `CHANGELOG.md` under `## vMAJOR.MINOR.PATCH`.
+2. The split repository is selected in the Coretsia split publisher GitHub App installation.
+3. The GitHub App has Contents: Read and write for the selected split repository.
+4. The monorepo has vars.SPLIT_PUBLISH_APP_CLIENT_ID.
+5. The monorepo has secrets.SPLIT_PUBLISH_APP_PRIVATE_KEY.
+6. The package is listed in `.github/split-publish-packages.json`.
+7. Release notes for the target monorepo tag exist in `CHANGELOG.md` under `## vMAJOR.MINOR.PATCH`.
 ```
 
 Input package identity:
@@ -456,7 +355,6 @@ framework/packages/<layer>/<slug>
 package_id:    <layer>/<slug>
 composer name: coretsia/<layer>-<slug>
 split repo:    https://github.com/coretsia/<layer>-<slug>
-secret name:   SPLIT_<LAYER>_<SLUG_WITH_HYPHENS_REPLACED_BY_UNDERSCORES>_DEPLOY_KEY
 ```
 
 Example:
@@ -466,7 +364,6 @@ framework/packages/core/dto-attribute
 package_id:    core/dto-attribute
 composer name: coretsia/core-dto-attribute
 split repo:    https://github.com/coretsia/core-dto-attribute
-secret name:   SPLIT_CORE_DTO_ATTRIBUTE_DEPLOY_KEY
 ```
 
 ### 1. Merge the allowlist change
@@ -510,6 +407,8 @@ Verify package name in root `composer.json`:
 ```
 
 For the concrete package, replace `<layer>` and `<slug>` with the package identity values.
+
+If `split-publish.yml` fails while creating the GitHub App token, verify that the split repository is selected in the GitHub App installation.
 
 ### 2. Submit package to Packagist once
 
@@ -674,6 +573,24 @@ Packagist:
 
 ## Failure policy
 
+### GitHub App token creation fails
+
+Do not add a deploy key as a workaround.
+
+Check:
+
+```text
+1. The split repository exists.
+2. The split repository name matches coretsia/<layer>-<slug>.
+3. The split repository is selected in the Coretsia split publisher GitHub App installation.
+4. The GitHub App has Contents: Read and write.
+5. The monorepo has vars.SPLIT_PUBLISH_APP_CLIENT_ID.
+6. The monorepo has secrets.SPLIT_PUBLISH_APP_PRIVATE_KEY.
+7. Repository Actions permissions allow actions/create-github-app-token@v3.
+```
+
+Fix the GitHub App configuration or Actions allowlist, then rerun the workflow.
+
 ### Split main push fails
 
 Do not update Packagist manually as the canonical procedure.
@@ -715,8 +632,14 @@ Manual Packagist Update may be used only as troubleshooting evidence, not as the
 - Monorepo remains the source of truth.
 - Split repositories are publish targets.
 - Split publishing is allowlist-driven through .github/split-publish-packages.json.
+- The publish allowlist stores package_id only.
 - Packagist watches split repositories.
 - Package discovery does not imply publication; only allowlisted packages are pushed to split repositories.
+- Split publishing uses the Coretsia split publisher GitHub App.
+- Split repository write access is controlled by the GitHub App selected repositories list.
+- Per-package SSH deploy keys are not part of the canonical split publishing model.
+- Per-package split deploy-key Actions secrets are forbidden for split publishing.
+- GitHub App authentication material is stored once in the monorepo Actions variable/secret pair.
 - First Packagist package submission is a one-time bootstrap action.
 - Normal package updates/releases must be automatic through GitHub integration.
 - Monorepo dev workspace may use dev-main path dependencies.

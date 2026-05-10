@@ -64,8 +64,12 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 ## Runtime Invariants
 
 - [Context Keys SSoT](./context-keys.md) — owner: core/foundation — scope: context,keys,registry,redaction,runtime
+- [ContextStore lifecycle SSoT](./context-lifecycle.md) — owner: core/foundation — scope: context,context-store,lifecycle,reset,runtime,uow
 - [Context Store SSoT](./context-store.md) — owner: core/foundation — scope: context,context-bag,context-store,correlation-id,reset,runtime
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — scope: di,discovery,middleware,ordering,runtime,tags
+- [Middleware → ContextKeys map](./middleware-context-keys-map.md) — owner: platform/http — scope: context,http,middleware,redaction,reference,runtime
+- [Reset Tags SSoT](./reset-tags.md) — owner: core/foundation — scope: reset,runtime,stateful,tags,uow
+- [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — scope: reset,runtime,stateful,uow,redaction
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md) — owner: core/foundation — scope: clock,duration,ids,runtime,time
 
 ## Tooling and CI Contracts

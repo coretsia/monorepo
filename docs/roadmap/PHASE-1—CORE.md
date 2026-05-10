@@ -6036,7 +6036,8 @@ ssot_refs:
   - `framework/packages/core/contracts/` — baseline ports; no new ports introduced here.
 
 - Required config roots/keys:
-  - `foundation.*` — runtime reads `foundation.clock.*` and `foundation.ids.*`.
+  - `foundation.*` — runtime reads `foundation.ids.*`.
+  - This epic does not introduce `foundation.clock.*`; the runtime clock binding is fixed to `SystemClock`.
 
 - Required contracts / ports:
   - `Psr\Clock\ClockInterface` — PSR-20.
@@ -6080,82 +6081,99 @@ N/A
 #### Creates
 
 Clock:
-- [ ] `framework/packages/core/foundation/src/Clock/SystemClock.php` — implements `Psr\Clock\ClockInterface`
-- [ ] `framework/packages/core/foundation/src/Clock/FrozenClock.php` — test clock (fixtures)
+- [x] `framework/packages/core/foundation/src/Clock/SystemClock.php` — implements `Psr\Clock\ClockInterface`
+- [x] `framework/packages/core/foundation/src/Clock/FrozenClock.php` — test clock (fixtures)
 
 IDs:
-- [ ] `framework/packages/core/foundation/src/Id/UuidGenerator.php` — concrete generator
-- [ ] `framework/packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical Foundation abstraction for runtime id generation
+- [x] `framework/packages/core/foundation/src/Id/UuidGenerator.php` — concrete generator
+- [x] `framework/packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical Foundation abstraction for runtime id generation
 
 Stopwatch:
-- [ ] `framework/packages/core/foundation/src/Time/Stopwatch.php` — float-free stopwatch
-  - [ ] `start(): int` returns a monotonic timestamp token in **nanoseconds** from `hrtime(true)`
-  - [ ] `stop(int $startedAt): int` returns `durationMs` as **int milliseconds**:
-    - [ ] computed as `max(0, intdiv(hrtime(true) - $startedAt, 1_000_000))`
-  - [ ] MUST NOT use `microtime(true)` (float)
-  - [ ] MUST be non-negative and deterministic-format (int ms)
+- [x] `framework/packages/core/foundation/src/Time/Stopwatch.php` — float-free stopwatch
+  - [x] `start(): int` returns a monotonic timestamp token in **nanoseconds** from `hrtime(true)`
+  - [x] `stop(int $startedAt): int` returns `durationMs` as **int milliseconds**:
+    - [x] `$startedAt` MUST be a positive Stopwatch token returned by `start()`
+    - [x] `$startedAt` MUST be treated by callers as an opaque token returned by `start()`
+    - [x] `stop()` MUST NOT retain token state or track issued tokens
+    - [x] positive token provenance is a caller/API contract, not a runtime-tracked invariant
+    - [x] non-positive tokens MUST fail deterministically with `StopwatchInvalidStateException`
+    - [x] elapsed duration MUST be computed from `hrtime(true) - $startedAt`
+    - [x] negative or zero elapsed duration MUST return `0`
+    - [x] positive elapsed duration MUST be converted with `intdiv($durationNs, 1_000_000)`
+  - [x] MUST NOT use `microtime(true)` (float)
+  - [x] MUST be non-negative and deterministic-format (int ms)
 
 Documentation:
-- [ ] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
-- [ ] `docs/ssot/time-ids-and-duration.md` — durationMs=int, ULID default, usage guidance
+- [x] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
+- [x] `docs/ssot/time-ids-and-duration.md` — durationMs=int, ULID default, usage guidance
 
 Tests:
-- [ ] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
-- [ ] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
-- [ ] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
-- [ ] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInClockAndIdsContractTest.php`
-  - [ ] asserts `framework/packages/core/foundation/config/rules.php` rejects:
-    - [ ] any float under `foundation.clock.*` or `foundation.ids.*` (including nested)
-    - [ ] explicit `NaN`, `INF`, `-INF` (if representable in fixtures)
-  - [ ] failure MUST be deterministic and message MUST be safe (no dumping raw values)
+- [x] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
+- [x] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+  - [x] `stop(start())` returns `int >= 0`
+  - [x] `stop(PHP_INT_MAX)` returns `0`
+  - [x] `stop(0)` throws `StopwatchInvalidStateException`
+  - [x] `stop(-1)` throws `StopwatchInvalidStateException`
+  - [x] exception message MUST NOT contain raw token values
+- [x] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
+- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
+  - [x] asserts `framework/packages/core/foundation/config/rules.php` rejects:
+    - [x] any float assigned to `foundation.ids.default`
+    - [x] any unknown nested key under `foundation.ids.*`, including float-valued unknown keys
+    - [x] any `foundation.clock.*` key because this epic does not introduce runtime clock config
+    - [x] explicit `NaN`, `INF`, `-INF` where representable in fixtures
+  - [x] failure MUST be deterministic and message MUST be safe (no dumping raw values)
 
 #### Modifies
 
-- [ ] `framework/packages/core/foundation/composer.json`
-  - [ ] add runtime requirement:
-    - [ ] `psr/clock`
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/time-ids-and-duration.md`
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds Clock/Stopwatch/Id generator via DI (wiring evidence)
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] `framework/packages/core/foundation/config/rules.php`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
+- [x] `framework/packages/core/foundation/composer.json`
+  - [x] add runtime requirement:
+    - [x] `psr/clock`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/time-ids-and-duration.md`
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds Clock/Stopwatch/Id generator via DI (wiring evidence)
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] `framework/packages/core/foundation/config/rules.php`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `framework/packages/core/foundation/config/foundation.php`
-- [ ] Keys (dot):
-  - [ ] `foundation.clock.driver` = "system"
-  - [ ] `foundation.ids.default` = "ulid"
-- [ ] Rules:
-  - [ ] `framework/packages/core/foundation/config/rules.php` MUST also enforce allowed values:
-    - [ ] `foundation.clock.driver` ∈ {`system`}
-    - [ ] `foundation.ids.default` ∈ {`ulid`, `uuid`}
+- [x] Files:
+  - [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] Keys (dot):
+  - [x] `foundation.ids.default` = "ulid"
+    - [x] allowed values: `ulid`, `uuid`
+    - [x] selects only `Coretsia\Foundation\Id\IdGeneratorInterface`
+    - [x] MUST NOT affect `CorrelationIdGenerator` or `CorrelationIdProvider`
+- [x] Rules:
+  - [x] `framework/packages/core/foundation/config/rules.php` MUST also enforce allowed values:
+    - [x] `foundation.ids.default` ∈ {`ulid`, `uuid`}
 
-- [ ] Policy:
-  - [ ] Supported ID generators are a code-level capability, not runtime feature flags.
-  - [ ] Runtime selection is done only through `foundation.ids.default`.
-  - [ ] `foundation.ids.default` selects only `Coretsia\Foundation\Id\IdGeneratorInterface`.
-  - [ ] It MUST NOT affect `Coretsia\Foundation\Id\CorrelationIdGenerator` or
+- [x] Policy:
+  - [x] Supported ID generators are a code-level capability, not runtime feature flags.
+  - [x] Runtime selection is done only through `foundation.ids.default`.
+  - [x] `foundation.ids.default` selects only `Coretsia\Foundation\Id\IdGeneratorInterface`.
+  - [x] It MUST NOT affect `Coretsia\Foundation\Id\CorrelationIdGenerator` or
     `Coretsia\Foundation\Observability\CorrelationIdProvider`;
     `correlation_id` remains ULID-backed per `1.210.0`.
-  - [ ] `Stopwatch` is canonical Foundation runtime infrastructure and MUST be resolvable whenever `core/foundation` is enabled
-  - [ ] duration measurement absence in a consumer is represented by “consumer does not call Stopwatch”, NOT by disabling Stopwatch itself
+  - [x] `Stopwatch` is canonical Foundation runtime infrastructure and MUST be resolvable whenever `core/foundation` is enabled
+  - [x] duration measurement absence in a consumer is represented by “consumer does not call Stopwatch”, NOT by disabling Stopwatch itself
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] ServiceProvider wiring evidence:
-  - [ ] binds: `Psr\Clock\ClockInterface` → `Coretsia\Foundation\Clock\SystemClock`
-  - [ ] registers: `Coretsia\Foundation\Time\Stopwatch`
-  - [ ] binds: `Coretsia\Foundation\Id\IdGeneratorInterface` → resolved default generator selected by `foundation.ids.default`
-    - [ ] `ulid` → `Coretsia\Foundation\Id\UlidGenerator`
-    - [ ] `uuid` → `Coretsia\Foundation\Id\UuidGenerator`
+- [x] ServiceProvider wiring evidence:
+  - [x] binds: `Psr\Clock\ClockInterface` → `Coretsia\Foundation\Clock\SystemClock`
+  - [x] registers: `Coretsia\Foundation\Time\Stopwatch`
+  - [x] binds: `Coretsia\Foundation\Id\IdGeneratorInterface` → resolved default generator selected by `foundation.ids.default`
+    - [x] `ulid` → `Coretsia\Foundation\Id\UlidGenerator`
+    - [x] `uuid` → `Coretsia\Foundation\Id\UuidGenerator`
 
 #### Artifacts / outputs (if applicable)
 
@@ -6172,35 +6190,35 @@ N/A
 
 - Spans:
   - N/A
-- [ ] Metrics:
-  - [ ] duration values used only as values (not labels); `_duration_ms` naming
-- [ ] Logs:
-  - [ ] ids may appear in logs/spans, not metric labels
+- [x] Metrics:
+  - [x] duration values used only as values (not labels); `_duration_ms` naming
+- [x] Logs:
+  - [x] ids may appear in logs/spans, not metric labels
 - HARD RULE:
   - No ids (`correlation_id`, `uow_id`, `request_id`, ULID/UUID) are allowed as metric labels.
   - Durations are values only; use `_duration_ms` naming and integer milliseconds.
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Foundation\Time\Exception\StopwatchInvalidStateException` — errorCode `CORETSIA_STOPWATCH_INVALID_STATE` (optional)
-  - [ ] `Coretsia\Foundation\Id\Exception\IdGenerationFailedException` — errorCode `CORETSIA_ID_GENERATION_FAILED` (optional)
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Foundation\Time\Exception\StopwatchInvalidStateException` — errorCode `CORETSIA_STOPWATCH_INVALID_STATE` (optional)
+  - [x] `Coretsia\Foundation\Id\Exception\IdGenerationFailedException` — errorCode `CORETSIA_ID_GENERATION_FAILED` (optional)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] secrets in id generation (never derive ids from secret values)
-- [ ] Allowed:
-  - [ ] ULID/UUID as safe ids; not as metric labels
+- [x] MUST NOT leak:
+  - [x] secrets in id generation (never derive ids from secret values)
+- [x] Allowed:
+  - [x] ULID/UUID as safe ids; not as metric labels
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If non-negative duration promised → `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
-- [ ] If clock determinism in tests needed → `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
-- [ ] If UUID generator is supported → `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-- [ ] If float-free `foundation.clock.*` / `foundation.ids.*` config is promised → `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInClockAndIdsContractTest.php`
+- [x] If non-negative duration promised → `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+- [x] If clock determinism in tests needed → `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+- [x] If UUID generator is supported → `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+- [x] If float-free `foundation.ids.*` config is promised and `foundation.clock.*` is forbidden → `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -6209,47 +6227,49 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+  - [x] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
 - Contract:
-  - [ ] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInClockAndIdsContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
-    - [ ] asserts `IdGeneratorInterface` resolves to `UlidGenerator` when `foundation.ids.default=ulid`
-    - [ ] asserts `IdGeneratorInterface` resolves to `UuidGenerator` when `foundation.ids.default=uuid`
-    - [ ] MUST NOT assert or imply that `CorrelationIdProviderInterface` switches to UUID when `foundation.ids.default=uuid`
+  - [x] `framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
+    - [x] asserts `IdGeneratorInterface` resolves to `UlidGenerator` when `foundation.ids.default=ulid`
+    - [x] asserts `IdGeneratorInterface` resolves to `UuidGenerator` when `foundation.ids.default=uuid`
+    - [x] MUST NOT assert or imply that `CorrelationIdProviderInterface` switches to UUID when `foundation.ids.default=uuid`
 - Gates/Arch:
   - N/A
 
 ### DoD (MUST)
 
-- [ ] One canonical clock via DI (PSR-20)
-- [ ] One canonical id default (ULID) without duplicates
-- [ ] Stopwatch returns int ms, deterministic and non-negative
-- [ ] Docs updated:
-  - [ ] `docs/ssot/time-ids-and-duration.md`
-  - [ ] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
-- [ ] Kernel uses:
-  - [ ] Clock + Stopwatch for UoW timings (`*_duration_ms`) and deterministic timing measurements.
-  - [ ] ID generators for `uow_id` and (where applicable) other safe ids.
-- [ ] `platform/http` may use:
-  - [ ] Stopwatch for middleware timings.
-  - [ ] ID generators for `request_id` (when request-id policy is enabled by the HTTP epic).
-- [ ] `platform/cli` may use:
-  - [ ] Clock for deterministic timestamps where required by tooling/outputs.
-- [ ] Runtime time/ids APIs MUST be float-free:
-  - [ ] any numeric config values introduced by this epic under `foundation.clock.*` and `foundation.ids.*` MUST be `int` (never float)
-- [ ] `framework/packages/core/foundation/config/rules.php` MUST enforce:
-  - [ ] reject any float values under `foundation.clock.*` and `foundation.ids.*` (where numeric keys exist)
-- [ ] IDs MUST be deterministic-format strings:
-  - [ ] ULID/UUID string formats are validated by contract tests
-- [ ] Stopwatch duration MUST be:
-  - [ ] `int`
-  - [ ] `>= 0`
-  - [ ] stable across OS (no locale/timezone formatting inside core logic)
+- [x] One canonical clock via DI (PSR-20)
+- [x] One canonical id default (ULID) without duplicates
+- [x] Stopwatch returns int ms, deterministic and non-negative
+- [x] Docs updated:
+  - [x] `docs/ssot/time-ids-and-duration.md`
+  - [x] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
+- [x] Downstream lifecycle handoff recorded:
+  - [x] Later `core/kernel` MAY use Clock + Stopwatch for UoW timings.
+  - [x] Later `core/kernel` MAY use `IdGeneratorInterface` for `uow_id`.
+  - [x] Later `platform/http` MAY use Stopwatch for middleware timings.
+  - [x] Later `platform/http` MAY use `IdGeneratorInterface` for `request_id` when HTTP request-id policy exists.
+  - [x] Later `platform/cli` MAY use Clock for deterministic timestamps where required.
+- [x] Runtime time/ids APIs MUST be float-free:
+  - [x] this epic introduces no numeric runtime config under time/id settings
+  - [x] config validation MUST reject float values under `foundation.ids.*` if any nested values are added later
+- [x] `framework/packages/core/foundation/config/rules.php` MUST enforce:
+  - [x] reject any float values under `foundation.ids.*` if nested values are added later
+  - [x] no `foundation.clock.*` config keys are introduced
+- [x] IDs MUST be deterministic-format strings:
+  - [x] ULID/UUID string formats are validated by contract tests
+- [x] Stopwatch duration MUST be:
+  - [x] `int`
+  - [x] `>= 0`
+  - [x] stable across OS (no locale/timezone formatting inside core logic)
 
 ---
 

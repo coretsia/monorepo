@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Id;
 
+use Coretsia\Foundation\Id\Exception\IdGenerationFailedException;
+
 /**
  * Canonical Foundation ULID generator.
  *
@@ -25,7 +27,7 @@ namespace Coretsia\Foundation\Id;
  * code. Other Foundation ids that need ULID format must delegate here instead
  * of duplicating timestamp, entropy, or Crockford Base32 encoding logic.
  */
-final class UlidGenerator
+final class UlidGenerator implements IdGeneratorInterface
 {
     private const string ENCODING = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
@@ -33,8 +35,14 @@ final class UlidGenerator
 
     public function generate(): string
     {
+        try {
+            $entropy = \random_bytes(10);
+        } catch (\Throwable $exception) {
+            throw IdGenerationFailedException::entropyUnavailable($exception);
+        }
+
         return self::encode(
-            self::timestampBytes(self::unixTimeMilliseconds()) . \random_bytes(10),
+            self::timestampBytes(self::unixTimeMilliseconds()) . $entropy,
         );
     }
 
@@ -43,7 +51,7 @@ final class UlidGenerator
         $parts = \explode(' ', \microtime());
 
         if (\count($parts) !== 2) {
-            throw new \RuntimeException('ulid-time-source-invalid');
+            throw IdGenerationFailedException::timeSourceInvalid();
         }
 
         [$microseconds, $seconds] = $parts;
@@ -56,7 +64,7 @@ final class UlidGenerator
     private static function timestampBytes(int $milliseconds): string
     {
         if ($milliseconds < 0 || $milliseconds > self::TIMESTAMP_MAX) {
-            throw new \RuntimeException('ulid-timestamp-out-of-range');
+            throw IdGenerationFailedException::timestampOutOfRange();
         }
 
         return \chr(($milliseconds >> 40) & 0xFF)
@@ -70,7 +78,7 @@ final class UlidGenerator
     private static function encode(string $bytes): string
     {
         if (\strlen($bytes) !== 16) {
-            throw new \RuntimeException('ulid-bytes-invalid');
+            throw IdGenerationFailedException::bytesInvalid();
         }
 
         $bits = '00';

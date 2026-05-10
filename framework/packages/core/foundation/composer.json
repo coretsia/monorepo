@@ -28,6 +28,7 @@
   "require": {
     "php": "^8.4",
     "coretsia/core-contracts": "dev-main",
+    "psr/clock": "^1.0",
     "psr/container": "^2.0",
     "psr/log": "^3.0"
   },

@@ -30,8 +30,10 @@ declare(strict_types=1);
  * Baseline invariants:
  * - tag discovery is always available when `core/foundation` is enabled;
  * - reset orchestration is always available when `core/foundation` is enabled;
+ * - Foundation clock/id/stopwatch services are baseline runtime infrastructure;
  * - empty discovery lists are represented by empty-list semantics;
  * - no feature flag may disable tags or reset orchestration;
+ * - no feature flag may disable Stopwatch;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -62,6 +64,18 @@ return [
          * option is limited to container construction/resolution behavior.
          */
         'allow_reflection_for_concrete' => true,
+    ],
+
+    /*
+     * Default runtime id generation behavior.
+     *
+     * This selects only Coretsia\Foundation\Id\IdGeneratorInterface.
+     *
+     * It MUST NOT affect CorrelationIdGenerator or CorrelationIdProvider:
+     * correlation_id remains ULID-backed according to epic 1.210.0.
+     */
+    'ids' => [
+        'default' => 'ulid', // ulid|uuid
     ],
 
     /*

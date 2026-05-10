@@ -428,25 +428,105 @@ Verify that the Packagist package page points to the split repository and expose
 
 For a new package, stable versions appear only after the monorepo release tag is pushed and propagated to the split repository.
 
-### 3. Push first release tag
+### 3. Preflight release tag checks
 
 Use the next monorepo-wide release tag.
 
-Example:
+Run all checks before creating or pushing the tag:
 
 ```bash
 TAG=vMAJOR.MINOR.PATCH
+trap 'rm -f release_notes.md' EXIT
 
 git checkout main
 git pull --ff-only
 
-composer ci
+if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid tag format: ${TAG}" >&2
+  exit 1
+fi
 
+if [[ -n "$(git status --short)" ]]; then
+  echo "Working tree is not clean" >&2
+  git status --short >&2
+  exit 1
+fi
+
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "Local main is not at origin/main HEAD" >&2
+  echo "Local:  $(git rev-parse HEAD)" >&2
+  echo "Origin: $(git rev-parse origin/main)" >&2
+  exit 1
+fi
+
+if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+  echo "Local tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+  echo "Remote tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+test -f CHANGELOG.md
+
+awk -v tag="${TAG}" '
+  BEGIN { inside=0; found=0 }
+  $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+  $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+  inside==1 { print }
+  END { if (found==0) exit 2 }
+' CHANGELOG.md > release_notes.md || {
+  echo "Missing CHANGELOG section for ${TAG}" >&2
+  echo "Expected heading: ## ${TAG}" >&2
+  exit 1
+}
+
+if [[ ! -s release_notes.md ]]; then
+  echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
+  exit 1
+fi
+
+rm -f release_notes.md
+
+composer ci
+```
+
+For first package publication, manually verify that every newly submitted split repository is non-empty before the first release tag is pushed.
+
+Verify that each new split repository root contains:
+
+```text
+composer.json
+README.md
+LICENSE
+NOTICE
+src/
+```
+
+Verify that the split repository root does not contain the monorepo package path:
+
+```text
+framework/packages/<layer>/<slug>/
+```
+
+Verify that the Packagist package page exists and points to the split repository, not the monorepo.
+
+Do not manually scan all allowlisted split repositories for tag availability before release.
+
+Split tag immutability is enforced by `.github/workflows/split-publish.yml`; if a split repository already contains the release tag, the workflow must fail instead of overwriting it.
+
+### 4. Push first release tag
+
+After all preflight checks pass:
+
+```bash
 git tag -a "${TAG}" -m "${TAG}"
 git push origin "${TAG}"
 ```
 
-### 4. Verify evidence
+### 5. Verify evidence
 
 Verify:
 
@@ -535,20 +615,80 @@ split-publish.yml updates each allowlisted split repository main branch
 Packagist sees updated dev-main for each submitted package
 ```
 
-### 3. Ensure main is green
+### 3. Preflight release tag checks
+
+Use the next monorepo-wide release tag.
+
+Run all checks before creating or pushing the tag:
 
 ```bash
+TAG=vMAJOR.MINOR.PATCH
+trap 'rm -f release_notes.md' EXIT
+
 git checkout main
 git pull --ff-only
+
+if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid tag format: ${TAG}" >&2
+  exit 1
+fi
+
+if [[ -n "$(git status --short)" ]]; then
+  echo "Working tree is not clean" >&2
+  git status --short >&2
+  exit 1
+fi
+
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "Local main is not at origin/main HEAD" >&2
+  echo "Local:  $(git rev-parse HEAD)" >&2
+  echo "Origin: $(git rev-parse origin/main)" >&2
+  exit 1
+fi
+
+if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+  echo "Local tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+  echo "Remote tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+test -f CHANGELOG.md
+
+awk -v tag="${TAG}" '
+  BEGIN { inside=0; found=0 }
+  $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+  $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+  inside==1 { print }
+  END { if (found==0) exit 2 }
+' CHANGELOG.md > release_notes.md || {
+  echo "Missing CHANGELOG section for ${TAG}" >&2
+  echo "Expected heading: ## ${TAG}" >&2
+  exit 1
+}
+
+if [[ ! -s release_notes.md ]]; then
+  echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
+  exit 1
+fi
+
+rm -f release_notes.md
 
 composer ci
 ```
 
+Do not manually scan all allowlisted split repositories for tag availability before release.
+
+Split tag immutability is enforced by `.github/workflows/split-publish.yml`; if a split repository already contains the release tag, the workflow must fail instead of overwriting it.
+
 ### 4. Push release tag
 
-```bash
-TAG=vMAJOR.MINOR.PATCH
+After all preflight checks pass:
 
+```bash
 git tag -a "${TAG}" -m "${TAG}"
 git push origin "${TAG}"
 ```

@@ -25,12 +25,15 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface;
 use Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Clock\SystemClock;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
+use Coretsia\Foundation\Id\UuidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\CorrelationIdProvider;
 use Coretsia\Foundation\Observability\Errors\NoopErrorReporter;
@@ -40,6 +43,8 @@ use Coretsia\Foundation\Observability\Tracing\NoopContextPropagation;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Foundation\Time\Stopwatch;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -55,6 +60,14 @@ use Psr\Log\LoggerInterface;
  * - `ResetOrchestrator` is created through `FoundationServiceFactory`;
  * - noop observability and logging ports are registered as explicit instances
  *   so they remain resolvable without relying on concrete-class autowiring;
+ * - Foundation clock/id/stopwatch services are registered as explicit
+ *   instances so they remain resolvable without relying on concrete-class
+ *   autowiring;
+ * - `SystemClock` is the baseline runtime `ClockInterface` binding;
+ * - `FrozenClock` is test/support infrastructure and is not registered as the
+ *   default runtime clock binding by this provider;
+ * - `IdGeneratorInterface` is selected only by `foundation.ids.default`;
+ * - `foundation.ids.default` does not affect correlation id generation;
  * - context and correlation services are registered as explicit instances so
  *   they remain resolvable without relying on concrete-class autowiring;
  * - `ContextStore` is registered once and the context accessor binding points
@@ -77,16 +90,33 @@ final class FoundationServiceProvider implements ServiceProviderInterface
 
         $contextStore = new ContextStore();
 
+        $clock = new SystemClock();
+        $stopwatch = new Stopwatch();
+
         $ulids = new UlidGenerator();
+        $uuids = new UuidGenerator();
+        $defaultIds = FoundationServiceFactory::defaultIdGenerator(
+            foundationConfig: $foundationConfig,
+            ulids: $ulids,
+            uuids: $uuids,
+        );
+
         $correlationIds = new CorrelationIdGenerator($ulids);
         $correlationIdProvider = new CorrelationIdProvider($contextStore);
 
         $builder->instance(TagRegistry::class, $tagRegistry);
 
+        $builder->instance(SystemClock::class, $clock);
+        $builder->instance(ClockInterface::class, $clock);
+        $builder->instance(Stopwatch::class, $stopwatch);
+
+        $builder->instance(UlidGenerator::class, $ulids);
+        $builder->instance(UuidGenerator::class, $uuids);
+        $builder->instance(IdGeneratorInterface::class, $defaultIds);
+
         $builder->instance(ContextStore::class, $contextStore);
         $builder->instance(ContextAccessorInterface::class, $contextStore);
 
-        $builder->instance(UlidGenerator::class, $ulids);
         $builder->instance(CorrelationIdGenerator::class, $correlationIds);
         $builder->instance(CorrelationIdProvider::class, $correlationIdProvider);
         $builder->instance(CorrelationIdProviderInterface::class, $correlationIdProvider);

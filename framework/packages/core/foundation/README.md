@@ -16,7 +16,7 @@
 
 `core/foundation` is the **Foundation runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, stable diagnostics serialization, runtime context storage, correlation id baseline services, and reset orchestration for long-running runtimes.
+**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
 **Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
@@ -39,6 +39,7 @@ This package is runtime-safe and intentionally small:
 
 - **Depends on:**
   - `core/contracts`
+  - `psr/clock`
   - `psr/container`
   - `psr/log`
 - **Forbidden:**
@@ -47,6 +48,8 @@ This package is runtime-safe and intentionally small:
   - `devtools/*`
 
 `psr/log` is used only for the baseline `Psr\Log\LoggerInterface` noop binding.
+
+`psr/clock` is used for the baseline `Psr\Clock\ClockInterface` binding.
 
 `core/foundation` MUST NOT depend on Phase 0 tooling packages such as `devtools/internal-toolkit` or `devtools/cli-spikes`.
 
@@ -64,6 +67,13 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Always-on context safe-write validation through `ContextStorePolicy`.
 - Correlation id generation through the canonical ULID generator.
 - Correlation id reading through the contracts correlation id provider port.
+- PSR-20 runtime clock binding through `Psr\Clock\ClockInterface`.
+- Baseline UTC system clock through `SystemClock`.
+- Deterministic frozen clock support through `FrozenClock`.
+- Generic safe runtime id generation through `IdGeneratorInterface`.
+- Canonical ULID default id generation through `UlidGenerator`.
+- Optional UUID id generation through `UuidGenerator`.
+- Float-free duration measurement through `Stopwatch`.
 - Reset orchestration through the effective Foundation reset discovery tag.
 - Stable JSON encoding for diagnostics and runtime-safe artifacts.
 
@@ -91,6 +101,9 @@ return [
         'autowire_concrete' => true,
         'allow_reflection_for_concrete' => true,
     ],
+    'ids' => [
+        'default' => 'ulid',
+    ],
     'reset' => [
         'tag' => 'kernel.reset',
     ],
@@ -109,16 +122,55 @@ return [
 
 Runtime code reads from the global configuration under `foundation.*`.
 
-Canonical keys introduced by this package:
+Canonical Foundation config keys documented by this package:
 
 - `foundation.container.autowire_concrete`
 - `foundation.container.allow_reflection_for_concrete`
+- `foundation.ids.default`
 - `foundation.reset.tag`
 
+`foundation.ids.default` selects only the default generic runtime id generator:
+
+```text
+Coretsia\Foundation\Id\IdGeneratorInterface
+```
+
+Allowed values:
+
+```text
+ulid
+uuid
+```
+
+Default value:
+
+```text
+ulid
+```
+
+`foundation.ids.default` MUST NOT affect:
+
+```text
+Coretsia\Foundation\Id\CorrelationIdGenerator
+Coretsia\Foundation\Observability\CorrelationIdProvider
+```
+
+`correlation_id` remains ULID-backed according to epic `1.210.0`.
+
+This package does not introduce runtime clock config.
+
+The runtime clock binding is fixed to:
+
+```text
+Psr\Clock\ClockInterface -> Coretsia\Foundation\Clock\SystemClock
+```
+
 `foundation.reset.tag` defines the effective reset discovery tag.
+
 The reserved default value is `kernel.reset`.
 
 Tag discovery and reset orchestration MUST NOT be feature-disabled through config.
+
 Empty discovery lists are represented by empty-list semantics only.
 
 This package does not introduce context or correlation feature toggles.
@@ -126,11 +178,15 @@ This package does not introduce context or correlation feature toggles.
 The following keys MUST NOT be introduced by this epic:
 
 ```text
+foundation.clock.*
 foundation.context.*
 foundation.correlation.*
+foundation.request_id.*
+foundation.time.*
+foundation.duration.*
 ```
 
-`ContextStore`, `ContextStorePolicy`, `UlidGenerator`, `CorrelationIdGenerator`, and `CorrelationIdProvider` are baseline runtime infrastructure and MUST NOT be feature-disabled through configuration.
+`ContextStore`, `ContextStorePolicy`, `SystemClock`, `Stopwatch`, `UlidGenerator`, `UuidGenerator`, `IdGeneratorInterface`, `CorrelationIdGenerator`, and `CorrelationIdProvider` are baseline runtime infrastructure and MUST NOT be feature-disabled through configuration.
 
 Absence of optional writers/readers is represented by:
 
@@ -521,6 +577,219 @@ Correlation id generation belongs to the unit-of-work owner.
 
 Transport-specific correlation propagation belongs to platform packages.
 
+## Clock baseline
+
+Foundation provides the baseline runtime clock implementation:
+
+```text
+Coretsia\Foundation\Clock\SystemClock
+```
+
+`SystemClock` implements:
+
+```text
+Psr\Clock\ClockInterface
+```
+
+The Foundation provider binds:
+
+```text
+Psr\Clock\ClockInterface -> Coretsia\Foundation\Clock\SystemClock
+Coretsia\Foundation\Clock\SystemClock -> same SystemClock instance
+```
+
+`SystemClock::now()` returns `DateTimeImmutable` in UTC.
+
+`SystemClock` intentionally does not promise monotonicity. System time may jump because it is controlled by the operating system and host environment.
+
+Runtime code that needs duration measurement MUST use `Stopwatch`, not differences between `SystemClock` values.
+
+This package does not introduce:
+
+```text
+foundation.clock.*
+```
+
+Clock selection is not runtime-config-driven in this epic.
+
+## Frozen clock
+
+Foundation provides deterministic frozen clock support:
+
+```text
+Coretsia\Foundation\Clock\FrozenClock
+```
+
+`FrozenClock` implements:
+
+```text
+Psr\Clock\ClockInterface
+```
+
+`FrozenClock::now()` returns the same logical instant on every call.
+
+`FrozenClock` is test/support infrastructure.
+
+`FrozenClock` is not selected through runtime config in this epic.
+
+`FrozenClock` is not registered as the default runtime `ClockInterface` binding by the Foundation provider.
+
+## Runtime id generation
+
+Foundation provides the canonical generic runtime id abstraction:
+
+```text
+Coretsia\Foundation\Id\IdGeneratorInterface
+```
+
+The canonical method is:
+
+```php
+public function generate(): string
+```
+
+Generated ids are safe opaque deterministic-format strings.
+
+Generated ids MUST NOT be derived from secrets, credentials, raw payloads, direct user identifiers, cookies, sessions, authorization values, raw headers, raw request bodies, raw response bodies, raw SQL, or private customer data.
+
+Foundation provides the canonical ULID generator:
+
+```text
+Coretsia\Foundation\Id\UlidGenerator
+```
+
+`UlidGenerator` is the single ULID implementation source in the codebase.
+
+Canonical ULID format:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+Foundation also provides an optional UUID generator:
+
+```text
+Coretsia\Foundation\Id\UuidGenerator
+```
+
+Canonical UUID format:
+
+```text
+/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+```
+
+The default generic runtime id generator is selected only through:
+
+```text
+foundation.ids.default
+```
+
+Mapping:
+
+| `foundation.ids.default` | `IdGeneratorInterface` binding target                |
+|--------------------------|------------------------------------------------------|
+| `ulid`                   | same `Coretsia\Foundation\Id\UlidGenerator` instance |
+| `uuid`                   | same `Coretsia\Foundation\Id\UuidGenerator` instance |
+
+The default is:
+
+```text
+ulid
+```
+
+`foundation.ids.default` MUST NOT affect correlation id generation.
+
+`CorrelationIdGenerator` remains ULID-backed and delegates directly to `UlidGenerator`.
+
+`CorrelationIdGenerator` MUST NOT depend on `IdGeneratorInterface`.
+
+`CorrelationIdProvider` is a read provider and MUST NOT be affected by `foundation.ids.default`.
+
+## Stopwatch
+
+Foundation provides the canonical float-free duration service:
+
+```text
+Coretsia\Foundation\Time\Stopwatch
+```
+
+`Stopwatch` is baseline runtime infrastructure and MUST be resolvable whenever `core/foundation` is enabled.
+
+`Stopwatch` MUST NOT be feature-disabled through config.
+
+Absence of duration measurement in a consumer is represented by:
+
+```text
+consumer does not call Stopwatch
+```
+
+It MUST NOT be represented by disabling `Stopwatch`.
+
+`Stopwatch::start()` returns a monotonic timestamp token as integer nanoseconds from:
+
+```php
+hrtime(true)
+```
+
+`Stopwatch::stop(int $startedAt)` returns duration in integer milliseconds.
+
+`$startedAt` MUST be a positive Stopwatch token returned by `start()`.
+
+`Stopwatch` does not track issued token provenance. Runtime enforcement is limited to positive-token validation and elapsed-time calculation.
+
+Non-positive tokens fail deterministically with:
+
+```text
+Coretsia\Foundation\Time\Exception\StopwatchInvalidStateException
+```
+
+The exception message MUST be stable and safe and MUST NOT contain the raw token value.
+
+Elapsed duration is computed from:
+
+```php
+hrtime(true) - $startedAt
+```
+
+If the elapsed duration is negative or zero, `stop()` returns:
+
+```text
+0
+```
+
+If the elapsed duration is positive, it is converted with:
+
+```php
+intdiv($durationNs, 1_000_000)
+```
+
+`Stopwatch` MUST NOT use:
+
+```text
+microtime(true)
+```
+
+`Stopwatch` MUST NOT expose float durations.
+
+Canonical duration values are:
+
+```text
+int milliseconds
+>= 0
+```
+
+Canonical field suffix:
+
+```text
+_duration_ms
+```
+
+Canonical semantic name:
+
+```text
+durationMs
+```
+
 ## Context lifecycle
 
 All `ContextStore` state is unit-of-work-local.
@@ -577,6 +846,7 @@ Stable JSON output MUST:
 - reject floats, objects, resources, closures, and non-string map keys.
 
 Redaction of caller-owned payloads remains the caller's responsibility.
+
 The encoder itself does not inspect environment variables.
 
 ## Observability
@@ -615,6 +885,24 @@ Later platform providers MAY override these defaults by rebinding the same servi
 
 `correlation_id` MUST NOT be used as a metric label under the baseline observability policy.
 
+Generic safe ids are allowed as opaque ids for owner-approved logs or spans, but ids MUST NOT be used as metric labels.
+
+The following values MUST NOT be metric labels:
+
+```text
+correlation_id
+uow_id
+request_id
+ULID
+UUID
+```
+
+Duration values are values only.
+
+Duration metric names SHOULD use `_duration_ms` suffix where applicable.
+
+`durationMs` is an integer millisecond value and MUST NOT be used as a metric label.
+
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, and payloads MUST NOT be exported even if present in `ContextStore`.
 
 ## Errors
@@ -637,7 +925,21 @@ Context exception messages MUST be deterministic and safe.
 
 Context exception messages MUST NOT contain raw context values.
 
+This package also defines Foundation time/id exceptions:
+
+- `Coretsia\Foundation\Time\Exception\StopwatchInvalidStateException`
+  - canonical error code: `CORETSIA_STOPWATCH_INVALID_STATE`
+- `Coretsia\Foundation\Id\Exception\IdGenerationFailedException`
+  - canonical error code: `CORETSIA_ID_GENERATION_FAILED`
+
+Stopwatch and id generation exception messages MUST be deterministic and safe.
+
+Stopwatch exception messages MUST NOT contain raw timing tokens.
+
+ID generation exception messages MUST NOT contain raw entropy bytes, generated partial ids, host-specific values, or environment data.
+
 Reset misuse is a deterministic hard-fail.
+
 The canonical reset-specific exception shape is introduced by the later reset enhancement epic.
 
 Higher-level error mapping is owned by higher layers.
@@ -681,6 +983,32 @@ Forbidden in `ContextStore`:
 - private customer data;
 - direct user identifiers.
 
+ID generation MUST NOT derive ids from:
+
+- credentials;
+- passwords;
+- secrets;
+- tokens;
+- private keys;
+- authorization headers;
+- cookies;
+- session ids;
+- raw request bodies;
+- raw response bodies;
+- raw headers;
+- raw SQL;
+- raw queue messages;
+- private customer data;
+- direct user identifiers such as email, phone, full name, username, or external account identifiers.
+
+Generated ids are safe opaque ids.
+
+Safe opaque ids MUST NOT be treated as proof that related payloads are safe to emit.
+
+Stopwatch tokens returned by `Stopwatch::start()` MUST NOT be exported to logs, metrics, traces, diagnostics, or artifacts.
+
+Only the final `durationMs` value may be exported by owner packages according to observability policy.
+
 Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
 
 Allowed context information is limited to keys declared in `ContextKeys` with values accepted by `ContextStorePolicy`.
@@ -695,6 +1023,7 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
+- [Time, IDs, and Duration SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/time-ids-and-duration.md)
 - [Tag Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tags.md)
 - [Config Roots SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-roots.md)
 - [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
@@ -705,3 +1034,4 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
 - [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md)
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0015-context-bag-context-store-correlation-id.md)
+- [ADR-0016: Clock, IDs, and Stopwatch](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0016-clock-ids-stopwatch.md)

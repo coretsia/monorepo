@@ -19,6 +19,9 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Provider;
 
 use Coretsia\Foundation\Container\Exception\ContainerException;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
+use Coretsia\Foundation\Id\UlidGenerator;
+use Coretsia\Foundation\Id\UuidGenerator;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Psr\Container\ContainerInterface;
@@ -44,6 +47,10 @@ use Psr\Container\ContainerInterface;
 final class FoundationServiceFactory
 {
     private const string TAG_PATTERN = '/\A[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*\z/';
+
+    private const string DEFAULT_ID_ULID = 'ulid';
+
+    private const string DEFAULT_ID_UUID = 'uuid';
 
     private function __construct()
     {
@@ -71,6 +78,46 @@ final class FoundationServiceFactory
             tagRegistry: $tagRegistry,
             effectiveResetTag: self::effectiveResetTag($foundationConfig),
         );
+    }
+
+    /**
+     * Resolves the default generic Foundation runtime id generator.
+     *
+     * The value is read from the supplied Foundation config subtree:
+     *
+     *     foundation.ids.default
+     *
+     * If the key is absent, the canonical default `ulid` is used.
+     *
+     * This selects only Coretsia\Foundation\Id\IdGeneratorInterface.
+     *
+     * It MUST NOT affect CorrelationIdGenerator or CorrelationIdProvider:
+     * correlation_id remains ULID-backed according to epic 1.210.0.
+     *
+     * @param array<string, mixed> $foundationConfig
+     */
+    public static function defaultIdGenerator(
+        array $foundationConfig,
+        UlidGenerator $ulids,
+        UuidGenerator $uuids,
+    ): IdGeneratorInterface {
+        $idsConfig = $foundationConfig['ids'] ?? [];
+
+        if (!\is_array($idsConfig)) {
+            throw new ContainerException('foundation-ids-config-invalid');
+        }
+
+        $default = $idsConfig['default'] ?? self::DEFAULT_ID_ULID;
+
+        if (!\is_string($default)) {
+            throw new ContainerException('foundation-ids-default-invalid');
+        }
+
+        return match ($default) {
+            self::DEFAULT_ID_ULID => $ulids,
+            self::DEFAULT_ID_UUID => $uuids,
+            default => throw new ContainerException('foundation-ids-default-invalid'),
+        };
     }
 
     /**

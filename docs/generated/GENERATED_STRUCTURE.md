@@ -41,6 +41,7 @@ Coretsia/
 │   │   ├── ADR-0013-secrets-port.md
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
+│   │   ├── ADR-0016-clock-ids-stopwatch.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -127,6 +128,7 @@ Coretsia/
 │       ├── routing-and-http-app-contracts.md
 │       ├── secrets-contracts.md
 │       ├── tags.md
+│       ├── time-ids-and-duration.md
 │       ├── uow-and-reset-contracts.md
 │       └── validation-contracts.md
 ├── framework/
@@ -331,6 +333,9 @@ Coretsia/
 │   │   │       │   ├── foundation.php
 │   │   │       │   └── rules.php
 │   │   │       ├── src/
+│   │   │       │   ├── Clock/
+│   │   │       │   │   ├── FrozenClock.php (FrozenClock - now())
+│   │   │       │   │   └── SystemClock.php (SystemClock - now())
 │   │   │       │   ├── Container/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ContainerException.php (ContainerException - errorCode())
@@ -350,8 +355,12 @@ Coretsia/
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php (DeterministicOrder - compare()/sort())
 │   │   │       │   ├── Id/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   └── IdGenerationFailedException.php (IdGenerationFailedException - entropyUnavailable()/timeSourceInvalid()/timestampOutOfRange()/bytesInvalid()/errorCode())
 │   │   │       │   │   ├── CorrelationIdGenerator.php (CorrelationIdGenerator - generate())
-│   │   │       │   │   └── UlidGenerator.php (UlidGenerator - generate()/unixTimeMilliseconds()/timestampBytes()/encode())
+│   │   │       │   │   ├── IdGeneratorInterface.php (IdGeneratorInterface [interface] - generate())
+│   │   │       │   │   ├── UlidGenerator.php (UlidGenerator - generate()/unixTimeMilliseconds()/timestampBytes()/encode())
+│   │   │       │   │   └── UuidGenerator.php (UuidGenerator - generate())
 │   │   │       │   ├── Logging/
 │   │   │       │   │   └── NoopLogger.php (NoopLogger - emergency()/alert()/critical()/error()/warning()/notice()/info()/debug()/log())
 │   │   │       │   ├── Module/
@@ -370,7 +379,7 @@ Coretsia/
 │   │   │       │   │   │   └── NoopTracer.php (NoopTracer - startSpan()/inSpan()/currentSpan())
 │   │   │       │   │   └── CorrelationIdProvider.php (CorrelationIdProvider - correlationId())
 │   │   │       │   ├── Provider/
-│   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/effectiveResetTag())
+│   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/defaultIdGenerator()/effectiveResetTag())
 │   │   │       │   │   ├── FoundationServiceProvider.php (FoundationServiceProvider - register())
 │   │   │       │   │   └── Tags.php (Tags)
 │   │   │       │   ├── Runtime/
@@ -378,9 +387,13 @@ Coretsia/
 │   │   │       │   │       └── ResetOrchestrator.php (ResetOrchestrator - resetAll()/effectiveResetTag()/assertValidResetTag())
 │   │   │       │   ├── Serialization/
 │   │   │       │   │   └── StableJsonEncoder.php (StableJsonEncoder - encode()/encodeStable()/normalize())
-│   │   │       │   └── Tag/
-│   │   │       │       ├── TagRegistry.php (TagRegistry - add()/tagNames()/all()/assertValidTag())
-│   │   │       │       └── TaggedService.php (TaggedService - id()/priority()/meta()/assertStringMap())
+│   │   │       │   ├── Tag/
+│   │   │       │   │   ├── TagRegistry.php (TagRegistry - add()/tagNames()/all()/assertValidTag())
+│   │   │       │   │   └── TaggedService.php (TaggedService - id()/priority()/meta()/assertStringMap())
+│   │   │       │   └── Time/
+│   │   │       │       ├── Exception/
+│   │   │       │       │   └── StopwatchInvalidStateException.php (StopwatchInvalidStateException - errorCode())
+│   │   │       │       └── Stopwatch.php (Stopwatch - start()/stop())
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php (ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest - testDiagnosticsRedactsAbsolutePathLikeServiceIds()/testDiagnosticsJsonDoesNotContainAbsolutePathPatterns()/testDiagnosticsKeepsNonPathServiceIdsReadable()/absolutePathLikeServiceIds()/redactedPathId()/validConfig())
@@ -391,10 +404,13 @@ Coretsia/
 │   │   │       │   │   ├── CorrelationIdFormatContractTest.php (CorrelationIdFormatContractTest - testCorrelationIdUsesCanonicalUppercaseUlidFormat()/testCanonicalUlidSourceUsesSameFormatContract())
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopLoggerAcceptsArbitraryPsr3ContextAndIgnoresItSafely()/testNoopTracerReturnsNoopSpanAndRunsSuccessfulCallback()/testNoopTracerRethrowsThrowableFromCallback()/testNoopSpanOperationsDoNotThrow()/testNoopMeterOperationsDoNotThrow()/testNoopErrorReporterDoesNotThrow()/testNoopProfilerReturnsNoopSessionAndRepeatedStopDoesNotThrow()/testNoopContextPropagationDoesNotThrowAndDoesNotMutateCarrier()/testNoopImplementationsDoNotContainOutputSinks()/noopImplementationFiles()/assertNoOutputSinksInPhpFile()/isNameToken())
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php (DeterministicOrderSortContractTest - testCanonicalOrderIsPriorityDescThenByteOrderIdAscForDifferentInputOrders()/testCanonicalSortDoesNotDependOnLocaleCollation()/testCanonicalSortPreservesAllEntriesWithoutDedupe()/inputOrders()/idsFrom())
+│   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php (FoundationConfigRejectsFloatValuesInIdsContractTest - testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey()/testDefaultsDeclareIdsDefaultAndNoClockConfig()/testDefaultConfigMatchesRules()/testInvalidIdsAndClockConfigFailDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/reject())
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/foundationConfig()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php (StableJsonEncoderRejectsFloatValuesContractTest - testRejectsTopLevelFloatValuesWithStableMessage()/testRejectsNestedFloatValuesWithStableMessage()/assertEncodingFailsWith())
 │   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php (StableJsonEncoderRejectsNonJsonLikeValuesContractTest - testRejectsObjectsWithStableMessage()/testRejectsClosuresWithStableMessage()/testRejectsResourcesWithStableMessage()/testRejectsNestedObjectsAndClosuresWithStableMessages()/testRejectsNonStringMapKeysOutsideListSemanticsWithStableMessage()/testCallableLookingStringsRemainPlainStrings()/assertEncodingFailsWith())
-│   │   │       │   │   └── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php (StableJsonEncoderSortsMapKeysRecursivelyContractTest - testSortsMapKeysRecursivelyAndPreservesListOrder()/testUsesByteOrderStringComparisonForMapKeys()/testPreservesTopLevelListOrder()/testOutputUsesFinalLfAndNoCrLf()/testDoesNotEscapeUnicodeOrSlashes())
+│   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php (StableJsonEncoderSortsMapKeysRecursivelyContractTest - testSortsMapKeysRecursivelyAndPreservesListOrder()/testUsesByteOrderStringComparisonForMapKeys()/testPreservesTopLevelListOrder()/testOutputUsesFinalLfAndNoCrLf()/testDoesNotEscapeUnicodeOrSlashes())
+│   │   │       │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php (SystemClockReturnsUtcDateTimeImmutableContractTest - testSystemClockImplementsPsrClockInterface()/testNowReturnsDateTimeImmutableInUtc())
+│   │   │       │   │   └── UuidFormatContractTest.php (UuidFormatContractTest - testUuidGeneratorImplementsIdGeneratorInterface()/testGeneratedUuidUsesCanonicalLowercaseVersion4Format())
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php (ContainerBuilderLaterBindingOverridesEarlierBindingTest - testLaterProviderBindingOverridesEarlierProviderBindingDeterministically()/testLaterInterfaceBindingOverridesEarlierInterfaceBindingDeterministically()/testLaterInstanceOverridesEarlierDefinitionDeterministically()/testLaterDefinitionOverridesEarlierInstanceDeterministically()/validConfig(); ContainerBuilderOverrideContract [interface] - value(); FirstContainerBuilderOverrideImplementation - value(); SecondContainerBuilderOverrideImplementation - value(); InstanceContainerBuilderOverrideImplementation - value(); FirstContainerBuilderOverrideProvider - register(); SecondContainerBuilderOverrideProvider - register(); InstanceContainerBuilderOverrideProvider - register())
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php (ContainerBuilderProviderOrderIsDeterministicTest - testRegisterPreservesCallerSuppliedProviderOrderExactly()/testRegisterProvidersPreservesIterableOrderExactly()/testProviderOrderIsNotGloballySortedByProviderClassName()/validConfig(); ContainerBuilderProviderOrderRecorder - record()/events(); ZuluContainerBuilderOrderProvider - register(); AlphaContainerBuilderOrderProvider - register(); MiddleContainerBuilderOrderProvider - register())
@@ -409,6 +425,9 @@ Coretsia/
 │   │   │       │   │   ├── ContextStoreResetClearsContextTest.php (ContextStoreResetClearsContextTest - testResetClearsAllStoredContext()/testResetIsIdempotent()/testClearAndResetHaveSameEmptyStoreResult())
 │   │   │       │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php (ContextStoreSafeWriteGuardBlocksForbiddenKeysTest - unsafeNonCanonicalKeyProvider()/testUnsafeNonCanonicalKeysAreRejectedBeforeStorage()/testForbiddenValueShapeIsRejectedBeforeStorage()/testCallableLikeStringIsStillAcceptedAsPlainString())
 │   │   │       │   │   ├── CorrelationIdProviderReadsContextStoreTest.php (CorrelationIdProviderReadsContextStoreTest - testProviderReturnsNullWhenCorrelationIdIsAbsent()/testProviderReturnsCorrelationIdFromContextStore()/testProviderReturnsNullWhenCorrelationIdIsEmptyString()/testProviderReturnsNullWhenCorrelationIdIsNotString()/testProviderDoesNotGenerateCorrelationIdAsReadSideEffect()/testContainerResolvedProviderReadsTheSameContextStoreInstance()/foundationContainer())
+│   │   │       │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php (DefaultIdGeneratorResolvesFromConfigTest - testDefaultIdGeneratorResolvesToUlidGeneratorWhenConfiguredAsUlid()/testDefaultIdGeneratorResolvesToUuidGeneratorWhenConfiguredAsUuid()/testUuidDefaultDoesNotMakeCorrelationIdGeneratorUseUuid()/foundationContainer())
+│   │   │       │   │   ├── FoundationClockAndStopwatchBindingsTest.php (FoundationClockAndStopwatchBindingsTest - testClockInterfaceAndSystemClockResolveToSameRuntimeClockInstance()/testStopwatchResolvesAsExplicitFoundationRuntimeService()/testFrozenClockIsNotRegisteredAsDefaultRuntimeClockBinding()/foundationContainer())
+│   │   │       │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php (FoundationIdsDefaultDoesNotAffectCorrelationIdTest - testUuidDefaultIdGeneratorDoesNotAffectCorrelationIdGeneratorFormat()/testUuidDefaultIdGeneratorDoesNotAffectCorrelationIdProviderBindingOrReadBehavior()/foundationContainerWithUuidDefault())
 │   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php (FoundationResolvesContextStoreBindingsTest - testFoundationProviderResolvesContextStoreAndAccessorBindingsToSameInstance()/testFoundationProviderResolvesCorrelationProviderBindingsToSameInstance()/testFoundationProviderResolvesUlidAndCorrelationIdGenerators()/testFoundationContextAndCorrelationServicesResolveWithConcreteAutowireDisabled()/foundationContainer())
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php (FoundationResolvesNoopObservabilityBindingsTest - testFoundationProviderResolvesNoopObservabilityBindings()/testFoundationProviderDoesNotRegisterSpanOrProfilingSessionAsRootBindings()/foundationContainer())
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php (ResetOrchestratorInvokesResetExactlyOncePerServiceTest - testInvokesResetExactlyOncePerTaggedResettableServiceInRegistryOrder()/testEachResetCycleInvokesEachServiceOnceAgain()/testEmptyDiscoveryListIsDeterministicNoop()/testResetExecutionDoesNotRequireAutowireConfigForExplicitInstances()/orchestratorFrom()/validConfig(); ResetOrchestratorInvokesRecorder - record()/events(); ResetOrchestratorInvokesResettableService - reset()/resetCount())
@@ -422,7 +441,10 @@ Coretsia/
 │   │   │       │       ├── ContextBagImmutabilityTest.php (ContextBagImmutabilityTest - testContextBagDoesNotObserveOriginalArrayMutations()/testContextStoreSnapshotDoesNotObserveLaterStoreMutations()/testContextBagReadApisReturnCopies())
 │   │   │       │       ├── CorrelationIdFormatTest.php (CorrelationIdFormatTest - testUlidGeneratorProducesCanonicalUppercaseUlid()/testCorrelationIdGeneratorProducesCanonicalUppercaseUlid())
 │   │   │       │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php (CorrelationIdGeneratorDelegatesToUlidGeneratorTest - testConstructorRequiresCanonicalUlidGenerator()/testGenerateDelegatesToUlidGenerator()/testCorrelationIdGeneratorDoesNotContainOwnUlidImplementationTokens()/correlationIdGeneratorSource()/isNameToken())
-│   │   │       │       └── DeterministicOrderSortRuleTest.php (DeterministicOrderSortRuleTest - testCompareOrdersHigherPriorityBeforeLowerPriority()/testCompareOrdersIdAscendingWhenPriorityIsEqual()/testCompareUsesByteOrderStringComparisonForEqualPriority()/testSortAppliesPriorityDescendingThenIdAscending()/testSortReturnsAList()/idsFrom())
+│   │   │       │       ├── DeterministicOrderSortRuleTest.php (DeterministicOrderSortRuleTest - testCompareOrdersHigherPriorityBeforeLowerPriority()/testCompareOrdersIdAscendingWhenPriorityIsEqual()/testCompareUsesByteOrderStringComparisonForEqualPriority()/testSortAppliesPriorityDescendingThenIdAscending()/testSortReturnsAList()/idsFrom())
+│   │   │       │       ├── FrozenClockReturnsDeterministicNowTest.php (FrozenClockReturnsDeterministicNowTest - testFrozenClockImplementsPsrClockInterface()/testFrozenClockReturnsSameLogicalInstantOnRepeatedNowCalls()/testFrozenClockNormalizesReturnedInstantToUtc())
+│   │   │       │       ├── StopwatchDurationIsNonNegativeTest.php (StopwatchDurationIsNonNegativeTest - testStartReturnsIntegerNanosecondToken()/testStopReturnsIntegerMillisecondsGreaterThanOrEqualToZero()/testStopReturnsZeroForPositiveFutureToken()/testStopRejectsZeroTokenWithSafeDeterministicMessage()/testStopRejectsNegativeTokenWithSafeDeterministicMessage())
+│   │   │       │       └── UlidFormatTest.php (UlidFormatTest - testGeneratedUlidUsesCanonicalUppercaseCrockfordBase32Format()/testGeneratedUlidIsDeterministicFormatString())
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md

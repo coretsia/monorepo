@@ -45,6 +45,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0013: Secrets port](./ADR-0013-secrets-port.md) — owner: core/contracts — scope: contracts,secrets,redaction
 - [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](./ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md) — owner: core/foundation — scope: container,di,ordering,reset,runtime,tags
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](./ADR-0015-context-bag-context-store-correlation-id.md) — owner: core/foundation — scope: context,context-bag,context-store,correlation-id,runtime
+- [ADR-0016: Clock, IDs, and Stopwatch](./ADR-0016-clock-ids-stopwatch.md) — owner: core/foundation — scope: clock,duration,ids,runtime,time
 
 ## Cross-references
 

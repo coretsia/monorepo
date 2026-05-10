@@ -25,11 +25,13 @@ declare(strict_types=1);
  * - reserved `@*` keys are rejected by the same strict-shape policy;
  * - tag discovery and reset orchestration are not feature-flagged;
  * - `foundation.reset.tag` is configurable but must be a non-empty string
- *   without whitespace.
+ *   without whitespace;
+ * - `foundation.ids.default` selects only the default generic runtime id
+ *   generator and does not affect correlation id generation.
  *
  * The defaults file must return the subtree only:
  *
- *     config/foundation.php => ['container' => [...], 'reset' => [...]]
+ *     config/foundation.php => ['container' => [...], 'ids' => [...], 'reset' => [...]]
  *
  * It must not return:
  *
@@ -52,6 +54,21 @@ return [
                 'allow_reflection_for_concrete' => [
                     'required' => true,
                     'type' => 'bool',
+                ],
+            ],
+        ],
+        'ids' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'default' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'allowedValues' => [
+                        'ulid',
+                        'uuid',
+                    ],
                 ],
             ],
         ],

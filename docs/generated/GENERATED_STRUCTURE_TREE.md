@@ -41,6 +41,7 @@ Coretsia/
 │   │   ├── ADR-0013-secrets-port.md
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
+│   │   ├── ADR-0016-clock-ids-stopwatch.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -127,6 +128,7 @@ Coretsia/
 │       ├── routing-and-http-app-contracts.md
 │       ├── secrets-contracts.md
 │       ├── tags.md
+│       ├── time-ids-and-duration.md
 │       ├── uow-and-reset-contracts.md
 │       └── validation-contracts.md
 ├── framework/
@@ -331,6 +333,9 @@ Coretsia/
 │   │   │       │   ├── foundation.php
 │   │   │       │   └── rules.php
 │   │   │       ├── src/
+│   │   │       │   ├── Clock/
+│   │   │       │   │   ├── FrozenClock.php
+│   │   │       │   │   └── SystemClock.php
 │   │   │       │   ├── Container/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ContainerException.php
@@ -350,8 +355,12 @@ Coretsia/
 │   │   │       │   ├── Discovery/
 │   │   │       │   │   └── DeterministicOrder.php
 │   │   │       │   ├── Id/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   └── IdGenerationFailedException.php
 │   │   │       │   │   ├── CorrelationIdGenerator.php
-│   │   │       │   │   └── UlidGenerator.php
+│   │   │       │   │   ├── IdGeneratorInterface.php
+│   │   │       │   │   ├── UlidGenerator.php
+│   │   │       │   │   └── UuidGenerator.php
 │   │   │       │   ├── Logging/
 │   │   │       │   │   └── NoopLogger.php
 │   │   │       │   ├── Module/
@@ -378,9 +387,13 @@ Coretsia/
 │   │   │       │   │       └── ResetOrchestrator.php
 │   │   │       │   ├── Serialization/
 │   │   │       │   │   └── StableJsonEncoder.php
-│   │   │       │   └── Tag/
-│   │   │       │       ├── TagRegistry.php
-│   │   │       │       └── TaggedService.php
+│   │   │       │   ├── Tag/
+│   │   │       │   │   ├── TagRegistry.php
+│   │   │       │   │   └── TaggedService.php
+│   │   │       │   └── Time/
+│   │   │       │       ├── Exception/
+│   │   │       │       │   └── StopwatchInvalidStateException.php
+│   │   │       │       └── Stopwatch.php
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
@@ -391,10 +404,13 @@ Coretsia/
 │   │   │       │   │   ├── CorrelationIdFormatContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php
+│   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
-│   │   │       │   │   └── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
+│   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
+│   │   │       │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
+│   │   │       │   │   └── UuidFormatContractTest.php
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
@@ -409,6 +425,9 @@ Coretsia/
 │   │   │       │   │   ├── ContextStoreResetClearsContextTest.php
 │   │   │       │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
 │   │   │       │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
+│   │   │       │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
+│   │   │       │   │   ├── FoundationClockAndStopwatchBindingsTest.php
+│   │   │       │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
 │   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
@@ -422,7 +441,10 @@ Coretsia/
 │   │   │       │       ├── ContextBagImmutabilityTest.php
 │   │   │       │       ├── CorrelationIdFormatTest.php
 │   │   │       │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
-│   │   │       │       └── DeterministicOrderSortRuleTest.php
+│   │   │       │       ├── DeterministicOrderSortRuleTest.php
+│   │   │       │       ├── FrozenClockReturnsDeterministicNowTest.php
+│   │   │       │       ├── StopwatchDurationIsNonNegativeTest.php
+│   │   │       │       └── UlidFormatTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── README.md

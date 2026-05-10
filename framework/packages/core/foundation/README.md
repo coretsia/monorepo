@@ -289,6 +289,25 @@ Provider wiring MUST NOT duplicate reset tag validation logic.
 
 `ContextStore` MUST be discovered for reset through the effective reset discovery tag, not through `kernel.stateful`.
 
+Stateful-service policy is governed by:
+
+```text
+docs/ssot/stateful-services.md
+docs/ssot/reset-tags.md
+```
+
+Any Foundation service that retains mutable per-UoW state MUST follow the stateful-service policy:
+
+```text
+kernel.stateful
+⇒ implements Coretsia\Contracts\Runtime\ResetInterface
+&& discoverable through the effective Foundation reset discovery tag
+```
+
+`kernel.stateful` is an enforcement marker only.
+
+Runtime reset execution MUST continue to use `ResetOrchestrator` and the effective Foundation reset discovery tag.
+
 ## Runtime context
 
 Foundation provides one mutable runtime context store:
@@ -1024,6 +1043,8 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
 - [Time, IDs, and Duration SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/time-ids-and-duration.md)
+- [Stateful Services SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/stateful-services.md)
+- [Reset Tags SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reset-tags.md)
 - [Tag Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tags.md)
 - [Config Roots SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-roots.md)
 - [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)

@@ -109,6 +109,7 @@ Coretsia/
 │       ├── config-and-env.md
 │       ├── config-roots.md
 │       ├── context-keys.md
+│       ├── context-lifecycle.md
 │       ├── context-store.md
 │       ├── database-contracts.md
 │       ├── di-tags-and-middleware-ordering.md
@@ -118,6 +119,7 @@ Coretsia/
 │       ├── filesystem-contracts.md
 │       ├── http-middleware-catalog.md
 │       ├── mail-contracts.md
+│       ├── middleware-context-keys-map.md
 │       ├── migrations-contracts.md
 │       ├── modes.md
 │       ├── modules-and-manifests.md
@@ -125,8 +127,10 @@ Coretsia/
 │       ├── observability.md
 │       ├── profiling-ports.md
 │       ├── rate-limit-contracts.md
+│       ├── reset-tags.md
 │       ├── routing-and-http-app-contracts.md
 │       ├── secrets-contracts.md
+│       ├── stateful-services.md
 │       ├── tags.md
 │       ├── time-ids-and-duration.md
 │       ├── uow-and-reset-contracts.md

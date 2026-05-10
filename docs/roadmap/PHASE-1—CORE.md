@@ -6362,43 +6362,43 @@ Forbidden:
 
 #### Creates
 
-- [ ] `docs/ssot/context-lifecycle.md` — includes:
-  - [ ] beginUoW writes: `correlation_id`, `uow_id`, `uow_type`
-  - [ ] HTTP enrichment writes (if enabled): `client_ip`, `scheme`, `host`, `path`, `user_agent`, `request_id`, `http_response_format`
-  - [ ] routing writes (Phase 1): `path_template`
-  - [ ] auth writes (Phase 2): `actor_id` (safe id)
-  - [ ] tenancy writes (Phase 6+): `tenant_id` (safe id)
-  - [ ] hard bans: session id / tokens / cookies / Authorization / payloads
-  - [ ] Presence of a key in ContextStore MUST NOT be interpreted as permission to export it into observability.
-  - [ ] In particular, raw `path` MAY exist as in-process context, but MUST NOT be emitted to logs/spans/metrics; observability export remains governed by `docs/ssot/observability.md`.
-  - [ ] `docs/ssot/context-lifecycle.md` MUST include an “Examples” section (single-choice):
-    - [ ] Example A (valid): HTTP request UoW
-      - [ ] beginUoW writes base keys (`correlation_id`, `uow_id`, `uow_type`)
-      - [ ] middleware enriches ONLY safe keys
-      - [ ] afterUoW triggers Foundation reset orchestration via `ResetOrchestrator` using the effective reset discovery tag (reserved default name: `kernel.reset`), and ContextStore becomes empty for the next UoW
-    - [ ] Example B (valid): CLI command UoW
-      - [ ] same base keys
-      - [ ] no HTTP-only keys written
-      - [ ] reset still runs after UoW
-    - [ ] Example C (invalid): Context leak across UoW
-      - [ ] previous request key visible in the next request → MUST be described as policy violation
-    - [ ] Example D (invalid): secret/PII in ContextStore
-      - [ ] Authorization/cookies/session id/payload written → MUST be described as hard-ban violation
-  - [ ] `docs/ssot/context-lifecycle.md` MUST reference the canonical HTTP middleware slot taxonomy already owned by the HTTP/tags SSoT.
-  - [ ] This document MAY repeat slot names only for lifecycle examples and MUST NOT redefine ownership, ordering, or slot semantics.
-    - [ ] slots (cemented, tag names; reserved for TagRegistry usage):
-      - [ ] `http.middleware.system_pre`
-      - [ ] `http.middleware.system`
-      - [ ] `http.middleware.system_post`
-      - [ ] `http.middleware.app_pre`
-      - [ ] `http.middleware.app`
-      - [ ] `http.middleware.app_post`
-      - [ ] `http.middleware.route_pre`
-      - [ ] `http.middleware.route`
-      - [ ] `http.middleware.route_post`
-    - [ ] **Config namespace (NOT a tag):** `http.middleware.auto.*` is a configuration-key namespace under the `http.*` config subtree.
-      - [ ] `http.middleware.auto` / `http.middleware.auto.*` MUST NOT be used as TagRegistry tag names.
-      - [ ] Rationale: avoid collisions/confusion with the `http.middleware.*` tag namespace.
+- [x] `docs/ssot/context-lifecycle.md` — includes:
+  - [x] beginUoW writes: `correlation_id`, `uow_id`, `uow_type`
+  - [x] HTTP enrichment writes (if enabled): `client_ip`, `scheme`, `host`, `path`, `user_agent`, `request_id`, `http_response_format`
+  - [x] routing writes (Phase 1): `path_template`
+  - [x] auth writes (Phase 2): `actor_id` (safe id)
+  - [x] tenancy writes (Phase 6+): `tenant_id` (safe id)
+  - [x] hard bans: session id / tokens / cookies / Authorization / payloads
+  - [x] Presence of a key in ContextStore MUST NOT be interpreted as permission to export it into observability.
+  - [x] In particular, raw `path` MAY exist as in-process context, but MUST NOT be emitted to logs/spans/metrics; observability export remains governed by `docs/ssot/observability.md`.
+  - [x] `docs/ssot/context-lifecycle.md` MUST include an “Examples” section (single-choice):
+    - [x] Example A (valid): HTTP request UoW
+      - [x] beginUoW writes base keys (`correlation_id`, `uow_id`, `uow_type`)
+      - [x] middleware enriches ONLY safe keys
+      - [x] afterUoW triggers Foundation reset orchestration via `ResetOrchestrator` using the effective reset discovery tag (reserved default name: `kernel.reset`), and ContextStore becomes empty for the next UoW
+    - [x] Example B (valid): CLI command UoW
+      - [x] same base keys
+      - [x] no HTTP-only keys written
+      - [x] reset still runs after UoW
+    - [x] Example C (invalid): Context leak across UoW
+      - [x] previous request key visible in the next request → MUST be described as policy violation
+    - [x] Example D (invalid): secret/PII in ContextStore
+      - [x] Authorization/cookies/session id/payload written → MUST be described as hard-ban violation
+  - [x] `docs/ssot/context-lifecycle.md` MUST reference the canonical HTTP middleware slot taxonomy already owned by the HTTP/tags SSoT.
+  - [x] This document MAY repeat slot names only for lifecycle examples and MUST NOT redefine ownership, ordering, or slot semantics.
+    - [x] slots (cemented, tag names; reserved for TagRegistry usage):
+      - [x] `http.middleware.system_pre`
+      - [x] `http.middleware.system`
+      - [x] `http.middleware.system_post`
+      - [x] `http.middleware.app_pre`
+      - [x] `http.middleware.app`
+      - [x] `http.middleware.app_post`
+      - [x] `http.middleware.route_pre`
+      - [x] `http.middleware.route`
+      - [x] `http.middleware.route_post`
+    - [x] **Config namespace (NOT a tag):** `http.middleware.auto.*` is a configuration-key namespace under the `http.*` config subtree.
+      - [x] `http.middleware.auto` / `http.middleware.auto.*` MUST NOT be used as TagRegistry tag names.
+      - [x] Rationale: avoid collisions/confusion with the `http.middleware.*` tag namespace.
 
   ## Reset execution (mechanism)
 
@@ -6447,19 +6447,19 @@ Forbidden:
   - a stateful service keeps per-request payload/headers/tokens in memory after reset
   - reset execution prints/logs payloads, headers, cookies, Authorization, or secrets
 
-- [ ] `docs/ssot/middleware-context-keys-map.md` — table: middleware FQCN → ContextKeys written/read (reference-only)
-  - [ ] MUST explicitly state its SSoT linkage:
-    - [ ] the canonical middleware list/slot ownership/order reference is:
-      - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT
-    - [ ] the table MUST NOT re-declare middleware lists; it is a reference map only:
-      - [ ] `Middleware FQCN → ContextKeys written/read`
+- [x] `docs/ssot/middleware-context-keys-map.md` — table: middleware FQCN → ContextKeys written/read (reference-only)
+  - [x] MUST explicitly state its SSoT linkage:
+    - [x] the canonical middleware list/slot ownership/order reference is:
+      - [x] `docs/ssot/http-middleware-catalog.md`
+    - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT
+    - [x] the table MUST NOT re-declare middleware lists; it is a reference map only:
+      - [x] `Middleware FQCN → ContextKeys written/read`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/context-lifecycle.md`
-  - [ ] `docs/ssot/middleware-context-keys-map.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/context-lifecycle.md`
+  - [x] `docs/ssot/middleware-context-keys-map.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -6467,18 +6467,18 @@ Forbidden:
 
 - Context reads:
   - N/A (doc defines lifecycle; runtime reads happen elsewhere)
-- [ ] Context writes (safe only):
-  - [ ] base UoW keys (kernel)
-  - [ ] request/app safe keys (middlewares/packages)
-- [ ] Reset discipline:
-  - [ ] always via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
+- [x] Context writes (safe only):
+  - [x] base UoW keys (kernel)
+  - [x] request/app safe keys (middlewares/packages)
+- [x] Reset discipline:
+  - [x] always via `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
     using the effective reset discovery tag resolved from `foundation.reset.tag`
     (reserved default `kernel.reset`)
 
 #### Observability (policy-compliant)
 
-- [ ] Logs:
-  - [ ] explicitly bans secrets/PII in ContextStore; only safe ids + hash/len guidance
+- [x] Logs:
+  - [x] explicitly bans secrets/PII in ContextStore; only safe ids + hash/len guidance
 
 #### Errors
 
@@ -6486,46 +6486,46 @@ N/A (doc-only)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] session ids/tokens/cookies/Authorization/payloads
-- [ ] Allowed:
-  - [ ] safe ids + `hash(value)` / `len(value)` outside metric labels
-- [ ] Hard bans (single-choice; enforceable) — ContextStore MUST NOT contain:
-  - [ ] `Authorization`, cookies, session ids, tokens (any form),
-  - [ ] raw request/response payloads,
-  - [ ] raw headers (except allowlisted safe ones like `User-Agent` as a safe string, if policy allows),
-  - [ ] anything that can identify a user beyond a safe id (Phase 2+ owns those ids).
-- [ ] Allowed values are only:
-  - [ ] safe ids (opaque correlation/uow ids),
-  - [ ] normalized request metadata (scheme/host/path) WITHOUT query string (unless hashed),
-  - [ ] `hash(value)` / `len(value)` when needed, never raw secret.
+- [x] MUST NOT leak:
+  - [x] session ids/tokens/cookies/Authorization/payloads
+- [x] Allowed:
+  - [x] safe ids + `hash(value)` / `len(value)` outside metric labels
+- [x] Hard bans (single-choice; enforceable) — ContextStore MUST NOT contain:
+  - [x] `Authorization`, cookies, session ids, tokens (any form),
+  - [x] raw request/response payloads,
+  - [x] raw headers (except allowlisted safe ones like `User-Agent` as a safe string, if policy allows),
+  - [x] anything that can identify a user beyond a safe id (Phase 2+ owns those ids).
+- [x] Allowed values are only:
+  - [x] safe ids (opaque correlation/uow ids),
+  - [x] normalized request metadata (scheme/host/path) WITHOUT query string (unless hashed),
+  - [x] `hash(value)` / `len(value)` when needed, never raw secret.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] N/A (doc-only); MUST reference enforcement rails:
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
-  - [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
+- [x] N/A (doc-only); MUST reference enforcement rails:
+  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+  - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
 
 ### Tests (MUST)
 
 - Unit/Contract/Integration:
   - N/A
 - Gates/Arch:
-  - [ ] referenced by enforcement rails (see Verification)
+  - [x] referenced by enforcement rails (see Verification)
 
 ### DoD (MUST)
 
-- [ ] Docs exist and match `ContextKeys` SSoT + middleware catalog
-- [ ] No contradictory rules vs kernel/http epics
-- [ ] Enforcement rails reference (MUST):
-  - [ ] Kernel reset invariant MUST be enforced by an integration test (example path):
-    - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
-  - [ ] Cross-cutting gate MUST validate “no forbidden ContextKeys writes” (example gate path):
-    - [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
-  - [ ] The doc MUST explicitly describe what the gate/test checks (single-choice):
-    - [ ] afterUoW → `ResetOrchestrator::resetAll()` runs → ContextStore is empty for the next UoW.
+- [x] Docs exist and match `ContextKeys` SSoT + middleware catalog
+- [x] No contradictory rules vs kernel/http epics
+- [x] Enforcement rails reference (MUST):
+  - [x] Kernel reset invariant MUST be enforced by an integration test (example path):
+    - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+  - [x] Cross-cutting gate MUST validate “no forbidden ContextKeys writes” (example gate path):
+    - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+  - [x] The doc MUST explicitly describe what the gate/test checks (single-choice):
+    - [x] afterUoW → `ResetOrchestrator::resetAll()` runs → ContextStore is empty for the next UoW.
 
 ---
 
@@ -6621,31 +6621,31 @@ Forbidden:
 
 #### Creates
 
-- [ ] `docs/ssot/stateful-services.md` — rules + examples:
-  - [ ] effective reset tag = `foundation.reset.tag`, default=`kernel.reset`
-  - [ ] `kernel.stateful ⇒ implements ResetInterface && tagged with <effective reset tag>`
-  - [ ] examples of stateful: identity store, deferred queues, caches with per-UoW state
-  - [ ] examples of forbidden state: static globals, request singletons without reset
-  - [ ] MUST include:
-    - [ ] “Definition” section (single-choice):
-      - [ ] *stateless by default* means: no per-UoW memory, no retained request data, no implicit caches.
-      - [ ] *stateful* means: service retains mutable in-memory state across calls within the same process.
-    - [ ] “Examples” section with 3–5 minimal examples (copy-pastable):
-      - [ ] valid: in-memory queue that is cleared on reset (`ResetInterface` + effective reset tag; default example reset discovery tag is Foundation-owned and opaque to the consumer)
-      - [ ] valid: memoized cache that is cleared on reset
-      - [ ] invalid: static global cache (`static $x`) persisting across UoW
-      - [ ] invalid: request singleton without reset discipline
-      - [ ] invalid: stateful service tagged `kernel.stateful` but missing `ResetInterface`
+- [x] `docs/ssot/stateful-services.md` — rules + examples:
+  - [x] effective reset tag = `foundation.reset.tag`, default=`kernel.reset`
+  - [x] `kernel.stateful ⇒ implements ResetInterface && tagged with <effective reset tag>`
+  - [x] examples of stateful: identity store, deferred queues, caches with per-UoW state
+  - [x] examples of forbidden state: static globals, request singletons without reset
+  - [x] MUST include:
+    - [x] “Definition” section (single-choice):
+      - [x] *stateless by default* means: no per-UoW memory, no retained request data, no implicit caches.
+      - [x] *stateful* means: service retains mutable in-memory state across calls within the same process.
+    - [x] “Examples” section with 3–5 minimal examples (copy-pastable):
+      - [x] valid: in-memory queue that is cleared on reset (`ResetInterface` + effective reset tag; default example reset discovery tag is Foundation-owned and opaque to the consumer)
+      - [x] valid: memoized cache that is cleared on reset
+      - [x] invalid: static global cache (`static $x`) persisting across UoW
+      - [x] invalid: request singleton without reset discipline
+      - [x] invalid: stateful service tagged `kernel.stateful` but missing `ResetInterface`
 
-- [ ] `docs/ssot/reset-tags.md` — reset semantics and usage rules for already-canonical tags
-  - [ ] MUST NOT redefine tag ownership or registry rows from `docs/ssot/tags.md`.
-  - [ ] Owns only reset-specific semantics:
-    - [ ] effective reset discovery tag
-    - [ ] reserved default name
-    - [ ] `kernel.stateful` invariant
-    - [ ] redaction/safety rules for reset-related diagnostics
-  - [ ] effective reset tag = `foundation.reset.tag`, default=`kernel.reset`
-  - [ ] kernel.stateful => implements ResetInterface && tagged with the effective reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
+- [x] `docs/ssot/reset-tags.md` — reset semantics and usage rules for already-canonical tags
+  - [x] MUST NOT redefine tag ownership or registry rows from `docs/ssot/tags.md`.
+  - [x] Owns only reset-specific semantics:
+    - [x] effective reset discovery tag
+    - [x] reserved default name
+    - [x] `kernel.stateful` invariant
+    - [x] redaction/safety rules for reset-related diagnostics
+  - [x] effective reset tag = `foundation.reset.tag`, default=`kernel.reset`
+  - [x] kernel.stateful => implements ResetInterface && tagged with the effective reset discovery tag (`foundation.reset.tag`, default `kernel.reset`)
 
 # Reset discipline: effective reset discovery tag + `kernel.stateful`
 
@@ -6695,53 +6695,53 @@ Allowed:
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/stateful-services.md`
-  - [ ] `docs/ssot/reset-tags.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/stateful-services.md`
+  - [x] `docs/ssot/reset-tags.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] secrets in memory beyond UoW (if unavoidable, must be explicitly documented and wiped on reset)
-- [ ] Allowed:
-  - [ ] safe ids + hash/len patterns
+- [x] MUST NOT leak:
+  - [x] secrets in memory beyond UoW (if unavoidable, must be explicitly documented and wiped on reset)
+- [x] Allowed:
+  - [x] safe ids + hash/len patterns
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] N/A (doc-only), but MUST reference enforcement rails:
-  - [ ] `framework/tools/gates/cross_cutting_contract_gate.php`
-  - [ ] phpstan rule: “stateful/tagged services MUST implement ResetInterface” (referenced; owned elsewhere)
+- [x] N/A (doc-only), but MUST reference enforcement rails:
+  - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+  - [x] phpstan rule: “stateful/tagged services MUST implement ResetInterface” (referenced; owned elsewhere)
 
 ### Tests (MUST)
 
 - Unit/Contract/Integration:
   - N/A
 - Gates/Arch:
-  - [ ] enforced via gates/phpstan (referenced)
+  - [x] enforcement rails referenced via gates/phpstan
 
 ### DoD (MUST)
 
-- [ ] Docs exist and are referenced by runtime packages READMEs
-- [ ] CI rails exist/are referenced for enforcement (gate/phpstan)
-- [ ] A stateful service MUST NOT retain secrets/PII beyond a UoW.
-  - [ ] If a secret must exist transiently, it MUST be wiped during reset and MUST be documented explicitly.
-- [ ] Reset MUST be deterministic.
-- [ ] Stateful services SHOULD make repeated reset calls on already-clean state safe/idempotent where feasible.
-- [ ] This MUST NOT be interpreted as “reset can never throw”:
-  - [ ] orchestrator failure semantics remain fail-fast on service exception, as owned by `1.250.0`
-- [ ] Error reporting MUST be safe:
-  - [ ] MUST NOT include absolute paths, payloads, tokens, headers in exception messages.
-- [ ] Enforcement rails (MUST reference):
-  - [ ] CI MUST fail if a service is tagged `kernel.stateful` but does not implement `Coretsia\Contracts\Runtime\ResetInterface`.
-  - [ ] CI MUST fail if a stateful service is missing discovery through the effective Foundation reset tag.
-    - [ ] enforcement may be via integration/wiring tests or compile-time gates against resolved config
-  - [ ] Reference enforcement mechanisms (example):
-    - `framework/tools/gates/cross_cutting_contract_gate.php`
-    - phpstan rule: “kernel.stateful ⇒ implements ResetInterface” (owned elsewhere; referenced here)
+- [x] Docs exist and are referenced by runtime packages READMEs
+- [x] CI rails exist/are referenced for enforcement (gate/phpstan)
+- [x] A stateful service MUST NOT retain secrets/PII beyond a UoW.
+  - [x] If a secret must exist transiently, it MUST be wiped during reset and MUST be documented explicitly.
+- [x] Reset MUST be deterministic.
+- [x] Stateful services SHOULD make repeated reset calls on already-clean state safe/idempotent where feasible.
+- [x] This MUST NOT be interpreted as “reset can never throw”:
+  - [x] orchestrator failure semantics remain fail-fast on service exception, as owned by `1.250.0`
+- [x] Error reporting MUST be safe:
+  - [x] MUST NOT include absolute paths, payloads, tokens, headers in exception messages.
+- [x] Enforcement rails (MUST reference):
+  - [x] CI MUST fail if a service is tagged `kernel.stateful` but does not implement `Coretsia\Contracts\Runtime\ResetInterface`.
+  - [x] CI MUST fail if a stateful service is missing discovery through the effective Foundation reset tag.
+    - [x] enforcement may be via integration/wiring tests or compile-time gates against resolved config
+  - [x] Reference enforcement mechanisms (example):
+    - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+    - [x] phpstan rule: “kernel.stateful ⇒ implements ResetInterface” (owned elsewhere; referenced here)
 
 ---
 
@@ -6842,9 +6842,9 @@ Implementation:
     - [ ] If `foundation.reset.priority.enabled=true`:
       - [ ] For each service resolve `priority` and `group` deterministically (see Tag meta parsing).
       - [ ] Sort keys (single-choice):
-        1) `priority` DESC (higher first)
-        2) `group` ASC by `strcmp` on normalized group id
-        3) `serviceId` ASC by `strcmp` (container service id string)
+        - [ ] 1) `priority` DESC (higher first)
+        - [ ] 2) `group` ASC by `strcmp` on normalized group id
+        - [ ] 3) `serviceId` ASC by `strcmp` (container service id string)
       - [ ] Sorting MUST be stable and deterministic across OS/PHP builds.
   - [ ] Execution semantics (single-choice):
     - [ ] Reset is performed sequentially in sorted order (no parallelism).
@@ -6908,9 +6908,9 @@ Tests:
     - [ ] ignore reset meta completely
     - [ ] keep compatibility with `1.200.0` tests
   - [ ] when `foundation.reset.priority.enabled=true`, MUST execute deterministic enhanced reset order:
-    1. `priority` DESC
-    2. `group` ASC by `strcmp` on normalized group id
-    3. `serviceId` ASC by `strcmp`
+    - [ ] 1. `priority` DESC
+    - [ ] 2. `group` ASC by `strcmp` on normalized group id
+    - [ ] 3. `serviceId` ASC by `strcmp`
   - [ ] MUST reject tagged non-resettable services with:
     - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
   - [ ] **No feature-disable switch (cemented; inherited from 1.200.0):**
@@ -6943,7 +6943,7 @@ Tests:
 
 - [ ] `framework/packages/core/foundation/config/rules.php`
   - [ ] MUST enforce shape and defaults for keys below.
-  - `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
+  - [ ] `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
 
 - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
   - [ ] upgrade the `1.200.0` hard-fail assertion to the typed reset failure:
@@ -6957,39 +6957,39 @@ Tests:
   - [ ] `framework/packages/core/foundation/config/foundation.php`
 
 - [ ] Keys (dot):
-  - **Base reset key (from 1.200.0; reiterated for completeness):**
+  - [ ] Base reset key (from 1.200.0; reiterated for completeness):
     - [ ] `foundation.reset.tag` = "kernel.reset"
-  - **Enhanced reset keys (introduced/owned by 1.250.0; single-choice; cemented):**
+  - [ ] Enhanced reset keys (introduced/owned by 1.250.0; single-choice; cemented):
     - [ ] `foundation.reset.priority.enabled` = true
     - [ ] `foundation.reset.group.default` = "default"
-      - MUST match `/\A[a-z0-9][a-z0-9._-]*\z/`
+      - [ ] MUST match `/\A[a-z0-9][a-z0-9._-]*\z/`
 
 - [ ] Tag meta parsing rules (single-choice; cemented):
-  - If `foundation.reset.priority.enabled=false`:
-    - reset execution MUST preserve legacy order exactly
-    - orchestrator MUST NOT parse or validate reset meta at all
+  - [ ] If `foundation.reset.priority.enabled=false`:
+    - [ ] reset execution MUST preserve legacy order exactly
+    - [ ] orchestrator MUST NOT parse or validate reset meta at all
 
-  - If `foundation.reset.priority.enabled=true`:
-    - reset planning MUST treat `TaggedService.priority` as the BASE priority
-    - supported meta keys are:
-      - `priority` (optional override)
-      - `group` (optional normalized group id)
-    - `priority`:
-      - accepted: `int` OR `string` matching `/\A-?\d+\z/`
-      - normalized: cast to int
-      - if absent: use `TaggedService.priority`
-      - invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
-    - `group`:
-      - accepted: `string`
-      - normalization:
-        - trim ASCII whitespace
-        - if empty OR absent → use `foundation.reset.group.default`
-        - validate against `/\A[a-z0-9][a-z0-9._-]*\z/`
-      - invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
+  - [ ] If `foundation.reset.priority.enabled=true`:
+    - [ ] reset planning MUST treat `TaggedService.priority` as the BASE priority
+    - [ ] supported meta keys are:
+      - [ ] `priority` (optional override)
+      - [ ] `group` (optional normalized group id)
+    - [ ] `priority`:
+      - [ ] accepted: `int` OR `string` matching `/\A-?\d+\z/`
+      - [ ] normalized: cast to int
+      - [ ] if absent: use `TaggedService.priority`
+      - [ ] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
+    - [ ] `group`:
+      - [ ] accepted: `string`
+      - [ ] normalization:
+        - [ ] trim ASCII whitespace
+        - [ ] if empty OR absent → use `foundation.reset.group.default`
+        - [ ] validate against `/\A[a-z0-9][a-z0-9._-]*\z/`
+      - [ ] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
 
-    - Orchestrator MUST read and validate ONLY:
-      - `priority`, `group`
-    - Any other meta keys MUST be ignored.
+    - [ ] Orchestrator MUST read and validate ONLY:
+      - [ ] `priority`, `group`
+    - [ ] Any other meta keys MUST be ignored.
 
 #### Wiring / DI tags (when applicable)
 
@@ -7010,7 +7010,7 @@ N/A
 
 - [ ] Spans (noop-safe):
   - [ ] `foundation.reset`
-    - attrs (single-choice; cemented): `services_count`, `groups_count`, `outcome`
+    - [ ] attrs (single-choice; cemented): `services_count`, `groups_count`, `outcome`
 - [ ] Metrics (noop-safe; MUST NOT add new label keys):
   - [ ] `foundation.reset_total` (labels: `outcome`)
   - [ ] `foundation.reset_duration_ms` (labels: `outcome`)
@@ -7042,15 +7042,15 @@ N/A
 #### Required policy tests matrix
 
 - [ ] Deterministic ordering with priority/group:
-  - `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
 - [ ] Group behavior:
-  - `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
 - [ ] Backward compat when disabled:
-  - `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
 - [ ] Deterministic invalid-meta rejection:
-  - `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
 - [ ] Locale independence:
-  - `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
 - [ ] Enhanced reset config shape lock:
   - [ ] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
 
@@ -7168,129 +7168,113 @@ Forbidden:
 #### Creates
 
 - [ ] `docs/ssot/runtime-drivers.md` — MUST include (single-choice; cemented):
-
-  - Terminology / IDs (single-choice):
-
-    - HTTP / background driver details (single-choice; cemented)
-      - `http.classic`
-        - Enabled when:
-          - `kernel.runtime.frankenphp.enabled=false`
-          - `kernel.runtime.swoole.enabled=false`
-          - `kernel.runtime.roadrunner.enabled=false`
-          - NOT (`worker.enabled=true && worker.task_type='http'`)
-        - Conflicts:
-          - none by itself
-        - May run alongside:
-          - `bg.worker_queue`
-
-      - `http.frankenphp`
-        - Enabled when:
-          - `kernel.runtime.frankenphp.enabled=true`
-        - Conflicts:
-          - any other `http.*` driver enabled at the same time
-          - `worker.enabled=true && worker.task_type='http'`
-        - May run alongside:
-          - `bg.worker_queue`
-        - Notes:
-          - artifact-only boot required (`module-manifest.php`, `config.php`, `container.php`, `routes.php`)
-          - UoW boundary must be enforced per request; reset exactly once per UoW via kernel runtime
-
-      - `http.swoole`
-        - Enabled when:
-          - `kernel.runtime.swoole.enabled=true`
-        - Conflicts:
-          - any other `http.*` driver enabled at the same time
-          - `worker.enabled=true && worker.task_type='http'`
-        - May run alongside:
-          - `bg.worker_queue`
-        - Notes:
-          - artifact-only boot required
-          - long-running loop must not leak context/state across requests
-
-      - `http.roadrunner`
-        - Enabled when:
-          - `kernel.runtime.roadrunner.enabled=true`
-        - Conflicts:
-          - any other `http.*` driver enabled at the same time
-          - `worker.enabled=true && worker.task_type='http'`
-        - May run alongside:
-          - `bg.worker_queue`
-        - Notes:
-          - artifact-only boot required
-          - long-running loop must not leak context/state across requests
-
-      - `http.worker`
-        - Enabled when:
-          - `worker.enabled=true && worker.task_type='http'`
-        - Conflicts:
-          - any other `http.*` driver enabled at the same time
-        - Notes:
-          - this is an HTTP runtime mode, not a background driver
-
-      - `bg.worker_queue`
-        - Enabled when:
-          - `worker.enabled=true && worker.task_type='queue'`
-        - Conflicts:
-          - none at the matrix level
-        - May run alongside:
-          - `http.classic`
-          - `http.frankenphp`
-          - `http.swoole`
-          - `http.roadrunner`
-        - Notes:
-          - this is a background driver, not an HTTP driver
-
-    - Reserved future IDs (NOT part of the current Phase 1 guard inputs):
-      - `bg.queue`
-      - `bg.scheduler`
-
-  - Hard rules (single-choice; MUST):
-    - Exactly ONE HTTP driver may be active at a time.
-    - Background drivers MAY run alongside any HTTP driver.
-    - `http.worker` conflicts with any other `http.*` driver (mutual exclusion).
-
-  - Default safety policy (single-choice):
-    - `kernel.runtime.*.enabled` defaults to `false`
-    - `worker.enabled` defaults to `false`
-    - `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
-
-  - Missing-key policy before `1.360.0` (single-choice):
-    - absence of `worker.enabled` MUST be treated as `false`
-    - absence of `worker.task_type` MUST NOT activate any runtime driver
-    - missing `worker.*` root by itself MUST NOT be treated as invalid config
-
-  - Compatibility matrix:
-    - MUST include an explicit table of ✅/❌ for:
-      - (each http.*) × (each bg.*)
-      - and (each pair of http.*) to show mutual exclusion
-    - MUST include concrete examples (copy-pastable) for:
-      - ✅ `http.roadrunner` + `bg.worker_queue`
-      - ✅ `http.swoole` + `bg.worker_queue`
-      - ✅ `http.frankenphp` + `bg.worker_queue`
-      - ✅ `http.classic` + `bg.worker_queue`
-      - ❌ `http.roadrunner` + `http.worker`
-      - ❌ `http.frankenphp` + `http.worker`
-      - ❌ `http.swoole` + `http.worker`
-
-  - Deterministic enforcement contract (doc-as-SSoT; single-choice):
-    - The guard MUST decide the active drivers by evaluating config keys only (no environment probing).
-    - On conflict, the guard MUST fail deterministically:
-      - deterministic error `CODE` (string) is the primary failure semantic
-      - diagnostics (if any) MUST be stable and sorted lexicographically (byte-order; `strcmp`) by driver id.
-    - Non-classic HTTP drivers (`http.frankenphp`, `http.swoole`, `http.roadrunner`, `http.worker`)
+  - [ ] Terminology / IDs (single-choice):
+    - [ ] HTTP / background driver details (single-choice; cemented)
+      - [ ] `http.classic`
+        - [ ] Enabled when:
+          - [ ] `kernel.runtime.frankenphp.enabled=false`
+          - [ ] `kernel.runtime.swoole.enabled=false`
+          - [ ] `kernel.runtime.roadrunner.enabled=false`
+          - [ ] NOT (`worker.enabled=true && worker.task_type='http'`)
+        - [ ] Conflicts:
+          - [ ] none by itself
+        - [ ] May run alongside:
+          - [ ] `bg.worker_queue`
+      - [ ] `http.frankenphp`
+        - [ ] Enabled when:
+          - [ ] `kernel.runtime.frankenphp.enabled=true`
+        - [ ] Conflicts:
+          - [ ] any other `http.*` driver enabled at the same time
+          - [ ] `worker.enabled=true && worker.task_type='http'`
+        - [ ] May run alongside:
+          - [ ] `bg.worker_queue`
+        - [ ] Notes:
+          - [ ] artifact-only boot required (`module-manifest.php`, `config.php`, `container.php`, `routes.php`)
+          - [ ] UoW boundary must be enforced per request; reset exactly once per UoW via kernel runtime
+      - [ ] `http.swoole`
+        - [ ] Enabled when:
+          - [ ] `kernel.runtime.swoole.enabled=true`
+        - [ ] Conflicts:
+          - [ ] any other `http.*` driver enabled at the same time
+          - [ ] `worker.enabled=true && worker.task_type='http'`
+        - [ ] May run alongside:
+          - [ ] `bg.worker_queue`
+        - [ ] Notes:
+          - [ ] artifact-only boot required
+          - [ ] long-running loop must not leak context/state across requests
+      - [ ] `http.roadrunner`
+        - [ ] Enabled when:
+          - [ ] `kernel.runtime.roadrunner.enabled=true`
+        - [ ] Conflicts:
+          - [ ] any other `http.*` driver enabled at the same time
+          - [ ] `worker.enabled=true && worker.task_type='http'`
+        - [ ] May run alongside:
+          - [ ] `bg.worker_queue`
+        - [ ] Notes:
+          - [ ] artifact-only boot required
+          - [ ] long-running loop must not leak context/state across requests
+      - [ ] `http.worker`
+        - [ ] Enabled when:
+          - [ ] `worker.enabled=true && worker.task_type='http'`
+        - [ ] Conflicts:
+          - [ ] any other `http.*` driver enabled at the same time
+        - [ ] Notes:
+          - [ ] this is an HTTP runtime mode, not a background driver
+      - [ ] `bg.worker_queue`
+        - [ ] Enabled when:
+          - [ ] `worker.enabled=true && worker.task_type='queue'`
+        - [ ] Conflicts:
+          - [ ] none at the matrix level
+        - [ ] May run alongside:
+          - [ ] `http.classic`
+          - [ ] `http.frankenphp`
+          - [ ] `http.swoole`
+          - [ ] `http.roadrunner`
+        - [ ] Notes:
+          - [ ] this is a background driver, not an HTTP driver
+    - [ ] Reserved future IDs (NOT part of the current Phase 1 guard inputs):
+      - [ ] `bg.queue`
+      - [ ] `bg.scheduler`
+  - [ ] Hard rules (single-choice; MUST):
+    - [ ] Exactly ONE HTTP driver may be active at a time.
+    - [ ] Background drivers MAY run alongside any HTTP driver.
+    - [ ] `http.worker` conflicts with any other `http.*` driver (mutual exclusion).
+  - [ ] Default safety policy (single-choice):
+    - [ ] `kernel.runtime.*.enabled` defaults to `false`
+    - [ ] `worker.enabled` defaults to `false`
+    - [ ] `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
+  - [ ] Missing-key policy before `1.360.0` (single-choice):
+    - [ ] absence of `worker.enabled` MUST be treated as `false`
+    - [ ] absence of `worker.task_type` MUST NOT activate any runtime driver
+    - [ ] missing `worker.*` root by itself MUST NOT be treated as invalid config
+  - [ ] Compatibility matrix:
+    - [ ] MUST include an explicit table of ✅/❌ for:
+      - [ ] (each http.*) × (each bg.*)
+      - [ ] and (each pair of http.*) to show mutual exclusion
+    - [ ] MUST include concrete examples (copy-pastable) for:
+      - [ ] ✅ `http.roadrunner` + `bg.worker_queue`
+      - [ ] ✅ `http.swoole` + `bg.worker_queue`
+      - [ ] ✅ `http.frankenphp` + `bg.worker_queue`
+      - [ ] ✅ `http.classic` + `bg.worker_queue`
+      - [ ] ❌ `http.roadrunner` + `http.worker`
+      - [ ] ❌ `http.frankenphp` + `http.worker`
+      - [ ] ❌ `http.swoole` + `http.worker`
+  - [ ] Deterministic enforcement contract (doc-as-SSoT; single-choice):
+    - [ ] The guard MUST decide the active drivers by evaluating config keys only (no environment probing).
+    - [ ] On conflict, the guard MUST fail deterministically:
+      - [ ] deterministic error `CODE` (string) is the primary failure semantic
+      - [ ] diagnostics (if any) MUST be stable and sorted lexicographically (byte-order; `strcmp`) by driver id.
+    - [ ] Non-classic HTTP drivers (`http.frankenphp`, `http.swoole`, `http.roadrunner`, `http.worker`)
       require `platform.http` to be enabled in `ModulePlan`.
-    - Missing required module for the selected HTTP driver MUST fail with:
-      - `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-
-
-  - Error codes (single-choice; cemented names in doc):
-    - The doc MUST name the canonical guard error codes used for matrix violations (no free-form messages):
-      - `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
-      - `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-    - The guard MAY include minimal safe diagnostics (driver ids only), but MUST NOT include secrets/PII.
-
-  - References to enforcement tests (required):
-    - MUST reference the exact test paths that prove default + conflict behavior.
+    - [ ] Missing required module for the selected HTTP driver MUST fail with:
+      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+  - [ ] Error codes (single-choice; cemented names in doc):
+    - [ ] The doc MUST name the canonical guard error codes used for matrix violations (no free-form messages):
+      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+    - [ ] The guard MAY include minimal safe diagnostics (driver ids only), but MUST NOT include secrets/PII.
+  - [ ] References to enforcement tests (required):
+    - [ ] MUST reference the exact test paths that prove default + conflict behavior.
 
 #### Modifies
 
@@ -8090,10 +8074,8 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [ ] exported ctx/result passed to hooks are json-like only
     - [ ] if `UnitOfWorkResult.error` exists internally as `ErrorDescriptor`, hooks MUST receive a normalized json-like `error` map, never an object
 - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
-  - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type`
-    before the external runtime body is executed
-  - [ ] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`,
-    and `ContextKeys::UOW_TYPE`
+  - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type` before the external runtime body is executed
+  - [ ] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE`
   - [ ] asserts values pass `ContextStorePolicy`
 
 - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
@@ -8421,8 +8403,8 @@ N/A
   - [ ] `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
 - [ ] Add policy/contract assertions inside existing integration tests:
   - [ ] `LongRunning100SequentialRequestsNoLeakTest` MUST assert:
-    - ContextStore is empty (or contains only base keys) at the start of each request
-    - After request → reset executed → no previous request keys remain
+    - [ ] ContextStore is empty (or contains only base keys) at the start of each request
+    - [ ] After request → reset executed → no previous request keys remain
   - [ ] `ResetIsCalledBetweenRequestsTest` MUST assert:
     - [ ] `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator::resetAll()` is invoked exactly once per request UoW (single-choice) OR
     - [ ] reset orchestration is observed after each request and before the next beginUoW
@@ -8892,10 +8874,8 @@ Allowed:
   - [ ] Жодного filesystem scan `framework/packages/**` у runtime.
   - [ ] Kernel не інстанціює module classes для discovery; only metadata.
   - [ ] Не включає bundles (окремий ADR/Phase 6+).
-- [ ] When a preset lists an optional module that is not installed yet,
-  then ModulePlan contains it in `optionalMissing` (as warning) and does not fail.
-- [ ] When a preset requires a module not installed, then kernel throws
-  `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
+- [ ] When a preset lists an optional module that is not installed yet, then ModulePlan contains it in `optionalMissing` (as warning) and does not fail.
+- [ ] When a preset requires a module not installed, then kernel throws `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
 - [ ] Any preset that enables `core/kernel` runtime MUST also enable `core/foundation`.
   - [ ] Rationale: KernelRuntime requires Foundation services (ContextStore/TagRegistry/ResetOrchestrator).
 - [ ] Kernel Module metadata (via ModulePlan) MUST reflect this as a **required module dependency**:
@@ -9099,8 +9079,8 @@ SSoT docs (canonical):
   - [ ] `framework/packages/core/kernel/config/kernel.php`
 - Keys (dot):
   - [ ] `kernel.config.forbidden_top_level_roots` = ["coretsia","_internal"]
-    - Optional hardening (MAY, if you truly need it later)
-    - MUST NOT include "kernel" or "foundation" because apps must be able to configure those roots.
+    - [ ] Optional hardening (MAY, if you truly need it later)
+    - [ ] MUST NOT include "kernel" or "foundation" because apps must be able to configure those roots.
 - Rules:
   - [ ] `framework/packages/core/kernel/config/rules.php` enforces shape
 
@@ -9262,8 +9242,7 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
   - [ ] if “runtime overrides” are mentioned, the doc MUST explicitly mark them as reserved/future and NOT part of the active Phase 1 merge pipeline
   - [ ] мають explicit Non-goals / out of scope (1–5 bullets)
 - [ ] Example guarantee:
-  - [ ] When skeleton override uses `@append` to add a middleware class into `http.middleware.system_pre`,
-    then the final merged config contains it in deterministic order and explain shows `directive_applied`.
+  - [ ] When skeleton override uses `@append` to add a middleware class into `http.middleware.system_pre`, then the final merged config contains it in deterministic order and explain shows `directive_applied`.
 - [ ] Integration expectations:
   - [ ] `platform/http` споживає merged config (через `config.php` artifact) для:
     - [ ] `http.middleware.auto.*`, `http.middleware.<slot>` lists, toggles (middleware catalog).
@@ -9890,8 +9869,7 @@ Docs:
 
 - [ ] Reset discipline preserved:
   - [ ] all services discovered through the effective Foundation reset discovery tag
-    resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
-    implement `ResetInterface` (gates)
+    resolved from `foundation.reset.tag` (reserved default `kernel.reset`) implement `ResetInterface` (gates)
   - [ ] tag lists deterministic (`DeterministicOrder`)
 
 #### Observability (policy-compliant)
@@ -9953,17 +9931,17 @@ Docs:
   - [ ] When REAL container artifact becomes active (this epic scope), the compiled container MUST include Foundation reset infrastructure so runtime can trigger reset:
     - [ ] `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` must be resolvable from the container
     - [ ] `Coretsia\Foundation\Tag\TagRegistry` must be resolvable (as ResetOrchestrator dependency)
-  - [ ] **Kernel MUST still not enumerate `kernel.reset`.**
+  - [ ] Kernel MUST still not enumerate `kernel.reset`.
     - [ ] KernelRuntime triggers reset ONLY by calling `ResetOrchestrator::resetAll()` obtained via DI/container.
-  - [ ] **No semantic duplication:**
+  - [ ] No semantic duplication:
     - [ ] Container compiler/artifact builder MUST NOT re-implement reset ordering/meta parsing.
     - [ ] That remains in `core/foundation` (1.200.0 / 1.250.0).
 - [ ] Add/extend an integration test in `core/kernel` (or wherever your artifact boot tests live) asserting:
   - [ ] artifact-only boot can resolve `ResetOrchestrator`
   - [ ] KernelRuntime can execute a UoW and triggers reset once per UoW
-- Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
-- No standalone `container_no_closure_definitions_gate.php` exists.
-- Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
+- [ ] Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
+- [ ] No standalone `container_no_closure_definitions_gate.php` exists.
+- [ ] Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
 
 ---
 
@@ -10738,13 +10716,13 @@ Add config contract tests (policy rails):
 - [ ] Logs:
   - [ ] start/stop/restart summary only; no payload; socket path hashed
 
-- Label/attribute normalization (MUST):
-  - resolved task operation id → metric label `operation` and span attribute `operation`
-  - resolved task type → ContextStore key `uow_type` ONLY (MUST NOT be a metric label)
+- [ ] Label/attribute normalization (MUST):
+  - [ ] resolved task operation id → metric label `operation` and span attribute `operation`
+  - [ ] resolved task type → ContextStore key `uow_type` ONLY (MUST NOT be a metric label)
 
-- Redaction reminders:
-  - No payload logging anywhere (stdout/stderr/log files/socket protocol).
-  - Any socket/control endpoint info MUST be redacted/hashed in logs/state dumps.
+- [ ] Redaction reminders:
+  - [ ] No payload logging anywhere (stdout/stderr/log files/socket protocol).
+  - [ ] Any socket/control endpoint info MUST be redacted/hashed in logs/state dumps.
 
 #### Errors
 

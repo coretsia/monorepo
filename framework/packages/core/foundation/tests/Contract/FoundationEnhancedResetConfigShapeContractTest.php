@@ -21,7 +21,7 @@ namespace Coretsia\Foundation\Tests\Contract;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
+final class FoundationEnhancedResetConfigShapeContractTest extends TestCase
 {
     private const string DEFAULTS_PATH = __DIR__ . '/../../config/foundation.php';
 
@@ -29,7 +29,16 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
 
     private const string RESET_GROUP_ID_PATTERN = '/\A[a-z0-9][a-z0-9._-]*\z/';
 
-    public function testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey(): void
+    public function testDefaultsReturnFoundationSubtreeWithoutRootWrapping(): void
+    {
+        $defaults = self::defaults();
+
+        self::assertArrayNotHasKey('foundation', $defaults);
+        self::assertArrayHasKey('reset', $defaults);
+        self::assertIsArray($defaults['reset']);
+    }
+
+    public function testRulesDeclareEnhancedResetConfigShape(): void
     {
         $rules = self::rules();
 
@@ -38,37 +47,69 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
 
         self::assertArrayHasKey('keys', $rules);
         self::assertIsArray($rules['keys']);
+        self::assertArrayHasKey('reset', $rules['keys']);
 
-        self::assertArrayHasKey('ids', $rules['keys']);
-        self::assertArrayNotHasKey('clock', $rules['keys']);
+        $reset = $rules['keys']['reset'];
 
-        $ids = $rules['keys']['ids'];
+        self::assertIsArray($reset);
+        self::assertSame('map', $reset['type'] ?? null);
+        self::assertTrue($reset['required'] ?? false);
+        self::assertFalse($reset['additionalKeys'] ?? true);
 
-        self::assertIsArray($ids);
-        self::assertSame('map', $ids['type'] ?? null);
-        self::assertFalse($ids['additionalKeys'] ?? true);
+        self::assertArrayHasKey('keys', $reset);
+        self::assertIsArray($reset['keys']);
 
-        self::assertArrayHasKey('keys', $ids);
-        self::assertIsArray($ids['keys']);
-        self::assertSame(['default'], \array_keys($ids['keys']));
+        self::assertArrayHasKey('tag', $reset['keys']);
+        self::assertArrayHasKey('priority', $reset['keys']);
+        self::assertArrayHasKey('group', $reset['keys']);
 
-        $default = $ids['keys']['default'];
+        $priority = $reset['keys']['priority'];
 
-        self::assertIsArray($default);
-        self::assertTrue($default['required'] ?? false);
-        self::assertSame('string', $default['type'] ?? null);
-        self::assertSame(['ulid', 'uuid'], $default['allowedValues'] ?? null);
+        self::assertIsArray($priority);
+        self::assertSame('map', $priority['type'] ?? null);
+        self::assertTrue($priority['required'] ?? false);
+        self::assertFalse($priority['additionalKeys'] ?? true);
+
+        self::assertArrayHasKey('keys', $priority);
+        self::assertIsArray($priority['keys']);
+        self::assertSame(['enabled'], \array_keys($priority['keys']));
+
+        $priorityEnabled = $priority['keys']['enabled'];
+
+        self::assertIsArray($priorityEnabled);
+        self::assertTrue($priorityEnabled['required'] ?? false);
+        self::assertSame('bool', $priorityEnabled['type'] ?? null);
+
+        $group = $reset['keys']['group'];
+
+        self::assertIsArray($group);
+        self::assertSame('map', $group['type'] ?? null);
+        self::assertTrue($group['required'] ?? false);
+        self::assertFalse($group['additionalKeys'] ?? true);
+
+        self::assertArrayHasKey('keys', $group);
+        self::assertIsArray($group['keys']);
+        self::assertSame(['default'], \array_keys($group['keys']));
+
+        $groupDefault = $group['keys']['default'];
+
+        self::assertIsArray($groupDefault);
+        self::assertTrue($groupDefault['required'] ?? false);
+        self::assertSame('reset-group-id', $groupDefault['type'] ?? null);
     }
 
-    public function testDefaultsDeclareIdsDefaultAndNoClockConfig(): void
+    public function testDefaultsDeclareEnhancedResetValues(): void
     {
         $defaults = self::defaults();
 
-        self::assertArrayHasKey('ids', $defaults);
-        self::assertIsArray($defaults['ids']);
-        self::assertSame('ulid', $defaults['ids']['default'] ?? null);
+        self::assertSame('kernel.reset', $defaults['reset']['tag'] ?? null);
+        self::assertSame(true, $defaults['reset']['priority']['enabled'] ?? null);
+        self::assertSame('default', $defaults['reset']['group']['default'] ?? null);
 
-        self::assertArrayNotHasKey('clock', $defaults);
+        self::assertMatchesRegularExpression(
+            self::RESET_GROUP_ID_PATTERN,
+            $defaults['reset']['group']['default'],
+        );
     }
 
     public function testDefaultConfigMatchesRules(): void
@@ -81,7 +122,7 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
      * @param list<string> $forbiddenMessageFragments
      */
     #[DataProvider('invalidConfigProvider')]
-    public function testInvalidIdsAndClockConfigFailDeterministicallyWithSafeMessage(
+    public function testInvalidEnhancedResetConfigFailsDeterministicallyWithSafeMessage(
         array $config,
         array $forbiddenMessageFragments,
     ): void {
@@ -93,54 +134,14 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
      */
     public static function invalidConfigProvider(): iterable
     {
-        yield 'ids.default float is rejected' => [
-            self::configWith([
-                'ids' => [
-                    'default' => 1.5,
-                ],
-            ]),
-            ['1.5'],
+        yield 'root wrapping is rejected' => [
+            [
+                'foundation' => self::defaults(),
+            ],
+            ['ulid', 'kernel.reset', 'default'],
         ];
 
-        yield 'ids.default NaN is rejected' => [
-            self::configWith([
-                'ids' => [
-                    'default' => \NAN,
-                ],
-            ]),
-            ['NAN', 'nan'],
-        ];
-
-        yield 'ids.default INF is rejected' => [
-            self::configWith([
-                'ids' => [
-                    'default' => \INF,
-                ],
-            ]),
-            ['INF', 'inf'],
-        ];
-
-        yield 'ids.default negative INF is rejected' => [
-            self::configWith([
-                'ids' => [
-                    'default' => -\INF,
-                ],
-            ]),
-            ['-INF', '-inf'],
-        ];
-
-        yield 'unknown nested ids key is rejected even when value is float' => [
-            self::configWith([
-                'ids' => [
-                    'nested' => [
-                        'value' => 1.5,
-                    ],
-                ],
-            ]),
-            ['1.5'],
-        ];
-
-        yield 'foundation.clock config is rejected because clock config is not introduced' => [
+        yield 'unknown root key is rejected' => [
             self::configWith([
                 'clock' => [
                     'driver' => 'system',
@@ -149,13 +150,123 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
             ['system'],
         ];
 
-        yield 'ids.default unsupported string is rejected without dumping value' => [
+        yield 'unknown reset key is rejected' => [
             self::configWith([
-                'ids' => [
-                    'default' => 'snowflake',
+                'reset' => [
+                    'enabled' => false,
                 ],
             ]),
-            ['snowflake'],
+            ['false'],
+        ];
+
+        yield 'unknown reset priority key is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'priority' => [
+                        'mode' => 'enhanced',
+                    ],
+                ],
+            ]),
+            ['enhanced'],
+        ];
+
+        yield 'unknown reset group key is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'fallback' => 'default',
+                    ],
+                ],
+            ]),
+            ['default'],
+        ];
+
+        yield 'priority enabled string is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'priority' => [
+                        'enabled' => 'true',
+                    ],
+                ],
+            ]),
+            ['true'],
+        ];
+
+        yield 'priority enabled int is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'priority' => [
+                        'enabled' => 1,
+                    ],
+                ],
+            ]),
+            ['1'],
+        ];
+
+        yield 'group default empty string is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => '',
+                    ],
+                ],
+            ]),
+            ['""'],
+        ];
+
+        yield 'group default ASCII whitespace is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => " \t\n",
+                    ],
+                ],
+            ]),
+            [" \t\n"],
+        ];
+
+        yield 'group default uppercase is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => 'Default',
+                    ],
+                ],
+            ]),
+            ['Default'],
+        ];
+
+        yield 'group default leading dash is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => '-default',
+                    ],
+                ],
+            ]),
+            ['-default'],
+        ];
+
+        yield 'group default invalid characters are rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => 'default/group',
+                    ],
+                ],
+            ]),
+            ['default/group'],
+        ];
+
+        yield 'group default float is rejected' => [
+            self::configWith([
+                'reset' => [
+                    'group' => [
+                        'default' => 1.5,
+                    ],
+                ],
+            ]),
+            ['1.5'],
         ];
     }
 

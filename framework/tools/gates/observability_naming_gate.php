@@ -382,8 +382,7 @@ function coretsia_observability_naming_gate_scan_php_file(
         }
 
         if (
-            coretsia_observability_naming_gate_is_metric_context($tokens, $i, $absPath)
-            && coretsia_observability_naming_gate_is_metric_name_candidate($value)
+            coretsia_observability_naming_gate_is_metric_name_slot($tokens, $i)
             && !coretsia_observability_naming_gate_is_valid_metric_name($value)
         ) {
             $violations[] = $frameworkRelPath . ': metric-name-invalid';
@@ -453,6 +452,131 @@ function coretsia_observability_naming_gate_is_array_key_token(array $tokens, in
 /**
  * @param list<array{0:int, 1:string, 2:int}|string> $tokens
  */
+function coretsia_observability_naming_gate_is_metric_name_slot(array $tokens, int $index): bool
+{
+    $constantName = coretsia_observability_naming_gate_constant_name_for_assigned_literal($tokens, $index);
+    if ($constantName !== null) {
+        return coretsia_observability_naming_gate_is_metric_constant_name($constantName);
+    }
+
+    return coretsia_observability_naming_gate_is_direct_metric_name_call_argument($tokens, $index);
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_observability_naming_gate_constant_name_for_assigned_literal(array $tokens, int $index): ?string
+{
+    $equalsIndex = coretsia_observability_naming_gate_previous_meaningful_token_index($tokens, $index - 1);
+    if ($equalsIndex === null || ($tokens[$equalsIndex] ?? null) !== '=') {
+        return null;
+    }
+
+    $nameIndex = coretsia_observability_naming_gate_previous_meaningful_token_index($tokens, $equalsIndex - 1);
+    if ($nameIndex === null) {
+        return null;
+    }
+
+    $name = $tokens[$nameIndex];
+    if (!\is_array($name) || $name[0] !== T_STRING) {
+        return null;
+    }
+
+    if (!coretsia_observability_naming_gate_is_const_assignment($tokens, $nameIndex)) {
+        return null;
+    }
+
+    return coretsia_observability_naming_gate_normalize_identifier($name[1]);
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_observability_naming_gate_is_const_assignment(array $tokens, int $nameIndex): bool
+{
+    for ($i = $nameIndex - 1; $i >= 0; $i--) {
+        $token = $tokens[$i];
+
+        if ($token === ';' || $token === '{' || $token === '}') {
+            return false;
+        }
+
+        if (\is_array($token) && $token[0] === T_CONST) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function coretsia_observability_naming_gate_is_metric_constant_name(string $name): bool
+{
+    $name = coretsia_observability_naming_gate_normalize_identifier($name);
+
+    if (\str_starts_with($name, 'metric_') || \str_ends_with($name, '_metric')) {
+        return true;
+    }
+
+    return (bool)\preg_match(
+        '/_(total|duration_ms|duration_seconds|count|counter|gauge|histogram|timer|seconds|milliseconds|bytes)\z/',
+        $name,
+    );
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_observability_naming_gate_is_direct_metric_name_call_argument(array $tokens, int $index): bool
+{
+    $parenIndex = coretsia_observability_naming_gate_find_enclosing_call_open_paren_index($tokens, $index);
+    if ($parenIndex === null) {
+        return false;
+    }
+
+    $firstArgumentIndex = coretsia_observability_naming_gate_next_meaningful_token_index($tokens, $parenIndex + 1);
+    if ($firstArgumentIndex !== $index) {
+        return false;
+    }
+
+    $nameIndex = coretsia_observability_naming_gate_previous_meaningful_token_index($tokens, $parenIndex - 1);
+    if ($nameIndex === null) {
+        return false;
+    }
+
+    $name = $tokens[$nameIndex];
+    if (!\is_array($name) || $name[0] !== T_STRING) {
+        return false;
+    }
+
+    return coretsia_observability_naming_gate_is_metric_name_callable_name(
+        coretsia_observability_naming_gate_normalize_identifier($name[1]),
+    );
+}
+
+function coretsia_observability_naming_gate_is_metric_name_callable_name(string $name): bool
+{
+    return isset(
+        [
+            'increment' => true,
+            'decrement' => true,
+            'observe' => true,
+            'counter' => true,
+            'histogram' => true,
+            'gauge' => true,
+            'timer' => true,
+            'measure' => true,
+            'measurement' => true,
+            'metric' => true,
+            'recordmetric' => true,
+            'recordmeasurement' => true,
+        ][$name]
+    )
+        || \str_contains($name, 'metric');
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
 function coretsia_observability_naming_gate_is_explicit_observability_label_array_key(
     array $tokens,
     int $index,
@@ -478,8 +602,10 @@ function coretsia_observability_naming_gate_is_explicit_observability_label_arra
 /**
  * @param list<array{0:int, 1:string, 2:int}|string> $tokens
  */
-function coretsia_observability_naming_gate_observability_container_key_for_array_key(array $tokens, int $index): ?string
-{
+function coretsia_observability_naming_gate_observability_container_key_for_array_key(
+    array $tokens,
+    int $index
+): ?string {
     $openIndex = coretsia_observability_naming_gate_current_short_array_open_index($tokens, $index);
     if ($openIndex === null) {
         return null;
@@ -490,7 +616,8 @@ function coretsia_observability_naming_gate_observability_container_key_for_arra
         return null;
     }
 
-    if (isset([
+    if (isset(
+        [
             'label' => true,
             'labels' => true,
             'attribute' => true,
@@ -503,7 +630,8 @@ function coretsia_observability_naming_gate_observability_container_key_for_arra
             'span_attributes' => true,
             'metric_label' => true,
             'metric_labels' => true,
-        ][$containerKey])) {
+        ][$containerKey]
+    )) {
         return $containerKey;
     }
 
@@ -745,23 +873,6 @@ function coretsia_observability_naming_gate_next_meaningful_token_index(array $t
     return null;
 }
 
-function coretsia_observability_naming_gate_is_metric_name_candidate(string $value): bool
-{
-    if (\str_contains($value, "\n") || \str_contains($value, "\r") || \str_contains($value, ' ')) {
-        return false;
-    }
-
-    if (\str_contains($value, '/') || \str_contains($value, ':') || \str_contains($value, '\\')) {
-        return false;
-    }
-
-    if (\str_contains($value, '.')) {
-        return true;
-    }
-
-    return (bool)\preg_match('/_[a-z][a-z0-9]*(?:_[a-z][a-z0-9]*)*$/', $value);
-}
-
 function coretsia_observability_naming_gate_is_valid_metric_name(string $value): bool
 {
     return (bool)\preg_match(
@@ -786,19 +897,21 @@ function coretsia_observability_naming_gate_is_metric_context(array $tokens, int
 
     $context = coretsia_observability_naming_gate_context_words($tokens, $index, 56);
 
-    foreach ([
-                 'metric',
-                 'metrics',
-                 'counter',
-                 'histogram',
-                 'gauge',
-                 'timer',
-                 'observe',
-                 'measurement',
-                 'measure',
-                 'increment',
-                 'decrement',
-             ] as $needle) {
+    foreach (
+        [
+            'metric',
+            'metrics',
+            'counter',
+            'histogram',
+            'gauge',
+            'timer',
+            'observe',
+            'measurement',
+            'measure',
+            'increment',
+            'decrement',
+        ] as $needle
+    ) {
         if (\str_contains($context, $needle)) {
             return true;
         }
@@ -829,20 +942,22 @@ function coretsia_observability_naming_gate_is_labelish_context(array $tokens, i
 
     $context = coretsia_observability_naming_gate_context_words($tokens, $index, 56);
 
-    foreach ([
-                 'label',
-                 'labels',
-                 'attribute',
-                 'attributes',
-                 'dimension',
-                 'dimensions',
-                 'tag',
-                 'tags',
-                 'span',
-                 'spans',
-                 'trace',
-                 'tracing',
-             ] as $needle) {
+    foreach (
+        [
+            'label',
+            'labels',
+            'attribute',
+            'attributes',
+            'dimension',
+            'dimensions',
+            'tag',
+            'tags',
+            'span',
+            'spans',
+            'trace',
+            'tracing',
+        ] as $needle
+    ) {
         if (\str_contains($context, $needle)) {
             return true;
         }
@@ -871,18 +986,20 @@ function coretsia_observability_naming_gate_is_observability_context(array $toke
 
     $context = coretsia_observability_naming_gate_context_words($tokens, $index, 56);
 
-    foreach ([
-                 'log',
-                 'logger',
-                 'logging',
-                 'event',
-                 'events',
-                 'context',
-                 'redact',
-                 'redaction',
-                 'telemetry',
-                 'observability',
-             ] as $needle) {
+    foreach (
+        [
+            'log',
+            'logger',
+            'logging',
+            'event',
+            'events',
+            'context',
+            'redact',
+            'redaction',
+            'telemetry',
+            'observability',
+        ] as $needle
+    ) {
         if (\str_contains($context, $needle)) {
             return true;
         }
@@ -893,7 +1010,8 @@ function coretsia_observability_naming_gate_is_observability_context(array $toke
 
 function coretsia_observability_naming_gate_is_observability_structural_key(string $value): bool
 {
-    return isset([
+    return isset(
+        [
             'attribute' => true,
             'attributes' => true,
             'bucket' => true,
@@ -913,7 +1031,8 @@ function coretsia_observability_naming_gate_is_observability_structural_key(stri
             'type' => true,
             'unit' => true,
             'value' => true,
-        ][$value]);
+        ][$value]
+    );
 }
 
 /**

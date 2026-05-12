@@ -652,8 +652,8 @@ final class MailContractsShapeContractTest extends TestCase
             self::declaredPublicMethodNames($reflection)
         );
 
-        self::assertSame(['CODE', 'MESSAGE'], self::publicConstantNames($reflection));
-        self::assertSame('CORETSIA_MAIL_DELIVERY_FAILED', $reflection->getConstant('CODE'));
+        self::assertSame(['ERROR_CODE', 'MESSAGE'], self::publicConstantNames($reflection));
+        self::assertSame('CORETSIA_MAIL_DELIVERY_FAILED', $reflection->getConstant('ERROR_CODE'));
         self::assertSame('Mail delivery failed.', $reflection->getConstant('MESSAGE'));
 
         self::assertSame([], self::declaredPropertyNames($reflection));

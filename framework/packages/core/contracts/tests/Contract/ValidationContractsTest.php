@@ -241,7 +241,7 @@ final class ValidationContractsTest extends TestCase
         self::assertTrue($reflection->isFinal());
         self::assertTrue($reflection->isSubclassOf(\RuntimeException::class));
 
-        self::assertSame('CORETSIA_VALIDATION_FAILED', ValidationException::CODE);
+        self::assertSame('CORETSIA_VALIDATION_FAILED', ValidationException::ERROR_CODE);
         self::assertSame('Validation failed.', ValidationException::MESSAGE);
 
         self::assertTrue($reflection->hasMethod('errorCode'));

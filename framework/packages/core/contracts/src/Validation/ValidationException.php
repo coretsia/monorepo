@@ -22,7 +22,7 @@ namespace Coretsia\Contracts\Validation;
  * Deterministic contracts exception for failed validation.
  *
  * The canonical validation error code is the stable string code exposed by
- * ValidationException::CODE. It is intentionally separate from PHP's native
+ * ValidationException::ERROR_CODE. It is intentionally separate from PHP's native
  * integer Throwable::getCode() value.
  *
  * This exception carries a failed ValidationResult only. It does not construct,
@@ -34,7 +34,8 @@ namespace Coretsia\Contracts\Validation;
  */
 final class ValidationException extends \RuntimeException
 {
-    public const string CODE = 'CORETSIA_VALIDATION_FAILED';
+    public const string ERROR_CODE = 'CORETSIA_VALIDATION_FAILED';
+
     public const string MESSAGE = 'Validation failed.';
 
     private readonly ValidationResult $result;
@@ -57,7 +58,7 @@ final class ValidationException extends \RuntimeException
      */
     public function errorCode(): string
     {
-        return self::CODE;
+        return self::ERROR_CODE;
     }
 
     public function result(): ValidationResult

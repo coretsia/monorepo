@@ -16,36 +16,34 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Platform\Cli\Error;
+namespace Coretsia\Foundation\Runtime\Reset;
 
 /**
- * CLI-owned deterministic error codes registry (SSoT).
+ * Foundation-owned deterministic reset error codes registry.
  *
- * Invariant:
- * - CORETSIA_CLI_UNCAUGHT_EXCEPTION is launcher-only (catch-all).
- * - Domain logic SHOULD NOT throw/emit CORETSIA_CLI_UNCAUGHT_EXCEPTION.
+ * Error codes are stable machine-readable identifiers for reset orchestration
+ * failures. Exception messages remain separate fixed safe tokens and must not
+ * include service internals, payloads, secrets, raw context values, absolute
+ * paths, or environment-specific data.
  */
-final class ErrorCodes
+final class ResetErrorCodes
 {
-    public const string CORETSIA_CLI_COMMAND_CLASS_MISSING = 'CORETSIA_CLI_COMMAND_CLASS_MISSING';
+    public const string CORETSIA_RESET_META_INVALID = 'CORETSIA_RESET_META_INVALID';
 
-    public const string CORETSIA_CLI_COMMAND_FAILED = 'CORETSIA_CLI_COMMAND_FAILED';
+    public const string CORETSIA_RESET_SERVICE_NOT_RESETTABLE = 'CORETSIA_RESET_SERVICE_NOT_RESETTABLE';
 
-    public const string CORETSIA_CLI_COMMAND_INVALID = 'CORETSIA_CLI_COMMAND_INVALID';
+    public const string CORETSIA_RESET_SERVICE_FAILED = 'CORETSIA_RESET_SERVICE_FAILED';
 
-    public const string CORETSIA_CLI_CONFIG_INVALID = 'CORETSIA_CLI_CONFIG_INVALID';
-
-    public const string CORETSIA_CLI_UNCAUGHT_EXCEPTION = 'CORETSIA_CLI_UNCAUGHT_EXCEPTION';
+    public const string CORETSIA_RESET_OBSERVABILITY_FAILED = 'CORETSIA_RESET_OBSERVABILITY_FAILED';
 
     /**
      * @var list<string>
      */
     private const array REGISTRY = [
-        self::CORETSIA_CLI_COMMAND_CLASS_MISSING,
-        self::CORETSIA_CLI_COMMAND_FAILED,
-        self::CORETSIA_CLI_COMMAND_INVALID,
-        self::CORETSIA_CLI_CONFIG_INVALID,
-        self::CORETSIA_CLI_UNCAUGHT_EXCEPTION,
+        self::CORETSIA_RESET_META_INVALID,
+        self::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
+        self::CORETSIA_RESET_SERVICE_FAILED,
+        self::CORETSIA_RESET_OBSERVABILITY_FAILED,
     ];
 
     /**
@@ -70,7 +68,7 @@ final class ErrorCodes
     }
 
     /**
-     * @return list<string> Codes sorted deterministically by strcmp() byte-order.
+     * @return list<string> Sorted ascending by byte-order strcmp().
      */
     public static function all(): array
     {
@@ -92,7 +90,7 @@ final class ErrorCodes
 
         $unique = \array_values(\array_unique($codes));
         if (\count($unique) !== \count($codes)) {
-            throw new \LogicException('cli-error-codes-registry-contains-duplicates');
+            throw new \LogicException('reset-error-codes-registry-contains-duplicates');
         }
 
         \usort(

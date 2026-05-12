@@ -2107,6 +2107,35 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
+### Observability catalog gate
+
+**Id:** `tool.observability_catalog_gate`
+**Entrypoint:** `composer observability-catalog:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none; read-only gate
+- exits non-zero on metric catalog drift
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                                 |
+|--------------|---------------|---------------------------------------------------------------------------------------|
+| default      | deterministic | Scans runtime package source and validates emitted metrics against canonical catalog. |
+
+**Notes:**
+- Purpose: validates runtime metric names and labels against `docs/ssot/observability.md`.
+- Scanned scope: `framework/packages/**/src/**/*.php`.
+- Ignores docs/tests/tools/var/vendor.
+- Failure output policy:
+  - catalog drift: line 1 is stable code `CORETSIA_OBSERVABILITY_CATALOG_DRIFT`
+  - unexpected failure: line 1 starts with `CORETSIA_OBSERVABILITY_CATALOG_GATE_FAILED`
+- Under the hood: repo-root wrapper delegates to framework workspace script.
+
+**Usage (repo root):**
+- `composer observability-catalog:gate`
+
+---
+
 ### Artifact header/schema gate
 
 **Id:** `tool.artifact_header_schema_gate`  

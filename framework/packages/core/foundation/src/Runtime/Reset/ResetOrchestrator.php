@@ -26,23 +26,38 @@ use Psr\Container\ContainerInterface;
 /**
  * Foundation reset orchestrator.
  *
- * This is the only runtime reset executor that `core/kernel` is allowed to use.
+ * This is the stable public reset entrypoint used by Kernel runtime.
  *
- * Legacy/base mode semantics before epic `1.250.0`:
+ * Kernel runtime MUST call this orchestrator and MUST NOT enumerate reset tags
+ * directly.
+ *
+ * Reset orchestration is baseline runtime safety infrastructure and cannot be
+ * disabled through config. The priority flag controls only enhanced
+ * priority/group planning behavior.
+ *
+ * Legacy/base mode semantics:
  *
  * - uses the effective reset discovery tag supplied by Foundation wiring/config;
  * - default effective reset discovery tag is `kernel.reset`;
  * - obtains the reset discovery list only through `TagRegistry::all($tag)`;
  * - executes services in the exact order returned by `TagRegistry::all($tag)`;
  * - does not parse tag meta;
+ * - does not validate tag meta;
  * - does not apply additional sorting;
  * - does not apply additional dedupe rules;
  * - calls `ResetInterface::reset()` once per tagged service entry;
  * - hard-fails deterministically when a tagged service is not resettable.
  *
+ * Enhanced mode semantics:
+ *
+ * - delegates planning and execution to `PriorityResetOrchestrator`;
+ * - ordering is priority DESC, group ASC by strcmp(), serviceId ASC by strcmp();
+ * - tag meta parsing is owned by `PriorityResetOrchestrator`.
+ *
  * This class must not emit stdout/stderr and must not dump service instances,
- * constructor arguments, raw config payloads, environment values, tokens, or
- * absolute local paths.
+ * constructor arguments, raw config payloads, environment values, tokens,
+ * headers, cookies, Authorization values, session ids, payloads, or absolute
+ * local paths.
  */
 final readonly class ResetOrchestrator
 {
@@ -52,8 +67,14 @@ final readonly class ResetOrchestrator
         private ContainerInterface $container,
         private TagRegistry $tagRegistry,
         private string $effectiveResetTag = Tags::KERNEL_RESET,
+        private bool $priorityEnabled = false,
+        private ?PriorityResetOrchestrator $priorityResetOrchestrator = null,
     ) {
         self::assertValidResetTag($effectiveResetTag);
+
+        if ($priorityEnabled && $priorityResetOrchestrator === null) {
+            throw new \InvalidArgumentException('reset-orchestrator-priority-orchestrator-missing');
+        }
     }
 
     /**
@@ -63,15 +84,15 @@ final readonly class ResetOrchestrator
      */
     public function resetAll(): void
     {
-        foreach ($this->tagRegistry->all($this->effectiveResetTag) as $taggedService) {
-            $service = $this->container->get($taggedService->id());
+        if ($this->priorityEnabled) {
+            /** @var PriorityResetOrchestrator $priorityResetOrchestrator */
+            $priorityResetOrchestrator = $this->priorityResetOrchestrator;
+            $priorityResetOrchestrator->resetAll($this->effectiveResetTag);
 
-            if (!$service instanceof ResetInterface) {
-                throw new \RuntimeException('reset-not-resettable');
-            }
-
-            $service->reset();
+            return;
         }
+
+        $this->resetAllLegacy();
     }
 
     /**
@@ -80,6 +101,40 @@ final readonly class ResetOrchestrator
     public function effectiveResetTag(): string
     {
         return $this->effectiveResetTag;
+    }
+
+    /**
+     * Returns whether enhanced priority/group planning is enabled.
+     */
+    public function priorityEnabled(): bool
+    {
+        return $this->priorityEnabled;
+    }
+
+    /**
+     * Legacy/base execution mode.
+     *
+     * This method intentionally does not read or validate TaggedService meta.
+     */
+    private function resetAllLegacy(): void
+    {
+        foreach ($this->tagRegistry->all($this->effectiveResetTag) as $taggedService) {
+            try {
+                $service = $this->container->get($taggedService->id());
+            } catch (\Throwable $exception) {
+                throw ResetException::serviceFailed($exception);
+            }
+
+            if (!$service instanceof ResetInterface) {
+                throw ResetException::serviceNotResettable();
+            }
+
+            try {
+                $service->reset();
+            } catch (\Throwable $exception) {
+                throw ResetException::serviceFailed($exception);
+            }
+        }
     }
 
     private static function assertValidResetTag(string $tag): void

@@ -22,7 +22,7 @@ namespace Coretsia\Contracts\Mail;
  * Deterministic contracts exception boundary for mail sending failures.
  *
  * The canonical mail delivery error code is the stable string code exposed by
- * MailException::CODE. It is intentionally separate from PHP's native integer
+ * MailException::ERROR_CODE. It is intentionally separate from PHP's native integer
  * Throwable::getCode() value.
  *
  * This exception is intentionally payload-free and uses a fixed safe message.
@@ -39,7 +39,8 @@ namespace Coretsia\Contracts\Mail;
  */
 final class MailException extends \RuntimeException
 {
-    public const string CODE = 'CORETSIA_MAIL_DELIVERY_FAILED';
+    public const string ERROR_CODE = 'CORETSIA_MAIL_DELIVERY_FAILED';
+
     public const string MESSAGE = 'Mail delivery failed.';
 
     public function __construct(?\Throwable $previous = null)
@@ -52,6 +53,6 @@ final class MailException extends \RuntimeException
      */
     public function errorCode(): string
     {
-        return self::CODE;
+        return self::ERROR_CODE;
     }
 }

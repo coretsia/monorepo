@@ -42,6 +42,7 @@ Coretsia/
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
+│   │   ├── ADR-0019-enhanced-reset-long-running.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -388,7 +389,12 @@ Coretsia/
 │   │   │       │   │   └── Tags.php
 │   │   │       │   ├── Runtime/
 │   │   │       │   │   └── Reset/
-│   │   │       │   │       └── ResetOrchestrator.php
+│   │   │       │   │       ├── PriorityResetOrchestrator.php
+│   │   │       │   │       ├── ResetErrorCodes.php
+│   │   │       │   │       ├── ResetException.php
+│   │   │       │   │       ├── ResetGroup.php
+│   │   │       │   │       ├── ResetOrchestrator.php
+│   │   │       │   │       └── ResetPriority.php
 │   │   │       │   ├── Serialization/
 │   │   │       │   │   └── StableJsonEncoder.php
 │   │   │       │   ├── Tag/
@@ -410,6 +416,7 @@ Coretsia/
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php
 │   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
+│   │   │       │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php

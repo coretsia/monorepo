@@ -387,7 +387,7 @@ The deterministic mail delivery failure code is a stable string code, not the PH
 The canonical code must be exposed as:
 
 ```text
-MailException::CODE
+MailException::ERROR_CODE
 ```
 
 The exception should also expose:
@@ -456,7 +456,7 @@ When wrapping provider exceptions, implementations must redact unsafe provider d
 
 Runtime owner packages may define more specific platform-owned or integration-owned mail failure codes later.
 
-Those owner-defined codes must not replace the generic contracts-level code defined by `MailException::CODE`.
+Those owner-defined codes must not replace the generic contracts-level code defined by `MailException::ERROR_CODE`.
 
 Provider-specific, transport-specific, queue-specific, credential-specific, and policy-specific mail failure codes are runtime-owned and are not introduced by epic `1.170.0`.
 

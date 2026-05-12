@@ -42,6 +42,7 @@ Coretsia/
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
+│   │   ├── ADR-0019-enhanced-reset-long-running.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -383,12 +384,17 @@ Coretsia/
 │   │   │       │   │   │   └── NoopTracer.php (NoopTracer - startSpan()/inSpan()/currentSpan())
 │   │   │       │   │   └── CorrelationIdProvider.php (CorrelationIdProvider - correlationId())
 │   │   │       │   ├── Provider/
-│   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/defaultIdGenerator()/effectiveResetTag())
+│   │   │       │   │   ├── FoundationServiceFactory.php (FoundationServiceFactory - resetOrchestrator()/priorityResetOrchestrator()/resetPriorityEnabled()/defaultResetGroup()/defaultIdGenerator()/effectiveResetTag()/resetConfig())
 │   │   │       │   │   ├── FoundationServiceProvider.php (FoundationServiceProvider - register())
 │   │   │       │   │   └── Tags.php (Tags)
 │   │   │       │   ├── Runtime/
 │   │   │       │   │   └── Reset/
-│   │   │       │   │       └── ResetOrchestrator.php (ResetOrchestrator - resetAll()/effectiveResetTag()/assertValidResetTag())
+│   │   │       │   │       ├── PriorityResetOrchestrator.php (PriorityResetOrchestrator - resetAll()/plan()/executePlan()/resolvePriority()/resolveGroup()/startSpan()/emitObservabilitySummary()/groupsCount())
+│   │   │       │   │       ├── ResetErrorCodes.php (ResetErrorCodes - has()/all()/initialize())
+│   │   │       │   │       ├── ResetException.php (ResetException - metaInvalid()/serviceNotResettable()/serviceFailed()/observabilityFailed()/code())
+│   │   │       │   │       ├── ResetGroup.php (ResetGroup - fromString()/value()/compare()/equals())
+│   │   │       │   │       ├── ResetOrchestrator.php (ResetOrchestrator - resetAll()/effectiveResetTag()/priorityEnabled()/resetAllLegacy()/assertValidResetTag())
+│   │   │       │   │       └── ResetPriority.php (ResetPriority - fromInt()/fromMetaValue()/value()/compareDescending()/equals())
 │   │   │       │   ├── Serialization/
 │   │   │       │   │   └── StableJsonEncoder.php (StableJsonEncoder - encode()/encodeStable()/normalize())
 │   │   │       │   ├── Tag/
@@ -408,8 +414,9 @@ Coretsia/
 │   │   │       │   │   ├── CorrelationIdFormatContractTest.php (CorrelationIdFormatContractTest - testCorrelationIdUsesCanonicalUppercaseUlidFormat()/testCanonicalUlidSourceUsesSameFormatContract())
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopLoggerAcceptsArbitraryPsr3ContextAndIgnoresItSafely()/testNoopTracerReturnsNoopSpanAndRunsSuccessfulCallback()/testNoopTracerRethrowsThrowableFromCallback()/testNoopSpanOperationsDoNotThrow()/testNoopMeterOperationsDoNotThrow()/testNoopErrorReporterDoesNotThrow()/testNoopProfilerReturnsNoopSessionAndRepeatedStopDoesNotThrow()/testNoopContextPropagationDoesNotThrowAndDoesNotMutateCarrier()/testNoopImplementationsDoNotContainOutputSinks()/noopImplementationFiles()/assertNoOutputSinksInPhpFile()/isNameToken())
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php (DeterministicOrderSortContractTest - testCanonicalOrderIsPriorityDescThenByteOrderIdAscForDifferentInputOrders()/testCanonicalSortDoesNotDependOnLocaleCollation()/testCanonicalSortPreservesAllEntriesWithoutDedupe()/inputOrders()/idsFrom())
-│   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php (FoundationConfigRejectsFloatValuesInIdsContractTest - testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey()/testDefaultsDeclareIdsDefaultAndNoClockConfig()/testDefaultConfigMatchesRules()/testInvalidIdsAndClockConfigFailDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/reject())
+│   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php (FoundationConfigRejectsFloatValuesInIdsContractTest - testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey()/testDefaultsDeclareIdsDefaultAndNoClockConfig()/testDefaultConfigMatchesRules()/testInvalidIdsAndClockConfigFailDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/validateResetGroupId()/reject())
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/foundationConfig()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
+│   │   │       │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php (FoundationEnhancedResetConfigShapeContractTest - testDefaultsReturnFoundationSubtreeWithoutRootWrapping()/testRulesDeclareEnhancedResetConfigShape()/testDefaultsDeclareEnhancedResetValues()/testDefaultConfigMatchesRules()/testInvalidEnhancedResetConfigFailsDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/validateResetGroupId()/reject())
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php (StableJsonEncoderRejectsFloatValuesContractTest - testRejectsTopLevelFloatValuesWithStableMessage()/testRejectsNestedFloatValuesWithStableMessage()/assertEncodingFailsWith())
 │   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php (StableJsonEncoderRejectsNonJsonLikeValuesContractTest - testRejectsObjectsWithStableMessage()/testRejectsClosuresWithStableMessage()/testRejectsResourcesWithStableMessage()/testRejectsNestedObjectsAndClosuresWithStableMessages()/testRejectsNonStringMapKeysOutsideListSemanticsWithStableMessage()/testCallableLookingStringsRemainPlainStrings()/assertEncodingFailsWith())
 │   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php (StableJsonEncoderSortsMapKeysRecursivelyContractTest - testSortsMapKeysRecursivelyAndPreservesListOrder()/testUsesByteOrderStringComparisonForMapKeys()/testPreservesTopLevelListOrder()/testOutputUsesFinalLfAndNoCrLf()/testDoesNotEscapeUnicodeOrSlashes())
@@ -435,7 +442,7 @@ Coretsia/
 │   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php (FoundationResolvesContextStoreBindingsTest - testFoundationProviderResolvesContextStoreAndAccessorBindingsToSameInstance()/testFoundationProviderResolvesCorrelationProviderBindingsToSameInstance()/testFoundationProviderResolvesUlidAndCorrelationIdGenerators()/testFoundationContextAndCorrelationServicesResolveWithConcreteAutowireDisabled()/foundationContainer())
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php (FoundationResolvesNoopObservabilityBindingsTest - testFoundationProviderResolvesNoopObservabilityBindings()/testFoundationProviderDoesNotRegisterSpanOrProfilingSessionAsRootBindings()/foundationContainer())
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php (ResetOrchestratorInvokesResetExactlyOncePerServiceTest - testInvokesResetExactlyOncePerTaggedResettableServiceInRegistryOrder()/testEachResetCycleInvokesEachServiceOnceAgain()/testEmptyDiscoveryListIsDeterministicNoop()/testResetExecutionDoesNotRequireAutowireConfigForExplicitInstances()/orchestratorFrom()/validConfig(); ResetOrchestratorInvokesRecorder - record()/events(); ResetOrchestratorInvokesResettableService - reset()/resetCount())
-│   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php (ResetOrchestratorRejectsTaggedNonResettableServiceTest - testRejectsTaggedNonResettableServiceWithStableMessageOnly()/testHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder()/orchestratorFrom()/validConfig(); ResetOrchestratorRejectsRecorder - record()/events(); ResetOrchestratorRejectsResettableService - reset()/resetCount(); ResetOrchestratorRejectsNonResettableService)
+│   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php (ResetOrchestratorRejectsTaggedNonResettableServiceTest - testRejectsTaggedNonResettableServiceWithTypedResetExceptionAndStableMessage()/testTypedHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder()/orchestratorFrom()/validConfig(); ResetOrchestratorRejectsRecorder - record()/events(); ResetOrchestratorRejectsResettableService - reset()/resetCount(); ResetOrchestratorRejectsNonResettableService)
 │   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php (ResetOrchestratorUsesConfiguredResetTagTest - testFoundationServiceProviderWiresOrchestratorWithConfiguredResetTag()/testFoundationServiceProviderFallsBackToKernelResetWhenResetTagIsAbsent()/configWithResetTag()/configWithoutResetTag(); ResetOrchestratorConfiguredTagRecorder - record()/events(); ResetOrchestratorConfiguredTagResettableService - reset()/resetCount())
 │   │   │       │   │   ├── TagRegistryDedupeFirstWinsTest.php (TagRegistryDedupeFirstWinsTest - testDuplicateServiceForSameTagKeepsFirstOccurrence()/testDuplicateRegistrationDoesNotChangeCanonicalOrder()/testDedupeAppliesPerTagOnly()/testFirstWinsIsIndependentFromLaterLowerPriorityDuplicates()/idsFrom()/prioritiesFrom())
 │   │   │       │   │   └── TagRegistryReturnsDeterministicOrderTest.php (TagRegistryReturnsDeterministicOrderTest - testAllReturnsTaggedServicesInCanonicalDeterministicOrder()/testAllReturnsTheSameOrderForDifferentInsertionOrders()/testAllUsesByteOrderIdComparisonForEqualPriority()/testUnknownValidTagReturnsEmptyList()/testTagNamesAreReturnedInByteOrderForDiagnostics()/idsFrom()/prioritiesFrom())
@@ -526,7 +533,7 @@ Coretsia/
 │   │           │   │   ├── HelpCommand.php (HelpCommand - name()/run()/renderGeneralHelp()/renderHelpHelp()/renderListHelp()/renderGenericCommandHelp()/isKnownCommand()/availableCommands()/normalizeCommandNames())
 │   │           │   │   └── ListCommand.php (ListCommand - name()/run()/availableCommands()/normalizeCommandNames())
 │   │           │   ├── Error/
-│   │           │   │   └── ErrorCodes.php (ErrorCodes - all())
+│   │           │   │   └── ErrorCodes.php (ErrorCodes - has()/all()/initialize())
 │   │           │   ├── Exception/
 │   │           │   │   ├── CliCommandClassMissingException.php (CliCommandClassMissingException - classNotFound())
 │   │           │   │   ├── CliCommandFailedException.php (CliCommandFailedException - exitCode()/commandFailed())

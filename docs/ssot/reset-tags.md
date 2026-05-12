@@ -30,15 +30,48 @@ stateful service
 → reset after every UoW
 ```
 
+This document also owns the Foundation reset semantics introduced by epic `1.250.0`:
+
+```text
+foundation.reset.priority.enabled
+foundation.reset.group.default
+reset tag meta keys: priority, group
+legacy/base reset mode
+enhanced priority/group reset mode
+deterministic reset failure codes
+summary-only enhanced reset observability
+```
+
 ## Source-of-truth boundaries
 
-This document owns only reset-specific semantics for already-canonical tags.
+This document owns reset-specific semantics for already-canonical tags.
+
+It owns the reset-specific meta schema for the effective Foundation reset discovery tag:
+
+```text
+priority
+group
+```
+
+It owns the reset-specific config keys:
+
+```text
+foundation.reset.tag
+foundation.reset.priority.enabled
+foundation.reset.group.default
+```
+
+It owns the reset-specific deterministic failure mapping introduced by `1.250.0`.
+
+It owns the reset-specific summary observability signal names introduced by `1.250.0`.
 
 It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, and tag naming rules are owned by:
 
 ```text
 docs/ssot/tags.md
 ```
+
+This document MUST NOT redeclare reserved tag registry rows from `docs/ssot/tags.md`.
 
 It does not own general tag discovery ordering, dedupe behavior, or consumer obligations. Those are owned by:
 
@@ -64,6 +97,20 @@ It does not own ContextStore safe-write policy or value validation. That is owne
 docs/ssot/context-store.md
 ```
 
+It does not own the global observability label allowlist. That is owned by:
+
+```text
+docs/ssot/observability.md
+```
+
+It does not own concrete implementation internals of:
+
+```text
+Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
+Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator
+Coretsia\Foundation\Tag\TagRegistry
+```
+
 This document MUST NOT redefine:
 
 - reserved tag registry rows;
@@ -71,9 +118,9 @@ This document MUST NOT redefine:
 - general `TagRegistry` ordering;
 - general tag dedupe policy;
 - `ResetInterface` method shape;
-- `ResetOrchestrator` implementation internals;
 - Kernel runtime lifecycle implementation;
-- future enhanced reset implementation from epic `1.250.0`.
+- observability label allowlist outside reset-specific usage;
+- production observability backend implementations.
 
 ## Normative language
 
@@ -113,6 +160,100 @@ The fixed stateful-service enforcement marker is:
 ```text
 kernel.stateful
 ```
+
+Legacy/base reset mode is reset execution with enhanced priority/group planning disabled:
+
+```text
+foundation.reset.priority.enabled = false
+```
+
+Enhanced reset mode is reset execution with enhanced priority/group planning enabled:
+
+```text
+foundation.reset.priority.enabled = true
+```
+
+The supported reset tag meta keys are:
+
+```text
+priority
+group
+```
+
+All other reset tag meta keys are unknown to reset planning and MUST be ignored by enhanced reset mode.
+
+## Foundation reset config keys
+
+Foundation reset discovery is controlled by:
+
+```text
+foundation.reset.tag
+```
+
+The reserved default value is:
+
+```text
+kernel.reset
+```
+
+Enhanced reset planning is controlled by:
+
+```text
+foundation.reset.priority.enabled
+```
+
+The default value introduced by epic `1.250.0` is:
+
+```text
+true
+```
+
+This flag controls only enhanced priority/group reset planning.
+
+It MUST NOT disable reset discovery.
+
+It MUST NOT disable reset orchestration.
+
+It MUST NOT be interpreted as:
+
+```text
+foundation.reset.enabled
+```
+
+No reset feature-disable switch exists.
+
+The default enhanced reset group is controlled by:
+
+```text
+foundation.reset.group.default
+```
+
+The default value introduced by epic `1.250.0` is:
+
+```text
+default
+```
+
+The value MUST match:
+
+```text
+/\A[a-z0-9][a-z0-9._-]*\z/
+```
+
+This is the same normalized group id shape used by reset tag meta `group`.
+
+This prevents config-valid/runtime-fail drift.
+
+The following config keys MUST NOT be introduced by reset policy:
+
+```text
+foundation.reset.enabled
+foundation.reset.observability.enabled
+foundation.reset.priority.default
+foundation.reset.group.enabled
+```
+
+Unknown keys under `foundation.reset.*` MUST be rejected by Foundation config rules.
 
 ## Effective reset discovery tag
 
@@ -166,6 +307,77 @@ When documentation says `kernel.reset`, it is shorthand for the reserved default
 
 When runtime code needs the effective reset discovery tag, it MUST use the Foundation-owned config/wiring resolver.
 
+## ResetOrchestrator entrypoint
+
+Runtime reset execution goes through:
+
+```text
+Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
+```
+
+`ResetOrchestrator` is the stable public reset entrypoint used by Kernel runtime.
+
+Kernel runtime MUST call:
+
+```text
+ResetOrchestrator::resetAll()
+```
+
+Kernel runtime MUST NOT enumerate:
+
+```text
+kernel.reset
+kernel.stateful
+```
+
+or any configured reset tag directly.
+
+`ResetOrchestrator` owns mode selection:
+
+```text
+foundation.reset.priority.enabled=false → legacy/base mode
+foundation.reset.priority.enabled=true  → enhanced mode
+```
+
+In enhanced mode, `ResetOrchestrator` delegates planning and execution to:
+
+```text
+Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator
+```
+
+`PriorityResetOrchestrator` MUST NOT own mode selection.
+
+`PriorityResetOrchestrator` intentionally does not know about:
+
+```text
+foundation.reset.priority.enabled
+```
+
+Mode selection belongs to `ResetOrchestrator` and Foundation wiring.
+
+## Reset orchestration cannot be feature-disabled
+
+Reset orchestration is baseline runtime safety infrastructure.
+
+Foundation MUST NOT introduce:
+
+```text
+foundation.reset.enabled
+foundation.reset.observability.enabled
+```
+
+`ResetOrchestrator::resetAll()` MAY be a deterministic noop only when the effective reset discovery list is empty.
+
+The following remains always true when `core/foundation` is enabled:
+
+```text
+effective reset discovery tag
+→ TagRegistry->all($effectiveResetTag)
+→ ResetOrchestrator::resetAll()
+```
+
+The priority flag controls only whether reset execution uses legacy/base ordering or enhanced planning.
+
 ## ResetInterface requirement
 
 Any service discovered through the effective Foundation reset discovery tag MUST implement:
@@ -190,7 +402,7 @@ Reset implementations SHOULD make repeated reset calls on already-clean state sa
 
 This MUST NOT be interpreted as “reset can never throw”.
 
-Concrete reset failure semantics are owned by Foundation reset orchestration and future reset-planning epics.
+Concrete reset failure semantics are owned by Foundation reset orchestration.
 
 ## `kernel.stateful` enforcement marker
 
@@ -230,14 +442,6 @@ When `foundation.reset.tag` is changed, the second tag is the resolved effective
 
 ## Runtime usage boundary
 
-Runtime reset execution goes through:
-
-```text
-Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
-```
-
-Kernel runtime is responsible for triggering reset after every UoW.
-
 Foundation is responsible for the reusable reset executor.
 
 Consumers MUST NOT:
@@ -249,7 +453,8 @@ Consumers MUST NOT:
 - reconstruct reset discovery from provider internals;
 - reconstruct reset discovery from package metadata;
 - use reflection as a competing reset discovery mechanism;
-- apply a competing reset ordering rule.
+- apply a competing reset ordering rule;
+- apply a competing reset meta parser.
 
 The expected lifecycle relationship is:
 
@@ -261,27 +466,530 @@ Kernel after-UoW phase
 → next UoW starts without previous mutable state
 ```
 
-## Discovery ordering boundary
+## Reset ordering modes
 
-Baseline reset discovery uses the exact list returned by:
+### Legacy/base mode
+
+Legacy/base mode is selected when:
+
+```text
+foundation.reset.priority.enabled = false
+```
+
+In legacy/base mode, reset execution MUST preserve the exact list order returned by:
 
 ```text
 TagRegistry->all($effectiveResetTag)
 ```
 
-In legacy/base mode, reset execution MUST preserve the exact `TagRegistry` order.
+It MUST NOT apply additional sorting.
 
-The canonical baseline discovery order is:
+It MUST NOT apply additional dedupe rules.
+
+It MUST NOT parse tag meta.
+
+It MUST NOT validate tag meta.
+
+Invalid reset tag meta MUST NOT fail reset in disabled mode.
+
+Because `TagRegistry::all()` already returns canonical deterministic discovery order:
 
 ```text
 priority DESC, id ASC
 ```
 
-Consumers MUST NOT re-sort or re-dedupe the reset discovery list.
+legacy/base reset order is not insertion order.
 
-Enhanced reset planning from a later owner epic MAY introduce additional reset-specific ordering semantics.
+Legacy/base reset order means exact output of:
 
-Until that later owner epic is active, reset-specific consumers MUST NOT invent alternate ordering.
+```text
+TagRegistry->all($effectiveResetTag)
+```
+
+### Enhanced mode
+
+Enhanced mode is selected when:
+
+```text
+foundation.reset.priority.enabled = true
+```
+
+Enhanced mode MUST build a reset plan from:
+
+```text
+TagRegistry->all($effectiveResetTag)
+```
+
+Enhanced mode MUST order reset execution by:
+
+```text
+1. priority DESC
+2. group ASC by strcmp() on normalized group id
+3. serviceId ASC by strcmp()
+```
+
+Sorting MUST be deterministic across operating systems and PHP builds.
+
+Sorting MUST NOT use:
+
+```text
+setlocale
+LC_ALL
+locale-aware collation
+natural sort
+case folding
+```
+
+String comparison MUST use byte-order comparison:
+
+```php
+strcmp($left, $right)
+```
+
+Reset execution MUST be sequential.
+
+No parallel reset execution is introduced.
+
+## Enhanced reset tag meta
+
+Enhanced reset planning reads and validates only these tag meta keys:
+
+```text
+priority
+group
+```
+
+Any other meta keys MUST be ignored.
+
+Unknown meta keys MUST NOT fail reset planning.
+
+Example valid meta with ignored keys:
+
+```php
+[
+    'priority' => 10,
+    'group' => 'default',
+    'x' => 'y',
+    'debug' => ['a' => 1],
+]
+```
+
+The effective ordering MUST be computed only from:
+
+```text
+priority
+group
+serviceId
+```
+
+### `priority` meta
+
+Enhanced reset planning MUST treat:
+
+```text
+TaggedService.priority
+```
+
+as the base priority.
+
+If tag meta contains a supported `priority` key, that value overrides the base priority.
+
+Effective priority is:
+
+```text
+meta.priority ?? TaggedService.priority
+```
+
+The accepted `priority` meta values are:
+
+```text
+int
+string matching /\A-?\d+\z/
+```
+
+Examples of valid priority values:
+
+```text
+10
+"10"
+-10
+"-10"
+"0"
+```
+
+Examples of invalid priority values:
+
+```text
+" 10"
+"10 "
+"+10"
+"1.0"
+"01x"
+null
+true
+false
+1.5
+[]
+```
+
+Valid string priority values are normalized by casting to int.
+
+If `priority` is absent, the planner uses:
+
+```text
+TaggedService.priority
+```
+
+Invalid priority meta MUST fail deterministically with:
+
+```text
+ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")
+```
+
+### `group` meta
+
+The accepted `group` meta value is:
+
+```text
+string
+```
+
+Group normalization uses ASCII whitespace trimming only:
+
+```php
+trim($value, " \t\n\r\f\v")
+```
+
+The normalized group id MUST match:
+
+```text
+/\A[a-z0-9][a-z0-9._-]*\z/
+```
+
+If `group` is absent, the planner uses:
+
+```text
+foundation.reset.group.default
+```
+
+If `group` is present but ASCII-empty after trimming, the planner uses:
+
+```text
+foundation.reset.group.default
+```
+
+Examples that use the default group:
+
+```php
+[]
+['group' => '']
+['group' => '   ']
+["group" => "\t\n"]
+```
+
+Examples of valid explicit group ids:
+
+```text
+default
+cache
+queue
+db.primary
+tenant-cache
+worker_1
+a
+0
+```
+
+Examples of invalid explicit group ids:
+
+```text
+Default
+ cache
+cache 
+.cache
+-cache
+_cache
+cache/group
+cache group
+cache:group
+Україна
+```
+
+Invalid group meta MUST fail deterministically with:
+
+```text
+ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")
+```
+
+Default group substitution is planner responsibility.
+
+`ResetGroup` value objects MUST NOT know about Foundation config.
+
+## Default reset group behavior
+
+The default reset group is:
+
+```text
+foundation.reset.group.default
+```
+
+The default value is:
+
+```text
+default
+```
+
+This key affects only entries without an explicit non-empty group.
+
+It does not give special priority to the default group.
+
+It only supplies the group value used before sorting.
+
+Example with:
+
+```text
+foundation.reset.group.default = default
+```
+
+and equal effective priority:
+
+| serviceId   | meta.group | effective group |
+|-------------|------------|-----------------|
+| app.queue   | queue      | queue           |
+| app.cache   | cache      | cache           |
+| app.context | absent     | default         |
+
+Enhanced group ordering is:
+
+```text
+cache
+default
+queue
+```
+
+If:
+
+```text
+foundation.reset.group.default = queue
+```
+
+then `app.context` uses group `queue`, and services with the same priority are sorted by:
+
+```text
+cache
+queue
+```
+
+with service id as the final tie-breaker inside the same group.
+
+## Deterministic reset failures
+
+Foundation reset owns deterministic reset failure codes through:
+
+```text
+Coretsia\Foundation\Runtime\Reset\ResetErrorCodes
+```
+
+Foundation reset owns typed reset failures through:
+
+```text
+Coretsia\Foundation\Runtime\Reset\ResetException
+```
+
+`ResetException` carries a stable machine-readable string code:
+
+```text
+code(): string
+```
+
+The deterministic reset error codes are:
+
+```text
+CORETSIA_RESET_META_INVALID
+CORETSIA_RESET_SERVICE_NOT_RESETTABLE
+CORETSIA_RESET_SERVICE_FAILED
+CORETSIA_RESET_OBSERVABILITY_FAILED
+```
+
+The deterministic mapping is:
+
+| Failure                                                | Code                                    | Message                      |
+|--------------------------------------------------------|-----------------------------------------|------------------------------|
+| invalid reset tag meta                                 | `CORETSIA_RESET_META_INVALID`           | `reset-meta-invalid`         |
+| discovered service does not implement `ResetInterface` | `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` | `reset-not-resettable`       |
+| service resolution or reset execution throws           | `CORETSIA_RESET_SERVICE_FAILED`         | `reset-service-failed`       |
+| internal observability port failure                    | `CORETSIA_RESET_OBSERVABILITY_FAILED`   | `reset-observability-failed` |
+
+Exception messages MUST be fixed safe tokens.
+
+Exception messages MUST NOT include:
+
+- service internals;
+- service object dumps;
+- tag meta payloads;
+- raw config payloads;
+- raw context values;
+- request payloads;
+- response payloads;
+- queue payloads;
+- headers;
+- cookies;
+- Authorization values;
+- tokens;
+- session ids;
+- credentials;
+- private customer data;
+- absolute local paths;
+- stack traces by default.
+
+## Tagged non-resettable services
+
+Any service discovered through the effective Foundation reset discovery tag MUST implement:
+
+```text
+Coretsia\Contracts\Runtime\ResetInterface
+```
+
+If a discovered service does not implement `ResetInterface`, reset MUST fail deterministically with:
+
+```text
+ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")
+```
+
+This applies in both modes:
+
+```text
+foundation.reset.priority.enabled=false
+foundation.reset.priority.enabled=true
+```
+
+The failure is tag misuse.
+
+## Reset execution fail-fast policy
+
+Reset execution is sequential and fail-fast.
+
+On the first reset service failure, reset processing MUST stop.
+
+A service failure means either:
+
+```text
+container resolution for the service throws
+```
+
+or:
+
+```text
+ResetInterface::reset() throws
+```
+
+The surfaced reset failure MUST be:
+
+```text
+ResetException(code=CORETSIA_RESET_SERVICE_FAILED, message="reset-service-failed")
+```
+
+The original throwable MAY be carried as `previous`.
+
+The surfaced message MUST remain the fixed safe token.
+
+No failure aggregation is introduced by reset policy.
+
+No retry policy is introduced by reset policy.
+
+No timeout policy is introduced by reset policy.
+
+## Enhanced reset observability
+
+Enhanced reset MAY emit summary observability through existing noop-safe ports:
+
+```text
+Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+Coretsia\Contracts\Observability\Metrics\MeterPortInterface
+Psr\Log\LoggerInterface
+```
+
+Foundation reset MUST NOT require new production observability classes when existing ports/noops are sufficient.
+
+Tests SHOULD use in-test fake tracer, meter, and logger implementations with safe captured events.
+
+Enhanced reset span name:
+
+```text
+foundation.reset
+```
+
+Allowed span attributes:
+
+```text
+services_count
+groups_count
+outcome
+```
+
+Enhanced reset metric names:
+
+```text
+foundation.reset_total
+foundation.reset_duration_ms
+```
+
+Allowed metric labels:
+
+```text
+outcome
+```
+
+Allowed `outcome` values:
+
+```text
+ok
+failed
+```
+
+No other metric label keys are introduced by enhanced reset.
+
+The following MUST NOT be reset metric labels:
+
+```text
+service_id
+group
+tag
+exception
+error_code
+correlation_id
+uow_id
+request_id
+path
+host
+driver
+```
+
+Logs, if emitted, MUST be summary-only.
+
+Allowed log context:
+
+```text
+services_count
+groups_count
+outcome
+```
+
+Logs MUST NOT include per-service internals, service dumps, tag meta payloads, stack traces, raw config, raw context, or raw unit-of-work payloads by default.
+
+## Observability failure policy
+
+Internal observability port failures MUST remain safe.
+
+If observability fails when no reset failure is already being surfaced, enhanced reset MAY surface:
+
+```text
+ResetException(code=CORETSIA_RESET_OBSERVABILITY_FAILED, message="reset-observability-failed")
+```
+
+If reset already failed, observability failure MUST NOT hide the reset failure.
+
+The primary reset failure remains the deterministic reset exception for the reset problem.
 
 ## Enforcement rails
 
@@ -327,6 +1035,51 @@ kernel.stateful
 → ResetOrchestrator can reset it after every UoW
 ```
 
+Expected enhanced reset test evidence includes:
+
+```text
+framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php
+framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php
+framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
+framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+```
+
+Verification MUST prove:
+
+- `ResetOrchestrator` remains the stable public reset entrypoint;
+- Kernel-facing reset entrypoint remains `ResetOrchestrator::resetAll()`;
+- `ResetInterface` remains unchanged;
+- `foundation.reset.priority.enabled` defaults to `true`;
+- `foundation.reset.priority.enabled=false` preserves exact `TagRegistry->all($effectiveResetTag)` order;
+- disabled mode ignores tag meta completely;
+- invalid tag meta does not fail reset in disabled mode;
+- enhanced mode delegates to `PriorityResetOrchestrator`;
+- enhanced mode orders by `priority DESC`, `group ASC`, `serviceId ASC`;
+- enhanced mode uses `TaggedService.priority` as base priority;
+- `meta.priority` overrides `TaggedService.priority`;
+- valid string priority values normalize to int;
+- invalid priority meta fails with `CORETSIA_RESET_META_INVALID`;
+- absent group uses `foundation.reset.group.default`;
+- ASCII-empty group uses `foundation.reset.group.default`;
+- invalid group meta fails with `CORETSIA_RESET_META_INVALID`;
+- unknown meta keys are ignored in enhanced mode;
+- ordering remains locale-independent;
+- discovered non-resettable services fail with `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`;
+- first reset service failure stops further processing;
+- service failure surfaces `CORETSIA_RESET_SERVICE_FAILED`;
+- enhanced reset emits summary-only observability with safe labels/attributes;
+- no new metric label keys are introduced;
+- `foundation.reset.group.default` config shape matches runtime group meta shape;
+- `foundation.reset.enabled` is not introduced;
+- `foundation.reset.observability.enabled` is not introduced.
+
 ## Security / redaction rules
 
 Reset-related diagnostics MUST be safe.
@@ -351,20 +1104,27 @@ Reset-related logs, exceptions, diagnostics, traces, metrics, generated artifact
 - absolute local paths;
 - raw endpoints such as socket paths or `host:port` values unless hashed.
 
-Allowed reset diagnostics include:
+Allowed enhanced reset summary diagnostics are limited to:
 
 ```text
 services_count
+groups_count
 ok|failed outcome
-stable service id when safe
-stable tag name
-stable reason code
-normalized group id if introduced by a later reset-planning owner
-hash(value)
-len(value)
+stable reset error code
+stable fixed reset message token
 ```
 
+Normalized group ids MAY be used for ordering and group-count calculation.
+
+Normalized group ids MUST NOT be emitted as metric labels by enhanced reset.
+
 Metric labels MUST remain governed by the canonical observability SSoTs.
+
+Enhanced reset MUST NOT introduce metric label keys beyond:
+
+```text
+outcome
+```
 
 Reset diagnostics MUST prefer omission over unsafe emission.
 
@@ -413,6 +1173,110 @@ This is valid.
 `kernel.stateful` remains the enforcement marker.
 
 `app.runtime.reset` is the effective reset discovery tag used by `ResetOrchestrator`.
+
+### Valid: enhanced reset meta
+
+A runtime registers reset services with enhanced reset meta:
+
+```php
+$tagRegistry->add(
+    tag: 'kernel.reset',
+    serviceId: 'app.queue',
+    priority: 0,
+    meta: [
+        'priority' => '100',
+        'group' => 'queue',
+    ],
+);
+```
+
+In enhanced mode, this resolves to:
+
+```text
+effective priority: 100
+effective group: queue
+```
+
+### Valid: unknown meta keys ignored in enhanced mode
+
+```php
+$tagRegistry->add(
+    tag: 'kernel.reset',
+    serviceId: 'app.cache',
+    priority: 0,
+    meta: [
+        'priority' => 100,
+        'group' => 'cache',
+        'x' => 'y',
+        'debug' => ['a' => 1],
+    ],
+);
+```
+
+This is valid.
+
+Enhanced reset planning MUST compute ordering only from:
+
+```text
+priority
+group
+serviceId
+```
+
+Unknown keys MUST be ignored.
+
+### Valid: disabled mode ignores invalid meta
+
+```text
+foundation.reset.priority.enabled = false
+```
+
+A reset tag entry may contain invalid enhanced reset meta:
+
+```php
+[
+    'priority' => 'not-an-int',
+    'group' => [],
+]
+```
+
+Disabled mode MUST NOT parse or validate this meta.
+
+Disabled mode MUST preserve exact:
+
+```text
+TagRegistry->all($effectiveResetTag)
+```
+
+order.
+
+### Valid: enhanced reset ordering
+
+Given:
+
+| serviceId   | TaggedService.priority | meta.priority | meta.group | Effective priority | Effective group |
+|-------------|------------------------|---------------|------------|--------------------|-----------------|
+| app.queue   | 0                      | 100           | queue      | 100                | queue           |
+| app.cache   | 0                      | 100           | cache      | 100                | cache           |
+| app.context | 0                      | absent        | absent     | 0                  | default         |
+| app.low     | 0                      | absent        | aaa        | 0                  | aaa             |
+
+Enhanced order is:
+
+```text
+app.cache
+app.queue
+app.low
+app.context
+```
+
+because ordering is:
+
+```text
+priority DESC
+group ASC by strcmp()
+serviceId ASC by strcmp()
+```
 
 ### Invalid: stateful marker without ResetInterface
 
@@ -479,6 +1343,55 @@ Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 
 It MUST NOT enumerate reset tags directly.
 
+### Invalid: enhanced priority meta
+
+The following priority meta values are invalid in enhanced mode:
+
+```text
+" 10"
+"10 "
+"+10"
+"1.0"
+"01x"
+null
+true
+false
+1.5
+[]
+```
+
+They MUST fail with:
+
+```text
+ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")
+```
+
+### Invalid: enhanced group meta
+
+The following group meta values are invalid in enhanced mode:
+
+```text
+Default
+ cache
+cache 
+.cache
+-cache
+_cache
+cache/group
+cache group
+cache:group
+Україна
+[]
+true
+1
+```
+
+They MUST fail with:
+
+```text
+ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")
+```
+
 ## Non-goals
 
 This SSoT does not define:
@@ -492,9 +1405,7 @@ This SSoT does not define:
 - `ResetInterface` method shape;
 - concrete Kernel runtime lifecycle implementation;
 - concrete Foundation reset orchestrator internals;
-- enhanced reset planner implementation;
 - reset failure aggregation implementation;
-- reset exception taxonomy;
 - reset retry policy;
 - reset timeout policy;
 - platform HTTP reset behavior;
@@ -504,7 +1415,11 @@ This SSoT does not define:
 - queue consumer implementation;
 - concrete stateful service inventory for platform packages;
 - config root registration;
-- generated artifacts.
+- generated artifacts;
+- new metric label keys;
+- production observability backend implementations;
+- plugin systems;
+- reset extensibility systems.
 
 ## Cross-references
 
@@ -516,4 +1431,5 @@ This SSoT does not define:
 - [Context Store SSoT](./context-store.md)
 - [Observability Naming and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
+- [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

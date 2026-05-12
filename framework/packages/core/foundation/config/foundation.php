@@ -84,6 +84,10 @@ return [
      * Foundation owns reset discovery through the effective reset discovery tag.
      * Kernel code must call the reset orchestrator and must not enumerate tagged
      * reset services directly.
+     *
+     * Reset orchestration is baseline runtime safety infrastructure and cannot
+     * be disabled through config. The priority flag below controls only enhanced
+     * ordering/meta planning behavior.
      */
     'reset' => [
         /*
@@ -100,5 +104,31 @@ return [
          * registry order in legacy/base mode.
          */
         'tag' => 'kernel.reset',
+
+        /*
+         * Enhanced reset planning.
+         *
+         * This flag controls only priority/group reset planning. It does not
+         * disable reset discovery or reset orchestration.
+         *
+         * When disabled, reset execution must preserve the exact legacy
+         * `TagRegistry::all($effectiveResetTag)` order and must ignore meta.
+         */
+        'priority' => [
+            'enabled' => true,
+        ],
+
+        /*
+         * Default enhanced reset group.
+         *
+         * This value is used when enhanced reset planning is enabled and a
+         * reset tag entry does not provide a group, or provides an ASCII-empty
+         * group after normalization.
+         *
+         * The value must match the same reset group id rules as tag meta group.
+         */
+        'group' => [
+            'default' => 'default',
+        ],
     ],
 ];

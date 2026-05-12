@@ -6770,6 +6770,8 @@ artifacts_introduced: []
 adr: "docs/adr/ADR-0019-enhanced-reset-long-running.md"
 ssot_refs:
 - "docs/ssot/reset-tags.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/observability-and-errors.md"
 ---
 
 ### Dependencies (MUST)
@@ -6831,44 +6833,75 @@ Forbidden:
 
 #### Creates
 
-- [ ] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
+Tooling:
+- [ ] `framework/tools/gates/observability_catalog_gate.php`
+  - [ ] loads canonical metrics catalog from `docs/ssot/observability.md`
+  - [ ] fails deterministically if the canonical metrics catalog section is missing or unparseable
+  - [ ] rejects duplicate metric catalog rows
+  - [ ] rejects catalog rows with unsupported type values
+  - [ ] supported catalog metric types are exactly `counter` and `observe`
+  - [ ] rejects catalog labels outside the global label allowlist
+  - [ ] scans runtime package source only: `framework/packages/**/src/**/*.php`
+  - [ ] ignores docs/tests/tools/var/vendor
+  - [ ] treats a call as a meter emission only when the receiver is resolvable as `MeterPortInterface`
+  - [ ] validates metric names used in meter `increment()` / `observe()` calls against the canonical catalog
+  - [ ] rejects any runtime metric name absent from the canonical catalog
+  - [ ] catches singular/plural drift through catalog mismatch
+  - [ ] accepts metric names only as:
+    - [ ] direct string literals
+    - [ ] same-class private `const string` values accessed through `self::CONST`
+  - [ ] rejects concatenated, computed, inherited, external, global, or dynamically resolved metric names
+  - [ ] validates meter method compatibility with catalog type:
+    - [ ] `increment()` accepts only `counter` metrics
+    - [ ] `observe()` accepts only `observe` metrics
+  - [ ] validates label keys per metric against the canonical catalog row
+  - [ ] accepts labels only as:
+    - [ ] omitted labels argument
+    - [ ] direct array literals with string keys
+    - [ ] same-method local variables assigned to array literals with resolvable string keys
+  - [ ] label values may be dynamic
+  - [ ] label keys MUST be resolvable
+  - [ ] rejects unknown label keys for known metrics
+  - [ ] rejects non-resolvable dynamic label maps
+  - [ ] does not replace `observability_naming_gate.php`; it complements it
+
+Docs:
+- [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 
 Implementation:
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
-  - [ ] Deterministic ordering algorithm (single-choice; cemented):
-    - [ ] Collect resettable services from the effective Foundation reset discovery list in `TagRegistry` (`foundation.reset.tag`, default `kernel.reset`)
-    - [ ] If `foundation.reset.priority.enabled=false`:
-      - [ ] MUST preserve legacy deterministic order exactly (no re-sorting).
-    - [ ] If `foundation.reset.priority.enabled=true`:
-      - [ ] For each service resolve `priority` and `group` deterministically (see Tag meta parsing).
-      - [ ] Sort keys (single-choice):
-        - [ ] 1) `priority` DESC (higher first)
-        - [ ] 2) `group` ASC by `strcmp` on normalized group id
-        - [ ] 3) `serviceId` ASC by `strcmp` (container service id string)
-      - [ ] Sorting MUST be stable and deterministic across OS/PHP builds.
-  - [ ] Execution semantics (single-choice):
-    - [ ] Reset is performed sequentially in sorted order (no parallelism).
-    - [ ] On first thrown exception from a resettable service:
-      - [ ] MUST stop processing (fail-fast) and surface deterministic failure semantics (see Errors).
-      - [ ] MUST emit observability summary with outcome=failed (noop-safe ports allowed).
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
+  - [x] Enhanced-mode deterministic ordering algorithm only:
+    - [x] Collect resettable services from the effective Foundation reset discovery list in `TagRegistry` (`foundation.reset.tag`, default `kernel.reset`)
+    - [x] This class does not know about `foundation.reset.priority.enabled`; mode selection is owned by `ResetOrchestrator`
+    - [x] For each service resolve `priority` and `group` deterministically (see Tag meta parsing)
+    - [x] Sort keys (single-choice):
+      - [x] 1) `priority` DESC (higher first)
+      - [x] 2) `group` ASC by `strcmp` on normalized group id
+      - [x] 3) `serviceId` ASC by `strcmp` (container service id string)
+    - [x] Sorting MUST be stable and deterministic across OS/PHP builds
+  - [x] Execution semantics (single-choice):
+    - [x] Reset is performed sequentially in sorted order (no parallelism)
+    - [x] On first thrown exception from a resettable service:
+      - [x] MUST stop processing (fail-fast) and surface deterministic failure semantics (see Errors)
+      - [x] MUST emit observability summary with outcome=failed (noop-safe ports allowed)
 
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetGroup.php`
-  - [ ] Value object for normalized group id.
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetGroup.php`
+  - [x] Value object for normalized group id.
 
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetPriority.php`
-  - [ ] Value object for validated priority int.
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetPriority.php`
+  - [x] Value object for validated priority int.
 
 Errors (deterministic, code-first):
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetErrorCodes.php`
-  - [ ] MUST define string codes (cemented):
-    - [ ] `CORETSIA_RESET_META_INVALID`
-    - [ ] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
-    - [ ] `CORETSIA_RESET_SERVICE_FAILED`
-    - [ ] `CORETSIA_RESET_OBSERVABILITY_FAILED` (only for internal/noop-port failures; MUST remain safe)
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetErrorCodes.php`
+  - [x] MUST define string codes (cemented):
+    - [x] `CORETSIA_RESET_META_INVALID`
+    - [x] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
+    - [x] `CORETSIA_RESET_SERVICE_FAILED`
+    - [x] `CORETSIA_RESET_OBSERVABILITY_FAILED` (only for internal/noop-port failures; MUST remain safe)
 
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
-  - [ ] MUST carry deterministic string code from `ResetErrorCodes`:
-    - [ ] `code(): string`
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
+  - [x] MUST carry deterministic string code from `ResetErrorCodes`:
+    - [x] `code(): string`
 
 Tests:
 - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
@@ -6890,115 +6923,198 @@ Tests:
   - [ ] asserts deterministic `ResetException(code=CORETSIA_RESET_SERVICE_FAILED, message="reset-service-failed")`
   - [ ] asserts summary-only observability path remains safe
 
+- [ ] `framework/tools/tests/Fixtures/observability-catalog-gate/`
+  - [ ] contains minimal runtime-source fixtures for accepted/rejected metric usage
+
+Tooling tests:
+- [ ] `framework/tools/tests/Contract/ObservabilityCatalogGateTest.php`
+  - [ ] accepts `foundation.reset_total`
+  - [ ] accepts `foundation.reset_duration_ms`
+  - [ ] accepts private/local string constants for metric names
+  - [ ] rejects `foundation.resets_total`
+  - [ ] rejects `foundation.resets_duration_ms`
+  - [ ] rejects `foundation.reset.total`
+  - [ ] rejects `foundation..reset_total`
+  - [ ] rejects runtime metric names absent from catalog
+  - [ ] rejects unknown labels for known metric
+  - [ ] rejects `increment('foundation.reset_duration_ms', ...)`
+  - [ ] rejects `observe('foundation.reset_total', ...)`
+  - [ ] rejects non-resolvable dynamic metric names
+  - [ ] rejects non-resolvable dynamic label maps
+  - [ ] rejects duplicate catalog metric rows
+  - [ ] rejects unsupported catalog metric type
+  - [ ] rejects catalog labels outside the global allowlist
+  - [ ] rejects missing/unparseable canonical metrics catalog section
+
 #### Modifies
 
-- [ ] `docs/ssot/reset-tags.md` — extend reset SSoT with enhanced reset semantics:
-  - [ ] `foundation.reset.priority.enabled`
-  - [ ] `foundation.reset.group.default`
-  - [ ] supported meta keys: `priority`, `group`
-  - [ ] disabled-mode behavior = exact legacy order, no meta parsing
-  - [ ] enabled-mode behavior = deterministic planned order
-  - [ ] deterministic reset error codes introduced by this epic
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
-- [ ] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
-  - [ ] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes)
-  - [ ] when `foundation.reset.priority.enabled=false`, MUST preserve legacy/base mode exactly:
-    - [ ] iterate EXACT `TagRegistry->all($effectiveResetTag)` order
-    - [ ] ignore reset meta completely
-    - [ ] keep compatibility with `1.200.0` tests
-  - [ ] when `foundation.reset.priority.enabled=true`, MUST execute deterministic enhanced reset order:
-    - [ ] 1. `priority` DESC
-    - [ ] 2. `group` ASC by `strcmp` on normalized group id
-    - [ ] 3. `serviceId` ASC by `strcmp`
-  - [ ] MUST reject tagged non-resettable services with:
-    - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
-  - [ ] **No feature-disable switch (cemented; inherited from 1.200.0):**
-    - [ ] reset discovery and reset orchestration are baseline runtime safety mechanisms and MUST NOT be disabled via config
-    - [ ] `ResetOrchestrator::resetAll()` MAY be a deterministic noop only when the effective discovery list is empty
-    - [ ] `foundation.reset.priority.enabled` controls only enhanced ordering/meta planning behavior and MUST NOT disable baseline reset orchestration itself
-  - [ ] MUST delegate deterministically (single-choice):
-    - [ ] if `foundation.reset.priority.enabled=false`:
-      - [ ] execute legacy mode: iterate EXACT `TagRegistry->all(<effective reset tag>)` order, where the effective tag comes from Foundation wiring/config (`foundation.reset.tag`, default `kernel.reset`)
-      - [ ] ignore meta completely (no parsing/validation)
-    - [ ] if `foundation.reset.priority.enabled=true`:
-      - [ ] delegate planning/execution to `PriorityResetOrchestrator`
-  - [ ] MUST reject tag misuse deterministically:
-    - [ ] if a service discovered through the effective Foundation reset discovery tag
-        resolved from `foundation.reset.tag` (reserved default `kernel.reset`)
-        resolves to an instance that does NOT implement `ResetInterface`
+- [x] `docs/ssot/reset-tags.md` — extend reset SSoT with enhanced reset semantics:
+  - [x] `foundation.reset.priority.enabled`
+  - [x] `foundation.reset.group.default`
+  - [x] supported meta keys: `priority`, `group`
+  - [x] disabled-mode behavior = exact legacy order, no meta parsing
+  - [x] enabled-mode behavior = deterministic planned order
+  - [x] deterministic reset error codes introduced by this epic
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
+  - [x] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes)
+  - [x] when `foundation.reset.priority.enabled=false`, MUST preserve legacy/base mode exactly:
+    - [x] iterate EXACT `TagRegistry->all($effectiveResetTag)` order
+    - [x] ignore reset meta completely
+    - [x] keep compatibility with `1.200.0` behavior
+  - [x] when `foundation.reset.priority.enabled=true`, MUST delegate to `PriorityResetOrchestrator`, which executes deterministic enhanced reset order:
+    - [x] 1. `priority` DESC
+    - [x] 2. `group` ASC by `strcmp` on normalized group id
+    - [x] 3. `serviceId` ASC by `strcmp`
+  - [x] MUST reject tagged non-resettable services with:
+    - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+  - [x] **No feature-disable switch (cemented; inherited from 1.200.0):**
+    - [x] reset discovery and reset orchestration are baseline runtime safety mechanisms and MUST NOT be disabled via config
+    - [x] `ResetOrchestrator::resetAll()` MAY be a deterministic noop only when the effective discovery list is empty
+    - [x] `foundation.reset.priority.enabled` controls only enhanced ordering/meta planning behavior and MUST NOT disable baseline reset orchestration itself
+  - [x] MUST delegate deterministically (single-choice):
+    - [x] if `foundation.reset.priority.enabled=false`:
+      - [x] execute legacy mode: iterate EXACT `TagRegistry->all(<effective reset tag>)` order, where the effective tag comes from Foundation wiring/config (`foundation.reset.tag`, default `kernel.reset`)
+      - [x] ignore meta completely (no parsing/validation)
+    - [x] if `foundation.reset.priority.enabled=true`:
+      - [x] delegate planning/execution to `PriorityResetOrchestrator`
+  - [x] MUST reject tag misuse deterministically:
+    - [x] if a service discovered through the effective Foundation reset discovery tag resolved from `foundation.reset.tag` (reserved default `kernel.reset`) resolves to an instance that does NOT implement `ResetInterface`
       → MUST throw `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
-  - [ ] registers/binds `Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator`
-  - [ ] keeps `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` as the stable public entrypoint and injects enhanced reset collaborators deterministically
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - [x] registers/binds `Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator`
+  - [x] keeps `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` as the stable public entrypoint and injects enhanced reset collaborators deterministically
 
-- [ ] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php`
-  - [ ] deterministic factory wiring for `PriorityResetOrchestrator` and its reset-planning collaborators
-  - [ ] MUST NOT keep mutable runtime state
+- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php`
+  - [x] deterministic factory wiring for `PriorityResetOrchestrator` and its reset-planning collaborators
+  - [x] MUST NOT keep mutable runtime state
 
-- [ ] `framework/packages/core/foundation/config/foundation.php`
-  - [ ] MUST follow canonical config policy:
-    - [ ] file returns the subtree (MUST NOT repeat the root key `foundation`).
+- [x] `framework/packages/core/foundation/config/foundation.php`
+  - [x] MUST follow canonical config policy:
+    - [x] file returns the subtree (MUST NOT repeat the root key `foundation`).
 
-- [ ] `framework/packages/core/foundation/config/rules.php`
-  - [ ] MUST enforce shape and defaults for keys below.
-  - [ ] `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
+- [x] `framework/packages/core/foundation/config/rules.php`
+  - [x] MUST enforce shape and defaults for keys below.
+  - [x] `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
 
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
-  - [ ] upgrade the `1.200.0` hard-fail assertion to the typed reset failure:
-    - [ ] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
-  - [ ] keep the stable message `reset-not-resettable`
-  - [ ] keep the deterministic fail-fast behavior for tagged non-resettable services
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] upgrade the `1.200.0` hard-fail assertion to the typed reset failure:
+    - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
+  - [x] keep the stable message `reset-not-resettable`
+  - [x] keep the deterministic fail-fast behavior for tagged non-resettable services
+
+- [ ] `docs/ssot/observability.md`
+  - [ ] extend Canonical metrics catalog
+  - [ ] define metric name shape `<domain>.<singular_operation>_<measure>`
+  - [ ] register:
+    - [ ] `foundation.reset_total` owner `core/foundation`, type `counter`, labels `outcome`
+    - [ ] `foundation.reset_duration_ms` owner `core/foundation`, type `observe`, labels `outcome`
+
+## Canonical metrics catalog
+
+Metric names MUST use:
+
+```text
+<domain>.<singular_operation>_<measure>
+```
+
+The operation segment MUST be singular. The measure suffix owns the metric kind
+or unit, for example `total` or `duration_ms`.
+
+Allowed reset metrics:
+
+| Metric name                  | Owner             | Type    | Labels    |
+|------------------------------|-------------------|---------|-----------|
+| foundation.reset_total       | `core/foundation` | counter | `outcome` |
+| foundation.reset_duration_ms | `core/foundation` | observe | `outcome` |
+
+Runtime metric names emitted through MeterPortInterface MUST exist in this catalog.
+Metric labels MUST satisfy both:
+1) global label allowlist
+2) metric-specific catalog row
+
+- [ ] `docs/ssot/observability-and-errors.md`
+  - [ ] align MeterPortInterface policy with canonical metrics catalog
+  - [ ] state that global label allowlist is necessary but not sufficient
+  - [ ] state that metric-specific catalog labels are authoritative
+  - [ ] state meter method compatibility with catalog type
+
+- [ ] `docs/ssot/reset-tags.md`
+  - [ ] reference canonical metrics catalog in `docs/ssot/observability.md`
+  - [ ] list reset-specific observability usage without redefining catalog ownership
+  - [ ] remove/update “future enhanced reset” wording now owned by epic 1.250.0
+  - [ ] document enhanced reset config/meta/order/error semantics
+
+- [ ] `framework/tools/spikes/_support/ErrorCodes.php`
+  - [ ] add `CORETSIA_OBSERVABILITY_CATALOG_DRIFT`
+  - [ ] add `CORETSIA_OBSERVABILITY_CATALOG_GATE_FAILED`
+  - [ ] keep registry sorted output deterministic via `all()`
+
+- [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
+  - [ ] `observability-catalog:gate` → `@composer --no-interaction --working-dir=framework run-script observability-catalog:gate --`
+
+- [ ] `framework/composer.json` — add workspace gate scripts:
+  - [ ] `observability-catalog:gate` → `@php tools/gates/observability_catalog_gate.php`
+  - [ ] include it in the aggregate `gates` script/order
+
+- [ ] `docs/guides/commands.md`
+  - [ ] add `composer observability-catalog:gate`
+  - [ ] document deterministic read-only behavior
+  - [ ] document failure codes
+  - [ ] update `composer gates` / `composer ci` notes if aggregate gate order changes
+
+- [ ] `docs/ssot/profiling-ports.md`
+  - [ ] profiling implementations may emit bounded summary metrics only when metric names follow `observability.md` and label keys are allowlisted можна посилити до: metric names are registered in the canonical metrics catalog in `docs/ssot/observability.md`
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `framework/packages/core/foundation/config/foundation.php`
+- [x] Files:
+  - [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] Keys (dot):
+  - [x] Base reset key (from 1.200.0; reiterated for completeness):
+    - [x] `foundation.reset.tag` = "kernel.reset"
+  - [x] Enhanced reset keys (introduced/owned by 1.250.0; single-choice; cemented):
+    - [x] `foundation.reset.priority.enabled` = true
+    - [x] `foundation.reset.group.default` = "default"
+      - [x] MUST match `/\A[a-z0-9][a-z0-9._-]*\z/`
 
-- [ ] Keys (dot):
-  - [ ] Base reset key (from 1.200.0; reiterated for completeness):
-    - [ ] `foundation.reset.tag` = "kernel.reset"
-  - [ ] Enhanced reset keys (introduced/owned by 1.250.0; single-choice; cemented):
-    - [ ] `foundation.reset.priority.enabled` = true
-    - [ ] `foundation.reset.group.default` = "default"
-      - [ ] MUST match `/\A[a-z0-9][a-z0-9._-]*\z/`
+- [x] Tag meta parsing rules (single-choice; cemented):
+  - [x] If `foundation.reset.priority.enabled=false`:
+    - [x] reset execution MUST preserve legacy order exactly
+    - [x] orchestrator MUST NOT parse or validate reset meta at all
 
-- [ ] Tag meta parsing rules (single-choice; cemented):
-  - [ ] If `foundation.reset.priority.enabled=false`:
-    - [ ] reset execution MUST preserve legacy order exactly
-    - [ ] orchestrator MUST NOT parse or validate reset meta at all
+  - [x] If `foundation.reset.priority.enabled=true`:
+    - [x] reset planning MUST treat `TaggedService.priority` as the BASE priority
+    - [x] supported meta keys are:
+      - [x] `priority` (optional override)
+      - [x] `group` (optional normalized group id)
+    - [x] `priority`:
+      - [x] accepted: `int` OR `string` matching `/\A-?\d+\z/`
+      - [x] normalized: cast to int
+      - [x] if absent: use `TaggedService.priority`
+      - [x] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
+    - [x] `group`:
+      - [x] accepted: `string`
+      - [x] normalization:
+        - [x] trim ASCII whitespace
+        - [x] if empty OR absent → use `foundation.reset.group.default`
+        - [x] validate against `/\A[a-z0-9][a-z0-9._-]*\z/`
+      - [x] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
 
-  - [ ] If `foundation.reset.priority.enabled=true`:
-    - [ ] reset planning MUST treat `TaggedService.priority` as the BASE priority
-    - [ ] supported meta keys are:
-      - [ ] `priority` (optional override)
-      - [ ] `group` (optional normalized group id)
-    - [ ] `priority`:
-      - [ ] accepted: `int` OR `string` matching `/\A-?\d+\z/`
-      - [ ] normalized: cast to int
-      - [ ] if absent: use `TaggedService.priority`
-      - [ ] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
-    - [ ] `group`:
-      - [ ] accepted: `string`
-      - [ ] normalization:
-        - [ ] trim ASCII whitespace
-        - [ ] if empty OR absent → use `foundation.reset.group.default`
-        - [ ] validate against `/\A[a-z0-9][a-z0-9._-]*\z/`
-      - [ ] invalid → deterministic `ResetException(code=CORETSIA_RESET_META_INVALID, message="reset-meta-invalid")`
-
-    - [ ] Orchestrator MUST read and validate ONLY:
-      - [ ] `priority`, `group`
-    - [ ] Any other meta keys MUST be ignored.
+    - [x] Orchestrator MUST read and validate ONLY:
+      - [x] `priority`, `group`
+    - [x] Any other meta keys MUST be ignored.
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tag meta support:
-  - [ ] the effective Foundation reset discovery tag meta supports:
-    - [ ] `priority` (int|string-int; default falls back to `TaggedService.priority`)
-    - [ ] `group` (string; normalized; default `foundation.reset.group.default`)
-  - [ ] Backward compat:
-    - [ ] when meta not provided OR priority disabled, ordering preserves previous deterministic behavior.
+- [x] Tag meta support:
+  - [x] the effective Foundation reset discovery tag meta supports:
+    - [x] `priority` (int|string-int; default falls back to `TaggedService.priority`)
+    - [x] `group` (string; normalized; default `foundation.reset.group.default`)
+  - [x] Backward compat:
+    - [x] when meta not provided OR priority disabled, ordering preserves previous deterministic behavior.
 
 #### Artifacts / outputs (if applicable)
 
@@ -7008,34 +7124,34 @@ N/A
 
 #### Observability (policy-compliant)
 
-- [ ] Spans (noop-safe):
-  - [ ] `foundation.reset`
-    - [ ] attrs (single-choice; cemented): `services_count`, `groups_count`, `outcome`
-- [ ] Metrics (noop-safe; MUST NOT add new label keys):
-  - [ ] `foundation.reset_total` (labels: `outcome`)
-  - [ ] `foundation.reset_duration_ms` (labels: `outcome`)
-- [ ] Logs (optional; summary-only):
-  - [ ] MUST NOT log per-service internals/payloads/stack traces by default.
-  - [ ] Allowed: counts + outcome + (optional) group counts.
+- [x] Spans (noop-safe):
+  - [x] `foundation.reset`
+    - [x] attrs (single-choice; cemented): `services_count`, `groups_count`, `outcome`
+- [x] Metrics (noop-safe; MUST NOT add new label keys):
+  - [x] `foundation.reset_total` (labels: `outcome`)
+  - [x] `foundation.reset_duration_ms` (labels: `outcome`)
+- [x] Logs (optional; summary-only):
+  - [x] MUST NOT log per-service internals/payloads/stack traces by default.
+  - [x] Allowed: counts + outcome + (optional) group counts.
 
 #### Errors
 
-- [ ] Deterministic code mapping (single-choice; cemented):
-  - [ ] invalid tag meta → `CORETSIA_RESET_META_INVALID`
-  - [ ] resolved service does NOT implement `ResetInterface` → `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
-  - [ ] first reset failure (service throws) → `CORETSIA_RESET_SERVICE_FAILED`
-  - [ ] internal observability port failure (must remain safe) → `CORETSIA_RESET_OBSERVABILITY_FAILED`
-- [ ] Exception messages MUST be stable + safe:
-  - [ ] MUST NOT contain absolute paths
-  - [ ] MUST NOT contain secrets/PII/payloads
-  - [ ] allowed: fixed tokens only (e.g. `reset-meta-invalid`, `reset-not-resettable`, `reset-service-failed`)
+- [x] Deterministic code mapping (single-choice; cemented):
+  - [x] invalid tag meta → `CORETSIA_RESET_META_INVALID`
+  - [x] resolved service does NOT implement `ResetInterface` → `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
+  - [x] first reset failure (service throws) → `CORETSIA_RESET_SERVICE_FAILED`
+  - [x] internal observability port failure (must remain safe) → `CORETSIA_RESET_OBSERVABILITY_FAILED`
+- [x] Exception messages MUST be stable + safe:
+  - [x] MUST NOT contain absolute paths
+  - [x] MUST NOT contain secrets/PII/payloads
+  - [x] allowed: fixed tokens only (e.g. `reset-meta-invalid`, `reset-not-resettable`, `reset-service-failed`)
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] service internals, secrets, payloads, absolute machine paths
-- [ ] Allowed:
-  - [ ] counts/outcome, normalized group ids
+- [x] MUST NOT leak:
+  - [x] service internals, secrets, payloads, absolute machine paths
+- [x] Allowed:
+  - [x] counts/outcome, normalized group ids
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -7051,16 +7167,16 @@ N/A
   - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
 - [ ] Locale independence:
   - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
-- [ ] Enhanced reset config shape lock:
-  - [ ] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
+- [x] Enhanced reset config shape lock:
+  - [x] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
-    - [ ] asserts `foundation.reset.priority.enabled` is bool
-    - [ ] asserts `foundation.reset.group.default` matches `/\A[a-z0-9][a-z0-9._-]*\z/`
-    - [ ] asserts invalid values fail deterministically with safe messages
+  - [x] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
+    - [x] asserts `foundation.reset.priority.enabled` is bool
+    - [x] asserts `foundation.reset.group.default` matches `/\A[a-z0-9][a-z0-9._-]*\z/`
+    - [x] asserts invalid values fail deterministically with safe messages
 - Integration:
   - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
   - [ ] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
@@ -7073,24 +7189,26 @@ N/A
 
 ### DoD (MUST)
 
-- [ ] Deterministic reset order (priority DESC, group ASC, serviceId ASC) when enabled
+- [x] Deterministic reset order (priority DESC, group ASC, serviceId ASC) when enabled
 - [ ] Backward compatible:
   - [ ] when `foundation.reset.priority.enabled=false` → legacy order preserved exactly
 - [ ] Safe observability:
   - [ ] spans/metrics/logs do not leak secrets/PII
   - [ ] no new metric label keys introduced
+  - [ ] runtime metric names are registered in the canonical metrics catalog
+  - [ ] metric labels match metric-specific catalog rows
 - [ ] Deterministic error codes exist and are used (`ResetErrorCodes`)
 - [ ] Tests green
-- [ ] Out of scope:
-  - [ ] MUST NOT change `ResetInterface`
-  - [ ] MUST NOT introduce plugin systems/extensibility
-- [ ] `docs/ssot/reset-tags.md` updated and aligned with implementation/tests
+- [x] Out of scope:
+  - [x] MUST NOT change `ResetInterface`
+  - [x] MUST NOT introduce plugin systems/extensibility
+- [x] `docs/ssot/reset-tags.md` updated and aligned with implementation/tests
 - [ ] `ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` upgraded from `1.200.0` hard-fail-only behavior to typed `ResetException` behavior
-- [ ] Enhanced reset order is implemented when `foundation.reset.priority.enabled=true`:
-  - [ ] `priority DESC`
-  - [ ] `group ASC`
-  - [ ] `serviceId ASC`
-- [ ] Legacy/base reset order from `1.200.0` remains unchanged when `foundation.reset.priority.enabled=false`
+- [x] Enhanced reset order is implemented when `foundation.reset.priority.enabled=true`:
+  - [x] `priority DESC`
+  - [x] `group ASC`
+  - [x] `serviceId ASC`
+- [x] Legacy/base reset order from `1.200.0` remains unchanged when `foundation.reset.priority.enabled=false`
 
 ---
 

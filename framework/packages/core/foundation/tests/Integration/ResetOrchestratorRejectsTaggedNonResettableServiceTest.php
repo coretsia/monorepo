@@ -21,12 +21,14 @@ namespace Coretsia\Foundation\Tests\Integration;
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Provider\Tags;
+use Coretsia\Foundation\Runtime\Reset\ResetErrorCodes;
+use Coretsia\Foundation\Runtime\Reset\ResetException;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use PHPUnit\Framework\TestCase;
 
 final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestCase
 {
-    public function testRejectsTaggedNonResettableServiceWithStableMessageOnly(): void
+    public function testRejectsTaggedNonResettableServiceWithTypedResetExceptionAndStableMessage(): void
     {
         $builder = new ContainerBuilder(config: self::validConfig());
 
@@ -39,16 +41,20 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
 
         try {
             self::orchestratorFrom($builder)->resetAll();
-        } catch (\RuntimeException $exception) {
+        } catch (ResetException $exception) {
+            self::assertSame(
+                ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
+                $exception->code(),
+            );
             self::assertSame('reset-not-resettable', $exception->getMessage());
 
             return;
         }
 
-        self::fail('Expected ResetOrchestrator to hard-fail for tagged non-resettable service.');
+        self::fail('Expected ResetOrchestrator to fail with typed reset exception for tagged non-resettable service.');
     }
 
-    public function testHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder(): void
+    public function testTypedHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder(): void
     {
         $recorder = new ResetOrchestratorRejectsRecorder();
 
@@ -67,7 +73,11 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
 
         try {
             self::orchestratorFrom($builder)->resetAll();
-        } catch (\RuntimeException $exception) {
+        } catch (ResetException $exception) {
+            self::assertSame(
+                ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
+                $exception->code(),
+            );
             self::assertSame('reset-not-resettable', $exception->getMessage());
             self::assertSame(['before'], $recorder->events());
             self::assertSame(1, $before->resetCount());

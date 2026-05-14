@@ -81,7 +81,7 @@ This document MUST NOT redefine:
 - Kernel runtime implementation;
 - platform HTTP implementation;
 - platform CLI implementation;
-- future enhanced reset implementation from epic `1.250.0`.
+- enhanced reset implementation details owned by `docs/ssot/reset-tags.md`.
 
 ## Normative language
 
@@ -774,6 +774,6 @@ This SSoT does not define:
 - [Context Store SSoT](./context-store.md)
 - [Tag Registry](./tags.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

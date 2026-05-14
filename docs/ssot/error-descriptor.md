@@ -760,7 +760,7 @@ This SSoT does not define:
 
 - [Errors Boundary SSoT](./errors-boundary.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DTO Policy](./dto-policy.md)
 - [SSoT Index](./INDEX.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

@@ -40,7 +40,7 @@ final class ValidationExceptionHasDeterministicCodeTest extends TestCase
 
         $exception = new ValidationException($result);
 
-        self::assertSame('CORETSIA_VALIDATION_FAILED', ValidationException::CODE);
+        self::assertSame('CORETSIA_VALIDATION_FAILED', ValidationException::ERROR_CODE);
         self::assertSame('CORETSIA_VALIDATION_FAILED', $exception->errorCode());
 
         /**

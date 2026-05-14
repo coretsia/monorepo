@@ -27,6 +27,8 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
 
     private const string RULES_PATH = __DIR__ . '/../../config/rules.php';
 
+    private const string RESET_GROUP_ID_PATTERN = '/\A[a-z0-9][a-z0-9._-]*\z/';
+
     public function testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey(): void
     {
         $rules = self::rules();
@@ -247,6 +249,7 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
             'bool' => self::validateBool($value, $path),
             'string' => self::validateString($value, $rule, $path),
             'non-empty-string-no-ws' => self::validateNonEmptyStringNoWhitespace($value, $path),
+            'reset-group-id' => self::validateResetGroupId($value, $path),
             default => self::reject($path, 'rule-type-unknown'),
         };
     }
@@ -334,6 +337,17 @@ final class FoundationConfigRejectsFloatValuesInIdsContractTest extends TestCase
 
         if (\preg_match('/\s/u', $value) === 1) {
             self::reject($path, 'string-whitespace');
+        }
+    }
+
+    private static function validateResetGroupId(mixed $value, string $path): void
+    {
+        if (!\is_string($value)) {
+            self::reject($path, 'type-string');
+        }
+
+        if (\preg_match(self::RESET_GROUP_ID_PATTERN, $value) !== 1) {
+            self::reject($path, 'reset-group-id');
         }
     }
 

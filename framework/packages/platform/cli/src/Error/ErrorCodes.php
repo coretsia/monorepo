@@ -28,26 +28,84 @@ namespace Coretsia\Platform\Cli\Error;
 final class ErrorCodes
 {
     public const string CORETSIA_CLI_COMMAND_CLASS_MISSING = 'CORETSIA_CLI_COMMAND_CLASS_MISSING';
+
     public const string CORETSIA_CLI_COMMAND_FAILED = 'CORETSIA_CLI_COMMAND_FAILED';
+
     public const string CORETSIA_CLI_COMMAND_INVALID = 'CORETSIA_CLI_COMMAND_INVALID';
+
     public const string CORETSIA_CLI_CONFIG_INVALID = 'CORETSIA_CLI_CONFIG_INVALID';
+
     public const string CORETSIA_CLI_UNCAUGHT_EXCEPTION = 'CORETSIA_CLI_UNCAUGHT_EXCEPTION';
+
+    /**
+     * @var list<string>
+     */
+    private const array REGISTRY = [
+        self::CORETSIA_CLI_COMMAND_CLASS_MISSING,
+        self::CORETSIA_CLI_COMMAND_FAILED,
+        self::CORETSIA_CLI_COMMAND_INVALID,
+        self::CORETSIA_CLI_CONFIG_INVALID,
+        self::CORETSIA_CLI_UNCAUGHT_EXCEPTION,
+    ];
+
+    /**
+     * @var array<string, true>|null
+     */
+    private static ?array $lookup = null;
+
+    /**
+     * @var list<string>|null
+     */
+    private static ?array $sorted = null;
+
+    private function __construct()
+    {
+    }
+
+    public static function has(string $code): bool
+    {
+        self::initialize();
+
+        return isset(self::$lookup[$code]);
+    }
 
     /**
      * @return list<string> Codes sorted deterministically by strcmp() byte-order.
      */
     public static function all(): array
     {
-        $codes = [
-            self::CORETSIA_CLI_COMMAND_CLASS_MISSING,
-            self::CORETSIA_CLI_COMMAND_FAILED,
-            self::CORETSIA_CLI_COMMAND_INVALID,
-            self::CORETSIA_CLI_CONFIG_INVALID,
-            self::CORETSIA_CLI_UNCAUGHT_EXCEPTION,
-        ];
+        self::initialize();
 
-        \usort($codes, static fn (string $a, string $b): int => \strcmp($a, $b));
+        /** @var list<string> $sorted */
+        $sorted = self::$sorted;
 
-        return $codes;
+        return $sorted;
+    }
+
+    private static function initialize(): void
+    {
+        if (self::$lookup !== null && self::$sorted !== null) {
+            return;
+        }
+
+        $codes = self::REGISTRY;
+
+        $unique = \array_values(\array_unique($codes));
+        if (\count($unique) !== \count($codes)) {
+            throw new \LogicException('cli-error-codes-registry-contains-duplicates');
+        }
+
+        \usort(
+            $codes,
+            static fn (string $a, string $b): int => \strcmp($a, $b),
+        );
+
+        $lookup = [];
+        foreach ($codes as $code) {
+            $lookup[$code] = true;
+        }
+
+        self::$sorted = $codes;
+        self::$lookup = $lookup;
     }
 }

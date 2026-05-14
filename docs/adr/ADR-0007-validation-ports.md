@@ -226,7 +226,7 @@ The deterministic validation error code is a stable string code, not the PHP nat
 The canonical code must be exposed as:
 
 ```text
-ValidationException::CODE
+ValidationException::ERROR_CODE
 ```
 
 The exception should also expose:

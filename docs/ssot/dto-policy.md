@@ -248,7 +248,7 @@ final class ExampleDto
 
 DTO gates **MUST** follow the canonical tooling gate output policy:
 
-- line 1: deterministic error `CODE` only;
+- line 1: deterministic machine-readable `CORETSIA_*` error code string only;
 - line 2+: stable diagnostics using normalized repo-relative paths and fixed reason tokens;
 - diagnostics sorted by byte-order `strcmp`;
 - no secrets;

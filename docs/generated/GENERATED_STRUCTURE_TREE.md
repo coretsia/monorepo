@@ -42,6 +42,7 @@ Coretsia/
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
+│   │   ├── ADR-0019-enhanced-reset-long-running.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -129,6 +130,7 @@ Coretsia/
 │       ├── rate-limit-contracts.md
 │       ├── reset-tags.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── runtime-drivers.md
 │       ├── secrets-contracts.md
 │       ├── stateful-services.md
 │       ├── tags.md
@@ -388,7 +390,12 @@ Coretsia/
 │   │   │       │   │   └── Tags.php
 │   │   │       │   ├── Runtime/
 │   │   │       │   │   └── Reset/
-│   │   │       │   │       └── ResetOrchestrator.php
+│   │   │       │   │       ├── PriorityResetOrchestrator.php
+│   │   │       │   │       ├── ResetErrorCodes.php
+│   │   │       │   │       ├── ResetException.php
+│   │   │       │   │       ├── ResetGroup.php
+│   │   │       │   │       ├── ResetOrchestrator.php
+│   │   │       │   │       └── ResetPriority.php
 │   │   │       │   ├── Serialization/
 │   │   │       │   │   └── StableJsonEncoder.php
 │   │   │       │   ├── Tag/
@@ -410,6 +417,7 @@ Coretsia/
 │   │   │       │   │   ├── DeterministicOrderSortContractTest.php
 │   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
+│   │   │       │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
 │   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
@@ -434,9 +442,19 @@ Coretsia/
 │   │   │       │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
 │   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php
 │   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
+│   │   │       │   │   ├── PriorityResetBackCompatWhenDisabledTest.php
+│   │   │       │   │   ├── PriorityResetEmitsSafeSummaryObservabilityTest.php
+│   │   │       │   │   ├── PriorityResetFailsFastOnFirstServiceExceptionTest.php
+│   │   │       │   │   ├── PriorityResetIgnoresMetaWhenDisabledTest.php
+│   │   │       │   │   ├── PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
+│   │   │       │   │   ├── PriorityResetMetaParsingRejectsInvalidTest.php
+│   │   │       │   │   ├── PriorityResetOrderDeterministicTest.php
+│   │   │       │   │   ├── PriorityResetUsesConfiguredResetTagTest.php
+│   │   │       │   │   ├── ResetGroupWorksTest.php
 │   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
 │   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
 │   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php
+│   │   │       │   │   ├── ResetOrderingIsLocaleIndependentTest.php
 │   │   │       │   │   ├── TagRegistryDedupeFirstWinsTest.php
 │   │   │       │   │   └── TagRegistryReturnsDeterministicOrderTest.php
 │   │   │       │   └── Unit/
@@ -593,7 +611,9 @@ Coretsia/
 │   │   │   ├── no_skeleton_http_default_gate.php
 │   │   │   ├── no_skeleton_mode_presets_default_gate.php
 │   │   │   ├── no_skeleton_modules_default_gate.php
+│   │   │   ├── observability_metric_catalog_gate.php
 │   │   │   ├── observability_naming_gate.php
+│   │   │   ├── observability_span_naming_gate.php
 │   │   │   ├── package_compliance_allowlist.php
 │   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
@@ -803,6 +823,8 @@ Coretsia/
 │   │       ├── Contract/
 │   │       │   ├── Support/
 │   │       │   │   └── ToolContractTestCase.php
+│   │       │   ├── ObservabilityMetricCatalogGateTest.php
+│   │       │   ├── ObservabilitySpanNamingGateTest.php
 │   │       │   ├── SpikeComposerRepositoriesSyncManagedOnlyContractTest.php
 │   │       │   ├── SpikeComposerRepositoriesSyncWritesBackupsContractTest.php
 │   │       │   ├── SpikeDeptracAllowlistPolicyContractTest.php

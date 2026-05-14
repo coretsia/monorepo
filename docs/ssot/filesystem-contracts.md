@@ -721,7 +721,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [DTO Policy](./dto-policy.md)

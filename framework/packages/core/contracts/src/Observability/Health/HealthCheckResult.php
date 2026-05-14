@@ -130,14 +130,14 @@ final readonly class HealthCheckResult
 
         foreach ($map as $key => $value) {
             if (!is_string($key) || $key === '') {
-                throw new \InvalidArgumentException('Invalid health check result detail key at ' . $path);
+                throw new \InvalidArgumentException('Invalid health check result detail key at ' . $path . '.');
             }
 
             if (!self::isSafeSingleLineString($key)) {
-                throw new \InvalidArgumentException('Invalid health check result detail key at ' . $path);
+                throw new \InvalidArgumentException('Invalid health check result detail key at ' . $path . '.');
             }
 
-            $out[$key] = self::normalizeJsonLikeValue($value, $path . \chr(46) . $key);
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
         ksort($out, \SORT_STRING);
@@ -153,14 +153,14 @@ final readonly class HealthCheckResult
 
         if (is_string($value)) {
             if (!self::isSafeString($value)) {
-                throw new \InvalidArgumentException('Invalid health check result string at ' . $path);
+                throw new \InvalidArgumentException('Invalid health check result string at ' . $path . '.');
             }
 
             return $value;
         }
 
         if (is_float($value)) {
-            throw new \InvalidArgumentException('Invalid float health check result detail at ' . $path);
+            throw new \InvalidArgumentException('Invalid float health check result detail at ' . $path . '.');
         }
 
         if (is_array($value)) {
@@ -177,7 +177,7 @@ final readonly class HealthCheckResult
             return self::normalizeJsonLikeMap($value, $path);
         }
 
-        throw new \InvalidArgumentException('Invalid health check result detail at ' . $path);
+        throw new \InvalidArgumentException('Invalid health check result detail at ' . $path . '.');
     }
 
     private static function isSafeSingleLineString(string $value): bool

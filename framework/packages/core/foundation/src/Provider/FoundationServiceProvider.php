@@ -41,6 +41,7 @@ use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Profiling\NoopProfiler;
 use Coretsia\Foundation\Observability\Tracing\NoopContextPropagation;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
+use Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
@@ -57,7 +58,9 @@ use Psr\Log\LoggerInterface;
  * Wiring decisions:
  *
  * - `TagRegistry` is registered as the exact builder-owned instance;
- * - `ResetOrchestrator` is created through `FoundationServiceFactory`;
+ * - `PriorityResetOrchestrator` is created through `FoundationServiceFactory`;
+ * - `ResetOrchestrator` remains the stable public reset entrypoint and is
+ *   created through `FoundationServiceFactory`;
  * - noop observability and logging ports are registered as explicit instances
  *   so they remain resolvable without relying on concrete-class autowiring;
  * - Foundation clock/id/stopwatch services are registered as explicit
@@ -104,6 +107,13 @@ final class FoundationServiceProvider implements ServiceProviderInterface
         $correlationIds = new CorrelationIdGenerator($ulids);
         $correlationIdProvider = new CorrelationIdProvider($contextStore);
 
+        $logger = new NoopLogger();
+        $tracer = new NoopTracer();
+        $meter = new NoopMeter();
+        $errorReporter = new NoopErrorReporter();
+        $profiler = new NoopProfiler();
+        $contextPropagation = new NoopContextPropagation();
+
         $builder->instance(TagRegistry::class, $tagRegistry);
 
         $builder->instance(SystemClock::class, $clock);
@@ -124,12 +134,27 @@ final class FoundationServiceProvider implements ServiceProviderInterface
         $builder->tag($effectiveResetTag, ContextStore::class);
         $builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);
 
-        $builder->instance(LoggerInterface::class, new NoopLogger());
-        $builder->instance(TracerPortInterface::class, new NoopTracer());
-        $builder->instance(MeterPortInterface::class, new NoopMeter());
-        $builder->instance(ErrorReporterPortInterface::class, new NoopErrorReporter());
-        $builder->instance(ProfilerPortInterface::class, new NoopProfiler());
-        $builder->instance(ContextPropagationInterface::class, new NoopContextPropagation());
+        $builder->instance(LoggerInterface::class, $logger);
+        $builder->instance(TracerPortInterface::class, $tracer);
+        $builder->instance(MeterPortInterface::class, $meter);
+        $builder->instance(ErrorReporterPortInterface::class, $errorReporter);
+        $builder->instance(ProfilerPortInterface::class, $profiler);
+        $builder->instance(ContextPropagationInterface::class, $contextPropagation);
+
+        $builder->factory(
+            PriorityResetOrchestrator::class,
+            static fn (
+                Container $container
+            ): PriorityResetOrchestrator => FoundationServiceFactory::priorityResetOrchestrator(
+                container: $container,
+                tagRegistry: $tagRegistry,
+                foundationConfig: $foundationConfig,
+                stopwatch: $stopwatch,
+                tracer: $tracer,
+                meter: $meter,
+                logger: $logger,
+            ),
+        );
 
         $builder->factory(
             ResetOrchestrator::class,
@@ -137,6 +162,10 @@ final class FoundationServiceProvider implements ServiceProviderInterface
                 container: $container,
                 tagRegistry: $tagRegistry,
                 foundationConfig: $foundationConfig,
+                stopwatch: $stopwatch,
+                tracer: $tracer,
+                meter: $meter,
+                logger: $logger,
             ),
         );
     }

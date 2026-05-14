@@ -449,10 +449,18 @@ Profile payloads MUST NOT be transformed into high-cardinality metric dimensions
 
 A profiling implementation MAY emit bounded summary metrics only when:
 
-- metric names follow `docs/ssot/observability.md`;
-- label keys are allowlisted;
+- metric names are registered in the canonical metrics catalog in `docs/ssot/observability.md`;
+- metric labels satisfy both the global label allowlist and the metric-specific catalog row in `docs/ssot/observability.md`;
 - label values are safe and bounded-cardinality;
 - raw payloads are not exposed.
+
+The global label allowlist is necessary but not sufficient for profiling metrics.
+
+Metric-specific catalog labels are authoritative for each registered profiling metric.
+
+Profiling implementations MUST NOT emit ad hoc metric names outside the canonical metrics catalog.
+
+Profiling implementations MUST NOT emit globally allowlisted label keys unless the metric-specific catalog row allows those keys.
 
 ## Profiling and tracing boundary
 

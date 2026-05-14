@@ -952,7 +952,7 @@ This SSoT does not define:
 - [Config and env SSoT](./config-and-env.md)
 - [Context Keys SSoT](./context-keys.md)
 - [Context Store SSoT](./context-store.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

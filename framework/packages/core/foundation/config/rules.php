@@ -26,6 +26,10 @@ declare(strict_types=1);
  * - tag discovery and reset orchestration are not feature-flagged;
  * - `foundation.reset.tag` is configurable but must be a non-empty string
  *   without whitespace;
+ * - `foundation.reset.priority.enabled` controls only enhanced reset
+ *   ordering/meta planning and does not disable reset orchestration;
+ * - `foundation.reset.group.default` must use the same normalized group id
+ *   shape as reset tag meta group;
  * - `foundation.ids.default` selects only the default generic runtime id
  *   generator and does not affect correlation id generation.
  *
@@ -80,6 +84,28 @@ return [
                 'tag' => [
                     'required' => true,
                     'type' => 'non-empty-string-no-ws',
+                ],
+                'priority' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'bool',
+                        ],
+                    ],
+                ],
+                'group' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'default' => [
+                            'required' => true,
+                            'type' => 'reset-group-id',
+                        ],
+                    ],
                 ],
             ],
         ],

@@ -34,7 +34,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 - [Artifact Header and Schema Registry](./artifacts.md) — owner: repo — scope: artifacts,determinism,envelope,registry,schema
 - [Config Roots Registry](./config-roots.md) — owner: repo — scope: config,ownership,registry,roots
-- [Observability Naming and Labels Allowlist](./observability.md) — owner: repo — scope: labels,observability,redaction,registry,spans
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md) — owner: repo — scope: labels,metrics-catalog,observability,redaction,registry,spans
 - [Tag Registry](./tags.md) — owner: repo — scope: di,ownership,registry,tags
 
 ## Policies
@@ -69,6 +69,7 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — scope: di,discovery,middleware,ordering,runtime,tags
 - [Middleware → ContextKeys map](./middleware-context-keys-map.md) — owner: platform/http — scope: context,http,middleware,redaction,reference,runtime
 - [Reset Tags SSoT](./reset-tags.md) — owner: core/foundation — scope: reset,runtime,stateful,tags,uow
+- [Runtime Drivers SSoT](./runtime-drivers.md) — owner: repo — scope: background,drivers,http,long-running,matrix,runtime
 - [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — scope: reset,runtime,stateful,uow,redaction
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md) — owner: core/foundation — scope: clock,duration,ids,runtime,time
 

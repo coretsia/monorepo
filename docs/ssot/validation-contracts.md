@@ -694,7 +694,7 @@ CORETSIA_VALIDATION_FAILED
 The deterministic validation error code MUST be exposed as:
 
 ```text
-ValidationException::CODE
+ValidationException::ERROR_CODE
 ```
 
 The exception SHOULD expose this accessor:
@@ -711,7 +711,7 @@ CORETSIA_VALIDATION_FAILED
 
 The PHP native exception integer code returned by `Throwable::getCode()` is not the canonical validation error code.
 
-The canonical validation error code is the stable string code defined by `ValidationException::CODE`.
+The canonical validation error code is the stable string code defined by `ValidationException::ERROR_CODE`.
 
 This avoids coupling the contracts-level machine code to PHP native integer exception code semantics.
 
@@ -997,7 +997,7 @@ This SSoT does not define:
 - [Tag Registry](./tags.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [Errors Boundary SSoT](./errors-boundary.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DTO Policy](./dto-policy.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

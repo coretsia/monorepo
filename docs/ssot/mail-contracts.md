@@ -851,7 +851,7 @@ CORETSIA_MAIL_DELIVERY_FAILED
 The deterministic mail delivery error code MUST be exposed as:
 
 ```text
-MailException::CODE
+MailException::ERROR_CODE
 ```
 
 The exception SHOULD expose this accessor:
@@ -868,7 +868,7 @@ CORETSIA_MAIL_DELIVERY_FAILED
 
 The PHP native exception integer code returned by `Throwable::getCode()` is not the canonical mail delivery error code.
 
-The canonical mail delivery error code is the stable string code defined by `MailException::CODE`.
+The canonical mail delivery error code is the stable string code defined by `MailException::ERROR_CODE`.
 
 This avoids coupling the contracts-level machine code to PHP native integer exception code semantics.
 
@@ -926,7 +926,7 @@ When wrapping provider exceptions, implementations MUST redact unsafe provider d
 
 Runtime owner packages MAY define more specific platform-owned or integration-owned mail failure codes later.
 
-Those owner-defined codes MUST NOT replace the generic contracts-level code defined by `MailException::CODE`.
+Those owner-defined codes MUST NOT replace the generic contracts-level code defined by `MailException::ERROR_CODE`.
 
 Provider-specific, transport-specific, queue-specific, credential-specific, and policy-specific mail failure codes are runtime-owned and MUST NOT be introduced by epic `1.170.0`.
 
@@ -1229,7 +1229,7 @@ CORETSIA_MAIL_DELIVERY_FAILED
 The canonical code is exposed as:
 
 ```text
-MailException::CODE
+MailException::ERROR_CODE
 ```
 
 The canonical safe message is exposed as:
@@ -1350,7 +1350,7 @@ Coretsia\Contracts\Mail\MailException
 
 `MailException` MAY appear in PHPDoc `@throws`.
 
-`MailException::CODE`, `MailException::MESSAGE`, and `MailException::errorCode()` are allowed as deterministic contracts-level exception semantics.
+`MailException::ERROR_CODE`, `MailException::MESSAGE`, and `MailException::errorCode()` are allowed as deterministic contracts-level exception semantics.
 
 Mail contracts MUST NOT introduce provider-specific, transport-specific, queue-specific, credential-specific, tenant-specific, user-specific, request-specific, or correlation-specific error code constants in epic `1.170.0`.
 
@@ -1464,7 +1464,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [DTO Policy](./dto-policy.md)

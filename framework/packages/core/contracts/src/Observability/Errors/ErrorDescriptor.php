@@ -221,18 +221,18 @@ final readonly class ErrorDescriptor
 
         foreach ($map as $key => $value) {
             if (!is_string($key)) {
-                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path . '.');
             }
 
             if ($key === '') {
-                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path . '.');
             }
 
             if (!self::isSafeSingleLineString($key)) {
-                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error descriptor extension key at ' . $path . '.');
             }
 
-            $out[$key] = self::normalizeJsonLikeValue($value, $path . \chr(46) . $key);
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
         ksort($out, \SORT_STRING);
@@ -249,14 +249,14 @@ final readonly class ErrorDescriptor
 
         if (is_string($value)) {
             if (!self::isSafeString($value)) {
-                throw new \InvalidArgumentException('Invalid error descriptor extension string at ' . $path);
+                throw new \InvalidArgumentException('Invalid error descriptor extension string at ' . $path . '.');
             }
 
             return $value;
         }
 
         if (is_float($value)) {
-            throw new \InvalidArgumentException('Invalid float error descriptor extension at ' . $path);
+            throw new \InvalidArgumentException('Invalid float error descriptor extension at ' . $path . '.');
         }
 
         if (is_array($value)) {
@@ -273,7 +273,7 @@ final readonly class ErrorDescriptor
             return self::normalizeJsonLikeMap($value, $path);
         }
 
-        throw new \InvalidArgumentException('Invalid error descriptor extension at ' . $path);
+        throw new \InvalidArgumentException('Invalid error descriptor extension at ' . $path . '.');
     }
 
     private static function isSafeSingleLineString(string $value): bool

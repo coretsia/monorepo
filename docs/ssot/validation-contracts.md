@@ -997,7 +997,7 @@ This SSoT does not define:
 - [Tag Registry](./tags.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [Errors Boundary SSoT](./errors-boundary.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DTO Policy](./dto-policy.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

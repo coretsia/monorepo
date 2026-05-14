@@ -355,6 +355,6 @@ This document does not define:
 - [Context Store SSoT](./context-store.md)
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)

@@ -162,15 +162,26 @@ len(value)
 
 Safe derivations MUST NOT expose raw values, secrets, PII, request bodies, response bodies, profile payloads, or raw persistence payloads.
 
-## Observability naming and labels
+## Observability naming, span naming, and metric catalog policy
 
-Observability naming, metric label allowlist, span naming, and global redaction policy are governed by:
+Observability naming, span naming, the canonical metrics catalog, metric-specific catalog labels, the global metric label allowlist, and global redaction policy are governed by:
 
 ```text
 docs/ssot/observability.md
 ```
 
-Metric label keys MUST stay within the canonical allowlist unless that SSoT is directly updated.
+Metric label keys MUST stay within the canonical global label allowlist unless that SSoT is directly updated.
+
+The global label allowlist is necessary but not sufficient for metric emissions.
+
+Metric labels emitted through `MeterPortInterface` MUST satisfy both:
+
+1. the global label allowlist
+2. the metric-specific catalog row in the canonical metrics catalog
+
+Metric-specific catalog labels are authoritative for each registered metric.
+
+A label key being globally allowlisted does not permit that label key on every metric.
 
 The baseline allowed metric label keys are:
 
@@ -196,6 +207,24 @@ user_id
 ```
 
 Correlation identifiers MAY exist for tracing or log correlation, but they MUST NOT become canonical metric labels under the baseline policy.
+
+Span names emitted through `TracerPortInterface::startSpan(...)` or `TracerPortInterface::inSpan(...)` MUST follow canonical span naming policy from `docs/ssot/observability.md`.
+
+Span names MUST NOT be registered in the canonical metrics catalog.
+
+## Observability tooling gates
+
+Observability policy is enforced by dedicated gates with separate ownership boundaries:
+
+- `observability-naming:gate` enforces generic observability naming and global label policy.
+- `observability-span-naming:gate` enforces `TracerPortInterface::startSpan(...)` and `TracerPortInterface::inSpan(...)` span naming policy.
+- `observability-metric-catalog:gate` enforces `MeterPortInterface` metric catalog registration, method/type compatibility, and metric-specific labels.
+
+The gates MUST remain complementary:
+
+- generic naming and global label policy MUST NOT replace metric catalog validation;
+- span naming policy MUST NOT require span names to exist in the canonical metrics catalog;
+- metric catalog validation MUST NOT validate span names.
 
 ## Correlation id provider port
 
@@ -361,9 +390,36 @@ Sampling inputs MUST NOT include raw request bodies, raw response bodies, tokens
 
 `MeterPortInterface` is a contracts port for emitting metrics.
 
-Metric names MUST follow `docs/ssot/observability.md`.
+Metric names emitted through `MeterPortInterface` MUST be registered in the canonical metrics catalog in:
 
-Metric labels MUST use only allowlisted label keys.
+```text
+docs/ssot/observability.md
+```
+
+Metric names MUST follow the metric naming shape defined by that SSoT.
+
+The canonical interface shape is:
+
+```text
+increment(string $name, int $delta = 1, array $labels = []): void
+observe(string $name, int $value, array $labels = []): void
+```
+
+Meter method compatibility with the canonical metrics catalog is mandatory:
+
+- `MeterPortInterface::increment(...)` MUST be used only with catalog `counter` metrics.
+- `MeterPortInterface::observe(...)` MUST be used only with catalog `observe` metrics.
+
+Metric labels MUST satisfy both:
+
+1. the global label allowlist from `docs/ssot/observability.md`
+2. the metric-specific catalog row from `docs/ssot/observability.md`
+
+The global label allowlist is necessary but not sufficient.
+
+Metric-specific catalog labels are authoritative for each registered metric.
+
+A globally allowlisted label key MUST NOT be emitted for a metric unless that metric's catalog row allows it.
 
 Metric label values are safe bounded scalar labels, not generic json-like payloads.
 

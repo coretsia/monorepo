@@ -453,7 +453,7 @@ Reset execution ordering MUST be deterministic.
 
 Execution ordering is deterministic and single-choice:
 
-- if enhanced reset is disabled, reset executes in the exact order returned by:
+- when `foundation.reset.priority.enabled=false`, reset executes in the exact order returned by:
 
 ```text
 TagRegistry->all($effectiveResetTag)
@@ -465,7 +465,7 @@ with canonical discovery order:
 priority DESC, id ASC
 ```
 
-- if enhanced reset is enabled by epic `1.250.0`, reset executes in the planned order:
+- when `foundation.reset.priority.enabled=true`, reset executes in the planned enhanced reset order:
 
 ```text
 priority DESC, group ASC, serviceId ASC
@@ -734,7 +734,7 @@ This SSoT does not define:
 - [Context Keys SSoT](./context-keys.md)
 - [Context Store SSoT](./context-store.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)

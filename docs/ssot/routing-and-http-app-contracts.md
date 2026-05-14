@@ -1025,7 +1025,7 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [Tag Registry](./tags.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DTO Policy](./dto-policy.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)

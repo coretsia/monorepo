@@ -683,6 +683,12 @@ foundation.reset_total
 foundation.reset_duration_ms
 ```
 
+These metric names are registered in the canonical metrics catalog in:
+
+```text
+docs/ssot/observability.md
+```
+
 Allowed metric labels:
 
 ```text
@@ -1049,6 +1055,12 @@ Enhanced reset introduces two metric names:
 ```text
 foundation.reset_total
 foundation.reset_duration_ms
+```
+
+These metric names are registered in the canonical metrics catalog in:
+
+```text
+docs/ssot/observability.md
 ```
 
 Allowed metric labels are:

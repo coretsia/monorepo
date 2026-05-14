@@ -18,6 +18,28 @@
 
 Accepted.
 
+## Supersession / follow-up note
+
+This ADR preserves the historical decision context for epic `1.200.0`.
+
+At the time of this decision, enhanced reset ordering, reset metadata planning, and typed reset failure taxonomy were intentionally deferred to epic `1.250.0`.
+
+That follow-up work is now materialized by epic `1.250.0`.
+
+Canonical live policy for enhanced reset planning, execution ordering, reset tag meta semantics, deterministic reset errors, and reset-specific observability is owned by:
+
+```text
+docs/ssot/reset-tags.md
+```
+
+The enhanced reset decision is recorded by:
+
+```text
+docs/adr/ADR-0019-enhanced-reset-long-running.md
+```
+
+Historical future/deferred wording in this ADR should be read as describing the state of the `1.200.0` decision, not current live reset policy.
+
 ## Context
 
 Epic `1.200.0` introduces the `core/foundation` runtime package under:

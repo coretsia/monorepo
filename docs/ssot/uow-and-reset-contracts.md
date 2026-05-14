@@ -637,7 +637,7 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [Tag Registry](./tags.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DTO Policy](./dto-policy.md)
 - [Profiling Ports SSoT](./profiling-ports.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

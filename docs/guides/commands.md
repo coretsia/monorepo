@@ -1525,11 +1525,13 @@ Each new command is added as a separate section under `## Commands` (the format 
   5) `composer contracts-only-ports:gate`
   6) `composer tag-constant-mirror:gate`
   7) `composer observability-naming:gate`
-  8) `composer artifact-header-schema:gate`
-  9) `composer cross-cutting-contract:gate`
-  10) `composer kernel-public-api:gate`
-  11) `composer no-runtime-tooling-artifacts:gate`
-  12) `composer package-compliance:gate`
+  8) `composer observability-span-naming:gate`
+  9) `composer observability-metric-catalog:gate`
+  10) `composer artifact-header-schema:gate`
+  11) `composer cross-cutting-contract:gate`
+  12) `composer kernel-public-api:gate`
+  13) `composer no-runtime-tooling-artifacts:gate`
+  14) `composer package-compliance:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`
@@ -2107,32 +2109,136 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### Observability catalog gate
+### Observability span naming gate
 
-**Id:** `tool.observability_catalog_gate`
-**Entrypoint:** `composer observability-catalog:gate`
+**Id:** `tool.observability_span_naming_gate`
+**Entrypoint:** `composer observability-span-naming:gate`
 **Category:** repo policy / guard
 **Outputs:**
-- none; read-only gate
-- exits non-zero on metric catalog drift
+- none on success
+- exits non-zero on span naming policy violations
+- emits deterministic diagnostics only through the canonical tooling output policy
 
 **Determinism:**
 
-| Mode / flags | Determinism   | Notes                                                                                 |
-|--------------|---------------|---------------------------------------------------------------------------------------|
-| default      | deterministic | Scans runtime package source and validates emitted metrics against canonical catalog. |
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
 
 **Notes:**
-- Purpose: validates runtime metric names and labels against `docs/ssot/observability.md`.
-- Scanned scope: `framework/packages/**/src/**/*.php`.
-- Ignores docs/tests/tools/var/vendor.
-- Failure output policy:
-  - catalog drift: line 1 is stable code `CORETSIA_OBSERVABILITY_CATALOG_DRIFT`
-  - unexpected failure: line 1 starts with `CORETSIA_OBSERVABILITY_CATALOG_GATE_FAILED`
-- Under the hood: repo-root wrapper delegates to framework workspace script.
+- Purpose: validates runtime span emissions against the canonical span naming policy from `docs/ssot/observability.md`.
+- The gate is read-only and MUST NOT create, modify, or delete files.
+- This gate is span-only.
+- This gate complements `composer observability-naming:gate` and `composer observability-metric-catalog:gate`:
+  - `observability-naming:gate` enforces generic observability naming and global observability label allowlist policy.
+  - `observability-span-naming:gate` enforces `TracerPortInterface::startSpan(...)` and `TracerPortInterface::inSpan(...)` span name policy.
+  - `observability-metric-catalog:gate` enforces `MeterPortInterface` metric catalog registration, meter method/type compatibility, and metric-specific label keys.
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/docs/**`
+  - `**/tests/**`
+  - `**/tools/**`
+  - `**/var/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Enforces at minimum:
+  - `docs/ssot/observability.md` contains a parseable canonical span naming policy
+  - span names use shape `<domain>.<singular_operation>`
+  - span operation segment is singular
+  - runtime `TracerPortInterface::startSpan(...)` and `TracerPortInterface::inSpan(...)` span names follow canonical span naming policy
+  - `TracerPortInterface::currentSpan()` is not validated because it does not accept or emit a span name
+  - runtime span names are direct string literals or same-class private `const string` values accessed through `self::CONST`
+  - malformed span names fail deterministically, for example:
+    - `foundation..reset`
+    - `foundation.reset.total`
+  - plural span operation drift fails deterministically, for example:
+    - `foundation.resets`
+  - dynamic, computed, external, inherited, global, concatenated, or named-argument span emissions fail deterministically
+- Span names are validated by span naming policy, not by the canonical metrics catalog.
+- Span names MUST NOT be registered in the canonical metrics catalog.
+- Metric catalog policy remains owned by `composer observability-metric-catalog:gate`.
+- Output policy:
+  - span naming drift / runtime span policy violation: line 1 is stable code `CORETSIA_OBSERVABILITY_SPAN_NAMING_DRIFT`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_OBSERVABILITY_SPAN_NAMING_GATE_FAILED`
+  - diagnostics use framework-root-relative paths or `docs/ssot/observability.md` with fixed reason tokens
+  - diagnostics are sorted by `strcmp`
+  - if no violations exist, command exits 0 and prints nothing
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script observability-span-naming:gate --`
+  - framework implementation detail: `@php tools/gates/observability_span_naming_gate.php`
+- Direct call `php framework/tools/gates/observability_span_naming_gate.php` is **NOT** a canonical entrypoint; it is an implementation detail only.
+- CI/rails policy: `composer gates` SHOULD execute this gate immediately after `composer observability-naming:gate` and before `composer observability-metric-catalog:gate`.
 
 **Usage (repo root):**
-- `composer observability-catalog:gate`
+- `composer observability-span-naming:gate`
+
+---
+
+### Observability metric catalog gate
+
+**Id:** `tool.observability_metric_catalog_gate`
+**Entrypoint:** `composer observability-metric-catalog:gate`
+**Category:** repo policy / guard
+**Outputs:**
+- none on success
+- exits non-zero on canonical metrics catalog drift or runtime metric emission policy violations
+- emits deterministic diagnostics only through the canonical tooling output policy
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                  |
+|--------------|---------------|------------------------------------------------------------------------|
+| default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+
+**Notes:**
+- Purpose: validates runtime metric emissions against the canonical metrics catalog and metric-specific label policy from `docs/ssot/observability.md`.
+- The gate is read-only and MUST NOT create, modify, or delete files.
+- This gate is metrics-only.
+- This gate complements `composer observability-naming:gate` and `composer observability-span-naming:gate`:
+  - `observability-naming:gate` enforces generic observability naming and global observability label allowlist policy.
+  - `observability-span-naming:gate` enforces `TracerPortInterface::startSpan(...)` and `TracerPortInterface::inSpan(...)` span name policy.
+  - `observability-metric-catalog:gate` enforces `MeterPortInterface` metric catalog registration, meter method/type compatibility, and metric-specific label keys.
+- `MeterPortInterface` metric catalog membership, method/type compatibility, and metric-specific labels are validated by `composer observability-metric-catalog:gate`.
+- Span names are validated by `composer observability-span-naming:gate`.
+- Span names MUST NOT be registered in the canonical metrics catalog.
+- Default scan scope:
+  - `framework/packages/**/src/**/*.php`
+- Excluded paths:
+  - `**/docs/**`
+  - `**/tests/**`
+  - `**/tools/**`
+  - `**/var/**`
+  - `**/fixtures/**`
+  - `**/vendor/**`
+- Enforces at minimum:
+  - `docs/ssot/observability.md` contains a parseable `Canonical metrics catalog` section
+  - catalog metric rows are unique
+  - catalog metric type is exactly one of:
+    - `counter`
+    - `observe`
+  - catalog labels are within the global label allowlist
+  - runtime `MeterPortInterface::increment(...)` and `MeterPortInterface::observe(...)` metric names exist in the canonical catalog
+  - runtime metric names are direct string literals or same-class private `const string` values accessed through `self::CONST`
+  - `increment(...)` is used only with catalog `counter` metrics
+  - `observe(...)` is used only with catalog `observe` metrics
+  - emitted label keys match the metric-specific catalog row
+  - label maps are omitted, direct array literals with string keys, or same-method local variables assigned before the meter call to resolvable array literals
+  - dynamic, computed, external, inherited, global, concatenated, or named-argument meter emissions fail deterministically
+- Output policy:
+  - catalog drift / runtime metric policy violation: line 1 is stable code `CORETSIA_OBSERVABILITY_METRIC_CATALOG_DRIFT`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_OBSERVABILITY_METRIC_CATALOG_GATE_FAILED`
+  - diagnostics use framework-root-relative paths or `docs/ssot/observability.md` with fixed reason tokens
+  - diagnostics are sorted by `strcmp`
+  - if no violations exist, command exits 0 and prints nothing
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script observability-metric-catalog:gate --`
+  - framework implementation detail: `@php tools/gates/observability_metric_catalog_gate.php`
+- Direct call `php framework/tools/gates/observability_metric_catalog_gate.php` is **NOT** a canonical entrypoint; it is an implementation detail only.
+- CI/rails policy: `composer gates` SHOULD execute this gate immediately after `composer observability-span-naming:gate`.
+
+**Usage (repo root):**
+- `composer observability-metric-catalog:gate`
 
 ---
 

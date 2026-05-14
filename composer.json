@@ -115,6 +115,8 @@
     "contracts-only-ports:gate": "@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --",
     "tag-constant-mirror:gate": "@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --",
     "observability-naming:gate": "@composer --no-interaction --working-dir=framework run-script observability-naming:gate --",
+    "observability-span-naming:gate": "@composer --no-interaction --working-dir=framework run-script observability-span-naming:gate --",
+    "observability-metric-catalog:gate": "@composer --no-interaction --working-dir=framework run-script observability-metric-catalog:gate --",
     "artifact-header-schema:gate": "@composer --no-interaction --working-dir=framework run-script artifact-header-schema:gate --",
     "cross-cutting-contract:gate": "@composer --no-interaction --working-dir=framework run-script cross-cutting-contract:gate --",
     "kernel-public-api:gate": "@composer --no-interaction --working-dir=framework run-script kernel-public-api:gate --",

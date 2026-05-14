@@ -987,7 +987,7 @@ This SSoT does not define:
 - [SSoT Index](./INDEX.md)
 - [Tag Registry](./tags.md)
 - [Config Roots Registry](./config-roots.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [Packaging strategy](../architecture/PACKAGING.md)

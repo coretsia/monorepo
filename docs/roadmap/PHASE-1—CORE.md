@@ -6834,36 +6834,58 @@ Forbidden:
 #### Creates
 
 Tooling:
-- [ ] `framework/tools/gates/observability_catalog_gate.php`
-  - [ ] loads canonical metrics catalog from `docs/ssot/observability.md`
-  - [ ] fails deterministically if the canonical metrics catalog section is missing or unparseable
-  - [ ] rejects duplicate metric catalog rows
-  - [ ] rejects catalog rows with unsupported type values
-  - [ ] supported catalog metric types are exactly `counter` and `observe`
-  - [ ] rejects catalog labels outside the global label allowlist
-  - [ ] scans runtime package source only: `framework/packages/**/src/**/*.php`
-  - [ ] ignores docs/tests/tools/var/vendor
-  - [ ] treats a call as a meter emission only when the receiver is resolvable as `MeterPortInterface`
-  - [ ] validates metric names used in meter `increment()` / `observe()` calls against the canonical catalog
-  - [ ] rejects any runtime metric name absent from the canonical catalog
-  - [ ] catches singular/plural drift through catalog mismatch
-  - [ ] accepts metric names only as:
-    - [ ] direct string literals
-    - [ ] same-class private `const string` values accessed through `self::CONST`
-  - [ ] rejects concatenated, computed, inherited, external, global, or dynamically resolved metric names
-  - [ ] validates meter method compatibility with catalog type:
-    - [ ] `increment()` accepts only `counter` metrics
-    - [ ] `observe()` accepts only `observe` metrics
-  - [ ] validates label keys per metric against the canonical catalog row
-  - [ ] accepts labels only as:
-    - [ ] omitted labels argument
-    - [ ] direct array literals with string keys
-    - [ ] same-method local variables assigned to array literals with resolvable string keys
-  - [ ] label values may be dynamic
-  - [ ] label keys MUST be resolvable
-  - [ ] rejects unknown label keys for known metrics
-  - [ ] rejects non-resolvable dynamic label maps
-  - [ ] does not replace `observability_naming_gate.php`; it complements it
+- [x] `framework/tools/gates/observability_metric_catalog_gate.php`
+  - [x] loads canonical metrics catalog from `docs/ssot/observability.md`
+  - [x] fails deterministically if the canonical metrics catalog section is missing or unparseable
+  - [x] rejects duplicate metric catalog rows
+  - [x] rejects catalog rows with unsupported type values
+  - [x] supported catalog metric types are exactly `counter` and `observe`
+  - [x] rejects catalog labels outside the global label allowlist
+  - [x] scans runtime package source only: `framework/packages/**/src/**/*.php`
+  - [x] ignores docs/tests/tools/var/vendor
+  - [x] treats a call as a meter emission only when the receiver is resolvable as `MeterPortInterface`
+  - [x] validates metric names used in meter `increment()` / `observe()` calls against the canonical catalog
+  - [x] rejects any runtime metric name absent from the canonical catalog
+  - [x] catches singular/plural drift through catalog mismatch
+  - [x] accepts metric names only as:
+    - [x] direct string literals
+    - [x] same-class private `const string` values accessed through `self::CONST`
+  - [x] rejects concatenated, computed, inherited, external, global, or dynamically resolved metric names
+  - [x] validates meter method compatibility with catalog type:
+    - [x] `increment()` accepts only `counter` metrics
+    - [x] `observe()` accepts only `observe` metrics
+  - [x] validates label keys per metric against the canonical catalog row
+  - [x] accepts labels only as:
+    - [x] omitted labels argument
+    - [x] direct array literals with string keys
+    - [x] same-method local variables assigned to array literals with resolvable string keys
+  - [x] label values may be dynamic
+  - [x] label keys MUST be resolvable
+  - [x] rejects unknown label keys for known metrics
+  - [x] rejects non-resolvable dynamic label maps
+  - [x] MUST NOT validate span names; span naming is owned by `observability_span_naming_gate.php`
+  - [x] MUST NOT replace `observability_naming_gate.php` or `observability_span_naming_gate.php`; it complements both
+
+- [x] `framework/tools/gates/observability_span_naming_gate.php`
+  - [x] loads canonical span naming policy from `docs/ssot/observability.md`
+  - [x] fails deterministically if canonical span naming policy is missing or unparseable
+  - [x] scans runtime package source only: `framework/packages/**/src/**/*.php`
+  - [x] ignores docs/tests/tools/var/vendor
+  - [x] treats a call as a span emission only when the receiver is resolvable as `TracerPortInterface` and the method is `startSpan(...)` or `inSpan(...)`
+  - [x] validates span names used in `startSpan(...)` and `inSpan(...)` calls against canonical span naming policy
+  - [x] does not validate `currentSpan()` because it does not accept or emit a span name
+  - [x] span names MUST use shape `<domain>.<singular_operation>`
+  - [x] rejects malformed span names such as:
+    - [x] `foundation..reset`
+    - [x] `foundation.reset.total`
+  - [x] rejects plural operation drift in span names, e.g. `foundation.resets`
+  - [x] accepts valid singular span names, e.g. `foundation.reset`
+  - [x] accepts span names only as:
+    - [x] direct string literals
+    - [x] same-class private `const string` values accessed through `self::CONST`
+  - [x] rejects concatenated, computed, inherited, external, global, or dynamically resolved span names
+  - [x] MUST NOT validate span names through the canonical metrics catalog
+  - [x] MUST NOT replace `observability_naming_gate.php` or `observability_metric_catalog_gate.php`; it complements both
 
 Docs:
 - [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
@@ -6904,59 +6926,97 @@ Errors (deterministic, code-first):
     - [x] `code(): string`
 
 Tests:
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
-  - [ ] MUST set a non-trivial locale (if available) and still assert identical ordering.
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php`
-  - [ ] with `foundation.reset.priority.enabled=false`, invalid meta MUST NOT fail
-  - [ ] ordering MUST equal legacy (`TagRegistry->all(...)` order) exactly
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php`
-  - [ ] meta contains extra keys (e.g. `{"priority": 10, "group": "default", "x": "y", "debug": ["a"=>1]}`)
-  - [ ] MUST NOT fail because of unknown keys
-  - [ ] ordering MUST be computed only from (`priority`,`group`,`serviceId`)
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php`
-- [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
-  - [ ] asserts first thrown service exception stops further reset processing
-  - [ ] asserts deterministic `ResetException(code=CORETSIA_RESET_SERVICE_FAILED, message="reset-service-failed")`
-  - [ ] asserts summary-only observability path remains safe
-
-- [ ] `framework/tools/tests/Fixtures/observability-catalog-gate/`
-  - [ ] contains minimal runtime-source fixtures for accepted/rejected metric usage
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [x] MUST set a non-trivial locale (if available) and still assert identical ordering.
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php`
+  - [x] with `foundation.reset.priority.enabled=false`, invalid meta MUST NOT fail
+  - [x] ordering MUST equal legacy (`TagRegistry->all(...)` order) exactly
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php`
+  - [x] meta contains extra keys (e.g. `{"priority": 10, "group": "default", "x": "y", "debug": ["a"=>1]}`)
+  - [x] MUST NOT fail because of unknown keys
+  - [x] ordering MUST be computed only from (`priority`,`group`,`serviceId`)
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+  - [x] asserts first thrown service exception stops further reset processing
+  - [x] asserts deterministic `ResetException(code=CORETSIA_RESET_SERVICE_FAILED, message="reset-service-failed")`
+  - [x] asserts summary-only observability path remains safe
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+  - [x] optional but recommended
+  - [x] span name `foundation.reset`
+  - [x] attrs: `services_count`, `groups_count`, `outcome`
+  - [x] metrics:
+    - [x] `foundation.reset_total` with labels `outcome`
+    - [x] `foundation.reset_duration_ms` with labels `outcome`
+  - [x] no service ids/payloads/meta/raw exceptions in emitted labels/attrs
 
 Tooling tests:
-- [ ] `framework/tools/tests/Contract/ObservabilityCatalogGateTest.php`
-  - [ ] accepts `foundation.reset_total`
-  - [ ] accepts `foundation.reset_duration_ms`
-  - [ ] accepts private/local string constants for metric names
-  - [ ] rejects `foundation.resets_total`
-  - [ ] rejects `foundation.resets_duration_ms`
-  - [ ] rejects `foundation.reset.total`
-  - [ ] rejects `foundation..reset_total`
-  - [ ] rejects runtime metric names absent from catalog
-  - [ ] rejects unknown labels for known metric
-  - [ ] rejects `increment('foundation.reset_duration_ms', ...)`
-  - [ ] rejects `observe('foundation.reset_total', ...)`
-  - [ ] rejects non-resolvable dynamic metric names
-  - [ ] rejects non-resolvable dynamic label maps
-  - [ ] rejects duplicate catalog metric rows
-  - [ ] rejects unsupported catalog metric type
-  - [ ] rejects catalog labels outside the global allowlist
-  - [ ] rejects missing/unparseable canonical metrics catalog section
+- [x] `framework/tools/tests/Contract/ObservabilityMetricCatalogGateTest.php`
+  - [x] uses isolated temp repo fixtures generated inline by each data-provider case
+  - [x] writes a minimal `docs/ssot/observability.md` catalog fixture
+  - [x] writes minimal runtime package source fixtures under `framework/packages/core/foundation/src/*.php`
+  - [x] installs a minimal gate harness under `framework/tools/**`
+  - [x] avoids persistent fixture files for this gate because each case needs small, isolated catalog/runtime-source combinations
+  - [x] accepts `foundation.reset_total`
+  - [x] accepts `foundation.reset_duration_ms`
+  - [x] accepts same-class private `const string` metric names accessed through `self::CONST`
+  - [x] rejects `foundation.resets_total`
+  - [x] rejects `foundation.resets_duration_ms`
+  - [x] rejects `foundation.reset.total`
+  - [x] rejects `foundation..reset_total`
+  - [x] rejects runtime metric names absent from catalog
+  - [x] rejects unknown labels for known metric
+  - [x] rejects `increment('foundation.reset_duration_ms', ...)`
+  - [x] rejects `observe('foundation.reset_total', ...)`
+  - [x] rejects non-resolvable dynamic metric names
+  - [x] rejects non-resolvable dynamic label maps
+  - [x] rejects duplicate catalog metric rows
+  - [x] rejects unsupported catalog metric type
+  - [x] rejects catalog labels outside the global allowlist
+  - [x] rejects missing/unparseable canonical metrics catalog section
+  - [x] rejects named-argument `MeterPortInterface` calls as unparseable
+- [x] `framework/tools/tests/Contract/ObservabilitySpanNamingGateTest.php`
+  - [x] uses isolated temp repo fixtures generated inline by each data-provider case
+  - [x] writes minimal runtime package source fixtures under `framework/packages/core/foundation/src/*.php`
+  - [x] installs a minimal gate harness under `framework/tools/**`
+  - [x] accepts valid singular span name `foundation.reset`
+  - [x] accepts same-class private `const string` span names accessed through `self::CONST`
+  - [x] rejects malformed span names:
+    - [x] `foundation..reset`
+    - [x] `foundation.reset.total`
+  - [x] rejects plural span operation drift, e.g. `foundation.resets`
+  - [x] rejects non-resolvable dynamic span names
+  - [x] rejects concatenated or computed span names
+  - [x] validates span names only for calls whose receiver is resolvable as `TracerPortInterface`
+  - [x] does not require span names to exist in the canonical metrics catalog
 
 #### Modifies
 
-- [x] `docs/ssot/reset-tags.md` — extend reset SSoT with enhanced reset semantics:
-  - [x] `foundation.reset.priority.enabled`
-  - [x] `foundation.reset.group.default`
-  - [x] supported meta keys: `priority`, `group`
-  - [x] disabled-mode behavior = exact legacy order, no meta parsing
-  - [x] enabled-mode behavior = deterministic planned order
-  - [x] deterministic reset error codes introduced by this epic
+- [x] `docs/ssot/reset-tags.md`
+  - [x] extend reset SSoT with enhanced reset semantics:
+    - [x] `foundation.reset.priority.enabled`
+    - [x] `foundation.reset.group.default`
+    - [x] supported meta keys: `priority`, `group`
+    - [x] disabled-mode behavior = exact legacy order, no meta parsing
+    - [x] enabled-mode behavior = deterministic planned order
+    - [x] deterministic reset error codes introduced by this epic
+  - [x] reference canonical metrics catalog in `docs/ssot/observability.md`
+  - [x] list reset-specific observability usage without redefining catalog ownership
+  - [x] remove/update “future enhanced reset” wording now owned by epic 1.250.0
+  - [x] document enhanced reset config/meta/order/error semantics
+  - [x] add reset observability ownership split:
+    - [x] reset span name: `foundation.reset`; validated by span naming policy
+    - [x] reset metrics:
+      - [x] `foundation.reset_total`
+      - [x] `foundation.reset_duration_ms`
+    - [x] reset metric names and metric-specific labels are owned by the canonical metrics catalog in `docs/ssot/observability.md`
+
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
+
 - [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
   - [x] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes)
   - [x] when `foundation.reset.priority.enabled=false`, MUST preserve legacy/base mode exactly:
@@ -7005,68 +7065,87 @@ Tooling tests:
   - [x] keep the stable message `reset-not-resettable`
   - [x] keep the deterministic fail-fast behavior for tagged non-resettable services
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] extend Canonical metrics catalog
-  - [ ] define metric name shape `<domain>.<singular_operation>_<measure>`
-  - [ ] register:
-    - [ ] `foundation.reset_total` owner `core/foundation`, type `counter`, labels `outcome`
-    - [ ] `foundation.reset_duration_ms` owner `core/foundation`, type `observe`, labels `outcome`
+- [x] `docs/ssot/observability.md`
+  - [x] extend Canonical metrics catalog
+  - [x] define metric name shape `<domain>.<singular_operation>_<measure>`
+  - [x] register:
+    - [x] `foundation.reset_total` owner `core/foundation`, type `counter`, labels `outcome`
+    - [x] `foundation.reset_duration_ms` owner `core/foundation`, type `observe`, labels `outcome`
+  - [x] strengthen span naming policy:
+    - [x] span names MUST use shape `<domain>.<singular_operation>`
+    - [x] span `singular_operation` segment MUST be singular
+    - [x] valid reset span name is `foundation.reset`
+    - [x] plural span operation drift such as `foundation.resets` is forbidden
+    - [x] span names MUST NOT be added to the canonical metrics catalog
 
-## Canonical metrics catalog
+- [x] `docs/ssot/observability-and-errors.md`
+  - [x] align MeterPortInterface policy with canonical metrics catalog
+  - [x] state that global label allowlist is necessary but not sufficient
+  - [x] state that metric-specific catalog labels are authoritative
+  - [x] state meter method compatibility with catalog type
+  - [x] Add:
+    - [x] `observability-naming:gate` enforces generic observability naming and global label policy.
+    - [x] `observability-span-naming:gate` enforces `TracerPortInterface::startSpan(...)` span naming policy.
+    - [x] `observability-metric-catalog:gate` enforces `MeterPortInterface` metric catalog registration, method/type compatibility, and metric-specific labels.
 
-Metric names MUST use:
+- [x] `docs/ssot/profiling-ports.md`
+  - [x] Strengthen profiling metrics policy:
+    - [x] profiling implementations MAY emit only bounded summary metrics
+    - [x] metric names MUST be registered in the canonical metrics catalog in `docs/ssot/observability.md`
+    - [x] metric labels MUST satisfy both the global label allowlist and the metric-specific catalog row
 
-```text
-<domain>.<singular_operation>_<measure>
-```
+- [x] `docs/ssot/context-lifecycle.md`
+  - [x] Clean up live SSoT wording now that enhanced reset is owned by epic `1.250.0`:
+    - [x] replace future-style wording such as “if enhanced reset is enabled by epic `1.250.0`”
+    - [x] use current runtime policy wording instead, for example:
+      - [x] “if enhanced reset is enabled”
+      - [x] or “when `foundation.reset.priority.enabled=true`”
 
-The operation segment MUST be singular. The measure suffix owns the metric kind
-or unit, for example `total` or `duration_ms`.
+- [x] `docs/ssot/stateful-services.md`
+  - [x] Clean up live SSoT wording now that enhanced reset is no longer future work:
+    - [x] replace “future enhanced reset implementation from epic `1.250.0`”
+    - [x] with “enhanced reset implementation details are owned by `docs/ssot/reset-tags.md`”
 
-Allowed reset metrics:
+- [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+  - [x] Preserve ADR-0014 historical context, but add a supersession / follow-up note:
+    - [x] ADR-0014 correctly described enhanced reset ordering as future/deferred work at the time of the `1.200.0` decision
+    - [x] enhanced reset planning and execution semantics are now materialized by epic `1.250.0`
+    - [x] canonical live policy is owned by `docs/ssot/reset-tags.md`
+    - [x] ADR-0019 records the enhanced reset decision
 
-| Metric name                  | Owner             | Type    | Labels    |
-|------------------------------|-------------------|---------|-----------|
-| foundation.reset_total       | `core/foundation` | counter | `outcome` |
-| foundation.reset_duration_ms | `core/foundation` | observe | `outcome` |
+- [x] `framework/tools/spikes/_support/ErrorCodes.php`
+  - [x] add `CORETSIA_OBSERVABILITY_SPAN_NAMING_DRIFT`
+  - [x] add `CORETSIA_OBSERVABILITY_SPAN_NAMING_GATE_FAILED`
+  - [x] add `CORETSIA_OBSERVABILITY_METRIC_CATALOG_DRIFT`
+  - [x] add `CORETSIA_OBSERVABILITY_METRIC_CATALOG_GATE_FAILED`
+  - [x] keep registry sorted output deterministic via `all()`
 
-Runtime metric names emitted through MeterPortInterface MUST exist in this catalog.
-Metric labels MUST satisfy both:
-1) global label allowlist
-2) metric-specific catalog row
+- [x] `composer.json` — add repo-root mirror scripts:
+  - [x] `observability-span-naming:gate` → `@composer --no-interaction --working-dir=framework run-script observability-span-naming:gate --`
+  - [x] `observability-metric-catalog:gate` → `@composer --no-interaction --working-dir=framework run-script observability-metric-catalog:gate --`
 
-- [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] align MeterPortInterface policy with canonical metrics catalog
-  - [ ] state that global label allowlist is necessary but not sufficient
-  - [ ] state that metric-specific catalog labels are authoritative
-  - [ ] state meter method compatibility with catalog type
+- [x] `framework/composer.json` — add workspace gate scripts:
+  - [x] `observability-span-naming:gate` → `@php tools/gates/observability_span_naming_gate.php`
+  - [x] `observability-metric-catalog:gate` → `@php tools/gates/observability_metric_catalog_gate.php`
+  - [x] keep observability gates ordered immediately after existing `@observability-naming:gate` in the aggregate `gates` script:
+    - [x] `@observability-span-naming:gate`
+    - [x] `@observability-metric-catalog:gate`
 
-- [ ] `docs/ssot/reset-tags.md`
-  - [ ] reference canonical metrics catalog in `docs/ssot/observability.md`
-  - [ ] list reset-specific observability usage without redefining catalog ownership
-  - [ ] remove/update “future enhanced reset” wording now owned by epic 1.250.0
-  - [ ] document enhanced reset config/meta/order/error semantics
-
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php`
-  - [ ] add `CORETSIA_OBSERVABILITY_CATALOG_DRIFT`
-  - [ ] add `CORETSIA_OBSERVABILITY_CATALOG_GATE_FAILED`
-  - [ ] keep registry sorted output deterministic via `all()`
-
-- [ ] `composer.json` — add repo-root mirror scripts (delegates to framework):
-  - [ ] `observability-catalog:gate` → `@composer --no-interaction --working-dir=framework run-script observability-catalog:gate --`
-
-- [ ] `framework/composer.json` — add workspace gate scripts:
-  - [ ] `observability-catalog:gate` → `@php tools/gates/observability_catalog_gate.php`
-  - [ ] include it in the aggregate `gates` script/order
-
-- [ ] `docs/guides/commands.md`
-  - [ ] add `composer observability-catalog:gate`
-  - [ ] document deterministic read-only behavior
-  - [ ] document failure codes
-  - [ ] update `composer gates` / `composer ci` notes if aggregate gate order changes
-
-- [ ] `docs/ssot/profiling-ports.md`
-  - [ ] profiling implementations may emit bounded summary metrics only when metric names follow `observability.md` and label keys are allowlisted можна посилити до: metric names are registered in the canonical metrics catalog in `docs/ssot/observability.md`
+- [x] `docs/guides/commands.md`
+  - [x] add `composer observability-metric-catalog:gate`
+    - [x] document deterministic read-only behavior for metric catalog gate
+    - [x] document metric catalog failure codes
+    - [x] state that this gate is metrics-only
+    - [x] state that `MeterPortInterface` metric catalog membership, method/type compatibility, and metric-specific labels are validated by `composer observability-metric-catalog:gate`
+    - [x] state that span names are validated by `composer observability-span-naming:gate`
+    - [x] state that span names MUST NOT be registered in the canonical metrics catalog
+  - [x] add `composer observability-span-naming:gate`
+    - [x] document deterministic read-only behavior for span naming gate
+    - [x] document span naming failure codes
+    - [x] state that this gate is span-only
+    - [x] state that `TracerPortInterface::startSpan(...)` span names are validated by span naming policy, not by the metrics catalog
+    - [x] state that metric catalog policy remains owned by `composer observability-metric-catalog:gate`
+  - [x] update `composer gates` order
 
 #### Configuration (keys + defaults)
 
@@ -7126,6 +7205,7 @@ N/A
 
 - [x] Spans (noop-safe):
   - [x] `foundation.reset`
+    - [x] span name uses singular operation form `<domain>.<singular_operation>`
     - [x] attrs (single-choice; cemented): `services_count`, `groups_count`, `outcome`
 - [x] Metrics (noop-safe; MUST NOT add new label keys):
   - [x] `foundation.reset_total` (labels: `outcome`)
@@ -7157,16 +7237,16 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] Deterministic ordering with priority/group:
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
-- [ ] Group behavior:
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
-- [ ] Backward compat when disabled:
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
-- [ ] Deterministic invalid-meta rejection:
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
-- [ ] Locale independence:
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+- [x] Deterministic ordering with priority/group:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+- [x] Group behavior:
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+- [x] Backward compat when disabled:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+- [x] Deterministic invalid-meta rejection:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+- [x] Locale independence:
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
 - [x] Enhanced reset config shape lock:
   - [x] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
 
@@ -7178,32 +7258,34 @@ N/A
     - [x] asserts `foundation.reset.group.default` matches `/\A[a-z0-9][a-z0-9._-]*\z/`
     - [x] asserts invalid values fail deterministically with safe messages
 - Integration:
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
-  - [ ] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
-    - [ ] upgrades the `1.200.0` assertion from `RuntimeException(message="reset-not-resettable")`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+    - [x] upgrades the `1.200.0` assertion from `RuntimeException(message="reset-not-resettable")`
       to `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 
 ### DoD (MUST)
 
 - [x] Deterministic reset order (priority DESC, group ASC, serviceId ASC) when enabled
-- [ ] Backward compatible:
-  - [ ] when `foundation.reset.priority.enabled=false` → legacy order preserved exactly
-- [ ] Safe observability:
-  - [ ] spans/metrics/logs do not leak secrets/PII
-  - [ ] no new metric label keys introduced
-  - [ ] runtime metric names are registered in the canonical metrics catalog
-  - [ ] metric labels match metric-specific catalog rows
-- [ ] Deterministic error codes exist and are used (`ResetErrorCodes`)
-- [ ] Tests green
+- [x] Backward compatible:
+  - [x] when `foundation.reset.priority.enabled=false` → legacy order preserved exactly
+- [x] Safe observability:
+  - [x] spans/metrics/logs do not leak secrets/PII
+  - [x] no new metric label keys introduced
+  - [x] runtime span names emitted through `TracerPortInterface::startSpan(...)` follow canonical span naming policy
+  - [x] plural span operation drift such as `foundation.resets` is rejected
+  - [x] runtime metric names are registered in the canonical metrics catalog
+  - [x] metric labels match metric-specific catalog rows
+- [x] Deterministic error codes exist and are used (`ResetErrorCodes`)
+- [x] Tests green
 - [x] Out of scope:
   - [x] MUST NOT change `ResetInterface`
   - [x] MUST NOT introduce plugin systems/extensibility
 - [x] `docs/ssot/reset-tags.md` updated and aligned with implementation/tests
-- [ ] `ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` upgraded from `1.200.0` hard-fail-only behavior to typed `ResetException` behavior
+- [x] `ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` upgraded from `1.200.0` hard-fail-only behavior to typed `ResetException` behavior
 - [x] Enhanced reset order is implemented when `foundation.reset.priority.enabled=true`:
   - [x] `priority DESC`
   - [x] `group ASC`
@@ -7285,119 +7367,119 @@ Forbidden:
 
 #### Creates
 
-- [ ] `docs/ssot/runtime-drivers.md` — MUST include (single-choice; cemented):
-  - [ ] Terminology / IDs (single-choice):
-    - [ ] HTTP / background driver details (single-choice; cemented)
-      - [ ] `http.classic`
-        - [ ] Enabled when:
-          - [ ] `kernel.runtime.frankenphp.enabled=false`
-          - [ ] `kernel.runtime.swoole.enabled=false`
-          - [ ] `kernel.runtime.roadrunner.enabled=false`
-          - [ ] NOT (`worker.enabled=true && worker.task_type='http'`)
-        - [ ] Conflicts:
-          - [ ] none by itself
-        - [ ] May run alongside:
-          - [ ] `bg.worker_queue`
-      - [ ] `http.frankenphp`
-        - [ ] Enabled when:
-          - [ ] `kernel.runtime.frankenphp.enabled=true`
-        - [ ] Conflicts:
-          - [ ] any other `http.*` driver enabled at the same time
-          - [ ] `worker.enabled=true && worker.task_type='http'`
-        - [ ] May run alongside:
-          - [ ] `bg.worker_queue`
-        - [ ] Notes:
-          - [ ] artifact-only boot required (`module-manifest.php`, `config.php`, `container.php`, `routes.php`)
-          - [ ] UoW boundary must be enforced per request; reset exactly once per UoW via kernel runtime
-      - [ ] `http.swoole`
-        - [ ] Enabled when:
-          - [ ] `kernel.runtime.swoole.enabled=true`
-        - [ ] Conflicts:
-          - [ ] any other `http.*` driver enabled at the same time
-          - [ ] `worker.enabled=true && worker.task_type='http'`
-        - [ ] May run alongside:
-          - [ ] `bg.worker_queue`
-        - [ ] Notes:
-          - [ ] artifact-only boot required
-          - [ ] long-running loop must not leak context/state across requests
-      - [ ] `http.roadrunner`
-        - [ ] Enabled when:
-          - [ ] `kernel.runtime.roadrunner.enabled=true`
-        - [ ] Conflicts:
-          - [ ] any other `http.*` driver enabled at the same time
-          - [ ] `worker.enabled=true && worker.task_type='http'`
-        - [ ] May run alongside:
-          - [ ] `bg.worker_queue`
-        - [ ] Notes:
-          - [ ] artifact-only boot required
-          - [ ] long-running loop must not leak context/state across requests
-      - [ ] `http.worker`
-        - [ ] Enabled when:
-          - [ ] `worker.enabled=true && worker.task_type='http'`
-        - [ ] Conflicts:
-          - [ ] any other `http.*` driver enabled at the same time
-        - [ ] Notes:
-          - [ ] this is an HTTP runtime mode, not a background driver
-      - [ ] `bg.worker_queue`
-        - [ ] Enabled when:
-          - [ ] `worker.enabled=true && worker.task_type='queue'`
-        - [ ] Conflicts:
-          - [ ] none at the matrix level
-        - [ ] May run alongside:
-          - [ ] `http.classic`
-          - [ ] `http.frankenphp`
-          - [ ] `http.swoole`
-          - [ ] `http.roadrunner`
-        - [ ] Notes:
-          - [ ] this is a background driver, not an HTTP driver
-    - [ ] Reserved future IDs (NOT part of the current Phase 1 guard inputs):
-      - [ ] `bg.queue`
-      - [ ] `bg.scheduler`
-  - [ ] Hard rules (single-choice; MUST):
-    - [ ] Exactly ONE HTTP driver may be active at a time.
-    - [ ] Background drivers MAY run alongside any HTTP driver.
-    - [ ] `http.worker` conflicts with any other `http.*` driver (mutual exclusion).
-  - [ ] Default safety policy (single-choice):
-    - [ ] `kernel.runtime.*.enabled` defaults to `false`
-    - [ ] `worker.enabled` defaults to `false`
-    - [ ] `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
-  - [ ] Missing-key policy before `1.360.0` (single-choice):
-    - [ ] absence of `worker.enabled` MUST be treated as `false`
-    - [ ] absence of `worker.task_type` MUST NOT activate any runtime driver
-    - [ ] missing `worker.*` root by itself MUST NOT be treated as invalid config
-  - [ ] Compatibility matrix:
-    - [ ] MUST include an explicit table of ✅/❌ for:
-      - [ ] (each http.*) × (each bg.*)
-      - [ ] and (each pair of http.*) to show mutual exclusion
-    - [ ] MUST include concrete examples (copy-pastable) for:
-      - [ ] ✅ `http.roadrunner` + `bg.worker_queue`
-      - [ ] ✅ `http.swoole` + `bg.worker_queue`
-      - [ ] ✅ `http.frankenphp` + `bg.worker_queue`
-      - [ ] ✅ `http.classic` + `bg.worker_queue`
-      - [ ] ❌ `http.roadrunner` + `http.worker`
-      - [ ] ❌ `http.frankenphp` + `http.worker`
-      - [ ] ❌ `http.swoole` + `http.worker`
-  - [ ] Deterministic enforcement contract (doc-as-SSoT; single-choice):
-    - [ ] The guard MUST decide the active drivers by evaluating config keys only (no environment probing).
-    - [ ] On conflict, the guard MUST fail deterministically:
-      - [ ] deterministic error `CODE` (string) is the primary failure semantic
-      - [ ] diagnostics (if any) MUST be stable and sorted lexicographically (byte-order; `strcmp`) by driver id.
-    - [ ] Non-classic HTTP drivers (`http.frankenphp`, `http.swoole`, `http.roadrunner`, `http.worker`)
+- [x] `docs/ssot/runtime-drivers.md` — MUST include (single-choice; cemented):
+  - [x] Terminology / IDs (single-choice):
+    - [x] HTTP / background driver details (single-choice; cemented)
+      - [x] `http.classic`
+        - [x] Enabled when:
+          - [x] `kernel.runtime.frankenphp.enabled=false`
+          - [x] `kernel.runtime.swoole.enabled=false`
+          - [x] `kernel.runtime.roadrunner.enabled=false`
+          - [x] NOT (`worker.enabled=true && worker.task_type='http'`)
+        - [x] Conflicts:
+          - [x] none by itself
+        - [x] May run alongside:
+          - [x] `bg.worker_queue`
+      - [x] `http.frankenphp`
+        - [x] Enabled when:
+          - [x] `kernel.runtime.frankenphp.enabled=true`
+        - [x] Conflicts:
+          - [x] any other `http.*` driver enabled at the same time
+          - [x] `worker.enabled=true && worker.task_type='http'`
+        - [x] May run alongside:
+          - [x] `bg.worker_queue`
+        - [x] Notes:
+          - [x] artifact-only boot required (`module-manifest.php`, `config.php`, `container.php`, `routes.php`)
+          - [x] UoW boundary must be enforced per request; reset exactly once per UoW via kernel runtime
+      - [x] `http.swoole`
+        - [x] Enabled when:
+          - [x] `kernel.runtime.swoole.enabled=true`
+        - [x] Conflicts:
+          - [x] any other `http.*` driver enabled at the same time
+          - [x] `worker.enabled=true && worker.task_type='http'`
+        - [x] May run alongside:
+          - [x] `bg.worker_queue`
+        - [x] Notes:
+          - [x] artifact-only boot required
+          - [x] long-running loop must not leak context/state across requests
+      - [x] `http.roadrunner`
+        - [x] Enabled when:
+          - [x] `kernel.runtime.roadrunner.enabled=true`
+        - [x] Conflicts:
+          - [x] any other `http.*` driver enabled at the same time
+          - [x] `worker.enabled=true && worker.task_type='http'`
+        - [x] May run alongside:
+          - [x] `bg.worker_queue`
+        - [x] Notes:
+          - [x] artifact-only boot required
+          - [x] long-running loop must not leak context/state across requests
+      - [x] `http.worker`
+        - [x] Enabled when:
+          - [x] `worker.enabled=true && worker.task_type='http'`
+        - [x] Conflicts:
+          - [x] any other `http.*` driver enabled at the same time
+        - [x] Notes:
+          - [x] this is an HTTP runtime mode, not a background driver
+      - [x] `bg.worker_queue`
+        - [x] Enabled when:
+          - [x] `worker.enabled=true && worker.task_type='queue'`
+        - [x] Conflicts:
+          - [x] none at the matrix level
+        - [x] May run alongside:
+          - [x] `http.classic`
+          - [x] `http.frankenphp`
+          - [x] `http.swoole`
+          - [x] `http.roadrunner`
+        - [x] Notes:
+          - [x] this is a background driver, not an HTTP driver
+    - [x] Reserved future IDs (NOT part of the current Phase 1 guard inputs):
+      - [x] `bg.queue`
+      - [x] `bg.scheduler`
+  - [x] Hard rules (single-choice; MUST):
+    - [x] Exactly ONE HTTP driver may be active at a time.
+    - [x] Background drivers MAY run alongside any HTTP driver.
+    - [x] `http.worker` conflicts with any other `http.*` driver (mutual exclusion).
+  - [x] Default safety policy (single-choice):
+    - [x] `kernel.runtime.*.enabled` defaults to `false`
+    - [x] `worker.enabled` defaults to `false`
+    - [x] `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
+  - [x] Missing-key policy before `1.360.0` (single-choice):
+    - [x] absence of `worker.enabled` MUST be treated as `false`
+    - [x] absence of `worker.task_type` MUST NOT activate any runtime driver
+    - [x] missing `worker.*` root by itself MUST NOT be treated as invalid config
+  - [x] Compatibility matrix:
+    - [x] MUST include an explicit table of ✅/❌ for:
+      - [x] (each http.*) × (each bg.*)
+      - [x] and (each pair of http.*) to show mutual exclusion
+    - [x] MUST include concrete examples (copy-pastable) for:
+      - [x] ✅ `http.roadrunner` + `bg.worker_queue`
+      - [x] ✅ `http.swoole` + `bg.worker_queue`
+      - [x] ✅ `http.frankenphp` + `bg.worker_queue`
+      - [x] ✅ `http.classic` + `bg.worker_queue`
+      - [x] ❌ `http.roadrunner` + `http.worker`
+      - [x] ❌ `http.frankenphp` + `http.worker`
+      - [x] ❌ `http.swoole` + `http.worker`
+  - [x] Deterministic enforcement contract (doc-as-SSoT; single-choice):
+    - [x] The guard MUST decide the active drivers by evaluating config keys only (no environment probing).
+    - [x] On conflict, the guard MUST fail deterministically:
+      - [x] deterministic error `CODE` (string) is the primary failure semantic
+      - [x] diagnostics (if any) MUST be stable and sorted lexicographically (byte-order; `strcmp`) by driver id.
+    - [x] Non-classic HTTP drivers (`http.frankenphp`, `http.swoole`, `http.roadrunner`, `http.worker`)
       require `platform.http` to be enabled in `ModulePlan`.
-    - [ ] Missing required module for the selected HTTP driver MUST fail with:
-      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-  - [ ] Error codes (single-choice; cemented names in doc):
-    - [ ] The doc MUST name the canonical guard error codes used for matrix violations (no free-form messages):
-      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
-      - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-    - [ ] The guard MAY include minimal safe diagnostics (driver ids only), but MUST NOT include secrets/PII.
-  - [ ] References to enforcement tests (required):
-    - [ ] MUST reference the exact test paths that prove default + conflict behavior.
+    - [x] Missing required module for the selected HTTP driver MUST fail with:
+      - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+  - [x] Error codes (single-choice; cemented names in doc):
+    - [x] The doc MUST name the canonical guard error codes used for matrix violations (no free-form messages):
+      - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+      - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+    - [x] The guard MAY include minimal safe diagnostics (driver ids only), but MUST NOT include secrets/PII.
+  - [x] References to enforcement tests (required):
+    - [x] MUST reference the exact test paths that prove default + conflict behavior.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/runtime-drivers.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/runtime-drivers.md`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -7405,25 +7487,25 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] N/A (doc-only), but MUST reference enforcement tests (exact paths):
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
+- [x] N/A (doc-only), but MUST reference enforcement tests (exact paths):
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
 
 ### Tests (MUST)
 
 - Unit/Contract/Integration:
   - N/A
 - Gates/Arch:
-  - [ ] enforced by guard + tool tests (referenced)
+  - [x] enforced by guard + tool tests (referenced)
 
 ### DoD (MUST)
 
-- [ ] Док існує і узгоджений з guard правилами (SSoT)
-- [ ] Док однозначний (single-choice; no “either/or”)
-- [ ] Док посилається на відповідні конфіг ключі `kernel.runtime.*.enabled` і `worker.*`
-- [ ] Док містить compatibility matrix + concrete examples
-- [ ] Док фіксує deterministic enforcement contract (stable code + stable diagnostics ordering)
-- [ ] Док посилається на E2E тест-матрицю (tooling integration tests)
+- [x] Док існує і узгоджений з guard правилами (SSoT)
+- [x] Док однозначний (single-choice; no “either/or”)
+- [x] Док посилається на відповідні конфіг ключі `kernel.runtime.*.enabled` і `worker.*`
+- [x] Док містить compatibility matrix + concrete examples
+- [x] Док фіксує deterministic enforcement contract (stable code + stable diagnostics ordering)
+- [x] Док посилається на E2E тест-матрицю (tooling integration tests)
 
 ---
 

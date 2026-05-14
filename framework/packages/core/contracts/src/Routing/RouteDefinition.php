@@ -351,7 +351,7 @@ final readonly class RouteDefinition
                 throw new \InvalidArgumentException('Invalid route definition map key at ' . $path . '.');
             }
 
-            $out[$key] = self::normalizeJsonLikeValue($value, $path . \chr(46) . $key);
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
         ksort($out, \SORT_STRING);

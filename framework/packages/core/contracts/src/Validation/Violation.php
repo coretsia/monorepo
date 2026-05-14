@@ -278,18 +278,18 @@ final readonly class Violation
 
         foreach ($map as $key => $value) {
             if (!is_string($key)) {
-                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path);
+                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path . '.');
             }
 
             if ($key === '') {
-                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path);
+                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path . '.');
             }
 
             if (!self::isSafeSingleLineString($key)) {
-                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path);
+                throw new \InvalidArgumentException('Invalid validation violation meta key at ' . $path . '.');
             }
 
-            $out[$key] = self::normalizeJsonLikeValue($value, $path . \chr(46) . $key);
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
         ksort($out, \SORT_STRING);
@@ -306,14 +306,14 @@ final readonly class Violation
 
         if (is_string($value)) {
             if (!self::isSafeString($value)) {
-                throw new \InvalidArgumentException('Invalid validation violation meta string at ' . $path);
+                throw new \InvalidArgumentException('Invalid validation violation meta string at ' . $path . '.');
             }
 
             return $value;
         }
 
         if (is_float($value)) {
-            throw new \InvalidArgumentException('Invalid float validation violation meta at ' . $path);
+            throw new \InvalidArgumentException('Invalid float validation violation meta at ' . $path . '.');
         }
 
         if (is_array($value)) {
@@ -330,7 +330,7 @@ final readonly class Violation
             return self::normalizeJsonLikeMap($value, $path);
         }
 
-        throw new \InvalidArgumentException('Invalid validation violation meta at ' . $path);
+        throw new \InvalidArgumentException('Invalid validation violation meta at ' . $path . '.');
     }
 
     private static function isSafeSingleLineString(string $value): bool

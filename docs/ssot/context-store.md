@@ -940,7 +940,7 @@ This SSoT does not define:
 - [Context Keys SSoT](./context-keys.md)
 - [Config and env SSoT](./config-and-env.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)

@@ -63,7 +63,25 @@ foundation.reset.group.default
 
 It owns the reset-specific deterministic failure mapping introduced by `1.250.0`.
 
-It owns the reset-specific summary observability signal names introduced by `1.250.0`.
+It owns reset-specific observability usage introduced by `1.250.0`.
+
+It does not own the canonical span naming policy, canonical metrics catalog, metric-specific catalog labels, or the global observability label allowlist. Those are owned by:
+
+```text
+docs/ssot/observability.md
+```
+
+Reset-specific observability usage is:
+
+```text
+span name: foundation.reset
+metrics: foundation.reset_total, foundation.reset_duration_ms
+metric labels: outcome
+```
+
+The reset span name is validated by canonical span naming policy.
+
+Reset metric names and metric-specific labels are registered in the canonical metrics catalog.
 
 It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, and tag naming rules are owned by:
 
@@ -95,12 +113,6 @@ It does not own ContextStore safe-write policy or value validation. That is owne
 
 ```text
 docs/ssot/context-store.md
-```
-
-It does not own the global observability label allowlist. That is owned by:
-
-```text
-docs/ssot/observability.md
 ```
 
 It does not own concrete implementation internals of:
@@ -913,10 +925,18 @@ Foundation reset MUST NOT require new production observability classes when exis
 
 Tests SHOULD use in-test fake tracer, meter, and logger implementations with safe captured events.
 
-Enhanced reset span name:
+Reset-specific observability usage is summary-only.
+
+Reset span name:
 
 ```text
 foundation.reset
+```
+
+The reset span name is validated by canonical span naming policy in:
+
+```text
+docs/ssot/observability.md
 ```
 
 Allowed span attributes:
@@ -927,14 +947,20 @@ groups_count
 outcome
 ```
 
-Enhanced reset metric names:
+Reset metric names:
 
 ```text
 foundation.reset_total
 foundation.reset_duration_ms
 ```
 
-Allowed metric labels:
+Reset metric names and metric-specific labels are owned by the canonical metrics catalog in:
+
+```text
+docs/ssot/observability.md
+```
+
+Allowed reset metric labels:
 
 ```text
 outcome
@@ -1001,8 +1027,14 @@ Expected enforcement rails include:
 
 ```text
 framework/tools/gates/cross_cutting_contract_gate.php
+framework/tools/gates/observability_span_naming_gate.php
+framework/tools/gates/observability_metric_catalog_gate.php
 phpstan rule: kernel.stateful ⇒ implements ResetInterface
 ```
+
+`observability_span_naming_gate.php` validates reset span naming policy for `foundation.reset`.
+
+`observability_metric_catalog_gate.php` validates that reset metric emissions use names and metric-specific labels registered in the canonical metrics catalog.
 
 CI MUST fail if a service is tagged:
 
@@ -1048,6 +1080,7 @@ framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhe
 framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
 framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
 framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php
 framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
 ```
 
@@ -1075,7 +1108,10 @@ Verification MUST prove:
 - first reset service failure stops further processing;
 - service failure surfaces `CORETSIA_RESET_SERVICE_FAILED`;
 - enhanced reset emits summary-only observability with safe labels/attributes;
+- enhanced reset observability does not emit service ids, tag meta payloads, raw service payloads, or raw exception text through span attributes, metric labels, or log context;
 - no new metric label keys are introduced;
+- reset span name `foundation.reset` follows canonical span naming policy;
+- reset metric names and metric-specific labels are registered in the canonical metrics catalog in `docs/ssot/observability.md`;
 - `foundation.reset.group.default` config shape matches runtime group meta shape;
 - `foundation.reset.enabled` is not introduced;
 - `foundation.reset.observability.enabled` is not introduced.
@@ -1119,6 +1155,12 @@ Normalized group ids MAY be used for ordering and group-count calculation.
 Normalized group ids MUST NOT be emitted as metric labels by enhanced reset.
 
 Metric labels MUST remain governed by the canonical observability SSoTs.
+
+Reset metric names and metric-specific labels MUST remain registered in the canonical metrics catalog in:
+
+```text
+docs/ssot/observability.md
+```
 
 Enhanced reset MUST NOT introduce metric label keys beyond:
 
@@ -1429,7 +1471,7 @@ This SSoT does not define:
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
 - [Context Store SSoT](./context-store.md)
-- [Observability Naming and Labels Allowlist](./observability.md)
+- [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

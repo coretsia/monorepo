@@ -113,15 +113,15 @@ final readonly class ErrorHandlingContext
         }
 
         if ($value === '') {
-            throw new \InvalidArgumentException('Invalid error handling context ' . $field);
+            throw new \InvalidArgumentException('Invalid error handling context ' . $field . '.');
         }
 
         if (preg_match('/^\s|\s$/', $value) === 1) {
-            throw new \InvalidArgumentException('Invalid error handling context ' . $field);
+            throw new \InvalidArgumentException('Invalid error handling context ' . $field . '.');
         }
 
         if (!self::isSafeSingleLineString($value)) {
-            throw new \InvalidArgumentException('Invalid error handling context ' . $field);
+            throw new \InvalidArgumentException('Invalid error handling context ' . $field . '.');
         }
 
         return $value;
@@ -155,18 +155,18 @@ final readonly class ErrorHandlingContext
 
         foreach ($map as $key => $value) {
             if (!is_string($key)) {
-                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path . '.');
             }
 
             if ($key === '') {
-                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path . '.');
             }
 
             if (!self::isSafeSingleLineString($key)) {
-                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path);
+                throw new \InvalidArgumentException('Invalid error handling context metadata key at ' . $path . '.');
             }
 
-            $out[$key] = self::normalizeJsonLikeValue($value, $path . \chr(46) . $key);
+            $out[$key] = self::normalizeJsonLikeValue($value, $path . '.' . $key);
         }
 
         ksort($out, \SORT_STRING);
@@ -183,14 +183,14 @@ final readonly class ErrorHandlingContext
 
         if (is_string($value)) {
             if (!self::isSafeString($value)) {
-                throw new \InvalidArgumentException('Invalid error handling context metadata string at ' . $path);
+                throw new \InvalidArgumentException('Invalid error handling context metadata string at ' . $path . '.');
             }
 
             return $value;
         }
 
         if (is_float($value)) {
-            throw new \InvalidArgumentException('Invalid float error handling context metadata at ' . $path);
+            throw new \InvalidArgumentException('Invalid float error handling context metadata at ' . $path . '.');
         }
 
         if (is_array($value)) {
@@ -207,7 +207,7 @@ final readonly class ErrorHandlingContext
             return self::normalizeJsonLikeMap($value, $path);
         }
 
-        throw new \InvalidArgumentException('Invalid error handling context metadata at ' . $path);
+        throw new \InvalidArgumentException('Invalid error handling context metadata at ' . $path . '.');
     }
 
     private static function isSafeSingleLineString(string $value): bool

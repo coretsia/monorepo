@@ -39,7 +39,7 @@ This document fixes the **canonical** commands/entrypoints that actually exist i
   - determinism policy (deterministic vs nondeterministic modes),
   - usage examples.
 - If a command has a mode/flag that makes output **nondeterministic**, that mode **MUST** be marked as **NONDETERMINISTIC** and **MUST NOT** be used in CI rails / rerun-no-diff workflows.
-- Documentation/examples **MUST** avoid “non-existent” entrypoints for the current context (for example, do not reference `./dev/**` in Prelude).
+- Documentation/examples **MUST** avoid “non-existent” entrypoints for the current context (for example, do not reference non-existent `./dev/**` entrypoints).
 - If a command has an **alias** (for example, `composer ...` as a proxy to `coretsia ...`), the document **MUST** explicitly state:
   - which entrypoint is **canonical**, and which one is **alias/compat**, and **MUST** guarantee behavior equivalence (semantics/outputs) in deterministic mode.
 - When an entrypoint is **migrated** (the canonical one changes), the previous canonical entrypoint **SHOULD** remain as a **compat alias** for at least 1 epic/phase (or until the next cutline), and **MUST** be marked as `DEPRECATED` with a “remove-after” milestone.
@@ -411,7 +411,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Validates tracked lockfiles are unchanged after installs. |
 
 **Notes:**
-- Tracked lockfiles (Prelude workflow invariant):
+- Tracked lockfiles:
   - `composer.lock`
   - `framework/composer.lock`
   - `skeleton/composer.lock`

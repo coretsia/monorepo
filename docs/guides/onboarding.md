@@ -12,11 +12,12 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Developer onboarding (Prelude)
+# Developer onboarding
 
 This is a **checklist** to get from zero → productive contributor with the canonical workflows.
 
-**Scope:** Prelude. Commands are assumed to run from the **repository root**.  
+**Scope:** Current monorepo development baseline. Commands are assumed to run from the **repository root**.
+
 **Hard rule:** docs/workflows MUST NOT rely on `./dev/**`.
 
 ---
@@ -96,7 +97,8 @@ If baseline is not green, stop and fix it before making changes.
 - [ ] If drift happens, fix via the canonical tool:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php
+composer sync:repos
+composer sync:check
 ```
 
 Pre-commit enforces drift checks and MUST block commits on mismatch.
@@ -132,19 +134,19 @@ Other docs MAY provide explanations, but MUST NOT claim dependency truth.
 
 ---
 
-## 7) Spikes boundary (Prelude awareness)
+## 7) Spikes boundary
 
 If you touch spikes/tooling:
 
 - [ ] Spikes live only under `framework/tools/spikes/**`.
 - [ ] Spikes MUST NOT import runtime packages (`core/*`, `platform/*`, `integrations/*`) via `Coretsia\*` APIs.
-- [ ] Any shared deterministic primitives belong only in `coretsia/internal-toolkit` and are consumed via Composer autoload.
+- [ ] Any shared deterministic primitives belong only in `coretsia/devtools-internal-toolkit` and are consumed via Composer autoload.
 
 ---
 
 ## 8) What to read next (minimum set)
 
-- [ ] `docs/roadmap/ROADMAP.md` (Prelude canonical rules)
+- [ ] `docs/roadmap/ROADMAP.md` (canonical roadmap and implementation phases)
 - [ ] `docs/guides/git-hooks.md` (hooks + managed repos workflow)
 - [ ] `docs/guides/dependency-graph.md` (conceptual model)
 - [ ] `docs/ssot/INDEX.md` (SSoT registry entrypoint)

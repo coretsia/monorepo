@@ -47,7 +47,8 @@ Coretsia/
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
-│   │   └── STRUCTURE.md
+│   │   ├── STRUCTURE.md
+│   │   └── WEBSITE.md
 │   ├── assets/
 │   │   └── branding/
 │   │       ├── favicon/

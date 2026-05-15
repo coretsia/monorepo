@@ -106,7 +106,7 @@ composer arch:package-index:generate       # regenerate package index
 composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac artifacts
 ```
 
-If package scaffold, package compliance, `new-package.php`, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `framework/packages/*/*` structure changed:
+If package scaffold, `composer package:new`, package compliance, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `framework/packages/*/*` structure changed:
 
 ```bash
 composer package-scaffold:check -- framework       # read-only scaffold/legal drift check

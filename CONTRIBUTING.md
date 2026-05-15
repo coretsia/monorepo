@@ -29,6 +29,21 @@ This repository is **SSoT-first**, **deterministic-by-default**, and **boundary-
 - If a change introduces/modifies a deliverable set for a phase/epic, you **MUST** update the roadmap under `docs/roadmap/**`.
 - Compile-time dependencies **MUST** remain deptrac-enforceable. Avoid cross-layer coupling by design (no “it’s convenient” exceptions).
 
+## Community RFCs and design proposals
+
+Non-code proposals, design direction, website ideas, branding applications, documentation experience, and community-facing concepts should start as GitHub Discussions before implementation work.
+
+Current website-related design work is tracked through:
+
+- [Website architecture draft](docs/architecture/WEBSITE.md)
+- [Website design RFC](https://github.com/coretsia/monorepo/discussions/51)
+
+Branding-related proposals must align with:
+
+- [Branding specification](docs/architecture/BRANDING.md)
+
+Implementation pull requests that follow from an accepted discussion should link the relevant Discussion in the PR description.
+
 ## Packaging law (MUST)
 
 - Packages **MUST** live at: `framework/packages/<layer>/<slug>/`
@@ -62,8 +77,8 @@ composer ci
 Single source of truth tool:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php --check
-php framework/tools/build/sync_composer_repositories.php
+composer sync:check
+composer sync:repos
 ```
 
 Policy (MUST):
@@ -101,13 +116,9 @@ CI-like run:
 composer ci
 ```
 
-Typical CI rails include (by roadmap):
+For the complete canonical command catalog and rail composition, see:
 
-- deterministic gates (Phase 0 output policy)
-- arch (deptrac generate + analyze; rerun-no-diff)
-- unit + contract tests
-- integration suites (fast/slow where applicable)
-- determinism suites (Linux + Windows where relevant)
+- [Command catalog](docs/guides/commands.md)
 
 ## Spikes boundary (Phase 0, MUST)
 
@@ -152,7 +163,7 @@ Rules (summary):
 
 - Version source of truth is the monorepo git tag: `vMAJOR.MINOR.PATCH`.
 - Release notes source is `CHANGELOG.md` (must contain `## vMAJOR.MINOR.PATCH` section).
-- Publishing is source-only in Phase 0 (no built artifacts).
+- Publishing is source-only for current development release lines (no built artifacts).
 - Packagist publishing must be automatic via GitHub integration (no manual “Update” step for normal releases).
 
 ## Commit messages (MUST)

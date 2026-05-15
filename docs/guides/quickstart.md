@@ -12,11 +12,11 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Quickstart (Prelude)
+# Quickstart
 
 **Goal:** clean clone → working baseline (tests green, CI entrypoints runnable).
 
-**Scope:** Prelude. Commands are assumed to run from the **repository root**.
+**Scope:** Current monorepo development baseline. Commands are assumed to run from the **repository root**.
 
 ---
 
@@ -102,7 +102,8 @@ Symptom: commit blocked, hook exits non-zero after running the managed repositor
 Fix:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php
+composer sync:repos
+composer sync:check
 git add composer.json framework/composer.json skeleton/composer.json
 git commit
 ```

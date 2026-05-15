@@ -12,13 +12,15 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Development workflow (Prelude → Phase 0)
+# Development workflow
 
 **Goal:** a newcomer can follow a canonical workflow **from a clean clone** without manually editing Composer `repositories`.
 
-**Scope:** Prelude (after `PRELUDE.30.0`).  
-**Hard invariant:** commands are assumed to run from the **repository root** unless explicitly stated otherwise.  
-**Hard rule:** Prelude docs/workflows **MUST NOT** rely on `./dev/**`.
+**Scope:** Current monorepo development baseline.
+
+**Hard invariant:** commands are assumed to run from the **repository root** unless explicitly stated otherwise.
+
+**Hard rule:** documented workflows **MUST NOT** rely on `./dev/**`.
 
 ---
 
@@ -27,7 +29,7 @@
 - Quickstart (clean clone → green baseline): `docs/guides/quickstart.md`
 - Onboarding checklist (what to install + baseline laws): `docs/guides/onboarding.md`
 - Canonical command catalog (SSoT): `docs/guides/commands.md`
-- Git hooks & managed repositories policy (Prelude): `docs/guides/git-hooks.md`
+- Git hooks & managed repositories policy: `docs/guides/git-hooks.md`
 - Packaging / identity law: `docs/architecture/PACKAGING.md`
 
 ---
@@ -45,12 +47,11 @@
   - `framework/composer.json`
   - `skeleton/composer.json`
 
-- The canonical manager is:
-  - `php framework/tools/build/sync_composer_repositories.php`
-
-- The canonical entrypoints are:
+- The canonical repo-root entrypoints are:
   - `composer sync:repos` (apply)
   - `composer sync:check` (check, CI/guard)
+
+The underlying implementation is documented in the command catalog.
 
 See: `docs/guides/git-hooks.md`.
 
@@ -89,7 +90,7 @@ If `composer ci` is not green, stop and fix baseline first.
 
 ## 3) Day-to-day loop (canonical)
 
-This is the default contributor loop for Prelude / early Phase 0.
+This is the default contributor loop for the current monorepo development baseline.
 
 ### 3.1 Start-of-work check
 
@@ -144,7 +145,7 @@ This workflow creates a new publishable unit under `framework/packages/<layer>/<
 From repo root:
 
 ```bash
-php framework/tools/build/new-package.php --layer=<layer> --slug=<slug>
+composer package:new -- --layer=<layer> --slug=<slug>
 ```
 
 This tool is the canonical entrypoint for scaffolding.
@@ -159,8 +160,7 @@ Verify the package matches the packaging law:
 
 ### 4.4 Sync repositories (optional, safe; rerun-no-diff)
 
-You normally do **not** need this for package creation alone (glob repos already cover packages),
-but it is always safe to rerun:
+You normally do **not** need this for package creation alone (glob repos already cover packages), but it is always safe to rerun:
 
 ```bash
 composer sync:repos
@@ -168,23 +168,16 @@ composer sync:repos
 
 ### 4.5 If you added/changed dependencies (MUST follow lock policy)
 
-If you need to add a Composer dependency in a specific root, do it from repo root using `--working-dir`:
+Dependency changes must be intentional and must update the relevant lockfiles.
 
-- framework workspace:
+For canonical install/update/check commands, see:
 
-```bash
-composer --working-dir=framework require vendor/package
-```
+- `docs/guides/commands.md`
 
-- skeleton workspace:
+After dependency changes, run:
 
 ```bash
-composer --working-dir=skeleton require vendor/package
-```
-
-Then commit updated lockfiles and confirm rails:
-
-```bash
+composer install:all
 composer ci
 ```
 
@@ -197,7 +190,8 @@ composer ci
 Fix (repo root):
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php
+composer sync:repos
+composer sync:check
 git add composer.json framework/composer.json skeleton/composer.json
 git commit
 ```
@@ -234,7 +228,7 @@ composer ci
 
 ---
 
-## 6) Canonical command entrypoints (Prelude)
+## 6) Canonical command entrypoints
 
 This doc intentionally stays minimal. The authoritative catalog is:
 
@@ -248,16 +242,23 @@ Minimum set you will use constantly:
 - `composer sync:repos`
 - `composer sync:check`
 
-**Invariant reminder:** these commands are anchored in the repo root and are the canonical workflow surface in Prelude.
+**Invariant reminder:** these commands are anchored in the repo root.
 
 ---
 
-## 7) Forward references (explicitly NOT in Prelude)
+## 7) Additional verification rails
 
-The following workflows may appear later (Phase 0/1+), but are **not** part of this Prelude workflow doc:
+The current repository baseline includes additional repo-root verification rails that should be used when relevant:
 
-- dependency analysis / arch rails (e.g., dep graph enforcement),
-- package compliance gates,
-- any `./dev/**` tooling entrypoints.
+- `composer arch`
+- `composer gates`
+- `composer dto:gate`
+- `composer quality`
+- `composer package-compliance:gate`
+- `composer package-scaffold:check -- framework`
+- `composer spike:test`
+- `composer spike:test:determinism`
 
-When such tooling is introduced, it MUST be added to `docs/guides/commands.md` and then referenced from guides.
+For the complete canonical command catalog, see:
+
+- `docs/guides/commands.md`

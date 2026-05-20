@@ -26,7 +26,7 @@ final class NewPackageWorkflow
 {
     private const string REL_FRAMEWORK_ROOT = 'framework';
     private const string REL_SKELETON_ROOT = 'skeleton';
-
+    private const string REL_RELEASE_LINE_JSON = 'framework/tools/release/release-line.json';
     private const string REL_FRAMEWORK_COMPOSER_JSON = 'framework/composer.json';
     private const string REL_SKELETON_COMPOSER_JSON = 'skeleton/composer.json';
 
@@ -159,8 +159,13 @@ final class NewPackageWorkflow
 
         $frameworkComposer = self::joinPath($workspaceRoot, self::REL_FRAMEWORK_COMPOSER_JSON);
         $skeletonComposer = self::joinPath($workspaceRoot, self::REL_SKELETON_COMPOSER_JSON);
+        $releaseLineJson = self::joinPath($workspaceRoot, self::REL_RELEASE_LINE_JSON);
 
         if (!\is_file($frameworkComposer) || !\is_file($skeletonComposer)) {
+            self::fail(ErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID);
+        }
+
+        if (!\is_file($releaseLineJson)) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID);
         }
 
@@ -188,6 +193,14 @@ final class NewPackageWorkflow
         self::copyFileExact(
             self::joinPath($workspaceRoot, self::REL_SKELETON_COMPOSER_JSON),
             self::joinPath($tmpRoot, self::REL_SKELETON_COMPOSER_JSON),
+        );
+
+        // Copy release-line SSoT required by ComposerRepositoriesSync on the staging workspace.
+        self::ensureDir(self::joinPath($tmpRoot, 'framework/tools/release'));
+
+        self::copyFileExact(
+            self::joinPath($workspaceRoot, self::REL_RELEASE_LINE_JSON),
+            self::joinPath($tmpRoot, self::REL_RELEASE_LINE_JSON),
         );
 
         // Copy framework/packages tree (exact bytes; deterministic traversal).

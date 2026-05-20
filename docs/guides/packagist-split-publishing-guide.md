@@ -184,13 +184,27 @@ vMAJOR.MINOR.PATCH
 
 Per-package independent versions are forbidden.
 
-Inside the monorepo development workspace, local path packages may continue using branch constraints such as:
+The monorepo development workspace resolves local package changes through Composer path repositories.
 
-```json
-"coretsia/<layer>-<slug>": "dev-main"
+Workspace path repositories use generated `options.versions` values from:
+
+```text
+framework/tools/release/release-line.json
 ```
 
-This is valid for monorepo-local development because the workspace uses path repositories.
+For release line `0.4`, workspace package versions use:
+
+```text
+0.4.x-dev
+```
+
+Example workspace-local internal package constraint:
+
+```json
+"coretsia/<layer>-<slug>": "0.4.x-dev"
+```
+
+This is valid for monorepo-local development because the workspace uses path repositories with symlinks and generated path repository versions.
 
 Public installation instructions MUST use stable tag constraints after the package is published.
 
@@ -202,11 +216,21 @@ Template:
 composer require coretsia/<layer>-<slug>:^MAJOR.MINOR
 ```
 
-Published package dependencies MUST NOT use `dev-main` in public `require` sections. Use SemVer constraints instead:
+Published package dependencies MUST NOT use `dev-main` in public `require` or `require-dev` sections.
+
+Published package dependencies MUST use the release-line public SemVer constraint generated from:
+
+```text
+framework/tools/release/release-line.json
+```
+
+For release line `0.4`, internal public package dependencies use:
 
 ```json
-"coretsia/<dependency-layer>-<dependency-slug>": "^MAJOR.MINOR"
+"coretsia/<dependency-layer>-<dependency-slug>": "^0.4.0"
 ```
+
+Package `composer.json` files MUST NOT contain a manual `version` field.
 
 ## One-time bootstrap for a new split package
 
@@ -225,12 +249,22 @@ perform:
 2. Create public empty split repository: coretsia/<layer>-<slug>.
 3. Add the split repository to the Coretsia split publisher GitHub App selected repositories list.
 4. Verify the GitHub App has Contents: Read and write for the selected split repository.
-5. Add the package to `.github/split-publish-packages.json`.
-6. Merge the allowlist change to monorepo main.
-7. Verify the split repository root contains package files and composer.json.
-8. Submit the split repository URL to Packagist once.
-9. Verify the Packagist package page points to the split repository and receives split repository updates.
-10. Release through the canonical monorepo release procedure in `docs/guides/releasing.md`.
+5. Ensure package composer metadata is Packagist-safe:
+   - no package-local composer.json version field;
+   - no internal coretsia/* dependency uses dev-main;
+   - no internal coretsia/* dependency uses *;
+   - no internal coretsia/* dependency uses @dev;
+   - no internal coretsia/* dependency uses an exact SemVer pin;
+   - internal coretsia/* dependencies use the release-line publicConstraint.
+6. Run composer release-line:public-constraints:sync.
+7. Run composer release-line:public-constraints:check.
+8. Run composer package-publish-safety:gate.
+9. Add the package to .github/split-publish-packages.json.
+10. Merge the allowlist change to monorepo main.
+11. Verify the split repository root contains package files and composer.json.
+12. Submit the split repository URL to Packagist once.
+13. Verify the Packagist package page points to the split repository and receives split repository updates.
+14. Release through the canonical monorepo release procedure in docs/guides/releasing.md.
 ```
 
 The publish allowlist entry MUST use this shape:
@@ -616,7 +650,11 @@ Manual Packagist Update may be used only as troubleshooting evidence, not as the
 - GitHub App authentication material is stored once in the monorepo Actions variable/secret pair.
 - First Packagist package submission is a one-time bootstrap action.
 - Normal package updates/releases must be automatic through GitHub integration.
-- Monorepo dev workspace may use dev-main path dependencies.
+- Monorepo dev workspace uses path repositories with generated release-line options.versions.
+- Monorepo workspace internal coretsia/* dev constraints use release-line devVersion, for example 0.4.x-dev.
+- Published and allowlisted package composer.json files must not contain manual version fields.
+- Published and allowlisted package internal coretsia/* dependencies must not use dev-main.
+- Published and allowlisted package internal coretsia/* dependencies must use release-line publicConstraint, for example ^0.4.0.
 - Public packages and docs must use stable SemVer constraints.
 - Feature branch pushes do not publish packages.
 - Squash merge to main updates split main.

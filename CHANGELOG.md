@@ -47,6 +47,42 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.4.0
+
+### Added
+
+- Publish-ready `coretsia/core-foundation` package as the first runtime split package with Packagist-safe internal dependency constraints.
+- Release-line SSoT at `framework/tools/release/release-line.json` for:
+  - current release minor;
+  - Composer workspace dev version;
+  - public internal package dependency constraint.
+- Release-line workspace synchronization commands:
+  - `composer release-line:workspace:sync`;
+  - `composer release-line:workspace:check`.
+- Release-line package public constraint synchronization commands:
+  - `composer release-line:public-constraints:sync`;
+  - `composer release-line:public-constraints:check`.
+- Packagist publish-safety gate:
+  - `composer package-publish-safety:gate`.
+- Generated Composer path repository `options.versions` for all discovered workspace packages.
+- Split publishing allowlist coverage for:
+  - `framework/packages/core/foundation` -> `coretsia/core-foundation`.
+
+### Changed
+
+- Managed Composer repository synchronization now derives package path repository versions from release-line `devVersion`.
+- Framework workspace internal `coretsia/*` `require-dev` constraints are synchronized to release-line `devVersion`.
+- Package `composer.json` internal `coretsia/*` dependency constraints are synchronized to release-line `publicConstraint`.
+- `composer setup` now applies release-line workspace and package public constraint synchronization before installs.
+- `composer ci` now checks release-line workspace and package public constraint drift before installs.
+- `composer gates` now includes the Packagist publish-safety gate.
+- Packaging and release documentation now define release-line package policy, Packagist-safe internal constraints, and tag-derived package versions.
+
+### Fixed
+
+- Stabilized workspace Composer repository fixtures and tests so release-line-driven package versions do not require hardcoded `0.4.x-dev` expectations.
+- Fixed managed Composer repository synchronization tests to account for release-line metadata and fixture-local release-line data.
+
 ## v0.3.0
 
 ### Added

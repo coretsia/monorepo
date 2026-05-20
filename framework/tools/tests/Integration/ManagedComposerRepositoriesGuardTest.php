@@ -265,6 +265,7 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
         $sandbox = $tmpBase . '/coretsia-workspace-fixture-' . bin2hex(random_bytes(8));
 
         $this->copyDir($fixtureRoot, $sandbox);
+        $this->removeDir($sandbox . '/framework/var');
 
         self::assertFileExists($sandbox . '/composer.json');
         self::assertFileExists($sandbox . '/framework/composer.json');

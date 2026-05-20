@@ -11,20 +11,27 @@
       "url": "https://repo.packagist.org"
     },
     {
-      "url": "framework\\packages\\*\\*",
-      "coretsia_managed": true,
       "type": "path",
-      "options": {
-        "symlink": true
-      }
-    },
-    {
-      "coretsia_managed": true,
+      "url": "framework",
       "options": {
         "symlink": true
       },
-      "url": "framework",
-      "type": "path"
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "framework/packages/*/*",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/core-contracts": "0.4.x-dev",
+          "coretsia/core-kernel": "0.4.x-dev",
+          "coretsia/devtools-internal-toolkit": "0.4.x-dev",
+          "coretsia/platform-cli": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
     },
     {
       "type": "path",

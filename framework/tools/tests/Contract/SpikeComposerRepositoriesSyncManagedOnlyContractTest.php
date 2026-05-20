@@ -77,7 +77,11 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
         $this->writeJson($rootComposer, $composer);
 
         [$checkCode, $checkOutput] = $this->runWorkspaceSync($sandbox, ['--check']);
-        self::assertNotSame(0, $checkCode, "Expected managed repositories drift to be detected.\nOutput:\n" . $checkOutput);
+        self::assertNotSame(
+            0,
+            $checkCode,
+            "Expected managed repositories drift to be detected.\nOutput:\n" . $checkOutput
+        );
         self::assertStringContainsString('CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC', $checkOutput);
 
         [$applyCode, $applyOutput] = $this->runWorkspaceSync($sandbox, []);
@@ -109,11 +113,13 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
             'Sync must preserve all unmanaged repositories in deterministic order.',
         );
 
-        self::assertSame($this->expectedRootManagedRepositories(), $managed);
+        self::assertSame($this->expectedRootManagedRepositories($sandbox), $managed);
     }
 
     /**
+     * @param string $path
      * @return array<string,mixed>
+     * @throws \JsonException
      */
     private function readComposerJson(string $path): array
     {
@@ -129,7 +135,7 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
     /**
      * @return list<array<string,mixed>>
      */
-    private function expectedRootManagedRepositories(): array
+    private function expectedRootManagedRepositories(string $sandbox): array
     {
         return [
             [
@@ -145,6 +151,8 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
                 'url' => 'framework/packages/*/*',
                 'options' => [
                     'symlink' => true,
+                    'reference' => 'config',
+                    'versions' => $this->expectedWorkspacePackageVersions($sandbox),
                 ],
                 'coretsia_managed' => true,
             ],
@@ -157,5 +165,49 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
                 'coretsia_managed' => true,
             ],
         ];
+    }
+
+    /**
+     * @param string $sandbox
+     * @return array<string,string>
+     * @throws \JsonException
+     */
+    private function expectedWorkspacePackageVersions(string $sandbox): array
+    {
+        $releaseLine = $this->readComposerJson($sandbox . '/framework/tools/release/release-line.json');
+        $devVersion = $releaseLine['devVersion'] ?? null;
+
+        if (!is_string($devVersion) || $devVersion === '') {
+            throw new RuntimeException('Invalid fixture release-line devVersion: ' . $sandbox);
+        }
+
+        $hits = glob($sandbox . '/framework/packages/*/*/composer.json', GLOB_NOSORT);
+        if ($hits === false) {
+            $hits = [];
+        }
+
+        $hits = array_values(array_filter($hits, static fn ($path): bool => is_string($path) && $path !== ''));
+        sort($hits, SORT_STRING);
+
+        $versions = [];
+
+        foreach ($hits as $composerJsonPath) {
+            $composer = $this->readComposerJson($composerJsonPath);
+            $name = $composer['name'] ?? null;
+
+            if (!is_string($name) || !str_starts_with($name, 'coretsia/')) {
+                throw new RuntimeException('Invalid fixture package name: ' . $composerJsonPath);
+            }
+
+            $versions[$name] = $devVersion;
+        }
+
+        ksort($versions, SORT_STRING);
+
+        if ($versions === []) {
+            throw new RuntimeException('Fixture has no workspace packages: ' . $sandbox);
+        }
+
+        return $versions;
     }
 }

@@ -462,7 +462,7 @@ The existing canonical package `framework/packages/core/kernel/` MUST remain val
 
 ---
 
-## 11) Versioning policy (MUST)
+## 11) Versioning and release-line package policy (MUST)
 
 Versioning **MUST** be monorepo-wide:
 
@@ -473,6 +473,94 @@ Versioning **MUST** be monorepo-wide:
 
 - per-package independent versions,
 - “internal” tags for individual packages.
+
+### 11.1. Package version source (single-choice)
+
+Package versions published to Packagist **MUST** be derived from git tags in split repositories.
+
+Package `composer.json` files **MUST NOT** contain a manual `version` field.
+
+Rationale:
+
+- Packagist derives package versions from VCS tags.
+- Package-local `version` fields can drift from the monorepo release tag.
+- The monorepo release tag remains the single source of package version truth.
+
+### 11.2. Release-line tooling SSoT (single-choice)
+
+The tooling SSoT for the active package release line is:
+
+```text
+framework/tools/release/release-line.json
+```
+
+This file owns:
+
+- `currentMinor` — current release minor, for example `0.4`;
+- `devVersion` — Composer workspace dev version, for example `0.4.x-dev`;
+- `publicConstraint` — public internal dependency constraint, for example `^0.4.0`.
+
+`schemaVersion` is the schema version of `release-line.json`, not the package release version.
+
+`schemaVersion` **MUST NOT** be changed for ordinary patch or minor releases.
+
+### 11.3. Monorepo workspace package resolution (single-choice)
+
+The monorepo workspace **MUST** resolve local package changes through Composer path repositories.
+
+Managed package wildcard path repositories **MUST** contain generated `options.versions` values derived from:
+
+```text
+framework/tools/release/release-line.json
+```
+
+The generated package version for workspace path repositories **MUST** be `devVersion`.
+
+Example:
+
+```json
+{
+  "options": {
+    "symlink": true,
+    "reference": "config",
+    "versions": {
+      "coretsia/core-contracts": "0.4.x-dev"
+    }
+  }
+}
+```
+
+This keeps local development source-linked through symlinks while allowing package constraints to use release-line dev versions instead of `dev-main`.
+
+### 11.4. Internal Coretsia dependency constraints (MUST)
+
+Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages as `dev-main`.
+
+Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages as `*`.
+
+Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages with `@dev` stability flags.
+
+Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages with exact SemVer pins.
+
+Published or split-publish allowlisted packages **MUST** use the release-line `publicConstraint` for internal `coretsia/*` dependencies.
+
+Example for release line `0.4`:
+
+```json
+{
+  "require": {
+    "coretsia/core-contracts": "^0.4.0"
+  }
+}
+```
+
+The public internal constraint **MUST** be synchronized from:
+
+```text
+framework/tools/release/release-line.json
+```
+
+Do not edit public internal `coretsia/*` dependency constraints manually except as part of changing the release-line SSoT and running the canonical synchronization commands.
 
 ---
 

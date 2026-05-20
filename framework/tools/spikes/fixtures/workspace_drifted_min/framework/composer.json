@@ -11,16 +11,16 @@
       "url": "https://example.com/acme/custom-repo.git"
     },
     {
-      "url": "packages\\*\\*",
-      "coretsia_managed": true,
-      "type": "path",
-      "options": {
-        "symlink": true
-      }
-    },
-    {
       "type": "composer",
       "url": "https://repo.packagist.org"
+    },
+    {
+      "type": "path",
+      "url": "packages/*/*",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
     }
   ],
   "config": {

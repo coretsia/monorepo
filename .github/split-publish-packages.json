@@ -8,6 +8,9 @@
       "package_id": "core/dto-attribute"
     },
     {
+      "package_id": "core/foundation"
+    },
+    {
       "package_id": "devtools/internal-toolkit"
     }
   ]

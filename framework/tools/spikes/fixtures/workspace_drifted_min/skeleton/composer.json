@@ -11,20 +11,20 @@
       "url": "https://example.com/acme/skeleton-custom.git"
     },
     {
-      "url": "..\\framework\\packages\\*\\*",
-      "coretsia_managed": true,
       "type": "path",
-      "options": {
-        "symlink": true
-      }
-    },
-    {
-      "coretsia_managed": true,
+      "url": "../framework",
       "options": {
         "symlink": true
       },
-      "url": "../framework",
-      "type": "path"
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "../framework/packages/*/*",
+      "options": {
+        "symlink": true
+      },
+      "coretsia_managed": true
     }
   ],
   "config": {

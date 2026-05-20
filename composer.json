@@ -44,7 +44,16 @@
       "type": "path",
       "url": "framework/packages/*/*",
       "options": {
-        "symlink": true
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/core-contracts": "0.4.x-dev",
+          "coretsia/core-dto-attribute": "0.4.x-dev",
+          "coretsia/core-foundation": "0.4.x-dev",
+          "coretsia/devtools-cli-spikes": "0.4.x-dev",
+          "coretsia/devtools-internal-toolkit": "0.4.x-dev",
+          "coretsia/platform-cli": "0.4.x-dev"
+        }
       },
       "coretsia_managed": true
     },
@@ -61,6 +70,8 @@
     "setup": [
       "@hooks:install",
       "@sync:repos",
+      "@release-line:workspace:sync",
+      "@release-line:public-constraints:sync",
       "@install:all",
       "@validate:all"
     ],
@@ -75,6 +86,8 @@
     ],
     "ci": [
       "@sync:check",
+      "@release-line:workspace:check",
+      "@release-line:public-constraints:check",
       "@install:all",
       "@validate:all",
       "@gates",
@@ -167,6 +180,11 @@
     ],
     "sync:check": "@composer --no-interaction --working-dir=framework run-script sync:check --",
     "sync:repos": "@composer --no-interaction --working-dir=framework run-script sync:repos --",
+    "release-line:workspace:sync": "@composer --no-interaction --working-dir=framework run-script release-line:workspace:sync --",
+    "release-line:workspace:check": "@composer --no-interaction --working-dir=framework run-script release-line:workspace:check --",
+    "release-line:public-constraints:sync": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:sync --",
+    "release-line:public-constraints:check": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:check --",
+    "package-publish-safety:gate": "@composer --no-interaction --working-dir=framework run-script package-publish-safety:gate --",
     "hooks:install": "git config core.hooksPath .githooks",
     "lock:check": "git diff --exit-code -- composer.lock framework/composer.lock skeleton/composer.lock",
     "docs:structure": "@composer --no-interaction --working-dir=framework run-script docs:structure --",

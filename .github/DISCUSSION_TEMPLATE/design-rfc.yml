@@ -1,0 +1,72 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+title: "[Design RFC] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing to the Coretsia design discussion.
+
+        Please use this form for website design ideas, branding applications, layout proposals, mockups, and visual direction feedback.
+
+  - type: textarea
+    id: idea-summary
+    attributes:
+      label: Summary
+      description: Briefly describe your website design idea or proposal.
+      placeholder: "Example: A documentation-first homepage with a compact hero, package overview, and direct install command."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the idea, layout, visual direction, or implementation approach.
+      placeholder: "Explain the structure, sections, visual tone, and how it follows the Coretsia branding guide."
+    validations:
+      required: true
+
+  - type: textarea
+    id: brand-alignment
+    attributes:
+      label: Brand Alignment
+      description: Explain how this proposal aligns with the Coretsia branding specification.
+      placeholder: "Mention colors, typography, symbol usage, light/dark mode, modularity, or deterministic visual language."
+    validations:
+      required: false
+
+  - type: textarea
+    id: assets
+    attributes:
+      label: Mockups, Links, or Assets
+      description: Add links to mockups, screenshots, Figma/Penpot files, HTML/CSS prototypes, or related references.
+      placeholder: "Paste links or attach images."
+    validations:
+      required: false
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Suggested Scope
+      description: What part of the website does this proposal cover?
+      placeholder: "Homepage, documentation page, navigation, blog/news page, design tokens, static prototype, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Anything else maintainers or contributors should consider?
+    validations:
+      required: false

@@ -7509,6 +7509,397 @@ N/A
 
 ---
 
+### 1.265.0 Release-line package versioning + publish safety automation (MUST) [TOOLING+DOC]
+
+---
+type: tools
+phase: 1
+epic_id: "1.265.0"
+owner_path: "framework/tools/"
+
+goal: "Coretsia packages can use Packagist-safe internal dependency constraints generated from a single release-line SSoT, while monorepo development continues to resolve local package changes immediately through release-line path repository versions."
+provides:
+- "Machine-readable release-line SSoT for workspace dev versions and public package constraints."
+- "Managed Composer path repository versions generated from release-line SSoT."
+- "Workspace require-dev synchronization for internal coretsia/* packages."
+- "Automated synchronization of package composer.json internal coretsia/* public constraints from release-line SSoT."
+- "Baseline Packagist-safe policy for allowlisted/published package composer.json files."
+- "Preparation path for publishing core/foundation before core/kernel development continues."
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+adr: none
+ssot_refs:
+- "framework/tools/release/release-line.json"
+- "docs/architecture/PACKAGING.md"
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - PRELUDE.20.0 — canonical packaging strategy exists and defines package identity rules.
+  - PRELUDE.30.0 — root/framework/skeleton Composer workspaces exist.
+  - 0.110.0 — release rails and source-only release policy exist.
+  - 1.50.0 — tooling rails baseline exists.
+  - 1.250.0 — `core/foundation` long-running reset baseline exists and is ready for public package preparation.
+  - 1.260.0 — runtime driver SSoT exists and the next runtime work can depend on stable release-line package behavior.
+
+- Required deliverables (exact paths):
+  - `composer.json` — root Composer workspace and canonical repo-root scripts.
+  - `framework/composer.json` — framework tooling workspace and internal package `require-dev` root.
+  - `skeleton/composer.json` — skeleton workspace.
+  - `framework/tools/build/sync_composer_repositories.php` — managed repository block synchronizer.
+  - `.github/split-publish-packages.json` — public split package allowlist.
+  - `framework/packages/core/foundation/composer.json` — first runtime package with an internal Coretsia package dependency prepared for publication.
+
+- Required config roots/keys:
+  - none
+
+- Required tags:
+  - none
+
+- Required contracts / ports:
+  - none
+
+- Release-line terminology (MUST):
+  - `schemaVersion` in `framework/tools/release/release-line.json` is the schema version of the file, not the package release version.
+  - `schemaVersion` MUST NOT be changed for ordinary release-line bumps such as `0.4 -> 0.5`.
+  - `schemaVersion` changes only when the file structure or field semantics change.
+  - Patch releases do not change `currentMinor`, `devVersion`, or `publicConstraint`.
+  - Minor release-line bumps update only the release-line values:
+    - `currentMinor`
+    - `devVersion`
+    - `publicConstraint`
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- none (tooling-only)
+
+Forbidden:
+
+- runtime packages MUST NOT depend on `framework/tools/release/*`
+- runtime packages MUST NOT read `framework/tools/release/release-line.json`
+- published package source MUST NOT depend on monorepo release tooling
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+N/A
+
+### Entry points / integration points (MUST)
+
+- CLI:
+  - `composer sync:repos` → generates managed path repository blocks and `options.versions`.
+  - `composer sync:check` → verifies managed path repository blocks are in sync.
+  - `composer release-line:workspace:sync` → synchronizes `framework/composer.json` internal `coretsia/*` `require-dev` constraints to release-line `devVersion`.
+  - `composer release-line:workspace:check` → verifies workspace internal `require-dev` constraints are in sync.
+  - `composer release-line:public-constraints:sync` → synchronizes package `composer.json` internal `coretsia/*` constraints to release-line `publicConstraint`.
+  - `composer release-line:public-constraints:check` → verifies package public internal constraints are in sync.
+  - `composer package-publish-safety:gate` → validates Packagist-safe composer metadata for split-publish allowlisted packages.
+
+- Packagist / split publishing:
+  - `.github/split-publish-packages.json` remains the only public split publishing allowlist.
+  - Packages in the allowlist MUST have Packagist-safe internal `coretsia/*` constraints before publication.
+
+- Composer path repository integration:
+  - root `composer.json` package wildcard path repository:
+    - `framework/packages/*/*`
+  - framework `composer.json` package wildcard path repository:
+    - `packages/*/*`
+  - skeleton `composer.json` package wildcard path repository:
+    - `../framework/packages/*/*`
+
+- Artifacts:
+  - N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [x] `framework/tools/release/release-line.json` — machine-readable release-line SSoT:
+  - [x] `schemaVersion` = `coretsia.releaseLine.v1`
+  - [x] `currentMinor` = current release minor, e.g. `0.4`
+  - [x] `devVersion` = Composer workspace dev version, e.g. `0.4.x-dev`
+  - [x] `publicConstraint` = public internal dependency constraint, e.g. `^0.4.0`
+
+- [x] `framework/tools/release/sync_workspace_release_line.php` — synchronizes `framework/composer.json` internal `coretsia/*` `require-dev` constraints from `release-line.json`:
+  - [x] reads `framework/tools/release/release-line.json`
+  - [x] validates `schemaVersion`
+  - [x] validates `currentMinor`, `devVersion`, and `publicConstraint` consistency
+  - [x] discovers packages from `framework/packages/*/*/composer.json`
+  - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
+  - [x] rewrites managed internal `coretsia/*` package constraints in `framework/composer.json` `require-dev` from discovered packages
+  - [x] preserves `ext-*` requirements
+  - [x] preserves external dev tooling requirements
+  - [x] supports `--check`
+  - [x] emits deterministic `OK` / error output
+  - [x] writes deterministic JSON bytes with LF-only final newline
+  - [x] creates backups only on apply-mode drift
+
+- [x] `framework/tools/release/sync_package_public_constraints.php` — synchronizes package `composer.json` internal `coretsia/*` dependency constraints from `release-line.json`:
+  - [x] reads `framework/tools/release/release-line.json`
+  - [x] validates `schemaVersion`
+  - [x] validates `currentMinor`, `devVersion`, and `publicConstraint` consistency
+  - [x] discovers packages from `framework/packages/*/*/composer.json`
+  - [x] scans all discovered packages, not only split-publish allowlisted packages
+  - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
+  - [x] scans package `require` and `require-dev` sections
+  - [x] rewrites only existing internal `coretsia/*` dependency constraints to release-line `publicConstraint`
+  - [x] MUST NOT add missing dependencies
+  - [x] MUST NOT rewrite external package constraints
+  - [x] MUST NOT rewrite `php` or `ext-*` constraints
+  - [x] MUST NOT rewrite `suggest`, `provide`, `replace`, or `conflict`
+  - [x] MUST NOT add a package-local `version` field
+  - [x] supports `--check`
+  - [x] emits deterministic `OK` / error output
+  - [x] writes deterministic JSON bytes with LF-only final newline
+  - [x] creates backups only on apply-mode drift
+
+- [x] `framework/tools/gates/package_publish_safety_gate.php` — validates Packagist-safe composer metadata for allowlisted split packages:
+  - [x] reads `.github/split-publish-packages.json`
+  - [x] resolves every allowlisted `package_id` to `framework/packages/<layer>/<slug>/composer.json`
+  - [x] validates package name equals `coretsia/<layer>-<slug>`
+  - [x] validates package `type` is `library`
+  - [x] fails if package `composer.json` contains a manual `version` field
+  - [x] fails if any internal `coretsia/*` dependency uses `dev-main`
+  - [x] fails if any internal `coretsia/*` dependency uses `*`
+  - [x] fails if any internal `coretsia/*` dependency uses an `@dev` constraint
+  - [x] fails if any internal `coretsia/*` dependency uses an exact semver pin
+  - [x] fails if an allowlisted package has an internal `coretsia/*` dependency whose package id is not present in `.github/split-publish-packages.json`
+  - [x] future exact-pin exceptions require a dedicated policy change and are not part of this epic
+  - [x] validates internal `coretsia/*` dependencies against release-line `publicConstraint`
+  - [x] emits deterministic safe diagnostics
+  - [x] `package-publish-safety:gate` MUST remain read-only and MUST NOT rewrite composer files.
+
+#### Modifies
+
+- [x] `framework/tools/build/sync_composer_repositories.php` — generate release-line package versions in managed path repositories:
+  - [x] reads `framework/tools/release/release-line.json`
+  - [x] discovers packages from `framework/packages/*/*/composer.json`
+  - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
+  - [x] adds `options.reference = "config"` to package wildcard path repositories
+  - [x] adds `options.versions` for every discovered package using release-line `devVersion`
+  - [x] sorts `options.versions` by package name using `ksort(..., SORT_STRING)`
+  - [x] keeps root/framework/skeleton managed repository blocks deterministic
+  - [x] remains the only tool allowed to update managed `repositories` blocks
+
+- [x] `composer.json` — add repo-root mirror scripts and release-line drift checks:
+  - [x] `release-line:workspace:sync` → `@composer --no-interaction --working-dir=framework run-script release-line:workspace:sync --`
+  - [x] `release-line:workspace:check` → `@composer --no-interaction --working-dir=framework run-script release-line:workspace:check --`
+  - [x] `release-line:public-constraints:sync` → `@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:sync --`
+  - [x] `release-line:public-constraints:check` → `@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:check --`
+  - [x] `package-publish-safety:gate` → `@composer --no-interaction --working-dir=framework run-script package-publish-safety:gate --`
+  - [x] add `@release-line:workspace:sync` to `setup` after `@sync:repos`
+  - [x] add `@release-line:public-constraints:sync` to `setup` after `@release-line:workspace:sync`
+  - [x] add `@release-line:workspace:check` to `ci` after `@sync:check`
+  - [x] add `@release-line:public-constraints:check` to `ci` after `@release-line:workspace:check`
+  - [x] MUST NOT add `@package-publish-safety:gate` directly to root `ci` because it is executed through aggregate `@gates`
+
+- [x] `framework/composer.json` — add release-line scripts and publish-safety gate:
+  - [x] `release-line:workspace:sync` → `@php tools/release/sync_workspace_release_line.php`
+  - [x] `release-line:workspace:check` → `@php tools/release/sync_workspace_release_line.php --check`
+  - [x] `release-line:public-constraints:sync` → `@php tools/release/sync_package_public_constraints.php`
+  - [x] `release-line:public-constraints:check` → `@php tools/release/sync_package_public_constraints.php --check`
+  - [x] `package-publish-safety:gate` → `@php tools/gates/package_publish_safety_gate.php`
+  - [x] include `@package-publish-safety:gate` in aggregate `gates`
+  - [x] do not include release-line drift checks in aggregate `gates`; they are executed by root `ci` before installs
+  - [x] replace internal `coretsia/*` `require-dev` constraints from `dev-main` to release-line `devVersion`, e.g. `0.4.x-dev`
+  - [x] keep `ext-*` requirements before internal package requirements
+  - [x] keep external dev tooling requirements after internal package requirements
+
+- [x] `composer.json` — managed `repositories` block:
+  - [x] package wildcard repository `framework/packages/*/*` contains generated:
+    - [x] `options.reference = "config"`
+    - [x] `options.versions`
+
+- [x] `framework/composer.json` — managed `repositories` block:
+  - [x] package wildcard repository `packages/*/*` contains generated:
+    - [x] `options.reference = "config"`
+    - [x] `options.versions`
+
+- [x] `skeleton/composer.json` — managed `repositories` block:
+  - [x] package wildcard repository `../framework/packages/*/*` contains generated:
+    - [x] `options.reference = "config"`
+    - [x] `options.versions`
+
+- [x] `.github/split-publish-packages.json` — add `core/foundation` when package metadata is Packagist-safe:
+  - [x] `core/foundation`
+
+- [x] `framework/packages/core/foundation/composer.json` — internal package dependency is synchronized by `sync_package_public_constraints.php`:
+  - [x] `coretsia/core-contracts: dev-main` → release-line `publicConstraint`, e.g. `^0.4.0`
+
+- [x] `docs/architecture/PACKAGING.md` — document release-line package policy:
+  - [x] package `composer.json` MUST NOT contain a manual `version` field
+  - [x] published / allowlisted packages MUST NOT require internal `coretsia/*` packages as `dev-main`
+  - [x] published / allowlisted packages MUST use release-line public semver constraints for internal `coretsia/*` dependencies
+  - [x] monorepo workspace uses path repositories plus generated `options.versions`
+  - [x] `framework/tools/release/release-line.json` is the tooling SSoT for workspace dev version and public internal constraint
+  - [x] Packagist package versions come from git tags, not package-local `composer.json` version fields
+
+- [x] `docs/guides/packagist-split-publishing-guide.md` — document split publication precondition:
+  - [x] before adding a package to `.github/split-publish-packages.json`, internal `coretsia/*` dependencies must be release-line public constraints
+  - [x] `dev-main` internal dependencies are forbidden for allowlisted/published packages
+  - [x] `version` fields are forbidden in package `composer.json`
+
+- [x] `docs/guides/commands.md` — document release-line commands:
+  - [x] `composer release-line:workspace:sync`
+  - [x] `composer release-line:workspace:check`
+  - [x] `composer release-line:public-constraints:sync`
+  - [x] `composer release-line:public-constraints:check`
+  - [x] `composer package-publish-safety:gate`
+  - [x] document that `composer gates` includes `composer package-publish-safety:gate`
+  - [x] document that `composer ci` runs release-line drift checks before installs:
+    - [x] `composer release-line:workspace:check`
+    - [x] `composer release-line:public-constraints:check`
+  - [x] document that `composer setup` runs release-line apply steps before installs:
+    - [x] `composer release-line:workspace:sync`
+    - [x] `composer release-line:public-constraints:sync`
+  - [x] describe deterministic behavior and check/apply distinction
+  - [x] explain that workspace sync updates `framework/composer.json` internal `require-dev`
+  - [x] explain that public constraints sync updates package `composer.json` internal `coretsia/*` dependencies
+
+- [x] `docs/guides/releasing.md` — document release-line bump procedure:
+  - [x] patch releases do not change `framework/tools/release/release-line.json`
+  - [x] minor release-line bumps update `currentMinor`, `devVersion`, and `publicConstraint`
+  - [x] `schemaVersion` is not changed for normal releases
+  - [x] after changing release-line values, run:
+    - [x] `composer sync:repos`
+    - [x] `composer release-line:workspace:sync`
+    - [x] `composer release-line:public-constraints:sync`
+    - [x] `composer sync:check`
+    - [x] `composer release-line:workspace:check`
+    - [x] `composer release-line:public-constraints:check`
+    - [x] `composer package-publish-safety:gate`
+
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register release-line and package publish safety tooling diagnostics:
+  - [x] `CORETSIA_RELEASE_LINE_WORKSPACE_SYNC_FAILED`
+  - [x] `CORETSIA_RELEASE_LINE_WORKSPACE_OUT_OF_SYNC`
+  - [x] `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_SYNC_FAILED`
+  - [x] `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_OUT_OF_SYNC`
+  - [x] `CORETSIA_PACKAGE_PUBLISH_SAFETY_VIOLATION`
+  - [x] `CORETSIA_PACKAGE_PUBLISH_SAFETY_GATE_FAILED`
+
+#### Configuration (keys + defaults)
+
+N/A
+
+#### Wiring / DI tags (when applicable)
+
+N/A
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+N/A
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [x] Managed repository versions:
+  - [x] `composer sync:repos`
+  - [x] `composer sync:check`
+  - [x] must prove `options.versions` is generated from `framework/tools/release/release-line.json`
+
+- [x] Workspace release-line require-dev sync:
+  - [x] `composer release-line:workspace:sync`
+  - [x] `composer release-line:workspace:check`
+  - [x] must fail if any discovered internal `coretsia/*` package in `framework/composer.json` `require-dev` is not set to release-line `devVersion`
+
+- [x] Composer validation:
+  - [x] `composer validate:all`
+
+- [x] CI:
+  - [x] `composer ci`
+
+- [x] Package publish safety:
+  - [x] `composer package-publish-safety:gate`
+  - [x] must fail if an allowlisted package contains a manual `version` field
+  - [x] must fail if an allowlisted package requires internal `coretsia/*` as `dev-main`
+  - [x] must fail if an allowlisted package requires internal `coretsia/*` as `*`
+  - [x] must fail if an allowlisted package uses an internal `coretsia/*` exact pin without explicit policy allowance
+  - [x] must fail if an allowlisted package internal constraint does not match release-line `publicConstraint`
+
+- [x] Package public constraint sync:
+  - [x] `composer release-line:public-constraints:sync`
+  - [x] `composer release-line:public-constraints:check`
+  - [x] must fail if any package `composer.json` internal `coretsia/*` dependency is not set to release-line `publicConstraint`
+  - [x] must not modify external dependencies
+  - [x] must not modify `php` or `ext-*` constraints
+  - [x] must not add missing dependencies
+
+#### Test harness / fixtures (when integration is needed)
+
+- [x] Fixture or deterministic tool-level test SHOULD cover:
+  - [x] `release-line.json` with `0.4` produces `0.4.x-dev` in workspace constraints
+  - [x] `release-line.json` with `0.4` produces `^0.4.0` in package public internal constraints
+  - [x] `release-line.json` with `0.5` would produce `0.5.x-dev` in workspace constraints without manual edits
+  - [x] `release-line.json` with `0.5` would produce `^0.5.0` in package public internal constraints without manual edits
+  - [x] invalid schemaVersion fails deterministically
+  - [x] inconsistent `currentMinor` / `devVersion` / `publicConstraint` fails deterministically
+  - [x] package composer name mismatch fails deterministically
+  - [x] public constraints sync does not rewrite external dependencies
+  - [x] public constraints sync does not add missing dependencies
+
+### Tests (MUST)
+
+- Gates/Arch:
+  - [x] `composer sync:check`
+  - [x] `composer release-line:workspace:check`
+  - [x] `composer release-line:public-constraints:check`
+  - [x] `composer validate:all`
+  - [x] `composer package-publish-safety:gate`
+  - [x] `composer ci`
+
+- Tooling:
+  - [x] `framework/tools/build/sync_composer_repositories.php --check`
+  - [x] `framework/tools/release/sync_workspace_release_line.php --check`
+  - [x] `framework/tools/release/sync_package_public_constraints.php --check`
+
+### DoD (MUST)
+
+- [x] `framework/tools/release/release-line.json` is the single tooling SSoT for:
+  - [x] current release minor
+  - [x] monorepo workspace dev version
+  - [x] public internal package constraint
+- [x] `schemaVersion` is documented as schema version, not release version.
+- [x] `composer sync:repos` generates `options.versions` for all discovered packages in root/framework/skeleton managed path repositories.
+- [x] `composer release-line:workspace:sync` updates internal `coretsia/*` `require-dev` constraints in `framework/composer.json`.
+- [x] `composer release-line:workspace:check` fails on drift.
+- [x] `composer release-line:public-constraints:sync` updates package `composer.json` internal `coretsia/*` constraints to release-line `publicConstraint`.
+- [x] `composer release-line:public-constraints:check` fails on package public constraint drift.
+- [x] `composer setup` applies managed repository sync, release-line workspace sync, and package public constraints sync before installs.
+- [x] `composer ci` checks managed repository sync, release-line workspace sync, and package public constraints sync before installs.
+- [x] `core-foundation` is prepared for split publication with:
+  - [x] `coretsia/core-contracts: ^0.4.0`
+  - [x] no package-local `version` field
+  - [x] allowlist entry `core/foundation`
+- [x] Published / allowlisted package composer metadata is Packagist-safe:
+  - [x] no manual `version`
+  - [x] no internal `coretsia/*: dev-main`
+  - [x] no internal `coretsia/*: *`
+  - [x] no internal `coretsia/*` exact pins
+- [x] Local monorepo development still sees source changes immediately through path repository symlinks.
+- [x] Public package versions remain tag-derived through split publishing / Packagist.
+- [x] No runtime code reads release-line tooling files.
+- [x] No package source depends on release-line tooling.
+- [x] Allowlisted packages do not depend on non-allowlisted internal `coretsia/*` packages.
+- [x] Determinism: rerun-no-diff for:
+  - [x] `composer sync:repos`
+  - [x] `composer release-line:workspace:sync`
+  - [x] `composer release-line:public-constraints:sync`
+- [x] `composer package-publish-safety:gate` is part of the normal gate chain.
+- [x] CI fails if any allowlisted package is not Packagist-safe.
+
+---
+
 ### 1.270.0 Kernel: UnitOfWork Shapes Pack (Context + Result + Outcome + SSoT invariants) (MUST) [IMPL+DOC]
 
 ---

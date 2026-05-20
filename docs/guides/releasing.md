@@ -81,6 +81,93 @@ Before cutting a release, ensure these files exist in the repo root:
 - `.github/scripts/split-plan.php`
 - `.github/scripts/split-plan.schema.md`
 
+## Release-line bump policy (MUST)
+
+The release-line tooling SSoT is:
+
+```text
+framework/tools/release/release-line.json
+```
+
+This file contains:
+
+- `schemaVersion` — schema version of the release-line file;
+- `currentMinor` — active release minor, for example `0.4`;
+- `devVersion` — monorepo workspace dev version, for example `0.4.x-dev`;
+- `publicConstraint` — public internal package constraint, for example `^0.4.0`.
+
+`schemaVersion` is not the package release version.
+
+`schemaVersion` MUST NOT be changed for normal patch or minor releases.
+
+### Patch releases
+
+Patch releases MUST NOT change:
+
+```text
+framework/tools/release/release-line.json
+```
+
+Example:
+
+```text
+v0.4.0 -> v0.4.1
+```
+
+The release-line remains:
+
+```json
+{
+  "currentMinor": "0.4",
+  "devVersion": "0.4.x-dev",
+  "publicConstraint": "^0.4.0"
+}
+```
+
+### Minor release-line bumps
+
+Minor release-line bumps MUST update only release-line values:
+
+- `currentMinor`
+- `devVersion`
+- `publicConstraint`
+
+Example:
+
+```text
+0.4 -> 0.5
+```
+
+Expected values:
+
+```json
+{
+  "schemaVersion": "coretsia.releaseLine.v1",
+  "currentMinor": "0.5",
+  "devVersion": "0.5.x-dev",
+  "publicConstraint": "^0.5.0"
+}
+```
+
+After changing release-line values, run:
+
+```bash
+composer sync:repos
+composer release-line:workspace:sync
+composer release-line:public-constraints:sync
+composer sync:check
+composer release-line:workspace:check
+composer release-line:public-constraints:check
+composer package-publish-safety:gate
+```
+
+These commands synchronize and verify:
+
+- managed Composer path repository `options.versions`;
+- framework workspace internal `coretsia/*` `require-dev` constraints;
+- package `composer.json` internal `coretsia/*` public constraints;
+- Packagist-safe metadata for split-publish allowlisted packages.
+
 ## Canonical procedure (MUST)
 
 All commands are run from the **repo root**.

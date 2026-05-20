@@ -39,7 +39,7 @@ This document fixes the **canonical** commands/entrypoints that actually exist i
   - determinism policy (deterministic vs nondeterministic modes),
   - usage examples.
 - If a command has a mode/flag that makes output **nondeterministic**, that mode **MUST** be marked as **NONDETERMINISTIC** and **MUST NOT** be used in CI rails / rerun-no-diff workflows.
-- Documentation/examples **MUST** avoid “non-existent” entrypoints for the current context (for example, do not reference `./dev/**` in Prelude).
+- Documentation/examples **MUST** avoid “non-existent” entrypoints for the current context (for example, do not reference non-existent `./dev/**` entrypoints).
 - If a command has an **alias** (for example, `composer ...` as a proxy to `coretsia ...`), the document **MUST** explicitly state:
   - which entrypoint is **canonical**, and which one is **alias/compat**, and **MUST** guarantee behavior equivalence (semantics/outputs) in deterministic mode.
 - When an entrypoint is **migrated** (the canonical one changes), the previous canonical entrypoint **SHOULD** remain as a **compat alias** for at least 1 epic/phase (or until the next cutline), and **MUST** be marked as `DEPRECATED` with a “remove-after” milestone.
@@ -109,24 +109,33 @@ Each new command is added as a separate section under `## Commands` (the format 
 **Category:** workspace bootstrap  
 **Outputs:**
 - (local) Git config: enables hooks via `core.hooksPath=.githooks`
+- Potential updates to `composer.json`, `framework/composer.json`, `skeleton/composer.json` managed repositories blocks
+- Potential updates to `framework/composer.json` internal `coretsia/*` `require-dev` constraints
+- Potential updates to package `composer.json` internal `coretsia/*` constraints under `framework/packages/*/*`
 - `vendor/**` (root) *(untracked)*
 - `framework/vendor/**` *(untracked)*
 - `skeleton/vendor/**` *(untracked)*
 - (optional, only if repositories drift is detected) `framework/var/backups/workspace/**` *(gitignored)*
+- (optional, only if release-line composer metadata drift is detected) `framework/var/backups/release-line/**` *(gitignored)*
 
 **Determinism:**
 
-| Mode / flags | Determinism   | Notes                                                                                            |
-|--------------|---------------|--------------------------------------------------------------------------------------------------|
-| default      | deterministic | Deterministic w.r.t. tracked files; installs from lockfiles. Network I/O is expected (Composer). |
+| Mode / flags | Determinism   | Notes                                                                                                                   |
+|--------------|---------------|-------------------------------------------------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic w.r.t. tracked files after successful apply; installs from lockfiles. Network I/O is expected (Composer). |
 
 **Notes:**
 - `composer setup` is an aggregate entrypoint and executes (in order):
   1) `composer hooks:install`
   2) `composer sync:repos`
-  3) `composer install:all`
-  4) `composer validate:all`
+  3) `composer release-line:workspace:sync`
+  4) `composer release-line:public-constraints:sync`
+  5) `composer install:all`
+  6) `composer validate:all`
 - `composer sync:repos` MAY create backups under `framework/var/backups/workspace/**` only if repositories drift is detected and files are changed.
+- `composer release-line:workspace:sync` updates `framework/composer.json` internal `coretsia/*` `require-dev` constraints to release-line `devVersion`.
+- `composer release-line:public-constraints:sync` updates existing package `composer.json` internal `coretsia/*` dependencies to release-line `publicConstraint`.
+- Release-line apply steps run before installs so local workspace dependency resolution sees the canonical release-line constraints before Composer install/update work starts.
 
 **Usage (repo root):**
 - `composer setup`
@@ -145,23 +154,28 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Determinism:**
 
-| Mode / flags | Determinism   | Notes                                                                           |
-|--------------|---------------|---------------------------------------------------------------------------------|
-| default      | deterministic | Deterministic w.r.t. tracked files; includes `sync:check` and lock drift guard. |
+| Mode / flags | Determinism   | Notes                                                                                                             |
+|--------------|---------------|-------------------------------------------------------------------------------------------------------------------|
+| default      | deterministic | Deterministic w.r.t. tracked files; includes managed repository drift, release-line drift, and lock drift guards. |
 
 **Notes:**
 - `composer ci` is an aggregate rails command and executes (in order):
   1) `composer sync:check`
-  2) `composer install:all`
-  3) `composer validate:all`
-  4) `composer gates`
-  5) `composer dto:gate`
-  6) `composer arch`
-  7) `composer quality`
-  8) `composer framework:test`
-  9) `composer spike:test`
-  10) `composer lock:check`
-- `composer gates` is the canonical baseline/tooling gates aggregate rail.
+  2) `composer release-line:workspace:check`
+  3) `composer release-line:public-constraints:check`
+  4) `composer install:all`
+  5) `composer validate:all`
+  6) `composer gates`
+  7) `composer dto:gate`
+  8) `composer arch`
+  9) `composer quality`
+  10) `composer framework:test`
+  11) `composer spike:test`
+  12) `composer lock:check`
+- Release-line drift checks run before installs:
+  - `composer release-line:workspace:check`
+  - `composer release-line:public-constraints:check`
+- `composer gates` is the canonical baseline/tooling gates aggregate rail and includes `composer package-publish-safety:gate`.
 - `composer dto:gate` is the canonical aggregate DTO policy rail and MUST run after baseline gates and before arch/quality/tests.
 - `composer arch` is the canonical aggregate architecture rail and MUST remain rerun-no-diff.
 - `composer quality` is a third-party quality aggregate rail and MAY emit native ECS/PHPStan diagnostics.
@@ -356,6 +370,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Notes:**
 - Canonical manager implementation: `php framework/tools/build/sync_composer_repositories.php`.
+- Package wildcard path repositories receive generated release-line metadata:
+  - root: `framework/packages/*/*`
+  - framework: `packages/*/*`
+  - skeleton: `../framework/packages/*/*`
+  - `options.reference = "config"`
+  - `options.versions` for every discovered package from release-line `devVersion`
+- Release-line data source: `framework/tools/release/release-line.json`.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:repos --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php` (framework workspace).
@@ -383,6 +404,10 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Notes:**
 - Canonical manager implementation: `php framework/tools/build/sync_composer_repositories.php`.
+- Checks that package wildcard path repositories contain generated release-line metadata:
+  - `options.reference = "config"`
+  - `options.versions` for every discovered package from release-line `devVersion`
+- Release-line data source: `framework/tools/release/release-line.json`.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:check --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php --check` (framework workspace).
@@ -393,6 +418,154 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer sync:check`
+
+---
+
+### Release-line workspace constraints sync
+
+**Id:** `tool.release_line_workspace_sync`
+**Entrypoint:** `composer release-line:workspace:sync`
+**Category:** build tooling / release-line workspace policy
+**Outputs:**
+- Potential update to `framework/composer.json` `require-dev`
+- (optional, only if drift is applied) `framework/var/backups/release-line/**` *(gitignored)*
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                           |
+|--------------|---------------|---------------------------------------------------------------------------------|
+| default      | deterministic | Mutating apply mode; MUST be rerun-no-diff for the same repo state after apply. |
+
+**Notes:**
+- Purpose: synchronizes framework workspace internal `coretsia/*` dev constraints from `framework/tools/release/release-line.json`.
+- `framework/tools/release/release-line.json` is the tooling SSoT for:
+  - `currentMinor`
+  - `devVersion`
+  - `publicConstraint`
+- `schemaVersion` in `release-line.json` is the file schema version, not the package release version.
+- The command validates release-line consistency:
+  - `devVersion` MUST equal `<currentMinor>.x-dev`
+  - `publicConstraint` MUST equal `^<currentMinor>.0`
+- The command discovers packages from `framework/packages/*/*/composer.json`.
+- The command validates discovered package names against canonical `coretsia/<layer>-<slug>` naming.
+- The command rewrites managed internal `coretsia/*` requirements in `framework/composer.json` `require-dev` to release-line `devVersion`.
+- Requirement ordering policy:
+  - `ext-*` requirements remain before internal package requirements
+  - internal `coretsia/*` requirements are sorted by `strcmp`
+  - external dev tooling requirements remain after internal package requirements
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script release-line:workspace:sync --`
+- Framework implementation detail: `@php tools/release/sync_workspace_release_line.php`.
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_WORKSPACE_SYNC_FAILED`.
+
+**Usage (repo root):**
+- `composer release-line:workspace:sync`
+
+---
+
+### Release-line workspace constraints check
+
+**Id:** `tool.release_line_workspace_check`
+**Entrypoint:** `composer release-line:workspace:check`
+**Category:** build tooling / guard
+**Outputs:**
+- none; read-only check
+- exits non-zero if `framework/composer.json` internal `coretsia/*` `require-dev` constraints drift from release-line `devVersion`
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                      |
+|--------------|---------------|------------------------------------------------------------|
+| default      | deterministic | Read-only drift check; MUST be used in CI before installs. |
+
+**Notes:**
+- Read-only counterpart of `composer release-line:workspace:sync`.
+- The command validates the same release-line and package discovery invariants as apply mode.
+- The command MUST NOT create backups and MUST NOT rewrite composer files.
+- CI policy:
+  - `composer ci` runs this command after `composer sync:check` and before `composer install:all`.
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_RELEASE_LINE_WORKSPACE_OUT_OF_SYNC`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_WORKSPACE_SYNC_FAILED`
+  - diagnostics use repo-relative paths and are sorted deterministically.
+
+**Usage (repo root):**
+- `composer release-line:workspace:check`
+
+---
+
+### Release-line package public constraints sync
+
+**Id:** `tool.release_line_public_constraints_sync`
+**Entrypoint:** `composer release-line:public-constraints:sync`
+**Category:** build tooling / release-line package policy
+**Outputs:**
+- Potential updates to package `composer.json` files under `framework/packages/*/*`
+- (optional, only if drift is applied) `framework/var/backups/release-line/**` *(gitignored)*
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                                           |
+|--------------|---------------|---------------------------------------------------------------------------------|
+| default      | deterministic | Mutating apply mode; MUST be rerun-no-diff for the same repo state after apply. |
+
+**Notes:**
+- Purpose: synchronizes existing package `composer.json` internal `coretsia/*` dependency constraints from `framework/tools/release/release-line.json`.
+- The command scans all discovered packages under `framework/packages/*/*/composer.json`, not only split-publish allowlisted packages.
+- The command scans only these dependency sections:
+  - `require`
+  - `require-dev`
+- The command rewrites only existing internal `coretsia/*` dependency constraints to release-line `publicConstraint`.
+- The command MUST NOT add missing dependencies.
+- The command MUST NOT rewrite:
+  - external package constraints
+  - `php`
+  - `ext-*`
+  - `suggest`
+  - `provide`
+  - `replace`
+  - `conflict`
+- The command MUST NOT add a package-local `version` field.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script release-line:public-constraints:sync --`
+- Framework implementation detail: `@php tools/release/sync_package_public_constraints.php`.
+- Failure output policy:
+  - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_SYNC_FAILED`.
+
+**Usage (repo root):**
+- `composer release-line:public-constraints:sync`
+
+---
+
+### Release-line package public constraints check
+
+**Id:** `tool.release_line_public_constraints_check`
+**Entrypoint:** `composer release-line:public-constraints:check`
+**Category:** build tooling / guard
+**Outputs:**
+- none; read-only check
+- exits non-zero if any package `composer.json` internal `coretsia/*` dependency constraint drifts from release-line `publicConstraint`
+
+**Determinism:**
+
+| Mode / flags | Determinism   | Notes                                                      |
+|--------------|---------------|------------------------------------------------------------|
+| default      | deterministic | Read-only drift check; MUST be used in CI before installs. |
+
+**Notes:**
+- Read-only counterpart of `composer release-line:public-constraints:sync`.
+- The command validates the same release-line, package discovery, and package-name invariants as apply mode.
+- The command MUST NOT create backups and MUST NOT rewrite composer files.
+- CI policy:
+  - `composer ci` runs this command after `composer release-line:workspace:check` and before `composer install:all`.
+- Failure output policy:
+  - drift: line 1 is stable code `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_OUT_OF_SYNC`
+  - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_SYNC_FAILED`
+  - diagnostics use repo-relative paths and are sorted deterministically.
+
+**Usage (repo root):**
+- `composer release-line:public-constraints:check`
 
 ---
 
@@ -411,7 +584,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Validates tracked lockfiles are unchanged after installs. |
 
 **Notes:**
-- Tracked lockfiles (Prelude workflow invariant):
+- Tracked lockfiles:
   - `composer.lock`
   - `framework/composer.lock`
   - `skeleton/composer.lock`
@@ -610,6 +783,57 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer package-compliance:gate`
 - `composer package-compliance:gate -- --path=framework`
 - `composer package-compliance:gate -- --path=framework/tools/tests/Fixtures/package_good`
+
+---
+
+### Package publish safety gate
+
+**Id:** `tool.package_publish_safety_gate`
+**Entrypoint:** `composer package-publish-safety:gate`
+**Category:** repo policy / Packagist publish guard
+**Outputs:**
+- none; read-only gate
+- exits non-zero on Packagist publish-safety violations
+
+**Determinism:**
+
+| Mode / flags                           | Determinism   | Notes                                                        |
+|----------------------------------------|---------------|--------------------------------------------------------------|
+| `composer package-publish-safety:gate` | deterministic | Read-only; scans split-publish allowlisted package metadata. |
+
+**Notes:**
+- Purpose: validates Packagist-safe Composer metadata for packages allowlisted for split publishing.
+- The split-publish allowlist is `.github/split-publish-packages.json`.
+- Only allowlisted packages are checked as published/split-publish candidates by this gate.
+- Every allowlisted `package_id` MUST resolve to:
+  - `framework/packages/<layer>/<slug>/composer.json`
+- Package metadata policy:
+  - package name MUST equal `coretsia/<layer>-<slug>`
+  - package `type` MUST be `library`
+  - package `composer.json` MUST NOT contain a manual `version` field
+- Internal `coretsia/*` dependency policy for allowlisted packages:
+  - `dev-main` is forbidden
+  - `*` is forbidden
+  - `@dev` stability flags are forbidden
+  - exact SemVer pins are forbidden
+  - constraint MUST equal release-line `publicConstraint`
+  - dependency package id MUST also be present in `.github/split-publish-packages.json`
+- Future exact-pin exceptions require a dedicated policy change and are not part of this command.
+- The gate reads `framework/tools/release/release-line.json` to validate against release-line `publicConstraint`.
+- The gate is read-only and MUST NOT create, modify, or delete files.
+- Output policy:
+  - publish-safety violation: line 1 is stable code `CORETSIA_PACKAGE_PUBLISH_SAFETY_VIOLATION`
+  - unexpected failure: line 1 is stable code `CORETSIA_PACKAGE_PUBLISH_SAFETY_GATE_FAILED`
+  - diagnostics use repo-relative paths and fixed reason tokens
+  - diagnostics are sorted by `strcmp`
+- Aggregate rail integration:
+  - `composer gates` includes this gate after `composer package-compliance:gate`.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script package-publish-safety:gate --`
+- Framework implementation detail: `@php tools/gates/package_publish_safety_gate.php`.
+
+**Usage (repo root):**
+- `composer package-publish-safety:gate`
 
 ---
 
@@ -1513,7 +1737,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Executes the canonical aggregate tooling gates rail in stable order. |
 
 **Notes:**
-- Purpose: executes the canonical aggregate gates rail for baseline/tooling/public-API/package-compliance enforcement.
+- Purpose: executes the canonical aggregate gates rail for baseline/tooling/public-API/package metadata enforcement.
 - This command is the preferred CI entrypoint for gates owned by tooling epics after Phase 0.
 - Individual `*:gate` scripts remain separately invokable and are the canonical unit entrypoints.
 - `composer gates` is the canonical aggregate rail entrypoint.
@@ -1532,6 +1756,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   12) `composer kernel-public-api:gate`
   13) `composer no-runtime-tooling-artifacts:gate`
   14) `composer package-compliance:gate`
+  15) `composer package-publish-safety:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`
@@ -1540,6 +1765,8 @@ Each new command is added as a separate section under `## Commands` (the format 
   - aggregate rail MUST invoke named composer `*:gate` scripts, not raw `php tools/gates/*.php` paths
   - runtime tooling artifact purity MUST run before package compliance in this aggregate rail
   - package compliance MUST run after baseline public-API/runtime-purity/policy gates in this aggregate rail
+  - package publish safety MUST run after package compliance in this aggregate rail
+  - package publish safety MUST remain read-only and MUST NOT rewrite package composer metadata
   - spikes rails are separate and MUST NOT be silently folded into this aggregate command
   - this rail SHOULD run before `composer quality` and `composer test` in CI
 

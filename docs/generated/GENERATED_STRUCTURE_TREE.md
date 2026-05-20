@@ -11,6 +11,8 @@ Coretsia/
 ├── .githooks/
 │   └── pre-commit
 ├── .github/
+│   ├── DISCUSSION_TEMPLATE/
+│   │   └── design-rfc.yml
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── architecture_policy.yml
 │   │   ├── bug_report.yml
@@ -47,7 +49,8 @@ Coretsia/
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
-│   │   └── STRUCTURE.md
+│   │   ├── STRUCTURE.md
+│   │   └── WEBSITE.md
 │   ├── assets/
 │   │   └── branding/
 │   │       ├── favicon/
@@ -617,6 +620,7 @@ Coretsia/
 │   │   │   ├── package_compliance_allowlist.php
 │   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
+│   │   │   ├── package_publish_safety_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
@@ -626,6 +630,10 @@ Coretsia/
 │   │   │   └── tools_invalid_argument_exception_gate.php
 │   │   ├── policies/
 │   │   │   └── tag_owner_constants.php
+│   │   ├── release/
+│   │   │   ├── release-line.json
+│   │   │   ├── sync_package_public_constraints.php
+│   │   │   └── sync_workspace_release_line.php
 │   │   ├── spikes/
 │   │   │   ├── _support/
 │   │   │   │   ├── ConsoleOutput.php
@@ -735,6 +743,9 @@ Coretsia/
 │   │   │   │   │   │   │   └── platform/
 │   │   │   │   │   │   │       └── cli/
 │   │   │   │   │   │   │           └── composer.json
+│   │   │   │   │   │   ├── tools/
+│   │   │   │   │   │   │   └── release/
+│   │   │   │   │   │   │       └── release-line.json
 │   │   │   │   │   │   └── composer.json
 │   │   │   │   │   ├── skeleton/
 │   │   │   │   │   │   └── composer.json
@@ -757,6 +768,9 @@ Coretsia/
 │   │   │   │   │   │   │   └── platform/
 │   │   │   │   │   │   │       └── cli/
 │   │   │   │   │   │   │           └── composer.json
+│   │   │   │   │   │   ├── tools/
+│   │   │   │   │   │   │   └── release/
+│   │   │   │   │   │   │       └── release-line.json
 │   │   │   │   │   │   └── composer.json
 │   │   │   │   │   ├── skeleton/
 │   │   │   │   │   │   └── composer.json
@@ -909,6 +923,20 @@ Coretsia/
 │   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php
 │   ├── var/
 │   │   ├── backups/
+│   │   │   ├── release-line/
+│   │   │   │   ├── framework__composer.json.bak
+│   │   │   │   ├── framework__packages__core__foundation__composer.json.bak
+│   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak
+│   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.1
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak
+│   │   │   │   └── framework__packages__platform__cli__composer.json.bak.1
+│   │   │   ├── workspace/
+│   │   │   │   ├── coretsia-monorepo__composer.json.bak
+│   │   │   │   ├── coretsia-monorepo__composer.json.bak.1
+│   │   │   │   ├── framework__composer.json.bak
+│   │   │   │   ├── framework__composer.json.bak.1
+│   │   │   │   ├── skeleton__composer.json.bak
+│   │   │   │   └── skeleton__composer.json.bak.1
 │   │   │   └── .gitignore
 │   │   └── .gitignore
 │   ├── composer.json

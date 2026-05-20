@@ -25,6 +25,8 @@ use Coretsia\Tools\Spikes\_support\ErrorCodes;
 final class ComposerRepositoriesSync
 {
     private const string MANAGED_FLAG = 'coretsia_managed';
+    private const string RELEASE_LINE_PATH = 'framework/tools/release/release-line.json';
+    private const string RELEASE_LINE_SCHEMA_VERSION = 'coretsia.releaseLine.v1';
 
     private function __construct()
     {
@@ -39,6 +41,7 @@ final class ComposerRepositoriesSync
      * - Preserve user-owned repositories exactly and in original relative order.
      * - Rebuild managed repositories canonically for the concrete target file.
      * - Canonical placement: managed block is a single contiguous block at the END.
+     * - Package wildcard path repositories receive release-line generated options.versions.
      * - Write updated JSON ONLY via ComposerJsonCanonicalizer::encodeCanonical(...) + DeterministicFile::writeTextLf().
      * - Backups are mandatory before any on-disk change:
      *   - if (and only if) output bytes differ from current bytes: write workspace backup first via writeBytesExact().
@@ -50,6 +53,7 @@ final class ComposerRepositoriesSync
      */
     public static function sync(string $workspaceRoot, string $composerJsonRelPath): bool
     {
+        $workspaceRoot = self::normalizeWorkspaceRoot($workspaceRoot);
         $composerJsonRelPath = self::normalizeRelativePath($composerJsonRelPath);
         $composerJsonPath = self::joinRootAndRelPath($workspaceRoot, $composerJsonRelPath);
 
@@ -57,6 +61,12 @@ final class ComposerRepositoriesSync
         if (!\is_file($composerJsonPath)) {
             self::fail(ErrorCodes::CORETSIA_WORKSPACE_BACKUP_PATH_MISSING);
         }
+
+        $releaseLine = self::loadReleaseLine($workspaceRoot);
+        $workspacePackageVersions = self::discoverWorkspacePackageVersions(
+            $workspaceRoot,
+            $releaseLine['devVersion'],
+        );
 
         // Read raw bytes as-is (no normalization) using the canonical IO policy helper.
         try {
@@ -87,10 +97,13 @@ final class ComposerRepositoriesSync
             $userOwnedRepositories[] = $repository;
         }
 
-        $managedRepositories = self::desiredManagedRepositoriesFor($composerJsonRelPath);
+        $managedRepositories = self::desiredManagedRepositoriesFor(
+            $composerJsonRelPath,
+            $workspacePackageVersions,
+        );
 
         $composerJson[WorkspacePolicy::KEY_REPOSITORIES] = \array_values(
-            \array_merge($userOwnedRepositories, $managedRepositories)
+            \array_merge($userOwnedRepositories, $managedRepositories),
         );
 
         $syncedBytes = ComposerJsonCanonicalizer::encodeCanonical($composerJson);
@@ -140,40 +153,151 @@ final class ComposerRepositoriesSync
     }
 
     /**
-     * @return list<array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}>
+     * @return array{currentMinor:string,devVersion:string,publicConstraint:string}
      *
      * @throws DeterministicException
      */
-    private static function desiredManagedRepositoriesFor(string $composerJsonRelPath): array
+    private static function loadReleaseLine(string $workspaceRoot): array
     {
+        $data = self::readJsonObjectFromWorkspace($workspaceRoot, self::RELEASE_LINE_PATH);
+
+        $schemaVersion = $data['schemaVersion'] ?? null;
+        $currentMinor = $data['currentMinor'] ?? null;
+        $devVersion = $data['devVersion'] ?? null;
+        $publicConstraint = $data['publicConstraint'] ?? null;
+
+        if ($schemaVersion !== self::RELEASE_LINE_SCHEMA_VERSION) {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+        }
+
+        if (!\is_string($currentMinor) || \preg_match('~\A[0-9]+\.[0-9]+\z~', $currentMinor) !== 1) {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+        }
+
+        if (!\is_string($devVersion) || $devVersion !== $currentMinor . '.x-dev') {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+        }
+
+        if (!\is_string($publicConstraint) || $publicConstraint !== '^' . $currentMinor . '.0') {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+        }
+
+        return [
+            'currentMinor' => $currentMinor,
+            'devVersion' => $devVersion,
+            'publicConstraint' => $publicConstraint,
+        ];
+    }
+
+    /**
+     * @return array<string,string>
+     *
+     * @throws DeterministicException
+     */
+    private static function discoverWorkspacePackageVersions(string $workspaceRoot, string $devVersion): array
+    {
+        $packagesRoot = self::joinRootAndRelPath($workspaceRoot, 'framework/packages');
+
+        if (!\is_dir($packagesRoot)) {
+            self::fail(ErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID);
+        }
+
+        $layers = self::listChildDirectoriesSorted($packagesRoot);
+
+        /** @var array<string,string> $versions */
+        $versions = [];
+
+        foreach ($layers as $layer) {
+            if (\preg_match('~\A[a-z][a-z0-9-]*\z~', $layer) !== 1) {
+                self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+            }
+
+            $layerDir = self::joinRootAndRelPath($packagesRoot, $layer);
+            $slugs = self::listChildDirectoriesSorted($layerDir);
+
+            foreach ($slugs as $slug) {
+                if (\preg_match('~\A[a-z0-9][a-z0-9-]*\z~', $slug) !== 1) {
+                    self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+                }
+
+                $composerRelPath = 'framework/packages/' . $layer . '/' . $slug . '/composer.json';
+                $composerPath = self::joinRootAndRelPath($workspaceRoot, $composerRelPath);
+
+                if (!\is_file($composerPath)) {
+                    continue;
+                }
+
+                $composer = self::readJsonObjectFromWorkspace($workspaceRoot, $composerRelPath);
+
+                $name = $composer['name'] ?? null;
+                $expectedName = 'coretsia/' . $layer . '-' . $slug;
+
+                if ($name !== $expectedName) {
+                    self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+                }
+
+                $versions[$expectedName] = $devVersion;
+            }
+        }
+
+        \ksort($versions, \SORT_STRING);
+
+        if ($versions === []) {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_PACKAGE_COMPOSER_SCHEMA_INVALID);
+        }
+
+        return $versions;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     *
+     * @throws DeterministicException
+     */
+    private static function desiredManagedRepositoriesFor(
+        string $composerJsonRelPath,
+        array $workspacePackageVersions,
+    ): array {
         return match ($composerJsonRelPath) {
             'composer.json' => [
                 self::managedPathRepository('framework', true),
-                self::managedPathRepository('framework/packages/*/*', true),
+                self::managedPathRepository('framework/packages/*/*', true, $workspacePackageVersions),
                 self::managedPathRepository('skeleton', true),
             ],
             'framework/composer.json' => [
-                self::managedPathRepository('packages/*/*', true),
+                self::managedPathRepository('packages/*/*', true, $workspacePackageVersions),
             ],
             'skeleton/composer.json' => [
                 self::managedPathRepository('../framework', true),
-                self::managedPathRepository('../framework/packages/*/*', true),
+                self::managedPathRepository('../framework/packages/*/*', true, $workspacePackageVersions),
             ],
             default => self::fail(ErrorCodes::CORETSIA_WORKSPACE_BACKUP_PATH_MISSING),
         };
     }
 
     /**
-     * @return array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}
+     * @param array<string,string>|null $workspacePackageVersions
+     * @return array<string,mixed>
      */
-    private static function managedPathRepository(string $url, bool $symlink): array
-    {
+    private static function managedPathRepository(
+        string $url,
+        bool $symlink,
+        ?array $workspacePackageVersions = null,
+    ): array {
+        /** @var array<string,mixed> $options */
+        $options = [
+            'symlink' => $symlink,
+        ];
+
+        if ($workspacePackageVersions !== null) {
+            $options['reference'] = 'config';
+            $options['versions'] = $workspacePackageVersions;
+        }
+
         return [
             'type' => 'path',
             'url' => $url,
-            'options' => [
-                'symlink' => $symlink,
-            ],
+            'options' => $options,
             self::MANAGED_FLAG => true,
         ];
     }
@@ -184,6 +308,71 @@ final class ComposerRepositoriesSync
     private static function isManagedRepositoryEntry(array $repository): bool
     {
         return ($repository[self::MANAGED_FLAG] ?? false) === true;
+    }
+
+    /**
+     * @return array<string,mixed>
+     *
+     * @throws DeterministicException
+     */
+    private static function readJsonObjectFromWorkspace(string $workspaceRoot, string $relPath): array
+    {
+        $path = self::joinRootAndRelPath($workspaceRoot, $relPath);
+
+        if (!\is_file($path)) {
+            self::fail(ErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID);
+        }
+
+        try {
+            $raw = DeterministicFile::readBytesExact($path);
+        } catch (\Throwable $e) {
+            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED, $e);
+        }
+
+        $data = self::decodeComposerJsonOrFail(self::stripUtf8Bom($raw));
+
+        if (\array_is_list($data)) {
+            self::fail(ErrorCodes::CORETSIA_WORKSPACE_COMPOSER_JSON_PARSE_FAILED);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return list<string>
+     *
+     * @throws DeterministicException
+     */
+    private static function listChildDirectoriesSorted(string $path): array
+    {
+        try {
+            $iterator = new \DirectoryIterator($path);
+        } catch (\Throwable $e) {
+            self::fail(ErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID, $e);
+        }
+
+        $out = [];
+
+        foreach ($iterator as $fi) {
+            if ($fi->isDot()) {
+                continue;
+            }
+
+            if (!$fi->isDir()) {
+                continue;
+            }
+
+            $name = $fi->getFilename();
+            if ($name === '' || $name === '.' || $name === '..') {
+                continue;
+            }
+
+            $out[] = $name;
+        }
+
+        \usort($out, static fn (string $a, string $b): int => \strcmp($a, $b));
+
+        return \array_values($out);
     }
 
     /**
@@ -236,6 +425,11 @@ final class ComposerRepositoriesSync
         }
     }
 
+    private static function normalizeWorkspaceRoot(string $path): string
+    {
+        return \rtrim(\str_replace('\\', '/', $path), '/');
+    }
+
     private static function normalizeRelativePath(string $path): string
     {
         $path = \str_replace('\\', '/', $path);
@@ -258,6 +452,15 @@ final class ComposerRepositoriesSync
         }
 
         return \implode('/', $out);
+    }
+
+    private static function stripUtf8Bom(string $bytes): string
+    {
+        if (\str_starts_with($bytes, "\xEF\xBB\xBF")) {
+            return \substr($bytes, 3);
+        }
+
+        return $bytes;
     }
 
     /**

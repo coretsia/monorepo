@@ -14,7 +14,7 @@
 
 # Releasing (GitHub Release + Packagist)
 
-This guide defines the **canonical** (single-choice) release procedure for the Coretsia monorepo in Phase 0.
+This guide defines the **canonical** (single-choice) release procedure for the Coretsia monorepo during the current development release line.
 
 ## Invariants (MUST)
 
@@ -31,7 +31,7 @@ This guide defines the **canonical** (single-choice) release procedure for the C
   - `## vMAJOR.MINOR.PATCH`
 - The release notes body is the content under that header until the next `## ...` header.
 
-### Publishing policy (Phase 0)
+### Publishing policy
 
 - Publishing **MUST be source-only**:
   - no built binaries
@@ -43,7 +43,10 @@ This guide defines the **canonical** (single-choice) release procedure for the C
 ## Packagist policy (MUST)
 
 Packagist publish target is **split repositories** (one package → one repo), not the monorepo root.
-Canonical packaging law: `docs/architecture/PACKAGING.md`.
+
+Canonical packaging law:
+
+- [Packaging strategy](../architecture/PACKAGING.md)
 
 For each split repo `coretsia/<layer>-<slug>` that is submitted to Packagist:
 
@@ -51,16 +54,20 @@ For each split repo `coretsia/<layer>-<slug>` that is submitted to Packagist:
 - Packagist auto-update on tag push MUST be enabled.
 - A normal release MUST NOT require pressing “Update” manually in the Packagist UI.
 
-Canonical mechanism (when split repos exist and hooks are enabled):
-`push tag vMAJOR.MINOR.PATCH` → split repos receive the same tag → Packagist auto-update (GitHub integration)
+Canonical mechanism for submitted public split repositories:
 
-## Status (Phase 0)
+```text
+push monorepo tag vMAJOR.MINOR.PATCH
+  -> split-publish.yml pushes the same tag to each allowlisted split repository
+  -> Packagist GitHub integration updates the package
+```
+
+## Status
 
 - GitHub Release automation for this monorepo is implemented by `.github/workflows/release.yml`.
-- Packagist auto-update is a **policy requirement** but remains **blocked until first public release evidence**:
-  - split repositories exist and are public,
-  - tags are propagated to split repositories,
-  - evidence: the tag appears in Packagist without manual “Update”.
+- Split publishing automation is implemented by `.github/workflows/split-publish.yml`.
+- Packagist auto-update is a **policy requirement** for submitted public split repositories.
+- Package-specific publication evidence belongs in release notes, epics, issues, or PR records.
 
 ## Preconditions (MUST)
 
@@ -74,6 +81,93 @@ Before cutting a release, ensure these files exist in the repo root:
 - `.github/scripts/split-plan.php`
 - `.github/scripts/split-plan.schema.md`
 
+## Release-line bump policy (MUST)
+
+The release-line tooling SSoT is:
+
+```text
+framework/tools/release/release-line.json
+```
+
+This file contains:
+
+- `schemaVersion` — schema version of the release-line file;
+- `currentMinor` — active release minor, for example `0.4`;
+- `devVersion` — monorepo workspace dev version, for example `0.4.x-dev`;
+- `publicConstraint` — public internal package constraint, for example `^0.4.0`.
+
+`schemaVersion` is not the package release version.
+
+`schemaVersion` MUST NOT be changed for normal patch or minor releases.
+
+### Patch releases
+
+Patch releases MUST NOT change:
+
+```text
+framework/tools/release/release-line.json
+```
+
+Example:
+
+```text
+v0.4.0 -> v0.4.1
+```
+
+The release-line remains:
+
+```json
+{
+  "currentMinor": "0.4",
+  "devVersion": "0.4.x-dev",
+  "publicConstraint": "^0.4.0"
+}
+```
+
+### Minor release-line bumps
+
+Minor release-line bumps MUST update only release-line values:
+
+- `currentMinor`
+- `devVersion`
+- `publicConstraint`
+
+Example:
+
+```text
+0.4 -> 0.5
+```
+
+Expected values:
+
+```json
+{
+  "schemaVersion": "coretsia.releaseLine.v1",
+  "currentMinor": "0.5",
+  "devVersion": "0.5.x-dev",
+  "publicConstraint": "^0.5.0"
+}
+```
+
+After changing release-line values, run:
+
+```bash
+composer sync:repos
+composer release-line:workspace:sync
+composer release-line:public-constraints:sync
+composer sync:check
+composer release-line:workspace:check
+composer release-line:public-constraints:check
+composer package-publish-safety:gate
+```
+
+These commands synchronize and verify:
+
+- managed Composer path repository `options.versions`;
+- framework workspace internal `coretsia/*` `require-dev` constraints;
+- package `composer.json` internal `coretsia/*` public constraints;
+- Packagist-safe metadata for split-publish allowlisted packages.
+
 ## Canonical procedure (MUST)
 
 All commands are run from the **repo root**.
@@ -82,40 +176,97 @@ All commands are run from the **repo root**.
 
 1. Add a new section to `CHANGELOG.md`:
 
-- Header: `## vMAJOR.MINOR.PATCH`
-- Content: human-written bullets grouped by area (kernel / tooling / docs / etc.)
+   - Header: `## vMAJOR.MINOR.PATCH`
+   - Content: human-written bullets grouped by area (kernel / tooling / docs / etc.)
 
 2. If the release contains upgrade-relevant changes, update `UPGRADE.md`.
-3. Ensure CI rails are green locally:
-
-```bash
-composer ci
-```
 
 ### 2) Commit
 
-Commit the changelog (and any related changes):
+Commit the changelog and any related changes:
 
 ```bash
 git add CHANGELOG.md UPGRADE.md
 git commit -m "[vMAJOR.MINOR.PATCH] chore(release): prepare release notes"
 ```
 
-### 3) Create the tag (single-choice)
+### 3) Preflight release tag checks
+
+Set the release tag and run all checks before creating or pushing the tag:
+
+```bash
+TAG=vMAJOR.MINOR.PATCH
+RELEASE_NOTES_FILE="$(mktemp)"
+trap 'rm -f "${RELEASE_NOTES_FILE}"' EXIT
+
+git switch main
+git pull --ff-only
+
+if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Invalid tag format: ${TAG}" >&2
+  exit 1
+fi
+
+if [[ -n "$(git status --short)" ]]; then
+  echo "Working tree is not clean" >&2
+  git status --short >&2
+  exit 1
+fi
+
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "Local main is not at origin/main HEAD" >&2
+  echo "Local:  $(git rev-parse HEAD)" >&2
+  echo "Origin: $(git rev-parse origin/main)" >&2
+  exit 1
+fi
+
+if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+  echo "Local tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+  echo "Remote tag already exists: ${TAG}" >&2
+  exit 1
+fi
+
+test -f CHANGELOG.md
+
+awk -v tag="${TAG}" '
+  BEGIN { inside=0; found=0 }
+  $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
+  $0 ~ "^##[[:space:]]+" && inside==1 { exit }
+  inside==1 { print }
+  END { if (found==0) exit 2 }
+' CHANGELOG.md > "${RELEASE_NOTES_FILE}" || {
+  echo "Missing CHANGELOG section for ${TAG}" >&2
+  echo "Expected heading: ## ${TAG}" >&2
+  exit 1
+}
+
+if [[ ! -s "${RELEASE_NOTES_FILE}" ]]; then
+  echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
+  exit 1
+fi
+
+composer ci
+```
+
+### 4) Create the tag
 
 Create an **annotated** tag where the message equals the tag:
 
 ```bash
-git tag -a vMAJOR.MINOR.PATCH -m "vMAJOR.MINOR.PATCH"
+git tag -a "${TAG}" -m "${TAG}"
 ```
 
-### 4) Push the tag
+### 5) Push the tag
 
 ```bash
-git push origin vMAJOR.MINOR.PATCH
+git push origin "${TAG}"
 ```
 
-### 5) Automation outcome
+### 6) Automation outcome
 
 After the monorepo tag is pushed:
 
@@ -129,8 +280,8 @@ For packages published through Packagist, package publishing is handled by the s
 
 ```text
 monorepo tag vMAJOR.MINOR.PATCH
-  -> split workflow pushes the package subtree to the public split repository
-  -> split workflow pushes the same tag to the public split repository
+  -> split-publish.yml pushes the package subtree to the public split repository
+  -> split-publish.yml pushes the same tag to the public split repository
   -> Packagist GitHub integration updates the package
 ```
 
@@ -138,9 +289,7 @@ Packagist watches the split repository, not the monorepo.
 
 For the detailed split publishing procedure, see:
 
-```text
-docs/guides/packagist-split-publishing-guide.md
-```
+- [Packagist split publishing guide](packagist-split-publishing-guide.md)
 
 ## Validation / dry-run mode (MUST)
 

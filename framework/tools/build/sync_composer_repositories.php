@@ -20,29 +20,35 @@ declare(strict_types=1);
 final class SyncComposerRepositories
 {
     public const string CODE_FAILED = 'CORETSIA_WORKSPACE_SYNC_FAILED';
-
     private const string CODE_MANAGED_BLOCK_INVALID = 'CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID';
     private const string CODE_MANAGED_REPOS_OUT_OF_SYNC = 'CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC';
-
     private const string MANAGED_FLAG = 'coretsia_managed';
+    private const string RELEASE_LINE_PATH = 'framework/tools/release/release-line.json';
+    private const string RELEASE_LINE_SCHEMA_VERSION = 'coretsia.releaseLine.v1';
 
     public static function main(array $argv): int
     {
         $repoRoot = self::resolveRepoRoot($argv);
         $check = self::argFlag($argv, '--check');
 
+        $releaseLine = self::loadReleaseLine($repoRoot);
+        $workspacePackageVersions = self::discoverWorkspacePackageVersions(
+            $repoRoot,
+            $releaseLine['devVersion'],
+        );
+
         $targets = [
             [
                 'path' => $repoRoot . '/composer.json',
-                'desired' => self::desiredManagedReposForRoot(),
+                'desired' => self::desiredManagedReposForRoot($workspacePackageVersions),
             ],
             [
                 'path' => $repoRoot . '/framework/composer.json',
-                'desired' => self::desiredManagedReposForFramework(),
+                'desired' => self::desiredManagedReposForFramework($workspacePackageVersions),
             ],
             [
                 'path' => $repoRoot . '/skeleton/composer.json',
-                'desired' => self::desiredManagedReposForSkeleton(),
+                'desired' => self::desiredManagedReposForSkeleton($workspacePackageVersions),
             ],
         ];
 
@@ -99,8 +105,12 @@ final class SyncComposerRepositories
      * @param list<array<string,mixed>> $desiredManaged
      * @return array{changed:bool,invalidManagedBlock:bool}
      */
-    private static function syncOne(string $composerJsonPath, array $desiredManaged, bool $apply, string $repoRoot): array
-    {
+    private static function syncOne(
+        string $composerJsonPath,
+        array $desiredManaged,
+        bool $apply,
+        string $repoRoot
+    ): array {
         if (!is_file($composerJsonPath)) {
             throw new RuntimeException('composer.json missing: ' . self::rel($repoRoot, $composerJsonPath));
         }
@@ -129,7 +139,9 @@ final class SyncComposerRepositories
         $managedIdx = [];
         foreach ($repos as $i => $r) {
             if (!is_array($r)) {
-                throw new RuntimeException('repository entry must be object: ' . self::rel($repoRoot, $composerJsonPath));
+                throw new RuntimeException(
+                    'repository entry must be object: ' . self::rel($repoRoot, $composerJsonPath)
+                );
             }
             if (self::isManaged($r)) {
                 $managedIdx[] = (int)$i;
@@ -186,51 +198,206 @@ final class SyncComposerRepositories
     }
 
     /**
-     * Root composer.json managed repositories (Prelude SPOF).
+     * Root composer.json managed repositories.
      *
-     * @return list<array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}>
+     * @param array<string,string> $workspacePackageVersions
+     * @return list<array<string,mixed>>
      */
-    private static function desiredManagedReposForRoot(): array
+    private static function desiredManagedReposForRoot(array $workspacePackageVersions): array
     {
         return [
             self::managedPathRepo('framework', true),
-            self::managedPathRepo('framework/packages/*/*', true),
+            self::managedPathRepo('framework/packages/*/*', true, $workspacePackageVersions),
             self::managedPathRepo('skeleton', true),
         ];
     }
 
     /**
-     * @return list<array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}>
+     * @return array{currentMinor:string,devVersion:string,publicConstraint:string}
      */
-    private static function desiredManagedReposForFramework(): array
+    private static function loadReleaseLine(string $repoRoot): array
     {
+        $path = $repoRoot . '/' . self::RELEASE_LINE_PATH;
+        $data = self::readJsonObject($path, $repoRoot);
+
+        $schemaVersion = $data['schemaVersion'] ?? null;
+        $currentMinor = $data['currentMinor'] ?? null;
+        $devVersion = $data['devVersion'] ?? null;
+        $publicConstraint = $data['publicConstraint'] ?? null;
+
+        if ($schemaVersion !== self::RELEASE_LINE_SCHEMA_VERSION) {
+            throw new RuntimeException('release-line schemaVersion invalid: ' . self::rel($repoRoot, $path));
+        }
+
+        if (!is_string($currentMinor) || preg_match('~\A[0-9]+\.[0-9]+\z~', $currentMinor) !== 1) {
+            throw new RuntimeException('release-line currentMinor invalid: ' . self::rel($repoRoot, $path));
+        }
+
+        if (!is_string($devVersion) || $devVersion !== $currentMinor . '.x-dev') {
+            throw new RuntimeException('release-line devVersion invalid: ' . self::rel($repoRoot, $path));
+        }
+
+        if (!is_string($publicConstraint) || $publicConstraint !== '^' . $currentMinor . '.0') {
+            throw new RuntimeException('release-line publicConstraint invalid: ' . self::rel($repoRoot, $path));
+        }
+
         return [
-            self::managedPathRepo('packages/*/*', true),
+            'currentMinor' => $currentMinor,
+            'devVersion' => $devVersion,
+            'publicConstraint' => $publicConstraint,
         ];
     }
 
     /**
-     * @return list<array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}>
+     * @return array<string,string>
      */
-    private static function desiredManagedReposForSkeleton(): array
+    private static function discoverWorkspacePackageVersions(string $repoRoot, string $devVersion): array
+    {
+        $packagesRoot = $repoRoot . '/framework/packages';
+
+        if (!is_dir($packagesRoot)) {
+            throw new RuntimeException('Missing framework packages root: framework/packages');
+        }
+
+        $packagesRootReal = realpath($packagesRoot);
+        if ($packagesRootReal === false) {
+            throw new RuntimeException('Cannot resolve framework packages root: framework/packages');
+        }
+
+        $packagesRootReal = rtrim(str_replace('\\', '/', $packagesRootReal), '/');
+
+        $hits = glob($packagesRootReal . '/*/*/composer.json', GLOB_NOSORT);
+        if ($hits === false) {
+            $hits = [];
+        }
+
+        $hits = array_values(
+            array_map(
+                static fn (string $path): string => str_replace('\\', '/', $path),
+                $hits,
+            )
+        );
+        sort($hits, SORT_STRING);
+
+        /** @var array<string,string> $versions */
+        $versions = [];
+
+        foreach ($hits as $composerJsonPath) {
+            if (!is_file($composerJsonPath)) {
+                continue;
+            }
+
+            $relative = self::relFrom($packagesRootReal, $composerJsonPath);
+            $parts = explode('/', $relative);
+
+            if (count($parts) !== 3 || $parts[2] !== 'composer.json') {
+                throw new RuntimeException('Invalid package composer path: ' . self::rel($repoRoot, $composerJsonPath));
+            }
+
+            [$layer, $slug] = [$parts[0], $parts[1]];
+
+            if (preg_match('~\A[a-z][a-z0-9-]*\z~', $layer) !== 1) {
+                throw new RuntimeException('Invalid package layer: ' . self::rel($repoRoot, $composerJsonPath));
+            }
+
+            if (preg_match('~\A[a-z0-9][a-z0-9-]*\z~', $slug) !== 1) {
+                throw new RuntimeException('Invalid package slug: ' . self::rel($repoRoot, $composerJsonPath));
+            }
+
+            $composer = self::readJsonObject($composerJsonPath, $repoRoot);
+
+            $name = $composer['name'] ?? null;
+            $expectedName = 'coretsia/' . $layer . '-' . $slug;
+
+            if ($name !== $expectedName) {
+                throw new RuntimeException(
+                    'Package composer name mismatch: '
+                    . self::rel($repoRoot, $composerJsonPath)
+                    . ' expected '
+                    . $expectedName
+                );
+            }
+
+            $versions[$expectedName] = $devVersion;
+        }
+
+        ksort($versions, SORT_STRING);
+
+        if ($versions === []) {
+            throw new RuntimeException('No workspace packages discovered under framework/packages');
+        }
+
+        return $versions;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function readJsonObject(string $path, string $repoRoot): array
+    {
+        if (!is_file($path)) {
+            throw new RuntimeException('JSON file missing: ' . self::rel($repoRoot, $path));
+        }
+
+        $raw = (string)file_get_contents($path);
+
+        if (str_starts_with($raw, "\xEF\xBB\xBF")) {
+            $raw = substr($raw, 3);
+        }
+
+        $raw = self::normalizeEol($raw);
+        $data = json_decode($raw, true);
+
+        if (!is_array($data) || array_is_list($data)) {
+            throw new RuntimeException('Invalid JSON object: ' . self::rel($repoRoot, $path));
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param array<string,string> $workspacePackageVersions
+     * @return list<array<string,mixed>>
+     */
+    private static function desiredManagedReposForFramework(array $workspacePackageVersions): array
+    {
+        return [
+            self::managedPathRepo('packages/*/*', true, $workspacePackageVersions),
+        ];
+    }
+
+    /**
+     * @param array<string,string> $workspacePackageVersions
+     * @return list<array<string,mixed>>
+     */
+    private static function desiredManagedReposForSkeleton(array $workspacePackageVersions): array
     {
         return [
             self::managedPathRepo('../framework', true),
-            self::managedPathRepo('../framework/packages/*/*', true),
+            self::managedPathRepo('../framework/packages/*/*', true, $workspacePackageVersions),
         ];
     }
 
     /**
-     * @return array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}
+     * @param array<string,string>|null $workspacePackageVersions
+     * @return array<string,mixed>
      */
-    private static function managedPathRepo(string $url, bool $symlink): array
+    private static function managedPathRepo(string $url, bool $symlink, ?array $workspacePackageVersions = null): array
     {
+        /** @var array<string,mixed> $options */
+        $options = [
+            'symlink' => $symlink,
+        ];
+
+        if ($workspacePackageVersions !== null) {
+            $options['reference'] = 'config';
+            $options['versions'] = $workspacePackageVersions;
+        }
+
         return [
             'type' => 'path',
             'url' => $url,
-            'options' => [
-                'symlink' => $symlink,
-            ],
+            'options' => $options,
             self::MANAGED_FLAG => true,
         ];
     }
@@ -245,7 +412,7 @@ final class SyncComposerRepositories
 
     /**
      * @param list<array<string,mixed>> $desired
-     * @return list<array{type:string,url:string,options:array{symlink:bool},coretsia_managed:bool}>
+     * @return list<array<string,mixed>>
      */
     private static function canonicalizeManaged(array $desired): array
     {
@@ -264,19 +431,60 @@ final class SyncComposerRepositories
             }
 
             $options = $r['options'] ?? [];
-            if (!is_array($options)) {
+            if (!is_array($options) || array_is_list($options)) {
                 throw new RuntimeException('options must be object');
             }
 
-            $symlink = (bool)($options['symlink'] ?? true);
+            /** @var array<string,mixed> $canonicalOptions */
+            $canonicalOptions = [
+                'symlink' => (bool)($options['symlink'] ?? true),
+            ];
 
-            // Canonical key insertion order for managed entries:
+            if (array_key_exists('reference', $options)) {
+                $reference = $options['reference'];
+
+                if (!is_string($reference) || $reference === '') {
+                    throw new RuntimeException('options.reference must be non-empty string');
+                }
+
+                $canonicalOptions['reference'] = $reference;
+            }
+
+            if (array_key_exists('versions', $options)) {
+                $versions = $options['versions'];
+
+                if (!is_array($versions)) {
+                    throw new RuntimeException('options.versions must be non-empty object');
+                }
+
+                if ($versions === [] || array_is_list($versions)) {
+                    throw new RuntimeException('options.versions must be non-empty object');
+                }
+
+                /** @var array<string,string> $canonicalVersions */
+                $canonicalVersions = [];
+
+                foreach ($versions as $name => $version) {
+                    if (!is_string($name) || $name === '') {
+                        throw new RuntimeException('options.versions package name must be non-empty string');
+                    }
+
+                    if (!is_string($version) || $version === '') {
+                        throw new RuntimeException('options.versions package version must be non-empty string');
+                    }
+
+                    $canonicalVersions[$name] = $version;
+                }
+
+                ksort($canonicalVersions, SORT_STRING);
+
+                $canonicalOptions['versions'] = $canonicalVersions;
+            }
+
             $out[] = [
                 'type' => $type,
                 'url' => $url,
-                'options' => [
-                    'symlink' => $symlink,
-                ],
+                'options' => $canonicalOptions,
                 self::MANAGED_FLAG => true,
             ];
         }
@@ -304,7 +512,7 @@ final class SyncComposerRepositories
 
     /**
      * Pretty-print JSON with a given indent size.
-     * NOTE: json_encode() is forbidden in framework/tools/**
+     * NOTE: json_encode() is forbidden in framework/tools/\**
      * this is a minimal deterministic encoder for composer.json.
      */
     private static function encodeJsonPretty(mixed $value, int $indentSize): string
@@ -582,6 +790,14 @@ final class SyncComposerRepositories
         $repoRoot = rtrim(str_replace('\\', '/', $repoRoot), '/') . '/';
         $abs = str_replace('\\', '/', $abs);
         return str_starts_with($abs, $repoRoot) ? substr($abs, strlen($repoRoot)) : $abs;
+    }
+
+    private static function relFrom(string $rootAbs, string $abs): string
+    {
+        $rootAbs = rtrim(str_replace('\\', '/', $rootAbs), '/') . '/';
+        $abs = str_replace('\\', '/', $abs);
+
+        return str_starts_with($abs, $rootAbs) ? substr($abs, strlen($rootAbs)) : $abs;
     }
 
     private static function repoRootUnsafe(): string

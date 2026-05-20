@@ -184,13 +184,27 @@ vMAJOR.MINOR.PATCH
 
 Per-package independent versions are forbidden.
 
-Inside the monorepo development workspace, local path packages may continue using branch constraints such as:
+The monorepo development workspace resolves local package changes through Composer path repositories.
 
-```json
-"coretsia/<layer>-<slug>": "dev-main"
+Workspace path repositories use generated `options.versions` values from:
+
+```text
+framework/tools/release/release-line.json
 ```
 
-This is valid for monorepo-local development because the workspace uses path repositories.
+For release line `0.4`, workspace package versions use:
+
+```text
+0.4.x-dev
+```
+
+Example workspace-local internal package constraint:
+
+```json
+"coretsia/<layer>-<slug>": "0.4.x-dev"
+```
+
+This is valid for monorepo-local development because the workspace uses path repositories with symlinks and generated path repository versions.
 
 Public installation instructions MUST use stable tag constraints after the package is published.
 
@@ -202,11 +216,21 @@ Template:
 composer require coretsia/<layer>-<slug>:^MAJOR.MINOR
 ```
 
-Published package dependencies MUST NOT use `dev-main` in public `require` sections. Use SemVer constraints instead:
+Published package dependencies MUST NOT use `dev-main` in public `require` or `require-dev` sections.
+
+Published package dependencies MUST use the release-line public SemVer constraint generated from:
+
+```text
+framework/tools/release/release-line.json
+```
+
+For release line `0.4`, internal public package dependencies use:
 
 ```json
-"coretsia/<dependency-layer>-<dependency-slug>": "^MAJOR.MINOR"
+"coretsia/<dependency-layer>-<dependency-slug>": "^0.4.0"
 ```
+
+Package `composer.json` files MUST NOT contain a manual `version` field.
 
 ## One-time bootstrap for a new split package
 
@@ -225,12 +249,22 @@ perform:
 2. Create public empty split repository: coretsia/<layer>-<slug>.
 3. Add the split repository to the Coretsia split publisher GitHub App selected repositories list.
 4. Verify the GitHub App has Contents: Read and write for the selected split repository.
-5. Add the package to `.github/split-publish-packages.json`.
-6. Merge the allowlist change to monorepo main.
-7. Verify the split repository root contains package files and composer.json.
-8. Submit the split repository URL to Packagist once.
-9. Verify the Packagist package page points to the split repository and receives split repository updates.
-10. Release through normal monorepo tag flow.
+5. Ensure package composer metadata is Packagist-safe:
+   - no package-local composer.json version field;
+   - no internal coretsia/* dependency uses dev-main;
+   - no internal coretsia/* dependency uses *;
+   - no internal coretsia/* dependency uses @dev;
+   - no internal coretsia/* dependency uses an exact SemVer pin;
+   - internal coretsia/* dependencies use the release-line publicConstraint.
+6. Run composer release-line:public-constraints:sync.
+7. Run composer release-line:public-constraints:check.
+8. Run composer package-publish-safety:gate.
+9. Add the package to .github/split-publish-packages.json.
+10. Merge the allowlist change to monorepo main.
+11. Verify the split repository root contains package files and composer.json.
+12. Submit the split repository URL to Packagist once.
+13. Verify the Packagist package page points to the split repository and receives split repository updates.
+14. Release through the canonical monorepo release procedure in docs/guides/releasing.md.
 ```
 
 The publish allowlist entry MUST use this shape:
@@ -345,7 +379,7 @@ This procedure applies after the package publishing bootstrap is prepared on a f
 4. The monorepo has vars.SPLIT_PUBLISH_APP_CLIENT_ID.
 5. The monorepo has secrets.SPLIT_PUBLISH_APP_PRIVATE_KEY.
 6. The package is listed in `.github/split-publish-packages.json`.
-7. Release notes for the target monorepo tag exist in `CHANGELOG.md` under `## vMAJOR.MINOR.PATCH`.
+7. The package is included in the target release notes according to `docs/guides/releasing.md`.
 ```
 
 Input package identity:
@@ -428,107 +462,28 @@ Verify that the Packagist package page points to the split repository and expose
 
 For a new package, stable versions appear only after the monorepo release tag is pushed and propagated to the split repository.
 
-### 3. Preflight release tag checks
+### 3. Run the canonical monorepo release procedure
 
-Use the next monorepo-wide release tag.
+Follow the canonical monorepo release procedure:
 
-Run all checks before creating or pushing the tag:
+- [Releasing](releasing.md)
 
-```bash
-TAG=vMAJOR.MINOR.PATCH
-trap 'rm -f release_notes.md' EXIT
+Do not duplicate release tag checks, changelog extraction, GitHub Release creation, or tag push commands in this guide.
 
-git checkout main
-git pull --ff-only
+Additional split-specific checks for first package publication:
 
-if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Invalid tag format: ${TAG}" >&2
-  exit 1
-fi
-
-if [[ -n "$(git status --short)" ]]; then
-  echo "Working tree is not clean" >&2
-  git status --short >&2
-  exit 1
-fi
-
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-  echo "Local main is not at origin/main HEAD" >&2
-  echo "Local:  $(git rev-parse HEAD)" >&2
-  echo "Origin: $(git rev-parse origin/main)" >&2
-  exit 1
-fi
-
-if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
-  echo "Local tag already exists: ${TAG}" >&2
-  exit 1
-fi
-
-if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-  echo "Remote tag already exists: ${TAG}" >&2
-  exit 1
-fi
-
-test -f CHANGELOG.md
-
-awk -v tag="${TAG}" '
-  BEGIN { inside=0; found=0 }
-  $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
-  $0 ~ "^##[[:space:]]+" && inside==1 { exit }
-  inside==1 { print }
-  END { if (found==0) exit 2 }
-' CHANGELOG.md > release_notes.md || {
-  echo "Missing CHANGELOG section for ${TAG}" >&2
-  echo "Expected heading: ## ${TAG}" >&2
-  exit 1
-}
-
-if [[ ! -s release_notes.md ]]; then
-  echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
-  exit 1
-fi
-
-rm -f release_notes.md
-
-composer ci
-```
-
-For first package publication, manually verify that every newly submitted split repository is non-empty before the first release tag is pushed.
-
-Verify that each new split repository root contains:
-
-```text
-composer.json
-README.md
-LICENSE
-NOTICE
-src/
-```
-
-Verify that the split repository root does not contain the monorepo package path:
-
-```text
-framework/packages/<layer>/<slug>/
-```
-
-Verify that the Packagist package page exists and points to the split repository, not the monorepo.
+1. Verify every newly submitted split repository is non-empty.
+2. Verify each split repository root contains `composer.json`, `README.md`, `LICENSE`, `NOTICE`, and `src/`.
+3. Verify the split repository root does not contain the monorepo package path.
+4. Verify the Packagist package page points to the split repository, not the monorepo.
 
 Do not manually scan all allowlisted split repositories for tag availability before release.
 
 Split tag immutability is enforced by `.github/workflows/split-publish.yml`; if a split repository already contains the release tag, the workflow must fail instead of overwriting it.
 
-### 4. Push first release tag
+### 4. Verify split publication evidence
 
-After all preflight checks pass:
-
-```bash
-git tag -a "${TAG}" -m "${TAG}"
-git push origin "${TAG}"
-```
-
-### 5. Verify evidence
-
-Verify:
+After the monorepo release workflow and split publishing workflow finish, verify:
 
 ```text
 1. release.yml passed.
@@ -578,122 +533,31 @@ Do not use a class from another package as the smoke-test symbol.
 
 Use this after the split repository and Packagist package already exist.
 
-### 1. Prepare release notes
+### 1. Prepare the monorepo release
 
-Add a release section to `CHANGELOG.md`:
+Follow the canonical monorepo release procedure:
 
-```md
-## vMAJOR.MINOR.PATCH
+- [Releasing](releasing.md)
 
-### Added
+This guide does not duplicate release tag checks, changelog extraction, GitHub Release creation, or tag push commands.
 
-- ...
-```
+### 2. Verify main branch sync after merge
 
-The heading must be exactly:
+After a feature branch is squash-merged into monorepo `main`, verify:
 
 ```text
-## vMAJOR.MINOR.PATCH
+split-publish.yml:
+  updates each allowlisted split repository main branch
+
+Packagist:
+  sees updated dev-main for each submitted package
 ```
 
-### 2. Merge changes into main
+Feature branch pushes do not publish packages. Only merges to `main` update split repository `main` branches.
 
-Normal development flow:
+### 3. Verify release tag sync after tag push
 
-```text
-feature branch
-  -> commit
-  -> push feature branch
-  -> Pull Request
-  -> Squash and Merge to main
-```
-
-After merge:
-
-```text
-split-publish.yml updates each allowlisted split repository main branch
-Packagist sees updated dev-main for each submitted package
-```
-
-### 3. Preflight release tag checks
-
-Use the next monorepo-wide release tag.
-
-Run all checks before creating or pushing the tag:
-
-```bash
-TAG=vMAJOR.MINOR.PATCH
-trap 'rm -f release_notes.md' EXIT
-
-git checkout main
-git pull --ff-only
-
-if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Invalid tag format: ${TAG}" >&2
-  exit 1
-fi
-
-if [[ -n "$(git status --short)" ]]; then
-  echo "Working tree is not clean" >&2
-  git status --short >&2
-  exit 1
-fi
-
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-  echo "Local main is not at origin/main HEAD" >&2
-  echo "Local:  $(git rev-parse HEAD)" >&2
-  echo "Origin: $(git rev-parse origin/main)" >&2
-  exit 1
-fi
-
-if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
-  echo "Local tag already exists: ${TAG}" >&2
-  exit 1
-fi
-
-if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-  echo "Remote tag already exists: ${TAG}" >&2
-  exit 1
-fi
-
-test -f CHANGELOG.md
-
-awk -v tag="${TAG}" '
-  BEGIN { inside=0; found=0 }
-  $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" { inside=1; found=1; next }
-  $0 ~ "^##[[:space:]]+" && inside==1 { exit }
-  inside==1 { print }
-  END { if (found==0) exit 2 }
-' CHANGELOG.md > release_notes.md || {
-  echo "Missing CHANGELOG section for ${TAG}" >&2
-  echo "Expected heading: ## ${TAG}" >&2
-  exit 1
-}
-
-if [[ ! -s release_notes.md ]]; then
-  echo "Empty release notes for ${TAG} in CHANGELOG.md" >&2
-  exit 1
-fi
-
-rm -f release_notes.md
-
-composer ci
-```
-
-Do not manually scan all allowlisted split repositories for tag availability before release.
-
-Split tag immutability is enforced by `.github/workflows/split-publish.yml`; if a split repository already contains the release tag, the workflow must fail instead of overwriting it.
-
-### 4. Push release tag
-
-After all preflight checks pass:
-
-```bash
-git tag -a "${TAG}" -m "${TAG}"
-git push origin "${TAG}"
-```
-
-Expected result:
+After the canonical monorepo release tag is pushed, verify:
 
 ```text
 release.yml:
@@ -710,6 +574,10 @@ Packagist:
   receives GitHub hooks from submitted split repositories
   exposes Composer stable versions
 ```
+
+Do not manually scan all allowlisted split repositories for tag availability before release.
+
+Split tag immutability is enforced by `.github/workflows/split-publish.yml`; if a split repository already contains the release tag, the workflow must fail instead of overwriting it.
 
 ## Failure policy
 
@@ -782,7 +650,11 @@ Manual Packagist Update may be used only as troubleshooting evidence, not as the
 - GitHub App authentication material is stored once in the monorepo Actions variable/secret pair.
 - First Packagist package submission is a one-time bootstrap action.
 - Normal package updates/releases must be automatic through GitHub integration.
-- Monorepo dev workspace may use dev-main path dependencies.
+- Monorepo dev workspace uses path repositories with generated release-line options.versions.
+- Monorepo workspace internal coretsia/* dev constraints use release-line devVersion, for example 0.4.x-dev.
+- Published and allowlisted package composer.json files must not contain manual version fields.
+- Published and allowlisted package internal coretsia/* dependencies must not use dev-main.
+- Published and allowlisted package internal coretsia/* dependencies must use release-line publicConstraint, for example ^0.4.0.
 - Public packages and docs must use stable SemVer constraints.
 - Feature branch pushes do not publish packages.
 - Squash merge to main updates split main.

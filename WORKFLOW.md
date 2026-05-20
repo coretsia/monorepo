@@ -85,12 +85,13 @@ git diff                                   # show unstaged diff
 
 ## Auto-fixes and generators
 
-Run before staging when the current task may affect source files, composer manifests, package structure, dependency policy, or generated rails:
+Run before staging when the current task may affect source files, composer manifests, package structure, dependency policy, release-line policy, publishing metadata, or generated rails:
 
 ```bash
+composer docs:structure                    # regenerate docs structure output
 composer cs:fix                            # apply code style fixes
 composer sync:check                        # check managed composer repositories
-```
+`````
 
 If managed composer repositories drift is reported:
 
@@ -106,7 +107,7 @@ composer arch:package-index:generate       # regenerate package index
 composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac artifacts
 ```
 
-If package scaffold, package compliance, `new-package.php`, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `framework/packages/*/*` structure changed:
+If package scaffold, `composer package:new`, package compliance, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `framework/packages/*/*` structure changed:
 
 ```bash
 composer package-scaffold:check -- framework       # read-only scaffold/legal drift check
@@ -123,6 +124,18 @@ For targeted package compliance verification:
 
 ```bash
 composer package-compliance:gate -- framework      # targeted package compliance gate; also included in composer gates
+```
+
+If `framework/tools/release/release-line.json`, internal `coretsia/*` Composer constraints, `.github/split-publish-packages.json`, or split/Packagist publication readiness changed:
+
+```bash
+composer sync:repos                                # update path repository options.versions from release-line devVersion
+composer release-line:workspace:sync               # sync framework/composer.json internal coretsia/* require-dev constraints
+composer release-line:public-constraints:sync      # sync package composer.json internal coretsia/* public constraints
+composer sync:check                                # verify managed repositories/options.versions
+composer release-line:workspace:check              # verify framework workspace release-line drift
+composer release-line:public-constraints:check     # verify package public constraint drift
+composer package-publish-safety:gate               # targeted split/Packagist allowlist safety gate
 ```
 
 ## Pre-staging checks
@@ -391,6 +404,15 @@ composer package-scaffold:check -- framework       # verify scaffold/legal drift
 
 # Optional targeted package compliance check; composer gates also runs it:
 composer package-compliance:gate -- framework      # run package compliance gate directly
+
+# If release-line/package publishing metadata changed:
+composer sync:repos                                # update path repository options.versions from release-line devVersion
+composer release-line:workspace:sync               # sync framework workspace internal constraints
+composer release-line:public-constraints:sync      # sync package internal public constraints
+composer sync:check                                # verify managed repositories/options.versions
+composer release-line:workspace:check              # verify workspace release-line drift
+composer release-line:public-constraints:check     # verify package public constraint drift
+composer package-publish-safety:gate               # verify split/Packagist allowlisted packages
 
 rm -rf framework/var/phpstan               # clear phpstan cache
 composer validate:all                      # validate all composer manifests

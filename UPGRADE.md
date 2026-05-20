@@ -38,7 +38,7 @@ If you previously relied on wrapper roots in config files, you must adjust your 
 `repositories` blocks are managed only by:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php
+composer sync:repos
 ```
 
 During upgrades (or rebases), treat manual edits of `repositories` as invalid and expect CI/pre-commit to fail on drift.
@@ -76,15 +76,13 @@ Expect upgrades to reject:
 4. **Sync managed repositories (if needed)**
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php --check
+composer sync:check
 ```
 
 5. **Install dependencies using locks**
 
 ```bash
-composer install
-composer -d framework install
-composer -d skeleton install
+composer install:all
 ```
 
 6. **Run the canonical rails**
@@ -98,6 +96,54 @@ composer ci
 
 - Search your app for `@deprecated` usage and follow migration notes.
 - Remember: removals happen in `N+2` by policy.
+
+## v0.x development snapshots
+
+The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
+
+### From v0.2.0 to v0.3.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+
+#### Notes
+
+- Review `CHANGELOG.md` for the `v0.3.0` package publication details.
+- This release introduced additional publish-ready split packages.
+
+#### Migration steps
+
+1. Review `CHANGELOG.md`.
+2. Refresh dependency locks intentionally if your workspace consumes split packages.
+3. Run:
+
+```bash
+composer setup
+composer ci
+```
+
+### From v0.1.0 to v0.2.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+
+#### Notes
+
+- Review `CHANGELOG.md` for the `v0.2.0` contracts baseline and first public split package details.
+- This release introduced the first publish-ready split package and the Phase 1 contracts baseline.
+
+#### Migration steps
+
+1. Review `CHANGELOG.md`.
+2. Refresh dependency locks intentionally if your workspace consumes split packages.
+3. Run:
+
+```bash
+composer setup
+composer ci
+```
 
 ## Entry template
 

@@ -26,9 +26,16 @@
 
 Coretsia Framework is in **active development**.
 
+Roadmap status:
+
 - **Prelude**: implemented
 - **Phase 0 — Spikes and prototypes**: implemented
 - **Phase 1 — Core**: active development
+- **Phase 2 — Mode Infrastructure & CLI**: planned
+- **Phase 3 — RELEASE: micro**: planned
+- **Phase 4 — RELEASE: express**: planned
+- **Phase 5 — RELEASE: hybrid**: planned
+- **Phase 6+ — RELEASE: enterprise (extensions)**: planned
 - **Stable production release**: not available yet
 
 Current public implementation baseline:
@@ -36,9 +43,13 @@ Current public implementation baseline:
 - deterministic tooling and gates
 - managed Composer workspace/repository synchronization
 - publishing rails policy
+- public split-package publishing baseline
 - canonical CLI ports
 - prod-safe CLI base
 - Phase 0 devtools command pack
+- Phase 1 contracts baseline
+- DTO policy and package compliance rails
+- architecture and quality verification rails
 
 Authoritative planning and invariants:
 
@@ -81,14 +92,19 @@ composer ci
 
 ### Managed Composer repositories (MUST NOT edit manually)
 
-`repositories` blocks in root/framework/skeleton composer.json files are managed only by:
+`repositories` blocks in root/framework/skeleton composer.json files are managed only through the canonical repo-root commands:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php --check
-php framework/tools/build/sync_composer_repositories.php
+composer sync:check
+composer sync:repos
 ```
 
 Manual edits are forbidden by policy and enforced by pre-commit/CI drift checks.
+
+See:
+
+- [Command catalog](docs/guides/commands.md)
+- [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
 
 ### Lock determinism (MUST)
 
@@ -135,9 +151,10 @@ composer ci
 
 ## Documentation index
 
-### Guides (Prelude)
+### Guides
 
 - [Quickstart (clean clone → working baseline)](docs/guides/quickstart.md)
+- [Command catalog (canonical)](docs/guides/commands.md)
 - [Developer onboarding checklist](docs/guides/onboarding.md)
 - [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
 - [Dependency graph (conceptual; truth is in SSoT)](docs/guides/dependency-graph.md)
@@ -152,6 +169,19 @@ composer ci
 - [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
 - [SSoT index](docs/ssot/INDEX.md)
 - [Branding spec](docs/architecture/BRANDING.md)
+- [Website architecture draft](docs/architecture/WEBSITE.md)
+
+## Community RFCs
+
+### Website Design RFC
+
+Coretsia is currently collecting open-source ideas for the future official website design direction.
+
+The discussion is focused on translating the canonical Coretsia branding specification into a practical website concept, including the homepage, documentation section, news/blog section, and community pages.
+
+- [Website architecture draft](docs/architecture/WEBSITE.md)
+- [Branding specification](docs/architecture/BRANDING.md)
+- [Website design RFC](https://github.com/coretsia/monorepo/discussions/51)
 
 ## License
 

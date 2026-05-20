@@ -12,11 +12,11 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Git hooks (Prelude)
+# Git hooks
 
 Git hooks are used as a **local convenience guard** to enforce the **managed Composer repositories** policy.
 
-**Scope:** Prelude only (no `./dev/**` tooling is allowed here).
+**Scope:** Local convenience guards for the current monorepo development baseline.
 
 ---
 
@@ -30,14 +30,14 @@ The `repositories` blocks in all three Composer roots:
 
 **MUST** be managed only by:
 
-- `php framework/tools/build/sync_composer_repositories.php`
+- `composer sync:repos`
 
 Manual edits of managed entries **MUST NOT** be part of the workflow.
 
 The pre-commit hook enforces this by running:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php --check
+composer sync:check
 ```
 
 If drift is detected, the commit is blocked.
@@ -81,7 +81,7 @@ If pre-commit fails due to managed repositories drift:
 1. Restore canonical managed blocks:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php
+composer sync:repos
 ```
 
 2. Re-stage and commit again:
@@ -98,7 +98,7 @@ git commit
 CI repeats the same rule and MUST run the drift check **before** any `composer install`:
 
 ```bash
-php framework/tools/build/sync_composer_repositories.php --check
+composer sync:check
 ```
 
 Local hooks are convenience; CI is the source of truth.

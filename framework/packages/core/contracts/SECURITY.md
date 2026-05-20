@@ -16,24 +16,23 @@
 
 ## Status
 
-Coretsia Framework is in **active development**.
-
-- **Prelude**: implemented
-- **Phase 0 — Spikes and prototypes**: implemented
-- **Phase 1 — Core**: active development
-- **Stable production release**: not available yet
+Coretsia Framework is in **active development** and does **not** provide a stable production release or long-term-supported release line yet.
 
 Until the first stable public release is published, security handling is performed on a **best-effort** basis for the default development branch.
+
+For implementation status and roadmap planning, see:
+
+- [Roadmap](docs/roadmap/ROADMAP.md)
 
 ## Supported Versions
 
 At the moment, Coretsia does **not** provide long-term-supported stable release lines.
 
-| Version / line                                 | Supported | Notes                                                          |
-|------------------------------------------------|-----------|----------------------------------------------------------------|
-| Default branch (`main`)                        | Yes*      | Best-effort fixes during active development                    |
-| Tagged Phase 0 snapshots (`0.x`)               | No        | Historical implementation milestones, not stable support lines |
-| Any older commit / fork / unpublished snapshot | No        | Upgrade to the current default branch before reporting         |
+| Version / line                                 | Supported | Notes                                                  |
+|------------------------------------------------|-----------|--------------------------------------------------------|
+| Default branch (`main`)                        | Yes*      | Best-effort fixes during active development            |
+| Tagged 0.x development snapshots               | No        | Development milestones, not stable support lines       |
+| Any older commit / fork / unpublished snapshot | No        | Upgrade to the current default branch before reporting |
 
 \* "Supported" here means vulnerability reports are reviewed and may be fixed in the active development branch. It does **not** mean a stable security SLA is available.
 

@@ -61,10 +61,10 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
             self::assertSame($sorted, $changedPaths);
             self::assertSame(\array_values(\array_unique($changedPaths)), $changedPaths);
 
-            // Must include new package dir and (for this fixture) composer.json changes.
+            // Must include new package dir and release-line managed repository version updates.
             self::assertContains('framework/packages/core/foo/', $changedPaths);
-            self::assertNotContains('framework/composer.json', $changedPaths);
-            self::assertNotContains('skeleton/composer.json', $changedPaths);
+            self::assertContains('framework/composer.json', $changedPaths);
+            self::assertContains('skeleton/composer.json', $changedPaths);
 
             // Workspace MUST remain unchanged on disk for dry-run.
             self::assertSame($frameworkBefore, DeterministicFile::readBytesExact($frameworkPath));
@@ -113,14 +113,37 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
             self::assertSame($expectedComposer, $actualComposer);
 
             // Updated root composer.json files match golden fixtures.
-            self::assertSame(
-                DeterministicFile::readBytesExact(self::fixturePath('expected_composer_framework.json')),
-                DeterministicFile::readBytesExact(self::joinPath($tmp, 'framework/composer.json'))
+            $frameworkComposer = self::decodeJsonMap(
+                DeterministicFile::readBytesExact(self::joinPath($tmp, 'framework/composer.json')),
             );
-            self::assertSame(
-                DeterministicFile::readBytesExact(self::fixturePath('expected_composer_skeleton.json')),
-                DeterministicFile::readBytesExact(self::joinPath($tmp, 'skeleton/composer.json'))
+            $skeletonComposer = self::decodeJsonMap(
+                DeterministicFile::readBytesExact(self::joinPath($tmp, 'skeleton/composer.json')),
             );
+
+            $frameworkVersions = self::packageWildcardVersions($frameworkComposer, 'packages/*/*');
+            $skeletonVersions = self::packageWildcardVersions($skeletonComposer, '../framework/packages/*/*');
+
+            $releaseLine = json_decode(
+                DeterministicFile::readBytesExact(self::joinPath($tmp, 'framework/tools/release/release-line.json')),
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            self::assertIsArray($releaseLine);
+            self::assertArrayHasKey('devVersion', $releaseLine);
+            self::assertIsString($releaseLine['devVersion']);
+
+            self::assertSame($releaseLine['devVersion'], $frameworkVersions['coretsia/core-foo'] ?? null);
+            self::assertSame($releaseLine['devVersion'], $skeletonVersions['coretsia/core-foo'] ?? null);
+
+            $frameworkSorted = $frameworkVersions;
+            \ksort($frameworkSorted, \SORT_STRING);
+            self::assertSame($frameworkSorted, $frameworkVersions);
+
+            $skeletonSorted = $skeletonVersions;
+            \ksort($skeletonSorted, \SORT_STRING);
+            self::assertSame($skeletonSorted, $skeletonVersions);
 
             // No backups created in the workspace by NewPackageWorkflow (sync backups live only in staging temp).
             self::assertFileDoesNotExist(self::joinPath($tmp, 'framework/composer.json.bak'));
@@ -355,5 +378,47 @@ final class NewPackageAtomicWorkflowPrototypeTest extends TestCase
     private static function normalizePath(string $path): string
     {
         return \str_replace('\\', '/', $path);
+    }
+
+    /**
+     * @return array<string,mixed>
+     * @throws \JsonException
+     */
+    private static function decodeJsonMap(string $bytes): array
+    {
+        $decoded = \json_decode($bytes, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertFalse(\array_is_list($decoded));
+
+        /** @var array<string,mixed> $decoded */
+        return $decoded;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private static function packageWildcardVersions(array $composer, string $url): array
+    {
+        $repositories = $composer['repositories'] ?? null;
+        self::assertIsArray($repositories);
+
+        foreach ($repositories as $repo) {
+            self::assertIsArray($repo);
+
+            if (($repo['url'] ?? null) !== $url) {
+                continue;
+            }
+
+            $options = $repo['options'] ?? null;
+            self::assertIsArray($options);
+
+            $versions = $options['versions'] ?? null;
+            self::assertIsArray($versions);
+
+            /** @var array<string,string> $versions */
+            return $versions;
+        }
+
+        self::fail('Package wildcard path repository not found: ' . $url);
     }
 }

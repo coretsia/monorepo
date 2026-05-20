@@ -33,12 +33,12 @@
     "ext-dom": "*",
     "ext-imagick": "*",
     "ext-libxml": "*",
-    "coretsia/core-contracts": "dev-main",
-    "coretsia/core-dto-attribute": "dev-main",
-    "coretsia/core-foundation": "dev-main",
-    "coretsia/devtools-cli-spikes": "dev-main",
-    "coretsia/devtools-internal-toolkit": "dev-main",
-    "coretsia/platform-cli": "dev-main",
+    "coretsia/core-contracts": "0.4.x-dev",
+    "coretsia/core-dto-attribute": "0.4.x-dev",
+    "coretsia/core-foundation": "0.4.x-dev",
+    "coretsia/devtools-cli-spikes": "0.4.x-dev",
+    "coretsia/devtools-internal-toolkit": "0.4.x-dev",
+    "coretsia/platform-cli": "0.4.x-dev",
     "deptrac/deptrac": "^4.6",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
@@ -60,7 +60,16 @@
       "type": "path",
       "url": "packages/*/*",
       "options": {
-        "symlink": true
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/core-contracts": "0.4.x-dev",
+          "coretsia/core-dto-attribute": "0.4.x-dev",
+          "coretsia/core-foundation": "0.4.x-dev",
+          "coretsia/devtools-cli-spikes": "0.4.x-dev",
+          "coretsia/devtools-internal-toolkit": "0.4.x-dev",
+          "coretsia/platform-cli": "0.4.x-dev"
+        }
       },
       "coretsia_managed": true
     }
@@ -86,7 +95,8 @@
       "@cross-cutting-contract:gate",
       "@kernel-public-api:gate",
       "@no-runtime-tooling-artifacts:gate",
-      "@package-compliance:gate"
+      "@package-compliance:gate",
+      "@package-publish-safety:gate"
     ],
     "dto:gate": "@php tools/gates/dto_gate.php",
     "dto-marker-consistency:gate": "@php tools/gates/dto_marker_consistency_gate.php",
@@ -104,6 +114,11 @@
     "arch:deptrac:analyze": "@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache",
     "sync:check": "@php tools/build/sync_composer_repositories.php --check",
     "sync:repos": "@php tools/build/sync_composer_repositories.php",
+    "release-line:workspace:sync": "@php tools/release/sync_workspace_release_line.php",
+    "release-line:workspace:check": "@php tools/release/sync_workspace_release_line.php --check",
+    "release-line:public-constraints:sync": "@php tools/release/sync_package_public_constraints.php",
+    "release-line:public-constraints:check": "@php tools/release/sync_package_public_constraints.php --check",
+    "package-publish-safety:gate": "@php tools/gates/package_publish_safety_gate.php",
     "spike:gate": "@php tools/gates/spikes_boundary_gate.php",
     "toolkit:gate": "@php tools/gates/internal_toolkit_no_dup_gate.php",
     "tools:ia": "@php tools/gates/tools_invalid_argument_exception_gate.php",

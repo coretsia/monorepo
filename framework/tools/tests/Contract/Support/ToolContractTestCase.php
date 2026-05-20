@@ -198,6 +198,7 @@ abstract class ToolContractTestCase extends TestCase
 
         $sandbox = $this->tempDir('coretsia-workspace-fixture');
         $this->copyDir($fixtureRoot, $sandbox);
+        $this->removeDir($sandbox . '/framework/var');
 
         self::assertFileExists($sandbox . '/composer.json');
         self::assertFileExists($sandbox . '/framework/composer.json');

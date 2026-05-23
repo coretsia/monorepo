@@ -63,6 +63,23 @@ return array(
     ),
     3 =>
     array(
+      'composerName' => 'coretsia/core-kernel',
+      'defaultsConfigPath' => 'config/kernel.php',
+      'id' => 'core.kernel',
+      'kind' => 'runtime',
+      'layer' => 'core',
+      'moduleClass' => 'Coretsia\\Kernel\\Module\\KernelModule',
+      'moduleId' => 'core.kernel',
+      'path' => 'framework/packages/core/kernel',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Kernel\\Provider\\KernelServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Kernel\\',
+      'slug' => 'kernel',
+    ),
+    4 =>
+    array(
       'composerName' => 'coretsia/devtools-cli-spikes',
       'defaultsConfigPath' => null,
       'id' => 'devtools.cli-spikes',
@@ -77,7 +94,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\CliSpikes\\',
       'slug' => 'cli-spikes',
     ),
-    4 =>
+    5 =>
     array(
       'composerName' => 'coretsia/devtools-internal-toolkit',
       'defaultsConfigPath' => null,
@@ -93,7 +110,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\InternalToolkit\\',
       'slug' => 'internal-toolkit',
     ),
-    5 =>
+    6 =>
     array(
       'composerName' => 'coretsia/platform-cli',
       'defaultsConfigPath' => 'config/cli.php',

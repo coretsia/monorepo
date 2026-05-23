@@ -47,6 +47,8 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](./ADR-0015-context-bag-context-store-correlation-id.md) — owner: core/foundation — scope: context,context-bag,context-store,correlation-id,runtime
 - [ADR-0016: Clock, IDs, and Stopwatch](./ADR-0016-clock-ids-stopwatch.md) — owner: core/foundation — scope: clock,duration,ids,runtime,time
 - [ADR-0019: Enhanced reset for long-running services](./ADR-0019-enhanced-reset-long-running.md) — owner: core/foundation — scope: long-running,observability,reset,runtime
+- [ADR-0021: UnitOfWork context shape](./ADR-0021-unit-of-work-context-shape.md) — owner: core/kernel — scope: context,kernel,shape,uow
+- [ADR-0022: UnitOfWork result and outcome policy](./ADR-0022-unit-of-work-result-outcome-policy.md) — owner: core/kernel — scope: lifecycle,outcome,result,uow
 
 ## Cross-references
 

@@ -1,0 +1,60 @@
+{
+  "name": "coretsia/core-kernel",
+  "type": "library",
+  "description": "Coretsia Kernel runtime package: UnitOfWork shapes, outcome policy, and kernel lifecycle invariants.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "php84",
+    "framework",
+    "kernel",
+    "runtime",
+    "unit-of-work",
+    "uow",
+    "context",
+    "result",
+    "outcome",
+    "lifecycle",
+    "composer-package"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Coretsia Team",
+      "email": "team@coretsia.dev",
+      "homepage": "https://coretsia.dev/"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.4.0",
+    "coretsia/core-foundation": "^0.4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Kernel\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Kernel\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "core.kernel",
+      "moduleClass": "Coretsia\\Kernel\\Module\\KernelModule",
+      "providers": [
+        "Coretsia\\Kernel\\Provider\\KernelServiceProvider"
+      ],
+      "defaultsConfigPath": "config/kernel.php"
+    }
+  }
+}

@@ -59,6 +59,8 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — scope: contracts,http-app,routing,ports,redaction
 - [Secrets Contracts SSoT](./secrets-contracts.md) — owner: core/contracts — scope: contracts,redaction,secrets
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md) — owner: core/contracts — scope: contracts,reset,uow,hooks,runtime
+- [UnitOfWork Outcome Policy SSoT](./uow-outcome-policy.md) — owner: core/kernel — scope: lifecycle,mapping,outcome,policy,uow
+- [UnitOfWork Shapes SSoT](./uow-shapes.md) — owner: core/kernel — scope: context,json-like,result,shape,uow
 - [Validation Contracts SSoT](./validation-contracts.md) — owner: core/contracts — scope: contracts,errors,redaction,validation
 
 ## Runtime Invariants

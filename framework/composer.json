@@ -36,6 +36,7 @@
     "coretsia/core-contracts": "0.4.x-dev",
     "coretsia/core-dto-attribute": "0.4.x-dev",
     "coretsia/core-foundation": "0.4.x-dev",
+    "coretsia/core-kernel": "0.4.x-dev",
     "coretsia/devtools-cli-spikes": "0.4.x-dev",
     "coretsia/devtools-internal-toolkit": "0.4.x-dev",
     "coretsia/platform-cli": "0.4.x-dev",
@@ -66,6 +67,7 @@
           "coretsia/core-contracts": "0.4.x-dev",
           "coretsia/core-dto-attribute": "0.4.x-dev",
           "coretsia/core-foundation": "0.4.x-dev",
+          "coretsia/core-kernel": "0.4.x-dev",
           "coretsia/devtools-cli-spikes": "0.4.x-dev",
           "coretsia/devtools-internal-toolkit": "0.4.x-dev",
           "coretsia/platform-cli": "0.4.x-dev"

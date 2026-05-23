@@ -448,12 +448,12 @@ function coretsia_kernel_public_api_gate_extract_declared_types(string $phpFile)
  * @return list<string>
  */
 function coretsia_kernel_public_api_gate_extract_type_list_after_keyword(
-    array  $tokens,
-    int    $start,
-    int    $keywordId,
-    array  $stopKeywordIds,
+    array $tokens,
+    int $start,
+    int $keywordId,
+    array $stopKeywordIds,
     string $namespace,
-    array  $imports,
+    array $imports,
 ): array {
     /** @var list<string> $names */
     $names = [];
@@ -552,8 +552,10 @@ function coretsia_kernel_public_api_gate_extract_public_api_symbols_from_evidenc
  * @param array<string, array{kind:string, file:string, docblock:string|null, extends:list<string>, implements:list<string>}> $declaredTypes
  * @return list<string>
  */
-function coretsia_kernel_public_api_gate_extract_text_evidence_symbols(string $evidenceFile, array $declaredTypes): array
-{
+function coretsia_kernel_public_api_gate_extract_text_evidence_symbols(
+    string $evidenceFile,
+    array $declaredTypes
+): array {
     $content = coretsia_kernel_public_api_gate_read_file($evidenceFile);
 
     /** @var array<string, true> $symbols */
@@ -638,7 +640,10 @@ function coretsia_kernel_public_api_gate_extract_php_evidence_symbols(string $ev
             continue;
         }
 
-        $classKeywordIndex = coretsia_kernel_public_api_gate_next_meaningful_token_index($tokens, $doubleColonIndex + 1);
+        $classKeywordIndex = coretsia_kernel_public_api_gate_next_meaningful_token_index(
+            $tokens,
+            $doubleColonIndex + 1
+        );
         if ($classKeywordIndex === null) {
             continue;
         }
@@ -719,7 +724,11 @@ function coretsia_kernel_public_api_gate_parse_php_context(string $source): arra
         foreach ($matches as $match) {
             $useStatement = \trim($match[1]);
 
-            foreach (coretsia_kernel_public_api_gate_extract_imports_from_use_statement($useStatement) as $alias => $fqcn) {
+            foreach (
+                coretsia_kernel_public_api_gate_extract_imports_from_use_statement(
+                    $useStatement
+                ) as $alias => $fqcn
+            ) {
                 $imports[$alias] = $fqcn;
             }
         }
@@ -899,7 +908,7 @@ function coretsia_kernel_public_api_gate_parse_import_part(string $part, ?string
 function coretsia_kernel_public_api_gate_resolve_type_name(
     string $name,
     string $namespace,
-    array  $imports,
+    array $imports,
 ): string {
     $name = \trim($name);
     if ($name === '') {
@@ -977,10 +986,23 @@ function coretsia_kernel_public_api_gate_previous_meaningful_token(array $tokens
  */
 function coretsia_kernel_public_api_gate_previous_doc_comment(array $tokens, int $start): ?string
 {
+    $modifierTokenIds = [
+        T_ABSTRACT,
+        T_FINAL,
+    ];
+
+    if (\defined('T_READONLY')) {
+        $modifierTokenIds[] = \constant('T_READONLY');
+    }
+
     for ($i = $start; $i >= 0; $i--) {
         $token = $tokens[$i];
 
         if (\is_array($token) && $token[0] === T_WHITESPACE) {
+            continue;
+        }
+
+        if (\is_array($token) && \in_array($token[0], $modifierTokenIds, true)) {
             continue;
         }
 

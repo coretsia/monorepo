@@ -5033,7 +5033,7 @@ Forbidden:
   handle UoW
   run after_uow hooks
   resetOrchestrator.resetAll()
-  endUow()
+  endUoW()
 ```
 
 - Artifacts:
@@ -8029,248 +8029,274 @@ beginUow()
 before_uow hooks
 run external runtime (http/cli/queue/...)
 after_uow hooks
-ResetOrchestrator.resetAll()   // единственный reset trigger
-endUow()
+ResetOrchestrator.resetAll()   // єдиний reset trigger
+endUoW()
 ```
 
 ## Deliverables (exact paths only) (MUST)
 
 ### Creates
 
-- [ ] `framework/packages/core/kernel/config/kernel.php` — adds `kernel.uow.attributes.*` defaults
-- [ ] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [ ] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/kernel/README.md` — includes: Observability / Errors / Security-Redaction
+- [x] `framework/packages/core/kernel/config/kernel.php` — adds `kernel.uow.attributes.*` defaults
+- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+- [x] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `framework/packages/core/kernel/README.md` — includes: Observability / Errors / Security-Redaction
+
+Runtime internals:
+- [x] `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — internal json-like normalizer/guard for UnitOfWork shapes; not public API
+  - [x] `normalizeContextAttributes(array $attributes, int $maxDepth, int $maxKeys): array`
+  - [x] `normalizeResultExtensions(array $extensions): array`
+  - [x] `normalizeExportedErrorMap(array $error): array`
 
 Context:
-- [ ] `framework/packages/core/kernel/src/Runtime/UnitOfWorkType.php` — enum-like: `http|cli|queue|scheduler`
-- [ ] `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — VO `{uowId,type,startedAt,correlationId,attributes}`
-  - [ ] MUST validate `attributes` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
-  - [ ] MUST enforce `kernel.uow.attributes.max_depth` and `kernel.uow.attributes.max_keys`
-  - [ ] MUST fail with `CORETSIA_UOW_CONTEXT_INVALID` using safe diagnostics only
-- [ ] `framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php` — errorCode `CORETSIA_UOW_CONTEXT_INVALID`
+- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkType.php` — enum-like: `http|cli|queue|scheduler`
+- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — VO `{uowId,type,startedAt,correlationId,attributes}`
+  - [x] MUST validate `attributes` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
+  - [x] MUST enforce `kernel.uow.attributes.max_depth` and `kernel.uow.attributes.max_keys`
+  - [x] MUST fail with `CORETSIA_UOW_CONTEXT_INVALID` using safe diagnostics only
+- [x] `framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php` — errorCode `CORETSIA_UOW_CONTEXT_INVALID`
 
 Result + outcome:
-- [ ] `framework/packages/core/kernel/src/Runtime/Outcome.php` — enum-like outcome strings: `success|handled_error|fatal_error`
-- [ ] `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — VO `{uowId,type,correlationId,startedAt,finishedAt,durationMs,outcome,error?,extensions}`
-  - [ ] MUST validate `extensions` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
-  - [ ] MUST reject unsafe values deterministically before export to hooks/adapters/artifacts
-  - [ ] `extensions` MUST be json-like only
-  - [ ] `error?` MAY be represented internally as `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` (optional)
-  - [ ] any exported/hook/artifact representation MUST normalize `error` to a json-like error map before crossing the kernel boundary
+- [x] `framework/packages/core/kernel/src/Runtime/Outcome.php` — enum-like outcome strings: `success|handled_error|fatal_error`
+- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — VO `{uowId,type,correlationId,startedAt,finishedAt,durationMs,outcome,error?,extensions}`
+  - [x] MUST validate `extensions` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
+  - [x] MUST reject unsafe values deterministically before export to hooks/adapters/artifacts
+  - [x] `extensions` MUST be json-like only
+  - [x] `error?` MAY be represented internally as `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` (optional)
+  - [x] any exported/hook/artifact representation MUST normalize `error` to a json-like error map before crossing the kernel boundary
+  - [x] MUST fail with `CORETSIA_UOW_RESULT_INVALID` using safe diagnostics only
+- [x] `framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php` — errorCode `CORETSIA_UOW_RESULT_INVALID`
 
 Docs:
-- [ ] `docs/adr/ADR-0021-unit-of-work-context-shape.md`
-- [ ] `docs/adr/ADR-0022-unit-of-work-result-outcome-policy.md`
-- [ ] `docs/ssot/uow-outcome-policy.md` — (закріплено/розширено)
-  - [ ] lifecycle invariants: begin/after/reset exactly-once
-  - [ ] outcome mapping policy (HTTP/CLI) — **exact rules**:
-    - [ ] HTTP:
-      - [ ] `< 400` ⇒ `success`
-      - [ ] `>= 400` ⇒ `handled_error`
-      - [ ] uncaught exception ⇒ `fatal_error`
-    - [ ] CLI:
-      - [ ] `exitCode = 0` ⇒ `success`
-      - [ ] `exitCode != 0` (без uncaught exceptions) ⇒ `handled_error`
-      - [ ] uncaught exception ⇒ `fatal_error`
-  - [ ] заборона включення stacktrace/payload/PII у `result.extensions`
-  - [ ] (терміни) `success|handled_error|fatal_error` як стабільні токени
+- [x] `docs/adr/ADR-0021-unit-of-work-context-shape.md`
+- [x] `docs/adr/ADR-0022-unit-of-work-result-outcome-policy.md`
+- [x] `docs/ssot/uow-outcome-policy.md` — (закріплено/розширено)
+  - [x] lifecycle invariants: begin/after/reset exactly-once
+  - [x] outcome mapping policy (HTTP/CLI) — **exact rules**:
+    - [x] HTTP:
+      - [x] `< 400` ⇒ `success`
+      - [x] `>= 400` ⇒ `handled_error`
+      - [x] uncaught exception ⇒ `fatal_error`
+    - [x] CLI:
+      - [x] `exitCode = 0` ⇒ `success`
+      - [x] `exitCode != 0` (без uncaught exceptions) ⇒ `handled_error`
+      - [x] uncaught exception ⇒ `fatal_error`
+  - [x] заборона включення stacktrace/payload/PII у `result.extensions`
+  - [x] (терміни) `success|handled_error|fatal_error` як стабільні токени
 
-- [ ] `docs/ssot/uow-shapes.md` — canonical shapes:
-  - [ ] UnitOfWorkContext fields + types:
-    - [ ] `uowId` : string (stable id; ULID recommended)
-    - [ ] `type`  : string enum `http|cli|queue|scheduler`
-    - [ ] `startedAt` : int (unix epoch milliseconds, UTC)
-    - [ ] `correlationId` : string (safe id; ULID recommended)
-    - [ ] `attributes` : json-like map (float-forbidden; normalized)
-  - [ ] UnitOfWorkResult fields + types:
-    - [ ] `uowId` : string
-    - [ ] `type`  : string
-    - [ ] `correlationId` : string
-    - [ ] `startedAt`  : int (unix epoch milliseconds, UTC) MUST match ctx.startedAt
-    - [ ] `finishedAt` : int (unix epoch milliseconds, UTC)
-      - [ ] wall-clock completion timestamp captured at end of UoW
-      - [ ] because wall clock is not monotonic, consumers MUST NOT rely on `finishedAt >= startedAt`
-      - [ ] `durationMs` is the only canonical duration source of truth
-    - [ ] `durationMs` : int
-      - [ ] canonical exported unit is integer milliseconds
-      - [ ] MUST be measured from the canonical monotonic timing source (`Stopwatch`)
-      - [ ] MUST NOT use `finishedAt - startedAt` as the source of truth for duration
-      - [ ] MUST be non-negative
-    - [ ] `outcome` : string enum `success|handled_error|fatal_error`
-    - [ ] `error`? :
-      - [ ] internal kernel representation MAY use `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
-      - [ ] canonical exported shape passed to hooks/adapters/artifacts MUST be a normalized json-like error map
-      - [ ] no object instance MAY cross the export boundary
-    - [ ] export boundary rule:
-      - [ ] internal runtime code MAY hold `error` as `ErrorDescriptor`
-      - [ ] exported shapes passed to hooks/adapters/artifacts MUST carry only a normalized json-like error map
-      - [ ] no object instance MAY cross the export boundary
-    - [ ] `extensions` : json-like map (float-forbidden; normalized)
-  - [ ] json-like rules for attributes/extensions (float-forbidden + normalization)
-  - [ ] safety/redaction rules for attributes/extensions (no secrets/PII/stacktrace)
-  - [ ] DTO policy boundary (cemented):
-    - [ ] `UnitOfWorkContext` and `UnitOfWorkResult` are canonical kernel runtime shapes/VOs.
-    - [ ] They are NOT DTO-marker classes by default.
-    - [ ] DTO gates apply only to explicitly marked DTO transport classes.
+- [x] `docs/ssot/uow-shapes.md` — canonical shapes:
+  - [x] UnitOfWorkContext fields + types:
+    - [x] `uowId` : string (stable id; ULID recommended)
+    - [x] `type`  : string enum `http|cli|queue|scheduler`
+    - [x] `startedAt` : int (unix epoch milliseconds, UTC)
+    - [x] `correlationId` : string (safe id; ULID recommended)
+    - [x] `attributes` : json-like map (float-forbidden; normalized)
+  - [x] UnitOfWorkResult fields + types:
+    - [x] `uowId` : string
+    - [x] `type`  : string
+    - [x] `correlationId` : string
+    - [x] `startedAt`  : int (unix epoch milliseconds, UTC) MUST match ctx.startedAt
+    - [x] `finishedAt` : int (unix epoch milliseconds, UTC)
+      - [x] wall-clock completion timestamp captured at end of UoW
+      - [x] because wall clock is not monotonic, consumers MUST NOT rely on `finishedAt >= startedAt`
+      - [x] `durationMs` is the only canonical duration source of truth
+    - [x] `durationMs` : int
+      - [x] canonical exported unit is integer milliseconds
+      - [x] MUST be measured from the canonical monotonic timing source (`Stopwatch`)
+      - [x] MUST NOT use `finishedAt - startedAt` as the source of truth for duration
+      - [x] MUST be non-negative
+    - [x] `outcome` : string enum `success|handled_error|fatal_error`
+    - [x] `error`? :
+      - [x] internal kernel representation MAY use `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
+      - [x] canonical exported shape passed to hooks/adapters/artifacts MUST be a normalized json-like error map
+      - [x] no object instance MAY cross the export boundary
+    - [x] export boundary rule:
+      - [x] internal runtime code MAY hold `error` as `ErrorDescriptor`
+      - [x] exported shapes passed to hooks/adapters/artifacts MUST carry only a normalized json-like error map
+      - [x] no object instance MAY cross the export boundary
+    - [x] `extensions` : json-like map (float-forbidden; normalized)
+  - [x] json-like rules for attributes/extensions (float-forbidden + normalization)
+  - [x] safety/redaction rules for attributes/extensions (no secrets/PII/stacktrace)
+  - [x] DTO policy boundary (cemented):
+    - [x] `UnitOfWorkContext` and `UnitOfWorkResult` are canonical kernel runtime shapes/VOs.
+    - [x] They are NOT DTO-marker classes by default.
+    - [x] DTO gates apply only to explicitly marked DTO transport classes.
 
 ### Modifies (config)
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/uow-outcome-policy.md`
-  - [ ] `docs/ssot/uow-shapes.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0021-unit-of-work-context-shape.md`
-  - [ ] `docs/adr/ADR-0022-unit-of-work-result-outcome-policy.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/uow-outcome-policy.md`
+  - [x] `docs/ssot/uow-shapes.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0021-unit-of-work-context-shape.md`
+  - [x] `docs/adr/ADR-0022-unit-of-work-result-outcome-policy.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
-- [ ] `framework/packages/core/kernel/config/kernel.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/core/kernel/config/rules.php`
-- [ ] `framework/packages/core/kernel/README.md`
-- [ ] `framework/packages/core/kernel/composer.json`
+- [x] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
+- [x] `framework/packages/core/kernel/config/kernel.php`  # returns subtree (no repeated root)
+- [x] `framework/packages/core/kernel/config/rules.php`
+- [x] `framework/packages/core/kernel/README.md`
+- [x] `framework/packages/core/kernel/composer.json`
 
 ## Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [ ] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `framework/packages/core/kernel/config/kernel.php`
 - Keys (dot):
-  - [ ] `kernel.uow.attributes.max_depth` = 10
-  - [ ] `kernel.uow.attributes.max_keys`  = 200
+  - [x] `kernel.uow.attributes.max_depth` = 10
+  - [x] `kernel.uow.attributes.max_keys`  = 200
 - Rules:
-  - [ ] `framework/packages/core/kernel/config/rules.php` enforces shape for:
-    - [ ] `kernel.uow.attributes.max_depth` int>0
-    - [ ] `kernel.uow.attributes.max_keys`  int>0
+  - [x] `framework/packages/core/kernel/config/rules.php` enforces shape for:
+    - [x] `kernel.uow.attributes.max_depth` int>0
+    - [x] `kernel.uow.attributes.max_keys`  int>0
 
 ## Cross-cutting (MUST)
 
 ### Context & UoW
 
-- [ ] `UnitOfWorkContext.attributes` MUST NOT contain:
-  - [ ] Authorization/Cookie/session id/tokens/raw payload/raw SQL
-- [ ] Allowed:
-  - [ ] safe ids, enums, counts, lengths, hashes
-- [ ] `UnitOfWorkResult.extensions` MUST NOT contain:
-  - [ ] stacktrace, raw payload, PII, tokens
+- [x] `UnitOfWorkContext.attributes` MUST NOT contain:
+  - [x] Authorization/Cookie/session id/tokens/raw payload/raw SQL
+- [x] Allowed:
+  - [x] safe ids, enums, counts, lengths, hashes
+- [x] `UnitOfWorkResult.extensions` MUST NOT contain:
+  - [x] stacktrace, raw payload, PII, tokens
 
 ### Observability (policy-compliant)
 
-- [ ] Policy link:
-  - [ ] metrics labels use `operation=uow_type`, `outcome` (терміни закріплені; реалізація — в runtimes)
+- [x] Policy link:
+  - [x] metrics labels use `operation=uow_type`, `outcome` (терміни закріплені; реалізація — в runtimes)
 
 ### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `UnitOfWorkContextInvalidException` — `CORETSIA_UOW_CONTEXT_INVALID`
-- [ ] `ErrorDescriptor` in result:
-  - [ ] optional, format-neutral, extensions json-like only
+- [x] Exceptions introduced:
+  - [x] `UnitOfWorkContextInvalidException` — `CORETSIA_UOW_CONTEXT_INVALID`
+  - [x] `UnitOfWorkResultInvalidException` — `CORETSIA_UOW_RESULT_INVALID`
+- [x] `ErrorDescriptor` in result:
+  - [x] optional, format-neutral, extensions json-like only
 
 ### Security / Redaction
 
-- [ ] MUST NOT leak via ctx.attributes / result.extensions:
-  - [ ] tokens/session/cookies/raw payload/raw SQL/stacktrace/PII
-- [ ] Allowed:
-  - [ ] safe meta only
+- [x] MUST NOT leak via ctx.attributes / result.extensions:
+  - [x] tokens/session/cookies/raw payload/raw SQL/stacktrace/PII
+- [x] Allowed:
+  - [x] safe meta only
 
 ### Phase 0 parity: json-like policy (MUST)
 
-Цей епік MUST бути сумісним із зацементованими json-like інваріантами з PHASE 0 SPIKES:
-- 0.70.0 (PayloadNormalizer + StableJsonEncoder + float-forbidden policy)
-- 0.20.0 (output-free бізнес-логіка; deterministic errors; no secrets/PII)
+- [x] Цей епік MUST бути сумісним із зацементованими json-like інваріантами з PHASE 0 SPIKES:
+  - [x] 0.70.0 (PayloadNormalizer + StableJsonEncoder + float-forbidden policy)
+  - [x] 0.20.0 (output-free бізнес-логіка; deterministic errors; no secrets/PII)
 
 #### Json-like definition (single-choice; cemented)
 
-`UnitOfWorkContext.attributes` і `UnitOfWorkResult.extensions` MUST бути **json-like**:
-
-- Allowed scalars: `null|bool|int|string`
-- Forbidden scalars: `float` (включно `NaN`, `INF`, `-INF`)
-- Allowed containers: `array` тільки як:
-  - list (`array_is_list($value) === true`) — порядок елементів зберігається
-  - map  (`array_is_list($value) === false`) — ключі тільки `string` (no int keys)
-
-Objects/Resources/Closures/Enums (як objects) — FORBIDDEN.
+- [x] `UnitOfWorkContext.attributes` і `UnitOfWorkResult.extensions` MUST бути **json-like**:
+  - [x] Allowed scalars: `null|bool|int|string`
+  - [x] Forbidden scalars: `float` (включно `NaN`, `INF`, `-INF`)
+  - [x] Allowed containers: `array` тільки як:
+    - [x] list (`array_is_list($value) === true`) — порядок елементів зберігається
+    - [x] map  (`array_is_list($value) === false`) — ключі тільки `string` (no int keys)
+- [x] Objects/Resources/Closures/Enums (як objects) — FORBIDDEN.
 
 #### Normalization invariant for exported shapes (single-choice)
 
-Коли shape експортується назовні kernel (hooks / adapters / artifacts), він MUST бути нормалізований детерміновано:
-
-- maps: ключі сортуються **на кожному рівні** за byte-order (`strcmp`)
-- lists: порядок **не змінюється**
-- locale MUST NOT впливати (no `setlocale`, no `LC_ALL` reliance)
+- [x] Коли shape експортується назовні kernel (hooks / adapters / artifacts), він MUST бути нормалізований детерміновано:
+  - [x] maps: ключі сортуються **на кожному рівні** за byte-order (`strcmp`)
+  - [x] lists: порядок **не змінюється**
+  - [x] locale MUST NOT впливати (no `setlocale`, no `LC_ALL` reliance)
 
 #### Float/NaN/INF rejection (cemented)
 
-Якщо в `attributes` або `extensions` знайдено `float|NaN|INF`:
-- MUST бути детермінована відмова (без друку значень)
-- diagnostics MAY містити тільки *path-to-value* (наприклад `a.b[3].c`) і MUST NOT містити raw value
+- [x] Якщо в `attributes` або `extensions` знайдено `float|NaN|INF`:
+  - [x] MUST бути детермінована відмова (без друку значень)
+  - [x] diagnostics MAY містити тільки *path-to-value* (наприклад `a.b[3].c`) і MUST NOT містити raw value
 
 #### Safety / Redaction parity
 
-`attributes/extensions` MUST NOT містити:
-- tokens/session/cookies/Authorization
-- raw payload/raw SQL
-- stacktrace/PII
-
-Allowed: safe ids/enums/counts/lengths/hashes.
+- [x] `attributes/extensions` MUST NOT містити:
+  - [x] tokens/session/cookies/Authorization
+  - [x] raw payload/raw SQL
+  - [x] stacktrace/PII
+- [x] Allowed: safe ids/enums/counts/lengths/hashes.
 
 ## Verification (TEST EVIDENCE) (MUST when applicable)
 
 ### Contract / snapshot locks
 
-- [ ] Context shape lock:
-  - [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
-- [ ] Kernel config subtree shape lock:
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
-- [ ] Context attributes json-like + limits:
-  - [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
-- [ ] Result shape lock:
-  - [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
-  - [ ] asserts `extensions` reject `float|NaN|INF|-INF`
-  - [ ] asserts `extensions` reject objects/resources
-  - [ ] asserts diagnostics are safe and contain no raw values
-- [ ] Outcome mapping stability snapshot (policy lock):
-  - [ ] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
+- [x] Context shape lock:
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
+- [x] Kernel config subtree shape lock:
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
+- [x] Context attributes json-like + limits:
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+    - [x] Перевірити, що context attributes reject keys:
+      - [x] `authorization`, `cookie`, `cookies`, `session`, `sessionId`, `session_id`, `token`, `tokens`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `password`, `secret`, `credential`, `credentials`, `raw`, `rawBody`, `rawPayload`, `payload`, `rawSql`, `sql`, `stacktrace`, `stackTrace`, `trace`, `email`, `phone`, `username`, `fullName`, `userId`, `tenantId`
+      - [x] Очікування:
+        - [x] `UnitOfWorkContextInvalidException`
+        - [x] `ERROR_CODE === CORETSIA_UOW_CONTEXT_INVALID`
+        - [x] `reason === uow-context-attributes-unsafe-key-forbidden`
+- [x] Result shape lock:
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+    - [x] Перевірити, що context attributes reject keys:
+      - [x] `authorization`, `cookie`, `cookies`, `session`, `sessionId`, `session_id`, `token`, `tokens`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `password`, `secret`, `credential`, `credentials`, `raw`, `rawBody`, `rawPayload`, `payload`, `rawSql`, `sql`, `stacktrace`, `stackTrace`, `trace`, `email`, `phone`, `username`, `fullName`, `userId`, `tenantId`
+      - [x] Очікування:
+        - [x] `UnitOfWorkResultInvalidException`
+        - [x] `ERROR_CODE === CORETSIA_UOW_RESULT_INVALID`
+        - [x] `reason === uow-result-extensions-unsafe-key-forbidden`
+    - [x] asserts `extensions` reject `float|NaN|INF|-INF`
+    - [x] asserts `extensions` reject objects/resources
+    - [x] asserts diagnostics are safe and contain no raw values
+    - [x] asserts failures use `CORETSIA_UOW_RESULT_INVALID`
+- [x] Outcome mapping stability snapshot (policy lock):
+  - [x] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
+  - [x] MUST check:
+    - [x] HTTP status `200` => `success`
+    - [x] HTTP status `399` => `success`
+    - [x] HTTP status `400` => `handled_error`
+    - [x] HTTP status `500` => `handled_error`
+    - [x] CLI exit code `0` => `success`
+    - [x] CLI exit code `2` => `handled_error`
+    - [x] uncaught exception => `fatal_error`
 
 > NOTE: `OutcomeMappingStabilityContractTest` є **єдиним** контрактом, що цементує правила з `docs/ssot/uow-outcome-policy.md`.
 
 ## Tests (MUST)
 
 Contract:
-- [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
-  - [ ] MUST fail if `framework/packages/core/kernel/config/kernel.php` returns repeated root:
-    - [ ] ✅ subtree only
-    - [ ] ❌ `['kernel' => [...]]`
-  - [ ] MUST fail if any `@*` key exists under returned subtree (any depth)
-  - [ ] additive namespaces introduced by later kernel epics are allowed
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
+  - [x] MUST fail if `framework/packages/core/kernel/config/kernel.php` returns repeated root:
+    - [x] ✅ subtree only
+    - [x] ❌ `['kernel' => [...]]`
+  - [x] MUST fail if any `@*` key exists under returned subtree (any depth)
+  - [x] additive namespaces introduced by later kernel epics are allowed
 
 ## DoD (MUST)
 
-- [ ] Context shape stable + contract-tested
-- [ ] Result/outcome shape stable + contract-tested
-- [ ] Outcome tokens stable: `success|handled_error|fatal_error`
-- [ ] Attributes guard is implemented and prevents non-json-like values / overflows deterministically
-- [ ] No PSR-7/15 leakage
-- [ ] `docs/ssot/uow-outcome-policy.md` відповідає реальним правилам, які зафіксовані `OutcomeMappingStabilityContractTest`
-- [ ] Нема дублювання “як саме” у коді — лише правила/інваріанти в SSoT; runtimes реалізують mapping.
-- [ ] Non-goals / out of scope:
-  - [ ] Kernel не будує HTTP response і не визначає статус-коди (це adapters/platform-layer).
-  - [ ] Kernel не логує stacktrace у `result.extensions`.
-- [ ] Adapters invariants:
-  - [ ] `platform/http` може додавати http-specific attributes (safe only), але **shape залишається kernel-owned**
-  - [ ] `platform/cli` може додавати cli-specific attributes (safe only), але **shape залишається kernel-owned**
-- [ ] When a UoW is started, then it contains `uowId`, `type`, `startedAt`, `correlationId`, and json-like `attributes`.
-- [ ] When a CLI command returns exit code 2 without uncaught exceptions, then the UoW outcome is `handled_error`.
-- [ ] `UnitOfWorkContext` and `UnitOfWorkResult` are kernel-owned runtime shapes/VOs, not DTO-marker classes by default
+- [x] Context shape stable + contract-tested
+- [x] Result/outcome shape stable + contract-tested
+- [x] Outcome tokens stable: `success|handled_error|fatal_error`
+- [x] Attributes guard is implemented and prevents non-json-like values / overflows deterministically
+- [x] No PSR-7/15 leakage
+- [x] `docs/ssot/uow-outcome-policy.md` відповідає реальним правилам, які зафіксовані `OutcomeMappingStabilityContractTest`
+- [x] Нема дублювання “як саме” у коді — лише правила/інваріанти в SSoT; runtimes реалізують mapping.
+- [x] Non-goals / out of scope:
+  - [x] Kernel не будує HTTP response і не визначає статус-коди (це adapters/platform-layer).
+  - [x] Kernel не логує stacktrace у `result.extensions`.
+- [x] Adapters invariants:
+  - [x] `platform/http` може додавати http-specific attributes (safe only), але **shape залишається kernel-owned**
+  - [x] `platform/cli` може додавати cli-specific attributes (safe only), але **shape залишається kernel-owned**
+- [x] When a UoW is started, then it contains `uowId`, `type`, `startedAt`, `correlationId`, and json-like `attributes`.
+- [x] When a CLI command returns exit code 2 without uncaught exceptions, then the UoW outcome is `handled_error`.
+- [x] `UnitOfWorkContext` and `UnitOfWorkResult` are kernel-owned runtime shapes/VOs, not DTO-marker classes by default
 
 ---
 

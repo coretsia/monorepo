@@ -740,7 +740,7 @@ run before_uow hooks
 handle UoW
 run after_uow hooks
 resetOrchestrator.resetAll()
-endUow()
+endUoW()
 ```
 
 Kernel lifecycle implementation is not part of this ADR.

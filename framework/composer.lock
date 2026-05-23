@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "103de522b67cef193e782fb40f1f98c5",
+    "content-hash": "838aa55b3695cd3ef1480607c18c03cb",
     "packages": [],
     "packages-dev": [
         {
@@ -158,7 +158,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/contracts",
-                "reference": "04c0f322135d814fabc7927a5a33ff5cf06877a7"
+                "reference": "b3fb945239f4affef66c61847efbc69f2d2f4715"
             },
             "require": {
                 "php": "^8.4"
@@ -214,7 +214,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "757edf016358825607bc59d459fd679e77f705f1"
+                "reference": "bb412a38a74aa79dac037044b86000a7c91c750c"
             },
             "require": {
                 "php": "^8.4"
@@ -270,7 +270,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "322f52f93b39f21c5c714b9cc6ed16331dbc2c8c"
+                "reference": "b2467fea06d7ba5dad0ad4cda693e4551e47e94c"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -333,12 +333,78 @@
             }
         },
         {
+            "name": "coretsia/core-kernel",
+            "version": "0.4.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/core/kernel",
+                "reference": "0ceca8df94ca1a9a2ff5b1422ab5babae80e1f5e"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.4.0",
+                "coretsia/core-foundation": "^0.4.0",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "core.kernel",
+                    "moduleClass": "Coretsia\\Kernel\\Module\\KernelModule",
+                    "providers": [
+                        "Coretsia\\Kernel\\Provider\\KernelServiceProvider"
+                    ],
+                    "defaultsConfigPath": "config/kernel.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Kernel\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Kernel\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Coretsia Team",
+                    "email": "team@coretsia.dev",
+                    "homepage": "https://coretsia.dev/"
+                }
+            ],
+            "description": "Coretsia Kernel runtime package: UnitOfWork shapes, outcome policy, and kernel lifecycle invariants.",
+            "keywords": [
+                "composer-package",
+                "context",
+                "coretsia",
+                "framework",
+                "kernel",
+                "lifecycle",
+                "outcome",
+                "php",
+                "php84",
+                "result",
+                "runtime",
+                "unit-of-work",
+                "uow"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "coretsia/devtools-cli-spikes",
             "version": "0.4.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/cli-spikes",
-                "reference": "4c22406a6deeadfed103cb47853365462734ca62"
+                "reference": "59d2cf8addccb10bc3848a224277b787a2c25211"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -395,7 +461,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "51e187c0399f5b15149ecf78a7f1a6a0d1973480"
+                "reference": "977080c4d59d5fe2014b92d170383de3ccd9c345"
             },
             "require": {
                 "ext-json": "*",
@@ -451,7 +517,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "665e10e9105c44fcff51330ba1985a0d00929457"
+                "reference": "9f67621772075d107189bdd6ac8772c4802b46a9"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -1529,16 +1595,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.25",
+            "version": "12.5.26",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "792c2980442dfce319226b88fa845b8b6de3b333"
+                "reference": "e78c9ad74f73fd3642a23e65ace83746dc8df26d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/792c2980442dfce319226b88fa845b8b6de3b333",
-                "reference": "792c2980442dfce319226b88fa845b8b6de3b333",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/e78c9ad74f73fd3642a23e65ace83746dc8df26d",
+                "reference": "e78c9ad74f73fd3642a23e65ace83746dc8df26d",
                 "shasum": ""
             },
             "require": {
@@ -1557,15 +1623,15 @@
                 "phpunit/php-invoker": "^6.0.0",
                 "phpunit/php-text-template": "^5.0.0",
                 "phpunit/php-timer": "^8.0.0",
-                "sebastian/cli-parser": "^4.2.0",
-                "sebastian/comparator": "^7.1.6",
+                "sebastian/cli-parser": "^4.2.1",
+                "sebastian/comparator": "^7.1.8",
                 "sebastian/diff": "^7.0.0",
-                "sebastian/environment": "^8.1.0",
-                "sebastian/exporter": "^7.0.2",
+                "sebastian/environment": "^8.1.1",
+                "sebastian/exporter": "^7.0.3",
                 "sebastian/global-state": "^8.0.2",
                 "sebastian/object-enumerator": "^7.0.0",
                 "sebastian/recursion-context": "^7.0.1",
-                "sebastian/type": "^6.0.3",
+                "sebastian/type": "^6.0.4",
                 "sebastian/version": "^6.0.0",
                 "staabm/side-effects-detector": "^1.0.5"
             },
@@ -1607,7 +1673,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.25"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.26"
             },
             "funding": [
                 {
@@ -1615,7 +1681,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-05-13T03:56:57+00:00"
+            "time": "2026-05-21T12:36:53+00:00"
         },
         {
             "name": "psr/clock",
@@ -1889,16 +1955,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "7.1.7",
+            "version": "7.1.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "0ed818fb2660fd80d71fbb982c80153bba8da7ef"
+                "reference": "7c65c1e79836812819705b473a90c12399542485"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/0ed818fb2660fd80d71fbb982c80153bba8da7ef",
-                "reference": "0ed818fb2660fd80d71fbb982c80153bba8da7ef",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/7c65c1e79836812819705b473a90c12399542485",
+                "reference": "7c65c1e79836812819705b473a90c12399542485",
                 "shasum": ""
             },
             "require": {
@@ -1957,7 +2023,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
                 "security": "https://github.com/sebastianbergmann/comparator/security/policy",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/7.1.7"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/7.1.8"
             },
             "funding": [
                 {
@@ -1977,7 +2043,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-20T11:50:17+00:00"
+            "time": "2026-05-21T04:45:25+00:00"
         },
         {
             "name": "sebastian/complexity",
@@ -2106,23 +2172,23 @@
         },
         {
             "name": "sebastian/environment",
-            "version": "8.1.0",
+            "version": "8.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/environment.git",
-                "reference": "b121608b28a13f721e76ffbbd386d08eff58f3f6"
+                "reference": "334bc42a97ec6fc44c59001dc3467e0d739a20e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/b121608b28a13f721e76ffbbd386d08eff58f3f6",
-                "reference": "b121608b28a13f721e76ffbbd386d08eff58f3f6",
+                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/334bc42a97ec6fc44c59001dc3467e0d739a20e9",
+                "reference": "334bc42a97ec6fc44c59001dc3467e0d739a20e9",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.3"
             },
             "require-dev": {
-                "phpunit/phpunit": "^12.0"
+                "phpunit/phpunit": "^12.5.25"
             },
             "suggest": {
                 "ext-posix": "*"
@@ -2158,7 +2224,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/environment/issues",
                 "security": "https://github.com/sebastianbergmann/environment/security/policy",
-                "source": "https://github.com/sebastianbergmann/environment/tree/8.1.0"
+                "source": "https://github.com/sebastianbergmann/environment/tree/8.1.1"
             },
             "funding": [
                 {
@@ -2178,7 +2244,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-15T12:13:01+00:00"
+            "time": "2026-05-21T08:45:32+00:00"
         },
         {
             "name": "sebastian/exporter",
@@ -4176,6 +4242,7 @@
         "coretsia/core-contracts": 20,
         "coretsia/core-dto-attribute": 20,
         "coretsia/core-foundation": 20,
+        "coretsia/core-kernel": 20,
         "coretsia/devtools-cli-spikes": 20,
         "coretsia/devtools-internal-toolkit": 20,
         "coretsia/platform-cli": 20

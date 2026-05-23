@@ -45,12 +45,13 @@ Coretsia/
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
 │   │   ├── ADR-0019-enhanced-reset-long-running.md
+│   │   ├── ADR-0021-unit-of-work-context-shape.md
+│   │   ├── ADR-0022-unit-of-work-result-outcome-policy.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
-│   │   ├── STRUCTURE.md
-│   │   └── WEBSITE.md
+│   │   └── STRUCTURE.md
 │   ├── assets/
 │   │   └── branding/
 │   │       ├── favicon/
@@ -139,6 +140,8 @@ Coretsia/
 │       ├── tags.md
 │       ├── time-ids-and-duration.md
 │       ├── uow-and-reset-contracts.md
+│       ├── uow-outcome-policy.md
+│       ├── uow-shapes.md
 │       └── validation-contracts.md
 ├── framework/
 │   ├── bin/
@@ -337,141 +340,176 @@ Coretsia/
 │   │   │   │   ├── README.md
 │   │   │   │   ├── SECURITY.md
 │   │   │   │   └── composer.json
-│   │   │   └── foundation/
+│   │   │   ├── foundation/
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── foundation.php
+│   │   │   │   │   └── rules.php
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── Clock/
+│   │   │   │   │   │   ├── FrozenClock.php
+│   │   │   │   │   │   └── SystemClock.php
+│   │   │   │   │   ├── Container/
+│   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   ├── ContainerException.php
+│   │   │   │   │   │   │   └── NotFoundException.php
+│   │   │   │   │   │   ├── Container.php
+│   │   │   │   │   │   ├── ContainerBuilder.php
+│   │   │   │   │   │   ├── ContainerDiagnostics.php
+│   │   │   │   │   │   └── ServiceProviderInterface.php
+│   │   │   │   │   ├── Context/
+│   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   ├── ContextInvalidKeyException.php
+│   │   │   │   │   │   │   └── ContextWriteForbiddenException.php
+│   │   │   │   │   │   ├── ContextBag.php
+│   │   │   │   │   │   ├── ContextKeys.php
+│   │   │   │   │   │   ├── ContextStore.php
+│   │   │   │   │   │   └── ContextStorePolicy.php
+│   │   │   │   │   ├── Discovery/
+│   │   │   │   │   │   └── DeterministicOrder.php
+│   │   │   │   │   ├── Id/
+│   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   └── IdGenerationFailedException.php
+│   │   │   │   │   │   ├── CorrelationIdGenerator.php
+│   │   │   │   │   │   ├── IdGeneratorInterface.php
+│   │   │   │   │   │   ├── UlidGenerator.php
+│   │   │   │   │   │   └── UuidGenerator.php
+│   │   │   │   │   ├── Logging/
+│   │   │   │   │   │   └── NoopLogger.php
+│   │   │   │   │   ├── Module/
+│   │   │   │   │   │   └── FoundationModule.php
+│   │   │   │   │   ├── Observability/
+│   │   │   │   │   │   ├── Errors/
+│   │   │   │   │   │   │   └── NoopErrorReporter.php
+│   │   │   │   │   │   ├── Metrics/
+│   │   │   │   │   │   │   └── NoopMeter.php
+│   │   │   │   │   │   ├── Profiling/
+│   │   │   │   │   │   │   ├── NoopProfiler.php
+│   │   │   │   │   │   │   └── NoopProfilingSession.php
+│   │   │   │   │   │   ├── Tracing/
+│   │   │   │   │   │   │   ├── NoopContextPropagation.php
+│   │   │   │   │   │   │   ├── NoopSpan.php
+│   │   │   │   │   │   │   └── NoopTracer.php
+│   │   │   │   │   │   └── CorrelationIdProvider.php
+│   │   │   │   │   ├── Provider/
+│   │   │   │   │   │   ├── FoundationServiceFactory.php
+│   │   │   │   │   │   ├── FoundationServiceProvider.php
+│   │   │   │   │   │   └── Tags.php
+│   │   │   │   │   ├── Runtime/
+│   │   │   │   │   │   └── Reset/
+│   │   │   │   │   │       ├── PriorityResetOrchestrator.php
+│   │   │   │   │   │       ├── ResetErrorCodes.php
+│   │   │   │   │   │       ├── ResetException.php
+│   │   │   │   │   │       ├── ResetGroup.php
+│   │   │   │   │   │       ├── ResetOrchestrator.php
+│   │   │   │   │   │       └── ResetPriority.php
+│   │   │   │   │   ├── Serialization/
+│   │   │   │   │   │   └── StableJsonEncoder.php
+│   │   │   │   │   ├── Tag/
+│   │   │   │   │   │   ├── TagRegistry.php
+│   │   │   │   │   │   └── TaggedService.php
+│   │   │   │   │   └── Time/
+│   │   │   │   │       ├── Exception/
+│   │   │   │   │       │   └── StopwatchInvalidStateException.php
+│   │   │   │   │       └── Stopwatch.php
+│   │   │   │   ├── tests/
+│   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
+│   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
+│   │   │   │   │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
+│   │   │   │   │   │   ├── ContextAccessorSignatureContractTest.php
+│   │   │   │   │   │   ├── ContextKeysAreStableContractTest.php
+│   │   │   │   │   │   ├── CorrelationIdFormatContractTest.php
+│   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │   │   │   │   ├── DeterministicOrderSortContractTest.php
+│   │   │   │   │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
+│   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
+│   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
+│   │   │   │   │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
+│   │   │   │   │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
+│   │   │   │   │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
+│   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
+│   │   │   │   │   │   └── UuidFormatContractTest.php
+│   │   │   │   │   ├── Integration/
+│   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
+│   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
+│   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsFloatValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsObjectValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsResourceValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsUnknownKeysTest.php
+│   │   │   │   │   │   ├── ContextStoreResetClearsContextTest.php
+│   │   │   │   │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
+│   │   │   │   │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
+│   │   │   │   │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
+│   │   │   │   │   │   ├── FoundationClockAndStopwatchBindingsTest.php
+│   │   │   │   │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+│   │   │   │   │   │   ├── FoundationResolvesContextStoreBindingsTest.php
+│   │   │   │   │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
+│   │   │   │   │   │   ├── PriorityResetBackCompatWhenDisabledTest.php
+│   │   │   │   │   │   ├── PriorityResetEmitsSafeSummaryObservabilityTest.php
+│   │   │   │   │   │   ├── PriorityResetFailsFastOnFirstServiceExceptionTest.php
+│   │   │   │   │   │   ├── PriorityResetIgnoresMetaWhenDisabledTest.php
+│   │   │   │   │   │   ├── PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
+│   │   │   │   │   │   ├── PriorityResetMetaParsingRejectsInvalidTest.php
+│   │   │   │   │   │   ├── PriorityResetOrderDeterministicTest.php
+│   │   │   │   │   │   ├── PriorityResetUsesConfiguredResetTagTest.php
+│   │   │   │   │   │   ├── ResetGroupWorksTest.php
+│   │   │   │   │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
+│   │   │   │   │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+│   │   │   │   │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php
+│   │   │   │   │   │   ├── ResetOrderingIsLocaleIndependentTest.php
+│   │   │   │   │   │   ├── TagRegistryDedupeFirstWinsTest.php
+│   │   │   │   │   │   └── TagRegistryReturnsDeterministicOrderTest.php
+│   │   │   │   │   └── Unit/
+│   │   │   │   │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
+│   │   │   │   │       ├── ContainerDoesNotAutowireInterfacesTest.php
+│   │   │   │   │       ├── ContextBagImmutabilityTest.php
+│   │   │   │   │       ├── CorrelationIdFormatTest.php
+│   │   │   │   │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
+│   │   │   │   │       ├── DeterministicOrderSortRuleTest.php
+│   │   │   │   │       ├── FrozenClockReturnsDeterministicNowTest.php
+│   │   │   │   │       ├── StopwatchDurationIsNonNegativeTest.php
+│   │   │   │   │       └── UlidFormatTest.php
+│   │   │   │   ├── LICENSE
+│   │   │   │   ├── NOTICE
+│   │   │   │   ├── README.md
+│   │   │   │   ├── SECURITY.md
+│   │   │   │   └── composer.json
+│   │   │   └── kernel/
 │   │   │       ├── config/
-│   │   │       │   ├── foundation.php
+│   │   │       │   ├── kernel.php
 │   │   │       │   └── rules.php
 │   │   │       ├── src/
-│   │   │       │   ├── Clock/
-│   │   │       │   │   ├── FrozenClock.php
-│   │   │       │   │   └── SystemClock.php
-│   │   │       │   ├── Container/
-│   │   │       │   │   ├── Exception/
-│   │   │       │   │   │   ├── ContainerException.php
-│   │   │       │   │   │   └── NotFoundException.php
-│   │   │       │   │   ├── Container.php
-│   │   │       │   │   ├── ContainerBuilder.php
-│   │   │       │   │   ├── ContainerDiagnostics.php
-│   │   │       │   │   └── ServiceProviderInterface.php
-│   │   │       │   ├── Context/
-│   │   │       │   │   ├── Exception/
-│   │   │       │   │   │   ├── ContextInvalidKeyException.php
-│   │   │       │   │   │   └── ContextWriteForbiddenException.php
-│   │   │       │   │   ├── ContextBag.php
-│   │   │       │   │   ├── ContextKeys.php
-│   │   │       │   │   ├── ContextStore.php
-│   │   │       │   │   └── ContextStorePolicy.php
-│   │   │       │   ├── Discovery/
-│   │   │       │   │   └── DeterministicOrder.php
-│   │   │       │   ├── Id/
-│   │   │       │   │   ├── Exception/
-│   │   │       │   │   │   └── IdGenerationFailedException.php
-│   │   │       │   │   ├── CorrelationIdGenerator.php
-│   │   │       │   │   ├── IdGeneratorInterface.php
-│   │   │       │   │   ├── UlidGenerator.php
-│   │   │       │   │   └── UuidGenerator.php
-│   │   │       │   ├── Logging/
-│   │   │       │   │   └── NoopLogger.php
 │   │   │       │   ├── Module/
-│   │   │       │   │   └── FoundationModule.php
-│   │   │       │   ├── Observability/
-│   │   │       │   │   ├── Errors/
-│   │   │       │   │   │   └── NoopErrorReporter.php
-│   │   │       │   │   ├── Metrics/
-│   │   │       │   │   │   └── NoopMeter.php
-│   │   │       │   │   ├── Profiling/
-│   │   │       │   │   │   ├── NoopProfiler.php
-│   │   │       │   │   │   └── NoopProfilingSession.php
-│   │   │       │   │   ├── Tracing/
-│   │   │       │   │   │   ├── NoopContextPropagation.php
-│   │   │       │   │   │   ├── NoopSpan.php
-│   │   │       │   │   │   └── NoopTracer.php
-│   │   │       │   │   └── CorrelationIdProvider.php
+│   │   │       │   │   └── KernelModule.php
 │   │   │       │   ├── Provider/
-│   │   │       │   │   ├── FoundationServiceFactory.php
-│   │   │       │   │   ├── FoundationServiceProvider.php
-│   │   │       │   │   └── Tags.php
-│   │   │       │   ├── Runtime/
-│   │   │       │   │   └── Reset/
-│   │   │       │   │       ├── PriorityResetOrchestrator.php
-│   │   │       │   │       ├── ResetErrorCodes.php
-│   │   │       │   │       ├── ResetException.php
-│   │   │       │   │       ├── ResetGroup.php
-│   │   │       │   │       ├── ResetOrchestrator.php
-│   │   │       │   │       └── ResetPriority.php
-│   │   │       │   ├── Serialization/
-│   │   │       │   │   └── StableJsonEncoder.php
-│   │   │       │   ├── Tag/
-│   │   │       │   │   ├── TagRegistry.php
-│   │   │       │   │   └── TaggedService.php
-│   │   │       │   └── Time/
+│   │   │       │   │   ├── KernelServiceFactory.php
+│   │   │       │   │   └── KernelServiceProvider.php
+│   │   │       │   └── Runtime/
 │   │   │       │       ├── Exception/
-│   │   │       │       │   └── StopwatchInvalidStateException.php
-│   │   │       │       └── Stopwatch.php
+│   │   │       │       │   ├── UnitOfWorkContextInvalidException.php
+│   │   │       │       │   └── UnitOfWorkResultInvalidException.php
+│   │   │       │       ├── Internal/
+│   │   │       │       │   └── JsonLikeShapeNormalizer.php
+│   │   │       │       ├── Outcome.php
+│   │   │       │       ├── UnitOfWorkContext.php
+│   │   │       │       ├── UnitOfWorkResult.php
+│   │   │       │       └── UnitOfWorkType.php
 │   │   │       ├── tests/
-│   │   │       │   ├── Contract/
-│   │   │       │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
-│   │   │       │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
-│   │   │       │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
-│   │   │       │   │   ├── ContextAccessorSignatureContractTest.php
-│   │   │       │   │   ├── ContextKeysAreStableContractTest.php
-│   │   │       │   │   ├── CorrelationIdFormatContractTest.php
-│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
-│   │   │       │   │   ├── DeterministicOrderSortContractTest.php
-│   │   │       │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
-│   │   │       │   │   ├── FoundationConfigSubtreeShapeContractTest.php
-│   │   │       │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
-│   │   │       │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
-│   │   │       │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
-│   │   │       │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
-│   │   │       │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
-│   │   │       │   │   └── UuidFormatContractTest.php
-│   │   │       │   ├── Integration/
-│   │   │       │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
-│   │   │       │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
-│   │   │       │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
-│   │   │       │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
-│   │   │       │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php
-│   │   │       │   │   ├── ContextStoreRejectsFloatValuesTest.php
-│   │   │       │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php
-│   │   │       │   │   ├── ContextStoreRejectsObjectValuesTest.php
-│   │   │       │   │   ├── ContextStoreRejectsResourceValuesTest.php
-│   │   │       │   │   ├── ContextStoreRejectsUnknownKeysTest.php
-│   │   │       │   │   ├── ContextStoreResetClearsContextTest.php
-│   │   │       │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
-│   │   │       │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
-│   │   │       │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
-│   │   │       │   │   ├── FoundationClockAndStopwatchBindingsTest.php
-│   │   │       │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
-│   │   │       │   │   ├── FoundationResolvesContextStoreBindingsTest.php
-│   │   │       │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
-│   │   │       │   │   ├── PriorityResetBackCompatWhenDisabledTest.php
-│   │   │       │   │   ├── PriorityResetEmitsSafeSummaryObservabilityTest.php
-│   │   │       │   │   ├── PriorityResetFailsFastOnFirstServiceExceptionTest.php
-│   │   │       │   │   ├── PriorityResetIgnoresMetaWhenDisabledTest.php
-│   │   │       │   │   ├── PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
-│   │   │       │   │   ├── PriorityResetMetaParsingRejectsInvalidTest.php
-│   │   │       │   │   ├── PriorityResetOrderDeterministicTest.php
-│   │   │       │   │   ├── PriorityResetUsesConfiguredResetTagTest.php
-│   │   │       │   │   ├── ResetGroupWorksTest.php
-│   │   │       │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
-│   │   │       │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
-│   │   │       │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php
-│   │   │       │   │   ├── ResetOrderingIsLocaleIndependentTest.php
-│   │   │       │   │   ├── TagRegistryDedupeFirstWinsTest.php
-│   │   │       │   │   └── TagRegistryReturnsDeterministicOrderTest.php
-│   │   │       │   └── Unit/
-│   │   │       │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
-│   │   │       │       ├── ContainerDoesNotAutowireInterfacesTest.php
-│   │   │       │       ├── ContextBagImmutabilityTest.php
-│   │   │       │       ├── CorrelationIdFormatTest.php
-│   │   │       │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
-│   │   │       │       ├── DeterministicOrderSortRuleTest.php
-│   │   │       │       ├── FrozenClockReturnsDeterministicNowTest.php
-│   │   │       │       ├── StopwatchDurationIsNonNegativeTest.php
-│   │   │       │       └── UlidFormatTest.php
+│   │   │       │   └── Contract/
+│   │   │       │       ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │       ├── KernelConfigSubtreeShapeContractTest.php
+│   │   │       │       ├── OutcomeMappingStabilityContractTest.php
+│   │   │       │       ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+│   │   │       │       ├── UnitOfWorkContextShapeContractTest.php
+│   │   │       │       ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+│   │   │       │       └── UnitOfWorkResultShapeContractTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
+│   │   │       ├── PUBLIC_API.md
 │   │   │       ├── README.md
 │   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
@@ -935,8 +973,11 @@ Coretsia/
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak.1
 │   │   │   │   ├── framework__composer.json.bak
 │   │   │   │   ├── framework__composer.json.bak.1
+│   │   │   │   ├── framework__composer.json.bak.2
+│   │   │   │   ├── monorepo__composer.json.bak
 │   │   │   │   ├── skeleton__composer.json.bak
-│   │   │   │   └── skeleton__composer.json.bak.1
+│   │   │   │   ├── skeleton__composer.json.bak.1
+│   │   │   │   └── skeleton__composer.json.bak.2
 │   │   │   └── .gitignore
 │   │   └── .gitignore
 │   ├── composer.json

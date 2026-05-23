@@ -35,14 +35,26 @@ Non-code proposals, design direction, website ideas, branding applications, docu
 
 Current website-related design work is tracked through:
 
-- [Website architecture draft](docs/architecture/WEBSITE.md)
 - [Website design RFC](https://github.com/coretsia/monorepo/discussions/51)
+- [Coretsia website repository](https://github.com/coretsia/website)
+
+Accepted website and visual implementation decisions are recorded in the website repository under:
+
+```text
+docs/decisions/
+```
+
+Website implementation work happens through scoped issues and pull requests in:
+
+```text
+coretsia/website
+```
 
 Branding-related proposals must align with:
 
 - [Branding specification](docs/architecture/BRANDING.md)
 
-Implementation pull requests that follow from an accepted discussion should link the relevant Discussion in the PR description.
+Implementation pull requests that follow from an accepted discussion should link the relevant Discussion, decision record, or implementation issue in the PR description.
 
 ## Packaging law (MUST)
 

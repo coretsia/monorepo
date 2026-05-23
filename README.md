@@ -169,19 +169,30 @@ composer ci
 - [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
 - [SSoT index](docs/ssot/INDEX.md)
 - [Branding spec](docs/architecture/BRANDING.md)
-- [Website architecture draft](docs/architecture/WEBSITE.md)
 
 ## Community RFCs
 
 ### Website Design RFC
 
-Coretsia is currently collecting open-source ideas for the future official website design direction.
+Coretsia is collecting open-source ideas for the official website design direction.
 
 The discussion is focused on translating the canonical Coretsia branding specification into a practical website concept, including the homepage, documentation section, news/blog section, and community pages.
 
-- [Website architecture draft](docs/architecture/WEBSITE.md)
-- [Branding specification](docs/architecture/BRANDING.md)
+Design discussion and direction are tracked in:
+
 - [Website design RFC](https://github.com/coretsia/monorepo/discussions/51)
+
+Accepted website and visual implementation decisions are recorded in:
+
+- [Coretsia website decision records](https://github.com/coretsia/website/tree/main/docs/decisions)
+
+Website implementation work happens through scoped issues and pull requests in:
+
+- [Coretsia website repository](https://github.com/coretsia/website)
+
+Website proposals must align with:
+
+- [Branding specification](docs/architecture/BRANDING.md)
 
 ## License
 

@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Serialization;
 
+use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+
 /**
  * Deterministic JSON encoder for runtime-safe diagnostics and artifacts.
  *
@@ -36,6 +38,9 @@ namespace Coretsia\Foundation\Serialization;
  * - resource
  * - object, including Closure
  * - map keys that are not strings
+ *
+ * Baseline json-like value validation and deterministic recursive
+ * normalization are delegated to JsonLikeNormalizer.
  *
  * Maps are sorted recursively by byte-order string comparison (`strcmp`).
  * Lists preserve caller-supplied order.
@@ -62,7 +67,15 @@ final class StableJsonEncoder
      */
     public static function encodeStable(mixed $value): string
     {
-        $normalized = self::normalize($value);
+        try {
+            $normalized = JsonLikeNormalizer::normalize($value, 'value');
+        } catch (JsonLikeNormalizationException $exception) {
+            throw new \InvalidArgumentException(
+                self::message($exception->path(), self::mapReason($exception->reason())),
+                0,
+                $exception,
+            );
+        }
 
         try {
             $json = \json_encode(
@@ -71,8 +84,8 @@ final class StableJsonEncoder
                 | \JSON_UNESCAPED_UNICODE
                 | \JSON_THROW_ON_ERROR,
             );
-        } catch (\JsonException) {
-            throw new \InvalidArgumentException('stable-json-encode-failed');
+        } catch (\JsonException $exception) {
+            throw new \InvalidArgumentException('stable-json-encode-failed', 0, $exception);
         }
 
         if (!\is_string($json)) {
@@ -82,60 +95,25 @@ final class StableJsonEncoder
         return $json . "\n";
     }
 
-    /**
-     * @return null|bool|int|string|array<int|string, mixed>
-     */
-    private static function normalize(mixed $value): null|bool|int|string|array
+    private static function mapReason(string $reason): string
     {
-        if ($value === null || \is_bool($value) || \is_int($value) || \is_string($value)) {
-            return $value;
+        return match ($reason) {
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'stable-json-float-forbidden',
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'stable-json-resource-forbidden',
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'stable-json-closure-forbidden',
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'stable-json-object-forbidden',
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'stable-json-map-key-must-be-string',
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'stable-json-type-forbidden',
+            default => 'stable-json-type-forbidden',
+        };
+    }
+
+    private static function message(string $path, string $reason): string
+    {
+        if ($path === '') {
+            return $reason;
         }
 
-        if (\is_float($value)) {
-            throw new \InvalidArgumentException('stable-json-float-forbidden');
-        }
-
-        if (\is_resource($value)) {
-            throw new \InvalidArgumentException('stable-json-resource-forbidden');
-        }
-
-        if ($value instanceof \Closure) {
-            throw new \InvalidArgumentException('stable-json-closure-forbidden');
-        }
-
-        if (\is_object($value)) {
-            throw new \InvalidArgumentException('stable-json-object-forbidden');
-        }
-
-        if (!\is_array($value)) {
-            throw new \InvalidArgumentException('stable-json-type-forbidden');
-        }
-
-        if (\array_is_list($value)) {
-            $normalized = [];
-
-            foreach ($value as $item) {
-                $normalized[] = self::normalize($item);
-            }
-
-            return $normalized;
-        }
-
-        $normalized = [];
-
-        foreach ($value as $key => $item) {
-            if (!\is_string($key)) {
-                throw new \InvalidArgumentException('stable-json-map-key-must-be-string');
-            }
-
-            $normalized[$key] = self::normalize($item);
-        }
-
-        \uksort(
-            $normalized,
-            static fn (string $left, string $right): int => \strcmp($left, $right),
-        );
-
-        return $normalized;
+        return $reason . ': value at ' . $path;
     }
 }

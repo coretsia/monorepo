@@ -18,11 +18,13 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Runtime\Internal;
 
+use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 use Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException;
 use Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException;
 
 /**
- * Internal json-like normalizer/guard for Kernel UnitOfWork shapes.
+ * Internal json-like shape wrapper/guard for Kernel UnitOfWork shapes.
  *
  * This class is intentionally internal:
  *
@@ -32,14 +34,16 @@ use Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException;
  * - it exists only to keep UnitOfWorkContext and UnitOfWorkResult validation
  *   behavior consistent.
  *
- * The normalizer preserves the Kernel UoW json-like policy:
+ * Baseline json-like value validation and deterministic recursive
+ * normalization are delegated to Foundation JsonLikeNormalizer.
  *
- * - allowed scalars: null, bool, int, string;
- * - forbidden scalars: float, including NaN, INF, and -INF;
- * - allowed containers: lists and string-keyed maps;
- * - forbidden values: objects, closures, resources, service instances;
- * - maps are sorted recursively by byte-order strcmp;
- * - lists preserve caller-supplied order;
+ * The Kernel wrapper preserves only UoW-specific policy:
+ *
+ * - root map policy for attributes/extensions/error;
+ * - unsafe metadata key denylist;
+ * - attributes max-depth and max-keys limits;
+ * - safe string and safe single-line string checks;
+ * - UoW-specific exception reason mapping;
  * - diagnostics include path/reason only and never raw values.
  *
  * @internal
@@ -136,16 +140,20 @@ final class JsonLikeShapeNormalizer
             );
         }
 
+        $normalized = self::normalizeContextBaseline($attributes, 'attributes');
+
         $keyCount = 0;
 
-        return self::normalizeContextMap(
-            map: $attributes,
+        self::assertContextMapPolicy(
+            map: $normalized,
             path: 'attributes',
             depth: 1,
             maxDepth: $maxDepth,
             maxKeys: $maxKeys,
             keyCount: $keyCount,
         );
+
+        return $normalized;
     }
 
     /**
@@ -168,11 +176,15 @@ final class JsonLikeShapeNormalizer
             );
         }
 
-        return self::normalizeResultMap(
-            map: $extensions,
+        $normalized = self::normalizeResultBaseline($extensions, 'extensions');
+
+        self::assertResultMapPolicy(
+            map: $normalized,
             path: 'extensions',
             rejectUnsafeKeys: true,
         );
+
+        return $normalized;
     }
 
     /**
@@ -198,38 +210,89 @@ final class JsonLikeShapeNormalizer
             );
         }
 
-        return self::normalizeResultMap(
-            map: $error,
+        $normalized = self::normalizeResultBaseline($error, 'error');
+
+        self::assertResultMapPolicy(
+            map: $normalized,
             path: 'error',
             rejectUnsafeKeys: false,
         );
+
+        return $normalized;
     }
 
     /**
-     * @param array<mixed> $map
+     * @param array<string, mixed> $value
      *
      * @return array<string, mixed>
      */
-    private static function normalizeContextMap(
+    private static function normalizeContextBaseline(array $value, string $path): array
+    {
+        try {
+            $normalized = JsonLikeNormalizer::normalize($value, $path);
+        } catch (JsonLikeNormalizationException $exception) {
+            throw UnitOfWorkContextInvalidException::atPath(
+                $exception->path(),
+                self::mapContextReason($exception->reason()),
+                $exception,
+            );
+        }
+
+        if (!\is_array($normalized)) {
+            throw UnitOfWorkContextInvalidException::atPath(
+                $path,
+                'uow-context-attributes-type-forbidden',
+            );
+        }
+
+        /** @var array<string, mixed> $normalized */
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $value
+     *
+     * @return array<string, mixed>
+     */
+    private static function normalizeResultBaseline(array $value, string $path): array
+    {
+        try {
+            $normalized = JsonLikeNormalizer::normalize($value, $path);
+        } catch (JsonLikeNormalizationException $exception) {
+            throw UnitOfWorkResultInvalidException::atPath(
+                $exception->path(),
+                self::mapResultReason($exception->reason()),
+                $exception,
+            );
+        }
+
+        if (!\is_array($normalized)) {
+            throw UnitOfWorkResultInvalidException::atPath(
+                $path,
+                'uow-result-type-forbidden',
+            );
+        }
+
+        /** @var array<string, mixed> $normalized */
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $map
+     * @param int<1, max> $maxDepth
+     * @param int<1, max> $maxKeys
+     */
+    private static function assertContextMapPolicy(
         array $map,
         string $path,
         int $depth,
         int $maxDepth,
         int $maxKeys,
         int &$keyCount,
-    ): array {
+    ): void {
         self::assertContextDepth($path, $depth, $maxDepth);
 
-        $normalized = [];
-
         foreach ($map as $key => $value) {
-            if (!\is_string($key)) {
-                throw UnitOfWorkContextInvalidException::atPath(
-                    $path,
-                    'uow-context-attributes-map-key-must-be-string',
-                );
-            }
-
             if (!self::isSafeSingleLineString($key)) {
                 throw UnitOfWorkContextInvalidException::atPath(
                     $path,
@@ -237,7 +300,7 @@ final class JsonLikeShapeNormalizer
                 );
             }
 
-            $keyPath = self::pathForKey($path, $key);
+            $keyPath = self::pathForPolicyKey($path, $key);
 
             self::assertSafeContextAttributeKey($key, $keyPath);
 
@@ -250,7 +313,7 @@ final class JsonLikeShapeNormalizer
                 );
             }
 
-            $normalized[$key] = self::normalizeContextValue(
+            self::assertContextValuePolicy(
                 value: $value,
                 path: $keyPath,
                 depth: $depth,
@@ -259,30 +322,20 @@ final class JsonLikeShapeNormalizer
                 keyCount: $keyCount,
             );
         }
-
-        \uksort(
-            $normalized,
-            static fn (string $left, string $right): int => \strcmp($left, $right),
-        );
-
-        return $normalized;
     }
 
     /**
-     * @return null|bool|int|string|array<int|string, mixed>
+     * @param int<1, max> $maxDepth
+     * @param int<1, max> $maxKeys
      */
-    private static function normalizeContextValue(
+    private static function assertContextValuePolicy(
         mixed $value,
         string $path,
         int $depth,
         int $maxDepth,
         int $maxKeys,
         int &$keyCount,
-    ): null|bool|int|string|array {
-        if ($value === null || \is_bool($value) || \is_int($value)) {
-            return $value;
-        }
-
+    ): void {
         if (\is_string($value)) {
             if (!self::isSafeString($value)) {
                 throw UnitOfWorkContextInvalidException::atPath(
@@ -291,46 +344,15 @@ final class JsonLikeShapeNormalizer
                 );
             }
 
-            return $value;
-        }
-
-        if (\is_float($value)) {
-            throw UnitOfWorkContextInvalidException::atPath(
-                $path,
-                'uow-context-attributes-float-forbidden',
-            );
-        }
-
-        if (\is_resource($value)) {
-            throw UnitOfWorkContextInvalidException::atPath(
-                $path,
-                'uow-context-attributes-resource-forbidden',
-            );
-        }
-
-        if ($value instanceof \Closure) {
-            throw UnitOfWorkContextInvalidException::atPath(
-                $path,
-                'uow-context-attributes-closure-forbidden',
-            );
-        }
-
-        if (\is_object($value)) {
-            throw UnitOfWorkContextInvalidException::atPath(
-                $path,
-                'uow-context-attributes-object-forbidden',
-            );
+            return;
         }
 
         if (!\is_array($value)) {
-            throw UnitOfWorkContextInvalidException::atPath(
-                $path,
-                'uow-context-attributes-type-forbidden',
-            );
+            return;
         }
 
         if (\array_is_list($value)) {
-            return self::normalizeContextList(
+            self::assertContextListPolicy(
                 list: $value,
                 path: $path,
                 depth: $depth + 1,
@@ -338,9 +360,11 @@ final class JsonLikeShapeNormalizer
                 maxKeys: $maxKeys,
                 keyCount: $keyCount,
             );
+
+            return;
         }
 
-        return self::normalizeContextMap(
+        self::assertContextMapPolicy(
             map: $value,
             path: $path,
             depth: $depth + 1,
@@ -352,23 +376,21 @@ final class JsonLikeShapeNormalizer
 
     /**
      * @param list<mixed> $list
-     *
-     * @return list<mixed>
+     * @param int<1, max> $maxDepth
+     * @param int<1, max> $maxKeys
      */
-    private static function normalizeContextList(
+    private static function assertContextListPolicy(
         array $list,
         string $path,
         int $depth,
         int $maxDepth,
         int $maxKeys,
         int &$keyCount,
-    ): array {
+    ): void {
         self::assertContextDepth($path, $depth, $maxDepth);
 
-        $normalized = [];
-
         foreach ($list as $index => $value) {
-            $normalized[] = self::normalizeContextValue(
+            self::assertContextValuePolicy(
                 value: $value,
                 path: $path . '[' . $index . ']',
                 depth: $depth,
@@ -377,30 +399,17 @@ final class JsonLikeShapeNormalizer
                 keyCount: $keyCount,
             );
         }
-
-        return $normalized;
     }
 
     /**
-     * @param array<mixed> $map
-     *
-     * @return array<string, mixed>
+     * @param array<string, mixed> $map
      */
-    private static function normalizeResultMap(
+    private static function assertResultMapPolicy(
         array $map,
         string $path,
         bool $rejectUnsafeKeys,
-    ): array {
-        $normalized = [];
-
+    ): void {
         foreach ($map as $key => $value) {
-            if (!\is_string($key)) {
-                throw UnitOfWorkResultInvalidException::atPath(
-                    $path,
-                    'uow-result-map-key-must-be-string',
-                );
-            }
-
             if (!self::isSafeSingleLineString($key)) {
                 throw UnitOfWorkResultInvalidException::atPath(
                     $path,
@@ -408,39 +417,27 @@ final class JsonLikeShapeNormalizer
                 );
             }
 
-            $keyPath = self::pathForKey($path, $key);
+            $keyPath = $rejectUnsafeKeys
+                ? self::pathForPolicyKey($path, $key)
+                : self::pathForKey($path, $key);
 
             if ($rejectUnsafeKeys) {
                 self::assertSafeResultExtensionKey($key, $keyPath);
             }
 
-            $normalized[$key] = self::normalizeResultValue(
+            self::assertResultValuePolicy(
                 value: $value,
                 path: $keyPath,
                 rejectUnsafeKeys: $rejectUnsafeKeys,
             );
         }
-
-        \uksort(
-            $normalized,
-            static fn (string $left, string $right): int => \strcmp($left, $right),
-        );
-
-        return $normalized;
     }
 
-    /**
-     * @return null|bool|int|string|array<int|string, mixed>
-     */
-    private static function normalizeResultValue(
+    private static function assertResultValuePolicy(
         mixed $value,
         string $path,
         bool $rejectUnsafeKeys,
-    ): null|bool|int|string|array {
-        if ($value === null || \is_bool($value) || \is_int($value)) {
-            return $value;
-        }
-
+    ): void {
         if (\is_string($value)) {
             if (!self::isSafeString($value)) {
                 throw UnitOfWorkResultInvalidException::atPath(
@@ -449,53 +446,24 @@ final class JsonLikeShapeNormalizer
                 );
             }
 
-            return $value;
-        }
-
-        if (\is_float($value)) {
-            throw UnitOfWorkResultInvalidException::atPath(
-                $path,
-                'uow-result-float-forbidden',
-            );
-        }
-
-        if (\is_resource($value)) {
-            throw UnitOfWorkResultInvalidException::atPath(
-                $path,
-                'uow-result-resource-forbidden',
-            );
-        }
-
-        if ($value instanceof \Closure) {
-            throw UnitOfWorkResultInvalidException::atPath(
-                $path,
-                'uow-result-closure-forbidden',
-            );
-        }
-
-        if (\is_object($value)) {
-            throw UnitOfWorkResultInvalidException::atPath(
-                $path,
-                'uow-result-object-forbidden',
-            );
+            return;
         }
 
         if (!\is_array($value)) {
-            throw UnitOfWorkResultInvalidException::atPath(
-                $path,
-                'uow-result-type-forbidden',
-            );
+            return;
         }
 
         if (\array_is_list($value)) {
-            return self::normalizeResultList(
+            self::assertResultListPolicy(
                 list: $value,
                 path: $path,
                 rejectUnsafeKeys: $rejectUnsafeKeys,
             );
+
+            return;
         }
 
-        return self::normalizeResultMap(
+        self::assertResultMapPolicy(
             map: $value,
             path: $path,
             rejectUnsafeKeys: $rejectUnsafeKeys,
@@ -504,25 +472,45 @@ final class JsonLikeShapeNormalizer
 
     /**
      * @param list<mixed> $list
-     *
-     * @return list<mixed>
      */
-    private static function normalizeResultList(
+    private static function assertResultListPolicy(
         array $list,
         string $path,
         bool $rejectUnsafeKeys,
-    ): array {
-        $normalized = [];
-
+    ): void {
         foreach ($list as $index => $value) {
-            $normalized[] = self::normalizeResultValue(
+            self::assertResultValuePolicy(
                 value: $value,
                 path: $path . '[' . $index . ']',
                 rejectUnsafeKeys: $rejectUnsafeKeys,
             );
         }
+    }
 
-        return $normalized;
+    private static function mapContextReason(string $reason): string
+    {
+        return match ($reason) {
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'uow-context-attributes-float-forbidden',
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'uow-context-attributes-object-forbidden',
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'uow-context-attributes-closure-forbidden',
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'uow-context-attributes-resource-forbidden',
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'uow-context-attributes-map-key-must-be-string',
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'uow-context-attributes-type-forbidden',
+            default => 'uow-context-attributes-type-forbidden',
+        };
+    }
+
+    private static function mapResultReason(string $reason): string
+    {
+        return match ($reason) {
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'uow-result-float-forbidden',
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'uow-result-object-forbidden',
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'uow-result-closure-forbidden',
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'uow-result-resource-forbidden',
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'uow-result-map-key-must-be-string',
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'uow-result-type-forbidden',
+            default => 'uow-result-type-forbidden',
+        };
     }
 
     private static function assertContextDepth(string $path, int $depth, int $maxDepth): void
@@ -601,5 +589,14 @@ final class JsonLikeShapeNormalizer
     private static function isSafeString(string $value): bool
     {
         return \preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) !== 1;
+    }
+
+    private static function pathForPolicyKey(string $basePath, string $key): string
+    {
+        if (self::isUnsafeMetadataKey($key)) {
+            return $basePath . '[<key>]';
+        }
+
+        return self::pathForKey($basePath, $key);
     }
 }

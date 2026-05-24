@@ -43,6 +43,7 @@ framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidExce
 This document complements:
 
 ```text
+docs/ssot/json-like-runtime-values.md
 docs/ssot/uow-outcome-policy.md
 docs/ssot/uow-and-reset-contracts.md
 docs/ssot/error-descriptor.md
@@ -62,11 +63,24 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 This document is the canonical human-readable field reference for UnitOfWork context and result shapes.
 
-Runtime code, platform adapters, hooks, generated artifacts, tests, and documentation MUST treat this document as the canonical shape authority.
+Runtime code, platform adapters, hooks, generated artifacts, tests, and documentation MUST treat this document as the canonical UnitOfWork shape authority.
+
+`docs/ssot/json-like-runtime-values.md` owns the reusable baseline json-like runtime value model, baseline scalar/type rejection, baseline recursive deterministic normalization, and baseline path/reason diagnostics.
 
 `docs/ssot/uow-outcome-policy.md` owns lifecycle invariants and outcome mapping policy.
 
-This document owns the structure and safety rules of the shapes that carry the resulting context and result data.
+This document owns the UoW-specific structure and safety rules of the shapes that carry context and result data.
+
+This document owns:
+
+- `attributes` root map policy;
+- `extensions` root map policy;
+- exported `error` map policy;
+- unsafe metadata key policy;
+- `attributesMaxDepth`;
+- `attributesMaxKeys`;
+- UoW exception codes and reason tokens;
+- mapping baseline json-like failures to UoW-specific failures.
 
 ## Ownership
 
@@ -108,6 +122,20 @@ kernel
 core/contracts
 core/foundation
 ```
+
+Kernel UoW shape normalization consumes the Foundation-owned baseline json-like normalizer:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+through the Kernel-owned wrapper:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
+```
+
+Kernel MUST NOT duplicate the baseline recursive json-like walker.
 
 `core/kernel` MUST NOT depend on:
 
@@ -344,13 +372,33 @@ ULID format is recommended.
 
 `attributes` is a safe json-like metadata map.
 
+The baseline json-like value model is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
 The root `attributes` value MUST be a map with string keys.
+
+The root map requirement is Kernel-owned UoW policy.
 
 A non-empty list MUST NOT be used as the root `attributes` value.
 
 An empty array represents the empty attributes map at this shape boundary.
 
 `attributes` MUST be normalized before crossing Kernel hook/export boundaries.
+
+Baseline recursive normalization MUST be delegated to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+through:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
+```
 
 `attributes` MUST obey the configured defensive limits:
 
@@ -608,13 +656,33 @@ If no error exists, the `error` key SHOULD be omitted from the exported result s
 
 `extensions` is a safe json-like metadata map for completion-side data.
 
+The baseline json-like value model is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
 The root `extensions` value MUST be a map with string keys.
+
+The root map requirement is Kernel-owned UoW policy.
 
 A non-empty list MUST NOT be used as the root `extensions` value.
 
 An empty array represents the empty extensions map at this shape boundary.
 
 `extensions` MUST be normalized before crossing Kernel hook/export boundaries.
+
+Baseline recursive normalization MUST be delegated to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+through:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
+```
 
 `extensions` MUST NOT contain:
 
@@ -647,9 +715,29 @@ bounded safe status/category tokens
 
 ## Json-like value model
 
-`UnitOfWorkContext.attributes` and `UnitOfWorkResult.extensions` MUST be json-like.
+`UnitOfWorkContext.attributes`, `UnitOfWorkResult.extensions`, and exported `UnitOfWorkResult.error` maps MUST be json-like.
 
-Allowed scalar values:
+The reusable baseline json-like runtime value model is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical baseline implementation is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The canonical baseline exception is:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+This document intentionally repeats the allowed and forbidden shape summary for UoW readability, but it does not own the reusable baseline json-like model.
+
+Allowed scalar values are:
 
 ```text
 null
@@ -658,26 +746,28 @@ int
 string
 ```
 
-Forbidden scalar values:
+Forbidden scalar values are:
 
 ```text
 float
-NaN
+NAN
 INF
 -INF
 ```
 
-Allowed containers:
+Allowed containers are:
 
 ```text
-list of allowed values
-map with string keys and allowed values
+list<value>
+array<string,value>
 ```
 
-Forbidden values at any nesting depth:
+Where `value` recursively means any value accepted by the baseline json-like runtime value model.
+
+Forbidden values at any nesting depth include:
 
 - floats;
-- `NaN`;
+- `NAN`;
 - `INF`;
 - `-INF`;
 - PHP objects;
@@ -686,6 +776,7 @@ Forbidden values at any nesting depth:
 - resources;
 - streams;
 - filesystem handles;
+- unsupported PHP value types;
 - service instances;
 - runtime wiring objects;
 - executable validators;
@@ -697,27 +788,55 @@ Forbidden values at any nesting depth:
 
 If a future owner needs decimal values, they MUST be represented as strings with a documented format.
 
+Kernel owns the UoW-specific restrictions layered on top of this baseline model:
+
+- root map policy for `attributes`;
+- root map policy for `extensions`;
+- exported `error` map policy;
+- unsafe metadata key rejection;
+- `attributesMaxDepth`;
+- `attributesMaxKeys`;
+- UoW-specific exception mapping.
+
 ## Root map policy
+
+Root map policy is Kernel-owned UoW policy.
 
 The root value for `attributes` MUST be a map.
 
 The root value for `extensions` MUST be a map.
 
-A non-empty root list is invalid.
+The exported `error` value, when present, MUST be a non-empty map.
 
-An empty array is interpreted as an empty map at the semantic boundary for both fields.
+A non-empty root list is invalid for `attributes`, `extensions`, and exported `error`.
 
-Nested lists are valid and preserve order.
+An empty array is interpreted as an empty map at the semantic boundary for `attributes` and `extensions`.
+
+An empty exported `error` map is invalid.
+
+Nested lists are valid and preserve order according to the baseline json-like model.
 
 Nested maps are valid only when all keys are strings.
 
-Integer keys in maps are invalid.
+Non-string keys in maps are invalid according to the baseline json-like model.
 
 ## Deterministic normalization
 
 When a UnitOfWork shape crosses a Kernel hook/export boundary, it MUST be normalized deterministically.
 
-Normalization rules:
+Baseline recursive normalization is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical baseline implementation is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+Baseline recursive normalization rules include:
 
 - maps are sorted recursively by string key using byte-order `strcmp`;
 - lists preserve caller-supplied order;
@@ -728,50 +847,104 @@ Normalization rules:
 - normalization MUST NOT rely on Composer package order;
 - normalization MUST NOT rely on PHP hash-map insertion side effects.
 
+Kernel owns the UoW-specific normalization boundary:
+
+- deciding when `attributes` cross a Kernel hook/export boundary;
+- deciding when `extensions` cross a Kernel hook/export boundary;
+- deciding when exported `error` maps cross a Kernel hook/export boundary;
+- preserving deterministic top-level exported shape key order;
+- applying UoW-specific root map, unsafe-key, limit, and exception mapping policy.
+
 Top-level exported shape key order MUST follow the exported order defined in this document.
 
-Nested maps inside `attributes`, `extensions`, and exported `error` maps MUST be recursively sorted by byte-order `strcmp`.
+Nested maps inside `attributes`, `extensions`, and exported `error` maps MUST be recursively sorted by the Foundation baseline normalizer.
 
 ## Runtime normalizer boundary
 
-Kernel MAY centralize json-like validation and deterministic normalization in an internal runtime helper:
+Kernel centralizes UoW-specific shape validation in an internal runtime helper:
 
 ```text
 framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
+```
+
+The canonical internal wrapper is:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
 ```
 
 This helper is an implementation detail of `core/kernel`.
 
 It is not a public API, not a DI service, and not a transport extension point.
 
-It MUST preserve the rules in this SSoT:
+It MUST NOT be exposed through:
 
-- root map validation for `attributes` and `extensions`;
-- recursive json-like validation;
-- float, `NaN`, `INF`, and `-INF` rejection;
-- object, closure, and resource rejection;
-- string-keyed maps only;
-- list order preservation;
-- recursive map sorting by byte-order `strcmp`;
-- safe path diagnostics without raw values;
+```text
+framework/packages/core/kernel/PUBLIC_API.md
+```
+
+The Kernel wrapper MUST delegate baseline json-like validation and recursive deterministic normalization to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The Kernel wrapper MUST catch baseline failures from:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+and map them to UoW-specific exceptions and reason tokens.
+
+The Kernel wrapper owns only UoW-specific rules:
+
+- root map validation for `attributes`;
+- root map validation for `extensions`;
+- non-empty exported `error` map validation;
 - optional depth and key-count limits for `attributes`;
-- deterministic unsafe-key rejection for known unsafe metadata keys.
+- deterministic unsafe-key rejection for known unsafe metadata keys;
+- safe string and safe single-line string checks;
+- UoW-specific exception reason mapping;
+- UoW-safe diagnostics without raw values.
 
-## Float, NaN, and INF rejection
+The Kernel wrapper MUST NOT duplicate the baseline recursive json-like walker owned by Foundation.
+
+## Float, NAN, and INF rejection
 
 Floats are forbidden at any nesting depth in:
 
 ```text
 UnitOfWorkContext.attributes
 UnitOfWorkResult.extensions
+UnitOfWorkResult.error
 ```
 
 This includes:
 
 ```text
-NaN
+NAN
 INF
 -INF
+```
+
+The baseline float rejection policy is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical baseline reason token is:
+
+```text
+json-like-float-forbidden
+```
+
+Kernel MUST map baseline float failures to UoW-specific reason tokens:
+
+```text
+uow-context-attributes-float-forbidden
+uow-result-float-forbidden
 ```
 
 When a forbidden float is found, Kernel MUST fail deterministically.
@@ -797,13 +970,19 @@ extensions.value = NAN
 Valid diagnostic examples:
 
 ```text
-attributes.duration: float-forbidden
-extensions.items[3].ratio: float-forbidden
+attributes.duration: uow-context-attributes-float-forbidden
+extensions.items[3].ratio: uow-result-float-forbidden
 ```
 
 ## Path notation for diagnostics
 
 Safe diagnostics MAY use path-to-value notation.
+
+Baseline path construction is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
 
 Recommended notation:
 
@@ -816,7 +995,19 @@ Path notation MUST identify structure only.
 
 Path notation MUST NOT expose raw values.
 
-If a key itself is unsafe to print, diagnostics MUST prefer omission or a stable safe placeholder.
+Path notation MUST NOT expose unsafe raw map keys.
+
+If a key itself is unsafe to print, diagnostics MUST use a stable safe placeholder.
+
+Examples:
+
+```text
+attributes[<key>]
+extensions[<key>]
+extensions.safe.nested[<key>]
+```
+
+Kernel unsafe metadata key rejection MUST preserve safe structural parent paths and hide unsafe leaf key segments.
 
 ## Shape validation failures
 
@@ -842,6 +1033,42 @@ CORETSIA_UOW_RESULT_INVALID
 - an invalid `UnitOfWorkResult.extensions` payload;
 - an invalid exported `error` map derived from `ErrorDescriptor`.
 
+Baseline json-like failures are detected by:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+and represented as:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+Kernel MUST map baseline json-like failures to UoW-specific validation failures.
+
+The canonical context attributes mapping is:
+
+```text
+json-like-float-forbidden             -> uow-context-attributes-float-forbidden
+json-like-object-forbidden            -> uow-context-attributes-object-forbidden
+json-like-closure-forbidden           -> uow-context-attributes-closure-forbidden
+json-like-resource-forbidden          -> uow-context-attributes-resource-forbidden
+json-like-map-key-must-be-string      -> uow-context-attributes-map-key-must-be-string
+json-like-type-forbidden              -> uow-context-attributes-type-forbidden
+```
+
+The canonical result mapping is:
+
+```text
+json-like-float-forbidden             -> uow-result-float-forbidden
+json-like-object-forbidden            -> uow-result-object-forbidden
+json-like-closure-forbidden           -> uow-result-closure-forbidden
+json-like-resource-forbidden          -> uow-result-resource-forbidden
+json-like-map-key-must-be-string      -> uow-result-map-key-must-be-string
+json-like-type-forbidden              -> uow-result-type-forbidden
+```
+
 Validation diagnostics MAY include only:
 
 ```text
@@ -866,6 +1093,8 @@ Validation diagnostics MUST NOT include:
 - environment-specific data.
 
 ## Limits
+
+Limits are Kernel-owned UoW-specific policy.
 
 Kernel configuration defines defensive limits for `UnitOfWorkContext.attributes`:
 
@@ -1094,6 +1323,18 @@ return [
 ];
 ```
 
+This SSoT MUST NOT introduce generic json-like config keys.
+
+The following config keys MUST NOT be introduced here:
+
+```text
+kernel.json_like.*
+foundation.json_like.*
+foundation.serialization.json_like.*
+```
+
+Baseline json-like runtime value policy is not configurable by Kernel.
+
 ## Safe examples
 
 ### Context
@@ -1218,6 +1459,7 @@ framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
 framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
 ```
 
@@ -1227,11 +1469,19 @@ These tests are expected to verify:
 - result field set and exported key order;
 - context `attributes` json-like policy;
 - result `extensions` json-like policy;
-- float, NaN, INF, and -INF rejection;
-- object, closure, and resource rejection;
+- valid context attributes normalize to the same baseline recursive shape as `JsonLikeNormalizer`;
+- valid result extensions normalize to the same baseline recursive shape as `JsonLikeNormalizer`;
+- Kernel delegates baseline json-like validation and normalization to Foundation;
+- Kernel preserves UoW-specific root map policy for `attributes`;
+- Kernel preserves UoW-specific root map policy for `extensions`;
+- Kernel preserves exported `error` map policy;
+- Kernel preserves unsafe metadata key policy;
+- float, NAN, INF, and -INF rejection;
+- object, closure, resource, map-key, and type failure mapping;
 - deterministic recursive map ordering;
 - list order preservation;
 - safe diagnostics without raw values;
+- unsafe metadata keys do not leak raw key names in diagnostic paths;
 - `UnitOfWorkContext` validation failures use `CORETSIA_UOW_CONTEXT_INVALID`;
 - `UnitOfWorkResult` validation failures use `CORETSIA_UOW_RESULT_INVALID`;
 - `kernel.uow.attributes.max_depth`;
@@ -1256,6 +1506,13 @@ This SSoT does not define:
 - queue message execution;
 - scheduler job execution;
 - UnitOfWork lifecycle executor implementation;
+- reusable baseline json-like runtime value model;
+- baseline recursive json-like normalizer implementation;
+- baseline json-like reason token ownership;
+- Foundation json-like exception ownership;
+- generic redaction engine;
+- unsafe metadata key denylist in Foundation;
+- transport/request payload semantics;
 - hook dispatcher implementation;
 - reset orchestrator implementation;
 - reset tag discovery;
@@ -1271,6 +1528,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [Json-like Runtime Values SSoT](./json-like-runtime-values.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md)

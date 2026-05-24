@@ -33,6 +33,7 @@ Coretsia/
 │   │   ├── ADR-0001-module-descriptor-manifest-modepreset-ports.md
 │   │   ├── ADR-0002-config-env-source-tracking-directives-invariants.md
 │   │   ├── ADR-0003-observability-errordescriptor-health-profiling-ports.md
+│   │   ├── ADR-0004-foundation-json-like-runtime-values.md
 │   │   ├── ADR-0005-routing-httpapp-ports.md
 │   │   ├── ADR-0006-reset-interface-uow-hooks.md
 │   │   ├── ADR-0007-validation-ports.md
@@ -123,6 +124,7 @@ Coretsia/
 │       ├── errors-boundary.md
 │       ├── filesystem-contracts.md
 │       ├── http-middleware-catalog.md
+│       ├── json-like-runtime-values.md
 │       ├── mail-contracts.md
 │       ├── middleware-context-keys-map.md
 │       ├── migrations-contracts.md
@@ -403,6 +405,9 @@ Coretsia/
 │   │   │   │   │   │       ├── ResetOrchestrator.php
 │   │   │   │   │   │       └── ResetPriority.php
 │   │   │   │   │   ├── Serialization/
+│   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   └── JsonLikeNormalizationException.php
+│   │   │   │   │   │   ├── JsonLikeNormalizer.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
 │   │   │   │   │   ├── Tag/
 │   │   │   │   │   │   ├── TagRegistry.php
@@ -418,15 +423,18 @@ Coretsia/
 │   │   │   │   │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
 │   │   │   │   │   │   ├── ContextAccessorSignatureContractTest.php
 │   │   │   │   │   │   ├── ContextKeysAreStableContractTest.php
+│   │   │   │   │   │   ├── ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── CorrelationIdFormatContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   │   ├── DeterministicOrderSortContractTest.php
 │   │   │   │   │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
+│   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
+│   │   │   │   │   │   ├── StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
 │   │   │   │   │   │   └── UuidFormatContractTest.php
 │   │   │   │   │   ├── Integration/
@@ -502,6 +510,7 @@ Coretsia/
 │   │   │       │   └── Contract/
 │   │   │       │       ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │       ├── KernelConfigSubtreeShapeContractTest.php
+│   │   │       │       ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
 │   │   │       │       ├── OutcomeMappingStabilityContractTest.php
 │   │   │       │       ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │       ├── UnitOfWorkContextShapeContractTest.php

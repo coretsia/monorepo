@@ -28,6 +28,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
         self::assertEncodingFailsWith(
             new \stdClass(),
             'stable-json-object-forbidden',
+            'value',
         );
     }
 
@@ -36,6 +37,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
         self::assertEncodingFailsWith(
             static fn (): string => 'unsafe',
             'stable-json-closure-forbidden',
+            'value',
         );
     }
 
@@ -51,6 +53,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
             self::assertEncodingFailsWith(
                 $resource,
                 'stable-json-resource-forbidden',
+                'value',
             );
         } finally {
             \fclose($resource);
@@ -67,6 +70,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
                 ],
             ],
             'stable-json-object-forbidden',
+            'value.nested.value',
         );
 
         self::assertEncodingFailsWith(
@@ -77,6 +81,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
                 ],
             ],
             'stable-json-closure-forbidden',
+            'value[1].value',
         );
     }
 
@@ -87,6 +92,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
                 1 => 'one',
             ],
             'stable-json-map-key-must-be-string',
+            'value',
         );
 
         self::assertEncodingFailsWith(
@@ -95,6 +101,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
                 2 => 'two',
             ],
             'stable-json-map-key-must-be-string',
+            'value',
         );
 
         self::assertEncodingFailsWith(
@@ -103,6 +110,7 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
                 0 => 'not-a-list-map-key',
             ],
             'stable-json-map-key-must-be-string',
+            'value',
         );
     }
 
@@ -114,16 +122,27 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
         );
     }
 
-    private static function assertEncodingFailsWith(mixed $value, string $expectedMessage): void
-    {
+    private static function assertEncodingFailsWith(
+        mixed $value,
+        string $expectedReason,
+        string $expectedPath,
+    ): void {
         try {
             StableJsonEncoder::encodeStable($value);
         } catch (\InvalidArgumentException $exception) {
-            self::assertSame($expectedMessage, $exception->getMessage());
+            self::assertSame(
+                $expectedReason . ': value at ' . $expectedPath,
+                $exception->getMessage(),
+            );
 
             return;
         }
 
-        self::fail('Expected StableJsonEncoder to reject value with message: ' . $expectedMessage);
+        self::fail(
+            'Expected StableJsonEncoder to reject value with reason: '
+            . $expectedReason
+            . ' at path: '
+            . $expectedPath,
+        );
     }
 }

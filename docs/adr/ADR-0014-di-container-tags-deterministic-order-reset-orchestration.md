@@ -40,6 +40,37 @@ docs/adr/ADR-0019-enhanced-reset-long-running.md
 
 Historical future/deferred wording in this ADR should be read as describing the state of the `1.200.0` decision, not current live reset policy.
 
+## Json-like normalization follow-up note
+
+This ADR preserves the historical decision context for the `1.200.0` Foundation stable JSON encoder.
+
+At the time of this decision, `StableJsonEncoder` owned its local recursive json-like normalization rules.
+
+That baseline json-like value validation and recursive deterministic normalization policy is now materialized as a reusable Foundation primitive by epic `1.275.0`.
+
+Canonical live policy for baseline runtime json-like value validation, recursive deterministic normalization, safe path/reason diagnostics, and reason token ownership is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The json-like runtime value decision is recorded by:
+
+```text
+docs/adr/ADR-0004-foundation-json-like-runtime-values.md
+```
+
+The canonical live implementation is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+`StableJsonEncoder` remains the Foundation stable JSON encoder, but it now delegates baseline json-like normalization to `JsonLikeNormalizer`.
+
+Historical wording in this ADR that describes `StableJsonEncoder` as directly owning recursive json-like normalization should be read as describing the state of the `1.200.0` decision, not current live json-like normalization ownership.
+
 ## Context
 
 Epic `1.200.0` introduces the `core/foundation` runtime package under:
@@ -131,6 +162,8 @@ Coretsia will introduce `core/foundation` as the runtime package that owns:
 - Foundation configuration defaults and rules;
 - stable JSON encoder for deterministic diagnostics;
 - container diagnostics snapshot.
+
+Follow-up note: current live baseline json-like value validation and recursive deterministic normalization used by `StableJsonEncoder` are owned by `Coretsia\Foundation\Serialization\JsonLikeNormalizer`, as recorded in `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`.
 
 The implementation paths are:
 
@@ -763,7 +796,27 @@ Coretsia\Foundation\Serialization\StableJsonEncoder
 
 The encoder exists to produce byte-stable JSON for diagnostics and runtime-safe outputs.
 
-Accepted input types are intentionally narrow:
+The `1.200.0` decision established the stable JSON encoder behavior.
+
+Current live baseline json-like value validation and recursive deterministic normalization used by `StableJsonEncoder` are owned by:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The follow-up decision is recorded by:
+
+```text
+docs/adr/ADR-0004-foundation-json-like-runtime-values.md
+```
+
+The canonical live SSoT is:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+Accepted input types remain intentionally narrow:
 
 ```text
 null
@@ -778,20 +831,21 @@ Rejected input types include:
 
 ```text
 float
-NaN
+NAN
 INF
 -INF
 resource
 object
 Closure
 non-string map keys
+unsupported PHP value type
 ```
 
 Callable-ness is not treated as a standalone runtime type check.
 
 Plain strings remain plain strings even if PHP could call them as function names.
 
-Output rules are:
+Stable JSON output rules remain:
 
 - maps are sorted recursively by `strcmp`;
 - lists preserve order;
@@ -800,9 +854,29 @@ Output rules are:
 - no implicit redaction;
 - no environment inspection.
 
+The required JSON flags remain:
+
+```text
+JSON_UNESCAPED_SLASHES
+JSON_UNESCAPED_UNICODE
+JSON_THROW_ON_ERROR
+```
+
+`StableJsonEncoder` owns only encoder-specific behavior:
+
+- `json_encode()` invocation;
+- JSON flags;
+- final LF;
+- stable-json reason mapping;
+- `stable-json-encode-failed`.
+
+`StableJsonEncoder` MUST NOT reintroduce a private recursive json-like walker.
+
 Redaction is caller responsibility.
 
 The encoder must not silently accept floats because floats create precision and serialization drift.
+
+This ADR does not move UoW-specific policy, unsafe metadata key policy, transport payload semantics, DTO semantics, or generic redaction policy into Foundation stable JSON encoding.
 
 ## Container diagnostics decision
 
@@ -839,6 +913,12 @@ Diagnostics must not include:
 - absolute local paths.
 
 Container diagnostics must use `StableJsonEncoder` for JSON output.
+
+`StableJsonEncoder` uses the Foundation-owned baseline json-like normalizer for recursive deterministic normalization:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
 
 JSON output must be byte-stable and end with a final newline.
 
@@ -895,12 +975,14 @@ Forbidden diagnostic and error output includes:
 - private customer data;
 - absolute local paths.
 
-Allowed safe diagnostic information is limited to structural metadata such as service ids, tag names, priorities, schema versions, and safe derivations such as:
+Allowed safe diagnostic information is limited to structural metadata such as service ids, tag names, priorities, schema versions, safe path-to-value, stable reason tokens, package-owned error codes, and safe derivations such as:
 
 ```text
 hash(value)
 len(value)
 ```
+
+Json-like normalization diagnostics must not include rejected raw values, object class names, enum class names, resource ids, raw payloads, raw SQL, local absolute paths, or environment-specific bytes.
 
 Runtime owners must prefer omission over unsafe emission.
 
@@ -1048,8 +1130,9 @@ Required test areas include:
 - reset orchestrator rejects tagged non-resettable services with `reset-not-resettable`;
 - Foundation config defaults return subtree-only shape;
 - Foundation config has no reserved `@*` keys;
-- `StableJsonEncoder` rejects floats and non-json-like values;
-- `StableJsonEncoder` sorts map keys recursively and preserves list order;
+- `StableJsonEncoder` rejects floats and non-json-like values through the Foundation-owned baseline json-like policy;
+- `StableJsonEncoder` sorts map keys recursively and preserves list order through `JsonLikeNormalizer`;
+- `StableJsonEncoder` preserves JSON flags, final LF behavior, and `stable-json-encode-failed` for `json_encode()` failures;
 - `ContainerDiagnostics` JSON is deterministic;
 - `ContainerDiagnostics` does not leak secrets;
 - `ContainerDiagnostics` does not contain absolute local paths.
@@ -1069,6 +1152,7 @@ Positive consequences:
 - `foundation.reset.tag` allows the reset discovery tag to be configured without making Kernel read or hardcode tag strings.
 - Diagnostics can be stable, reproducible, and safe by construction.
 - The runtime package remains independent of platform packages, integrations, and tooling-only packages.
+- Follow-up ADR-0004 centralizes the baseline json-like value validation and recursive deterministic normalization used by `StableJsonEncoder` in `JsonLikeNormalizer`.
 
 Trade-offs:
 
@@ -1078,6 +1162,7 @@ Trade-offs:
 - Consumers that need different ordering must use a distinct owner-approved tag or wait for an owner-approved planning layer.
 - Reset planning metadata is deferred to epic `1.250.0`.
 - Foundation diagnostics intentionally omit rich details such as constructor args, instances, and tag metadata.
+- Current live stable JSON behavior now depends on the Foundation json-like baseline defined by ADR-0004 and `docs/ssot/json-like-runtime-values.md`.
 
 ## Rejected alternatives
 
@@ -1253,6 +1338,8 @@ Floats introduce precision drift, `NaN`, `INF`, `-INF`, locale issues, and JSON 
 
 Stable diagnostics accept only deterministic JSON-safe scalar/list/map values.
 
+Follow-up ADR-0004 preserves this rejection and moves the baseline float rejection policy to `JsonLikeNormalizer`.
+
 ## Non-goals
 
 This ADR does not implement:
@@ -1284,6 +1371,12 @@ This ADR does not implement:
 - config validation engine;
 - Composer package scanning;
 - filesystem scanning;
+- reusable baseline json-like runtime value primitive;
+- path-aware json-like normalization exception;
+- UoW-specific json-like shape policy;
+- unsafe metadata key denylist;
+- transport/request payload semantics;
+- generic redaction engine;
 - tooling gates implementation.
 
 ## Related SSoT
@@ -1291,6 +1384,7 @@ This ADR does not implement:
 - `docs/ssot/di-tags-and-middleware-ordering.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/config-roots.md`
+- `docs/ssot/json-like-runtime-values.md`
 - `docs/ssot/http-middleware-catalog.md`
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/observability.md`
@@ -1301,6 +1395,7 @@ This ADR does not implement:
 ## Related ADRs
 
 - `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
+- `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
 - `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
 
 ## Related epic

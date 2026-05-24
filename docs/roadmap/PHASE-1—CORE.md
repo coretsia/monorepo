@@ -8300,6 +8300,513 @@ Contract:
 
 ---
 
+# 1.275.0 Foundation: Json-like Runtime Value Normalization Primitive (MUST) [IMPL]
+
+---
+type: package
+phase: 1
+epic_id: "1.275.0"
+owner_path: "framework/packages/core/foundation"
+
+package_id: "core/foundation"
+composer: "coretsia/core-foundation"
+kind: runtime
+module_id: "core.foundation"
+
+goal: "Centralize baseline runtime json-like value validation and deterministic normalization in core/foundation so foundation and kernel no longer duplicate scalar, array, float, object, resource, and stable ordering policy."
+provides:
+- "Canonical runtime json-like value normalizer for foundation and higher runtime packages"
+- "Path-aware safe normalization failures with stable reason tokens"
+- "Shared foundation primitive used by stable JSON encoding and context safe-write validation"
+- "Kernel UoW json-like shape normalization delegated through a foundation-owned primitive while keeping UoW-specific policy in kernel"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: docs/adr/ADR-0004-foundation-json-like-runtime-values.md
+ssot_refs:
+- docs/ssot/json-like-runtime-values.md
+- docs/ssot/uow-shapes.md
+- docs/ssot/context-store.md
+- docs/ssot/observability-and-errors.md
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 1.200.0 — Foundation DI/tags/reset/stable diagnostics baseline already provides `Coretsia\Foundation\Serialization\StableJsonEncoder` and runtime package boundaries.
+  - 1.210.0 — Foundation context/correlation/id/time baseline already provides runtime context services and context value safety policy.
+  - 1.270.0 — Kernel UnitOfWork shapes already provide `UnitOfWorkContext`, `UnitOfWorkResult`, and the current kernel-local `JsonLikeShapeNormalizer` that this epic refactors.
+
+- Required deliverables (exact paths):
+  - `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php` — existing foundation stable JSON encoder that MUST delegate baseline json-like normalization to the new primitive.
+  - `framework/packages/core/foundation/src/Context/ContextStorePolicy.php` — existing foundation context write guard that MUST delegate value-shape validation to the new primitive.
+  - `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — existing kernel UoW shape wrapper that MUST retain only UoW-specific policy and delegate baseline normalization to foundation.
+  - `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — existing context shape that MUST continue to use the kernel wrapper.
+  - `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — existing result shape that MUST continue to use the kernel wrapper.
+  - `docs/ssot/uow-shapes.md` — existing Kernel UoW shape SSoT that MUST be updated to reference the foundation-owned baseline json-like policy.
+
+- Required config roots/keys:
+  - `foundation` — existing Foundation config root; this epic introduces no new Foundation config keys.
+  - `kernel.uow.attributes.max_depth` — existing Kernel UoW attributes defensive depth limit consumed by the kernel wrapper.
+  - `kernel.uow.attributes.max_keys` — existing Kernel UoW attributes defensive key-count limit consumed by the kernel wrapper.
+
+- Required tags:
+  - N/A
+
+- Required contracts / ports:
+  - N/A
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- `core/contracts`
+- `psr/clock`
+- `psr/container`
+- `psr/log`
+
+Forbidden:
+
+- `platform/*`
+- `integrations/*`
+- `devtools/*`
+- `tools/*`
+- `framework/tools/spikes/*`
+- `core/kernel` from `core/foundation`
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - N/A
+- Contracts:
+  - N/A
+- Foundation APIs introduced by this epic:
+  - `Coretsia\Foundation\Serialization\JsonLikeNormalizer`
+  - `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException`
+
+### Entry points / integration points (MUST)
+
+N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [x] `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+  - [x] Create `Coretsia\Foundation\Serialization\JsonLikeNormalizer` as the canonical foundation-owned runtime json-like value normalizer.
+  - [x] Implement `public static function normalize(mixed $value, string $path = 'value'): mixed`.
+  - [x] Allow only `null`, `bool`, `int`, `string`, `list<value>`, and `array<string,value>`.
+  - [x] Reject every `float`, including finite floats, `NAN`, `INF`, and `-INF`.
+  - [x] Reject objects, including enum objects and stringable objects.
+  - [x] Reject `Closure` before generic object rejection so closure diagnostics stay stable.
+  - [x] Reject resources and unsupported PHP value types.
+  - [x] Treat `array_is_list($value) === true` as list semantics and preserve caller-supplied list order.
+  - [x] Treat `array_is_list($value) === false` as map semantics and require every map key to be a string.
+  - [x] Sort every map recursively by byte-order `strcmp`.
+  - [x] Preserve empty array as `[]`.
+  - [x] Build path notation using `.key` for map keys and `[index]` for list indexes.
+  - [x] Throw `JsonLikeNormalizationException` with safe path and stable reason token only.
+  - [x] MUST NOT include raw values, object class names, resource ids, secrets, raw payloads, raw SQL, local paths, or environment-specific bytes in exception messages.
+  - [x] MUST NOT depend on `devtools/internal-toolkit` or any spike package.
+  - [x] Build diagnostic paths using safe key segments only.
+  - [x] Use raw `.key` notation only for conservative safe keys, for example `/\A[A-Za-z_][A-Za-z0-9_]{0,63}\z/`.
+  - [x] Use stable placeholders such as `[<key>]` or `[<empty-key>]` for unsafe, empty, long, control-character, whitespace, URL-like, SQL-like, or secret-like map keys.
+  - [x] Diagnostic paths MUST NOT leak raw map keys when the key itself is unsafe.
+
+- [x] `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`
+  - [x] Create `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException`.
+  - [x] Extend `\InvalidArgumentException`.
+  - [x] Define `public const string ERROR_CODE = 'CORETSIA_JSON_LIKE_INVALID'`.
+  - [x] Implement `public static function atPath(string $path, string $reason): self`.
+  - [x] Implement `public function errorCode(): string`.
+  - [x] Implement `public function path(): string`.
+  - [x] Implement `public function reason(): string`.
+  - [x] Message MUST contain only `ERROR_CODE`, safe path, and stable reason.
+  - [x] Message MUST NOT contain raw normalized/rejected values.
+  - [x] Reason tokens MUST include:
+    - [x] `json-like-float-forbidden`
+    - [x] `json-like-resource-forbidden`
+    - [x] `json-like-closure-forbidden`
+    - [x] `json-like-object-forbidden`
+    - [x] `json-like-map-key-must-be-string`
+    - [x] `json-like-type-forbidden`
+
+- [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
+  - [x] Assert scalar acceptance for `null`, `bool`, `int`, and `string`.
+  - [x] Assert finite float rejection with reason `json-like-float-forbidden`.
+  - [x] Assert `NAN` rejection with reason `json-like-float-forbidden`.
+  - [x] Assert `INF` rejection with reason `json-like-float-forbidden`.
+  - [x] Assert `-INF` rejection with reason `json-like-float-forbidden`.
+  - [x] Assert object rejection with reason `json-like-object-forbidden`.
+  - [x] Assert enum object rejection with reason `json-like-object-forbidden` when test fixture enum is available.
+  - [x] Assert `Closure` rejection with reason `json-like-closure-forbidden`.
+  - [x] Assert resource rejection with reason `json-like-resource-forbidden`.
+  - [x] Assert non-string map key rejection with reason `json-like-map-key-must-be-string`.
+  - [x] Assert unsupported value type rejection with reason `json-like-type-forbidden` when a PHP value type can be represented safely in test.
+  - [x] Assert recursive map key sorting by byte-order `strcmp`.
+  - [x] Assert list order is preserved.
+  - [x] Assert nested lists preserve list order while nested maps are sorted.
+  - [x] Assert empty array remains `[]`.
+  - [x] Assert exception exposes `errorCode()`, `path()`, and `reason()`.
+  - [x] Assert failure messages do not leak raw values, secrets, SQL fragments, object class names, resource metadata, or absolute local paths.
+  - [x] Assert unsafe map keys are not leaked in diagnostic `path()`.
+  - [x] Assert keys containing tokens, SQL fragments, control chars, URLs, or absolute paths are replaced with safe placeholders in failure diagnostics.
+
+- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
+  - [x] Assert `StableJsonEncoder` output remains deterministic for valid json-like values.
+  - [x] Assert recursive map ordering remains `strcmp` based.
+  - [x] Assert list order remains preserved.
+  - [x] Assert final LF remains present.
+  - [x] Assert floats fail through the foundation json-like policy.
+  - [x] Assert object, closure, resource, and non-string map key failures are path-aware.
+  - [x] Assert `StableJsonEncoder` failure messages do not leak raw values.
+
+- [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] Assert `ContextStorePolicy::assertValue()` delegates json-like validation through the foundation normalizer.
+  - [x] Assert existing context reason tokens are preserved after exception mapping.
+  - [x] Assert path is preserved from nested invalid values.
+  - [x] Assert raw rejected values do not leak into `ContextWriteForbiddenException` messages.
+  - [x] Assert `ContextStorePolicy` still validates only values and does not normalize stored context values as a side effect.
+
+- [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
+  - [x] Assert valid context attributes normalize to the same baseline recursive shape as `JsonLikeNormalizer`.
+  - [x] Assert valid result extensions normalize to the same baseline recursive shape as `JsonLikeNormalizer`.
+  - [x] Assert kernel still rejects root lists for `attributes`.
+  - [x] Assert kernel still rejects root lists for `extensions`.
+  - [x] Assert kernel still rejects unsafe metadata keys.
+  - [x] Assert kernel still applies `attributesMaxDepth`.
+  - [x] Assert kernel still applies `attributesMaxKeys`.
+  - [x] Assert foundation float violations map to `UnitOfWorkContextInvalidException` / `UnitOfWorkResultInvalidException` reason tokens.
+  - [x] Assert foundation object, closure, resource, map-key, and type violations map to UoW-specific reason tokens.
+  - [x] Assert kernel UoW exceptions do not leak raw values from foundation-level failures.
+
+- [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] Create the canonical SSoT for runtime json-like value validation and deterministic normalization.
+  - [x] Declare owner package: `core/foundation`.
+  - [x] Declare canonical implementation: `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`.
+  - [x] Declare canonical exception: `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`.
+  - [x] Declare consumers:
+    - [x] `Coretsia\Foundation\Serialization\StableJsonEncoder`
+    - [x] `Coretsia\Foundation\Context\ContextStorePolicy`
+    - [x] `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer`
+  - [x] Define allowed scalar values: `null`, `bool`, `int`, `string`.
+  - [x] Define forbidden scalar values: finite float, `NAN`, `INF`, `-INF`.
+  - [x] Define forbidden values: object, enum object, closure, resource, unsupported PHP value types.
+  - [x] Define list semantics: preserve order.
+  - [x] Define map semantics: string keys only and recursive `strcmp` ordering.
+  - [x] Define empty array policy: preserve as `[]`.
+  - [x] Define diagnostics policy: safe path and stable reason only.
+  - [x] Define explicit non-goals:
+    - [x] no generic redaction engine
+    - [x] no unsafe metadata key denylist in foundation
+    - [x] no UoW root map policy in foundation
+    - [x] no transport/request payload semantics
+    - [x] no dependency on devtools/tooling/spikes
+
+- [x] `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
+  - [x] Record the decision that `core/foundation` owns the reusable runtime json-like value normalizer.
+  - [x] Record the decision that `core/kernel` MUST NOT duplicate baseline json-like normalization.
+  - [x] Record the decision that `core/kernel` keeps UoW-specific root map, unsafe-key, limit, and exception mapping policy.
+  - [x] Record the decision that `core/contracts` remains unchanged.
+  - [x] Record the decision that `devtools/internal-toolkit` remains tooling-only and MUST NOT be used by runtime packages.
+  - [x] Record rejected alternative: direct copy from `framework/tools/spikes/payload/*`.
+  - [x] Record rejected alternative: moving json-like normalization to `core/contracts`.
+  - [x] Record rejected alternative: keeping duplicated foundation/kernel recursive walkers.
+
+#### Modifies
+
+- [x] `docs/ssot/context-store.md`
+  - [x] Add cross-reference to `docs/ssot/json-like-runtime-values.md`.
+  - [x] Clarify that baseline json-like value validation and deterministic normalization are owned by `Coretsia\Foundation\Serialization\JsonLikeNormalizer`.
+  - [x] Clarify that `ContextStorePolicy` owns context-specific key allowlist, `@*` reserved key rejection, and context exception mapping.
+  - [x] Keep the context safe-write security rules unchanged.
+  - [x] Avoid conflicting ownership language where `context-store.md` appears to own the reusable baseline json-like model.
+
+- [x] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - [x] Replace the private recursive `normalize()` implementation with `JsonLikeNormalizer::normalize($value, 'value')`.
+  - [x] MUST map `JsonLikeNormalizationException` reasons to stable-json reason tokens:
+    - [x] `json-like-float-forbidden` → `stable-json-float-forbidden`
+    - [x] `json-like-resource-forbidden` → `stable-json-resource-forbidden`
+    - [x] `json-like-closure-forbidden` → `stable-json-closure-forbidden`
+    - [x] `json-like-object-forbidden` → `stable-json-object-forbidden`
+    - [x] `json-like-map-key-must-be-string` → `stable-json-map-key-must-be-string`
+    - [x] `json-like-type-forbidden` → `stable-json-type-forbidden`
+  - [x] Preserve `stable-json-encode-failed` for `json_encode()` failures.
+  - [x] Preserve existing JSON flags:
+    - [x] `JSON_UNESCAPED_SLASHES`
+    - [x] `JSON_UNESCAPED_UNICODE`
+    - [x] `JSON_THROW_ON_ERROR`
+  - [x] Preserve final LF behavior.
+  - [x] Preserve deterministic byte output for valid payloads.
+  - [x] Ensure failures are path-aware.
+  - [x] Ensure failures do not leak raw values.
+  - [x] Remove duplicated baseline scalar, array, float, object, closure, resource, and map-key validation logic from this class.
+
+- [x] `framework/packages/core/foundation/src/Context/ContextStorePolicy.php`
+  - [x] Replace recursive json-like value walking with `JsonLikeNormalizer::normalize($value, $path)` inside `assertValue()`.
+  - [x] Preserve key policy in `assertKey()`:
+    - [x] empty key rejection
+    - [x] `@*` reserved key rejection
+    - [x] unknown `ContextKeys` rejection
+  - [x] Map `JsonLikeNormalizationException` reasons to existing context write reason tokens:
+    - [x] `json-like-float-forbidden` → `context-write-forbidden-float`
+    - [x] `json-like-closure-forbidden` → `context-write-forbidden-closure`
+    - [x] `json-like-object-forbidden` → `context-write-forbidden-object`
+    - [x] `json-like-resource-forbidden` → `context-write-forbidden-resource`
+    - [x] `json-like-map-key-must-be-string` → `context-write-forbidden-map-key`
+    - [x] `json-like-type-forbidden` → `context-write-forbidden-type`
+  - [x] Preserve nested path information in mapped `ContextWriteForbiddenException`.
+  - [x] Remove duplicated recursive array walker from this class.
+  - [x] Do not store or return the normalized value from `ContextStorePolicy`; it remains a validation boundary only.
+
+- [x] `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php`
+  - [x] Keep the class internal to `core/kernel`.
+  - [x] Keep public static methods used by `UnitOfWorkContext` and `UnitOfWorkResult`:
+    - [x] `normalizeContextAttributes()`
+    - [x] `normalizeResultExtensions()`
+    - [x] `normalizeExportedErrorMap()`
+  - [x] Delegate baseline recursive normalization to `Coretsia\Foundation\Serialization\JsonLikeNormalizer`.
+  - [x] Preserve context root map policy for `attributes`.
+  - [x] Preserve result root map policy for `extensions`.
+  - [x] Preserve non-empty root map policy for exported `error`.
+  - [x] Preserve `attributesMaxDepth` validation.
+  - [x] Preserve `attributesMaxKeys` validation.
+  - [x] Preserve unsafe metadata key denylist in kernel only.
+  - [x] Preserve safe string / safe single-line string checks where required by UoW policy.
+  - [x] Map foundation reason tokens to context reasons:
+    - [x] `json-like-float-forbidden` → `uow-context-attributes-float-forbidden`
+    - [x] `json-like-object-forbidden` → `uow-context-attributes-object-forbidden`
+    - [x] `json-like-closure-forbidden` → `uow-context-attributes-closure-forbidden`
+    - [x] `json-like-resource-forbidden` → `uow-context-attributes-resource-forbidden`
+    - [x] `json-like-map-key-must-be-string` → `uow-context-attributes-map-key-must-be-string`
+    - [x] `json-like-type-forbidden` → `uow-context-attributes-type-forbidden`
+  - [x] Map foundation reason tokens to result reasons:
+    - [x] `json-like-float-forbidden` → `uow-result-float-forbidden`
+    - [x] `json-like-object-forbidden` → `uow-result-object-forbidden`
+    - [x] `json-like-closure-forbidden` → `uow-result-closure-forbidden`
+    - [x] `json-like-resource-forbidden` → `uow-result-resource-forbidden`
+    - [x] `json-like-map-key-must-be-string` → `uow-result-map-key-must-be-string`
+    - [x] `json-like-type-forbidden` → `uow-result-type-forbidden`
+  - [x] Remove duplicated baseline scalar/object/resource/float recursive policy from kernel except where required for UoW-specific exception mapping.
+  - [x] Ensure no raw rejected values leak in UoW exceptions.
+
+- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php`
+  - [x] Keep the public API unchanged.
+  - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeContextAttributes()`.
+  - [x] Update only PHPDoc/type annotations if required by the refactored normalizer return type.
+  - [x] Do not expose `JsonLikeNormalizer` directly from `UnitOfWorkContext`.
+
+- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php`
+  - [x] Keep the public API unchanged.
+  - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeResultExtensions()`.
+  - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeExportedErrorMap()`.
+  - [x] Update only PHPDoc/type annotations if required by the refactored normalizer return type.
+  - [x] Do not expose `JsonLikeNormalizer` directly from `UnitOfWorkResult`.
+
+- [x] `framework/packages/core/foundation/README.md`
+  - [x] Add a `Json-like runtime values` section.
+  - [x] Document `Coretsia\Foundation\Serialization\JsonLikeNormalizer` as the canonical runtime json-like value normalizer.
+  - [x] Document that `StableJsonEncoder` uses `JsonLikeNormalizer`.
+  - [x] Document that `ContextStorePolicy` uses `JsonLikeNormalizer` for value validation.
+  - [x] Document that kernel may consume the normalizer through its own domain-specific wrapper.
+  - [x] Reaffirm that foundation does not introduce UoW-specific policy, unsafe metadata key denylist, transport payload semantics, or generic redaction.
+
+- [x] `framework/packages/core/kernel/README.md`
+  - [x] Document that Kernel UoW shapes use the foundation-owned baseline json-like policy through `JsonLikeShapeNormalizer`.
+  - [x] Document that kernel remains the owner of UoW root map policy, unsafe metadata key policy, attributes limits, and UoW exception mapping.
+  - [x] Document that `JsonLikeShapeNormalizer` remains internal and is not public Kernel API.
+
+- [x] `docs/adr/INDEX.md`
+  - [x] Register `docs/adr/ADR-0004-foundation-json-like-runtime-values.md` exactly once.
+  - [x] Insert the ADR entry in deterministic `relative-path` / `strcmp` order.
+  - [x] Use owner `core/foundation`.
+  - [x] Use scope tokens such as `foundation,json-like,normalization,runtime,serialization`.
+  - [x] Do not add dates, timestamps, or unstable metadata.
+
+- [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+  - [x] Add a short note that the baseline json-like value validation and recursive deterministic normalization used by `StableJsonEncoder` is now owned by `Coretsia\Foundation\Serialization\JsonLikeNormalizer`.
+  - [x] Preserve ADR-0014 stable JSON encoder behavior: JSON flags, final LF, recursive `strcmp` map ordering, list order preservation, float/object/resource/closure rejection.
+  - [x] Do not move UoW-specific policy, unsafe metadata key policy, or transport payload semantics into ADR-0014.
+  - [x] Cross-reference `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`.
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] Add `docs/ssot/json-like-runtime-values.md` to the SSoT index.
+  - [x] Ensure the entry identifies `core/foundation` as owner.
+  - [x] Ensure the entry links to related UoW shape policy.
+
+- [x] `docs/ssot/uow-shapes.md`
+  - [x] Replace language that implies Kernel owns the baseline json-like value model.
+  - [x] State that `Coretsia\Foundation\Serialization\JsonLikeNormalizer` owns baseline json-like validation and deterministic normalization.
+  - [x] State that `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer` owns UoW root map policy, unsafe metadata key policy, limits, and exception mapping.
+  - [x] Keep UoW-specific rules unchanged:
+    - [x] `attributes` root map policy
+    - [x] `extensions` root map policy
+    - [x] exported `error` map policy
+    - [x] unsafe metadata keys
+    - [x] `attributesMaxDepth`
+    - [x] `attributesMaxKeys`
+    - [x] UoW exception codes and reason tokens
+  - [x] Add cross-reference to `docs/ssot/json-like-runtime-values.md`.
+
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+  - [x] Keep existing behavior expectations green.
+  - [x] Adjust only if reason/path details change due to foundation delegation.
+  - [x] Preserve assertions for float, `NAN`, `INF`, `-INF`, object, closure, resource, unsafe keys, depth, key count, and safe diagnostics.
+  - [x] Preserve no-raw-value-leak assertions.
+
+- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+  - [x] Keep existing behavior expectations green.
+  - [x] Adjust only if reason/path details change due to foundation delegation.
+  - [x] Preserve assertions for recursive sorting, list preservation, root map rejection, float/object/closure/resource rejection, unsafe keys, and safe diagnostics.
+  - [x] Preserve no-raw-value-leak assertions.
+
+#### Package skeleton (if type=package)
+
+- N/A — this epic modifies the existing `core/foundation` runtime package and does not create a new package skeleton.
+
+#### Configuration (keys + defaults)
+
+- N/A
+
+#### Wiring / DI tags (when applicable)
+
+- Tags introduced (this epic is the OWNER):
+  - N/A — this epic introduces no tags.
+- ServiceProvider wiring evidence:
+  - N/A — `JsonLikeNormalizer` is a static low-level runtime primitive and is not registered as a DI service in this epic.
+- [x] Compliance delta:
+  - [x] this package MUST NOT introduce owner constants for tags it does not own.
+  - [x] runtime code MUST NOT use raw literal tag strings for this epic because no tags are involved.
+  - [x] non-owner packages MUST NOT define competing tag semantics as part of this epic.
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- Context reads:
+  - N/A — this epic does not add context reads.
+- Context writes (safe only):
+  - N/A — this epic does not add new context writes.
+- [x] Context write validation:
+  - [x] `ContextStorePolicy` MUST validate context values through `JsonLikeNormalizer`.
+  - [x] `ContextStorePolicy` MUST preserve existing context key validation.
+  - [x] `ContextStorePolicy` MUST preserve existing context reason tokens.
+  - [x] Context validation failures MUST NOT leak raw values.
+- [x] UoW shape normalization:
+  - [x] `JsonLikeShapeNormalizer` MUST delegate baseline json-like normalization to foundation.
+  - [x] `JsonLikeShapeNormalizer` MUST preserve UoW-specific root map, unsafe-key, depth/key-limit, safe-string, and exception-mapping policy.
+- Reset discipline:
+  - N/A — this epic introduces no stateful services and no reset tags.
+
+#### Observability (policy-compliant)
+
+N/A
+
+#### Errors
+
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException` — errorCode `CORETSIA_JSON_LIKE_INVALID`
+- [x] Mapping:
+  - [x] No `error.mapper` integration is introduced.
+  - [x] Foundation json-like failures are mapped locally by `StableJsonEncoder` to stable-json reason tokens.
+  - [x] Foundation json-like failures are mapped locally by `ContextStorePolicy` to existing context write exceptions.
+  - [x] Foundation json-like failures are mapped locally by Kernel `JsonLikeShapeNormalizer` to existing UoW exceptions.
+
+#### Security / Redaction
+
+- [x] MUST NOT leak:
+  - [x] auth values
+  - [x] cookies
+  - [x] session ids
+  - [x] tokens
+  - [x] credentials
+  - [x] passwords
+  - [x] raw SQL
+  - [x] raw payloads
+  - [x] rejected raw scalar values
+  - [x] object class names
+  - [x] resource ids
+  - [x] local absolute paths
+  - [x] environment-specific bytes
+- [x] Allowed:
+  - [x] safe structural path
+  - [x] stable reason token
+  - [x] package-owned error code
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [x] Json-like failure safety:
+  - [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php` asserts safe diagnostics and no raw value leakage.
+  - [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php` asserts encoder failures remain safe and path-aware.
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php` asserts context exception mapping remains safe.
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php` asserts kernel exception mapping remains safe.
+
+#### Test harness / fixtures (when integration is needed)
+
+- N/A
+
+### Tests (MUST)
+
+- Unit:
+  - N/A — behavior is locked through package contract tests.
+- Contract:
+  - [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+- Integration:
+  - N/A
+- Gates/Arch:
+  - [x] deptrac remains green: `core/foundation` MUST NOT depend on `core/kernel`, `devtools/*`, `tools/*`, `platform/*`, or `integrations/*`.
+  - [x] public API gates remain green: Kernel internal normalizer remains internal and is not added to `framework/packages/core/kernel/PUBLIC_API.md`.
+  - [x] package compliance gates remain green: no new tags, config roots, artifacts, or forbidden runtime dependencies.
+
+### DoD (MUST)
+
+- [x] Deliverables complete (creates+modifies), paths exact.
+- [x] Preconditions satisfied; no forward references introduced.
+- [x] `core/foundation` owns `JsonLikeNormalizer` and `JsonLikeNormalizationException`.
+- [x] `core/contracts` remains unchanged.
+- [x] `core/foundation` does not depend on `core/kernel`.
+- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `framework/tools/spikes/*`.
+- [x] `StableJsonEncoder` delegates baseline normalization to `JsonLikeNormalizer`.
+- [x] `ContextStorePolicy` delegates value-shape validation to `JsonLikeNormalizer`.
+- [x] Kernel `JsonLikeShapeNormalizer` delegates baseline normalization to `JsonLikeNormalizer`.
+- [x] Kernel keeps UoW-specific root map, unsafe-key, max-depth, max-keys, safe-string, and exception-mapping policy.
+- [x] No copy-paste from `framework/tools/spikes/payload/*`.
+- [x] No public Kernel normalizer introduced.
+- [x] No transport/request payload semantics introduced.
+- [x] No generic redaction engine introduced in foundation.
+- [x] No unsafe metadata key denylist introduced in foundation.
+- [x] Verification tests present where applicable.
+- [x] Determinism preserved: recursive map ordering uses `strcmp`; lists preserve caller order.
+- [x] Stable JSON output remains LF-terminated.
+- [x] Safe diagnostics preserved: no raw values, secrets, SQL, object internals, resource ids, local paths, or environment-specific bytes in failures.
+- [x] Docs updated:
+  - [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] `docs/ssot/INDEX.md`
+  - [x] `docs/ssot/uow-shapes.md`
+  - [x] `docs/ssot/context-store.md`
+  - [x] `docs/adr/INDEX.md`
+  - [x] `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
+  - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+  - [x] `framework/packages/core/foundation/README.md`
+  - [x] `framework/packages/core/kernel/README.md`
+
+---
+
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
 
 ---

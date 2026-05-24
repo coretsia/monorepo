@@ -209,9 +209,10 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
                 operation: static fn (): UnitOfWorkContext => self::contextWithAttributes([
                     $unsafeKey => 'secret-value-must-not-leak',
                 ]),
-                expectedPath: 'attributes.' . $unsafeKey,
+                expectedPath: 'attributes[<key>]',
                 expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
                 leakedRawValues: [
+                    $unsafeKey,
                     'secret-value-must-not-leak',
                 ],
                 caseName: $unsafeKey,
@@ -229,9 +230,10 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
                     ],
                 ],
             ]),
-            expectedPath: 'attributes.adapter.metadata.accessToken',
+            expectedPath: 'attributes.adapter.metadata[<key>]',
             expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
             leakedRawValues: [
+                'accessToken',
                 'token-value-must-not-leak',
             ],
         );
@@ -319,9 +321,10 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
             operation: static fn (): UnitOfWorkContext => self::contextWithAttributes([
                 'rawSql' => 'SELECT * FROM users WHERE password = "secret-value"',
             ]),
-            expectedPath: 'attributes.rawSql',
+            expectedPath: 'attributes[<key>]',
             expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
             leakedRawValues: [
+                'rawSql',
                 'SELECT * FROM users',
                 'password = "secret-value"',
                 'secret-value',

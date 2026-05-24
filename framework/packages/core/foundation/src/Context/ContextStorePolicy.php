@@ -20,11 +20,13 @@ namespace Coretsia\Foundation\Context;
 
 use Coretsia\Foundation\Context\Exception\ContextInvalidKeyException;
 use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
+use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 
 /**
  * Always-on safe-write guard for ContextStore.
  *
- * The policy accepts only canonical keys from ContextKeys and JSON-safe
+ * The policy accepts only canonical keys from ContextKeys and json-like
  * deterministic values:
  *
  * - null
@@ -34,9 +36,16 @@ use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
  * - list<value>
  * - array<string,value>
  *
- * It rejects floats, objects, closures, resources, non-string map keys,
- * unknown keys, and reserved @* keys. Failure messages are deterministic and
- * safe: they include only keys, path-to-value, and stable reason tokens.
+ * ContextStorePolicy owns context-specific write policy:
+ *
+ * - canonical ContextKeys allowlist;
+ * - reserved @* key rejection;
+ * - context-specific exception mapping.
+ *
+ * Baseline json-like value validation is delegated to JsonLikeNormalizer.
+ *
+ * Failure messages are deterministic and safe: they include only context keys,
+ * safe path-to-value, and stable reason tokens.
  */
 final class ContextStorePolicy
 {
@@ -63,68 +72,27 @@ final class ContextStorePolicy
 
     public function assertValue(mixed $value, string $path = 'value'): void
     {
-        if ($value === null || \is_bool($value) || \is_int($value) || \is_string($value)) {
-            return;
-        }
-
-        if (\is_float($value)) {
-            throw new ContextWriteForbiddenException($path, 'context-write-forbidden-float');
-        }
-
-        if ($value instanceof \Closure) {
-            throw new ContextWriteForbiddenException($path, 'context-write-forbidden-closure');
-        }
-
-        if (\is_object($value)) {
-            throw new ContextWriteForbiddenException($path, 'context-write-forbidden-object');
-        }
-
-        if (\is_resource($value)) {
-            throw new ContextWriteForbiddenException($path, 'context-write-forbidden-resource');
-        }
-
-        if (\is_array($value)) {
-            $this->assertArrayValue($value, $path);
-
-            return;
-        }
-
-        throw new ContextWriteForbiddenException($path, 'context-write-forbidden-type');
-    }
-
-    /**
-     * @param array<array-key,mixed> $value
-     */
-    private function assertArrayValue(array $value, string $path): void
-    {
-        if (\array_is_list($value)) {
-            foreach ($value as $index => $item) {
-                $this->assertValue($item, self::listPath($path, $index));
-            }
-
-            return;
-        }
-
-        foreach ($value as $key => $item) {
-            if (!\is_string($key)) {
-                throw new ContextWriteForbiddenException($path, 'context-write-forbidden-map-key');
-            }
-
-            $this->assertValue($item, self::mapPath($path, $key));
+        try {
+            JsonLikeNormalizer::normalize($value, $path);
+        } catch (JsonLikeNormalizationException $exception) {
+            throw new ContextWriteForbiddenException(
+                $exception->path(),
+                self::mapJsonLikeReason($exception->reason()),
+                $exception,
+            );
         }
     }
 
-    private static function listPath(string $path, int $index): string
+    private static function mapJsonLikeReason(string $reason): string
     {
-        return $path . '[' . $index . ']';
-    }
-
-    private static function mapPath(string $path, string $key): string
-    {
-        if ($path === '') {
-            return $key;
-        }
-
-        return $path . '.' . $key;
+        return match ($reason) {
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'context-write-forbidden-float',
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'context-write-forbidden-closure',
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'context-write-forbidden-object',
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'context-write-forbidden-resource',
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'context-write-forbidden-map-key',
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'context-write-forbidden-type',
+            default => 'context-write-forbidden-type',
+        };
     }
 }

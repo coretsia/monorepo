@@ -31,6 +31,7 @@ It complements:
 ```text
 docs/ssot/context-keys.md
 docs/ssot/config-and-env.md
+docs/ssot/json-like-runtime-values.md
 docs/ssot/observability.md
 docs/ssot/observability-and-errors.md
 docs/ssot/tags.md
@@ -42,6 +43,36 @@ docs/ssot/http-middleware-catalog.md
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
+## Canonical authority
+
+`core/foundation` owns the runtime context store, context snapshots, context key policy, context write policy, reset discipline, and correlation id context boundary.
+
+This document is the canonical human-readable reference for:
+
+- `ContextStore`;
+- `ContextBag`;
+- `ContextStorePolicy`;
+- context key allowlist enforcement;
+- reserved `@*` context key rejection;
+- context-specific exception mapping;
+- context reset discipline.
+
+Baseline json-like runtime value validation and deterministic recursive normalization are owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical baseline json-like normalizer is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+`ContextStorePolicy` consumes the baseline normalizer for value-shape validation.
+
+`ContextStorePolicy` MUST NOT own or duplicate the reusable baseline json-like runtime value model.
+
 ## Goal
 
 Runtime layers must read context through one stable format-neutral access port, while Foundation owns one mutable runtime context store that is reset between units of work.
@@ -50,7 +81,7 @@ The Foundation context model provides:
 
 - one runtime `ContextStore`;
 - one immutable snapshot view, `ContextBag`;
-- one safe-write policy, `ContextStorePolicy`;
+- one context-specific safe-write policy, `ContextStorePolicy`;
 - one canonical key registry, `ContextKeys`;
 - one canonical ULID source, `UlidGenerator`;
 - one correlation id generator delegating to the ULID source;
@@ -204,13 +235,14 @@ Consumers MUST NOT be able to mutate the stored snapshot by mutating the returne
 
 `ContextStorePolicy` is the always-on safety guard for context writes.
 
-It MUST validate:
+`ContextStorePolicy` owns context-specific write policy:
 
-- key allowlist;
+- context key allowlist enforcement;
+- empty context key rejection;
 - reserved `@*` key namespace rejection;
-- value model;
-- nested value model;
-- deterministic safe failure messages.
+- unknown `ContextKeys` rejection;
+- mapping baseline json-like value failures to context write failures;
+- deterministic safe context failure messages.
 
 `ContextStorePolicy` MUST allow writes only for keys declared by:
 
@@ -222,16 +254,75 @@ Any attempt to write an unknown key MUST fail deterministically.
 
 Any attempt to write a key beginning with `@` MUST fail deterministically.
 
+For value-shape validation, `ContextStorePolicy` MUST delegate to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+`ContextStorePolicy` MUST NOT duplicate the recursive baseline json-like value walker.
+
+`ContextStorePolicy` MUST NOT store or return the normalized value produced by `JsonLikeNormalizer`.
+
+`ContextStorePolicy` remains a validation boundary only.
+
 The failure message MUST NOT include raw values.
 
 The failure message MAY include:
 
 ```text
 key
-path-to-value
+safe path-to-value
 stable reason code
 safe type name
 ```
+
+## Json-like value validation boundary
+
+Baseline json-like runtime value validation is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical implementation is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The canonical baseline exception is:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+`ContextStorePolicy` MUST consume `JsonLikeNormalizer` for value validation.
+
+`ContextStorePolicy` owns only the context-specific mapping from baseline json-like failures to context write failures.
+
+The canonical context mapping is:
+
+```text
+json-like-float-forbidden             -> context-write-forbidden-float
+json-like-closure-forbidden           -> context-write-forbidden-closure
+json-like-object-forbidden            -> context-write-forbidden-object
+json-like-resource-forbidden          -> context-write-forbidden-resource
+json-like-map-key-must-be-string      -> context-write-forbidden-map-key
+json-like-type-forbidden              -> context-write-forbidden-type
+```
+
+Context validation failures MUST preserve safe nested path information from the baseline json-like failure.
+
+Context validation failures MUST NOT leak raw rejected values.
+
+`ContextStorePolicy` MUST NOT introduce:
+
+- a second baseline json-like value model;
+- a second recursive json-like normalizer;
+- transport payload semantics;
+- UoW-specific root map policy;
+- unsafe metadata key denylist policy.
 
 ## Key allowlist
 
@@ -293,9 +384,21 @@ Such keys MUST fail deterministically before any value is stored.
 
 ## Value model
 
-`ContextStore` MUST accept only JSON-safe deterministic value types.
+`ContextStore` MUST accept only values accepted by the baseline json-like runtime value model.
 
-Allowed scalar values:
+The baseline model is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+The canonical validator is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+Allowed scalar values are:
 
 ```text
 null
@@ -304,16 +407,24 @@ int
 string
 ```
 
-Allowed compound values:
+Allowed compound values are:
 
 ```text
 list<value>
 array<string,value>
 ```
 
-Where `value` recursively means any value accepted by this model.
+Where `value` recursively means any value accepted by the baseline json-like runtime value model.
+
+This document intentionally repeats the allowed shape summary for context readability, but it does not own the reusable baseline json-like model.
 
 ## Array model
+
+The baseline list/map interpretation is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
 
 PHP arrays are interpreted as either lists or maps.
 
@@ -325,6 +436,8 @@ array_is_list($value) === true
 
 List indexes are allowed to be integers because the list shape is ordered by position.
 
+List order MUST be preserved.
+
 A PHP array is a map when:
 
 ```text
@@ -333,40 +446,57 @@ array_is_list($value) === false
 
 Map keys MUST be strings.
 
-A map with any non-string key MUST be rejected.
+A map with any non-string key MUST be rejected by `JsonLikeNormalizer`.
 
 Nested lists and nested maps MUST obey the same rules recursively.
 
-List order MUST be preserved.
+`JsonLikeNormalizer` owns deterministic recursive map ordering by byte-order `strcmp`.
 
-Map ordering is not a semantic guarantee of ContextStore reads, but any future exported diagnostic representation MUST use deterministic key ordering by byte-order `strcmp`.
+`ContextStorePolicy` MUST NOT reorder caller-owned arrays as a side effect.
+
+Map ordering is not a semantic guarantee of ContextStore reads.
 
 ## Empty arrays
 
 An empty PHP array is allowed.
 
-At the ContextStore boundary, an empty array MAY be treated as an empty list for PHP storage purposes.
+The baseline json-like normalizer preserves an empty array as:
+
+```text
+[]
+```
+
+At the ContextStore boundary, an empty array MAY be stored as an empty PHP array without assigning additional context semantics to list-vs-map distinction.
 
 Consumers MUST NOT rely on empty array list-vs-map distinction unless a future typed model explicitly introduces that distinction.
 
 ## Forbidden values
 
+The baseline forbidden value policy is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
 The following values are forbidden everywhere, including nested structures:
 
 ```text
 float
-NaN
+NAN
 INF
 -INF
 object
 Closure
 resource
 non-string map key
+unsupported PHP value type
 ```
 
 Objects are forbidden even if they are stringable.
 
-Closures are forbidden as objects.
+Enum objects are forbidden.
+
+`Closure` values are rejected before generic object rejection so diagnostics remain stable.
 
 Resources are forbidden.
 
@@ -396,14 +526,27 @@ strlen
 
 Forbidden writes MUST fail deterministically.
 
-Implementations SHOULD use Foundation context exceptions such as:
+Context key failures SHOULD use:
 
 ```text
-Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException
 Coretsia\Foundation\Context\Exception\ContextInvalidKeyException
 ```
 
-If those exceptions are introduced, their canonical error codes are:
+Context value failures SHOULD use:
+
+```text
+Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException
+```
+
+Baseline json-like value failures are detected by:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+and mapped by `ContextStorePolicy` to context write failures.
+
+The canonical context error codes are:
 
 ```text
 CORETSIA_CONTEXT_WRITE_FORBIDDEN
@@ -445,6 +588,12 @@ raw request body
 
 When an error identifies a nested value, it MAY include a stable path-to-value.
 
+Baseline json-like path construction is owned by:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
 Recommended path notation:
 
 ```text
@@ -453,10 +602,19 @@ metadata.items[3].count
 
 Rules:
 
-- map segments use dot notation;
+- safe map segments use dot notation;
 - list indexes use bracket notation;
+- unsafe map keys use stable placeholders;
 - the path MUST NOT include raw values;
+- the path MUST NOT include unsafe raw map keys;
 - the path MUST be deterministic for the same input shape.
+
+Examples of safe placeholder paths:
+
+```text
+correlation_id.safe[<key>]
+correlation_id.safe[<empty-key>]
+```
 
 ## Forbidden sensitive data
 
@@ -685,6 +843,8 @@ The following config keys MUST NOT be introduced by this epic:
 ```text
 foundation.context.*
 foundation.correlation.*
+foundation.json_like.*
+foundation.serialization.json_like.*
 ```
 
 ContextStore is baseline runtime infrastructure.
@@ -779,13 +939,27 @@ Metric labels MUST remain within the canonical allowlist from `docs/ssot/observa
 
 ## Errors and exception mapping
 
-Foundation context exceptions, if introduced, are Foundation runtime exceptions.
+Foundation context exceptions are Foundation runtime exceptions.
 
 Higher layers may map or adapt them later.
 
 This epic MUST NOT introduce platform error mappers.
 
 This epic MUST NOT duplicate mapping behavior owned by future `platform/errors` or other platform packages.
+
+`ContextStorePolicy` maps baseline json-like value failures from:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+to context write failures:
+
+```text
+Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException
+```
+
+This mapping is local to Foundation context write policy.
 
 Context exception messages MUST be safe and deterministic.
 
@@ -835,8 +1009,8 @@ ContextStore behavior MUST be deterministic for the same sequence of writes, rea
 Deterministic requirements:
 
 - stable key allowlist;
-- stable value validation;
-- stable forbidden-value rejection;
+- stable value validation through `JsonLikeNormalizer`;
+- stable forbidden-value rejection through baseline json-like reason mapping;
 - stable safe error messages;
 - stable reset behavior;
 - stable snapshot immutability;
@@ -864,6 +1038,7 @@ framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
 framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php
 framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
+framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php
@@ -884,6 +1059,10 @@ These tests are expected to verify:
 - reset clears context;
 - unknown keys are rejected;
 - `@*` keys are rejected;
+- context value validation delegates to `JsonLikeNormalizer`;
+- context reason tokens are preserved after json-like exception mapping;
+- nested paths are preserved from baseline json-like failures;
+- `ContextStorePolicy` validates values only and does not normalize stored context values as a side effect;
 - floats, `NaN`, `INF`, and `-INF` are rejected;
 - objects are rejected;
 - resources are rejected;
@@ -926,6 +1105,12 @@ This SSoT does not define:
 - generated artifacts;
 - config roots;
 - config keys;
+- reusable baseline json-like runtime value model;
+- recursive deterministic json-like normalizer implementation;
+- json-like reason token ownership;
+- transport/request payload semantics;
+- UoW root map policy;
+- unsafe metadata key denylist policy;
 - feature toggles;
 - skeleton defaults;
 - business context models;
@@ -939,6 +1124,7 @@ This SSoT does not define:
 - [SSoT Index](./INDEX.md)
 - [Context Keys SSoT](./context-keys.md)
 - [Config and env SSoT](./config-and-env.md)
+- [Json-like Runtime Values SSoT](./json-like-runtime-values.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)

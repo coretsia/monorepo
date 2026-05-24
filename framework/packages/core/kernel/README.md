@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider wiring, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, json-like shape normalization, and canonical UnitOfWork outcome/lifecycle policy.
+**Scope:** Kernel module metadata, Kernel service provider wiring, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, and canonical UnitOfWork outcome/lifecycle policy.
 
-**Out of scope:** HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters, concrete lifecycle executor implementation, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters, concrete lifecycle executor implementation, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -51,6 +51,20 @@ This package is runtime-safe and format-neutral.
 
 Kernel UnitOfWork shapes MUST remain format-neutral and MUST NOT expose transport objects.
 
+Kernel UoW shape normalization consumes the Foundation-owned baseline json-like normalizer:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+through the Kernel-owned internal wrapper:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
+```
+
+Kernel MUST NOT duplicate the baseline recursive json-like walker.
+
 ## Runtime responsibilities
 
 This package provides the Kernel baseline runtime layer:
@@ -72,13 +86,19 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Runtime\UnitOfWorkContext`
 - Canonical UnitOfWork result shape:
   - `Coretsia\Kernel\Runtime\UnitOfWorkResult`
-- Internal json-like shape normalization through:
+- Internal UoW-specific json-like shape wrapper through:
   - `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer`
+- Foundation-owned baseline json-like value validation and recursive deterministic normalization consumed through:
+  - `Coretsia\Foundation\Serialization\JsonLikeNormalizer`
 - Deterministic validation failures for UnitOfWork shapes:
   - `CORETSIA_UOW_CONTEXT_INVALID`
   - `CORETSIA_UOW_RESULT_INVALID`
 
 Foundation owns reusable runtime mechanisms such as ids, clocks, stopwatch, context storage, deterministic tags, and reset orchestration.
+
+Foundation also owns the reusable baseline json-like runtime value model.
+
+Kernel owns only the UoW-specific layer on top of that model: root map policy, unsafe metadata key policy, attributes limits, exported error map policy, and UoW exception mapping.
 
 Platform packages own transport adapters.
 
@@ -127,6 +147,18 @@ Canonical Kernel config keys:
 |-----------------------------------|---------|
 | `kernel.uow.attributes.max_depth` | `10`    |
 | `kernel.uow.attributes.max_keys`  | `200`   |
+
+This package does not introduce generic json-like configuration.
+
+The following config keys MUST NOT be introduced by Kernel:
+
+```text
+kernel.json_like.*
+foundation.json_like.*
+foundation.serialization.json_like.*
+```
+
+Baseline json-like runtime value policy is owned by Foundation and is not configurable by Kernel.
 
 Both values MUST be integers greater than zero.
 
@@ -197,34 +229,36 @@ attributes
 
 `attributes` MUST be a json-like map.
 
-Allowed values:
+The baseline json-like runtime value model is owned by:
 
 ```text
-null
-bool
-int
-string
-list<value>
-array<string,value>
+docs/ssot/json-like-runtime-values.md
 ```
 
-Forbidden values:
+The baseline normalizer is:
 
 ```text
-float
-NaN
-INF
--INF
-object
-Closure
-resource
-non-string map key
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
 
-`attributes` are normalized by:
+Kernel owns the UoW-specific `attributes` root map policy.
+
+A non-empty root list MUST NOT be used as `attributes`.
+
+`attributes` are normalized by the Kernel-owned internal wrapper:
 
 ```text
 Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer::normalizeContextAttributes()
+```
+
+The wrapper delegates baseline recursive normalization to Foundation and preserves Kernel-owned policy:
+
+```text
+attributes root map policy
+unsafe metadata key policy
+attributes max_depth
+attributes max_keys
+UoW context exception mapping
 ```
 
 Validation failures MUST use:
@@ -277,34 +311,34 @@ finishedAt - startedAt
 
 `extensions` MUST be a json-like map.
 
-Allowed values:
+The baseline json-like runtime value model is owned by:
 
 ```text
-null
-bool
-int
-string
-list<value>
-array<string,value>
+docs/ssot/json-like-runtime-values.md
 ```
 
-Forbidden values:
+The baseline normalizer is:
 
 ```text
-float
-NaN
-INF
--INF
-object
-Closure
-resource
-non-string map key
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
 
-`extensions` are normalized by:
+Kernel owns the UoW-specific `extensions` root map policy.
+
+A non-empty root list MUST NOT be used as `extensions`.
+
+`extensions` are normalized by the Kernel-owned internal wrapper:
 
 ```text
 Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer::normalizeResultExtensions()
+```
+
+The wrapper delegates baseline recursive normalization to Foundation and preserves Kernel-owned policy:
+
+```text
+extensions root map policy
+unsafe metadata key policy
+UoW result exception mapping
 ```
 
 Validation failures MUST use:
@@ -330,6 +364,14 @@ The exported error map is normalized by:
 Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer::normalizeExportedErrorMap()
 ```
 
+The wrapper delegates baseline recursive normalization to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+Kernel owns the exported `error` map policy, including the non-empty root map requirement and UoW result exception mapping.
+
 No `ErrorDescriptor` object instance MAY cross the hook/export boundary.
 
 No Throwable object MAY cross the hook/export boundary.
@@ -342,13 +384,23 @@ CORETSIA_UOW_RESULT_INVALID
 
 ## Json-like shape normalization
 
-Kernel centralizes UnitOfWork json-like validation and deterministic normalization in:
+Kernel centralizes UoW-specific json-like shape policy in:
 
 ```text
 Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
 ```
 
 This class is internal and is not public API.
+
+It is not a DI service.
+
+It is not a transport extension point.
+
+It MUST NOT be exposed through:
+
+```text
+framework/packages/core/kernel/PUBLIC_API.md
+```
 
 It provides:
 
@@ -358,19 +410,43 @@ normalizeResultExtensions(array $extensions): array
 normalizeExportedErrorMap(array $error): array
 ```
 
-It enforces:
+Baseline json-like value validation and recursive deterministic normalization are owned by Foundation:
 
-- root map validation;
-- recursive json-like validation;
-- float, `NaN`, `INF`, and `-INF` rejection;
-- object, closure, and resource rejection;
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+Baseline failures are represented by:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+`JsonLikeShapeNormalizer` MUST delegate baseline recursive normalization to Foundation.
+
+`JsonLikeShapeNormalizer` owns only UoW-specific policy:
+
+- root map validation for `attributes`;
+- root map validation for `extensions`;
+- non-empty root map validation for exported `error`;
+- context `max_depth`;
+- context `max_keys`;
+- deterministic unsafe-key rejection for known unsafe metadata keys;
+- safe string and safe single-line string checks;
+- UoW-specific exception reason mapping;
+- UoW-safe diagnostics without raw values.
+
+`JsonLikeShapeNormalizer` MUST NOT duplicate the baseline recursive json-like walker.
+
+Foundation owns:
+
+- scalar acceptance;
+- float, `NAN`, `INF`, and `-INF` rejection;
+- object, closure, resource, and unsupported type rejection;
 - string-keyed maps only;
 - list order preservation;
 - recursive map sorting by byte-order `strcmp`;
-- safe path diagnostics without raw values;
-- context `max_depth`;
-- context `max_keys`;
-- deterministic unsafe-key rejection for known unsafe metadata keys.
+- baseline safe path diagnostics.
 
 ## Hook and export boundary
 
@@ -387,6 +463,8 @@ After hooks receive result data as:
 ```text
 UnitOfWorkResult -> normalized array $result
 ```
+
+Nested `attributes`, `extensions`, and exported `error` maps MUST be baseline-normalized through `JsonLikeShapeNormalizer`, which delegates recursive normalization to Foundation.
 
 No object instance MAY cross the hook/export boundary.
 
@@ -469,6 +547,10 @@ property
 
 `attributes` and `extensions` MUST NOT be copied wholesale into logs, spans, metrics, diagnostics, or artifacts.
 
+A value accepted by the baseline json-like model is not automatically safe for observability emission.
+
+Kernel and platform owners remain responsible for target-boundary redaction and omission policy.
+
 ## Errors
 
 This package defines Kernel UnitOfWork validation exceptions:
@@ -478,12 +560,26 @@ This package defines Kernel UnitOfWork validation exceptions:
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException`
   - canonical error code: `CORETSIA_UOW_RESULT_INVALID`
 
+Baseline json-like failures from:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+are mapped locally by:
+
+```text
+Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
+```
+
+to UoW-specific validation exceptions and reason tokens.
+
 Exception messages MUST be deterministic and safe.
 
 Exception messages MAY include only:
 
 ```text
-path-to-value
+safe path-to-value
 stable reason code
 safe type name
 ```
@@ -544,11 +640,15 @@ bounded safe status/category tokens
 
 Runtime owners MUST prefer omission over unsafe emission.
 
-The internal json-like normalizer includes deterministic unsafe-key guards for known unsafe metadata keys.
+The Kernel internal json-like shape wrapper includes deterministic unsafe-key guards for known unsafe metadata keys.
 
-This guard is not a PII detector.
+This guard is Kernel-owned UoW-specific policy.
+
+It is not a PII detector.
 
 It is a deterministic denylist for obvious policy-key names.
+
+Foundation `JsonLikeNormalizer` does not own the unsafe metadata key denylist.
 
 ## Public API
 
@@ -560,10 +660,17 @@ framework/packages/core/kernel/PUBLIC_API.md
 
 That file is the source used by the Kernel public API gate.
 
+`Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer` is internal implementation detail.
+
+It MUST NOT be listed as Kernel public API.
+
+Kernel public API consumers MUST use `UnitOfWorkContext` and `UnitOfWorkResult`, not the internal normalizer.
+
 ## References
 
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Kernel package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/kernel)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Json-like Runtime Values SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)
 - [UnitOfWork Shapes SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-shapes.md)
 - [UnitOfWork Outcome Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md)

@@ -25,11 +25,11 @@ final class StableJsonEncoderRejectsFloatValuesContractTest extends TestCase
 {
     public function testRejectsTopLevelFloatValuesWithStableMessage(): void
     {
-        self::assertEncodingFailsWith(1.25, 'stable-json-float-forbidden');
-        self::assertEncodingFailsWith(-1.25, 'stable-json-float-forbidden');
-        self::assertEncodingFailsWith(\NAN, 'stable-json-float-forbidden');
-        self::assertEncodingFailsWith(\INF, 'stable-json-float-forbidden');
-        self::assertEncodingFailsWith(-\INF, 'stable-json-float-forbidden');
+        self::assertEncodingFailsWith(1.25, 'stable-json-float-forbidden', 'value');
+        self::assertEncodingFailsWith(-1.25, 'stable-json-float-forbidden', 'value');
+        self::assertEncodingFailsWith(\NAN, 'stable-json-float-forbidden', 'value');
+        self::assertEncodingFailsWith(\INF, 'stable-json-float-forbidden', 'value');
+        self::assertEncodingFailsWith(-\INF, 'stable-json-float-forbidden', 'value');
     }
 
     public function testRejectsNestedFloatValuesWithStableMessage(): void
@@ -42,6 +42,7 @@ final class StableJsonEncoderRejectsFloatValuesContractTest extends TestCase
                 ],
             ],
             'stable-json-float-forbidden',
+            'value.nested.value',
         );
 
         self::assertEncodingFailsWith(
@@ -52,19 +53,31 @@ final class StableJsonEncoderRejectsFloatValuesContractTest extends TestCase
                 ],
             ],
             'stable-json-float-forbidden',
+            'value[1].nested',
         );
     }
 
-    private static function assertEncodingFailsWith(mixed $value, string $expectedMessage): void
-    {
+    private static function assertEncodingFailsWith(
+        mixed $value,
+        string $expectedReason,
+        string $expectedPath,
+    ): void {
         try {
             StableJsonEncoder::encodeStable($value);
         } catch (\InvalidArgumentException $exception) {
-            self::assertSame($expectedMessage, $exception->getMessage());
+            self::assertSame(
+                $expectedReason . ': value at ' . $expectedPath,
+                $exception->getMessage(),
+            );
 
             return;
         }
 
-        self::fail('Expected StableJsonEncoder to reject value with message: ' . $expectedMessage);
+        self::fail(
+            'Expected StableJsonEncoder to reject value with reason: '
+            . $expectedReason
+            . ' at path: '
+            . $expectedPath,
+        );
     }
 }

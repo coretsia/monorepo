@@ -16,7 +16,7 @@
 
 `core/foundation` is the **Foundation runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
+**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
 **Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
@@ -65,6 +65,8 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Immutable context snapshots through `ContextBag`.
 - Canonical context key registry through `ContextKeys`.
 - Always-on context safe-write validation through `ContextStorePolicy`.
+- Canonical json-like runtime value normalization through `JsonLikeNormalizer`.
+- Path-aware safe json-like normalization failures through `JsonLikeNormalizationException`.
 - Correlation id generation through the canonical ULID generator.
 - Correlation id reading through the contracts correlation id provider port.
 - PSR-20 runtime clock binding through `Psr\Clock\ClockInterface`.
@@ -75,7 +77,7 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Optional UUID id generation through `UuidGenerator`.
 - Float-free duration measurement through `Stopwatch`.
 - Reset orchestration through the effective Foundation reset discovery tag.
-- Stable JSON encoding for diagnostics and runtime-safe artifacts.
+- Stable JSON encoding for diagnostics and runtime-safe artifacts through `StableJsonEncoder`, backed by `JsonLikeNormalizer`.
 
 `core/kernel` owns lifecycle trigger points.
 
@@ -181,10 +183,14 @@ The following keys MUST NOT be introduced by this epic:
 foundation.clock.*
 foundation.context.*
 foundation.correlation.*
+foundation.json_like.*
+foundation.serialization.json_like.*
 foundation.request_id.*
 foundation.time.*
 foundation.duration.*
 ```
+
+Json-like runtime value normalization is baseline runtime infrastructure and MUST NOT be feature-disabled through configuration.
 
 `ContextStore`, `ContextStorePolicy`, `SystemClock`, `Stopwatch`, `UlidGenerator`, `UuidGenerator`, `IdGeneratorInterface`, `CorrelationIdGenerator`, and `CorrelationIdProvider` are baseline runtime infrastructure and MUST NOT be feature-disabled through configuration.
 
@@ -423,7 +429,27 @@ ContextStorePolicy::assertCanWrite()
 
 for every write.
 
-Allowed values are JSON-safe deterministic values only:
+`ContextStorePolicy` owns context-specific write policy:
+
+- context key allowlist enforcement through `ContextKeys`;
+- empty context key rejection;
+- reserved `@*` key rejection;
+- unknown context key rejection;
+- mapping json-like value failures to context write failures.
+
+Baseline value-shape validation is delegated to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+`ContextStorePolicy` MUST NOT duplicate the recursive baseline json-like value walker.
+
+`ContextStorePolicy` MUST NOT store or return the normalized value produced by `JsonLikeNormalizer`.
+
+`ContextStorePolicy` remains a validation boundary only.
+
+Allowed values are json-like runtime values:
 
 ```text
 null
@@ -438,30 +464,15 @@ Forbidden values include:
 
 ```text
 float
-NaN
+NAN
 INF
 -INF
 object
 Closure
 resource
 non-string map key
+unsupported PHP value type
 ```
-
-Forbidden values are rejected recursively, including nested arrays.
-
-For PHP arrays:
-
-```text
-array_is_list($value) === true
-```
-
-means list semantics and integer indexes are allowed.
-
-```text
-array_is_list($value) === false
-```
-
-means map semantics and every key MUST be a string.
 
 Callable-ness is not a standalone ContextStore type rule.
 
@@ -481,10 +492,86 @@ Failure messages MAY include only safe metadata such as:
 
 ```text
 key
-path-to-value
+safe path-to-value
 stable reason code
 safe type name
 ```
+
+## Json-like runtime values
+
+Foundation owns the canonical baseline runtime json-like value normalizer:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The canonical baseline exception is:
+
+```text
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+```
+
+The governing SSoT is:
+
+```text
+docs/ssot/json-like-runtime-values.md
+```
+
+`JsonLikeNormalizer` accepts only:
+
+```text
+null
+bool
+int
+string
+list<value>
+array<string,value>
+```
+
+`JsonLikeNormalizer` rejects:
+
+```text
+float
+NAN
+INF
+-INF
+object
+Closure
+resource
+non-string map key
+unsupported PHP value type
+```
+
+Maps are normalized recursively by byte-order `strcmp`.
+
+Lists preserve caller-supplied order.
+
+Empty arrays are preserved as `[]`.
+
+Failures are path-aware and safe. Diagnostics include only:
+
+```text
+CORETSIA_JSON_LIKE_INVALID
+safe path-to-value
+stable reason token
+```
+
+Diagnostics MUST NOT include raw values, object class names, resource ids, secrets, raw payloads, raw SQL, local paths, or environment-specific bytes.
+
+`StableJsonEncoder` uses `JsonLikeNormalizer` before `json_encode()`.
+
+`ContextStorePolicy` uses `JsonLikeNormalizer` for value validation.
+
+Higher runtime packages, including Kernel, MAY consume `JsonLikeNormalizer` through their own domain-specific wrappers when package dependency rules allow a dependency on `core/foundation`.
+
+Foundation does not introduce:
+
+- UoW-specific root map policy;
+- unsafe metadata key denylist;
+- transport/request payload semantics;
+- DTO policy;
+- generic redaction engine;
+- Kernel exception mapping.
 
 ## Context security / redaction
 
@@ -856,13 +943,36 @@ Diagnostics MUST be safe by construction:
 - MUST NOT leak secrets, tokens, cookies, authorization headers, env values, PII, or absolute local paths.
 - MUST NOT dump raw context values.
 
+Stable JSON output is provided by:
+
+```text
+Coretsia\Foundation\Serialization\StableJsonEncoder
+```
+
+Baseline json-like validation and recursive deterministic normalization are delegated to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
 Stable JSON output MUST:
 
 - sort map keys recursively by `strcmp`;
 - preserve list order;
 - use LF-only line endings;
 - end with a final newline;
-- reject floats, objects, resources, closures, and non-string map keys.
+- reject floats, objects, resources, closures, unsupported PHP value types, and non-string map keys;
+- preserve `stable-json-*` failure semantics;
+- preserve `stable-json-encode-failed` for `json_encode()` failures.
+
+`StableJsonEncoder` owns only encoder-specific behavior:
+
+- `json_encode()` invocation;
+- JSON flags;
+- final LF;
+- stable-json reason mapping.
+
+`StableJsonEncoder` MUST NOT reintroduce a private recursive json-like walker.
 
 Redaction of caller-owned payloads remains the caller's responsibility.
 
@@ -940,9 +1050,18 @@ This package also defines Foundation context exceptions:
 - `Coretsia\Foundation\Context\Exception\ContextInvalidKeyException`
   - canonical error code: `CORETSIA_CONTEXT_INVALID_KEY`
 
+This package also defines Foundation serialization exceptions:
+
+- `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException`
+  - canonical error code: `CORETSIA_JSON_LIKE_INVALID`
+
 Context exception messages MUST be deterministic and safe.
 
 Context exception messages MUST NOT contain raw context values.
+
+Json-like normalization exception messages MUST be deterministic and safe.
+
+Json-like normalization exception messages MUST contain only the package error code, safe path-to-value, and stable reason token.
 
 This package also defines Foundation time/id exceptions:
 
@@ -1028,7 +1147,9 @@ Stopwatch tokens returned by `Stopwatch::start()` MUST NOT be exported to logs, 
 
 Only the final `durationMs` value may be exported by owner packages according to observability policy.
 
-Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, safe path-to-value, stable reason tokens, package-owned error codes, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+
+Json-like normalization diagnostics MUST NOT include rejected raw values, object class names, enum class names, resource ids, raw payloads, raw SQL, local absolute paths, or environment-specific bytes.
 
 Allowed context information is limited to keys declared in `ContextKeys` with values accepted by `ContextStorePolicy`.
 
@@ -1042,6 +1163,7 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
+- [Json-like Runtime Values SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)
 - [Time, IDs, and Duration SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/time-ids-and-duration.md)
 - [Stateful Services SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/stateful-services.md)
 - [Reset Tags SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reset-tags.md)

@@ -226,9 +226,10 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
             operation: static fn (): UnitOfWorkResult => self::makeResult([
                 $key => 'redacted-value-that-must-not-leak',
             ]),
-            expectedPath: self::expectedPathForUnsafeKey($key),
+            expectedPath: 'extensions[<key>]',
             expectedReason: 'uow-result-extensions-unsafe-key-forbidden',
             forbiddenDiagnosticsNeedles: [
+                $key,
                 'redacted-value-that-must-not-leak',
             ],
         );
@@ -290,9 +291,10 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
                     ],
                 ],
             ]),
-            expectedPath: 'extensions.safe.nested.accessToken',
+            expectedPath: 'extensions.safe.nested[<key>]',
             expectedReason: 'uow-result-extensions-unsafe-key-forbidden',
             forbiddenDiagnosticsNeedles: [
+                'accessToken',
                 'secret-token-value',
             ],
         );
@@ -391,16 +393,19 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
                     $exception->getMessage(),
                     'UnitOfWorkResult diagnostics must not leak rejected raw values or unsafe details.',
                 );
+
+                self::assertStringNotContainsString(
+                    $needle,
+                    $exception->path(),
+                    'UnitOfWorkResult paths must not leak rejected raw values or unsafe details.',
+                );
+
+                self::assertStringNotContainsString(
+                    $needle,
+                    $exception->reason(),
+                    'UnitOfWorkResult reasons must not leak rejected raw values or unsafe details.',
+                );
             }
         }
-    }
-
-    private static function expectedPathForUnsafeKey(string $key): string
-    {
-        if (\preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $key) === 1) {
-            return 'extensions.' . $key;
-        }
-
-        return 'extensions[' . $key . ']';
     }
 }

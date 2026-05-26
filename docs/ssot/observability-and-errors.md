@@ -30,6 +30,7 @@ It complements:
 docs/ssot/error-descriptor.md
 docs/ssot/errors-boundary.md
 docs/ssot/observability.md
+docs/ssot/uow-and-reset-contracts.md
 docs/ssot/tags.md
 docs/ssot/dto-policy.md
 docs/ssot/profiling-ports.md
@@ -452,6 +453,91 @@ Metric labels MUST NOT include:
 - raw SQL;
 - profile payloads;
 - arbitrary user identifiers.
+
+## Foundation reset observability policy
+
+Foundation reset observability is a runtime-owned observability boundary for Foundation reset orchestration.
+
+The canonical reset span name is:
+
+```text
+foundation.reset
+```
+
+The canonical reset metrics are:
+
+```text
+foundation.reset_total
+foundation.reset_duration_ms
+```
+
+Reset observability labels are limited to:
+
+```text
+outcome
+```
+
+The allowed reset `outcome` values are:
+
+```text
+ok
+failed
+```
+
+Reset logs MUST use the stable summary message:
+
+```text
+foundation.reset
+```
+
+Reset spans, metrics, and logs MUST remain summary-only.
+
+Allowed reset observability diagnostics are limited to:
+
+- stable reset error code;
+- stable reset reason token;
+- summary service count;
+- summary group count;
+- reset outcome;
+- reset duration in milliseconds.
+
+When reset execution fails, span exception recording MAY record only a sanitized `ResetException` copy without previous throwables.
+
+Span exception recording for reset failures MUST NOT record a reset exception that preserves a raw previous throwable chain.
+
+Span exception recording for reset failures MUST NOT leak:
+
+- raw previous throwable messages;
+- throwable stack traces;
+- raw reset service exception messages;
+- service ids;
+- service instances;
+- tag metadata values;
+- raw unit-of-work payloads;
+- raw context values;
+- credentials;
+- tokens;
+- cookies;
+- authorization values;
+- session ids;
+- raw SQL;
+- object dumps;
+- local absolute paths;
+- environment-specific bytes.
+
+Foundation reset orchestration MAY preserve the original previous throwable on the surfaced in-process reset failure for programmatic chaining.
+
+That previous throwable chain MUST NOT be emitted through reset span exception recording, reset logs, reset metrics, or exported reset diagnostics.
+
+If reset succeeds and reset observability emission fails, the surfaced reset failure reason is:
+
+```text
+reset-observability-failed
+```
+
+If reset execution fails and reset observability emission also fails, the primary reset failure remains surfaced.
+
+Reset observability failure precedence MUST remain deterministic and MUST NOT replace a primary reset failure with a secondary observability failure.
 
 ## Metrics renderer interface
 

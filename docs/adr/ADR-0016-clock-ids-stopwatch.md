@@ -18,6 +18,28 @@
 
 Accepted.
 
+## Correlation id provider safety hardening follow-up note
+
+Epic `1.277.0` hardens the read-side behavior of `CorrelationIdProvider`.
+
+Canonical live policy is owned by:
+
+```text
+docs/ssot/time-ids-and-duration.md
+```
+
+`CorrelationIdProvider` returns the current context correlation id only when the stored value is a string matching the canonical Foundation uppercase ULID-like format:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+Malformed, empty, non-string, lowercase, mixed-case, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, control-character-containing, or otherwise unsafe context values resolve to `null`.
+
+`CorrelationIdProvider` MUST NOT normalize, uppercase, trim, rewrite, remove, replace, store, log, trace, emit, or generate correlation ids as a side effect of reading.
+
+This follow-up does not change `CorrelationIdGenerator`, `UlidGenerator`, `IdGeneratorInterface`, `foundation.ids.default`, UUID support, or the rule that `foundation.ids.default` MUST NOT affect correlation ids.
+
 ## Context
 
 Coretsia runtime packages need one stable way to obtain current time, safe runtime ids, and duration measurements.
@@ -881,6 +903,8 @@ framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatVa
 framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
 framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
 framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 ```
 
 Verification MUST prove:
@@ -901,6 +925,9 @@ Verification MUST prove:
 - `IdGeneratorInterface` resolves to `UuidGenerator` when `foundation.ids.default=uuid`;
 - `foundation.ids.default=uuid` does not affect `CorrelationIdGenerator`;
 - `foundation.ids.default=uuid` does not imply `CorrelationIdProviderInterface` switches to UUID.
+- `CorrelationIdProvider` returns only canonical uppercase ULID-like correlation ids;
+- `CorrelationIdProvider` returns `null` for absent, empty, non-string, lowercase, malformed, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, or otherwise unsafe context values;
+- `CorrelationIdProvider` does not generate, normalize, rewrite, remove, replace, or store correlation ids as a side effect of reading.
 
 ## Related SSoT
 

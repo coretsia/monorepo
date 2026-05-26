@@ -42,11 +42,7 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
         try {
             self::orchestratorFrom($builder)->resetAll();
         } catch (ResetException $exception) {
-            self::assertSame(
-                ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
-                $exception->code(),
-            );
-            self::assertSame('reset-not-resettable', $exception->getMessage());
+            self::assertServiceNotResettableException($exception);
 
             return;
         }
@@ -74,11 +70,8 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
         try {
             self::orchestratorFrom($builder)->resetAll();
         } catch (ResetException $exception) {
-            self::assertSame(
-                ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
-                $exception->code(),
-            );
-            self::assertSame('reset-not-resettable', $exception->getMessage());
+            self::assertServiceNotResettableException($exception);
+
             self::assertSame(['before'], $recorder->events());
             self::assertSame(1, $before->resetCount());
             self::assertSame(0, $after->resetCount());
@@ -87,6 +80,28 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
         }
 
         self::fail('Expected ResetOrchestrator to stop at tagged non-resettable service.');
+    }
+
+    private static function assertServiceNotResettableException(ResetException $exception): void
+    {
+        self::assertSame(
+            ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
+            $exception->code(),
+        );
+        self::assertSame($exception->code(), $exception->errorCode());
+        self::assertSame('reset-not-resettable', $exception->reason());
+        self::assertSame('reset-not-resettable', $exception->getMessage());
+
+        $withoutPrevious = $exception->withoutPrevious();
+
+        self::assertNotSame($exception, $withoutPrevious);
+        self::assertSame($exception->code(), $withoutPrevious->code());
+        self::assertSame($exception->errorCode(), $withoutPrevious->errorCode());
+        self::assertSame($withoutPrevious->code(), $withoutPrevious->errorCode());
+        self::assertSame($exception->reason(), $withoutPrevious->reason());
+        self::assertSame('reset-not-resettable', $withoutPrevious->reason());
+        self::assertSame($exception->getMessage(), $withoutPrevious->getMessage());
+        self::assertNull($withoutPrevious->getPrevious());
     }
 
     private static function orchestratorFrom(ContainerBuilder $builder): ResetOrchestrator

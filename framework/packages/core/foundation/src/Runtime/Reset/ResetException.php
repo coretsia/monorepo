@@ -30,9 +30,24 @@ namespace Coretsia\Foundation\Runtime\Reset;
  */
 final class ResetException extends \RuntimeException
 {
+    private const string REASON_META_INVALID = 'reset-meta-invalid';
+    private const string REASON_SERVICE_NOT_RESETTABLE = 'reset-not-resettable';
+    private const string REASON_SERVICE_FAILED = 'reset-service-failed';
+    private const string REASON_OBSERVABILITY_FAILED = 'reset-observability-failed';
+
+    /**
+     * @var array<string, string>
+     */
+    private const array REASONS_BY_CODE = [
+        ResetErrorCodes::CORETSIA_RESET_META_INVALID => self::REASON_META_INVALID,
+        ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE => self::REASON_SERVICE_NOT_RESETTABLE,
+        ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED => self::REASON_SERVICE_FAILED,
+        ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED => self::REASON_OBSERVABILITY_FAILED,
+    ];
+
     public function __construct(
         private readonly string $resetCode,
-        string $reason,
+        private readonly string $reason,
         ?\Throwable $previous = null,
     ) {
         if ($reason === '') {
@@ -43,6 +58,14 @@ final class ResetException extends \RuntimeException
             throw new \InvalidArgumentException('reset-error-code-unknown');
         }
 
+        if (!isset(self::REASONS_BY_CODE[$resetCode])) {
+            throw new \InvalidArgumentException('reset-exception-reason-unknown');
+        }
+
+        if ($reason !== self::REASONS_BY_CODE[$resetCode]) {
+            throw new \InvalidArgumentException('reset-exception-reason-invalid');
+        }
+
         parent::__construct($reason, 0, $previous);
     }
 
@@ -50,7 +73,7 @@ final class ResetException extends \RuntimeException
     {
         return new self(
             ResetErrorCodes::CORETSIA_RESET_META_INVALID,
-            'reset-meta-invalid',
+            self::REASON_META_INVALID,
             $previous,
         );
     }
@@ -59,7 +82,7 @@ final class ResetException extends \RuntimeException
     {
         return new self(
             ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
-            'reset-not-resettable',
+            self::REASON_SERVICE_NOT_RESETTABLE,
             $previous,
         );
     }
@@ -68,7 +91,7 @@ final class ResetException extends \RuntimeException
     {
         return new self(
             ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED,
-            'reset-service-failed',
+            self::REASON_SERVICE_FAILED,
             $previous,
         );
     }
@@ -77,7 +100,7 @@ final class ResetException extends \RuntimeException
     {
         return new self(
             ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED,
-            'reset-observability-failed',
+            self::REASON_OBSERVABILITY_FAILED,
             $previous,
         );
     }
@@ -85,5 +108,23 @@ final class ResetException extends \RuntimeException
     public function code(): string
     {
         return $this->resetCode;
+    }
+
+    public function errorCode(): string
+    {
+        return $this->code();
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
+    }
+
+    public function withoutPrevious(): self
+    {
+        return new self(
+            $this->resetCode,
+            $this->reason,
+        );
     }
 }

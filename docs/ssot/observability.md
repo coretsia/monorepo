@@ -31,6 +31,7 @@ A single SSoT defines observability naming, the canonical metrics catalog, metri
 - Runtime span names emitted through `TracerPortInterface::startSpan(...)` or `TracerPortInterface::inSpan(...)` MUST follow the canonical span naming policy in this document.
 - Span names MUST NOT be registered in the canonical metrics catalog.
 - Redaction policy is global for logs, metrics, and spans.
+- Reset observability safety policy is defined in `docs/ssot/observability-and-errors.md`; this document owns only the canonical reset span name, reset metric names, metric-specific labels, and global redaction law.
 - Safe derivations such as hashes, lengths, and explicitly safe identifiers MAY be used when they preserve privacy and bounded cardinality.
 
 ## Naming Rules (MUST)
@@ -55,6 +56,7 @@ Rules:
 - `singular_operation` MUST be singular and describe the operation kind, not raw request data.
 - Span names emitted through `TracerPortInterface::startSpan(...)` or `TracerPortInterface::inSpan(...)` MUST follow this shape.
 - Valid reset span name is `foundation.reset`.
+- Reset span exception-recording safety is governed by `docs/ssot/observability-and-errors.md`.
 - Plural span operation drift such as `foundation.resets` is forbidden.
 - Span names MUST NOT be added to the canonical metrics catalog.
 - Span names MUST NOT embed raw path fragments, identifiers, query strings, SQL, or user-controlled bytes.
@@ -138,6 +140,22 @@ The method/type mapping is canonical:
 | foundation.reset_total       | `core/foundation` | counter | `outcome`                     |
 | foundation.reset_duration_ms | `core/foundation` | observe | `outcome`                     |
 
+Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
+
+Reset metrics MAY use only the metric-specific label already registered in this catalog:
+
+```text
+outcome
+```
+
+Reset observability failure diagnostics, sanitized reset exception recording, and reset summary-only log/span policy are governed by:
+
+```text
+docs/ssot/observability-and-errors.md
+```
+
+This cross-reference MUST NOT introduce additional reset metric names, reset metric labels, reset span names, or reset logging payload fields.
+
 ## Forbidden Data (MUST NOT LEAK)
 
 The following data is forbidden in logs, metrics, span names, span attributes, and label values unless transformed into a safe representation:
@@ -207,6 +225,14 @@ Reset metric names and their metric-specific labels are registered in the canoni
 
 No additional baseline labels are allowed for these canonical metrics beyond their catalog rows.
 
+Reset observability safety policy, including sanitized reset exception recording, summary-only logs/metrics/spans, and reset failure diagnostic limits, is defined in:
+
+```text
+docs/ssot/observability-and-errors.md
+```
+
+This document does not add reset logging payload fields beyond the reset summary policy owned by `docs/ssot/observability-and-errors.md`.
+
 ## Redaction Law (MUST)
 
 - Redaction rules apply equally to logs, metrics, spans, span attributes, and metric labels.
@@ -223,5 +249,5 @@ No additional baseline labels are allowed for these canonical metrics beyond the
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
-- [Observability and errors](./observability-and-errors.md)
+- [Observability and errors](./observability-and-errors.md) — reset observability safety policy, sanitized reset exception recording, and summary-only reset logs/metrics/spans.
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

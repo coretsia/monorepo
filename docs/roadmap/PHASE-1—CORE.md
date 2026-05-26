@@ -8300,7 +8300,7 @@ Contract:
 
 ---
 
-# 1.275.0 Foundation: Json-like Runtime Value Normalization Primitive (MUST) [IMPL]
+### 1.275.0 Foundation: Json-like Runtime Value Normalization Primitive (MUST) [IMPL]
 
 ---
 type: package
@@ -8807,6 +8807,770 @@ N/A
 
 ---
 
+### 1.277.0 Foundation: Runtime Failure Safety Hardening (MUST) [IMPL]
+
+---
+type: package
+phase: 1
+epic_id: "1.277.0"
+owner_path: "framework/packages/core/foundation"
+
+package_id: "core/foundation"
+composer: "coretsia/core-foundation"
+kind: runtime
+module_id: "core.foundation"
+
+goal: "Harden Foundation runtime failure and diagnostics boundaries so reset observability, context key/write rejection, correlation id reads, and container diagnostics cannot leak unsafe raw runtime values."
+provides:
+- "Sanitized reset failure exception copies for observability recording"
+- "Consistent ResetException accessors compatible with runtime exception style"
+- "Safe ContextStore invalid-key diagnostics without raw unsafe key leakage"
+- "CorrelationIdProvider read-side validation for canonical safe correlation ids"
+- "Container diagnostics sanitization for suspicious service ids"
+- "Contract and integration tests proving Foundation runtime diagnostics do not leak unsafe values"
+- "Safe ContextStore write-forbidden diagnostics with stable reason tokens and safe path segments"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: "updates existing ADRs only; no new ADR"
+adr_updates:
+- docs/adr/ADR-0019-enhanced-reset-long-running.md
+- docs/adr/ADR-0015-context-bag-context-store-correlation-id.md
+- docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
+- docs/adr/ADR-0016-clock-ids-stopwatch.md
+- docs/adr/ADR-0006-reset-interface-uow-hooks.md
+ssot_refs:
+- docs/ssot/uow-and-reset-contracts.md
+- docs/ssot/observability-and-errors.md
+- docs/ssot/observability.md
+- docs/ssot/reset-tags.md
+- docs/ssot/context-store.md
+- docs/ssot/context-keys.md
+- docs/ssot/time-ids-and-duration.md
+- docs/ssot/di-tags-and-middleware-ordering.md
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 1.120.0 — `ResetInterface` and UoW/reset contracts exist.
+  - 1.200.0 — Foundation DI/tags/reset/stable diagnostics baseline exists.
+  - 1.260.0 — Foundation enhanced reset ordering and observability exist.
+  - 1.270.0 — downstream Kernel UoW shapes exist; this epic hardens the Foundation reset boundary they will later consume.
+  - 1.275.0 — Foundation safe diagnostics discipline exists for json-like runtime values; this epic applies the same no-raw-diagnostics policy to reset observability.
+
+- Required deliverables (exact paths):
+  - `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php` — existing deterministic reset failure exception to harden with stable accessors and sanitized-copy API.
+  - `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php` — existing enhanced reset executor that records reset failures into tracing spans.
+  - `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` — existing reset rejection test to extend with `errorCode()` / `reason()` assertions.
+  - `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php` — existing service-failure test to extend with `errorCode()` / `reason()` and sanitized recorded exception assertions.
+  - `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php` — existing reset observability baseline reference.
+  - `framework/packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php` — existing context key rejection exception to harden against unsafe raw key leakage.
+  - `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php` — existing read-side correlation id provider to harden against unsafe malformed context values.
+  - `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php` — existing deterministic container diagnostics snapshot to harden suspicious service id handling.
+  - `docs/ssot/context-store.md` — existing ContextStore SSoT to document safe invalid-key diagnostics.
+  - `docs/ssot/context-keys.md` — existing context key policy SSoT to document safe diagnostic key segments.
+  - `docs/ssot/time-ids-and-duration.md` — existing IDs/time SSoT to document canonical correlation id read-side format.
+  - `docs/ssot/di-tags-and-middleware-ordering.md` — existing DI/tag ordering SSoT to document container diagnostics service-id sanitization.
+  - `framework/packages/core/foundation/README.md` — existing Foundation package README to document runtime failure safety hardening.
+  - `docs/ssot/uow-and-reset-contracts.md` — existing reset/UoW SSoT to document safe reset failure diagnostics.
+  - `docs/ssot/observability-and-errors.md` — existing observability/error policy SSoT to document sanitized reset exception recording.
+  - `docs/ssot/observability.md` — existing observability SSoT to cross-reference reset observability safety.
+  - `framework/packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php` — existing context write rejection exception to harden with stable reason/safePath accessors and safe path diagnostics.
+  - `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php` — existing safe-write guard integration test to align invalid-key diagnostics with <key> policy and extend write-forbidden assertions.
+  - `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php` — new contract test proving write-forbidden diagnostics expose only stable reason tokens and safe path segments.
+
+- Required config roots/keys:
+  - `foundation` — existing Foundation config root.
+  - `foundation.reset.tag` — existing effective reset discovery tag.
+  - `foundation.reset.priority.enabled` — existing enhanced reset orchestration switch.
+  - `foundation.reset.group.default` — existing enhanced reset default group.
+
+- Required tags:
+  - `kernel.reset` — existing effective reset discovery tag used by Foundation reset orchestration.
+  - This epic introduces no new tags and MUST NOT redefine tag ownership.
+
+- Required contracts / ports:
+  - `Coretsia\Contracts\Runtime\ResetInterface` — reset capability contract implemented by resettable services and consumed by Foundation reset orchestration.
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — reset tracing span source.
+  - `Coretsia\Contracts\Observability\Tracing\SpanInterface` — reset failure exception recording target.
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — reset metrics target.
+  - `Coretsia\Contracts\Context\ContextAccessorInterface` — read-side context accessor consumed by `CorrelationIdProvider`.
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` — read-side correlation id provider port implemented by Foundation.
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- `core/contracts`
+- `psr/container`
+- `psr/log`
+- `psr/clock`
+
+Forbidden:
+
+- `core/kernel`
+- `platform/*`
+- `integrations/*`
+- `devtools/*`
+- `tools/*`
+- `framework/tools/spikes/*`
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Container\ContainerInterface`
+  - `Psr\Log\LoggerInterface`
+- Contracts:
+  - `Coretsia\Contracts\Runtime\ResetInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Tracing\SpanInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
+- Foundation stable APIs:
+  - `Coretsia\Foundation\Runtime\Reset\ResetException`
+  - `Coretsia\Foundation\Runtime\Reset\ResetErrorCodes`
+  - `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
+  - `Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator`
+  - `Coretsia\Foundation\Tag\TagRegistry`
+  - `Coretsia\Foundation\Tag\TaggedService`
+  - `Coretsia\Foundation\Time\Stopwatch`
+  - `Coretsia\Foundation\Container\ContainerBuilder`
+  - `Coretsia\Foundation\Provider\Tags`
+
+### Entry points / integration points (MUST)
+
+- Other runtime discovery / integration tags:
+  - `kernel.reset` — existing reset discovery tag consumed only by Foundation reset orchestration; this epic does not define or redefine ownership, priority semantics, or tag meta-schema.
+- Observability:
+  - span: `foundation.reset`
+  - metrics:
+    - `foundation.reset_total`
+    - `foundation.reset_duration_ms`
+  - logs:
+    - lifecycle summary message `foundation.reset`
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+  - [x] Assert `ContextWriteForbiddenException::ERROR_CODE` remains stable.
+  - [x] Assert `reason()` exposes the stable write-forbidden reason token.
+  - [x] Assert `safePath()` exposes only a safe diagnostic path segment.
+  - [x] Assert safe paths remain visible when they match the conservative safe-path policy.
+  - [x] Assert unsafe paths are replaced with `<path>`.
+  - [x] Assert messages contain only stable reason and safe path segment.
+  - [x] Assert messages MUST NOT include raw rejected values.
+  - [x] Assert messages MUST NOT include unsafe path fragments containing auth values, cookies, session ids, tokens, credentials, passwords, raw SQL, object dumps, local absolute paths, control chars, or environment-specific bytes.
+  - [x] Assert `getCode()` remains `0`.
+  - [x] Assert previous throwable may be preserved for programmatic chaining, while `getMessage()` remains safe.
+
+- [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+  - [x] Assert each static constructor returns the expected reset code.
+  - [x] Assert `code()` and `errorCode()` return the same value.
+  - [x] Assert `reason()` returns the stable safe reason token.
+  - [x] Assert `getCode()` remains `0`.
+  - [x] Assert `withoutPrevious()` preserves code/errorCode/reason/message.
+  - [x] Assert `withoutPrevious()` strips previous throwable.
+  - [x] Assert exception messages remain stable safe reason tokens only.
+
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+  - [x] Assert a reset service may throw an unsafe exception message containing token/cookie/raw SQL/local path fragments.
+  - [x] Assert surfaced `ResetException` message remains safe.
+  - [x] Assert surfaced `ResetException::getPrevious()` may preserve the original service failure for programmatic chaining.
+  - [x] Assert span `recordException()` receives a sanitized `ResetException` copy.
+  - [x] Assert the recorded exception has no previous throwable.
+  - [x] Assert the recorded exception message does not leak the raw reset service exception message.
+  - [x] Assert recorded exception diagnostics do not leak auth values, cookies, session ids, tokens, credentials, passwords, raw SQL, raw payloads, object dumps, local absolute paths, or environment-specific bytes.
+  - [x] Assert span exception attributes remain summary-only:
+    - [x] `outcome=failed`
+  - [x] Assert reset metrics/log summary remain policy-compliant and do not include service internals.
+
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+  - [x] Assert tracer/span observability failure after successful reset surfaces `ResetException::observabilityFailed()`.
+  - [x] Assert observability failure after successful reset is surfaced when span `end()` throws.
+  - [x] Assert observability failure after successful reset is surfaced when meter emission throws.
+  - [x] Assert observability failure after successful reset is surfaced when logger emission throws.
+  - [x] Assert reset service failure remains primary when span `recordException()` throws while recording the reset failure.
+  - [x] Assert observability failure message is stable and safe.
+  - [x] Assert observability failure does not leak the unsafe previous throwable message through `ResetException::getMessage()`.
+  - [x] Assert reset service failure remains primary when reset service failure occurs before tracer/span/meter/logger failure.
+  - [x] Assert observability failure does not replace primary `ResetException::serviceFailed()`.
+  - [x] Assert observability failure does not leak through reset summary logs or metrics.
+  - [x] Assert failure precedence is deterministic:
+    - [x] reset succeeds + observability fails → `reset-observability-failed`
+    - [x] reset fails + observability also fails → original reset failure remains surfaced
+
+- [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+  - [x] Assert safe unknown key diagnostics remain stable for conservative safe keys.
+  - [x] Assert safe reserved key diagnostics remain stable for conservative safe `@*` keys.
+  - [x] Assert unsafe unknown keys are replaced with `<key>`.
+  - [x] Assert unsafe reserved keys are replaced with `<key>`.
+  - [x] Assert keys containing tokens, cookies, SQL fragments, URLs, absolute paths, control chars, or credentials do not appear in exception messages.
+  - [x] Assert `ContextInvalidKeyException::reason()` exposes the stable reason token.
+  - [x] Assert `ContextInvalidKeyException::safeKey()` exposes only a safe diagnostic segment.
+
+- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+  - [x] Assert provider returns canonical ULID correlation id.
+  - [x] Assert provider returns `null` for empty string.
+  - [x] Assert provider returns `null` for non-string values.
+  - [x] Assert provider returns `null` for lowercase ULID-like values.
+  - [x] Assert provider returns `null` for token-like strings.
+  - [x] Assert provider returns `null` for cookie-like strings.
+  - [x] Assert provider returns `null` for raw SQL-like strings.
+  - [x] Assert provider returns `null` for URL/path/header-like strings.
+  - [x] Assert provider has no write side effects.
+
+- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+  - [x] Assert normal FQCN service ids remain readable.
+  - [x] Assert normal safe aliases remain readable.
+  - [x] Assert absolute paths are hashed.
+  - [x] Assert URL-like service ids are hashed.
+  - [x] Assert token-like service ids are hashed.
+  - [x] Assert credential-like service ids are hashed.
+  - [x] Assert SQL-like service ids are hashed.
+  - [x] Assert diagnostics JSON does not contain unsafe raw service ids.
+  - [x] Assert hash format is deterministic and includes `hash:sha256:` and `len:`.
+  - [x] Assert suspicious aliases such as `token:abc`, `secret.value`, `password:raw`, and `credential.token` are hashed even though they match the conservative alias character pattern.
+  - [x] Assert sensitive/suspicious detection has precedence over readable alias allowlisting.
+
+#### Modifies
+
+- [x] `framework/packages/core/foundation/README.md`
+  - [x] Document that reset observability records sanitized reset failures only.
+  - [x] Document that `ResetException::withoutPrevious()` is used for span recording.
+  - [x] Document that `ResetException::errorCode()` / `reason()` are stable runtime-style accessors.
+  - [x] Document context invalid-key diagnostics safety.
+  - [x] Document CorrelationIdProvider read-side validation.
+  - [x] Document ContainerDiagnostics suspicious service-id hashing.
+  - [x] Reaffirm that Foundation diagnostics/logs/metrics/spans are summary-only and do not expose unsafe raw runtime values.
+  - [x] Document `ContextWriteForbiddenException::reason()` / `safePath()` as stable runtime-style diagnostics accessors.
+  - [x] Document that write-forbidden messages expose only stable reason and safe path segment.
+
+- [x] `docs/ssot/uow-and-reset-contracts.md`
+  - [x] Clarify that `ResetInterface` services may throw arbitrary exceptions, but reset diagnostics and observability MUST remain safe.
+  - [x] Clarify that Foundation reset orchestration may preserve previous throwables for programmatic chaining while sanitized observability MUST strip previous exception chains.
+  - [x] Clarify that reset execution remains Foundation-owned and KernelRuntime consumes only `ResetOrchestrator::resetAll()`.
+
+- [x] `docs/ssot/observability-and-errors.md`
+  - [x] Add reset observability policy:
+    - [x] spans may record reset failures only as sanitized `ResetException` copies without previous throwables.
+    - [x] span exception recording MUST NOT leak raw previous throwable messages or stack traces.
+    - [x] logs/metrics MUST remain summary-only.
+  - [x] Clarify allowed reset labels:
+    - [x] `outcome`
+  - [x] Clarify reset failure diagnostics allowed values:
+    - [x] stable reset code
+    - [x] stable reason token
+    - [x] summary counts
+    - [x] duration
+
+- [x] `docs/ssot/observability.md`
+  - [x] Cross-reference reset observability safety policy from `docs/ssot/observability-and-errors.md`.
+  - [x] Do not introduce new span names, metric names, labels, or logging payload fields.
+
+- [x] `docs/ssot/context-store.md`
+  - [x] Document that context invalid-key diagnostics MUST NOT leak unsafe raw rejected keys.
+  - [x] Document that safe context keys may remain visible only under conservative safe-key rules.
+  - [x] Document that unsafe keys are represented by stable placeholders such as `<key>`.
+  - [x] Document that context write-forbidden diagnostics MUST NOT leak rejected raw values.
+  - [x] Document that context write-forbidden diagnostics may include only stable reason token and safe path segment.
+  - [x] Document that unsafe paths are represented by `<path>`.
+  - [x] Document that unsafe map keys inside value paths are represented by `[<key>]`.
+
+- [x] `docs/ssot/context-keys.md`
+  - [x] Cross-reference context invalid-key diagnostic safety policy.
+  - [x] Clarify that key names used in diagnostics are safe structural identifiers, not raw user-controlled values.
+  - [x] Cross-reference write-forbidden safe path diagnostics.
+  - [x] Clarify that diagnostic paths are structural safe paths, not raw user-controlled key/value payloads.
+
+- [x] `docs/ssot/time-ids-and-duration.md`
+  - [x] Document canonical Foundation correlation id format used by `CorrelationIdProvider`.
+  - [x] Clarify that malformed or unsafe correlation id context values resolve to `null`.
+
+- [x] `docs/ssot/di-tags-and-middleware-ordering.md`
+  - [x] Document that container diagnostics sanitize suspicious service ids.
+  - [x] Clarify that service id diagnostics may hash unsafe ids using `hash:sha256:<hash>;len:<len>`.
+  - [x] Do not introduce new tag ownership, tag meta-schema, or discovery semantics.
+
+- [x] `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php`
+  - [x] Preserve deterministic JSON output.
+  - [x] Preserve recursive stable JSON encoding through `StableJsonEncoder`.
+  - [x] Preserve existing absolute-path hashing behavior.
+  - [x] Extend `diagnosticSafeId()` to hash suspicious service ids, not only absolute paths.
+  - [x] Keep normal class-like service ids readable.
+  - [x] Keep conservative safe aliases readable.
+  - [x] MUST NOT leak raw URL-like, token-like, credential-like, SQL-like, absolute-path-like, control-character, or overlong service ids.
+  - [x] Hash replacement MUST remain deterministic as `hash:sha256:<hash>;len:<len>`.
+  - [x] Safe readable service ids are:
+    - [x] class-like ids matching `/\A[A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)*\z/`
+    - [x] conservative aliases matching `/\A[A-Za-z_][A-Za-z0-9_.:-]{0,127}\z/`
+  - [x] Suspicious/sensitive service-id detection MUST run before readable-id allowlist checks.
+  - [x] Token-like, credential-like, password-like, secret-like, cookie-like, authorization-like, SQL-like, URL-like, path-like, control-character, and overlong ids MUST be hashed even if they match the conservative alias pattern.
+  - [x] Any id outside these patterns MUST be hashed unless already normalized by existing absolute-path hash logic.
+
+- [x] `framework/packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php`
+  - [x] Preserve `ERROR_CODE`.
+  - [x] Add `private readonly string $reason`.
+  - [x] Add `private readonly ?string $safeKey`.
+  - [x] Add `public function reason(): string`.
+  - [x] Add `public function safeKey(): ?string`.
+  - [x] Message MUST contain only stable reason and safe key segment.
+  - [x] Message MUST NOT contain raw unsafe rejected keys.
+  - [x] Use raw key in message only when it matches a conservative safe-key pattern.
+  - [x] Replace unsafe, long, whitespace, URL-like, SQL-like, path-like, token-like, credential-like, or control-character keys with `<key>`.
+  - [x] Use raw key in message only when it matches conservative safe-key pattern:
+    - [x] `/\A@?[A-Za-z_][A-Za-z0-9_]{0,63}\z/`
+
+- [x] `framework/packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php`
+  - [x] Preserve `ERROR_CODE`.
+  - [x] Add `private readonly string $reason`.
+  - [x] Add `private readonly ?string $safePath`.
+  - [x] Add `public function reason(): string`.
+  - [x] Add `public function safePath(): ?string`.
+  - [x] Validate allowed stable reason tokens.
+  - [x] Message MUST contain only stable reason and safe path segment.
+  - [x] Message MUST NOT contain rejected raw values.
+  - [x] Message MUST NOT contain unsafe raw path fragments.
+  - [x] Use raw path in message only when it matches conservative safe-path policy.
+  - [x] Replace unsafe, long, whitespace, URL-like, SQL-like, path-like, token-like, credential-like, control-character, or sensitive paths with `<path>`.
+  - [x] Preserve previous throwable for programmatic chaining.
+  - [x] Previous throwable message MUST NOT be copied into `getMessage()`.
+  - [x] Safe readable paths are:
+    - [x] root/context path segments matching conservative identifier shape.
+    - [x] dotted safe segments.
+    - [x] list indices like `[0]`.
+    - [x] sanitized map placeholders like `[<key>]`.
+  - [x] Constructor message policy MUST remain stable and safe.
+
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
+  - [x] Preserve existing `public function code(): string` behavior.
+  - [x] Add `private readonly string $reason`.
+  - [x] Store `$reason` in the constructor.
+  - [x] Add `public function errorCode(): string`.
+  - [x] `errorCode()` MUST return the same value as `code()`.
+  - [x] Add `public function reason(): string`.
+  - [x] `reason()` MUST return the stable safe message token.
+  - [x] Add `public function withoutPrevious(): self`.
+  - [x] `withoutPrevious()` MUST return a new `ResetException` using the stored `$resetCode` and stored `$reason`, not by parsing or deriving data from the previous throwable.
+  - [x] `withoutPrevious()` MUST NOT preserve the previous throwable.
+  - [x] `withoutPrevious()` MUST NOT change `getMessage()`, `code()`, `errorCode()`, or `reason()`.
+  - [x] Keep existing static constructors:
+    - [x] `metaInvalid()`
+    - [x] `serviceNotResettable()`
+    - [x] `serviceFailed()`
+    - [x] `observabilityFailed()`
+  - [x] Constructor message policy MUST remain stable and safe.
+  - [x] Exception messages MUST NOT include service ids, payloads, secrets, raw context values, absolute paths, headers, cookies, Authorization values, tokens, session ids, host-specific values, or environment-specific data.
+
+- [x] `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
+  - [x] When recording reset failure into span, call `ResetException::withoutPrevious()` before `SpanInterface::recordException()`.
+  - [x] MUST NOT pass a `ResetException` containing a raw previous chain to `recordException()`.
+  - [x] Preserve existing span name:
+    - [x] `foundation.reset`
+  - [x] Preserve existing metrics:
+    - [x] `foundation.reset_total`
+    - [x] `foundation.reset_duration_ms`
+  - [x] Preserve existing labels:
+    - [x] `outcome`
+  - [x] Preserve existing log message:
+    - [x] `foundation.reset`
+  - [x] Preserve existing failure precedence:
+    - [x] reset succeeds + observability fails → surface `ResetException::observabilityFailed()`
+    - [x] reset fails + observability also fails → preserve primary reset failure
+  - [x] Observability summary MUST remain summary-only.
+  - [x] Observability summary MUST NOT include raw service ids, tag metadata, service instances, raw previous exception messages, stack traces, payloads, secrets, headers, cookies, Authorization values, tokens, session ids, absolute paths, or raw context values.
+
+- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] Add assertions that `ResetException::errorCode()` equals `ResetException::code()`.
+  - [x] Add assertions that `ResetException::reason()` equals `reset-not-resettable`.
+  - [x] Assert `withoutPrevious()` preserves code/errorCode/reason/message.
+  - [x] Assert `withoutPrevious()` has no previous throwable.
+  - [x] Preserve existing deterministic stop-at-first-invalid-service behavior.
+  - [x] Preserve existing safe message assertions.
+
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+  - [x] Add assertions that `ResetException::errorCode()` equals `ResetException::code()`.
+  - [x] Add assertions that `ResetException::reason()` equals `reset-service-failed`.
+  - [x] Assert surfaced `ResetException` may preserve the original service failure as previous.
+  - [x] Assert the span recorded exception is a sanitized reset exception without previous.
+  - [x] Assert the recorded exception has the same code/errorCode/reason/message as the surfaced reset failure.
+  - [x] Preserve existing first-failing-service behavior.
+  - [x] Preserve existing safe summary observability assertions.
+
+- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+  - [x] Update only if helper fakes require shared recorded-exception assertions.
+  - [x] Preserve existing success and failure observability summary expectations.
+
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+  - [x] Preserve exact message assertions only for safe keys like `@foo`.
+  - [x] Add unsafe reserved key no-leak assertions.
+
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+  - [x] Preserve exact message assertions only for safe keys like `unknown_key`.
+  - [x] Add unsafe unknown key no-leak assertions.
+
+- [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] Adjust key-policy assertions if needed after safe-key diagnostics hardening.
+  - [x] Assert `ContextWriteForbiddenException::reason()` equals mapped context write reason.
+  - [x] Assert `ContextWriteForbiddenException::safePath()` equals expected safe path.
+  - [x] Assert unsafe JsonLikeNormalizer map-key paths remain represented by `[<key>]`.
+  - [x] Assert write-forbidden messages do not expose rejected raw values.
+  - [x] Assert write-forbidden messages do not expose raw JsonLikeNormalizationException reason tokens.
+  - [x] Preserve existing JsonLikeNormalizer delegation assertions.
+  - [x] Preserve existing no-mutation assertions.
+
+- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+  - [x] Preserve unsafe non-canonical key rejection before storage.
+  - [x] For sensitive unsafe non-canonical keys, assert `ContextInvalidKeyException::safeKey()` is `<key>`.
+  - [x] For sensitive unsafe non-canonical keys, assert message is `context-key-unknown: <key>`.
+  - [x] Preserve exact raw-key message assertions only for conservative safe rejected keys such as `headers`, `request_body`, `response_body`, `email`, `phone`, `full_name`.
+  - [x] Add `ContextWriteForbiddenException::reason()` assertions for forbidden value-shape rejection.
+  - [x] Add `ContextWriteForbiddenException::safePath()` assertions for forbidden value-shape rejection.
+  - [x] Preserve write-before-storage behavior.
+  - [x] Preserve callable-like string accepted as plain string.
+
+- [x] `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php`
+  - [x] Keep read-only behavior.
+  - [x] MUST NOT generate a correlation id.
+  - [x] MUST NOT normalize unsafe input.
+  - [x] MUST return current context correlation id only when it matches canonical Foundation correlation id format.
+  - [x] MUST return `null` for unsafe or malformed correlation id values.
+  - [x] MUST NOT leak malformed correlation id values through exceptions, logs, metrics, traces, or diagnostics.
+  - [x] Canonical Foundation correlation id format is uppercase ULID-like:
+    - [x] `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
+
+- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+  - [x] Preserve canonical valid correlation id behavior.
+  - [x] Add or keep null behavior for absent/empty/non-string values.
+  - [x] Assert canonical valid value matches `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`.
+
+#### Package skeleton (if type=package)
+
+N/A — this epic modifies the existing `core/foundation` runtime package and does not create a new package skeleton.
+
+#### Configuration (keys + defaults)
+
+- Files:
+  - N/A — this epic introduces no config files.
+- Keys (dot):
+  - N/A — this epic introduces no config keys.
+- [x] Rules:
+  - [x] Existing reset config shape is unchanged.
+  - [x] Existing reset tag config is unchanged.
+  - [x] Existing priority/group reset config is unchanged.
+  - [x] Sanitized reset observability MUST be unconditional and MUST NOT be feature-disabled via config.
+
+#### Wiring / DI tags (when applicable)
+
+- Tags introduced (this epic is the OWNER):
+  - N/A — this epic introduces no tags.
+- ServiceProvider wiring evidence:
+  - N/A — this epic introduces no new services and no new DI registrations.
+- [x] Compliance delta:
+  - [x] this package MUST NOT introduce owner constants for tags it does not own.
+  - [x] runtime code MUST NOT use raw reset tag strings for new behavior.
+  - [x] existing reset tag ownership and discovery semantics remain unchanged.
+  - [x] non-owner packages MUST NOT define competing reset tag semantics as part of this epic.
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- [x] Context reads:
+  - [x] `ContextKeys::CORRELATION_ID` / `correlation_id`
+  - [x] `CorrelationIdProvider` MUST read correlation id values only through `ContextAccessorInterface`.
+  - [x] malformed or unsafe correlation id context values MUST resolve to `null`.
+  - [x] context reads MUST NOT log, trace, emit, normalize, or leak malformed values.
+- Context writes (safe only):
+  - N/A — this epic does not add context writes.
+- [x] Reset discipline:
+  - [x] resettable services still implement `Coretsia\Contracts\Runtime\ResetInterface`.
+  - [x] reset execution remains owned by Foundation reset orchestration.
+  - [x] `ResetOrchestrator::resetAll()` remains the public reset execution boundary.
+  - [x] reset discovery tag semantics are unchanged.
+  - [x] reset failure observability MUST use sanitized `ResetException` copies.
+  - [x] reset service failures MUST NOT leak raw previous throwable data through spans/logs/metrics.
+- [x] Context invalid-key diagnostics:
+  - [x] Context key rejection MUST NOT leak unsafe raw rejected keys.
+  - [x] Safe context key identifiers may remain visible only when they match conservative safe-key rules.
+  - [x] Unsafe keys MUST be replaced with stable placeholders.
+- [x] Context write-forbidden diagnostics:
+  - [x] Context value-shape rejection MUST NOT leak rejected raw values.
+  - [x] Context value-shape rejection MUST NOT leak unsafe raw path fragments.
+  - [x] Safe path-to-value diagnostics may remain visible only when they match conservative safe-path rules.
+  - [x] Unsafe paths MUST be replaced with stable placeholder `<path>`.
+  - [x] Sanitized JsonLikeNormalizer map-key placeholders such as `[<key>]` are allowed in safe paths.
+  - [x] `ContextWriteForbiddenException::reason()` MUST return a stable reason token.
+  - [x] `ContextWriteForbiddenException::safePath()` MUST return only a safe diagnostic path segment or `null`.
+
+#### Observability (policy-compliant)
+
+- [x] Spans:
+  - [x] `foundation.reset`
+  - [x] Span attributes remain summary-only:
+    - [x] `services_count`
+    - [x] `groups_count`
+    - [x] `outcome`
+  - [x] Failed reset spans may record a sanitized `ResetException` only.
+  - [x] Failed reset spans MUST NOT record a throwable with a raw previous chain.
+- [x] Metrics:
+  - [x] `foundation.reset_total` (labels: `outcome`)
+  - [x] `foundation.reset_duration_ms` (labels: `outcome`)
+- [x] Logs:
+  - [x] message: `foundation.reset`
+  - [x] context remains summary-only:
+    - [x] `services_count`
+    - [x] `groups_count`
+    - [x] `outcome`
+  - [x] redaction applied by construction; no service internals, raw payloads, raw previous throwable messages, stack traces, tokens, cookies, raw SQL, or local paths.
+- [x] Correlation id read-side safety:
+  - [x] `CorrelationIdProvider` MUST return only canonical safe correlation id strings.
+  - [x] malformed or unsafe correlation id context values MUST resolve to `null`.
+
+#### Errors
+
+- Exceptions introduced:
+  - N/A — this epic introduces no new exception class.
+- [x] Exceptions modified:
+  - [x] `Coretsia\Foundation\Runtime\Reset\ResetException`
+    - [x] preserve `code()`
+    - [x] add `errorCode()`
+    - [x] add `reason()`
+    - [x] add `withoutPrevious()`
+  - [x] `Coretsia\Foundation\Context\Exception\ContextInvalidKeyException`
+    - [x] preserve `ERROR_CODE`
+    - [x] add `reason()`
+    - [x] add `safeKey()`
+    - [x] replace unsafe raw rejected keys with safe placeholders
+  - [x] `Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException`
+    - [x] preserve `ERROR_CODE`
+    - [x] add `reason()`
+    - [x] add `safePath()`
+    - [x] validate stable write-forbidden reason tokens
+    - [x] replace unsafe raw paths with `<path>`
+    - [x] keep messages stable and safe
+- [x] Mapping:
+  - [x] No `error.mapper` integration is introduced.
+  - [x] Reset failures continue to use existing `ResetErrorCodes`.
+  - [x] Observability failure continues to map to `CORETSIA_RESET_OBSERVABILITY_FAILED`.
+  - [x] Service reset failure continues to map to `CORETSIA_RESET_SERVICE_FAILED`.
+  - [x] Tagged non-resettable service continues to map to `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`.
+  - [x] Context write forbidden failures continue to map to `CORETSIA_CONTEXT_WRITE_FORBIDDEN`.
+  - [x] JsonLikeNormalizer reasons are mapped to stable context write-forbidden reason tokens.
+
+#### Security / Redaction
+
+- [x] MUST NOT leak:
+  - [x] auth values
+  - [x] cookies
+  - [x] session ids
+  - [x] tokens
+  - [x] credentials
+  - [x] passwords
+  - [x] headers
+  - [x] raw SQL
+  - [x] raw payloads
+  - [x] raw context values
+  - [x] raw reset service exception messages
+  - [x] raw previous throwable messages
+  - [x] Throwable stack traces
+  - [x] object dumps
+  - [x] service internals
+  - [x] service instances
+  - [x] tag metadata values
+  - [x] local absolute paths
+  - [x] environment-specific bytes
+  - [x] unsafe context keys
+  - [x] unsafe service ids
+  - [x] malformed correlation ids
+  - [x] unsafe context write paths
+  - [x] rejected raw context values
+  - [x] raw JsonLikeNormalizer previous throwable messages
+- [x] Allowed:
+  - [x] stable reset error code
+  - [x] stable reset reason token
+  - [x] summary counts:
+    - [x] `services_count`
+    - [x] `groups_count`
+  - [x] summary outcome:
+    - [x] `ok`
+    - [x] `failed`
+  - [x] reset duration in milliseconds
+  - [x] sanitized `ResetException` without previous throwable for span exception recording
+  - [x] safe context key segment
+  - [x] hashed diagnostic id
+  - [x] canonical correlation id only when it matches `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
+  - [x] stable context write-forbidden reason token
+  - [x] safe context write path segment
+  - [x] sanitized path placeholder `<path>`
+  - [x] sanitized map-key path placeholder `[<key>]`
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [x] Reset observability failure safety:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+    - [x] fails if `PriorityResetOrchestrator` records a reset failure with raw previous chain.
+    - [x] fails if recorded exception leaks token/cookie/raw SQL/local path fragments.
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+    - [x] fails if observability failure replaces primary reset failure.
+    - [x] fails if observability failure diagnostics leak unsafe details.
+- [x] Reset exception shape:
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+    - [x] fails if `errorCode()` / `reason()` are missing or inconsistent.
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+    - [x] fails if `errorCode()` / `reason()` are missing or inconsistent.
+    - [x] fails if span recorded exception preserves unsafe previous chain.
+  - [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+    - [x] fails if `code()` / `errorCode()` diverge.
+    - [x] fails if `reason()` is missing or unstable.
+    - [x] fails if `withoutPrevious()` preserves previous throwable.
+- [x] Observability policy:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+    - [x] remains green and continues proving summary-only reset observability.
+- [x] Context invalid-key diagnostic safety:
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+    - [x] fails if unsafe rejected context keys appear raw in exception messages.
+    - [x] fails if `reason()` / `safeKey()` are missing or expose unsafe data.
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+    - [x] fails if unsafe reserved `@*` keys leak raw values.
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+    - [x] fails if unsafe unknown keys leak raw values.
+- [x] Correlation id read-side safety:
+  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+    - [x] fails if malformed/token-like/cookie-like/SQL-like/path-like correlation id values are returned.
+    - [x] fails if provider mutates context or generates new ids.
+  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+    - [x] remains green for canonical valid correlation id reads.
+- [x] Container diagnostics service-id safety:
+  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+    - [x] fails if diagnostics JSON contains unsafe raw service ids.
+    - [x] fails if suspicious ids are not hashed deterministically.
+    - [x] fails if normal FQCN/safe aliases stop being readable.
+- [x] Context write-forbidden diagnostic safety:
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+    - [x] fails if unsafe rejected write paths appear raw in exception messages.
+    - [x] fails if rejected raw values appear in exception messages.
+    - [x] fails if `reason()` / `safePath()` are missing or expose unsafe data.
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+    - [x] fails if JsonLikeNormalizer-to-ContextWriteForbiddenException mapping loses safe path or stable reason.
+    - [x] fails if unsafe map-key path placeholders leak raw keys.
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+    - [x] fails if unsafe non-canonical context keys leak raw values.
+    - [x] fails if forbidden value-shape diagnostics leak rejected raw values or unsafe paths.
+
+#### Test harness / fixtures (when integration is needed)
+
+- [x] Fake adapters:
+  - [x] fake tracer/span captures recorded exceptions and attributes.
+  - [x] fake meter captures reset metrics and labels.
+  - [x] fake logger captures reset summary records.
+  - [x] fake container/reset services produce controlled reset success/failure.
+  - [x] fake observability adapters produce controlled tracer/span/meter/logger failures.
+
+### Tests (MUST)
+
+- Unit:
+  - [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+- Contract:
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+- Integration:
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- Gates/Arch:
+  - [x] deptrac remains green: `core/foundation` MUST NOT depend on `core/kernel`, `platform/*`, `integrations/*`, `devtools/*`, or `tools/*`.
+  - [x] package compliance gates remain green: no new tags, config roots, artifacts, or forbidden runtime dependencies.
+  - [x] public API compatibility remains green:
+    - [x] `ResetException::code()` remains available.
+    - [x] `ContextInvalidKeyException::ERROR_CODE` remains available.
+
+### DoD (MUST)
+
+- [x] Deliverables complete (creates+modifies), paths exact.
+- [x] Preconditions satisfied; no forward references introduced.
+- [x] `ResetException::code()` remains backward-compatible.
+- [x] `ResetException::errorCode()` returns the same stable reset code as `code()`.
+- [x] `ResetException::reason()` returns the stable safe reason token.
+- [x] `ResetException::withoutPrevious()` returns a safe copy without previous throwable.
+- [x] `ResetException::withoutPrevious()` preserves reset code, errorCode, reason, and message.
+- [x] `PriorityResetOrchestrator` records sanitized reset failure exceptions into spans.
+- [x] `PriorityResetOrchestrator` MUST NOT pass raw previous exception chains to `SpanInterface::recordException()`.
+- [x] Reset observability failure precedence is deterministic:
+  - [x] reset succeeds + observability fails → `reset-observability-failed`
+  - [x] reset fails + observability also fails → primary reset failure remains surfaced
+- [x] Reset metrics remain summary-only.
+- [x] Reset logs remain summary-only.
+- [x] Reset spans remain summary-only.
+- [x] Safe diagnostics preserved: no raw values, tokens, cookies, SQL, object dumps, stack traces, service internals, tag metadata values, local paths, or environment-specific bytes in reset failures or reset observability.
+- [x] Verification tests present where applicable.
+- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `framework/tools/spikes/*`.
+- [x] `core/foundation` does not depend on `core/kernel`.
+- [x] No config roots, config keys, DI tags, or artifacts introduced.
+- [x] Docs updated:
+  - [x] `framework/packages/core/foundation/README.md`
+  - [x] `docs/ssot/uow-and-reset-contracts.md`
+  - [x] `docs/ssot/observability-and-errors.md`
+  - [x] `docs/ssot/observability.md`
+  - [x] `docs/ssot/context-store.md`
+  - [x] `docs/ssot/context-keys.md`
+  - [x] `docs/ssot/time-ids-and-duration.md`
+  - [x] `docs/ssot/di-tags-and-middleware-ordering.md`
+- [x] `ContextInvalidKeyException` diagnostics are safe:
+  - [x] safe keys may remain visible.
+  - [x] unsafe keys are replaced with `<key>`.
+  - [x] `reason()` returns a stable reason token.
+  - [x] `safeKey()` never exposes unsafe raw input.
+- [x] `ContextWriteForbiddenException` diagnostics are safe:
+  - [x] rejected raw values never appear in exception messages.
+  - [x] unsafe paths are replaced with `<path>`.
+  - [x] safe paths may remain visible only under conservative safe-path rules.
+  - [x] sanitized map-key placeholders like `[<key>]` are allowed.
+  - [x] `reason()` returns a stable reason token.
+  - [x] `safePath()` never exposes unsafe raw path input.
+  - [x] previous throwable may be preserved for programmatic chaining, but its message is not copied into `getMessage()`.
+- [x] `CorrelationIdProvider` read-side safety is enforced:
+  - [x] returns only canonical Foundation correlation id format.
+  - [x] returns `null` for malformed or unsafe context values.
+  - [x] does not generate, normalize, mutate, log, trace, or emit malformed values.
+- [x] `ContainerDiagnostics` service-id safety is enforced:
+  - [x] safe FQCN/class-like service ids remain readable.
+  - [x] conservative safe aliases remain readable.
+  - [x] absolute-path, URL-like, token-like, credential-like, SQL-like, control-character, and overlong ids are hashed.
+  - [x] hash format remains deterministic: `hash:sha256:<hash>;len:<len>`.
+  - [x] suspicious/sensitive detection takes precedence over readable alias allowlisting.
+- [x] Safe diagnostics preserved across all touched Foundation boundaries:
+  - [x] reset failures
+  - [x] reset observability
+  - [x] context invalid-key exceptions
+  - [x] correlation id provider reads
+  - [x] container diagnostics snapshots
+  - [x] context write-forbidden exceptions
+
+---
+
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
 
 ---
@@ -8824,14 +9588,18 @@ goal: "Будь-який runtime (HTTP/CLI/worker) може виконувати
 provides:
 - "Канонічний UoW orchestrator: begin → hooks → external runtime → after → reset"
 - "Однаковий lifecycle для HTTP/CLI/Queue/Scheduler без PSR-7/15 у kernel"
-- "Гарантія: afterUnitOfWork() викликається завжди; reset рівно 1 раз (long-running safe)"
+- "Гарантія для `runUnitOfWork()`: after-phase виконується завжди; reset рівно 1 раз (long-running safe)"
+- "Low-level `beginUnitOfWork()` / `afterUnitOfWork()` API для adapters, які самі інтегруються через `try/finally`"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 adr: "docs/adr/ADR-0020-kernel-runtime-uow-spi.md"
 ssot_refs:
+- "docs/ssot/uow-and-reset-contracts.md"
 - "docs/ssot/uow-outcome-policy.md"
+- "docs/ssot/uow-shapes.md"
+- "docs/ssot/tags.md"
 ---
 
 ### Dependencies (MUST)
@@ -8849,6 +9617,7 @@ ssot_refs:
       - execute Foundation reset orchestration after every UoW.
   - 1.220.0 — canonical clock/ids/stopwatch bindings exist in Foundation.
   - 1.270.0 — UnitOfWork shapes are canonical and provide the exported ctx/result model for hooks.
+  - 1.275.0 — Foundation json-like runtime value normalizer exists and is canonical for baseline json-like validation/normalization used by hook payload export.
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
@@ -8857,21 +9626,36 @@ ssot_refs:
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — Hook interfaces + ResetInterface (ports)
-  - `framework/packages/core/foundation/` — ContextStore + ContextKeys + ResetOrchestrator + DeterministicOrder + TagRegistry
+  - `framework/packages/core/contracts/src/Runtime/ResetInterface.php` — reset discipline port.
+  - `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php` — existing before-UoW hook port updated by this epic.
+  - `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php` — existing after-UoW hook port updated by this epic.
+  - `framework/packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php` — canonical correlation id source.
+  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing port.
+  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics port.
+  - `framework/packages/core/foundation/src/Context/ContextStore.php` — safe context store.
+  - `framework/packages/core/foundation/src/Context/ContextKeys.php` — canonical base context keys.
+  - `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php` — reset executor boundary.
+  - `framework/packages/core/foundation/src/Tag/TagRegistry.php` — deterministic tag ordering source.
+  - `framework/packages/core/foundation/src/Time/Stopwatch.php` — canonical duration measurement.
+  - `framework/packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical `uow_id` generator dependency.
+  - `framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php` — canonical fallback `correlation_id` generator.
+  - `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php` — canonical baseline json-like normalizer used by HookContextNormalizer.
+  - `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php` — canonical json-like normalization failure used by the foundation normalizer.
 
 - Required config roots/keys:
-  - none (all `kernel.runtime.*` keys are introduced by this epic)
+  - none — this epic introduces no new config roots and no new config keys.
 
 - Required tags:
-  - reset discipline is consumed only through `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`; kernel MUST NOT depend on reset tag naming
+  - `kernel.hook.before_uow` — existing reserved before-UoW hook discovery tag; canonical public owner constant introduced by this epic in `Coretsia\Kernel\Provider\Tags`.
+  - `kernel.hook.after_uow` — existing reserved after-UoW hook discovery tag; canonical public owner constant introduced by this epic in `Coretsia\Kernel\Provider\Tags`.
+  - reset discipline is consumed only through `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`; kernel MUST NOT depend on reset tag naming.
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface` — before hooks
-  - `Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface` — after hooks
-  - `Coretsia\Contracts\Runtime\ResetInterface` — reset discipline
+  - `Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface` — before hooks receive normalized exported UoW context array
+  - `Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface` — after hooks receive normalized exported UoW context/result arrays
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — external UoW runtime port consumed by platform/http, platform/cli, worker, scheduler adapters
+  - `Coretsia\Contracts\Runtime\ResetInterface` — reset capability contract implemented by resettable services and consumed by Foundation reset orchestration; KernelRuntime MUST NOT enumerate or call reset services directly.
   - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` — canonical correlation id source for UoW base context
-  - `Psr\Log\LoggerInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 
@@ -8891,6 +9675,8 @@ Depends on:
 
 - `core/contracts`
 - `core/foundation`
+- `psr/container`
+- `psr/log`
 
 Forbidden:
 
@@ -8902,22 +9688,25 @@ Forbidden:
 #### Uses ports (API surface, NOT deps) (optional)
 
 - PSR:
+  - `Psr\Container\ContainerInterface`
   - `Psr\Log\LoggerInterface`
 - Contracts:
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
   - `Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface`
   - `Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface`
-  - `Coretsia\Contracts\Runtime\ResetInterface`
+  - `Coretsia\Contracts\Runtime\ResetInterface` — indirect prerequisite only; KernelRuntime MUST NOT enumerate or call reset services directly and MUST trigger reset only through Foundation `ResetOrchestrator`.
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
   - `Coretsia\Foundation\Context\ContextKeys`
-  - `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
+  - `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` — only reset execution boundary KernelRuntime may call.
   - `Coretsia\Foundation\Tag\TagRegistry`
   - `Psr\Clock\ClockInterface` (via foundation binding)
   - `Coretsia\Foundation\Time\Stopwatch`
   - `Coretsia\Foundation\Id\IdGeneratorInterface`
+  - `Coretsia\Foundation\Id\CorrelationIdGenerator`
 
 ### Entry points / integration points (MUST)
 
@@ -8927,13 +9716,14 @@ Forbidden:
   - consumer MUST NOT enumerate reset tags directly (reset discipline tag; owned by `core/foundation`)
 
 - Platform/HTTP (owner: `platform/http`):
-  - MUST wrap each request into a UoW:
-    - `beginUnitOfWork(type=http, ...)` before handling
-    - `afterUnitOfWork(...)` in `finally` (always)
+  - SHOULD wrap each request through `runUnitOfWork(type=http, body, ...)` when the adapter can delegate the full lifecycle to KernelRuntime.
+  - MAY use low-level `beginUnitOfWork()` / `afterUnitOfWork()` only when integrating around an existing framework lifecycle.
+  - When using low-level API, `afterUnitOfWork()` MUST be called in `finally`.
 
 - Platform/CLI (owner: `platform/cli`):
-  - MUST wrap each command into a UoW (type=cli),
-    except explicitly defined ultra-early flows (if any) that are declared out-of-scope.
+  - SHOULD wrap each command through `runUnitOfWork(type=cli, body, ...)`.
+  - MAY use low-level `beginUnitOfWork()` / `afterUnitOfWork()` for ultra-early or framework-owned flows.
+  - When using low-level API, `afterUnitOfWork()` MUST be called in `finally`.
 
 - Long-running adapters (worker/scheduler; owners: platform adapters):
   - MUST execute each job/tick as its own UoW via KernelRuntime (no cross-UoW leakage).
@@ -8972,27 +9762,226 @@ Build-time commands (explicit non-goal for KernelRuntime):
 
 #### Creates
 
-- [ ] `framework/packages/core/kernel/src/Runtime/KernelRuntimeInterface.php` — UoW begin/after API (no PSR-7)
+- [ ] `framework/packages/core/contracts/src/Runtime/KernelRuntimeInterface.php`
+  - [ ] Create `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
+  - [ ] Define external UoW runtime port consumed by platform/http, platform/cli, worker, and scheduler adapters.
+  - [ ] Define `runUnitOfWork(string $type, callable $body, array $attributes = []): mixed`.
+  - [ ] Define `beginUnitOfWork(string $type, array $attributes = []): array`.
+  - [ ] Define `afterUnitOfWork(array $context, string $outcome, ?\Throwable $error = null, array $extensions = []): array`.
+  - [ ] `runUnitOfWork()` is the preferred API for adapters that want KernelRuntime to enforce `after/reset` with `try/finally`.
+  - [ ] `beginUnitOfWork()` / `afterUnitOfWork()` are low-level primitives for adapters that must integrate around an existing event loop or framework lifecycle.
+  - [ ] MUST NOT depend on `core/kernel`.
+  - [ ] MUST NOT reference `UnitOfWorkContext`, `UnitOfWorkResult`, `Outcome`, or `UnitOfWorkType`.
+  - [ ] MUST NOT depend on PSR-7/15, platform, integrations, or foundation.
+  - [ ] `beginUnitOfWork()` MUST create the UoW context, write base context keys, invoke before-uow hooks, and return the normalized exported context array.
+  - [ ] If `beginUnitOfWork()` returns successfully, before-uow hooks have already completed successfully.
+  - [ ] Low-level adapters MUST execute the external body only after successful `beginUnitOfWork()`.
+  - [ ] `runUnitOfWork()` MUST return the external body return value when the body and after/reset phase complete successfully.
+  - [ ] `runUnitOfWork()` MUST NOT return the exported UoW result array.
+  - [ ] Exported UoW context/result arrays are lifecycle hook payloads; low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
+  - [ ] If body succeeds but after-hook or reset fails, `runUnitOfWork()` MUST surface the after/reset failure instead of returning the body value.
+
 - [ ] `framework/packages/core/kernel/src/Runtime/KernelRuntime.php` — orchestrator:
-  begin-UoW base context writes + hooks + external runtime boundary + after hooks + reset
-  - [ ] MUST write base context keys before the external runtime body is executed:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] MUST call `ResetOrchestrator::resetAll()` exactly once after every UoW.
-- [ ] `framework/packages/core/kernel/src/Runtime/Hook/HookInvoker.php` — invokes hooks in **exact TagRegistry order** (kernel MUST NOT re-sort/dedupe/priority)
+  - [ ] Implement `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
+  - [ ] Internally use `UnitOfWorkContext` / `UnitOfWorkResult`.
+  - [ ] Return normalized exported arrays from `beginUnitOfWork()` and `afterUnitOfWork()`.
+  - [ ] MUST call `ResetOrchestrator::resetAll()` exactly once after every completed/started UoW lifecycle that reaches reset responsibility.
+  - [ ] `beginUnitOfWork()` MUST:
+    - [ ] validate `$type` against canonical `UnitOfWorkType` values;
+    - [ ] create the UoW context;
+    - [ ] write base context keys before the external runtime body is executed:
+      - [ ] `ContextKeys::CORRELATION_ID`
+      - [ ] `ContextKeys::UOW_ID`
+      - [ ] `ContextKeys::UOW_TYPE`
+    - [ ] invoke before-uow hooks;
+    - [ ] return the normalized exported context array.
+  - [ ] If `beginUnitOfWork()` returns successfully, before-uow hooks have already completed successfully.
+  - [ ] Low-level adapters MUST execute the external body only after successful `beginUnitOfWork()`.
+  - [ ] Invalid `$type` MUST fail with `KernelRuntimeException`.
+  - [ ] Type validation failures MUST NOT leak raw payload values.
+  - [ ] Implement `runUnitOfWork()` as the canonical lifecycle wrapper:
+    - [ ] create/begin the UoW context using the same validation and export rules as `beginUnitOfWork()`;
+    - [ ] invoke before-uow hooks before the external body;
+    - [ ] execute the external body only after before-uow hooks succeed;
+    - [ ] execute after-phase and reset through KernelRuntime-owned `try/finally` semantics;
+    - [ ] preserve the primary thrown failure after after/reset phase.
+  - [ ] `runUnitOfWork()` MUST NOT rely on public `beginUnitOfWork()` as an opaque black box if doing so would prevent after/reset semantics after before-hook failure.
+  - [ ] `runUnitOfWork()` MAY reuse shared private begin internals.
+  - [ ] `runUnitOfWork()` MUST return the external body return value when the body and after/reset phase complete successfully.
+  - [ ] `runUnitOfWork()` MUST NOT return the exported UoW result array.
+  - [ ] Exported UoW context/result arrays are lifecycle hook payloads; low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
+  - [ ] If body succeeds but after-hook or reset fails, `runUnitOfWork()` MUST surface the after/reset failure instead of returning the body value.
+  - [ ] `afterUnitOfWork()` MUST:
+    - [ ] validate the provided exported context array before using it;
+    - [ ] validate `$outcome` against canonical `Outcome` values;
+    - [ ] validate extensions through the canonical UoW/result json-like policy;
+    - [ ] build and normalize the exported UoW result array;
+    - [ ] invoke after-uow hooks;
+    - [ ] trigger reset through `ResetOrchestrator::resetAll()`.
+  - [ ] Invalid or incomplete context arrays MUST fail with `KernelRuntimeException`.
+  - [ ] Invalid `$outcome` MUST fail with `KernelRuntimeException`.
+  - [ ] Validation failures MUST NOT leak raw payload values.
+  - [ ] Required context fields:
+    - [ ] `uowId`
+    - [ ] `type`
+    - [ ] `startedAt`
+    - [ ] `correlationId`
+    - [ ] `attributes`
+  - [ ] Failure precedence MUST be deterministic:
+    - [ ] if the external body throws, that throwable remains the primary surfaced failure after after/reset phase;
+    - [ ] if no external body throwable exists and an after-uow hook throws, the after-hook failure is surfaced;
+    - [ ] reset MUST still run exactly once before any failure is surfaced;
+    - [ ] failure handling MUST NOT leak raw payloads, context arrays, hook payloads, tokens, cookies, or transport data.
+  - [ ] For `runUnitOfWork()`, before-hook failure semantics MUST be deterministic:
+    - [ ] if a before-uow hook throws, the external body MUST NOT run;
+    - [ ] after-phase MUST still run with `Outcome::FATAL_ERROR` when before-uow hook failure prevents the external body from running;
+    - [ ] if a before-uow hook throws and an after-uow hook also throws, the before-hook throwable remains the primary surfaced failure;
+    - [ ] reset MUST still run exactly once before the before-hook failure is surfaced.
+  - [ ] Low-level `beginUnitOfWork()` / `afterUnitOfWork()` users receive weaker lifecycle guarantees and MUST use `try/finally`; adapters that need KernelRuntime-owned before-hook failure handling SHOULD use `runUnitOfWork()`.
+  - [ ] Low-level `beginUnitOfWork()` failure semantics MUST be deterministic:
+    - [ ] if `beginUnitOfWork()` fails before any UoW context/base context writes, no reset is required;
+    - [ ] if `beginUnitOfWork()` fails after creating the UoW context or writing base context keys, KernelRuntime MUST trigger reset exactly once before surfacing the failure;
+    - [ ] if `beginUnitOfWork()` invokes before-uow hooks and a before hook throws, KernelRuntime MUST NOT leave ContextStore or other resettable state dirty;
+    - [ ] low-level `beginUnitOfWork()` MAY surface the original before-hook failure after reset;
+    - [ ] diagnostics MUST NOT leak raw context arrays, hook payloads, tokens, cookies, raw SQL, stack traces, object dumps, or local paths.
+  - [ ] Low-level `beginUnitOfWork()` failure does not guarantee after-uow hook execution, because no exported context is returned to the adapter.
+  - [ ] Adapters that require after-uow hooks even for before-hook failures MUST use `runUnitOfWork()`.
+  - [ ] Low-level `afterUnitOfWork()` failure semantics MUST be deterministic:
+    - [ ] if `afterUnitOfWork()` receives invalid context, invalid outcome, or invalid extensions after a UoW has begun, KernelRuntime MUST still trigger reset exactly once before surfacing the failure;
+    - [ ] invalid context/outcome/extensions failures MUST surface as `KernelRuntimeException`;
+    - [ ] reset failure MUST NOT replace the primary invalid-after input failure when that failure already exists;
+    - [ ] diagnostics MUST NOT leak raw context arrays, extensions, hook payloads, Throwable stack traces, tokens, cookies, raw SQL, object dumps, or local paths.
+  - [ ] Reset failure precedence MUST be deterministic:
+    - [ ] if no earlier primary failure exists and `ResetOrchestrator::resetAll()` throws, KernelRuntime MUST surface a `KernelRuntimeException` with a stable reset-failed reason;
+    - [ ] if an earlier primary failure exists and reset also throws, the earlier primary failure MUST remain the surfaced failure;
+    - [ ] reset failure diagnostics MUST NOT leak raw context arrays, hook payloads, transport payloads, tokens, cookies, raw SQL, stack traces, object dumps, or local paths.
+
+- [ ] `framework/packages/core/kernel/src/Runtime/Hook/HookInvoker.php`
+  - [ ] Invoke before hooks through `BeforeUowHookInterface::beforeUow(array $context): void`.
+  - [ ] Invoke after hooks through `AfterUowHookInterface::afterUow(array $context, array $result): void`.
+  - [ ] Obtain hook services only from `TagRegistry::all(Tags::KERNEL_HOOK_BEFORE_UOW)` and `TagRegistry::all(Tags::KERNEL_HOOK_AFTER_UOW)`.
+  - [ ] Invoke hooks in exact `TagRegistry` order.
+  - [ ] MUST NOT re-sort hooks.
+  - [ ] MUST NOT dedupe hooks.
+  - [ ] MUST NOT apply custom priority rules.
+  - [ ] MUST reject services that do not implement the expected hook interface with `KernelRuntimeException`.
+  - [ ] Resolve hook service ids through `Psr\Container\ContainerInterface`.
+  - [ ] Reject unresolved services with `KernelRuntimeException`.
+  - [ ] Reject resolved services that do not implement the expected hook interface with `KernelRuntimeException`.
+  - [ ] Treat each `TagRegistry::all(<tag>)` item as a tagged service reference.
+  - [ ] Resolve each tagged service through `Psr\Container\ContainerInterface` by service id.
+  - [ ] MUST NOT assume `TagRegistry` returns already-instantiated hook objects.
+  - [ ] MUST preserve the exact order returned by `TagRegistry::all()` after resolution.
+  - [ ] Treat each `TagRegistry::all(<tag>)` item as `Coretsia\Foundation\Tag\TaggedService`.
+  - [ ] Resolve each hook service through `Psr\Container\ContainerInterface` using `TaggedService::id()`.
+  - [ ] Hook service resolution failures MUST be wrapped as `KernelRuntimeException`.
+  - [ ] Hook service type mismatches MUST be wrapped as `KernelRuntimeException`.
+  - [ ] Exceptions thrown by valid hook implementations MUST NOT be replaced with `KernelRuntimeException`; they MUST propagate as the hook's original throwable so KernelRuntime can apply deterministic failure precedence.
+  - [ ] Hook-thrown failures MUST NOT cause HookInvoker to log or dump hook payloads.
+
 - [ ] `framework/packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php` — ensures ctx/result payload is json-like
   - [ ] MUST normalize known internal kernel result objects before generic object rejection.
   - [ ] In particular, if `UnitOfWorkResult.error` is internally represented as `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`, it MUST be exported as a json-like error map.
   - [ ] After normalization, no object instances may remain in the hook payload.
-- [ ] `framework/packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php` — errorCode `CORETSIA_KERNEL_RUNTIME_ERROR`
+  - [ ] MUST delegate baseline json-like validation/normalization to `Coretsia\Foundation\Serialization\JsonLikeNormalizer`.
+  - [ ] MUST preserve Kernel UoW exported shape semantics from `UnitOfWorkContext` / `UnitOfWorkResult`.
+  - [ ] MUST NOT define a second json-like policy in `core/kernel`.
+  - [ ] MUST be stateless.
+  - [ ] MUST NOT be a DI service in this epic.
+  - [ ] MUST NOT keep mutable runtime state, caches, buffers, or request/UoW-local data.
+  - [ ] KernelRuntime/HookInvoker may call it as an internal static normalization primitive.
+
+- [ ] `framework/packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php`
+  - [ ] Create `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`.
+  - [ ] Extend `\RuntimeException`.
+  - [ ] Define `public const string ERROR_CODE = 'CORETSIA_KERNEL_RUNTIME_ERROR'`.
+  - [ ] Implement `public static function withReason(string $reason, ?\Throwable $previous = null): self`.
+  - [ ] Implement `public function errorCode(): string`.
+  - [ ] Implement `public function reason(): string`.
+  - [ ] Message MUST contain only `ERROR_CODE` and stable reason token.
+  - [ ] Message MUST NOT contain raw context arrays, hook payloads, transport payloads, tokens, cookies, raw SQL, object dumps, local paths, or environment-specific data.
+  - [ ] Define stable reason constants:
+    - [ ] `REASON_INVALID_TYPE = 'kernel-runtime-invalid-type'`
+    - [ ] `REASON_INVALID_OUTCOME = 'kernel-runtime-invalid-outcome'`
+    - [ ] `REASON_INVALID_CONTEXT = 'kernel-runtime-invalid-context'`
+    - [ ] `REASON_HOOK_SERVICE_NOT_FOUND = 'kernel-runtime-hook-service-not-found'`
+    - [ ] `REASON_HOOK_SERVICE_INVALID = 'kernel-runtime-hook-service-invalid'`
+    - [ ] `REASON_HOOK_PAYLOAD_INVALID = 'kernel-runtime-hook-payload-invalid'`
+    - [ ] `REASON_RESET_FAILED = 'kernel-runtime-reset-failed'`
+
 - [ ] `framework/packages/core/kernel/src/Provider/Tags.php` — tag constants owner
+
+Docs:
 - [ ] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
+  - [ ] `core/contracts` owns the external `KernelRuntimeInterface`.
+  - [ ] `core/kernel` owns the `KernelRuntime` implementation.
+  - [ ] `core/contracts` owns hook method signatures.
+  - [ ] `core/kernel` owns normalized hook payload production from `UnitOfWorkContext` / `UnitOfWorkResult`.
+  - [ ] Rejected alternative: kernel-local `Coretsia\Kernel\Runtime\KernelRuntimeInterface`.
+  - [ ] Rejected alternative: parameterless hooks with future-only payload normalizer.
+  - [ ] Platform/worker/scheduler adapters MUST depend on `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
+  - [ ] Adapters MUST NOT typehint or construct `Coretsia\Kernel\Runtime\KernelRuntime` directly.
+  - [ ] `Coretsia\Kernel\Runtime\KernelRuntime` is the `core/kernel` implementation bound to the contracts port by DI.
+
+Tests:
+- [ ] `framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
+  - [ ] Assert `KernelRuntimeInterface` exists in `core/contracts`.
+  - [ ] Assert it exposes `runUnitOfWork()`, `beginUnitOfWork()`, and `afterUnitOfWork()`.
+  - [ ] Assert it does not reference `Coretsia\Kernel\*`.
+  - [ ] Assert it does not reference PSR-7/15, platform, or integrations.
+- [ ] `framework/packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php`
+- [ ] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
+- [ ] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
+- [ ] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
+- [ ] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDoesNotWriteToStdoutTest.php`
+- [ ] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
+- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
+  - [ ] asserts span `kernel.uow` is emitted.
+  - [ ] asserts metrics `kernel.uow_total` and `kernel.uow_duration_ms` are emitted.
+  - [ ] asserts labels use only `operation` and `outcome`.
+  - [ ] asserts `uow_type` is normalized into `operation`.
+  - [ ] asserts lifecycle summary logs do not contain payloads, context arrays, tokens, cookies, headers, raw SQL, or transport data.
 
 #### Modifies
 
+- [ ] `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
+  - [ ] Change `beforeUow(): void` to `beforeUow(array $context): void`.
+  - [ ] Document `$context` as normalized exported UoW context array.
+  - [ ] MUST remain format-neutral.
+  - [ ] MUST NOT depend on `core/kernel`, PSR-7/15, platform, or integrations.
+
+- [ ] `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
+  - [ ] Change `afterUow(): void` to `afterUow(array $context, array $result): void`.
+  - [ ] Document `$context` as normalized exported UoW context array.
+  - [ ] Document `$result` as normalized exported UoW result array.
+  - [ ] MUST remain format-neutral.
+  - [ ] MUST NOT depend on `core/kernel`, PSR-7/15, platform, or integrations.
+
+- [ ] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+  - [ ] Update expectations for hook parameters.
+  - [ ] Assert hook methods accept normalized array payloads.
+  - [ ] Assert hooks still do not reference platform, integrations, PSR-7/15, or kernel-owned runtime classes.
+
+- [ ] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
+  - [ ] Update hook signatures from parameterless hooks to normalized array payload hooks.
+  - [ ] Clarify that contracts own the format-neutral hook port shape.
+  - [ ] Clarify that kernel owns the producer/normalization implementation.
+
+- [ ] `docs/ssot/uow-and-reset-contracts.md`
+  - [ ] Update hook method signatures.
+  - [ ] Add `Coretsia\Contracts\Runtime\KernelRuntimeInterface` as the external UoW runtime port.
+  - [ ] Clarify that contracts expose arrays only; kernel-owned UoW classes do not cross into contracts.
+
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
+
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers/binds runtime services + hook invoker
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
 - [ ] `framework/packages/core/kernel/README.md` — documents:
@@ -9000,20 +9989,27 @@ Build-time commands (explicit non-goal for KernelRuntime):
   - [ ] reset boundary (`core/kernel` calls only `ResetOrchestrator::resetAll()`)
   - [ ] no-PSR-7/15 invariant in kernel runtime
   - [ ] hook discovery via `kernel.hook.before_uow` / `kernel.hook.after_uow`
+  - [ ] Platform/worker/scheduler adapters MUST depend on `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
+  - [ ] Adapters MUST NOT typehint or construct `Coretsia\Kernel\Runtime\KernelRuntime` directly.
+  - [ ] `Coretsia\Kernel\Runtime\KernelRuntime` is the `core/kernel` implementation bound to the contracts port by DI.
+
 - [ ] `framework/packages/core/kernel/composer.json`
   - [ ] add runtime requirement:
+    - [ ] `psr/container`
     - [ ] `psr/log`
 
 #### Configuration (keys + defaults)
 
-N/A
-
-- [ ] Policy:
-  - [ ] `kernel.hook.before_uow` and `kernel.hook.after_uow` are kernel-owned canonical tag names
-  - [ ] they MUST NOT be configurable via runtime config
-  - [ ] `HookInvoker` MUST use the kernel-owned constants, not config-provided tag strings
+- [ ] Files:
+  - [ ] N/A — this epic introduces no config files.
+- [ ] Keys (dot):
+  - [ ] N/A — this epic introduces no config keys.
+- [ ] Rules:
+  - [ ] `kernel.hook.before_uow` and `kernel.hook.after_uow` are kernel-owned canonical tag names.
+  - [ ] They MUST NOT be configurable via runtime config.
+  - [ ] `HookInvoker` MUST use the kernel-owned constants, not config-provided tag strings.
   - [ ] `KernelRuntime` and hook discovery are baseline kernel infrastructure and MUST NOT be feature-disabled via config.
-  - [ ] Absence of hooks is represented by empty `TagRegistry` results, NOT by disabling hook execution subsystem.
+  - [ ] Absence of hooks is represented by empty `TagRegistry` results, NOT by disabling the hook execution subsystem.
 
 #### Wiring / DI tags (when applicable)
 
@@ -9030,7 +10026,7 @@ N/A
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Kernel\Runtime\KernelRuntime`
   - [ ] registers: `Coretsia\Kernel\Runtime\Hook\HookInvoker`
-  - [ ] binds: `Coretsia\Kernel\Runtime\KernelRuntimeInterface` → `KernelRuntime`
+  - [ ] binds: `Coretsia\Contracts\Runtime\KernelRuntimeInterface` → `Coretsia\Kernel\Runtime\KernelRuntime`
 
 - [ ] `KernelRuntime` MUST receive `ResetOrchestrator` via DI (constructor injection).
 - [ ] `KernelRuntime` MUST receive `Coretsia\Foundation\Context\ContextStore` via DI for begin-UoW base context writes.
@@ -9054,9 +10050,8 @@ N/A
 #### Context & UoW
 
 - [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
+  - [ ] `ContextKeys::CORRELATION_ID` — read indirectly through `CorrelationIdProviderInterface::correlationId()`.
+  - [ ] KernelRuntime MUST NOT read `ContextKeys::UOW_ID` or `ContextKeys::UOW_TYPE` from ContextStore; it creates and writes them for the current UoW.
 - [ ] Context writes (safe only):
   - [ ] KernelRuntime MUST write base context keys at begin-UoW before the external runtime body is executed:
     - [ ] `ContextKeys::CORRELATION_ID` (safe id)
@@ -9098,9 +10093,31 @@ N/A
 #### Security / Redaction
 
 - [ ] MUST NOT leak:
-  - [ ] dotenv values, tokens, cookies, payloads
+  - [ ] dotenv values
+  - [ ] env values
+  - [ ] auth values
+  - [ ] cookies
+  - [ ] session ids
+  - [ ] tokens
+  - [ ] credentials
+  - [ ] passwords
+  - [ ] headers
+  - [ ] raw SQL
+  - [ ] raw payloads
+  - [ ] raw context arrays
+  - [ ] raw hook payloads
+  - [ ] transport request/response data
+  - [ ] Throwable stack traces
+  - [ ] object dumps
+  - [ ] local absolute paths
+  - [ ] environment-specific bytes
 - [ ] Allowed:
-  - [ ] safe ids (`correlation_id`, `uow_id`), `hash/len` for sensitive debug strings (if ever logged)
+  - [ ] safe ids (`correlation_id`, `uow_id`)
+  - [ ] normalized `operation`
+  - [ ] normalized `outcome`
+  - [ ] stable reason token
+  - [ ] package-owned error code
+  - [ ] `hash/len` for sensitive debug strings if ever needed
 
 ### Phase 0 parity: deterministic orchestration + output-free runtime (MUST)
 
@@ -9144,12 +10161,15 @@ Kernel повертає/кидає детерміновані винятки/р�
 
 - [ ] Foundation context handoff from `1.210.0`:
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationIdProviderAndDefaultIdGeneratorTest.php`
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
 
 - [ ] Reset boundary + exactly-once semantics:
   - [ ] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+
+- [ ] Observability policy:
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
 
 - [ ] PSR-7/15-free public API:
   - [ ] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
@@ -9170,6 +10190,9 @@ Kernel повертає/кидає детерміновані винятки/р�
   - [ ] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
 - Contract:
   - [ ] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
+    - [ ] asserts Kernel implementation does not expose PSR-7/15
+    - [ ] asserts external runtime port is `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+    - [ ] asserts Kernel does not define a competing `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
   - [ ] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDoesNotWriteToStdoutTest.php`
     - [ ] token-scan `framework/packages/core/kernel/src/Runtime/**` and `src/Provider/**`
     - [ ] MUST fail on `echo|print|var_dump|print_r|printf|error_log`
@@ -9184,7 +10207,25 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [ ] Allowed boundary:
       - [ ] dependency on `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
       - [ ] calling only `ResetOrchestrator::resetAll(): void`
+    - [ ] MUST fail if `framework/packages/core/kernel/src/Runtime/**` imports `Coretsia\Contracts\Runtime\ResetInterface`.
+    - [ ] MUST fail if KernelRuntime calls `ResetInterface::reset()` directly.
+
+  - [ ] `framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
+  - [ ] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+    - [ ] updated for array payload signatures
 - Integration:
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
+    - [ ] asserts invalid/missing `uowId`, `type`, `startedAt`, `correlationId`, or `attributes` fails deterministically.
+    - [ ] asserts invalid context failure does not leak raw payload values.
+    - [ ] asserts invalid UoW type fails deterministically.
+    - [ ] asserts invalid outcome fails deterministically.
+    - [ ] asserts invalid type/outcome failures do not leak raw payload values.
+    - [ ] covers invalid low-level lifecycle inputs, including exported context shape, UoW type, and outcome token.
+    - [ ] asserts `afterUnitOfWork()` resets exactly once when exported context validation fails.
+    - [ ] asserts `afterUnitOfWork()` resets exactly once when outcome validation fails.
+    - [ ] asserts invalid after-input failure remains primary if reset also fails.
+
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php` MUST assert:
@@ -9192,22 +10233,35 @@ Kernel повертає/кидає детерміновані винятки/р�
       - [ ] reset trigger ran **exactly once per UoW**
       - [ ] reset trigger runs in exception path (try/finally semantics)
     - [ ] when an `after-uow` hook throws, reset still runs exactly once before the failure is surfaced
+    - [ ] asserts external body throwable remains primary when an after-uow hook also throws.
+    - [ ] asserts after-uow hook throwable is surfaced when there is no external body throwable.
+    - [ ] asserts reset runs when a before-uow hook throws.
+    - [ ] asserts external body is not executed when a before-uow hook throws.
+    - [ ] asserts after-uow hooks still run with `fatal_error` outcome after a before-uow hook failure.
+    - [ ] asserts before-hook throwable remains primary when an after-uow hook also throws.
+    - [ ] asserts reset failure is surfaced when no earlier primary failure exists.
+    - [ ] asserts reset failure does not replace an external body / before-hook / after-hook primary failure.
+    - [ ] asserts reset failure diagnostics remain safe.
+    - [ ] asserts low-level `beginUnitOfWork()` resets when a before-uow hook throws after base context writes.
+    - [ ] asserts low-level `beginUnitOfWork()` does not leave ContextStore dirty after before-hook failure.
+    - [ ] asserts the before-hook throwable remains the surfaced failure after low-level begin reset.
+
   - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
     - [ ] maps recursively sorted by `strcmp`
     - [ ] list order preserved
     - [ ] exported ctx/result passed to hooks are json-like only
     - [ ] if `UnitOfWorkResult.error` exists internally as `ErrorDescriptor`, hooks MUST receive a normalized json-like `error` map, never an object
-- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
-  - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type` before the external runtime body is executed
-  - [ ] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE`
-  - [ ] asserts values pass `ContextStorePolicy`
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
+    - [ ] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type` before the external runtime body is executed
+    - [ ] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE`
+    - [ ] asserts values pass `ContextStorePolicy`
 
-- [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
-  - [ ] asserts `correlation_id` comes from `CorrelationIdProviderInterface` when the provider returns a non-empty string
-  - [ ] asserts KernelRuntime falls back to `Coretsia\Foundation\Id\CorrelationIdGenerator` when the provider returns `null`
-  - [ ] asserts fallback `correlation_id` matches canonical ULID format `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
-  - [ ] asserts fallback `correlation_id` is not affected by `foundation.ids.default`
-  - [ ] asserts `uow_id` comes from the default Foundation `IdGeneratorInterface`
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+    - [ ] asserts `correlation_id` comes from `CorrelationIdProviderInterface` when the provider returns a non-empty string
+    - [ ] asserts KernelRuntime falls back to `Coretsia\Foundation\Id\CorrelationIdGenerator` when the provider returns `null`
+    - [ ] asserts fallback `correlation_id` matches canonical ULID format `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
+    - [ ] asserts fallback `correlation_id` is not affected by `foundation.ids.default`
+    - [ ] asserts `uow_id` comes from the default Foundation `IdGeneratorInterface`
 
 - Gates/Arch:
   - [ ] PSR-7/15-free gate for core/kernel (existing)
@@ -9220,18 +10274,22 @@ Kernel повертає/кидає детерміновані винятки/р�
 - [ ] Verification tests present where applicable
 - [ ] Determinism: deterministic hook invocation
 - [ ] Docs updated:
-  - [ ] README
-  - [ ] ADR present
+  - [ ] `framework/packages/core/kernel/README.md`
+  - [ ] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
+  - [ ] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
+  - [ ] `docs/adr/INDEX.md`
+  - [ ] `docs/ssot/uow-and-reset-contracts.md`
 - [ ] Дає канонічний **UoW orchestrator**: begin → hooks → external runtime (http/cli/worker) → after → reset.
 - [ ] Гарантує **однаковий lifecycle** для HTTP/CLI/Queue/Scheduler без PSR-7/15 у kernel.
-- [ ] Гарантує: `afterUnitOfWork()` викликається завжди і reset відбувається рівно 1 раз (long-running safe).
+- [ ] `runUnitOfWork()` гарантує: after-phase виконується завжди і reset відбувається рівно 1 раз.
+- [ ] Low-level adapters using `beginUnitOfWork()` / `afterUnitOfWork()` MUST call `afterUnitOfWork()` in `finally`.
 - [ ] Non-goals / out of scope:
   - [ ] Kernel НЕ реалізує HTTP pipeline / middleware (це `platform/http`).
   - [ ] Kernel НЕ робить feature-specific flush логіки (events/outbox/audit тощо) — тільки hooks.
   - [ ] Kernel НЕ залежить від `platform/*` і НЕ тягне PSR-7/15.
 - [ ] Usually present when enabled in presets/bundles:
-  - [ ] `platform/http` обгортає кожен request у UoW типу `http` (begin/after).
-  - [ ] `platform/cli` обгортає кожну команду у UoW типу `cli` (крім ultra-early doctor).
+  - [ ] `platform/http` SHOULD wrap each request through `runUnitOfWork(type=http, ...)` when full lifecycle delegation is possible; otherwise it MUST use `beginUnitOfWork()` / `afterUnitOfWork()` with `afterUnitOfWork()` in `finally`.
+  - [ ] `platform/cli` SHOULD wrap each command through `runUnitOfWork(type=cli, ...)` when full lifecycle delegation is possible; otherwise it MUST use low-level primitives with `afterUnitOfWork()` in `finally`.
   - [ ] observability ports are resolvable in the micro preset via Foundation noop bindings from `1.205.0`; later `platform/logging|tracing|metrics` packages MAY override these bindings when enabled in a preset/bundle.
 - [ ] Discovery / wiring via kernel-owned tags:
   - [ ] `kernel.hook.before_uow`
@@ -11489,7 +12547,7 @@ ssot_refs: []
   - This epic MUST NOT consume them directly via `TagRegistry`.
   - This epic MUST NOT define or rename them.
   - The only allowed lifecycle entrypoint here is:
-    - `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+    - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - Rationale:
     - hook discovery/order and reset trigger semantics are kernel-owned;
       `platform/worker` only supplies tasks to the canonical UoW runtime.
@@ -11512,17 +12570,17 @@ ssot_refs: []
 - Hook/reset lifecycle boundary (MUST):
   - `kernel.hook.before_uow` and `kernel.hook.after_uow` are owned and consumed by `core/kernel`.
   - `platform/worker` MUST NOT discover or invoke these tags directly via `TagRegistry`.
-  - `platform/worker` MUST execute each task as a UoW only through `Coretsia\Kernel\Runtime\KernelRuntimeInterface`.
+  - `platform/worker` MUST execute each task as a UoW only through `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
   - Reset remains transitive through:
     - `platform/worker` → `KernelRuntime` → `ResetOrchestrator`
 
 - Required kernel lifecycle entrypoint (single-choice):
-  - `Coretsia\Kernel\Runtime\KernelRuntimeInterface` — the only allowed entrypoint for executing each task as a UoW.
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — the only allowed entrypoint for executing each task as a UoW.
   - Hook interfaces are kernel-owned lifecycle internals here and are NOT direct compile-time API requirements for `platform/worker`.
 
 - Required contracts / ports:
   - `Psr\Container\ContainerInterface`
-  - `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - `Psr\Log\LoggerInterface`
   - (http task mode) `Psr\Http\Message\ServerRequestInterface`, `Psr\Http\Message\ResponseInterface`, `Psr\Http\Server\RequestHandlerInterface`
   - (CLI) Contract-level command & IO ports from `core/contracts` (the same ports used by `platform/cli` discovery),
@@ -11578,7 +12636,7 @@ Forbidden:
   - N/A (worker can execute HTTP tasks internally; does not add endpoints)
 
 - Kernel hooks/tags:
-  - consumed transitively only through `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+  - consumed transitively only through `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - `platform/worker` MUST NOT discover or invoke `kernel.hook.before_uow` directly
   - `platform/worker` MUST NOT discover or invoke `kernel.hook.after_uow` directly
   - consumer MUST NOT enumerate reset tags directly
@@ -11621,7 +12679,7 @@ Docs:
 - [ ] `docs/adr/ADR-0017-worker-manager-application-worker.md`
 - [ ] `docs/architecture/worker.md` — MUST include:
   - [ ] process model (master + N workers) and driver selection (`pcntl` vs `proc_open`)
-  - [ ] reset discipline between UoW is achieved only transitively via `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+  - [ ] reset discipline between UoW is achieved only transitively via `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
     (`begin -> before hooks -> task -> after hooks -> ResetOrchestrator::resetAll()`).
   - [ ] `platform/worker` MUST NOT call hooks or `ResetOrchestrator` directly.
   - [ ] safety limits (`max_requests`, graceful shutdown, stop timeout)
@@ -11817,10 +12875,10 @@ Add config contract tests (policy rails):
   - [ ] `ContextKeys::UOW_TYPE`
 - [ ] Context writes:
   - N/A directly in `platform/worker`
-  - [ ] worker passes the UoW type (`http|queue`) into `Coretsia\Kernel\Runtime\KernelRuntimeInterface`;
+  - [ ] worker passes the UoW type (`http|queue`) into `Coretsia\Contracts\Runtime\KernelRuntimeInterface`;
     KernelRuntime owns base `ContextStore` writes
 - [ ] Reset discipline:
-  - [ ] each task is executed as a separate UoW via `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+  - [ ] each task is executed as a separate UoW via `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - [ ] after each task, reset happens only through the standard KernelRuntime flow:
     - [ ] begin → hooks → task → after → `ResetOrchestrator::resetAll()`
   - [ ] worker MUST NOT know or enumerate the reset discovery tag

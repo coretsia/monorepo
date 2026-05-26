@@ -71,6 +71,40 @@ Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 
 Historical wording in this ADR that describes `StableJsonEncoder` as directly owning recursive json-like normalization should be read as describing the state of the `1.200.0` decision, not current live json-like normalization ownership.
 
+## Container diagnostics safety hardening follow-up note
+
+Epic `1.277.0` hardens Foundation container diagnostics service-id handling.
+
+Canonical live container diagnostics policy is owned by:
+
+```text
+docs/ssot/di-tags-and-middleware-ordering.md
+```
+
+`ContainerDiagnostics` remains a deterministic structural diagnostics snapshot.
+
+It still MUST NOT become a runtime discovery source.
+
+Readable service ids MAY remain visible only when they are normal class-like ids or conservative safe aliases.
+
+Suspicious, sensitive, unsafe, control-character-containing, URL-like, token-like, credential-like, password-like, secret-like, cookie-like, authorization-like, SQL-like, path-like, absolute-path-like, overlong, or otherwise non-readable service ids MUST NOT appear raw in diagnostics.
+
+Unsafe service ids MAY be replaced with deterministic hash diagnostics using:
+
+```text
+hash:sha256:<hash>;len:<len>
+```
+
+The `<hash>` value is the lowercase hexadecimal SHA-256 hash of the original service id bytes.
+
+The `<len>` value is the byte length of the original service id.
+
+Suspicious or sensitive service-id detection takes precedence over readable alias allowlisting.
+
+This follow-up does not introduce or alter tag ownership, tag names, reserved tag prefixes, tag metadata schemas, discovery ordering, discovery dedupe behavior, reset discovery semantics, or middleware discovery semantics.
+
+Historical wording in this ADR that says diagnostics may include `service ids` should now be read as `safe service id diagnostics`.
+
 ## Context
 
 Epic `1.200.0` introduces the `core/foundation` runtime package under:
@@ -1136,6 +1170,9 @@ Required test areas include:
 - `ContainerDiagnostics` JSON is deterministic;
 - `ContainerDiagnostics` does not leak secrets;
 - `ContainerDiagnostics` does not contain absolute local paths.
+- `ContainerDiagnostics` hashes suspicious or sensitive service ids deterministically;
+- `ContainerDiagnostics` does not leak URL-like, token-like, credential-like, SQL-like, path-like, control-character, or overlong service ids;
+- `ContainerDiagnostics` preserves normal FQCN service ids and conservative safe aliases when safe;
 
 Architecture gates must verify that `core/foundation` does not depend on forbidden package families.
 

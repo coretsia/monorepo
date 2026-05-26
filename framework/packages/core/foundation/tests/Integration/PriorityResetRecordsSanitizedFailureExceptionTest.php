@@ -22,7 +22,7 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
-use Coretsia\Foundation\Provider\FoundationServiceFactory;
+use Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator;
 use Coretsia\Foundation\Runtime\Reset\ResetErrorCodes;
 use Coretsia\Foundation\Runtime\Reset\ResetException;
 use Coretsia\Foundation\Tag\TagRegistry;
@@ -31,122 +31,78 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
 
-final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
+final class PriorityResetRecordsSanitizedFailureExceptionTest extends TestCase
 {
-    public function testFirstThrowingResetServiceStopsSequenceAndEmitsSafeFailureSummary(): void
+    public function testResetFailureRecordedIntoSpanUsesSanitizedResetExceptionWithoutPrevious(): void
     {
         $effectiveResetTag = 'kernel.reset';
 
+        $unsafeFailureMessage = \implode(' ', [
+            'raw-reset-payload',
+            'Authorization: Bearer raw-token-value',
+            'Cookie: session_id=raw-cookie-value',
+            'credential=raw-credential-value',
+            'password=raw-password-value',
+            'SELECT * FROM users WHERE token = raw-token-value',
+            'object(stdClass)#123',
+            '/home/user/project/.env',
+            __DIR__,
+        ]);
+
+        $service = new PriorityResetRecordsSanitizedFailureExceptionThrowingService($unsafeFailureMessage);
+
+        $container = new PriorityResetRecordsSanitizedFailureExceptionContainer([
+            'service.reset.throwing' => $service,
+        ]);
+
         $tagRegistry = new TagRegistry();
-        $recorder = new PriorityResetFailsFastOnFirstServiceExceptionRecorder();
+        $tagRegistry->add($effectiveResetTag, 'service.reset.throwing');
 
-        $first = new PriorityResetFailsFastOnFirstServiceExceptionOkService('service.first', $recorder);
-        $throwing = new PriorityResetFailsFastOnFirstServiceExceptionThrowingService(
-            'service.throwing',
-            $recorder,
-        );
-        $later = new PriorityResetFailsFastOnFirstServiceExceptionOkService('service.later', $recorder);
+        $tracer = new PriorityResetRecordsSanitizedFailureExceptionFakeTracer();
+        $meter = new PriorityResetRecordsSanitizedFailureExceptionFakeMeter();
+        $logger = new PriorityResetRecordsSanitizedFailureExceptionFakeLogger();
 
-        $services = [
-            'service.first' => $first,
-            'service.throwing' => $throwing,
-            'service.later' => $later,
-        ];
-
-        /*
-         * Enhanced order is deterministic:
-         *
-         * 1) service.first
-         * 2) service.throwing
-         * 3) service.later
-         *
-         * The third service MUST NOT be reset after the second one throws.
-         */
-        $tagRegistry->add(
-            $effectiveResetTag,
-            'service.later',
-            0,
-            ['priority' => 10, 'group' => 'gamma'],
-        );
-        $tagRegistry->add(
-            $effectiveResetTag,
-            'service.throwing',
-            0,
-            ['priority' => 20, 'group' => 'beta'],
-        );
-        $tagRegistry->add(
-            $effectiveResetTag,
-            'service.first',
-            0,
-            ['priority' => 30, 'group' => 'alpha'],
-        );
-
-        $tracer = new PriorityResetFailsFastOnFirstServiceExceptionFakeTracer();
-        $meter = new PriorityResetFailsFastOnFirstServiceExceptionFakeMeter();
-        $logger = new PriorityResetFailsFastOnFirstServiceExceptionFakeLogger();
-
-        $orchestrator = FoundationServiceFactory::resetOrchestrator(
-            container: new PriorityResetFailsFastOnFirstServiceExceptionContainer($services),
+        $orchestrator = new PriorityResetOrchestrator(
+            container: $container,
             tagRegistry: $tagRegistry,
-            foundationConfig: [
-                'reset' => [
-                    'tag' => $effectiveResetTag,
-                    'priority' => [
-                        'enabled' => true,
-                    ],
-                    'group' => [
-                        'default' => 'default',
-                    ],
-                ],
-            ],
+            defaultGroup: 'default',
             stopwatch: new Stopwatch(),
             tracer: $tracer,
             meter: $meter,
             logger: $logger,
         );
 
-        self::assertTrue($orchestrator->priorityEnabled());
-        self::assertSame($effectiveResetTag, $orchestrator->effectiveResetTag());
-
         $surfacedException = null;
 
         try {
-            $orchestrator->resetAll();
+            $orchestrator->resetAll($effectiveResetTag);
         } catch (ResetException $exception) {
             $surfacedException = $exception;
         }
 
-        self::assertInstanceOf(
-            ResetException::class,
-            $surfacedException,
-            'First throwing reset service must surface a deterministic ResetException.',
+        self::assertInstanceOf(ResetException::class, $surfacedException);
+        self::assertTrue($service->wasReset());
+
+        self::assertSurfacedFailurePreservesSafeShapeAndRawPrevious(
+            exception: $surfacedException,
+            unsafeFailureMessage: $unsafeFailureMessage,
         );
 
-        self::assertServiceFailedException($surfacedException);
-
-        self::assertTrue($first->wasReset());
-        self::assertTrue($throwing->wasReset());
-        self::assertFalse($later->wasReset());
-
-        self::assertSame(
-            [
-                'service.first',
-                'service.throwing',
-            ],
-            $recorder->ids(),
-            'Reset execution must stop immediately after the first throwing service.',
-        );
-
-        self::assertResetObservabilityFailureIsSummaryOnly(
+        self::assertSpanRecordedSanitizedFailureException(
             tracer: $tracer,
+            surfacedException: $surfacedException,
+        );
+
+        self::assertResetMetricsAndLogsRemainSummaryOnly(
             meter: $meter,
             logger: $logger,
-            surfacedException: $surfacedException,
         );
     }
 
-    private static function assertServiceFailedException(ResetException $exception): void
-    {
+    private static function assertSurfacedFailurePreservesSafeShapeAndRawPrevious(
+        ResetException $exception,
+        string $unsafeFailureMessage,
+    ): void {
         self::assertSame(ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED, $exception->code());
         self::assertSame($exception->code(), $exception->errorCode());
         self::assertSame('reset-service-failed', $exception->reason());
@@ -156,32 +112,28 @@ final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
         $previous = $exception->getPrevious();
 
         self::assertInstanceOf(\RuntimeException::class, $previous);
-        self::assertStringContainsString('unsafe-reset-payload', $previous->getMessage());
-        self::assertStringContainsString('Authorization', $previous->getMessage());
-        self::assertStringContainsString('token', $previous->getMessage());
-        self::assertStringContainsString('/tmp/coretsia-secret', $previous->getMessage());
+        self::assertSame($unsafeFailureMessage, $previous->getMessage());
 
-        self::assertStringNotContainsString('service.throwing', $exception->getMessage());
-        self::assertStringNotContainsString('unsafe-reset-payload', $exception->getMessage());
-        self::assertStringNotContainsString('Authorization', $exception->getMessage());
-        self::assertStringNotContainsString('token', $exception->getMessage());
-        self::assertStringNotContainsString('/tmp/coretsia-secret', $exception->getMessage());
-        self::assertStringNotContainsString(__DIR__, $exception->getMessage());
+        self::assertNoUnsafeDiagnosticsInString($exception->getMessage());
     }
 
-    private static function assertResetObservabilityFailureIsSummaryOnly(
-        PriorityResetFailsFastOnFirstServiceExceptionFakeTracer $tracer,
-        PriorityResetFailsFastOnFirstServiceExceptionFakeMeter $meter,
-        PriorityResetFailsFastOnFirstServiceExceptionFakeLogger $logger,
+    private static function assertSpanRecordedSanitizedFailureException(
+        PriorityResetRecordsSanitizedFailureExceptionFakeTracer $tracer,
         ResetException $surfacedException,
     ): void {
         self::assertCount(1, $tracer->startedSpans());
+
         $span = $tracer->startedSpans()[0];
 
         self::assertSame('foundation.reset', $span->name());
-        self::assertSame(3, $span->attributes()['services_count'] ?? null);
-        self::assertSame(3, $span->attributes()['groups_count'] ?? null);
-        self::assertSame('failed', $span->attributes()['outcome'] ?? null);
+        self::assertSame(
+            [
+                'services_count' => 1,
+                'groups_count' => 1,
+                'outcome' => 'failed',
+            ],
+            $span->attributes(),
+        );
         self::assertTrue($span->ended());
 
         self::assertCount(1, $span->recordedExceptions());
@@ -191,23 +143,36 @@ final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
 
         self::assertInstanceOf(ResetException::class, $recordedThrowable);
         self::assertNotSame($surfacedException, $recordedThrowable);
+
         self::assertSame($surfacedException->code(), $recordedThrowable->code());
         self::assertSame($surfacedException->errorCode(), $recordedThrowable->errorCode());
         self::assertSame($recordedThrowable->code(), $recordedThrowable->errorCode());
         self::assertSame($surfacedException->reason(), $recordedThrowable->reason());
         self::assertSame('reset-service-failed', $recordedThrowable->reason());
         self::assertSame($surfacedException->getMessage(), $recordedThrowable->getMessage());
-        self::assertNull($recordedThrowable->getPrevious());
+        self::assertSame(0, $recordedThrowable->getCode());
 
-        self::assertStringNotContainsString('service.throwing', $recordedThrowable->getMessage());
-        self::assertStringNotContainsString('unsafe-reset-payload', $recordedThrowable->getMessage());
-        self::assertStringNotContainsString('Authorization', $recordedThrowable->getMessage());
-        self::assertStringNotContainsString('token', $recordedThrowable->getMessage());
-        self::assertStringNotContainsString('/tmp/coretsia-secret', $recordedThrowable->getMessage());
-        self::assertStringNotContainsString(__DIR__, $recordedThrowable->getMessage());
+        self::assertNull(
+            $recordedThrowable->getPrevious(),
+            'Span recorded exception must be sanitized and must not preserve raw previous throwable chains.',
+        );
 
-        self::assertSame(['outcome' => 'failed'], $recordedException['attributes']);
+        self::assertSame(
+            [
+                'outcome' => 'failed',
+            ],
+            $recordedException['attributes'],
+        );
 
+        self::assertNoUnsafeDiagnosticsInString($recordedThrowable->getMessage());
+        self::assertNoUnsafeDiagnosticsInMap($recordedException['attributes']);
+        self::assertNoUnsafeDiagnosticsInMap($span->attributes());
+    }
+
+    private static function assertResetMetricsAndLogsRemainSummaryOnly(
+        PriorityResetRecordsSanitizedFailureExceptionFakeMeter $meter,
+        PriorityResetRecordsSanitizedFailureExceptionFakeLogger $logger,
+    ): void {
         self::assertSame(
             [
                 [
@@ -228,50 +193,90 @@ final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
         self::assertSame('foundation.reset', $logger->records()[0]['message']);
         self::assertSame(
             [
-                'services_count' => 3,
-                'groups_count' => 3,
+                'services_count' => 1,
+                'groups_count' => 1,
                 'outcome' => 'failed',
             ],
             $logger->records()[0]['context'],
         );
+
+        foreach ($meter->increments() as $increment) {
+            self::assertNoUnsafeDiagnosticsInMap($increment['labels']);
+        }
+
+        foreach ($meter->observations() as $observation) {
+            self::assertNoUnsafeDiagnosticsInMap($observation['labels']);
+        }
+
+        foreach ($logger->records() as $record) {
+            self::assertNoUnsafeDiagnosticsInString($record['message']);
+            self::assertNoUnsafeDiagnosticsInMap($record['context']);
+        }
     }
-}
 
-final class PriorityResetFailsFastOnFirstServiceExceptionRecorder
-{
-    /**
-     * @var list<string>
-     */
-    private array $ids = [];
-
-    public function record(string $id): void
+    private static function assertNoUnsafeDiagnosticsInString(string $value): void
     {
-        $this->ids[] = $id;
+        foreach (self::unsafeDiagnosticsNeedles() as $needle) {
+            self::assertStringNotContainsString(
+                $needle,
+                $value,
+                'Reset observability diagnostics must not leak unsafe runtime values.',
+            );
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $map
+     */
+    private static function assertNoUnsafeDiagnosticsInMap(array $map): void
+    {
+        $encoded = \json_encode($map, \JSON_THROW_ON_ERROR);
+
+        self::assertIsString($encoded);
+        self::assertNoUnsafeDiagnosticsInString($encoded);
     }
 
     /**
      * @return list<string>
      */
-    public function ids(): array
+    private static function unsafeDiagnosticsNeedles(): array
     {
-        return $this->ids;
+        return [
+            'service.reset.throwing',
+            'raw-reset-payload',
+            'Authorization',
+            'Bearer',
+            'raw-token-value',
+            'Cookie',
+            'session_id',
+            'raw-cookie-value',
+            'credential',
+            'raw-credential-value',
+            'password',
+            'raw-password-value',
+            'SELECT',
+            'users',
+            'object(stdClass)',
+            '/home/user/project/.env',
+            __DIR__,
+        ];
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionOkService implements ResetInterface
+final class PriorityResetRecordsSanitizedFailureExceptionThrowingService implements ResetInterface
 {
     private bool $wasReset = false;
 
     public function __construct(
-        private readonly string $id,
-        private readonly PriorityResetFailsFastOnFirstServiceExceptionRecorder $recorder,
+        private readonly string $unsafeFailureMessage,
     ) {
     }
 
     public function reset(): void
     {
         $this->wasReset = true;
-        $this->recorder->record($this->id);
+
+        throw new \RuntimeException($this->unsafeFailureMessage);
     }
 
     public function wasReset(): bool
@@ -280,34 +285,10 @@ final class PriorityResetFailsFastOnFirstServiceExceptionOkService implements Re
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionThrowingService implements ResetInterface
-{
-    private bool $wasReset = false;
-
-    public function __construct(
-        private readonly string $id,
-        private readonly PriorityResetFailsFastOnFirstServiceExceptionRecorder $recorder,
-    ) {
-    }
-
-    public function reset(): void
-    {
-        $this->wasReset = true;
-        $this->recorder->record($this->id);
-
-        throw new \RuntimeException('unsafe-reset-payload Authorization token /tmp/coretsia-secret');
-    }
-
-    public function wasReset(): bool
-    {
-        return $this->wasReset;
-    }
-}
-
-final readonly class PriorityResetFailsFastOnFirstServiceExceptionContainer implements ContainerInterface
+final readonly class PriorityResetRecordsSanitizedFailureExceptionContainer implements ContainerInterface
 {
     /**
-     * @param array<string, object> $services
+     * @param array<string,object> $services
      */
     public function __construct(
         private array $services,
@@ -329,16 +310,16 @@ final readonly class PriorityResetFailsFastOnFirstServiceExceptionContainer impl
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionFakeTracer implements TracerPortInterface
+final class PriorityResetRecordsSanitizedFailureExceptionFakeTracer implements TracerPortInterface
 {
     /**
-     * @var list<PriorityResetFailsFastOnFirstServiceExceptionFakeSpan>
+     * @var list<PriorityResetRecordsSanitizedFailureExceptionFakeSpan>
      */
     private array $startedSpans = [];
 
     public function startSpan(string $name, array $attributes = []): SpanInterface
     {
-        $span = new PriorityResetFailsFastOnFirstServiceExceptionFakeSpan($name, $attributes);
+        $span = new PriorityResetRecordsSanitizedFailureExceptionFakeSpan($name, $attributes);
         $this->startedSpans[] = $span;
 
         return $span;
@@ -364,7 +345,7 @@ final class PriorityResetFailsFastOnFirstServiceExceptionFakeTracer implements T
     }
 
     /**
-     * @return list<PriorityResetFailsFastOnFirstServiceExceptionFakeSpan>
+     * @return list<PriorityResetRecordsSanitizedFailureExceptionFakeSpan>
      */
     public function startedSpans(): array
     {
@@ -372,7 +353,7 @@ final class PriorityResetFailsFastOnFirstServiceExceptionFakeTracer implements T
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionFakeSpan implements SpanInterface
+final class PriorityResetRecordsSanitizedFailureExceptionFakeSpan implements SpanInterface
 {
     /**
      * @var array<string,mixed>
@@ -455,7 +436,7 @@ final class PriorityResetFailsFastOnFirstServiceExceptionFakeSpan implements Spa
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionFakeMeter implements MeterPortInterface
+final class PriorityResetRecordsSanitizedFailureExceptionFakeMeter implements MeterPortInterface
 {
     /**
      * @var list<array{name:string,delta:int,labels:array<string,string|int|bool>}>
@@ -502,7 +483,7 @@ final class PriorityResetFailsFastOnFirstServiceExceptionFakeMeter implements Me
     }
 }
 
-final class PriorityResetFailsFastOnFirstServiceExceptionFakeLogger extends AbstractLogger
+final class PriorityResetRecordsSanitizedFailureExceptionFakeLogger extends AbstractLogger
 {
     /**
      * @var list<array{level:mixed,message:string,context:array<string,mixed>}>

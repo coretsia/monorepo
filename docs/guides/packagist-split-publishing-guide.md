@@ -354,6 +354,15 @@ Never add package-specific deploy-key secrets for split publishing.
 
 The workflow uses `actions/create-github-app-token@v3` to create a short-lived installation token for the selected split repository.
 
+The installation token MUST be treated as an opaque secret value.
+
+Workflows, scripts, documentation, and troubleshooting checks MUST NOT assume
+a fixed token length, fixed internal structure, absence of dots, or a specific
+opaque/JWT representation.
+
+The token MAY be longer than older GitHub App installation tokens and MUST be
+passed through unchanged to Git/GitHub clients.
+
 The workflow pushes split branches and tags over HTTPS.
 
 Canonical push target shape:

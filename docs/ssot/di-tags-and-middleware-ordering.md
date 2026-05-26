@@ -336,13 +336,62 @@ This document does not define reset exception taxonomy or reset plan metadata.
 
 ## Diagnostics boundary
 
-Diagnostics MAY report tag names, service ids, and priorities when safe.
+Diagnostics MAY report tag names, safe service ids, and priorities when safe.
 
 Diagnostics MUST NOT become a runtime discovery source.
 
 Diagnostics MUST NOT serialize tag metadata unless the caller has explicitly redacted and owner-approved it.
 
 Diagnostics MUST NOT dump service instances, constructor arguments, reflection data, raw config payloads, environment values, tokens, credentials, cookies, authorization headers, private customer data, or absolute local paths.
+
+Container diagnostics MUST sanitize service ids before exporting diagnostic snapshots.
+
+Readable service ids MAY remain visible only when they are normal class-like ids or conservative safe aliases.
+
+Suspicious, sensitive, unsafe, control-character-containing, URL-like, token-like, credential-like, password-like, secret-like, cookie-like, authorization-like, SQL-like, path-like, absolute-path-like, overlong, or otherwise non-readable service ids MUST NOT appear raw in diagnostics.
+
+Unsafe service ids MAY be replaced with deterministic hash diagnostics using the canonical format:
+
+```text
+hash:sha256:<hash>;len:<len>
+```
+
+The `<hash>` value is the lowercase hexadecimal SHA-256 hash of the original service id bytes.
+
+The `<len>` value is the byte length of the original service id.
+
+Suspicious or sensitive service-id detection MUST take precedence over readable alias allowlisting.
+
+For example, aliases such as the following MUST be hashed even if they match a conservative alias character pattern:
+
+```text
+token:abc
+secret.value
+password:raw
+credential.token
+```
+
+Container diagnostics MAY include only:
+
+```text
+schema version
+safe service id diagnostics
+tag names
+tag priorities
+```
+
+Container diagnostics MUST NOT introduce or alter:
+
+- tag ownership;
+- tag names;
+- reserved tag prefixes;
+- tag metadata schemas;
+- discovery ordering;
+- discovery dedupe behavior;
+- reset discovery semantics;
+- middleware discovery semantics.
+
+Diagnostics output remains introspection-only and MUST NOT be consumed as the canonical runtime discovery source.
 
 ## Static fixture boundary
 
@@ -447,6 +496,14 @@ framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDetermini
 framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php
 ```
 
+Container diagnostics safety SHOULD be locked by tests covering:
+
+```text
+framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
+```
+
+These tests are expected to verify that container diagnostics keep normal FQCN service ids and safe aliases readable, hash unsafe or suspicious service ids deterministically, do not leak raw unsafe service ids in JSON diagnostics, and do not turn diagnostics output into a runtime discovery source.
+
 Reset discovery behavior SHOULD be locked by tests covering:
 
 ```text
@@ -473,7 +530,7 @@ When a runtime consumer needs services registered under a DI tag:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
-- [Tag Registry](./tags.md)
+- [Tag Registry](./tags.md) — canonical tag names, reserved prefixes, ownership, and registry rows.
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [Config Roots Registry](./config-roots.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)

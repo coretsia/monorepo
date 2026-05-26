@@ -9,6 +9,7 @@
 #
 # For contributors list, see git history.
 # See LICENSE and NOTICE in the project root for full license information.
+
 name: split-publish
 
 on:

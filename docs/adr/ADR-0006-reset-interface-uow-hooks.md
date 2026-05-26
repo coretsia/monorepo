@@ -18,6 +18,27 @@
 
 Accepted.
 
+## Reset failure diagnostics hardening follow-up note
+
+Epic `1.277.0` clarifies the reset failure diagnostics boundary.
+
+Canonical live policy is owned by:
+
+```text
+docs/ssot/uow-and-reset-contracts.md
+docs/ssot/observability-and-errors.md
+```
+
+`ResetInterface` implementations MAY throw arbitrary exceptions while clearing implementation-owned mutable state.
+
+Reset failure handling remains runtime-owned.
+
+Foundation reset orchestration MAY preserve the original throwable as an in-process previous throwable for programmatic chaining.
+
+Sanitized reset observability MUST NOT record or emit raw previous throwable chains.
+
+Reset diagnostics, logs, metrics, spans, and exported observability MUST remain safe and summary-only.
+
 ## Context
 
 Epic `1.120.0` introduces stable contracts for reset-capable services and unit-of-work lifecycle hooks under:

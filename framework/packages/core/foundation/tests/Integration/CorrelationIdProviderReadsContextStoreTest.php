@@ -29,6 +29,8 @@ use PHPUnit\Framework\TestCase;
 
 final class CorrelationIdProviderReadsContextStoreTest extends TestCase
 {
+    private const string CANONICAL_CORRELATION_ID_PATTERN = '/\A[0-9A-HJKMNP-TV-Z]{26}\z/';
+
     public function testProviderReturnsNullWhenCorrelationIdIsAbsent(): void
     {
         $store = new ContextStore();
@@ -44,7 +46,10 @@ final class CorrelationIdProviderReadsContextStoreTest extends TestCase
 
         $store->set(ContextKeys::CORRELATION_ID, '01ARZ3NDEKTSV4RRFFQ69G5FAV');
 
-        self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $provider->correlationId());
+        $correlationId = $provider->correlationId();
+
+        self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $correlationId);
+        self::assertCanonicalCorrelationId($correlationId);
     }
 
     public function testProviderReturnsNullWhenCorrelationIdIsEmptyString(): void
@@ -90,7 +95,19 @@ final class CorrelationIdProviderReadsContextStoreTest extends TestCase
 
         $store->set(ContextKeys::CORRELATION_ID, '01BX5ZZKBKACTAV9WEVGEMMVRZ');
 
-        self::assertSame('01BX5ZZKBKACTAV9WEVGEMMVRZ', $provider->correlationId());
+        $correlationId = $provider->correlationId();
+
+        self::assertSame('01BX5ZZKBKACTAV9WEVGEMMVRZ', $correlationId);
+        self::assertCanonicalCorrelationId($correlationId);
+    }
+
+    private static function assertCanonicalCorrelationId(?string $correlationId): void
+    {
+        self::assertIsString($correlationId);
+        self::assertMatchesRegularExpression(
+            self::CANONICAL_CORRELATION_ID_PATTERN,
+            $correlationId,
+        );
     }
 
     private static function foundationContainer(): Container

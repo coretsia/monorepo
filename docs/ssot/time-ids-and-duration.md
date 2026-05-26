@@ -483,7 +483,27 @@ foundation.ids.default = uuid
 
 `CorrelationIdProvider` is a read provider.
 
-It MUST NOT generate ids as a side effect of reading.
+It reads only the current value stored under the canonical context key:
+
+```text
+correlation_id
+```
+
+The canonical Foundation correlation id format accepted by `CorrelationIdProvider` is uppercase ULID-like Crockford Base32:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+`CorrelationIdProvider` MUST return the current context correlation id only when the stored value is a string matching that canonical format.
+
+`CorrelationIdProvider` MUST return `null` when the context value is absent, empty, non-string, lowercase, mixed-case, malformed, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, control-character-containing, or otherwise unsafe.
+
+`CorrelationIdProvider` MUST NOT normalize unsafe input.
+
+`CorrelationIdProvider` MUST NOT uppercase, trim, rewrite, remove, replace, or store context values while reading.
+
+`CorrelationIdProvider` MUST NOT generate ids as a side effect of reading.
 
 It MUST NOT be affected by `foundation.ids.default`.
 
@@ -667,6 +687,10 @@ UUID
 IDs MAY appear in logs or spans only when the owner policy allows safe ids and the emission does not expose secrets, direct user identifiers, raw transport data, or private customer data.
 
 `correlation_id` MAY be used for logs/tracing correlation under the baseline observability policy.
+
+Only canonical Foundation correlation ids accepted by `CorrelationIdProvider` may be used for correlation.
+
+Malformed or unsafe context values stored under `correlation_id` resolve to `null` at the provider boundary and MUST NOT be normalized or emitted through logs, spans, metrics, traces, diagnostics, or generated artifacts by the provider.
 
 `correlation_id` MUST NOT be used as a metric label.
 
@@ -908,6 +932,8 @@ framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatVa
 framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
 framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
 framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 ```
 
 These tests are expected to verify:
@@ -921,7 +947,10 @@ These tests are expected to verify:
 - no `foundation.clock.*` config key is introduced;
 - `IdGeneratorInterface` resolves according to `foundation.ids.default`;
 - `foundation.ids.default=uuid` does not affect `CorrelationIdGenerator`;
-- `foundation.ids.default=uuid` does not imply `CorrelationIdProviderInterface` switches to UUID.
+- `foundation.ids.default=uuid` does not imply `CorrelationIdProviderInterface` switches to UUID;
+- `CorrelationIdProvider` returns only canonical uppercase ULID-like correlation ids;
+- `CorrelationIdProvider` returns `null` for absent, empty, non-string, lowercase, malformed, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, or otherwise unsafe context values;
+- `CorrelationIdProvider` does not generate, normalize, rewrite, remove, replace, or store correlation ids as a side effect of reading.
 
 ## Non-goals
 

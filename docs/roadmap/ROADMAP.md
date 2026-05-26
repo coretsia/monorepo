@@ -98,8 +98,11 @@
 ### 1.240.0 Stateful services policy (SSoT) (MUST) [DOC]
 ### 1.250.0 Enhanced Reset Mechanism for Long-Running Services (MUST) [IMPL]
 ### 1.260.0 Runtime drivers & long-running composition matrix (SSoT) (MUST) [DOC]
+### 1.265.0 Release-line package versioning + publish safety automation (MUST) [TOOLING+DOC]
 
 ### 1.270.0 Kernel: UnitOfWork Shapes Pack (Context + Result + Outcome + SSoT invariants) (MUST) [IMPL+DOC]
+### 1.275.0 Foundation: Json-like Runtime Value Normalization Primitive (MUST) [IMPL]
+### 1.277.0 Foundation: Runtime Failure Safety Hardening (MUST) [IMPL]
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
 ### 1.290.0 HTTP Kernel long-running safety harness (MUST) [IMPL]
 ### 1.300.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]

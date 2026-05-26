@@ -266,16 +266,40 @@ Coretsia\Foundation\Serialization\JsonLikeNormalizer
 
 `ContextStorePolicy` remains a validation boundary only.
 
-The failure message MUST NOT include raw values.
+Context failure messages MUST be stable and safe.
 
-The failure message MAY include:
+Context invalid-key diagnostics MAY include only:
 
 ```text
-key
-safe path-to-value
-stable reason code
-safe type name
+stable reason token
+conservative safe key segment
+<key>
 ```
+
+Context write-forbidden diagnostics MAY include only:
+
+```text
+stable reason token
+safe path-to-value segment
+<path>
+```
+
+Context diagnostics MUST NOT include:
+
+- rejected raw values;
+- unsafe raw rejected keys;
+- unsafe raw path fragments;
+- raw map keys from rejected values;
+- object dumps;
+- stack traces;
+- credentials;
+- tokens;
+- cookies;
+- authorization values;
+- session ids;
+- raw SQL;
+- absolute local paths;
+- environment-specific bytes.
 
 ## Json-like value validation boundary
 
@@ -555,24 +579,58 @@ CORETSIA_CONTEXT_INVALID_KEY
 
 Failure messages MUST be safe.
 
-Failure messages MUST NOT include raw values.
+Failure messages MUST NOT include rejected raw values.
 
-Failure messages MAY include only stable metadata such as:
+Failure messages MUST NOT include unsafe raw rejected keys.
+
+Failure messages MUST NOT include unsafe raw path fragments.
+
+Context invalid-key failure messages MAY contain only:
 
 ```text
-key
-path-to-value
-reason code
-safe type name
+stable reason token
+stable reason token + conservative safe key segment
+stable reason token + <key>
 ```
 
-Examples of allowed message fragments:
+Examples of allowed invalid-key messages:
 
 ```text
-context key is not declared: unknown_key
-context key uses reserved namespace: @foo
-context value rejected at metadata.items[3].count: float
-context value rejected at payload.actor: object
+context-key-empty
+context-key-unknown: unknown_key
+context-key-reserved: @foo
+context-key-unknown: <key>
+context-key-reserved: <key>
+```
+
+A rejected key may remain visible only when it matches the conservative safe-key diagnostic policy.
+
+Unsafe rejected keys MUST be represented by:
+
+```text
+<key>
+```
+
+Context write-forbidden failure messages MAY contain only:
+
+```text
+stable reason token
+stable reason token + safe path-to-value segment
+stable reason token + <path>
+```
+
+Examples of allowed write-forbidden messages:
+
+```text
+context-write-forbidden-object: value at user_agent.metadata
+context-write-forbidden-float: value at correlation_id.safe[<key>]
+context-write-forbidden-type: value at <path>
+```
+
+Unsafe write paths MUST be represented by:
+
+```text
+<path>
 ```
 
 Examples of forbidden message fragments:
@@ -581,7 +639,13 @@ Examples of forbidden message fragments:
 secret-token-value
 user@example.com
 Authorization: Bearer ...
+Cookie: session_id=...
 raw request body
+raw SQL
+SELECT * FROM users
+/home/user/project/.env
+D:\Projects\coretsia\monorepo
+object(stdClass)#123
 ```
 
 ## Path-to-value notation
@@ -605,15 +669,30 @@ Rules:
 - safe map segments use dot notation;
 - list indexes use bracket notation;
 - unsafe map keys use stable placeholders;
+- context write-forbidden diagnostics may expose only safe path segments;
+- context write-forbidden diagnostics MUST NOT expose unsafe raw path fragments;
+- context write-forbidden diagnostics MUST NOT expose raw map keys from rejected values;
 - the path MUST NOT include raw values;
-- the path MUST NOT include unsafe raw map keys;
 - the path MUST be deterministic for the same input shape.
 
-Examples of safe placeholder paths:
+The canonical context write-forbidden placeholder for an unsafe map key inside a value path is:
 
 ```text
+[<key>]
+```
+
+Examples of safe context write-forbidden paths:
+
+```text
+correlation_id.safe.value
+correlation_id.items[0].count
 correlation_id.safe[<key>]
-correlation_id.safe[<empty-key>]
+```
+
+If the complete path is unsafe, overlong, path-like, URL-like, SQL-like, token-like, credential-like, control-character-containing, or otherwise outside the conservative safe-path policy, context write-forbidden diagnostics MUST use:
+
+```text
+<path>
 ```
 
 ## Forbidden sensitive data
@@ -965,6 +1044,32 @@ Context exception messages MUST be safe and deterministic.
 
 Context exception messages MUST NOT expose raw context values.
 
+Context invalid-key exceptions expose diagnostics through:
+
+```text
+reason()
+safeKey()
+```
+
+`reason()` MUST return a stable context key rejection reason token.
+
+`safeKey()` MUST return either a conservative safe key segment, `<key>`, or `null` when no key segment is safe or applicable.
+
+Context write-forbidden exceptions expose diagnostics through:
+
+```text
+reason()
+safePath()
+```
+
+`reason()` MUST return a stable context write-forbidden reason token.
+
+`safePath()` MUST return either a conservative safe path-to-value segment, `<path>`, or `null` when no path segment is safe or applicable.
+
+Context exception messages MUST be constructed only from stable reason tokens and safe diagnostic segments.
+
+Previous throwable chains MAY be preserved for programmatic chaining, but previous throwable messages MUST NOT be copied into context exception messages.
+
 ## Security and redaction
 
 ContextStore MUST prefer rejection over unsafe storage.
@@ -995,8 +1100,21 @@ Allowed safe diagnostics MAY use:
 hash(value)
 len(value)
 type(value)
-path-to-value
+stable reason token
+conservative safe key segment
+conservative safe path-to-value segment
+<key>
+<path>
+[<key>]
 ```
+
+`<key>` is the stable placeholder for unsafe rejected context keys.
+
+`<path>` is the stable placeholder for unsafe context write paths.
+
+`[<key>]` is the stable placeholder for unsafe map keys inside otherwise safe value paths.
+
+Safe diagnostics MUST NOT allow reconstruction of raw values, unsafe raw keys, unsafe raw map keys, unsafe raw paths, secrets, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, absolute local paths, or environment-specific bytes.
 
 Safe diagnostics MUST NOT allow reconstruction of raw values.
 
@@ -1038,6 +1156,8 @@ framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
 framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php
 framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
+framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php
+framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
@@ -1068,6 +1188,12 @@ These tests are expected to verify:
 - resources are rejected;
 - non-string map keys are rejected;
 - error messages do not expose raw values;
+- context invalid-key diagnostics expose only stable reason tokens and safe key segments;
+- unsafe rejected context keys are represented by `<key>`;
+- context write-forbidden diagnostics expose only stable reason tokens and safe path segments;
+- unsafe context write paths are represented by `<path>`;
+- unsafe map keys inside value paths are represented by `[<key>]`;
+- rejected raw values, unsafe raw keys, unsafe raw paths, object dumps, raw SQL, credentials, tokens, cookies, authorization values, session ids, absolute local paths, and environment-specific bytes do not appear in context exception messages;
 - ContextStore is tagged with `kernel.stateful`;
 - ContextStore is tagged with the effective Foundation reset discovery tag;
 - correlation id format is stable;

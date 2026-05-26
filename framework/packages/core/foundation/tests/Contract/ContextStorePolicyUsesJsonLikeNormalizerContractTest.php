@@ -214,18 +214,24 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
             operation: static fn (): mixed => $policy->assertCanWrite('', 'safe'),
             expectedMessage: 'context-key-empty',
             expectedErrorCode: ContextInvalidKeyException::ERROR_CODE,
+            expectedReason: 'context-key-empty',
+            expectedSafeKey: null,
         );
 
         self::assertContextInvalidKey(
             operation: static fn (): mixed => $policy->assertCanWrite('@reserved', 'safe'),
             expectedMessage: 'context-key-reserved: @reserved',
             expectedErrorCode: ContextInvalidKeyException::ERROR_CODE,
+            expectedReason: 'context-key-reserved',
+            expectedSafeKey: '@reserved',
         );
 
         self::assertContextInvalidKey(
             operation: static fn (): mixed => $policy->assertCanWrite('unknown_context_key', 'safe'),
             expectedMessage: 'context-key-unknown: unknown_context_key',
             expectedErrorCode: ContextInvalidKeyException::ERROR_CODE,
+            expectedReason: 'context-key-unknown',
+            expectedSafeKey: 'unknown_context_key',
         );
     }
 
@@ -301,10 +307,18 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
             self::fail('Expected ContextWriteForbiddenException was not thrown.');
         } catch (ContextWriteForbiddenException $exception) {
             self::assertSame(ContextWriteForbiddenException::ERROR_CODE, $exception->errorCode());
+            self::assertSame($expectedContextReason, $exception->reason());
+            self::assertSame($expectedPath, $exception->safePath());
+            self::assertSame(
+                $expectedContextReason . ': value at ' . $expectedPath,
+                $exception->getMessage(),
+            );
 
-            self::assertStringContainsString($expectedContextReason, $exception->getMessage());
-            self::assertStringContainsString($expectedPath, $exception->getMessage());
-            self::assertStringNotContainsString($expectedJsonLikeReason, $exception->getMessage());
+            self::assertStringNotContainsString(
+                $expectedJsonLikeReason,
+                $exception->getMessage(),
+                'ContextWriteForbiddenException diagnostics must expose only mapped context reason tokens.',
+            );
 
             $previous = $exception->getPrevious();
 
@@ -312,12 +326,25 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
             self::assertSame(JsonLikeNormalizationException::ERROR_CODE, $previous->errorCode());
             self::assertSame($expectedPath, $previous->path());
             self::assertSame($expectedJsonLikeReason, $previous->reason());
+            self::assertStringContainsString($expectedJsonLikeReason, $previous->getMessage());
 
             foreach ($forbiddenDiagnosticsNeedles as $needle) {
                 self::assertStringNotContainsString(
                     $needle,
                     $exception->getMessage(),
                     'ContextStorePolicy diagnostics must not leak rejected raw values or unsafe details.',
+                );
+
+                self::assertStringNotContainsString(
+                    $needle,
+                    $exception->reason(),
+                    'ContextWriteForbiddenException reasons must not leak rejected raw values or unsafe details.',
+                );
+
+                self::assertStringNotContainsString(
+                    $needle,
+                    $exception->safePath() ?? '',
+                    'ContextWriteForbiddenException safe paths must not leak rejected raw values or unsafe details.',
                 );
 
                 self::assertStringNotContainsString(
@@ -348,12 +375,16 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
         callable $operation,
         string $expectedMessage,
         string $expectedErrorCode,
+        string $expectedReason,
+        ?string $expectedSafeKey,
     ): void {
         try {
             $operation();
             self::fail('Expected ContextInvalidKeyException was not thrown.');
         } catch (ContextInvalidKeyException $exception) {
             self::assertSame($expectedErrorCode, $exception->errorCode());
+            self::assertSame($expectedReason, $exception->reason());
+            self::assertSame($expectedSafeKey, $exception->safeKey());
             self::assertSame($expectedMessage, $exception->getMessage());
         }
     }

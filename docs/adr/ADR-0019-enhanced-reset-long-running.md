@@ -18,6 +18,48 @@
 
 Accepted.
 
+## Runtime failure safety hardening follow-up note
+
+Epic `1.277.0` hardens the Foundation reset failure and observability boundary.
+
+The canonical live reset failure policy is now:
+
+```text
+docs/ssot/uow-and-reset-contracts.md
+docs/ssot/observability-and-errors.md
+```
+
+`ResetException` remains the canonical typed Foundation reset failure.
+
+It now exposes stable runtime-style diagnostics through:
+
+```text
+code()
+errorCode()
+reason()
+withoutPrevious()
+```
+
+`code()` and `errorCode()` return the same stable reset error code.
+
+`reason()` returns the stable safe reset reason token.
+
+A surfaced reset failure MAY preserve the original previous throwable for in-process programmatic chaining.
+
+Reset span exception recording MUST NOT receive that raw previous throwable chain.
+
+When a reset failure is recorded into a span, Foundation reset orchestration MUST record a sanitized `ResetException` copy produced by:
+
+```text
+ResetException::withoutPrevious()
+```
+
+The sanitized copy preserves the reset code, error code, reason, and message, but does not preserve the previous throwable.
+
+Reset logs, metrics, spans, and span exception recording remain summary-only and MUST NOT leak raw previous throwable messages, stack traces, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
+
+Historical wording in this ADR that only says observability is summary-only should now be read together with the 1.277.0 sanitized reset exception recording policy.
+
 ## Context
 
 Coretsia runtimes need deterministic reset behavior for long-running PHP processes.
@@ -1187,6 +1229,9 @@ framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknown
 framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
 framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
 framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php
+framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php
 ```
 
 Verification MUST prove:
@@ -1217,6 +1262,13 @@ Verification MUST prove:
 - `foundation.reset.group.default` config shape matches runtime group meta shape;
 - `foundation.reset.enabled` is not introduced;
 - `foundation.reset.observability.enabled` is not introduced.
+- `ResetException::errorCode()` matches `ResetException::code()`;
+- `ResetException::reason()` exposes the stable safe reason token;
+- `ResetException::withoutPrevious()` preserves code, errorCode, reason, and message;
+- `ResetException::withoutPrevious()` strips previous throwable chains;
+- span exception recording receives only sanitized reset failure copies;
+- observability failure does not replace a primary reset failure;
+- reset observability does not leak raw previous throwable messages or stack traces.
 
 ## Related SSoT
 

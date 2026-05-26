@@ -268,6 +268,36 @@ The orchestrator MUST:
 - never rely on reflection/autowire during reset execution;
 - never emit stdout or stderr.
 
+Reset services MAY throw arbitrary exceptions while clearing mutable state.
+
+Foundation reset orchestration maps reset failures to stable `ResetException` instances.
+
+`ResetException` exposes runtime-style diagnostics through:
+
+```text
+code()
+errorCode()
+reason()
+```
+
+`code()` and `errorCode()` return the same stable reset error code.
+
+`reason()` returns the stable safe reset reason token.
+
+A surfaced reset failure MAY preserve the original previous throwable for in-process programmatic chaining.
+
+Reset observability MUST NOT record that raw previous throwable chain.
+
+When a reset failure is recorded into a span, Foundation reset orchestration uses a sanitized reset failure copy through:
+
+```text
+ResetException::withoutPrevious()
+```
+
+The sanitized copy preserves the reset code, error code, reason, and message, but does not preserve the previous throwable.
+
+Reset observability MUST remain summary-only and MUST NOT expose raw service exceptions, previous throwable messages, stack traces, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
+
 `core/kernel` MUST call only the reset orchestrator and MUST NOT enumerate tagged reset services directly.
 
 `ContextStore` is stateful and MUST be tagged with both:
@@ -486,16 +516,53 @@ strlen
 
 Context write failures MUST be deterministic.
 
-Failure messages MUST NOT include raw values.
-
-Failure messages MAY include only safe metadata such as:
+Context invalid-key diagnostics expose stable runtime-style diagnostics through:
 
 ```text
-key
-safe path-to-value
-stable reason code
-safe type name
+ContextInvalidKeyException::reason()
+ContextInvalidKeyException::safeKey()
 ```
+
+`reason()` returns a stable context key rejection reason token.
+
+`safeKey()` returns only a conservative safe key segment, `<key>`, or `null`.
+
+Unsafe rejected keys MUST NOT appear raw in exception messages.
+
+Safe rejected keys may remain visible only when they match the conservative safe-key diagnostic policy.
+
+Unsafe rejected keys are represented by the stable placeholder:
+
+```text
+<key>
+```
+
+Context write-forbidden diagnostics expose stable runtime-style diagnostics through:
+
+```text
+ContextWriteForbiddenException::reason()
+ContextWriteForbiddenException::safePath()
+```
+
+`reason()` returns a stable context write-forbidden reason token.
+
+`safePath()` returns only a conservative safe path-to-value segment, `<path>`, or `null`.
+
+Write-forbidden messages contain only the stable reason token and, when present, a safe path segment.
+
+Unsafe write paths are represented by the stable placeholder:
+
+```text
+<path>
+```
+
+Unsafe map keys inside otherwise safe value paths are represented by:
+
+```text
+[<key>]
+```
+
+Context exception messages MUST NOT include rejected raw values, unsafe raw keys, unsafe raw paths, raw map keys, object dumps, stack traces, credentials, tokens, cookies, authorization values, session ids, raw SQL, absolute local paths, or environment-specific bytes.
 
 ## Json-like runtime values
 
@@ -666,16 +733,20 @@ using:
 Coretsia\Foundation\Context\ContextKeys::CORRELATION_ID
 ```
 
-The provider returns `null` when no non-empty string correlation id is available.
+The provider returns the current context correlation id only when the stored value is a string matching the canonical Foundation correlation id format:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+The provider returns `null` when the context value is absent, empty, non-string, lowercase, mixed-case, malformed, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, control-character-containing, or otherwise unsafe.
 
 It MUST NOT:
 
 - generate a new correlation id as a side effect of reading;
 - normalize stored context values;
-- write to context;
-- emit logs;
-- emit traces;
-- emit metrics;
+- uppercase, trim, rewrite, remove, replace, or store context values while reading;
+- leak malformed or unsafe context values through exceptions, logs, traces, metrics, diagnostics, or generated artifacts;
 - define HTTP header extraction policy;
 - define HTTP header injection policy.
 
@@ -978,9 +1049,44 @@ Redaction of caller-owned payloads remains the caller's responsibility.
 
 The encoder itself does not inspect environment variables.
 
+Foundation container diagnostics are exported through:
+
+```text
+Coretsia\Foundation\Container\ContainerDiagnostics
+```
+
+Container diagnostics snapshots are deterministic and safe by construction.
+
+Container diagnostics MAY include only:
+
+```text
+schema version
+safe service id diagnostics
+tag names
+tag priorities
+```
+
+Normal FQCN service ids and conservative safe aliases may remain readable.
+
+Suspicious, sensitive, unsafe, control-character-containing, URL-like, token-like, credential-like, password-like, secret-like, cookie-like, authorization-like, SQL-like, path-like, absolute-path-like, overlong, or otherwise non-readable service ids MUST NOT appear raw in diagnostics.
+
+Unsafe service ids may be replaced with deterministic hash diagnostics using:
+
+```text
+hash:sha256:<hash>;len:<len>
+```
+
+The hash is the lowercase hexadecimal SHA-256 hash of the original service id bytes.
+
+The length is the byte length of the original service id.
+
+Container diagnostics MUST NOT include service instances, constructor arguments, reflection data, arbitrary tag metadata values, raw config payloads, environment values, credentials, tokens, cookies, authorization values, private customer data, raw SQL, or absolute local paths.
+
+Container diagnostics remain introspection-only and MUST NOT be consumed as a runtime discovery source.
+
 ## Observability
 
-This package does not emit telemetry directly.
+This package does not own telemetry exporters or backends. Foundation runtime code may emit only safe summary observability through injected observability ports.
 
 Foundation diagnostics are structural snapshots only. They MUST be deterministic and redaction-safe.
 
@@ -1034,6 +1140,40 @@ Duration metric names SHOULD use `_duration_ms` suffix where applicable.
 
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, and payloads MUST NOT be exported even if present in `ContextStore`.
 
+Foundation reset observability uses the canonical reset span and metrics:
+
+```text
+foundation.reset
+foundation.reset_total
+foundation.reset_duration_ms
+```
+
+Reset metric labels are limited to:
+
+```text
+outcome
+```
+
+Reset logs use the stable summary message:
+
+```text
+foundation.reset
+```
+
+Reset logs, metrics, spans, and span exception recording MUST remain summary-only.
+
+Allowed reset observability diagnostics are limited to stable reset error code, stable reset reason token, summary service count, summary group count, reset outcome, and reset duration in milliseconds.
+
+When reset execution fails, span exception recording may record only a sanitized `ResetException` copy created through:
+
+```text
+ResetException::withoutPrevious()
+```
+
+The recorded reset exception MUST NOT preserve previous throwable chains.
+
+Reset observability MUST NOT leak raw previous throwable messages, stack traces, raw reset service exception messages, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
+
 ## Errors
 
 This package defines Foundation runtime exceptions for container behavior:
@@ -1059,6 +1199,30 @@ Context exception messages MUST be deterministic and safe.
 
 Context exception messages MUST NOT contain raw context values.
 
+`ContextInvalidKeyException` exposes stable runtime-style diagnostics through:
+
+```text
+errorCode()
+reason()
+safeKey()
+```
+
+`safeKey()` returns only a conservative safe key segment, `<key>`, or `null`.
+
+`ContextWriteForbiddenException` exposes stable runtime-style diagnostics through:
+
+```text
+errorCode()
+reason()
+safePath()
+```
+
+`safePath()` returns only a conservative safe path-to-value segment, `<path>`, or `null`.
+
+Context invalid-key and write-forbidden messages are constructed only from stable reason tokens and safe diagnostic segments.
+
+Previous throwable chains may be preserved for in-process programmatic chaining, but previous throwable messages MUST NOT be copied into context exception messages.
+
 Json-like normalization exception messages MUST be deterministic and safe.
 
 Json-like normalization exception messages MUST contain only the package error code, safe path-to-value, and stable reason token.
@@ -1076,9 +1240,28 @@ Stopwatch exception messages MUST NOT contain raw timing tokens.
 
 ID generation exception messages MUST NOT contain raw entropy bytes, generated partial ids, host-specific values, or environment data.
 
-Reset misuse is a deterministic hard-fail.
+Reset misuse and reset execution failure are deterministic hard-fails.
 
-The canonical reset-specific exception shape is introduced by the later reset enhancement epic.
+This package defines the reset-specific exception:
+
+```text
+Coretsia\Foundation\Runtime\Reset\ResetException
+```
+
+`ResetException` exposes stable runtime-style diagnostics through:
+
+```text
+code()
+errorCode()
+reason()
+withoutPrevious()
+```
+
+`code()` and `errorCode()` return the same stable reset error code.
+
+`reason()` returns the stable safe reset reason token.
+
+`withoutPrevious()` returns a sanitized reset exception copy with the same code, error code, reason, and message, but without the previous throwable chain.
 
 Higher-level error mapping is owned by higher layers.
 
@@ -1147,9 +1330,24 @@ Stopwatch tokens returned by `Stopwatch::start()` MUST NOT be exported to logs, 
 
 Only the final `durationMs` value may be exported by owner packages according to observability policy.
 
-Allowed diagnostic information is limited to safe structural metadata such as service ids, tag names, priorities, schema versions, safe path-to-value, stable reason tokens, package-owned error codes, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+Allowed diagnostic information is limited to safe structural metadata such as safe service id diagnostics, tag names, priorities, schema versions, conservative safe key segments, conservative safe path-to-value segments, stable placeholders, stable reason tokens, package-owned error codes, summary counts, durations, and safe derivations such as `hash(value)` / `len(value)` for potentially sensitive strings.
+
+Stable diagnostic placeholders include:
+
+```text
+<key>
+<path>
+[<key>]
+hash:sha256:<hash>;len:<len>
+```
 
 Json-like normalization diagnostics MUST NOT include rejected raw values, object class names, enum class names, resource ids, raw payloads, raw SQL, local absolute paths, or environment-specific bytes.
+
+Context diagnostics MUST NOT include rejected raw values, unsafe raw rejected keys, unsafe raw paths, raw map keys, object dumps, stack traces, credentials, tokens, cookies, authorization values, session ids, raw SQL, absolute local paths, or environment-specific bytes.
+
+Reset observability MUST NOT include raw previous throwable messages, stack traces, raw reset service exception messages, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
+
+Container diagnostics MUST hash unsafe or suspicious service ids before export and MUST NOT expose raw unsafe service ids.
 
 Allowed context information is limited to keys declared in `ContextKeys` with values accepted by `ContextStorePolicy`.
 

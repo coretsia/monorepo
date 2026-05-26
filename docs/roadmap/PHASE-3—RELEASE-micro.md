@@ -1390,7 +1390,7 @@ ssot_refs:
     `framework/packages/platform/http/src/Provider/Tags.php`.
 
 - Required contracts / ports:
-  - `Coretsia\Kernel\Runtime\KernelRuntimeInterface` — UoW hooks
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — UoW hooks
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — config source
   - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` — correlation id provider
   - `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
@@ -1441,7 +1441,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
-  - `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
   - `Coretsia\Foundation\Context\ContextKeys`

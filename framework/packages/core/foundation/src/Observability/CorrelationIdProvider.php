@@ -31,9 +31,14 @@ use Coretsia\Foundation\Context\ContextKeys;
  *
  * Correlation id generation belongs to the unit-of-work owner. Transport
  * extraction/injection policy belongs to platform packages.
+ *
+ * Malformed or unsafe context values resolve to null without being logged,
+ * traced, emitted, normalized, or exposed through diagnostics.
  */
 final readonly class CorrelationIdProvider implements CorrelationIdProviderInterface
 {
+    private const string CANONICAL_CORRELATION_ID_PATTERN = '/\A[0-9A-HJKMNP-TV-Z]{26}\z/';
+
     public function __construct(
         private ContextAccessorInterface $context,
     ) {
@@ -51,7 +56,7 @@ final readonly class CorrelationIdProvider implements CorrelationIdProviderInter
             return null;
         }
 
-        if ($correlationId === '') {
+        if (\preg_match(self::CANONICAL_CORRELATION_ID_PATTERN, $correlationId) !== 1) {
             return null;
         }
 

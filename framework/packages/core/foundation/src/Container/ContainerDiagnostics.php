@@ -31,7 +31,7 @@ use Coretsia\Foundation\Tag\TagRegistry;
  * - does not dump constructor arguments;
  * - does not dump reflection data;
  * - does not include tag meta values;
- * - includes only service ids, tag names, and tag priorities.
+ * - includes only safe service ids, tag names, and tag priorities.
  *
  * JSON output is byte-stable through `StableJsonEncoder` and always ends with
  * a final LF.
@@ -39,6 +39,13 @@ use Coretsia\Foundation\Tag\TagRegistry;
 final readonly class ContainerDiagnostics
 {
     private const string SCHEMA_VERSION = 'coretsia.foundation.containerDiagnostics.v1';
+    private const int MAX_READABLE_ID_BYTES = 128;
+    private const string CLASS_LIKE_ID_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)*\z/';
+    private const string CONSERVATIVE_ALIAS_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_.:-]{0,127}\z/';
+    private const string CONTROL_CHARACTER_PATTERN = '/[\x00-\x1F\x7F]/';
+    private const string SENSITIVE_ID_PATTERN = '/(?<![A-Za-z0-9])(?:authorization|auth|bearer|cookie|session|token|secret|password|passwd|credential|api[_-]?key|access[_-]?key|private[_-]?key|sql)(?![A-Za-z0-9])/i';
+    private const string SQL_LIKE_PATTERN = '/(?<![A-Za-z0-9])(?:select|insert|update|delete|drop|alter|create|truncate|union|where|from|join)(?![A-Za-z0-9])/i';
+    private const string URL_LIKE_PATTERN = '~[A-Za-z][A-Za-z0-9+.-]*://|www\.~i';
 
     /**
      * @param list<string> $serviceIds
@@ -150,17 +157,77 @@ final readonly class ContainerDiagnostics
 
     private static function diagnosticSafeId(string $id): string
     {
-        if (!self::looksLikeAbsolutePath($id)) {
+        if (self::isSuspiciousServiceId($id)) {
+            return self::hashedDiagnosticId($id);
+        }
+
+        if (self::isReadableServiceId($id)) {
             return $id;
         }
 
+        return self::hashedDiagnosticId($id);
+    }
+
+    private static function hashedDiagnosticId(string $id): string
+    {
         return 'hash:sha256:' . \hash('sha256', $id) . ';len:' . \strlen($id);
+    }
+
+    private static function isReadableServiceId(string $id): bool
+    {
+        return \preg_match(self::CLASS_LIKE_ID_PATTERN, $id) === 1
+            || \preg_match(self::CONSERVATIVE_ALIAS_PATTERN, $id) === 1;
+    }
+
+    private static function isSuspiciousServiceId(string $id): bool
+    {
+        if ($id === '') {
+            return true;
+        }
+
+        if (\strlen($id) > self::MAX_READABLE_ID_BYTES) {
+            return true;
+        }
+
+        if (self::looksLikeAbsolutePath($id)) {
+            return true;
+        }
+
+        if (self::looksLikePath($id)) {
+            return true;
+        }
+
+        if (\preg_match(self::CONTROL_CHARACTER_PATTERN, $id) === 1) {
+            return true;
+        }
+
+        if (\preg_match(self::URL_LIKE_PATTERN, $id) === 1) {
+            return true;
+        }
+
+        if (\preg_match(self::SENSITIVE_ID_PATTERN, $id) === 1) {
+            return true;
+        }
+
+        if (\preg_match(self::SQL_LIKE_PATTERN, $id) === 1) {
+            return true;
+        }
+
+        return false;
     }
 
     private static function looksLikeAbsolutePath(string $value): bool
     {
         return \preg_match(
             '~\A/home/|\A/Users/|\A[A-Za-z]:[\\\\/]|\A\\\\\\\\[^\\\\/]+[\\\\/][^\\\\/]+~',
+            $value,
+        ) === 1;
+    }
+
+    private static function looksLikePath(string $value): bool
+    {
+        return \preg_match(
+            '~/|\A[A-Za-z]:[\\\\/]|\A\\\\\\\\[^\\\\/]+[\\\\/][^\\\\/]+~',
             $value,
         ) === 1;
     }

@@ -232,11 +232,15 @@ Calling `reset()` SHOULD be safe between any two units of work handled by the sa
 
 Implementations SHOULD prefer idempotent reset behavior where practical.
 
+`ResetInterface` implementations MAY throw arbitrary exceptions while clearing implementation-owned mutable state.
+
 Failure handling for reset implementations is runtime-owned.
 
-The contracts package does not define reset exceptions, reset error descriptors, retry policy, fallback policy, or process termination policy.
+The contracts package does not define reset exceptions, reset error descriptors, retry policy, fallback policy, observability behavior, or process termination policy.
 
-Runtime owners that report reset failures MUST preserve the global redaction law and MUST NOT expose raw unit-of-work payloads, raw request data, raw queue messages, credentials, tokens, private customer data, or absolute local paths.
+Runtime owners that report reset failures MUST preserve the global redaction law and MUST NOT expose raw unit-of-work payloads, raw request data, raw queue messages, credentials, tokens, cookies, authorization values, session ids, private customer data, raw SQL, object dumps, stack traces, environment-specific bytes, or absolute local paths.
+
+A runtime owner MAY preserve the original throwable as an in-process previous throwable for programmatic chaining, but diagnostics, logs, metrics, traces, and exported reset observability MUST remain safe by construction.
 
 ## Before-UoW hook interface
 
@@ -369,6 +373,16 @@ A runtime that processes repeated units of work is expected to ensure:
 
 The concrete orchestration order across kernel hook execution and foundation reset orchestration is runtime-owned.
 
+Foundation owns reset execution through its reset orchestration boundary.
+
+Kernel-owned runtime code MUST NOT execute `ResetInterface::reset()` on tagged services directly. Kernel runtime code consumes Foundation reset execution only through:
+
+```text
+ResetOrchestrator::resetAll()
+```
+
+This keeps reset discovery, reset ordering, reset failure mapping, and reset observability policy Foundation-owned.
+
 Any owner implementation MUST ensure that stateful services do not carry unsafe unit-of-work-local state into the next unit of work.
 
 Any owner implementation MUST ensure hook execution order is deterministic.
@@ -435,13 +449,23 @@ The effective Foundation reset tag is:
 kernel.reset
 ```
 
-A Foundation reset orchestrator is expected to discover reset-capable services through the effective Foundation reset tag and call:
+Foundation reset orchestration owns reset service discovery, ordering, execution, failure mapping, and reset observability.
+
+The public Foundation reset execution boundary is:
+
+```text
+ResetOrchestrator::resetAll()
+```
+
+A Foundation reset orchestrator discovers reset-capable services through the effective Foundation reset tag and calls:
 
 ```text
 ResetInterface::reset()
 ```
 
-on each discovered service according to deterministic owner policy.
+on each discovered service according to deterministic Foundation owner policy.
+
+Kernel runtime code and other downstream runtime owners MUST consume Foundation reset execution through `ResetOrchestrator::resetAll()` and MUST NOT duplicate reset service discovery, reset ordering, reset failure mapping, or reset observability behavior.
 
 The contracts package does not define:
 
@@ -557,6 +581,35 @@ docs/ssot/observability.md
 ```
 
 Epic `1.120.0` introduces no new metric label keys.
+
+Foundation reset observability MAY expose only summary-safe reset diagnostics.
+
+When a reset service throws, Foundation reset orchestration MAY preserve the original throwable as the previous throwable of the surfaced reset failure for programmatic chaining.
+
+Sanitized reset observability MUST NOT record or emit that raw previous throwable chain.
+
+Span exception recording for reset failures MUST use a sanitized reset failure copy without previous throwables.
+
+Reset observability MUST NOT leak:
+
+- raw previous throwable messages;
+- throwable stack traces;
+- service ids;
+- service instances;
+- tag metadata values;
+- raw unit-of-work payloads;
+- raw context values;
+- credentials;
+- tokens;
+- cookies;
+- authorization values;
+- session ids;
+- raw SQL;
+- object dumps;
+- local absolute paths;
+- environment-specific bytes.
+
+Allowed reset observability diagnostics are limited to stable reset error codes, stable reset reason tokens, summary counts, reset outcome, and reset duration.
 
 ## Security and redaction
 

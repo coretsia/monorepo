@@ -100,6 +100,7 @@ Coretsia/
 │   │   │   └── 00_3-spikes-boundary.md
 │   │   ├── APPENDIX-A.md
 │   │   ├── EPIC-TEMPLATE.md
+│   │   ├── FUTURE-CLEANUP.md
 │   │   ├── PHASE-0—SPIKES.md
 │   │   ├── PHASE-1—CORE.md
 │   │   ├── PHASE-2—Mode-Infrastructure.md
@@ -420,10 +421,13 @@ Coretsia/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
+│   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
 │   │   │   │   │   │   ├── ContextAccessorSignatureContractTest.php
+│   │   │   │   │   │   ├── ContextInvalidKeyDiagnosticsAreSafeContractTest.php
 │   │   │   │   │   │   ├── ContextKeysAreStableContractTest.php
 │   │   │   │   │   │   ├── ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
+│   │   │   │   │   │   ├── ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
 │   │   │   │   │   │   ├── CorrelationIdFormatContractTest.php
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │   │   │   │   ├── DeterministicOrderSortContractTest.php
@@ -451,6 +455,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ContextStoreResetClearsContextTest.php
 │   │   │   │   │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
 │   │   │   │   │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
+│   │   │   │   │   │   ├── CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 │   │   │   │   │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
 │   │   │   │   │   │   ├── FoundationClockAndStopwatchBindingsTest.php
 │   │   │   │   │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
@@ -462,7 +467,9 @@ Coretsia/
 │   │   │   │   │   │   ├── PriorityResetIgnoresMetaWhenDisabledTest.php
 │   │   │   │   │   │   ├── PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
 │   │   │   │   │   │   ├── PriorityResetMetaParsingRejectsInvalidTest.php
+│   │   │   │   │   │   ├── PriorityResetObservabilityFailurePrecedenceTest.php
 │   │   │   │   │   │   ├── PriorityResetOrderDeterministicTest.php
+│   │   │   │   │   │   ├── PriorityResetRecordsSanitizedFailureExceptionTest.php
 │   │   │   │   │   │   ├── PriorityResetUsesConfiguredResetTagTest.php
 │   │   │   │   │   │   ├── ResetGroupWorksTest.php
 │   │   │   │   │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
@@ -479,6 +486,7 @@ Coretsia/
 │   │   │   │   │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 │   │   │   │   │       ├── DeterministicOrderSortRuleTest.php
 │   │   │   │   │       ├── FrozenClockReturnsDeterministicNowTest.php
+│   │   │   │   │       ├── ResetExceptionRuntimeShapeTest.php
 │   │   │   │   │       ├── StopwatchDurationIsNonNegativeTest.php
 │   │   │   │   │       └── UlidFormatTest.php
 │   │   │   │   ├── LICENSE

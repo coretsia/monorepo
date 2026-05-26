@@ -18,6 +18,81 @@
 
 Accepted.
 
+## Runtime diagnostics hardening follow-up note
+
+Epic `1.277.0` hardens Foundation context diagnostics and correlation id reads.
+
+Canonical live context diagnostics policy is now owned by:
+
+```text
+docs/ssot/context-store.md
+docs/ssot/context-keys.md
+```
+
+Context invalid-key diagnostics expose stable runtime-style diagnostics through:
+
+```text
+ContextInvalidKeyException::reason()
+ContextInvalidKeyException::safeKey()
+```
+
+`reason()` returns a stable context key rejection reason token.
+
+`safeKey()` returns only a conservative safe key segment, `<key>`, or `null`.
+
+Unsafe rejected keys MUST NOT appear raw in exception messages.
+
+Unsafe rejected keys are represented by:
+
+```text
+<key>
+```
+
+Context write-forbidden diagnostics expose stable runtime-style diagnostics through:
+
+```text
+ContextWriteForbiddenException::reason()
+ContextWriteForbiddenException::safePath()
+```
+
+`reason()` returns a stable context write-forbidden reason token.
+
+`safePath()` returns only a conservative safe path-to-value segment, `<path>`, or `null`.
+
+Unsafe complete paths are represented by:
+
+```text
+<path>
+```
+
+Unsafe map keys inside otherwise safe value paths are represented by:
+
+```text
+[<key>]
+```
+
+Context exception messages MUST be constructed only from stable reason tokens and safe diagnostic segments.
+
+Rejected raw values, unsafe raw keys, unsafe raw paths, raw map keys, object dumps, stack traces, credentials, tokens, cookies, authorization values, session ids, raw SQL, absolute local paths, and environment-specific bytes MUST NOT appear in context exception messages.
+
+Canonical live correlation id read-side policy is owned by:
+
+```text
+docs/ssot/time-ids-and-duration.md
+```
+
+`CorrelationIdProvider` returns the current context correlation id only when the stored value is a string matching the canonical Foundation uppercase ULID-like format:
+
+```text
+/\A[0-9A-HJKMNP-TV-Z]{26}\z/
+```
+
+Malformed, empty, non-string, lowercase, token-like, cookie-like, SQL-like, URL-like, path-like, header-like, control-character-containing, or otherwise unsafe context values resolve to `null`.
+
+`CorrelationIdProvider` MUST NOT normalize, uppercase, trim, rewrite, remove, replace, store, log, trace, emit, or generate correlation ids as a side effect of reading.
+
+Historical wording in this ADR that allows generic `key` or `path-to-value` diagnostics should now be read as allowing only safe diagnostic segments under the 1.277.0 context diagnostics policy.
+
 ## Context
 
 Coretsia runtimes need one stable way to read unit-of-work-local context across Foundation, Kernel, HTTP, logging, tracing, metrics, and future platform packages.
@@ -620,6 +695,12 @@ framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResource
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php
+framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php
+framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
+framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
+framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 ```
 
 Verification MUST prove:
@@ -641,6 +722,16 @@ Verification MUST prove:
 - provider wiring uses the same `ContextStore` instance for concrete and accessor bindings;
 - correlation id format is stable uppercase ULID;
 - `CorrelationIdGenerator` delegates to `UlidGenerator`.
+- unsafe rejected context keys are represented by `<key>`;
+- safe rejected context keys may remain visible only under conservative safe-key rules;
+- context invalid-key diagnostics expose stable `reason()` and safe `safeKey()`;
+- context write-forbidden diagnostics expose stable `reason()` and safe `safePath()`;
+- unsafe complete write paths are represented by `<path>`;
+- unsafe map keys inside safe value paths are represented by `[<key>]`;
+- rejected raw values do not appear in context write-forbidden messages;
+- `CorrelationIdProvider` returns only canonical uppercase ULID-like correlation ids;
+- `CorrelationIdProvider` returns `null` for malformed or unsafe context values;
+- `CorrelationIdProvider` does not generate, normalize, mutate, log, trace, or emit malformed values.
 
 ## Related SSoT
 

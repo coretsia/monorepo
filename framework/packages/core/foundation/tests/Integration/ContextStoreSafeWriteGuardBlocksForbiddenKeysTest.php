@@ -36,13 +36,7 @@ final class ContextStoreSafeWriteGuardBlocksForbiddenKeysTest extends TestCase
         yield 'cookie' => ['cookie'];
         yield 'session id' => ['session_id'];
         yield 'token' => ['token'];
-        yield 'raw headers' => ['headers'];
-        yield 'raw request body' => ['request_body'];
-        yield 'raw response body' => ['response_body'];
         yield 'raw sql' => ['raw_sql'];
-        yield 'email' => ['email'];
-        yield 'phone' => ['phone'];
-        yield 'full name' => ['full_name'];
     }
 
     #[DataProvider('unsafeNonCanonicalKeyProvider')]
@@ -55,8 +49,42 @@ final class ContextStoreSafeWriteGuardBlocksForbiddenKeysTest extends TestCase
             self::fail('Expected context key rejection.');
         } catch (ContextInvalidKeyException $exception) {
             self::assertSame(ContextInvalidKeyException::ERROR_CODE, $exception->errorCode());
-            self::assertStringContainsString('context-key-unknown', $exception->getMessage());
-            self::assertStringContainsString($key, $exception->getMessage());
+            self::assertSame('context-key-unknown', $exception->reason());
+            self::assertSame('<key>', $exception->safeKey());
+            self::assertSame('context-key-unknown: <key>', $exception->getMessage());
+            self::assertStringNotContainsString($key, $exception->getMessage());
+        }
+
+        self::assertFalse($store->has($key));
+        self::assertSame([], $store->all());
+    }
+
+    /**
+     * @return iterable<string,array{0:string}>
+     */
+    public static function safeNonCanonicalKeyProvider(): iterable
+    {
+        yield 'raw headers' => ['headers'];
+        yield 'raw request body' => ['request_body'];
+        yield 'raw response body' => ['response_body'];
+        yield 'email' => ['email'];
+        yield 'phone' => ['phone'];
+        yield 'full name' => ['full_name'];
+    }
+
+    #[DataProvider('safeNonCanonicalKeyProvider')]
+    public function testSafeNonCanonicalKeysAreRejectedBeforeStorageWithSafeDiagnostics(string $key): void
+    {
+        $store = new ContextStore();
+
+        try {
+            $store->set($key, 'safe-string-shape');
+            self::fail('Expected context key rejection.');
+        } catch (ContextInvalidKeyException $exception) {
+            self::assertSame(ContextInvalidKeyException::ERROR_CODE, $exception->errorCode());
+            self::assertSame('context-key-unknown', $exception->reason());
+            self::assertSame($key, $exception->safeKey());
+            self::assertSame('context-key-unknown: ' . $key, $exception->getMessage());
         }
 
         self::assertFalse($store->has($key));
@@ -72,9 +100,16 @@ final class ContextStoreSafeWriteGuardBlocksForbiddenKeysTest extends TestCase
             self::fail('Expected context write rejection.');
         } catch (ContextWriteForbiddenException $exception) {
             self::assertSame(ContextWriteForbiddenException::ERROR_CODE, $exception->errorCode());
-            self::assertStringContainsString('context-write-forbidden-object', $exception->getMessage());
-            self::assertStringContainsString('user_agent.metadata', $exception->getMessage());
+            self::assertSame('context-write-forbidden-object', $exception->reason());
+            self::assertSame('user_agent.metadata', $exception->safePath());
+            self::assertSame(
+                'context-write-forbidden-object: value at user_agent.metadata',
+                $exception->getMessage(),
+            );
+
             self::assertStringNotContainsString('stdClass Object', $exception->getMessage());
+            self::assertStringNotContainsString('stdClass', $exception->getMessage());
+            self::assertStringNotContainsString('metadata' . \PHP_EOL, $exception->getMessage());
         }
 
         self::assertFalse($store->has(ContextKeys::USER_AGENT));

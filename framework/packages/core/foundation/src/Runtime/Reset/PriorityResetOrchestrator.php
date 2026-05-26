@@ -49,17 +49,11 @@ use Psr\Log\LoggerInterface;
 final readonly class PriorityResetOrchestrator
 {
     private const string ASCII_WHITESPACE = " \t\n\r\f\v";
-
     private const string SPAN_NAME = 'foundation.reset';
-
     private const string METRIC_RESET_TOTAL = 'foundation.reset_total';
-
     private const string METRIC_RESET_DURATION_MS = 'foundation.reset_duration_ms';
-
     private const string OUTCOME_OK = 'ok';
-
     private const string OUTCOME_FAILED = 'failed';
-
     private ResetGroup $defaultGroup;
 
     public function __construct(
@@ -269,7 +263,7 @@ final readonly class PriorityResetOrchestrator
 
             if ($failure !== null) {
                 $span->recordException(
-                    $failure,
+                    $failure->withoutPrevious(),
                     [
                         'outcome' => self::OUTCOME_FAILED,
                     ],

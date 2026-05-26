@@ -9,6 +9,7 @@
 #
 # For contributors list, see git history.
 # See LICENSE and NOTICE in the project root for full license information.
+
 name: Architecture / policy issue
 description: Propose or report a problem with SSoT, gates, architecture rails, deterministic policy, or roadmap invariants.
 title: "[Policy]: "

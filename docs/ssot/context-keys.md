@@ -118,7 +118,76 @@ Any attempt to write a key not declared in `ContextKeys` MUST fail deterministic
 
 Any attempt to write a key starting with `@` MUST fail deterministically.
 
-The failure message MUST be safe and MUST NOT contain raw context values.
+Context key failure messages MUST be safe and MUST NOT contain raw context values, unsafe raw rejected keys, credentials, tokens, cookies, authorization values, session ids, raw SQL, absolute local paths, or environment-specific bytes.
+
+Context key names exposed in diagnostics are safe structural identifiers, not permission to expose arbitrary raw user-controlled values.
+
+Context invalid-key diagnostic safety is governed by:
+
+```text
+docs/ssot/context-store.md
+```
+
+## Diagnostic key and path safety
+
+Context key diagnostics MUST use only stable structural diagnostics.
+
+A rejected context key MAY remain visible only when it matches the conservative safe-key diagnostic policy defined by `docs/ssot/context-store.md`.
+
+Unsafe rejected keys MUST be represented by the stable placeholder:
+
+```text
+<key>
+```
+
+Examples of safe diagnostic key segments:
+
+```text
+unknown_key
+@foo
+```
+
+Examples of unsafe rejected keys that MUST NOT appear raw in diagnostics:
+
+```text
+authorization
+cookie
+session_id
+token
+raw_sql
+https://example.test/path?token=secret
+/home/user/project/.env
+```
+
+Context write-forbidden diagnostics are not raw key/value payload dumps.
+
+When a context write failure identifies a nested value, the diagnostic path is a structural safe path-to-value segment, not a raw user-controlled key or value payload.
+
+Unsafe map keys inside otherwise safe value paths MUST be represented by:
+
+```text
+[<key>]
+```
+
+If the complete path is unsafe, overlong, path-like, URL-like, SQL-like, token-like, credential-like, control-character-containing, or otherwise outside the conservative safe-path policy, diagnostics MUST use:
+
+```text
+<path>
+```
+
+Examples of safe structural diagnostic paths:
+
+```text
+correlation_id.safe.value
+correlation_id.items[0].count
+correlation_id.safe[<key>]
+```
+
+Detailed invalid-key and write-forbidden diagnostic policy is owned by:
+
+```text
+docs/ssot/context-store.md
+```
 
 ## Writer categories
 
@@ -272,6 +341,8 @@ path
 
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, session ids, and payloads MUST NOT be exported even if a future owner accidentally attempts to write them.
 
+Diagnostic paths are structural safe paths, not raw user-controlled key/value payloads.
+
 When path-like observability data is needed, owners SHOULD use:
 
 ```text
@@ -279,6 +350,8 @@ path_template
 hash(value)
 len(value)
 ```
+
+Context diagnostic placeholders such as `<key>`, `<path>`, and `[<key>]` are defined by `docs/ssot/context-store.md`.
 
 ## Reset lifecycle
 
@@ -390,6 +463,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [Context Store SSoT](./context-store.md) — context invalid-key diagnostic safety, write-forbidden safe path diagnostics, and `<key>` / `<path>` / `[<key>]` placeholders.
 - [Config and env SSoT](./config-and-env.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)

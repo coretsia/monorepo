@@ -181,6 +181,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 - `composer quality` is a third-party quality aggregate rail and MAY emit native ECS/PHPStan diagnostics.
 - `composer framework:test` MUST support args-forwarding via `--` (see `framework.test`).
 - `composer spike:test` preserves the Phase 0 spikes rails chain.
+- Dedicated GitHub workflows may run additional CI-only rails that are intentionally not part of the local `composer ci` aggregate, such as spike determinism matrix checks and architecture generator evidence.
 
 **Usage (repo root):**
 - `composer ci`

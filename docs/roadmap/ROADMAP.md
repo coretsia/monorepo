@@ -103,6 +103,7 @@
 ### 1.270.0 Kernel: UnitOfWork Shapes Pack (Context + Result + Outcome + SSoT invariants) (MUST) [IMPL+DOC]
 ### 1.275.0 Foundation: Json-like Runtime Value Normalization Primitive (MUST) [IMPL]
 ### 1.277.0 Foundation: Runtime Failure Safety Hardening (MUST) [IMPL]
+### 1.278.0 Docs/Ops: CI Workflow Separation and Architecture Generator Evidence (SHOULD) [DOC]
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
 ### 1.290.0 HTTP Kernel long-running safety harness (MUST) [IMPL]
 ### 1.300.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]

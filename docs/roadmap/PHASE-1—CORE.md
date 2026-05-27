@@ -9571,6 +9571,479 @@ N/A
 
 ---
 
+### 1.278.0 Docs/Ops: CI Workflow Separation and Architecture Generator Evidence (SHOULD) [DOC]
+
+---
+type: docs
+phase: 1
+epic_id: "1.278.0"
+owner_path: "docs/ops"
+
+goal: "Separate Coretsia CI concerns for core verification, spikes, and architecture generator evidence, while adding lightweight architecture generator idempotence evidence in a dedicated workflow."
+provides:
+- "Architecture generator idempotence evidence in GitHub Actions summary"
+- "Repeated architecture generator check timing visibility"
+- "Tracked generated architecture file drift detection after each repeated check iteration"
+- "Ops documentation explaining architecture generator evidence scope, metrics, current target, and non-goals"
+- "README cross-reference to architecture generator idempotence evidence"
+- "Dedicated architecture evidence workflow"
+- "Dedicated spikes workflow"
+- "Main CI workflow focused on core framework verification"
+- "Spike/prototype rails separated from main CI workflow"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: none
+ssot_refs: []
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 1.277.0 — Foundation runtime failure safety hardening is completed and should not be expanded with unrelated evidence work.
+  - Existing architecture generator checks already exist and are callable from Composer:
+    - `arch:package-index:check`
+    - `arch:deptrac:check`
+  - Existing generated architecture files are tracked:
+    - `framework/tools/testing/package-index.php`
+    - `framework/tools/testing/deptrac.yaml`
+    - `framework/tools/testing/deptrac.allowlist.yaml`
+  - Existing GitHub Actions CI workflow contains an `arch` job that owns regular architecture checks and dep graph artifact generation.
+  - This epic keeps regular architecture checks in `.github/workflows/ci.yml` and adds architecture generator idempotence evidence in a dedicated workflow.
+
+- Required deliverables (exact paths):
+  - `.github/workflows/ci.yml` — keep the main CI workflow focused on core framework verification by removing spike/prototype jobs.
+  - `.github/workflows/spikes.yml` — create a dedicated workflow for spike/prototype rails.
+  - `.github/workflows/architecture-evidence.yml` — create a dedicated workflow for architecture generator idempotence evidence.
+  - `docs/ops/architecture-generator-evidence.md` — new ops document describing evidence scope, generated files, metrics, current target, non-goals, and rationale.
+  - `README.md` — add a small link to the architecture generator idempotence evidence document.
+
+- Required config roots/keys:
+  - N/A — this epic introduces no config roots or config keys.
+
+- Required tags:
+  - N/A — this epic introduces no tags and does not touch runtime discovery.
+
+- Required contracts / ports:
+  - N/A — this epic introduces no runtime contracts or ports.
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- N/A — docs/ops workflow-only epic.
+
+Forbidden:
+
+- runtime package dependency changes
+- package graph changes
+- deptrac layer changes
+- framework runtime imports
+- test-only runtime dependencies
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+N/A
+
+### Entry points / integration points (MUST)
+
+- CI workflows:
+  - `.github/workflows/ci.yml`
+    - main framework verification workflow.
+    - keeps core/system verification jobs only.
+    - MUST NOT contain spike/prototype jobs after this epic.
+    - MUST NOT contain architecture generator evidence after this epic.
+  - `.github/workflows/spikes.yml`
+    - dedicated spike/prototype workflow.
+    - owns `spike:test`.
+    - owns `spike:test:determinism`.
+  - `.github/workflows/architecture-evidence.yml`
+    - dedicated architecture generator idempotence evidence workflow.
+    - owns the GitHub Actions summary evidence for architecture generator checks.
+
+- GitHub Actions summary:
+  - `.github/workflows/architecture-evidence.yml` writes a markdown summary section to `$GITHUB_STEP_SUMMARY`.
+  - summary title:
+
+```text
+Architecture Generator Idempotence Evidence
+```
+
+- Runtime:
+  - N/A — this epic adds no runtime entry points.
+- Artifacts:
+  - N/A — this epic does not persist evidence artifacts.
+  - GitHub Actions step summary is ephemeral CI evidence and is not a repository artifact.
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [x] `docs/ops/architecture-generator-evidence.md`
+  - [x] Document that Coretsia collects early architecture generator idempotence evidence.
+  - [x] Clarify that this is not an application benchmark.
+  - [x] Clarify that this is not a production framework comparison.
+  - [x] Document repeated checks:
+    - [x] `arch:package-index:check`
+    - [x] `arch:deptrac:check`
+  - [x] Document tracked generated files checked for drift:
+    - [x] `framework/tools/testing/package-index.php`
+    - [x] `framework/tools/testing/deptrac.yaml`
+    - [x] `framework/tools/testing/deptrac.allowlist.yaml`
+  - [x] Document evidence metrics:
+    - [x] `iteration`
+    - [x] `duration_ms`
+    - [x] `result`
+    - [x] `git diff`
+  - [x] Document current target:
+    - [x] all repeated architecture generator checks pass.
+    - [x] generated files remain unchanged.
+    - [x] duration is visible in the GitHub Actions summary.
+  - [x] Document non-goals:
+    - [x] runtime HTTP behavior.
+    - [x] application-level performance.
+    - [x] flaky test rate.
+    - [x] Windows parity.
+    - [x] comparison with other frameworks.
+  - [x] Explain that the first measurable deterministic property is generator idempotence.
+
+- [x] `.github/workflows/architecture-evidence.yml`
+  - [x] Create dedicated workflow named `architecture-evidence`.
+  - [x] Trigger on:
+    - [x] `push` to all branches.
+    - [x] `pull_request`.
+  - [x] Use `permissions: contents: read`.
+  - [x] Add one job:
+    - [x] `architecture-generator-idempotence`
+  - [x] Job display name MUST be:
+    - [x] `architecture-generator-idempotence / ubuntu / PHP 8.4`
+  - [x] Run only on:
+    - [x] `ubuntu-latest`
+  - [x] Use PHP:
+    - [x] `8.4`
+  - [x] Use Composer:
+    - [x] `composer:v2`
+  - [x] Use setup extension:
+    - [x] `imagick`
+  - [x] Include setup steps:
+    - [x] checkout repository.
+    - [x] setup PHP + Composer.
+    - [x] run `composer --no-interaction sync:check`.
+    - [x] run `composer --no-interaction --no-progress install:framework`.
+  - [x] Add `Evidence: architecture generator idempotence` step.
+  - [x] Use `shell: bash`.
+  - [x] Use `set -euo pipefail`.
+  - [x] Run exactly 3 repetitions.
+  - [x] Track only:
+    - [x] `framework/tools/testing/package-index.php`
+    - [x] `framework/tools/testing/deptrac.yaml`
+    - [x] `framework/tools/testing/deptrac.allowlist.yaml`
+  - [x] Check that tracked generated architecture files are clean before the evidence run.
+  - [x] Run `composer --no-interaction arch:package-index:check` on each iteration.
+  - [x] Run `composer --no-interaction arch:deptrac:check` on each iteration.
+  - [x] Check tracked generated architecture file drift after each iteration.
+  - [x] Write a GitHub Actions summary table with:
+    - [x] check name
+    - [x] iteration
+    - [x] duration in milliseconds
+    - [x] result
+  - [x] Record `pass` and `fail` rows in the summary.
+  - [x] Fail the step if any command fails.
+  - [x] Fail the step if tracked generated architecture files drift.
+  - [x] Fail the step if tracked generated architecture files are dirty before the evidence run.
+  - [x] Run `composer --no-interaction lock:check` after the evidence step.
+  - [x] Do not add Windows execution.
+  - [x] Do not add `test-fast`.
+  - [x] Do not run `spike:test`.
+  - [x] Do not run `spike:test:determinism`.
+  - [x] Do not run `arch:deptrac:generate`.
+  - [x] Do not upload dep graph artifacts.
+  - [x] Do not introduce a separate runner.
+  - [x] Do not persist evidence artifacts.
+
+- [x] `.github/workflows/spikes.yml`
+  - [x] Create dedicated workflow named `spikes`.
+  - [x] Trigger on:
+    - [x] `push` to all branches.
+    - [x] `pull_request`.
+  - [x] Use `permissions: contents: read`.
+  - [x] Add job `spikes`.
+  - [x] `spikes` job display name MUST be:
+    - [x] `spikes / ubuntu / PHP 8.4`
+  - [x] `spikes` job MUST run on:
+    - [x] `ubuntu-latest`
+  - [x] `spikes` job MUST:
+    - [x] checkout repository.
+    - [x] setup PHP `8.4` with Composer v2.
+    - [x] use `coverage: none`.
+    - [x] enable `imagick`.
+    - [x] run `composer --no-interaction sync:check`.
+    - [x] run `composer --no-interaction --no-progress install:framework`.
+    - [x] run `composer --no-interaction spike:test`.
+    - [x] run `composer --no-interaction lock:check`.
+  - [x] Add job `spikes-determinism`.
+  - [x] `spikes-determinism` job display name MUST be:
+    - [x] `spikes-determinism / ${{ matrix.os_name }} / PHP ${{ matrix.php }}`
+  - [x] `spikes-determinism` job MUST use matrix:
+    - [x] `ubuntu-latest` with display OS name `ubuntu`.
+    - [x] `windows-2025-vs2026` with display OS name `windows`.
+    - [x] PHP `8.4`.
+  - [x] `spikes-determinism` job MUST use `fail-fast: false`.
+  - [x] `spikes-determinism` job MUST preserve environment:
+    - [x] `MSYS=winsymlinks:nativestrict`
+    - [x] `CORETSIA_CI_SAFE_DEBUG=${{ vars.CORETSIA_CI_SAFE_DEBUG || '0' }}`
+  - [x] `spikes-determinism` job MUST preserve Windows symlink rails:
+    - [x] configure `core.autocrlf=false`.
+    - [x] configure `core.eol=lf`.
+    - [x] configure `core.symlinks=true`.
+    - [x] configure `core.safecrlf=true`.
+    - [x] assert git symlink mode.
+    - [x] verify shell symlink capability.
+    - [x] verify PHP symlink capability.
+    - [x] cleanup PHP symlink check with `always()`.
+  - [x] `spikes-determinism` job MUST:
+    - [x] checkout repository.
+    - [x] setup PHP with Composer v2.
+    - [x] use `coverage: none`.
+    - [x] enable `imagick`.
+    - [x] run `composer --no-interaction sync:check`.
+    - [x] run `composer --no-interaction --no-progress install:framework`.
+    - [x] run `composer --no-interaction spike:test:determinism`.
+    - [x] preserve the safe Windows debug step guarded by:
+      - [x] `runner.os == 'Windows'`
+      - [x] `failure()`
+      - [x] `CORETSIA_CI_SAFE_DEBUG == '1'`
+    - [x] run `composer --no-interaction lock:check`.
+  - [x] Do not run framework package tests in this workflow.
+  - [x] Do not run architecture generator evidence in this workflow.
+  - [x] Do not introduce runtime package changes.
+
+#### Modifies
+
+- [x] `.github/workflows/ci.yml`
+  - [x] Keep main workflow role as the main CI workflow.
+  - [x] Rename workflow display name:
+    - [x] from `CI`
+    - [x] to `ci`
+  - [x] Keep triggers:
+    - [x] `push` to all branches.
+    - [x] `pull_request`.
+  - [x] Keep `permissions: contents: read`.
+  - [x] Keep these jobs:
+    - [x] `gates`
+    - [x] `gates-windows`
+    - [x] `arch`
+    - [x] `arch-windows`
+    - [x] `test`
+    - [x] `unit-contract`
+    - [x] `integration-fast`
+    - [x] `integration-slow`
+    - [x] `quality`
+  - [x] Remove these jobs:
+    - [x] `spikes`
+    - [x] `determinism`
+  - [x] Do not add architecture generator evidence to `ci.yml`.
+  - [x] Keep existing core CI behavior:
+    - [x] gates remain green.
+    - [x] arch checks remain green.
+    - [x] framework tests remain green.
+    - [x] quality checks remain green.
+    - [x] lock drift checks remain green.
+  - [x] Preserve existing runner labels:
+    - [x] `ubuntu-latest`
+    - [x] `windows-2025-vs2026`
+  - [x] Rename display job names only:
+    - [x] replace display text `ubuntu-latest` with `ubuntu`.
+    - [x] replace display text `windows-2025-vs2026` with `windows`.
+  - [x] Do not rename `runs-on` values.
+  - [x] Do not remove Windows rails from Windows jobs.
+  - [x] Do not change Composer command semantics for retained jobs.
+
+- [x] `README.md`
+  - [x] Add a small link to `docs/ops/architecture-generator-evidence.md`.
+  - [x] Mention that architecture generator idempotence evidence is collected by the dedicated `architecture-evidence` workflow.
+  - [x] Do not add a badge.
+  - [x] Do not present this evidence as a benchmark.
+  - [x] Do not present this evidence as a framework comparison.
+  - [x] Do not claim production runtime determinism from this evidence.
+
+#### Package skeleton (if type=package)
+
+N/A — this epic is docs/ops and does not create a package skeleton.
+
+#### Configuration (keys + defaults)
+
+- Files:
+  - N/A — this epic introduces no config files.
+- Keys (dot):
+  - N/A — this epic introduces no config keys.
+- Rules:
+  - N/A — this epic introduces no package config rules.
+
+#### Wiring / DI tags (when applicable)
+
+N/A — this epic introduces no runtime wiring and no DI tags.
+
+#### Artifacts / outputs (if applicable)
+
+- Writes:
+  - N/A — this epic writes no repository artifacts.
+- Reads:
+  - N/A — this epic reads no runtime artifacts.
+- [x] CI summary:
+  - [x] writes only to `$GITHUB_STEP_SUMMARY`.
+  - [x] must not be treated as a stable repository artifact.
+  - [x] must not be required for local development.
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+N/A — this epic does not read or write runtime context and does not affect UoW/reset behavior.
+
+#### Observability (policy-compliant)
+
+N/A — this epic does not introduce runtime spans, metrics, logs, labels, or telemetry payloads.
+
+#### Errors
+
+N/A — this epic introduces no runtime exceptions and no error mapping.
+
+#### Security / Redaction
+
+- [x] MUST NOT leak:
+  - [x] secrets
+  - [x] tokens
+  - [x] credentials
+  - [x] cookies
+  - [x] authorization values
+  - [x] raw payloads
+  - [x] environment values
+- [x] Allowed:
+  - [x] command names
+  - [x] iteration numbers
+  - [x] duration in milliseconds
+  - [x] pass/fail result
+  - [x] tracked generated architecture file paths listed in this epic
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [x] CI workflow separation:
+  - [x] `.github/workflows/ci.yml`
+    - [x] fails if retained core CI jobs are accidentally removed.
+    - [x] no longer contains `spikes`.
+    - [x] no longer contains `determinism`.
+    - [x] does not contain architecture generator evidence step.
+  - [x] `.github/workflows/spikes.yml`
+    - [x] contains `spikes` job.
+    - [x] contains `spikes-determinism` job.
+    - [x] runs `spike:test`.
+    - [x] runs `spike:test:determinism`.
+    - [x] preserves Windows spike determinism rails.
+  - [x] `.github/workflows/architecture-evidence.yml`
+    - [x] contains architecture generator idempotence evidence job.
+    - [x] does not run spike rails.
+    - [x] does not run framework test rails.
+
+- [x] Architecture generator idempotence evidence:
+  - [x] `.github/workflows/architecture-evidence.yml`
+    - [x] fails if `arch:package-index:check` fails.
+    - [x] fails if `arch:deptrac:check` fails.
+    - [x] fails if tracked generated architecture files are dirty before the evidence run.
+    - [x] fails if tracked generated architecture files drift after any iteration.
+    - [x] writes visible pass/fail evidence to `$GITHUB_STEP_SUMMARY`.
+    - [x] writes duration in milliseconds for each measured command.
+    - [x] runs exactly 3 repetitions.
+    - [x] checks only the tracked generated architecture files listed in this epic.
+
+#### Test harness / fixtures (when integration is needed)
+
+N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/architecture-evidence.yml`, and existing Composer scripts.
+
+### Tests (MUST)
+
+- Unit:
+  - N/A
+- Contract:
+  - N/A
+- Integration:
+  - N/A
+- [x] Gates/Arch:
+  - [x] `.github/workflows/ci.yml` keeps core verification jobs and excludes spike/evidence jobs.
+  - [x] `.github/workflows/spikes.yml` contains dedicated spike/prototype jobs.
+  - [x] `.github/workflows/architecture-evidence.yml` contains dedicated architecture generator idempotence evidence job.
+  - [x] Local `composer arch` remains green.
+  - [x] Existing deptrac generator rerun-no-diff behavior remains unchanged.
+  - [x] Existing CI architecture checks remain in `.github/workflows/ci.yml`.
+  - [x] Architecture evidence workflow does not modify tracked generated architecture files.
+  - [x] No runtime package code is changed.
+
+### DoD (MUST)
+
+- [x] Deliverables complete, paths exact.
+- [x] Preconditions satisfied; no forward references introduced.
+- [x] `.github/workflows/ci.yml` remains the main core framework verification workflow.
+- [x] `.github/workflows/ci.yml` keeps:
+  - [x] `gates`
+  - [x] `gates-windows`
+  - [x] `arch`
+  - [x] `arch-windows`
+  - [x] `test`
+  - [x] `unit-contract`
+  - [x] `integration-fast`
+  - [x] `integration-slow`
+  - [x] `quality`
+- [x] `.github/workflows/ci.yml` no longer contains:
+  - [x] `spikes`
+  - [x] `determinism`
+- [x] `.github/workflows/ci.yml` does not contain architecture generator evidence.
+- [x] `.github/workflows/spikes.yml` exists.
+- [x] `.github/workflows/spikes.yml` owns:
+  - [x] `spike:test`
+  - [x] `spike:test:determinism`
+- [x] `.github/workflows/spikes.yml` preserves Linux and Windows spike determinism coverage.
+- [x] `.github/workflows/spikes.yml` preserves Windows symlink rails and safe debug behavior.
+- [x] `.github/workflows/architecture-evidence.yml` exists.
+- [x] `.github/workflows/architecture-evidence.yml` contains the architecture generator idempotence evidence job.
+- [x] Evidence job runs only on Ubuntu.
+- [x] Evidence job repeats `arch:package-index:check` and `arch:deptrac:check` exactly 3 times.
+- [x] Evidence job checks tracked generated architecture files before the run and after each iteration.
+- [x] Evidence job fails on command failure.
+- [x] Evidence job fails on tracked generated file drift.
+- [x] Evidence job writes pass/fail and duration evidence to GitHub Actions summary.
+- [x] Evidence job does not run:
+  - [x] Windows.
+  - [x] `test-fast`.
+  - [x] `spike:test`.
+  - [x] `spike:test:determinism`.
+  - [x] `arch:deptrac:generate`.
+  - [x] dep graph artifact upload.
+- [x] `docs/ops/architecture-generator-evidence.md` documents scope, generated files, metrics, current target, non-goals, and rationale.
+- [x] `README.md` links to the evidence document without adding a badge.
+- [x] Job display names may use shorter OS labels:
+  - [x] `ubuntu`
+  - [x] `windows`
+- [x] Runner labels remain valid GitHub runner labels:
+  - [x] `ubuntu-latest`
+  - [x] `windows-2025-vs2026`
+- [x] No runtime package code changed.
+- [x] No config roots, config keys, DI tags, or artifacts introduced.
+- [x] No ADR or SSoT update required.
+- [x] Evidence remains narrow:
+  - [x] no Windows parity claim.
+  - [x] no benchmark claim.
+  - [x] no production framework comparison claim.
+  - [x] no runtime HTTP behavior claim.
+  - [x] no flaky test rate claim.
+
+---
+
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
 
 ---

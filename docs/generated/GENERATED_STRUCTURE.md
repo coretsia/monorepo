@@ -23,8 +23,10 @@ Coretsia/
 │   │   ├── split-plan.php (SplitPlan - main()/parseArgs()/listDirs()/assertValidSlug()/assertValidComposerName()/readJsonFile()/jsonBytes()/assertJsonEncodable()/gitHead()/writeFileAtomic())
 │   │   └── split-plan.schema.md
 │   ├── workflows/
+│   │   ├── architecture-evidence.yml
 │   │   ├── ci.yml
 │   │   ├── release.yml
+│   │   ├── spikes.yml
 │   │   └── split-publish.yml
 │   ├── pull_request_template.md
 │   └── split-publish-packages.json
@@ -93,6 +95,8 @@ Coretsia/
 │   │   ├── packagist-split-publishing-guide.md
 │   │   ├── quickstart.md
 │   │   └── releasing.md
+│   ├── ops/
+│   │   └── architecture-generator-evidence.md
 │   ├── roadmap/
 │   │   ├── phase0/
 │   │   │   ├── 00_1-build-order.md

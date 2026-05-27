@@ -10,7 +10,7 @@
 # For contributors list, see git history.
 # See LICENSE and NOTICE in the project root for full license information.
 
-name: CI
+name: ci
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   gates:
-    name: "gates / ubuntu-latest / PHP 8.4"
+    name: "gates / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
 
     steps:
@@ -58,7 +58,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   gates-windows:
-    name: "gates / windows-2025-vs2026 / PHP 8.4"
+    name: "gates / windows / PHP 8.4"
     runs-on: windows-2025-vs2026
 
     env:
@@ -140,7 +140,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   arch:
-    name: "arch / ubuntu-latest / PHP 8.4"
+    name: "arch / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
 
     steps:
@@ -203,7 +203,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   arch-windows:
-    name: "arch-check / windows-2025-vs2026 / PHP 8.4"
+    name: "arch-check / windows / PHP 8.4"
     runs-on: windows-2025-vs2026
 
     env:
@@ -285,7 +285,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   test:
-    name: "test / ubuntu-latest / PHP 8.4"
+    name: "test / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
     needs:
       - gates
@@ -324,7 +324,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   unit-contract:
-    name: "unit+contract / ubuntu-latest / PHP 8.4"
+    name: "unit+contract / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
     needs:
       - gates
@@ -359,7 +359,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   integration-fast:
-    name: "integration-fast / ubuntu-latest / PHP 8.4"
+    name: "integration-fast / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
     needs:
       - gates
@@ -411,7 +411,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   integration-slow:
-    name: "integration-slow / ubuntu-latest / PHP 8.4"
+    name: "integration-slow / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
     needs:
       - gates
@@ -463,7 +463,7 @@ jobs:
         run: composer --no-interaction lock:check
 
   quality:
-    name: "quality / ubuntu-latest / PHP 8.4"
+    name: "quality / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
 
     steps:
@@ -493,145 +493,6 @@ jobs:
       - name: "Quality: static analysis baseline (phpstan)"
         shell: bash
         run: composer --no-interaction phpstan
-
-      - name: "Guard: lock drift (lock:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction lock:check
-
-  spikes:
-    name: "spikes / ubuntu-latest / PHP 8.4"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "Checkout: repository"
-        uses: actions/checkout@v6
-
-      - name: "Setup: PHP + Composer"
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          tools: composer:v2
-          coverage: none
-          extensions: imagick
-
-      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction sync:check
-
-      - name: "Install: composer (framework) (install:framework)"
-        shell: bash
-        run: composer --no-interaction --no-progress install:framework
-
-      - name: "Test: spikes rails (spike:test)"
-        shell: bash
-        run: composer --no-interaction spike:test
-
-      - name: "Guard: lock drift (lock:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction lock:check
-
-  determinism:
-    name: "determinism / ${{ matrix.os }} / PHP ${{ matrix.php }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-2025-vs2026 ]
-        php: [ "8.4" ]
-
-    env:
-      MSYS: winsymlinks:nativestrict
-      CORETSIA_CI_SAFE_DEBUG: ${{ vars.CORETSIA_CI_SAFE_DEBUG || '0' }}
-
-    steps:
-      - name: "Windows rails: git + symlinks (MUST)"
-        if: ${{ runner.os == 'Windows' }}
-        shell: bash
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
-          git config --global core.symlinks true
-          git config --global core.safecrlf true
-
-      - name: "Checkout: repository"
-        uses: actions/checkout@v6
-
-      - name: "Windows rails: assert git symlink mode (MUST)"
-        if: ${{ runner.os == 'Windows' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config core.symlinks true
-          test "$(git config --bool core.symlinks)" = "true"
-
-      - name: "Windows rails: verify symlink capability (MUST)"
-        if: ${{ runner.os == 'Windows' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf .tmp_symlink_check
-          mkdir -p .tmp_symlink_check
-          echo x > .tmp_symlink_check/target.txt
-          ln -s target.txt .tmp_symlink_check/link.txt
-          test -L .tmp_symlink_check/link.txt
-          rm -rf .tmp_symlink_check
-
-      - name: "Setup: PHP + Composer"
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          tools: composer:v2
-          coverage: none
-          extensions: imagick
-
-      - name: "Windows rails: verify PHP symlink capability (MUST)"
-        if: ${{ runner.os == 'Windows' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf .tmp_symlink_php_check
-          mkdir -p .tmp_symlink_php_check
-          cd .tmp_symlink_php_check
-          echo x > target.txt
-          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
-          test -L link.txt
-
-      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
-        if: ${{ runner.os == 'Windows' && always() }}
-        shell: bash
-        run: |
-          rm -rf .tmp_symlink_php_check
-
-      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction sync:check
-
-      - name: "Install: composer (framework) (install:framework)"
-        shell: bash
-        run: composer --no-interaction --no-progress install:framework
-
-      - name: "Determinism: spikes rerun-no-diff (spike:test:determinism)"
-        shell: bash
-        run: composer --no-interaction spike:test:determinism
-
-      - name: "Debug (safe): extract CORETSIA codes + failing PHPUnit cases (Windows only)"
-        if: ${{ runner.os == 'Windows' && failure() && env.CORETSIA_CI_SAFE_DEBUG == '1' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f .tmp_spike_test.log || true
-
-          (composer --no-interaction --working-dir=framework run-script spike:test -- || true) \
-            | tr -d '\r' > .tmp_spike_test.log
-
-          echo "== CORETSIA codes =="
-          grep -Eo '\bCORETSIA_[A-Z0-9_]+\b' .tmp_spike_test.log | sort -u || true
-
-          echo "== PHPUnit failing cases (paths stripped) =="
-          grep -E '^[0-9]+\) ' .tmp_spike_test.log \
-            | sed -E 's/ in .*$//g' || true
-
-          rm -f .tmp_spike_test.log || true
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash

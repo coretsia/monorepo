@@ -169,6 +169,11 @@ composer ci
 - [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
 - [SSoT index](docs/ssot/INDEX.md)
 - [Branding spec](docs/architecture/BRANDING.md)
+- [Architecture generator idempotence evidence](docs/ops/architecture-generator-evidence.md)
+
+The dedicated `architecture-evidence` workflow collects lightweight architecture generator idempotence evidence by repeatedly running architecture generator checks and verifying that tracked generated architecture files do not drift.
+
+This evidence is not an application benchmark, not a production framework comparison, and not a claim of production runtime determinism.
 
 ## Community RFCs
 

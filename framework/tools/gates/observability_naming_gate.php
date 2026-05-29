@@ -381,11 +381,24 @@ function coretsia_observability_naming_gate_scan_php_file(
             continue;
         }
 
-        if (
-            coretsia_observability_naming_gate_is_metric_name_slot($tokens, $i)
-            && !coretsia_observability_naming_gate_is_valid_metric_name($value)
-        ) {
-            $violations[] = $frameworkRelPath . ': metric-name-invalid';
+        $isMetricNameSlot = coretsia_observability_naming_gate_is_metric_name_slot($tokens, $i);
+
+        if ($isMetricNameSlot) {
+            if (!coretsia_observability_naming_gate_is_valid_metric_name($value)) {
+                $violations[] = $frameworkRelPath . ': metric-name-invalid';
+            }
+
+            continue;
+        }
+
+        $isSpanNameSlot = coretsia_observability_naming_gate_is_span_name_slot($tokens, $i);
+
+        if ($isSpanNameSlot) {
+            if (!coretsia_observability_naming_gate_is_valid_span_name($value)) {
+                $violations[] = $frameworkRelPath . ': span-name-invalid';
+            }
+
+            continue;
         }
 
         $isArrayKey = coretsia_observability_naming_gate_is_array_key_token($tokens, $i);
@@ -460,6 +473,69 @@ function coretsia_observability_naming_gate_is_metric_name_slot(array $tokens, i
     }
 
     return coretsia_observability_naming_gate_is_direct_metric_name_call_argument($tokens, $index);
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_observability_naming_gate_is_span_name_slot(array $tokens, int $index): bool
+{
+    $constantName = coretsia_observability_naming_gate_constant_name_for_assigned_literal($tokens, $index);
+    if ($constantName !== null) {
+        return coretsia_observability_naming_gate_is_span_constant_name($constantName);
+    }
+
+    return coretsia_observability_naming_gate_is_direct_span_name_call_argument($tokens, $index);
+}
+
+function coretsia_observability_naming_gate_is_span_constant_name(string $name): bool
+{
+    $name = coretsia_observability_naming_gate_normalize_identifier($name);
+
+    return \str_starts_with($name, 'span_')
+        || \str_ends_with($name, '_span')
+        || \str_contains($name, 'span_name');
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_observability_naming_gate_is_direct_span_name_call_argument(array $tokens, int $index): bool
+{
+    $parenIndex = coretsia_observability_naming_gate_find_enclosing_call_open_paren_index($tokens, $index);
+    if ($parenIndex === null) {
+        return false;
+    }
+
+    $firstArgumentIndex = coretsia_observability_naming_gate_next_meaningful_token_index($tokens, $parenIndex + 1);
+    if ($firstArgumentIndex !== $index) {
+        return false;
+    }
+
+    $nameIndex = coretsia_observability_naming_gate_previous_meaningful_token_index($tokens, $parenIndex - 1);
+    if ($nameIndex === null) {
+        return false;
+    }
+
+    $name = $tokens[$nameIndex];
+    if (!\is_array($name) || $name[0] !== T_STRING) {
+        return false;
+    }
+
+    return coretsia_observability_naming_gate_is_span_name_callable_name(
+        coretsia_observability_naming_gate_normalize_identifier($name[1]),
+    );
+}
+
+function coretsia_observability_naming_gate_is_span_name_callable_name(string $name): bool
+{
+    return isset(
+        [
+            'startspan' => true,
+            'inspan' => true,
+            'span' => true,
+        ][$name]
+    );
 }
 
 /**
@@ -877,6 +953,14 @@ function coretsia_observability_naming_gate_is_valid_metric_name(string $value):
 {
     return (bool)\preg_match(
         '/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+_[a-z][a-z0-9]*(?:_[a-z][a-z0-9]*)*$/',
+        $value,
+    );
+}
+
+function coretsia_observability_naming_gate_is_valid_span_name(string $value): bool
+{
+    return (bool)\preg_match(
+        '/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/',
         $value,
     );
 }

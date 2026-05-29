@@ -18,30 +18,39 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Kernel\Runtime\Hook\HookInvoker;
+use Coretsia\Kernel\Runtime\KernelRuntime;
 
 /**
  * Kernel DI wiring entrypoint.
  *
  * This provider registers Kernel-owned runtime services without changing
- * provider ordering semantics. `ContainerBuilder` still preserves the exact
+ * provider ordering semantics. ContainerBuilder still preserves the exact
  * caller-supplied provider order.
  *
- * 1.270.0 intentionally keeps this provider minimal:
+ * Wiring decisions:
  *
- * - it validates the Kernel-owned config subset used by UnitOfWork shapes;
- * - it does not register a UnitOfWork lifecycle executor;
- * - it does not dispatch before/after hooks;
- * - it does not trigger reset orchestration;
- * - it does not define reset tag constants;
- * - it does not derive HTTP or CLI outcomes;
- * - it does not depend on PSR-7, PSR-15, or platform adapters.
- *
- * Runtime lifecycle execution is introduced by later Kernel runtime epics.
+ * - the Kernel-owned config subset used by UnitOfWork shapes is validated
+ *   early and deterministically;
+ * - HookInvoker is registered as the Kernel hook invocation service;
+ * - KernelRuntime is registered as the Kernel-owned UnitOfWork lifecycle
+ *   orchestrator;
+ * - KernelRuntimeInterface is bound to the KernelRuntime concrete service;
+ * - HookInvoker receives the builder-owned TagRegistry so hook discovery order
+ *   stays owned by Foundation TagRegistry;
+ * - KernelRuntime receives context, reset, id, time, hook, logging, tracing,
+ *   and metrics dependencies through DI via KernelServiceFactory;
+ * - core/kernel does not define reset tag constants; the reset discovery tag
+ *   remains owned by core/foundation.
  *
  * This provider must not emit stdout/stderr, must not use tooling-only
- * packages, and must not introduce static mutable snapshots.
+ * packages, must not introduce static mutable snapshots, must not trigger
+ * reset orchestration, and must not start a UnitOfWork during registration.
  */
 final class KernelServiceProvider implements ServiceProviderInterface
 {
@@ -50,12 +59,41 @@ final class KernelServiceProvider implements ServiceProviderInterface
         $kernelConfig = $builder->configRoot('kernel');
 
         /*
-         * Validate the Kernel-owned config subset early and deterministically.
+         * Preserve the existing Kernel-owned config validation behavior.
          *
-         * The returned limits are consumed by UnitOfWork shape construction in
-         * later runtime wiring. 1.270.0 only cements the config contract and
-         * keeps lifecycle executor registration out of scope.
+         * This validates only the UnitOfWork attributes defensive limits and
+         * does not construct runtime lifecycle state.
          */
         KernelServiceFactory::unitOfWorkAttributeLimits($kernelConfig);
+
+        $tagRegistry = $builder->tagRegistry();
+
+        $builder->factory(
+            HookInvoker::class,
+            static fn (Container $container): HookInvoker => KernelServiceFactory::hookInvoker(
+                container: $container,
+                tagRegistry: $tagRegistry,
+            ),
+        );
+
+        $builder->factory(
+            KernelRuntime::class,
+            static fn (Container $container): KernelRuntime => KernelServiceFactory::kernelRuntime(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            KernelRuntimeInterface::class,
+            static function (Container $container): KernelRuntimeInterface {
+                $runtime = $container->get(KernelRuntime::class);
+
+                if (!$runtime instanceof KernelRuntimeInterface) {
+                    throw new ContainerException('kernel-runtime-interface-binding-invalid');
+                }
+
+                return $runtime;
+            },
+        );
     }
 }

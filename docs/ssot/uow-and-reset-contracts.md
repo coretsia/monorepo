@@ -16,13 +16,26 @@
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia unit-of-work reset contracts, before/after unit-of-work hook contracts, reset discipline, runtime ownership boundaries, and DI tag usage policy.
+This document is the Single Source of Truth for Coretsia unit-of-work runtime contracts, reset contracts, before/after unit-of-work hook contracts, reset discipline, runtime ownership boundaries, exported hook payload policy, and DI tag usage policy.
 
-This document governs contracts introduced by epic `1.120.0` under:
+This document governs the contracts-level runtime boundary under:
 
 ```text
 framework/packages/core/contracts/src/Runtime/
 framework/packages/core/contracts/src/Runtime/Hook/
+```
+
+The canonical external UnitOfWork runtime port is:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+The canonical hook contracts are:
+
+```text
+Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface
+Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface
 ```
 
 It complements:
@@ -42,11 +55,12 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 Long-running runtimes must be able to enforce state cleanup between units of work using stable contracts and deterministic runtime discovery policy.
 
-The contracts introduced by this epic define only:
+The contracts package defines only:
 
 - a minimal reset API for stateful services;
-- a format-neutral before-UoW hook boundary;
-- a format-neutral after-UoW hook boundary;
+- a format-neutral external UnitOfWork runtime port;
+- a format-neutral before-UoW hook boundary with a normalized exported context array payload;
+- a format-neutral after-UoW hook boundary with normalized exported context/result array payloads;
 - policy linkage to existing reserved DI tags.
 
 The contracts package MUST NOT implement reset orchestration, hook execution, DI discovery, worker loops, scheduler loops, queue consumers, HTTP middleware, CLI commands, or runtime wiring.
@@ -60,7 +74,11 @@ This SSoT preserves the following Phase 0 invariants:
 - `0.70.0` json-like payloads, if introduced by a future owner around reset/hook diagnostics, MUST forbid floats, preserve list order, and sort map keys deterministically.
 - `0.90.0` safe diagnostics MUST NOT expose raw values and MAY expose only safe derivations such as `hash(value)` or `len(value)`.
 
-Epic `1.120.0` itself introduces no json-like payload model, no exported shape model, and no metadata schema for hook or reset tags.
+Epic `1.120.0` introduced the original reset and hook contract boundary.
+
+ADR-0020 updates the hook boundary to normalized array payload signatures and introduces the external Kernel runtime port.
+
+The contracts package still does not own a concrete UnitOfWork object model, hook payload producer, hook payload normalizer, hook discovery implementation, reset orchestration implementation, or tag metadata schema.
 
 ## Unit of work
 
@@ -84,11 +102,79 @@ The contracts package does not define unit-of-work identity, payload, retry sema
 
 Runtime owner packages adapt their boundary-specific information to reset and hook execution without pushing transport-specific objects into `core/contracts`.
 
+## External UnitOfWork runtime port
+
+`KernelRuntimeInterface` is the canonical contracts-level external UnitOfWork runtime port.
+
+The implementation path is:
+
+```text
+framework/packages/core/contracts/src/Runtime/KernelRuntimeInterface.php
+```
+
+The canonical interface is:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+The canonical method set is:
+
+```text
+runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
+beginUnitOfWork(string $type, array $attributes = []): array
+afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+```
+
+`runUnitOfWork()` is the preferred high-level adapter API.
+
+It returns the external body return value.
+
+It MUST NOT return the exported UnitOfWork result array.
+
+`beginUnitOfWork()` returns the normalized exported UnitOfWork context array.
+
+`afterUnitOfWork()` returns the normalized exported UnitOfWork result array.
+
+Low-level adapters that need exported context/result arrays MUST use:
+
+```text
+beginUnitOfWork()
+afterUnitOfWork()
+```
+
+The contracts runtime port exposes only scalar values, callables, throwables, `mixed`, and format-neutral arrays.
+
+The contracts runtime port MUST NOT expose Kernel-owned runtime classes.
+
+The following Kernel-owned classes MUST NOT cross into `core/contracts` signatures:
+
+```text
+Coretsia\Kernel\Runtime\UnitOfWorkContext
+Coretsia\Kernel\Runtime\UnitOfWorkResult
+Coretsia\Kernel\Runtime\Outcome
+Coretsia\Kernel\Runtime\UnitOfWorkType
+```
+
+`core/contracts` owns the external port.
+
+`core/kernel` owns the concrete runtime implementation and the producer/normalizer for exported UnitOfWork hook payload arrays.
+
 ## Contract boundary
 
 Reset and UoW hook contracts are format-neutral.
 
 They define stable interfaces only.
+
+The contracts package exposes normalized arrays at the external runtime and hook boundaries.
+
+Those arrays are format-neutral lifecycle payloads.
+
+They are not Kernel runtime objects.
+
+They are not transport payloads.
+
+They MUST NOT contain PSR-7/15 objects, platform objects, integration objects, vendor runtime objects, service instances, closures, resources, raw payloads, secrets, credentials, tokens, cookies, authorization values, raw SQL, object dumps, stack traces, or absolute local paths.
 
 The contracts package MUST NOT implement:
 
@@ -171,7 +257,7 @@ This document uses the terms `contract`, `port`, and `runtime boundary` accordin
 docs/ssot/dto-policy.md
 ```
 
-`ResetInterface`, `BeforeUowHookInterface`, and `AfterUowHookInterface` are contracts interfaces.
+`ResetInterface`, `KernelRuntimeInterface`, `BeforeUowHookInterface`, and `AfterUowHookInterface` are contracts interfaces.
 
 They are not DTO-marker classes.
 
@@ -255,10 +341,16 @@ framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php
 The canonical interface shape is:
 
 ```text
-beforeUow(): void
+beforeUow(array $context): void
 ```
 
-`beforeUow()` is called by a runtime owner before the runtime begins processing a unit of work.
+`beforeUow()` is called by a runtime owner before the external unit-of-work body is executed.
+
+The `$context` payload is the normalized exported UnitOfWork context array produced by the runtime owner.
+
+The context array is a format-neutral lifecycle hook payload.
+
+It MUST NOT contain transport-specific objects or vendor runtime objects.
 
 The hook is format-neutral.
 
@@ -266,25 +358,33 @@ It MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
+- PSR-15 middleware objects;
 - framework HTTP request objects;
 - framework HTTP response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
 - scheduler vendor context objects;
-- concrete service container objects.
+- concrete service container objects;
+- `core/kernel` runtime objects.
 
-`beforeUow()` has no parameters.
+`beforeUow()` accepts exactly one parameter:
+
+```text
+array $context
+```
 
 `beforeUow()` returns `void`.
 
-`beforeUow()` MUST NOT expose raw transport data, raw payloads, credentials, tokens, private customer data, or absolute local paths through the contract boundary.
+`beforeUow()` MUST NOT expose raw transport data, raw payloads, credentials, tokens, private customer data, raw SQL, object dumps, stack traces, or absolute local paths through diagnostics.
 
 Before-UoW hook implementations MAY initialize runtime-owned scoped state, prepare safe observability state, start profiling integration, or perform other implementation-owned preparation.
 
-Concrete behavior belongs to runtime owner packages.
+Concrete payload production belongs to runtime owner packages.
 
-The contracts package does not define hook metadata, hook priority, hook discovery implementation, or hook failure policy.
+For the canonical Kernel implementation, `core/kernel` produces the normalized exported context array from Kernel-owned `UnitOfWorkContext`.
+
+The contracts package does not define hook metadata, hook priority, hook discovery implementation, payload producer implementation, payload normalizer implementation, or hook failure policy.
 
 ## After-UoW hook interface
 
@@ -299,10 +399,18 @@ framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php
 The canonical interface shape is:
 
 ```text
-afterUow(): void
+afterUow(array $context, array $result): void
 ```
 
 `afterUow()` is called by a runtime owner after the runtime finishes processing a unit of work according to owner-defined lifecycle policy.
+
+The `$context` payload is the normalized exported UnitOfWork context array produced by the runtime owner.
+
+The `$result` payload is the normalized exported UnitOfWork result array produced by the runtime owner.
+
+Both arrays are format-neutral lifecycle hook payloads.
+
+They MUST NOT contain transport-specific objects or vendor runtime objects.
 
 The hook is format-neutral.
 
@@ -310,45 +418,89 @@ It MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
+- PSR-15 middleware objects;
 - framework HTTP request objects;
 - framework HTTP response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
 - scheduler vendor context objects;
-- concrete service container objects.
+- concrete service container objects;
+- `core/kernel` runtime objects.
 
-`afterUow()` has no parameters.
+`afterUow()` accepts exactly two parameters:
+
+```text
+array $context
+array $result
+```
 
 `afterUow()` returns `void`.
 
-`afterUow()` MUST NOT expose raw transport data, raw payloads, credentials, tokens, private customer data, or absolute local paths through the contract boundary.
+`afterUow()` MUST NOT expose raw transport data, raw payloads, credentials, tokens, private customer data, raw SQL, object dumps, stack traces, or absolute local paths through diagnostics.
 
 After-UoW hook implementations MAY finalize runtime-owned scoped state, stop profiling integration, flush safe summaries, emit safe owner-defined signals, or perform other implementation-owned teardown.
 
-Concrete behavior belongs to runtime owner packages.
+Concrete payload production belongs to runtime owner packages.
 
-The contracts package does not define hook metadata, hook priority, hook discovery implementation, hook failure policy, or whether after hooks run after failed units of work.
+For the canonical Kernel implementation, `core/kernel` produces the normalized exported context/result arrays from Kernel-owned `UnitOfWorkContext` and `UnitOfWorkResult`.
+
+If `UnitOfWorkResult.error` is internally represented as an `ErrorDescriptor`, the hook result payload MUST receive a normalized json-like error map, not an object instance.
+
+The contracts package does not define hook metadata, hook priority, hook discovery implementation, payload producer implementation, payload normalizer implementation, hook failure policy, or whether after hooks run after failed units of work.
 
 That behavior is runtime-owned and MUST remain deterministic within the owner implementation.
 
-## No UoW context model in epic 1.120.0
+## No contracts-owned UnitOfWork object model
 
-Epic `1.120.0` intentionally introduces no unit-of-work context object.
+`core/contracts` does not own a concrete UnitOfWork context object or result object.
 
-The hook interfaces do not accept context parameters.
+The hook interfaces accept normalized exported arrays.
+
+The external runtime port returns normalized exported arrays from the low-level lifecycle methods.
+
+These arrays are format-neutral lifecycle payloads, not contracts-owned runtime objects.
+
+The contracts package MUST NOT expose Kernel-owned runtime classes:
+
+```text
+Coretsia\Kernel\Runtime\UnitOfWorkContext
+Coretsia\Kernel\Runtime\UnitOfWorkResult
+Coretsia\Kernel\Runtime\Outcome
+Coretsia\Kernel\Runtime\UnitOfWorkType
+```
 
 The reset interface does not accept context parameters.
 
-This prevents transport-specific types from leaking into `core/contracts`.
+This prevents transport-specific types and Kernel-owned implementation objects from leaking into `core/contracts`.
 
-Future owner epics MAY introduce safe context models only through their own SSoT and ADR updates.
+`core/contracts` owns:
 
-Any future context model MUST remain format-neutral and MUST NOT expose:
+```text
+KernelRuntimeInterface
+ResetInterface
+BeforeUowHookInterface
+AfterUowHookInterface
+```
+
+`core/kernel` owns:
+
+```text
+KernelRuntime
+UnitOfWorkContext
+UnitOfWorkResult
+Outcome
+UnitOfWorkType
+HookContextNormalizer
+HookInvoker
+```
+
+Any exported context/result payload shape must remain format-neutral and MUST NOT expose:
 
 - request objects;
 - response objects;
 - PSR-7 objects;
+- PSR-15 objects;
 - queue vendor message objects;
 - worker vendor context objects;
 - raw headers;
@@ -358,11 +510,28 @@ Any future context model MUST remain format-neutral and MUST NOT expose:
 - credentials;
 - tokens;
 - private customer data;
+- throwable objects;
+- object dumps;
+- stack traces;
 - absolute local paths.
 
 ## Runtime execution policy
 
 The contracts package defines the policy expectation only.
+
+The contracts package also defines the external runtime port shape through:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+Concrete lifecycle orchestration remains runtime-owned.
+
+For the canonical Kernel implementation, `core/kernel` owns lifecycle orchestration through:
+
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
+```
 
 A runtime that processes repeated units of work is expected to ensure:
 
@@ -497,11 +666,17 @@ kernel.hook.after_uow
 A Kernel hook executor is expected to discover hook services through these tags and call:
 
 ```text
-BeforeUowHookInterface::beforeUow()
-AfterUowHookInterface::afterUow()
+BeforeUowHookInterface::beforeUow(array $context): void
+AfterUowHookInterface::afterUow(array $context, array $result): void
 ```
 
 according to deterministic owner policy.
+
+The `$context` and `$result` arrays are normalized exported lifecycle payloads produced by the runtime owner.
+
+The contracts package owns only the hook method signatures.
+
+The Kernel runtime owner owns payload production, payload normalization, service resolution, hook ordering, failure handling, and invocation.
 
 The contracts package does not define:
 
@@ -644,18 +819,24 @@ Contracts-level enforcement evidence for this epic includes:
 
 ```text
 framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php
+framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
 framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
 ```
 
 These tests are expected to verify:
 
 - `ResetInterface` exists and exposes only `reset(): void`;
-- `BeforeUowHookInterface` exists and exposes only `beforeUow(): void`;
-- `AfterUowHookInterface` exists and exposes only `afterUow(): void`;
+- `KernelRuntimeInterface` exists and exposes `runUnitOfWork()`, `beginUnitOfWork()`, and `afterUnitOfWork()`;
+- `KernelRuntimeInterface` does not depend on `core/kernel`;
+- `BeforeUowHookInterface` exists and exposes only `beforeUow(array $context): void`;
+- `AfterUowHookInterface` exists and exposes only `afterUow(array $context, array $result): void`;
+- hook interfaces accept normalized exported array payloads;
 - hook interfaces do not depend on platform packages;
 - hook interfaces do not depend on integrations packages;
 - hook interfaces do not depend on `Psr\Http\Message\*`;
-- reset and hook contracts stay format-neutral.
+- hook interfaces do not depend on `Psr\Http\Server\*`;
+- hook interfaces do not depend on Kernel-owned runtime classes;
+- reset, runtime, and hook contracts stay format-neutral.
 
 Architecture gates are expected to verify that `core/contracts` does not introduce forbidden compile-time dependencies.
 
@@ -665,6 +846,12 @@ This SSoT does not define:
 
 - concrete reset orchestrator implementation;
 - concrete hook executor implementation;
+- contracts-owned UnitOfWork context object;
+- contracts-owned UnitOfWork result object;
+- Kernel-owned UnitOfWork classes in `core/contracts`;
+- hook payload producer implementation in `core/contracts`;
+- hook payload normalization implementation in `core/contracts`;
+- KernelRuntime implementation in `core/contracts`;
 - DI service discovery implementation;
 - DI tag constants in `core/contracts`;
 - tag metadata schema;
@@ -693,4 +880,7 @@ This SSoT does not define:
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DTO Policy](./dto-policy.md)
 - [Profiling Ports SSoT](./profiling-ports.md)
+- [UnitOfWork Outcome Policy SSoT](./uow-outcome-policy.md)
+- [UnitOfWork Shapes SSoT](./uow-shapes.md)
+- [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

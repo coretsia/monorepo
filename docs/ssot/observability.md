@@ -139,6 +139,8 @@ The method/type mapping is canonical:
 | http.request_duration_ms     | `platform/http`   | observe | `method`, `status`, `outcome` |
 | foundation.reset_total       | `core/foundation` | counter | `outcome`                     |
 | foundation.reset_duration_ms | `core/foundation` | observe | `outcome`                     |
+| kernel.uow_total             | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.uow_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`        |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -208,6 +210,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 
 - `http.request`
 - `foundation.reset`
+- `kernel.uow`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 
@@ -217,6 +220,8 @@ Baseline HTTP metric names and their metric-specific labels are registered in th
 
 - `http.request_total`
 - `http.request_duration_ms`
+- `kernel.uow_total`
+- `kernel.uow_duration_ms`
 
 Reset metric names and their metric-specific labels are registered in the canonical metrics catalog above:
 

@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider wiring, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, and canonical UnitOfWork outcome/lifecycle policy.
+**Scope:** Kernel module metadata, Kernel service provider wiring, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters, concrete lifecycle executor implementation, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -72,6 +72,13 @@ This package provides the Kernel baseline runtime layer:
 - Kernel module metadata through `Coretsia\Kernel\Module\KernelModule`.
 - Kernel service provider registration through `Coretsia\Kernel\Provider\KernelServiceProvider`.
 - Stateless Kernel service factory/wiring helper through `Coretsia\Kernel\Provider\KernelServiceFactory`.
+- Kernel-owned UnitOfWork lifecycle implementation through `Coretsia\Kernel\Runtime\KernelRuntime`.
+- Contracts-level runtime port binding:
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+  - bound by DI to `Coretsia\Kernel\Runtime\KernelRuntime`
+- Kernel hook invocation through `Coretsia\Kernel\Runtime\Hook\HookInvoker`.
+- Kernel hook payload normalization through `Coretsia\Kernel\Runtime\Hook\HookContextNormalizer`.
+- Kernel-owned lifecycle hook discovery tag constants through `Coretsia\Kernel\Provider\Tags`.
 - Kernel configuration defaults and validation rules under the `kernel` config root.
 - Canonical UnitOfWork type tokens:
   - `http`
@@ -93,6 +100,14 @@ This package provides the Kernel baseline runtime layer:
 - Deterministic validation failures for UnitOfWork shapes:
   - `CORETSIA_UOW_CONTEXT_INVALID`
   - `CORETSIA_UOW_RESULT_INVALID`
+- Deterministic Kernel runtime failures:
+  - `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`
+  - `CORETSIA_KERNEL_RUNTIME_ERROR`
+- Safe lifecycle summary observability emitted by `KernelRuntime`:
+  - span: `kernel.uow`
+  - metrics: `kernel.uow_total`, `kernel.uow_duration_ms`
+  - log message: `kernel.uow`
+  - allowed labels/context keys: `operation`, `outcome`, `duration_ms` for logs
 
 Foundation owns reusable runtime mechanisms such as ids, clocks, stopwatch, context storage, deterministic tags, and reset orchestration.
 
@@ -101,6 +116,134 @@ Foundation also owns the reusable baseline json-like runtime value model.
 Kernel owns only the UoW-specific layer on top of that model: root map policy, unsafe metadata key policy, attributes limits, exported error map policy, and UoW exception mapping.
 
 Platform packages own transport adapters.
+
+## KernelRuntime SPI
+
+The external runtime SPI is owned by `core/contracts`:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+The concrete implementation is owned by `core/kernel`:
+
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
+```
+
+`Coretsia\Kernel\Runtime\KernelRuntime` is the `core/kernel` implementation bound to the contracts port by DI.
+
+Platform, worker, scheduler, queue, and custom runtime adapters MUST depend on:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+Adapters MUST NOT typehint, construct, or directly depend on:
+
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
+```
+
+The high-level lifecycle API is:
+
+```text
+runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
+```
+
+`runUnitOfWork()` returns the external body return value.
+
+It MUST NOT return the exported UnitOfWork result array.
+
+Low-level adapters that need exported context/result arrays MAY use:
+
+```text
+beginUnitOfWork(string $type, array $attributes = []): array
+afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+```
+
+Low-level adapters MUST execute their external body only after successful `beginUnitOfWork()`.
+
+Low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
+
+## KernelRuntime lifecycle
+
+The canonical high-level lifecycle is:
+
+```text
+begin UnitOfWork
+write base ContextStore keys
+invoke before-uow hooks
+run external runtime body
+build UnitOfWork result
+invoke after-uow hooks
+ResetOrchestrator.resetAll()
+surface result or primary failure
+```
+
+The conceptual shorthand is:
+
+```text
+begin → hooks → external runtime → after → reset
+```
+
+`KernelRuntime` writes these base context keys before the external runtime body is executed:
+
+```text
+Coretsia\Foundation\Context\ContextKeys::CORRELATION_ID
+Coretsia\Foundation\Context\ContextKeys::UOW_ID
+Coretsia\Foundation\Context\ContextKeys::UOW_TYPE
+```
+
+Before hooks receive the normalized exported UnitOfWork context array.
+
+After hooks receive the normalized exported UnitOfWork context array and normalized exported UnitOfWork result array.
+
+No `UnitOfWorkContext`, `UnitOfWorkResult`, `ErrorDescriptor`, `Throwable`, transport object, service object, closure, or resource may cross the hook/export boundary.
+
+## Hook discovery
+
+Kernel lifecycle hooks are discovered through Kernel-owned tags.
+
+The canonical public owner constants are:
+
+```text
+Coretsia\Kernel\Provider\Tags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Kernel\Provider\Tags::KERNEL_HOOK_AFTER_UOW
+```
+
+Their values are:
+
+```text
+kernel.hook.before_uow
+kernel.hook.after_uow
+```
+
+Runtime code that is allowed to depend on `core/kernel` and needs these tags SHOULD use the constants instead of raw literal strings.
+
+Hook services are resolved by `HookInvoker` from Foundation `TagRegistry` entries.
+
+`HookInvoker` preserves the exact order returned by `TagRegistry::all()`.
+
+It MUST NOT re-sort hooks.
+
+It MUST NOT dedupe hooks.
+
+It MUST NOT apply custom priority rules.
+
+Hook service ids are resolved through PSR-11 container lookup.
+
+A before hook must implement:
+
+```text
+Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface
+```
+
+An after hook must implement:
+
+```text
+Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface
+```
 
 ## Configuration
 
@@ -450,18 +593,26 @@ Foundation owns:
 
 ## Hook and export boundary
 
-Kernel hooks and adapters receive exported array shapes, not shape objects.
+Kernel hooks and low-level adapters receive exported array shapes, not shape objects.
 
 Before hooks receive context data as:
 
 ```text
-UnitOfWorkContext -> normalized array $ctx
+UnitOfWorkContext -> normalized array $context
 ```
 
-After hooks receive result data as:
+After hooks receive context/result data as:
 
 ```text
+UnitOfWorkContext -> normalized array $context
 UnitOfWorkResult -> normalized array $result
+```
+
+The contracts hook signatures are:
+
+```text
+BeforeUowHookInterface::beforeUow(array $context): void
+AfterUowHookInterface::afterUow(array $context, array $result): void
 ```
 
 Nested `attributes`, `extensions`, and exported `error` maps MUST be baseline-normalized through `JsonLikeShapeNormalizer`, which delegates recursive normalization to Foundation.
@@ -493,63 +644,132 @@ The canonical Foundation reset executor is:
 Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 ```
 
-Kernel owns the future lifecycle trigger point.
-
-The canonical conceptual lifecycle is:
+Kernel runtime code consumes reset only through:
 
 ```text
-beginUow()
-before_uow hooks
-run external runtime (http/cli/queue/scheduler/...)
-after_uow hooks
-ResetOrchestrator.resetAll()
-endUoW()
+ResetOrchestrator::resetAll()
 ```
 
-Once the after-phase is entered, `ResetOrchestrator.resetAll()` MUST run exactly once before `endUoW()`.
+`core/kernel` MUST NOT enumerate reset-tagged services directly.
 
-This applies even if an after-uow hook throws.
+`core/kernel` MUST NOT call `ResetInterface::reset()` directly on discovered services.
 
-This package MUST NOT enumerate reset-tagged services directly.
+`core/kernel` MUST NOT define `KERNEL_RESET` constants.
 
-Reset discovery remains Foundation-owned.
+The reset discovery tag is owned by `core/foundation`.
+
+The canonical lifecycle position is:
+
+```text
+after-uow hooks → ResetOrchestrator.resetAll()
+```
+
+For every UnitOfWork lifecycle that reaches reset responsibility, `KernelRuntime` MUST call `ResetOrchestrator::resetAll()` exactly once.
+
+If an earlier primary failure exists and reset also fails, the earlier primary failure remains surfaced.
+
+If no earlier primary failure exists and reset fails, `KernelRuntime` surfaces a safe `KernelRuntimeException` with reason:
+
+```text
+kernel-runtime-reset-failed
+```
+
+## No PSR-7/15 runtime boundary
+
+Kernel runtime APIs are format-neutral.
+
+`core/kernel` MUST NOT expose or require:
+
+```text
+Psr\Http\Message\*
+Psr\Http\Server\*
+```
+
+Kernel runtime code MUST NOT depend on platform HTTP request/response objects, PSR-7 request/response objects, PSR-15 middleware/handler objects, CLI command objects, queue vendor messages, scheduler vendor contexts, or integration package objects.
+
+PSR logger and PSR container usage are allowed implementation dependencies:
+
+```text
+Psr\Container\ContainerInterface
+Psr\Log\LoggerInterface
+```
+
+The PSR-7/15 ban is specific to transport APIs, not every `Psr\*` namespace.
 
 ## Observability
 
-This package does not emit telemetry directly.
+`KernelRuntime` emits safe lifecycle summary observability through injected ports.
 
-It defines safe data shapes and stable vocabulary that future runtime owners may use for observability.
+The concrete exporters/backends remain out of scope for `core/kernel`.
 
-Potential safe observability values:
+KernelRuntime receives these observability dependencies through DI:
 
 ```text
-type
+Psr\Log\LoggerInterface
+Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+Coretsia\Contracts\Observability\Metrics\MeterPortInterface
+```
+
+The canonical span name is:
+
+```text
+kernel.uow
+```
+
+The canonical metrics are:
+
+```text
+kernel.uow_total
+kernel.uow_duration_ms
+```
+
+The lifecycle summary log message is:
+
+```text
+kernel.uow
+```
+
+Allowed labels/attributes for span and metrics are:
+
+```text
+operation
 outcome
-durationMs
 ```
 
-Metric labels MUST NOT include:
+`operation` is the normalized UnitOfWork type.
+
+For an HTTP UnitOfWork:
 
 ```text
-uowId
-correlationId
-request_id
-user_id
-tenant_id
-path
-field
-property
+operation = http
 ```
 
-`durationMs` MAY be emitted as a metric value or span/log field according to owner policy.
+`outcome` is the normalized UnitOfWork outcome token.
 
-`durationMs` MUST NOT be emitted as a metric label.
+The lifecycle summary log context contains only:
 
-`attributes` and `extensions` MUST NOT be copied wholesale into logs, spans, metrics, diagnostics, or artifacts.
+```text
+duration_ms
+operation
+outcome
+```
 
-A value accepted by the baseline json-like model is not automatically safe for observability emission.
+Lifecycle summary observability MUST NOT include:
 
-Kernel and platform owners remain responsible for target-boundary redaction and omission policy.
+- raw `uowId`;
+- raw `correlationId`;
+- raw context arrays;
+- raw hook payloads;
+- raw transport payloads;
+- raw Throwable messages;
+- stack traces;
+- tokens;
+- cookies;
+- headers;
+- raw SQL;
+- local absolute paths.
+
+Observability port failures MUST NOT replace primary KernelRuntime lifecycle failures.
 
 ## Errors
 
@@ -666,6 +886,20 @@ It MUST NOT be listed as Kernel public API.
 
 Kernel public API consumers MUST use `UnitOfWorkContext` and `UnitOfWorkResult`, not the internal normalizer.
 
+Runtime adapters MUST use the contracts-level runtime port:
+
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+```
+
+Runtime adapters MUST NOT typehint or construct the concrete implementation directly:
+
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
+```
+
+The concrete implementation is resolved through DI binding in `core/kernel`.
+
 ## References
 
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
@@ -674,3 +908,5 @@ Kernel public API consumers MUST use `UnitOfWorkContext` and `UnitOfWorkResult`,
 - [Json-like Runtime Values SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)
 - [UnitOfWork Shapes SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-shapes.md)
 - [UnitOfWork Outcome Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md)
+- [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
+- [ADR-0020: Kernel runtime UnitOfWork SPI](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0020-kernel-runtime-uow-spi.md)

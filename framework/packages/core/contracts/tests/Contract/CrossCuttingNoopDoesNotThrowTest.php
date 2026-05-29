@@ -94,9 +94,20 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
             'outcome' => 'ok',
         ]);
 
+        $uowContext = [
+            'schemaVersion' => 1,
+            'type' => 'contract.noop',
+            'uow_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ];
+
+        $uowResult = [
+            'schemaVersion' => 1,
+            'outcome' => 'ok',
+        ];
+
         self::noopReset()->reset();
-        self::noopBeforeUowHook()->beforeUow();
-        self::noopAfterUowHook()->afterUow();
+        self::noopBeforeUowHook()->beforeUow($uowContext);
+        self::noopAfterUowHook()->afterUow($uowContext, $uowResult);
 
         self::addToAssertionCount(1);
     }
@@ -285,8 +296,9 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
     private static function noopBeforeUowHook(): BeforeUowHookInterface
     {
         return new class() implements BeforeUowHookInterface {
-            public function beforeUow(): void
+            public function beforeUow(array $context): void
             {
+                unset($context);
             }
         };
     }
@@ -294,8 +306,9 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
     private static function noopAfterUowHook(): AfterUowHookInterface
     {
         return new class() implements AfterUowHookInterface {
-            public function afterUow(): void
+            public function afterUow(array $context, array $result): void
             {
+                unset($context, $result);
             }
         };
     }

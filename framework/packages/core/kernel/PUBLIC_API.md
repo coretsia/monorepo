@@ -22,9 +22,11 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 
 - `Coretsia\Kernel\Module\KernelModule`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
+- `Coretsia\Kernel\Provider\Tags`
 - `Coretsia\Kernel\Runtime\Outcome`
 - `Coretsia\Kernel\Runtime\UnitOfWorkType`
 - `Coretsia\Kernel\Runtime\UnitOfWorkContext`
 - `Coretsia\Kernel\Runtime\UnitOfWorkResult`
+- `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException`

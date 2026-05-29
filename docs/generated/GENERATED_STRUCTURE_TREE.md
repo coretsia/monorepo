@@ -48,6 +48,7 @@ Coretsia/
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
 │   │   ├── ADR-0019-enhanced-reset-long-running.md
+│   │   ├── ADR-0020-kernel-runtime-uow-spi.md
 │   │   ├── ADR-0021-unit-of-work-context-shape.md
 │   │   ├── ADR-0022-unit-of-work-result-outcome-policy.md
 │   │   └── INDEX.md
@@ -252,6 +253,7 @@ Coretsia/
 │   │   │   │   │   │   ├── Hook/
 │   │   │   │   │   │   │   ├── AfterUowHookInterface.php
 │   │   │   │   │   │   │   └── BeforeUowHookInterface.php
+│   │   │   │   │   │   ├── KernelRuntimeInterface.php
 │   │   │   │   │   │   └── ResetInterface.php
 │   │   │   │   │   ├── Secrets/
 │   │   │   │   │   │   └── SecretsResolverInterface.php
@@ -298,6 +300,7 @@ Coretsia/
 │   │   │   │   │   │   ├── HealthCheckResultShapeContractTest.php
 │   │   │   │   │   │   ├── HookInterfacesDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── HttpAppContractsAreFormatNeutralTest.php
+│   │   │   │   │   │   ├── KernelRuntimeInterfaceIsFormatNeutralContractTest.php
 │   │   │   │   │   │   ├── MailContractsShapeContractTest.php
 │   │   │   │   │   │   ├── ManifestReaderInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── MergeStrategyInterfaceShapeContractTest.php
@@ -507,27 +510,50 @@ Coretsia/
 │   │   │       │   │   └── KernelModule.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── KernelServiceFactory.php
-│   │   │       │   │   └── KernelServiceProvider.php
+│   │   │       │   │   ├── KernelServiceProvider.php
+│   │   │       │   │   └── Tags.php
 │   │   │       │   └── Runtime/
 │   │   │       │       ├── Exception/
+│   │   │       │       │   ├── KernelRuntimeException.php
 │   │   │       │       │   ├── UnitOfWorkContextInvalidException.php
 │   │   │       │       │   └── UnitOfWorkResultInvalidException.php
+│   │   │       │       ├── Hook/
+│   │   │       │       │   ├── HookContextNormalizer.php
+│   │   │       │       │   └── HookInvoker.php
 │   │   │       │       ├── Internal/
 │   │   │       │       │   └── JsonLikeShapeNormalizer.php
+│   │   │       │       ├── KernelRuntime.php
 │   │   │       │       ├── Outcome.php
 │   │   │       │       ├── UnitOfWorkContext.php
 │   │   │       │       ├── UnitOfWorkResult.php
 │   │   │       │       └── UnitOfWorkType.php
 │   │   │       ├── tests/
-│   │   │       │   └── Contract/
-│   │   │       │       ├── CrossCuttingNoopDoesNotThrowTest.php
-│   │   │       │       ├── KernelConfigSubtreeShapeContractTest.php
-│   │   │       │       ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
-│   │   │       │       ├── OutcomeMappingStabilityContractTest.php
-│   │   │       │       ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-│   │   │       │       ├── UnitOfWorkContextShapeContractTest.php
-│   │   │       │       ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
-│   │   │       │       └── UnitOfWorkResultShapeContractTest.php
+│   │   │       │   ├── Contract/
+│   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
+│   │   │       │   │   ├── KernelDoesNotEnumerateResetDiscoveryTagTest.php
+│   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
+│   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
+│   │   │       │   │   ├── KernelRuntimeDoesNotWriteToStdoutTest.php
+│   │   │       │   │   ├── OutcomeMappingStabilityContractTest.php
+│   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+│   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
+│   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+│   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
+│   │   │       │   ├── Integration/
+│   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
+│   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
+│   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php
+│   │   │       │   │   ├── KernelRuntimeInvokesHooksInDeterministicOrderTest.php
+│   │   │       │   │   ├── KernelRuntimeRejectsInvalidExportedContextTest.php
+│   │   │       │   │   ├── KernelRuntimeResetHappensAfterAfterUowHooksTest.php
+│   │   │       │   │   ├── KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
+│   │   │       │   │   ├── KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
+│   │   │       │   │   └── KernelServiceProviderWiresKernelRuntimeTest.php
+│   │   │       │   └── Unit/
+│   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
+│   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
+│   │   │       │       └── HookInvokerDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── PUBLIC_API.md

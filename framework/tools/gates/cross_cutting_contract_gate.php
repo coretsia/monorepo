@@ -1467,7 +1467,7 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
 
         if (isset($contextSymbols['ContextStore'][$resolved])) {
             if (
-                coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_foundation_wiring(
+                coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_context_owner(
                     phpFile: $phpFile,
                     tokens: $tokens,
                     tokenIndex: $i,
@@ -1481,7 +1481,7 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
         }
 
         if (isset($contextSymbols['ContextKeys'][$resolved])) {
-            if (coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_foundation_owner($phpFile)) {
+            if (coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_context_owner($phpFile)) {
                 continue;
             }
 
@@ -1495,33 +1495,42 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     return $result;
 }
 
-function coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_foundation_owner(string $phpFile): bool
+function coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_context_owner(string $phpFile): bool
 {
     $path = \str_replace('\\', '/', $phpFile);
 
     return \str_ends_with($path, '/packages/core/foundation/src/Context/ContextStorePolicy.php')
-        || \str_ends_with($path, '/packages/core/foundation/src/Observability/CorrelationIdProvider.php');
+        || \str_ends_with($path, '/packages/core/foundation/src/Observability/CorrelationIdProvider.php')
+        || \str_ends_with($path, '/packages/core/kernel/src/Runtime/KernelRuntime.php');
 }
 
 /**
  * @param list<array{0:int, 1:string, 2:int}|string> $tokens
  */
-function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_foundation_wiring(
+function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_context_owner(
     string $phpFile,
     array $tokens,
     int $tokenIndex,
 ): bool {
     $path = \str_replace('\\', '/', $phpFile);
 
-    if (!\str_ends_with($path, '/packages/core/foundation/src/Provider/FoundationServiceProvider.php')) {
-        return false;
+    if (\str_ends_with($path, '/packages/core/foundation/src/Provider/FoundationServiceProvider.php')) {
+        if (coretsia_cross_cutting_contract_gate_is_new_expression_subject($tokens, $tokenIndex)) {
+            return true;
+        }
+
+        return coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex);
     }
 
-    if (coretsia_cross_cutting_contract_gate_is_new_expression_subject($tokens, $tokenIndex)) {
+    if (\str_ends_with($path, '/packages/core/kernel/src/Runtime/KernelRuntime.php')) {
         return true;
     }
 
-    return coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex);
+    if (\str_ends_with($path, '/packages/core/kernel/src/Provider/KernelServiceFactory.php')) {
+        return true;
+    }
+
+    return false;
 }
 
 /**

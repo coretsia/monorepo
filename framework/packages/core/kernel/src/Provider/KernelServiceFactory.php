@@ -18,12 +18,25 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Exception\ContainerException;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\CorrelationIdGenerator;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
+use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Runtime\Hook\HookInvoker;
+use Coretsia\Kernel\Runtime\KernelRuntime;
+use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Stateless Kernel service factory.
  *
- * This helper centralizes Kernel runtime wiring/validation that needs both DI
+ * This helper centralizes Kernel runtime wiring/validation that needs DI
  * services and already-merged Kernel config.
  *
  * It intentionally keeps no mutable runtime state:
@@ -32,15 +45,15 @@ use Coretsia\Foundation\Container\Exception\ContainerException;
  * - no caches;
  * - no buffers;
  * - no retained container instance;
- * - no retained config payload.
+ * - no retained config payload;
+ * - no request-local or unit-of-work-local data.
  *
  * The caller owns when this factory is invoked and which config snapshot is
- * supplied. The factory only validates the small Kernel-owned subset it needs
- * for constructing or validating services.
+ * supplied. The factory only validates the small Kernel-owned config subset and
+ * constructs Kernel-owned runtime services from already-registered DI services.
  *
- * 1.270.0 intentionally does not build a UnitOfWork lifecycle executor here.
- * This epic owns stable UnitOfWork shapes and policy locks only. Runtime
- * lifecycle execution is introduced by later Kernel runtime epics.
+ * This factory does not invent UnitOfWork lifecycle behavior. Lifecycle
+ * orchestration belongs to KernelRuntime.
  *
  * @internal Kernel provider wiring helper. Not part of the public Kernel API.
  */
@@ -55,6 +68,44 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the Kernel hook invoker.
+     *
+     * The supplied TagRegistry MUST be the builder-owned registry instance so
+     * hook discovery order stays owned by Foundation TagRegistry.
+     */
+    public static function hookInvoker(
+        ContainerInterface $container,
+        TagRegistry $tagRegistry,
+    ): HookInvoker {
+        return new HookInvoker(
+            container: $container,
+            tags: $tagRegistry,
+        );
+    }
+
+    /**
+     * Creates the KernelRuntime orchestrator from already-registered services.
+     *
+     * This method performs wiring only. It does not read runtime config, does
+     * not enumerate hooks, does not trigger reset, and does not start a UoW.
+     */
+    public static function kernelRuntime(ContainerInterface $container): KernelRuntime
+    {
+        return new KernelRuntime(
+            contextStore: self::contextStore($container),
+            resetOrchestrator: self::resetOrchestrator($container),
+            stopwatch: self::stopwatch($container),
+            uowIds: self::uowIds($container),
+            correlationIdProvider: self::correlationIdProvider($container),
+            correlationIds: self::correlationIds($container),
+            hooks: self::hooks($container),
+            logger: self::logger($container),
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+        );
+    }
+
+    /**
      * Resolves UnitOfWorkContext.attributes defensive limits.
      *
      * The values are read from the supplied Kernel config subtree:
@@ -62,7 +113,7 @@ final class KernelServiceFactory
      *     kernel.uow.attributes.max_depth
      *     kernel.uow.attributes.max_keys
      *
-     * If the keys are absent, the 1.270.0 defaults are used.
+     * If the keys are absent, the defaults are used.
      *
      * @param array<string, mixed> $kernelConfig
      *
@@ -114,6 +165,136 @@ final class KernelServiceFactory
         }
 
         return $maxKeys;
+    }
+
+    private static function contextStore(ContainerInterface $container): ContextStore
+    {
+        $service = self::service($container, ContextStore::class);
+
+        if (!$service instanceof ContextStore) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function resetOrchestrator(ContainerInterface $container): ResetOrchestrator
+    {
+        $service = self::service($container, ResetOrchestrator::class);
+
+        if (!$service instanceof ResetOrchestrator) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function stopwatch(ContainerInterface $container): Stopwatch
+    {
+        $service = self::service($container, Stopwatch::class);
+
+        if (!$service instanceof Stopwatch) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function uowIds(ContainerInterface $container): IdGeneratorInterface
+    {
+        $service = self::service($container, IdGeneratorInterface::class);
+
+        if (!$service instanceof IdGeneratorInterface) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function correlationIdProvider(ContainerInterface $container): CorrelationIdProviderInterface
+    {
+        $service = self::service($container, CorrelationIdProviderInterface::class);
+
+        if (!$service instanceof CorrelationIdProviderInterface) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function correlationIds(ContainerInterface $container): CorrelationIdGenerator
+    {
+        $service = self::service($container, CorrelationIdGenerator::class);
+
+        if (!$service instanceof CorrelationIdGenerator) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function hooks(ContainerInterface $container): HookInvoker
+    {
+        $service = self::service($container, HookInvoker::class);
+
+        if (!$service instanceof HookInvoker) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function logger(ContainerInterface $container): LoggerInterface
+    {
+        $service = self::service($container, LoggerInterface::class);
+
+        if (!$service instanceof LoggerInterface) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function tracer(ContainerInterface $container): TracerPortInterface
+    {
+        $service = self::service($container, TracerPortInterface::class);
+
+        if (!$service instanceof TracerPortInterface) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function meter(ContainerInterface $container): MeterPortInterface
+    {
+        $service = self::service($container, MeterPortInterface::class);
+
+        if (!$service instanceof MeterPortInterface) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function service(
+        ContainerInterface $container,
+        string $id,
+    ): mixed {
+        try {
+            if (!$container->has($id)) {
+                throw new ContainerException('kernel-runtime-dependency-not-found');
+            }
+
+            return $container->get($id);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-runtime-dependency-not-found',
+                $throwable,
+            );
+        }
     }
 
     /**

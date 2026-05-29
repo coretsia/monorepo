@@ -44,8 +44,14 @@ interface AfterUowHookInterface
     /**
      * Runs after a unit of work.
      *
-     * This method intentionally has no parameters so hook behavior remains
-     * format-neutral and does not encode transport-specific context.
+     * The context array is the normalized exported unit-of-work context
+     * produced by the runtime owner. It is a format-neutral lifecycle hook
+     * payload and MUST NOT contain transport-specific objects or vendor runtime
+     * objects.
+     *
+     * The result array is the normalized exported unit-of-work result produced
+     * by the runtime owner. It is a format-neutral lifecycle hook payload and
+     * MUST NOT contain transport-specific objects or vendor runtime objects.
      *
      * Implementations MAY finalize runtime-owned scoped state, stop profiling
      * integration, flush safe summaries, emit safe owner-defined signals, or
@@ -54,6 +60,14 @@ interface AfterUowHookInterface
      * Implementations MUST NOT expose raw transport data, raw payloads,
      * credentials, tokens, private customer data, or absolute local paths
      * through diagnostics.
+     *
+     * @param array<string, mixed> $context Normalized exported unit-of-work
+     *                                      context array.
+     * @param array<string, mixed> $result Normalized exported unit-of-work
+     *                                      result array.
      */
-    public function afterUow(): void;
+    public function afterUow(
+        array $context,
+        array $result
+    ): void;
 }

@@ -23,20 +23,26 @@ use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Kernel\Boot\BootstrapConfigResolver;
+use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\DotenvLoader;
+use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 
 /**
  * Kernel DI wiring entrypoint.
  *
- * This provider registers Kernel-owned runtime services without changing
- * provider ordering semantics. ContainerBuilder still preserves the exact
- * caller-supplied provider order.
+ * This provider registers Kernel-owned runtime and Bootstrap Phase A services
+ * without changing provider ordering semantics. ContainerBuilder still
+ * preserves the exact caller-supplied provider order.
  *
  * Wiring decisions:
  *
  * - the Kernel-owned config subset used by UnitOfWork shapes is validated
  *   early and deterministically;
+ * - Bootstrap Phase A boot services are registered as factories only;
+ * - registering boot services does not execute Phase A boot;
  * - HookInvoker is registered as the Kernel hook invocation service;
  * - KernelRuntime is registered as the Kernel-owned UnitOfWork lifecycle
  *   orchestrator;
@@ -50,7 +56,8 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  *
  * This provider must not emit stdout/stderr, must not use tooling-only
  * packages, must not introduce static mutable snapshots, must not trigger
- * reset orchestration, and must not start a UnitOfWork during registration.
+ * reset orchestration, must not execute Bootstrap Phase A, and must not start a
+ * UnitOfWork during registration.
  */
 final class KernelServiceProvider implements ServiceProviderInterface
 {
@@ -67,6 +74,40 @@ final class KernelServiceProvider implements ServiceProviderInterface
         KernelServiceFactory::unitOfWorkAttributeLimits($kernelConfig);
 
         $tagRegistry = $builder->tagRegistry();
+
+        /*
+         * Register Bootstrap Phase A services.
+         *
+         * These bindings are factories only. They do not resolve BootstrapInput,
+         * do not load skeleton/config/app.php, do not parse dotenv files, do not
+         * snapshot system env, and do not build EnvRepositoryInterface during
+         * provider registration.
+         */
+        $builder->factory(
+            BootstrapOverridesLoader::class,
+            static fn (
+                Container $_container
+            ): BootstrapOverridesLoader => KernelServiceFactory::bootstrapOverridesLoader(),
+        );
+
+        $builder->factory(
+            BootstrapConfigResolver::class,
+            static fn (Container $container): BootstrapConfigResolver => KernelServiceFactory::bootstrapConfigResolver(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            DotenvLoader::class,
+            static fn (Container $_container): DotenvLoader => KernelServiceFactory::dotenvLoader(),
+        );
+
+        $builder->factory(
+            EnvRepositoryBuilder::class,
+            static fn (Container $container): EnvRepositoryBuilder => KernelServiceFactory::envRepositoryBuilder(
+                container: $container,
+            ),
+        );
 
         $builder->factory(
             HookInvoker::class,

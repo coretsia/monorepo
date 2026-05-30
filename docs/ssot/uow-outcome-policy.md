@@ -554,6 +554,10 @@ The result shape is governed by:
 docs/ssot/uow-shapes.md
 ```
 
+`docs/ssot/uow-shapes.md` also owns `UnitOfWorkResultInvalidException` reason-token vocabulary and safe diagnostic path hardening.
+
+This outcome policy MUST NOT duplicate the result validation reason-token list.
+
 Result shape validation failures, including invalid `extensions` and invalid exported `error` maps, are governed by `docs/ssot/uow-shapes.md` and MUST use `CORETSIA_UOW_RESULT_INVALID`.
 
 `UnitOfWorkResult.outcome` MUST be one of:

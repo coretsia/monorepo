@@ -210,7 +210,7 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
                     $unsafeKey => 'secret-value-must-not-leak',
                 ]),
                 expectedPath: 'attributes[<key>]',
-                expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
+                expectedReason: UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_UNSAFE_KEY,
                 leakedRawValues: [
                     $unsafeKey,
                     'secret-value-must-not-leak',
@@ -231,7 +231,7 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
                 ],
             ]),
             expectedPath: 'attributes.adapter.metadata[<key>]',
-            expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_UNSAFE_KEY,
             leakedRawValues: [
                 'accessToken',
                 'token-value-must-not-leak',
@@ -322,7 +322,7 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
                 'rawSql' => 'SELECT * FROM users WHERE password = "secret-value"',
             ]),
             expectedPath: 'attributes[<key>]',
-            expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_UNSAFE_KEY,
             leakedRawValues: [
                 'rawSql',
                 'SELECT * FROM users',

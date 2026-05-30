@@ -98,6 +98,12 @@ The result validation exception path is:
 framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php
 ```
 
+`UnitOfWorkResultInvalidException` is the canonical Kernel result validation failure type.
+
+It exposes a finite public reason-token vocabulary, rejects unknown reason strings deterministically, and stores only safe diagnostic paths. Unsafe diagnostic paths are replaced with the stable placeholder `<path>`.
+
+The exception message may include only a stable reason token and a safe structural path. It must never include raw extension values, unsafe raw map keys, raw exported error values, secrets, raw SQL, authorization data, cookies, tokens, session ids, PII, stack traces, absolute local paths, or environment-specific data.
+
 The result shape and outcome vocabulary are owned by:
 
 ```text
@@ -970,6 +976,22 @@ Generic PHP exception types are less precise for Kernel contract tests and do no
 
 The accepted design uses `UnitOfWorkResultInvalidException` with `CORETSIA_UOW_RESULT_INVALID`.
 
+### Allow arbitrary result validation reason strings
+
+Rejected.
+
+Arbitrary reason strings would weaken contract tests and could accidentally turn user/runtime-derived data into diagnostics.
+
+The accepted design uses a finite public reason-token vocabulary on `UnitOfWorkResultInvalidException`.
+
+### Return raw result diagnostic paths from exceptions
+
+Rejected.
+
+Raw paths may contain unsafe extension keys, unsafe exported error keys, or environment-specific data.
+
+The accepted design stores and exposes only safe structural diagnostic paths. Unsafe paths are represented by the stable placeholder `<path>`.
+
 ### Allow floats in extensions
 
 Rejected.
@@ -1124,6 +1146,10 @@ Verification must prove:
 - extensions are normalized deterministically;
 - nested maps are sorted by byte-order `strcmp`;
 - lists preserve order;
+- result validation reason strings are whitelisted;
+- unknown result validation reason strings fail deterministically;
+- unsafe diagnostic paths are replaced with `<path>`;
+- `UnitOfWorkResultInvalidException::path()` does not expose unsafe raw paths;
 - diagnostics do not expose raw values.
 
 `OutcomeMappingStabilityContractTest` is the single contract lock for HTTP/CLI outcome mapping rules.

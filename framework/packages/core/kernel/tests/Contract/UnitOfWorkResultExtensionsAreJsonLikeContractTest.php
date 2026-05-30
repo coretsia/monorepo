@@ -227,7 +227,7 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
                 $key => 'redacted-value-that-must-not-leak',
             ]),
             expectedPath: 'extensions[<key>]',
-            expectedReason: 'uow-result-extensions-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkResultInvalidException::REASON_EXTENSIONS_UNSAFE_KEY,
             forbiddenDiagnosticsNeedles: [
                 $key,
                 'redacted-value-that-must-not-leak',
@@ -292,7 +292,7 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
                 ],
             ]),
             expectedPath: 'extensions.safe.nested[<key>]',
-            expectedReason: 'uow-result-extensions-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkResultInvalidException::REASON_EXTENSIONS_UNSAFE_KEY,
             forbiddenDiagnosticsNeedles: [
                 'accessToken',
                 'secret-token-value',

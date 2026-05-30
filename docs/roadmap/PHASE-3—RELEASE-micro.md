@@ -1538,6 +1538,9 @@ Tests:
 - [ ] `framework/packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
 - [ ] `framework/packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
 - [ ] `framework/packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+- [ ] `framework/packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [ ] MUST fail if `config/http.php` repeats root (`['http'=>...]` is forbidden; subtree only)
+  - [ ] MUST fail if any key starting with `@` exists under returned subtree (any depth)
 
 Docs:
 - [ ] `docs/ssot/http-middleware-wiring.md` — tags/slots/dedupe/deterministic order/override recipe
@@ -1592,6 +1595,7 @@ Normative:
   - [ ] `http.enabled` = true
 
   # auto include tagged middlewares per-slot
+  - [ ] `http.middleware.auto.enabled` = true
   - [ ] `http.middleware.auto.system_pre` = true
   - [ ] `http.middleware.auto.system` = true
   - [ ] `http.middleware.auto.system_post` = true
@@ -1629,6 +1633,15 @@ Normative:
   - [ ] `http.request.max_body_bytes` = 1048576
   - [ ] `http.request.json.enabled` = true
   - [ ] `http.request.json.max_depth` = 32
+
+- [ ] Feature toggles referenced by platform/http-owned middleware (must exist; defaults owned by `platform/http`):
+  - [ ] `http.debug.endpoints.enabled`
+  - [ ] alignment rule:
+    - [ ] this list MUST cover every `platform/http`-owned middleware in `docs/ssot/http-middleware-catalog.md` whose placement is conditional on an `if enabled` rule
+  - [ ] Clarification:
+    - [ ] these keys are seeded here as `platform/http`-owned configuration surface only
+    - [ ] `3.50.0` MUST NOT imply that every listed toggle already has a full middleware/runtime implementation in this epic
+    - [ ] concrete behavior for individual HTTP features is introduced by later HTTP epics
 
 - [ ] Rules:
   - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
@@ -1745,6 +1758,7 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
   - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
   - [ ] `framework/packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `framework/packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
 - Integration:
   - [ ] `framework/packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
   - [ ] `framework/packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
@@ -1779,6 +1793,267 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] Dedupe policy MUST be single-choice and stable:
     - [ ] If dedupe is needed, it MUST preserve first occurrence order (tagged first, then manual).
     - [ ] MUST NOT re-sort anything (TagRegistry already sorted tagged portion).
+
+---
+
+### 3.55.0 HTTP long-running safety harness (MUST) [IMPL]
+
+---
+type: package
+phase: 3
+epic_id: "3.55.0"
+owner_path: "framework/packages/platform/http/"
+
+package_id: "platform/http"
+composer: "coretsia/platform-http"
+kind: runtime
+module_id: "platform.http"
+
+goal: "Один і той самий process може обробити 100 sequential requests без leak, а reset виконується детерміновано після кожного request."
+provides:
+- "`platform/http` long-running safe: HttpKernel/handler викликається багато разів у одному процесі без протікання стану/контексту."
+- "Harness/integration tests на sequential requests + reset discipline through the standard `HttpKernel` → `KernelRuntimeInterface` → Foundation `ResetOrchestrator` flow."
+- "Optional span attribute `long_running=true` (НЕ metric label)."
+- "Consumers of this harness (policy): `integrations/runtime-frankenphp`, `integrations/runtime-swoole`, `integrations/runtime-roadrunner`, and `platform/worker` when `worker.task_type=http`."
+- "No extra runtime toggles required: protection/harness is activated by using a long-running HTTP runtime adapter; no middleware/endpoint changes."
+
+runtime_invariant:
+- "Long-running safety is a consequence of the standard KernelRuntime + Foundation reset flow."
+- "It MUST NOT be controlled by a dedicated `enabled=false` style flag in Foundation."
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+adr: "docs/adr/ADR-0018-kernel-long-running-safety-harness.md"
+ssot_refs:
+- "docs/ssot/reset-tags.md"
+- "docs/ssot/context-lifecycle.md"
+- "docs/ssot/context-store.md"
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 3.50.0 — `platform/http` package skeleton exists.
+  - 3.50.0 — `framework/packages/platform/http/src/HttpKernel.php` exists.
+  - 3.50.0 — `framework/packages/platform/http/src/HttpKernelInterface.php` exists.
+  - 3.50.0 — HTTP middleware stack, terminal handler, config root, provider wiring, and UoW envelope exist.
+  - 3.50.0 — `framework/packages/platform/http/config/http.php` and `framework/packages/platform/http/config/rules.php` exist.
+  - 3.50.0 — canonical HTTP middleware tag owner constants exist in `framework/packages/platform/http/src/Provider/Tags.php`.
+  - 1.280.0 — `core/kernel` provides `KernelRuntime`, which wraps each request as a UoW and executes the canonical after/reset flow.
+  - 1.250.0 — Foundation reset orchestration exists and owns reset ordering/meta behavior.
+
+- Required pre-existing deliverables (exact paths):
+  - `framework/packages/platform/http/composer.json`
+  - `framework/packages/platform/http/src/HttpKernel.php`
+  - `framework/packages/platform/http/src/HttpKernelInterface.php`
+  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `framework/packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `framework/packages/platform/http/src/Provider/Tags.php`
+  - `framework/packages/platform/http/config/http.php`
+  - `framework/packages/platform/http/config/rules.php`
+  - `framework/packages/platform/http/README.md`
+  - `docs/ssot/http-middleware-wiring.md`
+  - `docs/ssot/http-middleware-catalog.md`
+
+- Required tags:
+  - reset discipline is provided by Foundation/Kernel runtime; `platform/http` relies on it but MUST NOT enumerate reset tags directly
+
+- Required contracts / ports:
+  - `Psr\Http\Message\ServerRequestInterface`
+  - `Psr\Http\Message\ResponseInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional; noop-safe)
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional; noop-safe)
+
+- Non-goals (legacy):
+  - No process manager / worker pool (owned by other epics or integrations).
+  - No middleware stack / endpoint changes.
+
+- Acceptance scenario:
+  - When running `LongRunning100SequentialRequestsNoLeakTest`, then one `HttpKernel` instance handles 100 sequential requests in the same process without request-local ContextStore leakage.
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- `core/contracts`
+- `core/foundation`
+- `core/kernel`
+
+Forbidden:
+
+- `integrations/*`
+- (cemented) `platform/http` MUST NOT depend on other `platform/*` runtime packages
+  - `core/*` dependencies are allowed (e.g. `core/kernel`, `core/foundation`, `core/contracts`)
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Http\Message\ServerRequestInterface`
+  - `Psr\Http\Message\ResponseInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
+  - `Psr\Log\LoggerInterface` (optional)
+- Contracts:
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+
+### Entry points / integration points (MUST)
+
+- CLI:
+  - N/A
+- HTTP:
+  - N/A (uses existing stack; adds harness/probe)
+- Kernel hooks/tags:
+  - relies on Foundation reset orchestration via `ResetOrchestrator`
+- Artifacts:
+  - N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+Test-only harness/support:
+- [ ] `framework/packages/platform/http/tests/Support/LongRunningSafetyProbe.php` — helper used only by tests
+  - [ ] MUST NOT change production behavior (no hooks, no middleware injection)
+  - [ ] MUST NOT emit stdout/stderr output
+  - [ ] MUST NOT log request payloads/headers/tokens
+  - [ ] MAY inspect ContextStore via `ContextAccessorInterface` for invariants only
+
+Docs:
+- [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
+- [ ] `docs/architecture/http-long-running.md` — rules: no statics, reset discipline, adapter notes
+
+Tests:
+- [ ] `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+- [ ] `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+
+#### Modifies
+
+- [ ] `framework/packages/platform/http/README.md` — add long-running runtime safety section.
+- [ ] `framework/packages/platform/http/config/http.php` — add only `http.long_running.span_attr_enabled` if optional span attribute emission is configurable.
+- [ ] `framework/packages/platform/http/config/rules.php` — add shape rule only for `http.long_running.span_attr_enabled` if the config key is introduced.
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
+
+#### Configuration (keys + defaults)
+
+- [ ] Files:
+  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `framework/packages/platform/http/config/rules.php`
+- [ ] Keys (dot):
+  - [ ] `http.long_running.span_attr_enabled` = true
+    - [ ] controls only optional span attribute emission;
+    - [ ] MUST NOT enable/disable long-running safety;
+    - [ ] MUST NOT enable/disable reset discipline;
+    - [ ] MUST NOT enable/disable harness behavior;
+    - [ ] long-running safety remains unconditional when a long-running HTTP runtime adapter is used.
+- [ ] Rules:
+  - [ ] `framework/packages/platform/http/config/rules.php` enforces `http.long_running.span_attr_enabled` as bool.
+
+#### Wiring / DI tags (when applicable)
+
+N/A for new tags.
+
+- [ ] This epic MUST NOT introduce or modify `http.middleware.*` tag constants.
+- [ ] HTTP middleware tag constants are already owned and introduced by `3.50.0` in:
+  - [ ] `framework/packages/platform/http/src/Provider/Tags.php`
+- [ ] This epic MUST NOT add new middleware slots.
+- [ ] This epic MUST NOT alter middleware stack ordering.
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- [ ] Context reads:
+  - [ ] via `Coretsia\Contracts\Context\ContextAccessorInterface` (for leak detection / invariants)
+- Context writes (safe only):
+  - N/A
+- [ ] Reset discipline:
+  - [ ] relies on the standard `HttpKernel` → `KernelRuntimeInterface` → `ResetOrchestrator::resetAll()` flow from 3.50.0 / 1.280.0.
+  - [ ] `platform/http` MUST NOT enumerate `kernel.reset`.
+  - [ ] `platform/http` MUST NOT read `foundation.reset.tag`.
+  - [ ] `platform/http` MUST NOT call `ResetInterface::reset()` directly.
+  - [ ] Long-running tests MAY observe reset effects/counts through test fixtures, but production code remains reset-tag-opaque.
+
+#### Observability (policy-compliant)
+
+- [ ] Spans:
+  - [ ] optional attribute `long_running=true` on the existing request/runtime span only.
+  - [ ] `long_running` MUST NOT be used as a metric label.
+  - [ ] `long_running` MUST NOT contain request-specific data.
+- Metrics/Logs:
+  - N/A
+
+#### Errors
+
+N/A
+
+#### Security / Redaction
+
+- [ ] Long-running harness MUST enforce “no leak” without capturing secrets:
+  - [ ] MUST NOT dump ContextStore values (only key presence/absence or safe ids)
+  - [ ] MUST NOT include absolute paths in assertion messages
+  - [ ] MUST NOT include raw headers/cookies/Authorization in test failure output
+  - [ ] Allowed diagnostics: key names, stable counters, `hash(value)` / `len(value)` when necessary
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [ ] if effective reset discovery is used → `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+- [ ] If long-running no-leak promised → `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+
+### Tests (MUST)
+
+- Contract:
+  - N/A
+- Integration:
+  - [ ] `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+  - [ ] `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+- [ ] Add policy/contract assertions inside these integration tests:
+  - [ ] `LongRunning100SequentialRequestsNoLeakTest` MUST assert:
+    - [ ] one `HttpKernel` instance can handle 100 sequential requests in the same process;
+    - [ ] each request succeeds or deterministically returns the expected response shape;
+    - [ ] request-local ContextStore values from a previous request do not leak into the next request;
+    - [ ] no raw headers, cookies, Authorization values, tokens, request bodies, or absolute paths appear in failure diagnostics.
+  - [ ] `ResetIsCalledBetweenRequestsTest` MUST assert:
+    - [ ] reset orchestration is observed exactly once per request UoW, where observable;
+    - [ ] reset happens after request after-phase completion and before the next request begins;
+    - [ ] reset still happens when a request path throws before being mapped/handled by later platform error middleware, subject to the 3.50.0 runtime flow.
+- Gates/Arch:
+  - N/A
+
+### DoD (MUST)
+
+- [ ] Spec locked.
+- [ ] Tests green.
+- [ ] Gates/Arch green.
+- [ ] No new runtime dependencies introduced.
+- [ ] No package skeleton files created by this epic.
+- [ ] No HTTP middleware tags introduced or modified by this epic.
+- [ ] No HTTP config root introduced by this epic.
+- [ ] Existing `platform/http` runtime from 3.50.0 remains the production target.
+- [ ] One `HttpKernel` instance can process 100 sequential requests in one PHP process.
+- [ ] Reset is observed once per request UoW.
+- [ ] No request-local ContextStore state leaks between sequential requests.
+- [ ] Harness/support remains tests-only.
+- [ ] Harness/support does not emit stdout/stderr.
+- [ ] Harness/support does not log or dump headers, cookies, Authorization values, tokens, request bodies, raw payloads, object dumps, stack traces, or absolute paths.
+- [ ] Docs complete:
+  - [ ] `docs/architecture/http-long-running.md`
+  - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
+  - [ ] `framework/packages/platform/http/README.md` long-running safety section.
 
 ---
 

@@ -69,12 +69,28 @@ final readonly class UnitOfWorkContext
         int $attributesMaxDepth = self::DEFAULT_ATTRIBUTES_MAX_DEPTH,
         int $attributesMaxKeys = self::DEFAULT_ATTRIBUTES_MAX_KEYS,
     ) {
-        self::assertNonEmptySafeId($uowId, 'uowId', 'uow-context-uow-id-invalid');
+        self::assertNonEmptySafeId(
+            $uowId,
+            'uowId',
+            UnitOfWorkContextInvalidException::REASON_UOW_ID_INVALID,
+        );
         self::assertType($type);
         self::assertStartedAt($startedAt);
-        self::assertNonEmptySafeId($correlationId, 'correlationId', 'uow-context-correlation-id-invalid');
-        self::assertPositiveLimit($attributesMaxDepth, 'attributes', 'uow-context-attributes-max-depth-invalid');
-        self::assertPositiveLimit($attributesMaxKeys, 'attributes', 'uow-context-attributes-max-keys-invalid');
+        self::assertNonEmptySafeId(
+            $correlationId,
+            'correlationId',
+            UnitOfWorkContextInvalidException::REASON_CORRELATION_ID_INVALID,
+        );
+        self::assertPositiveLimit(
+            $attributesMaxDepth,
+            'attributes',
+            UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_DEPTH_INVALID,
+        );
+        self::assertPositiveLimit(
+            $attributesMaxKeys,
+            'attributes',
+            UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_KEYS_INVALID,
+        );
 
         $this->uowId = $uowId;
         $this->type = $type;
@@ -168,14 +184,20 @@ final readonly class UnitOfWorkContext
     private static function assertType(string $type): void
     {
         if (!UnitOfWorkType::isValid($type)) {
-            throw UnitOfWorkContextInvalidException::atPath('type', 'uow-context-type-invalid');
+            throw UnitOfWorkContextInvalidException::atPath(
+                'type',
+                UnitOfWorkContextInvalidException::REASON_TYPE_INVALID,
+            );
         }
     }
 
     private static function assertStartedAt(int $startedAt): void
     {
         if ($startedAt < 0) {
-            throw UnitOfWorkContextInvalidException::atPath('startedAt', 'uow-context-started-at-invalid');
+            throw UnitOfWorkContextInvalidException::atPath(
+                'startedAt',
+                UnitOfWorkContextInvalidException::REASON_STARTED_AT_INVALID,
+            );
         }
     }
 

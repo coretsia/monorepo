@@ -118,14 +118,14 @@ final class JsonLikeShapeNormalizer
         if ($maxDepth < 1) {
             throw UnitOfWorkContextInvalidException::atPath(
                 'attributes',
-                'uow-context-attributes-max-depth-invalid',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_DEPTH_INVALID,
             );
         }
 
         if ($maxKeys < 1) {
             throw UnitOfWorkContextInvalidException::atPath(
                 'attributes',
-                'uow-context-attributes-max-keys-invalid',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_KEYS_INVALID,
             );
         }
 
@@ -136,7 +136,7 @@ final class JsonLikeShapeNormalizer
         if (\array_is_list($attributes)) {
             throw UnitOfWorkContextInvalidException::atPath(
                 'attributes',
-                'uow-context-attributes-root-map-required',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_ROOT_MAP_REQUIRED,
             );
         }
 
@@ -172,7 +172,7 @@ final class JsonLikeShapeNormalizer
         if (\array_is_list($extensions)) {
             throw UnitOfWorkResultInvalidException::atPath(
                 'extensions',
-                'uow-result-extensions-root-map-required',
+                UnitOfWorkResultInvalidException::REASON_EXTENSIONS_ROOT_MAP_REQUIRED,
             );
         }
 
@@ -199,14 +199,14 @@ final class JsonLikeShapeNormalizer
         if ($error === []) {
             throw UnitOfWorkResultInvalidException::atPath(
                 'error',
-                'uow-result-error-map-empty',
+                UnitOfWorkResultInvalidException::REASON_ERROR_MAP_EMPTY,
             );
         }
 
         if (\array_is_list($error)) {
             throw UnitOfWorkResultInvalidException::atPath(
                 'error',
-                'uow-result-error-map-required',
+                UnitOfWorkResultInvalidException::REASON_ERROR_MAP_REQUIRED,
             );
         }
 
@@ -241,7 +241,7 @@ final class JsonLikeShapeNormalizer
         if (!\is_array($normalized)) {
             throw UnitOfWorkContextInvalidException::atPath(
                 $path,
-                'uow-context-attributes-type-forbidden',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_TYPE_FORBIDDEN,
             );
         }
 
@@ -269,7 +269,7 @@ final class JsonLikeShapeNormalizer
         if (!\is_array($normalized)) {
             throw UnitOfWorkResultInvalidException::atPath(
                 $path,
-                'uow-result-type-forbidden',
+                UnitOfWorkResultInvalidException::REASON_TYPE_FORBIDDEN,
             );
         }
 
@@ -296,7 +296,7 @@ final class JsonLikeShapeNormalizer
             if (!self::isSafeSingleLineString($key)) {
                 throw UnitOfWorkContextInvalidException::atPath(
                     $path,
-                    'uow-context-attributes-map-key-invalid',
+                    UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAP_KEY_INVALID,
                 );
             }
 
@@ -309,7 +309,7 @@ final class JsonLikeShapeNormalizer
             if ($keyCount > $maxKeys) {
                 throw UnitOfWorkContextInvalidException::atPath(
                     $keyPath,
-                    'uow-context-attributes-max-keys-exceeded',
+                    UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_KEYS_EXCEEDED,
                 );
             }
 
@@ -340,7 +340,7 @@ final class JsonLikeShapeNormalizer
             if (!self::isSafeString($value)) {
                 throw UnitOfWorkContextInvalidException::atPath(
                     $path,
-                    'uow-context-attributes-string-invalid',
+                    UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_STRING_INVALID,
                 );
             }
 
@@ -413,7 +413,7 @@ final class JsonLikeShapeNormalizer
             if (!self::isSafeSingleLineString($key)) {
                 throw UnitOfWorkResultInvalidException::atPath(
                     $path,
-                    'uow-result-map-key-invalid',
+                    UnitOfWorkResultInvalidException::REASON_MAP_KEY_INVALID,
                 );
             }
 
@@ -442,7 +442,7 @@ final class JsonLikeShapeNormalizer
             if (!self::isSafeString($value)) {
                 throw UnitOfWorkResultInvalidException::atPath(
                     $path,
-                    'uow-result-string-invalid',
+                    UnitOfWorkResultInvalidException::REASON_STRING_INVALID,
                 );
             }
 
@@ -490,26 +490,26 @@ final class JsonLikeShapeNormalizer
     private static function mapContextReason(string $reason): string
     {
         return match ($reason) {
-            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'uow-context-attributes-float-forbidden',
-            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'uow-context-attributes-object-forbidden',
-            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'uow-context-attributes-closure-forbidden',
-            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'uow-context-attributes-resource-forbidden',
-            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'uow-context-attributes-map-key-must-be-string',
-            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'uow-context-attributes-type-forbidden',
-            default => 'uow-context-attributes-type-forbidden',
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_FLOAT_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_OBJECT_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_CLOSURE_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_RESOURCE_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAP_KEY_MUST_BE_STRING,
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_TYPE_FORBIDDEN,
+            default => UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_TYPE_FORBIDDEN,
         };
     }
 
     private static function mapResultReason(string $reason): string
     {
         return match ($reason) {
-            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => 'uow-result-float-forbidden',
-            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => 'uow-result-object-forbidden',
-            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => 'uow-result-closure-forbidden',
-            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'uow-result-resource-forbidden',
-            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'uow-result-map-key-must-be-string',
-            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'uow-result-type-forbidden',
-            default => 'uow-result-type-forbidden',
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN => UnitOfWorkResultInvalidException::REASON_FLOAT_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN => UnitOfWorkResultInvalidException::REASON_OBJECT_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN => UnitOfWorkResultInvalidException::REASON_CLOSURE_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => UnitOfWorkResultInvalidException::REASON_RESOURCE_FORBIDDEN,
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => UnitOfWorkResultInvalidException::REASON_MAP_KEY_MUST_BE_STRING,
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => UnitOfWorkResultInvalidException::REASON_TYPE_FORBIDDEN,
+            default => UnitOfWorkResultInvalidException::REASON_TYPE_FORBIDDEN,
         };
     }
 
@@ -518,7 +518,7 @@ final class JsonLikeShapeNormalizer
         if ($depth > $maxDepth) {
             throw UnitOfWorkContextInvalidException::atPath(
                 $path,
-                'uow-context-attributes-max-depth-exceeded',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_DEPTH_EXCEEDED,
             );
         }
     }
@@ -528,7 +528,7 @@ final class JsonLikeShapeNormalizer
         if (self::isUnsafeMetadataKey($key)) {
             throw UnitOfWorkContextInvalidException::atPath(
                 $path,
-                'uow-context-attributes-unsafe-key-forbidden',
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_UNSAFE_KEY,
             );
         }
     }
@@ -538,7 +538,7 @@ final class JsonLikeShapeNormalizer
         if (self::isUnsafeMetadataKey($key)) {
             throw UnitOfWorkResultInvalidException::atPath(
                 $path,
-                'uow-result-extensions-unsafe-key-forbidden',
+                UnitOfWorkResultInvalidException::REASON_EXTENSIONS_UNSAFE_KEY,
             );
         }
     }
@@ -569,7 +569,7 @@ final class JsonLikeShapeNormalizer
     private static function safeKeySegment(string $key): string
     {
         if ($key === '') {
-            return '<empty-key>';
+            return '<key>';
         }
 
         if (\preg_match('/\A[A-Za-z0-9_.:-]{1,64}\z/', $key) === 1) {

@@ -125,6 +125,12 @@ The canonical exported array shape uses deterministic key ordering governed by:
 docs/ssot/uow-shapes.md
 ```
 
+`UnitOfWorkContextInvalidException` is the canonical Kernel context validation failure type.
+
+It exposes a finite public reason-token vocabulary, rejects unknown reason strings deterministically, and stores only safe diagnostic paths. Unsafe diagnostic paths are replaced with the stable placeholder `<path>`.
+
+The exception message may include only a stable reason token and a safe structural path. It must never include raw attribute values, unsafe raw map keys, secrets, raw SQL, authorization data, cookies, tokens, session ids, PII, stack traces, absolute local paths, or environment-specific data.
+
 ## Decision 1: Kernel owns UnitOfWorkContext
 
 `UnitOfWorkContext` is a Kernel runtime shape/value object.
@@ -768,6 +774,22 @@ Top-level fields are Kernel-owned.
 
 Adapter-specific metadata belongs under safe `attributes`.
 
+### Allow arbitrary context validation reason strings
+
+Rejected.
+
+Arbitrary reason strings would weaken contract tests and could accidentally turn user/runtime-derived data into diagnostics.
+
+The accepted design uses a finite public reason-token vocabulary on `UnitOfWorkContextInvalidException`.
+
+### Return raw context diagnostic paths from exceptions
+
+Rejected.
+
+Raw paths may contain unsafe map keys or environment-specific data.
+
+The accepted design stores and exposes only safe structural diagnostic paths. Unsafe paths are represented by the stable placeholder `<path>`.
+
 ## Non-goals
 
 This ADR does not implement:
@@ -837,6 +859,10 @@ Verification must prove:
 - nested maps are sorted by byte-order `strcmp`;
 - lists preserve order;
 - diagnostics do not expose raw values;
+- context validation reason strings are whitelisted;
+- unknown context validation reason strings fail deterministically;
+- unsafe diagnostic paths are replaced with `<path>`;
+- `UnitOfWorkContextInvalidException::path()` does not expose unsafe raw paths;
 - `kernel.uow.attributes.max_depth` is enforced;
 - `kernel.uow.attributes.max_keys` is enforced;
 - `UnitOfWorkContextInvalidException` uses `CORETSIA_UOW_CONTEXT_INVALID`;

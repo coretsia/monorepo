@@ -560,7 +560,7 @@ Expected verification includes:
 framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
 framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
 framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php
-framework/packages/core/kernel/tests/Contract/KernelRuntimeDoesNotWriteToStdoutTest.php
+framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
 framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php
 framework/packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php

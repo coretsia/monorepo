@@ -51,6 +51,7 @@ Coretsia/
 │   │   ├── ADR-0020-kernel-runtime-uow-spi.md
 │   │   ├── ADR-0021-unit-of-work-context-shape.md
 │   │   ├── ADR-0022-unit-of-work-result-outcome-policy.md
+│   │   ├── ADR-0023-kernel-bootstrap-phase-a.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -506,6 +507,18 @@ Coretsia/
 │   │   │       │   ├── kernel.php
 │   │   │       │   └── rules.php
 │   │   │       ├── src/
+│   │   │       │   ├── Boot/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   └── BootstrapException.php
+│   │   │       │   │   ├── AppTarget.php
+│   │   │       │   │   ├── ArrayEnvRepository.php
+│   │   │       │   │   ├── BootstrapConfig.php
+│   │   │       │   │   ├── BootstrapConfigResolver.php
+│   │   │       │   │   ├── BootstrapEnvSourcePolicy.php
+│   │   │       │   │   ├── BootstrapInput.php
+│   │   │       │   │   ├── BootstrapOverridesLoader.php
+│   │   │       │   │   ├── DotenvLoader.php
+│   │   │       │   │   └── EnvRepositoryBuilder.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   └── KernelModule.php
 │   │   │       │   ├── Provider/
@@ -530,17 +543,24 @@ Coretsia/
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEnumerateResetDiscoveryTagTest.php
+│   │   │       │   │   ├── KernelDoesNotWriteToStdoutTest.php
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
-│   │   │       │   │   ├── KernelRuntimeDoesNotWriteToStdoutTest.php
 │   │   │       │   │   ├── OutcomeMappingStabilityContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── BootstrapDoesNotScanSkeletonAppsTest.php
+│   │   │       │   │   ├── BootstrapDotenvRespectedUnderStrictPolicyTest.php
+│   │   │       │   │   ├── BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
+│   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
+│   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
+│   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 │   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php

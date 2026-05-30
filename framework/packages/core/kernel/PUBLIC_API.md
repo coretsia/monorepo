@@ -20,6 +20,11 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 
 ## Public symbols
 
+- `Coretsia\Kernel\Boot\AppTarget`
+- `Coretsia\Kernel\Boot\BootstrapConfig`
+- `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
+- `Coretsia\Kernel\Boot\BootstrapInput`
+- `Coretsia\Kernel\Boot\Exception\BootstrapException`
 - `Coretsia\Kernel\Module\KernelModule`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
 - `Coretsia\Kernel\Provider\Tags`
@@ -30,3 +35,16 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException`
+
+## Internal implementation helpers
+
+Internal implementation helpers are intentionally not enumerated in this file.
+
+The `kernel-public-api:gate` treats fully-qualified symbols in this file as public API evidence. Therefore internal symbols MUST NOT be listed here as fully-qualified names.
+
+Internal Kernel symbols must instead be protected in source by one of the gate recognized mechanisms:
+
+- an `@internal` docblock marker;
+- an `Internal` namespace/path segment.
+
+Bootstrap Phase A implementation helpers such as config resolvers, dotenv loaders, env repository builders, and bootstrap-only override loaders are not public API and must remain marked `@internal` in source.

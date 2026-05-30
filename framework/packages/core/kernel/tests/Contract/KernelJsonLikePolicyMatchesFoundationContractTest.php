@@ -121,7 +121,7 @@ final class KernelJsonLikePolicyMatchesFoundationContractTest extends TestCase
                 'accessToken' => 'secret-token-value',
             ]),
             expectedPath: 'attributes[<key>]',
-            expectedReason: 'uow-context-attributes-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_UNSAFE_KEY,
             forbiddenDiagnosticsNeedles: [
                 'accessToken',
                 'secret-token-value',
@@ -136,7 +136,7 @@ final class KernelJsonLikePolicyMatchesFoundationContractTest extends TestCase
                 'accessToken' => 'secret-token-value',
             ]),
             expectedPath: 'extensions[<key>]',
-            expectedReason: 'uow-result-extensions-unsafe-key-forbidden',
+            expectedReason: UnitOfWorkResultInvalidException::REASON_EXTENSIONS_UNSAFE_KEY,
             forbiddenDiagnosticsNeedles: [
                 'accessToken',
                 'secret-token-value',

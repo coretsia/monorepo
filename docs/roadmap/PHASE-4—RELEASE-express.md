@@ -7607,6 +7607,9 @@ N/A (package already exists; epic extends it)
   - [ ] `http.rate_limit.identity.response.headers_enabled` = true
 - [ ] Rules:
   - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+- [ ] Canonical split alignment (locked by the HTTP middleware taxonomy):
+  - [ ] `http.rate_limit.early.enabled` controls the canonical `EarlyRateLimitMiddleware` in `http.middleware.system_pre`
+  - [ ] `http.rate_limit.enabled` controls the canonical `RateLimitMiddleware` in `http.middleware.app_pre`
 
 #### Wiring / DI tags (when applicable)
 

@@ -72,11 +72,27 @@ final readonly class UnitOfWorkResult
         ?ErrorDescriptor $error = null,
         array $extensions = [],
     ) {
-        self::assertNonEmptySafeId($uowId, 'uowId', 'uow-result-uow-id-invalid');
+        self::assertNonEmptySafeId(
+            $uowId,
+            'uowId',
+            UnitOfWorkResultInvalidException::REASON_UOW_ID_INVALID,
+        );
         self::assertType($type);
-        self::assertNonEmptySafeId($correlationId, 'correlationId', 'uow-result-correlation-id-invalid');
-        self::assertTimestamp($startedAt, 'startedAt', 'uow-result-started-at-invalid');
-        self::assertTimestamp($finishedAt, 'finishedAt', 'uow-result-finished-at-invalid');
+        self::assertNonEmptySafeId(
+            $correlationId,
+            'correlationId',
+            UnitOfWorkResultInvalidException::REASON_CORRELATION_ID_INVALID,
+        );
+        self::assertTimestamp(
+            $startedAt,
+            'startedAt',
+            UnitOfWorkResultInvalidException::REASON_STARTED_AT_INVALID,
+        );
+        self::assertTimestamp(
+            $finishedAt,
+            'finishedAt',
+            UnitOfWorkResultInvalidException::REASON_FINISHED_AT_INVALID,
+        );
         self::assertDuration($durationMs);
         self::assertOutcome($outcome);
 
@@ -246,7 +262,10 @@ final readonly class UnitOfWorkResult
     private static function assertType(string $type): void
     {
         if (!UnitOfWorkType::isValid($type)) {
-            throw self::invalid('type', 'uow-result-type-invalid');
+            throw self::invalid(
+                'type',
+                UnitOfWorkResultInvalidException::REASON_TYPE_INVALID,
+            );
         }
     }
 
@@ -263,14 +282,20 @@ final readonly class UnitOfWorkResult
     private static function assertDuration(int $durationMs): void
     {
         if ($durationMs < 0) {
-            throw self::invalid('durationMs', 'uow-result-duration-ms-invalid');
+            throw self::invalid(
+                'durationMs',
+                UnitOfWorkResultInvalidException::REASON_DURATION_MS_INVALID,
+            );
         }
     }
 
     private static function assertOutcome(string $outcome): void
     {
         if (!Outcome::isValid($outcome)) {
-            throw self::invalid('outcome', 'uow-result-outcome-invalid');
+            throw self::invalid(
+                'outcome',
+                UnitOfWorkResultInvalidException::REASON_OUTCOME_INVALID,
+            );
         }
     }
 

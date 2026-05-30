@@ -28,6 +28,10 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Boot\BootstrapConfigResolver;
+use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\DotenvLoader;
+use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Psr\Container\ContainerInterface;
@@ -65,6 +69,68 @@ final class KernelServiceFactory
 
     private function __construct()
     {
+    }
+
+    /**
+     * Creates the bootstrap-only overrides loader.
+     *
+     * This factory performs construction only. It does not read
+     * skeleton/config/app.php and keeps no mutable runtime state.
+     */
+    public static function bootstrapOverridesLoader(): BootstrapOverridesLoader
+    {
+        return new BootstrapOverridesLoader();
+    }
+
+    /**
+     * Creates the BootstrapConfig resolver from already-registered boot
+     * services.
+     *
+     * This factory performs wiring only. It does not resolve BootstrapConfig,
+     * read skeleton/config/app.php, read package defaults, parse dotenv files,
+     * read system env, or keep mutable runtime state.
+     */
+    public static function bootstrapConfigResolver(ContainerInterface $container): BootstrapConfigResolver
+    {
+        $overridesLoader = self::bootService($container, BootstrapOverridesLoader::class);
+
+        if (!$overridesLoader instanceof BootstrapOverridesLoader) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return new BootstrapConfigResolver(
+            overridesLoader: $overridesLoader,
+        );
+    }
+
+    /**
+     * Creates the dotenv loader.
+     *
+     * This factory performs construction only. It does not parse dotenv files
+     * and keeps no mutable runtime state.
+     */
+    public static function dotenvLoader(): DotenvLoader
+    {
+        return new DotenvLoader();
+    }
+
+    /**
+     * Creates the EnvRepository builder from already-registered boot services.
+     *
+     * This factory performs wiring only. It does not build an env repository,
+     * read dotenv files, snapshot system env, or keep mutable runtime state.
+     */
+    public static function envRepositoryBuilder(ContainerInterface $container): EnvRepositoryBuilder
+    {
+        $dotenvLoader = self::bootService($container, DotenvLoader::class);
+
+        if (!$dotenvLoader instanceof DotenvLoader) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return new EnvRepositoryBuilder(
+            dotenvLoader: $dotenvLoader,
+        );
     }
 
     /**
@@ -275,6 +341,26 @@ final class KernelServiceFactory
         }
 
         return $service;
+    }
+
+    private static function bootService(
+        ContainerInterface $container,
+        string $id,
+    ): mixed {
+        try {
+            if (!$container->has($id)) {
+                throw new ContainerException('kernel-boot-dependency-not-found');
+            }
+
+            return $container->get($id);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-boot-dependency-not-found',
+                $throwable,
+            );
+        }
     }
 
     private static function service(

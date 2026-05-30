@@ -51,6 +51,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0020: Kernel runtime UnitOfWork SPI](./ADR-0020-kernel-runtime-uow-spi.md) — owner: core/kernel — scope: contracts,hooks,kernel,runtime,spi,uow
 - [ADR-0021: UnitOfWork context shape](./ADR-0021-unit-of-work-context-shape.md) — owner: core/kernel — scope: context,kernel,shape,uow
 - [ADR-0022: UnitOfWork result and outcome policy](./ADR-0022-unit-of-work-result-outcome-policy.md) — owner: core/kernel — scope: lifecycle,outcome,result,uow
+- [ADR-0023: Kernel Bootstrap Phase A](./ADR-0023-kernel-bootstrap-phase-a.md) — owner: core/kernel — scope: bootstrap,config,env,kernel,phase-a
 
 ## Cross-references
 

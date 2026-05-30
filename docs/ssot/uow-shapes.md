@@ -1009,6 +1009,50 @@ extensions.safe.nested[<key>]
 
 Kernel unsafe metadata key rejection MUST preserve safe structural parent paths and hide unsafe leaf key segments.
 
+### Exception diagnostic path hardening
+
+`UnitOfWorkContextInvalidException` and `UnitOfWorkResultInvalidException` MUST store and expose only safe diagnostic paths.
+
+The exception `path()` accessor MUST NOT return an unsafe raw path.
+
+When a supplied path is empty, the exception message MUST contain only the stable reason token.
+
+When a supplied path is safe, the exception message MAY include:
+
+```text
+<reason>: value at <safe-path>
+```
+
+When a supplied path is unsafe, the exception MUST replace it with the stable placeholder:
+
+```text
+<path>
+```
+
+The placeholder is intentionally generic. It MUST NOT include the unsafe key, raw value, absolute path, SQL fragment, token, cookie, authorization value, session id, PII, stack trace, or environment-specific data.
+
+Safe diagnostic paths MUST be structural only. They MAY include:
+
+```text
+attributes.safeKey
+attributes.items[0]
+attributes[<key>]
+extensions.safeKey
+extensions.items[0]
+extensions[<key>]
+error.extensions.safeKey
+```
+
+Safe diagnostic paths MUST NOT include:
+
+- control characters;
+- absolute local paths;
+- path traversal;
+- stream wrappers;
+- raw secret-like key names;
+- SQL-like fragments;
+- raw values.
+
 ## Shape validation failures
 
 Kernel shape validation failures MUST be deterministic and safe.
@@ -1068,6 +1112,63 @@ json-like-resource-forbidden          -> uow-result-resource-forbidden
 json-like-map-key-must-be-string      -> uow-result-map-key-must-be-string
 json-like-type-forbidden              -> uow-result-type-forbidden
 ```
+
+### Context validation reason tokens
+
+`UnitOfWorkContextInvalidException` MUST expose the following stable public reason constants and MUST reject unknown reason strings deterministically:
+
+```text
+uow-context-invalid
+uow-context-uow-id-invalid
+uow-context-type-invalid
+uow-context-started-at-invalid
+uow-context-correlation-id-invalid
+uow-context-attributes-root-map-required
+uow-context-attributes-max-depth-invalid
+uow-context-attributes-max-keys-invalid
+uow-context-attributes-max-depth-exceeded
+uow-context-attributes-max-keys-exceeded
+uow-context-attributes-map-key-invalid
+uow-context-attributes-unsafe-key
+uow-context-attributes-string-invalid
+uow-context-attributes-float-forbidden
+uow-context-attributes-object-forbidden
+uow-context-attributes-closure-forbidden
+uow-context-attributes-resource-forbidden
+uow-context-attributes-map-key-must-be-string
+uow-context-attributes-type-forbidden
+```
+
+### Result validation reason tokens
+
+`UnitOfWorkResultInvalidException` MUST expose the following stable public reason constants and MUST reject unknown reason strings deterministically:
+
+```text
+uow-result-invalid
+uow-result-uow-id-invalid
+uow-result-type-invalid
+uow-result-correlation-id-invalid
+uow-result-started-at-invalid
+uow-result-finished-at-invalid
+uow-result-duration-ms-invalid
+uow-result-outcome-invalid
+uow-result-extensions-root-map-required
+uow-result-extensions-unsafe-key
+uow-result-error-map-empty
+uow-result-error-map-required
+uow-result-map-key-invalid
+uow-result-string-invalid
+uow-result-float-forbidden
+uow-result-object-forbidden
+uow-result-closure-forbidden
+uow-result-resource-forbidden
+uow-result-map-key-must-be-string
+uow-result-type-forbidden
+```
+
+Unknown reason strings MUST fail with `InvalidArgumentException`.
+
+This exception-level whitelist is part of the Kernel UoW safety policy. Runtime code SHOULD use the public reason constants instead of inline string literals.
 
 Validation diagnostics MAY include only:
 
@@ -1482,6 +1583,11 @@ These tests are expected to verify:
 - list order preservation;
 - safe diagnostics without raw values;
 - unsafe metadata keys do not leak raw key names in diagnostic paths;
+- `UnitOfWorkContextInvalidException` reason strings are whitelisted;
+- `UnitOfWorkResultInvalidException` reason strings are whitelisted;
+- unknown UoW exception reason strings fail deterministically;
+- unsafe diagnostic paths are replaced with `<path>`;
+- exception `path()` accessors never expose unsafe raw paths;
 - `UnitOfWorkContext` validation failures use `CORETSIA_UOW_CONTEXT_INVALID`;
 - `UnitOfWorkResult` validation failures use `CORETSIA_UOW_RESULT_INVALID`;
 - `kernel.uow.attributes.max_depth`;

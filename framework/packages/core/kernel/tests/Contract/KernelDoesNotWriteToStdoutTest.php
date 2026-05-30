@@ -23,7 +23,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
-final class KernelRuntimeDoesNotWriteToStdoutTest extends TestCase
+final class KernelDoesNotWriteToStdoutTest extends TestCase
 {
     /**
      * @var list<non-empty-string>
@@ -52,7 +52,7 @@ final class KernelRuntimeDoesNotWriteToStdoutTest extends TestCase
         'php://output',
     ];
 
-    public function testKernelRuntimeAndProviderSourceDoNotWriteToStdoutOrStderr(): void
+    public function testKernelBootRuntimeAndProviderSourceDoNotWriteToStdoutOrStderr(): void
     {
         $violations = [];
 
@@ -70,12 +70,12 @@ final class KernelRuntimeDoesNotWriteToStdoutTest extends TestCase
         self::assertSame(
             [],
             $violations,
-            "Kernel runtime/provider diagnostics must go through deterministic exceptions/results or logging ports, not stdout/stderr.\n"
+            "Kernel boot/runtime/provider diagnostics must go through deterministic exceptions/results or logging ports, not stdout/stderr.\n"
             . self::formatViolations($violations),
         );
     }
 
-    public function testScannedFilesAreLimitedToRuntimeAndProviderSourceOnly(): void
+    public function testScannedFilesAreLimitedToBootRuntimeAndProviderSourceOnly(): void
     {
         $files = $this->sourceFiles();
 
@@ -87,10 +87,11 @@ final class KernelRuntimeDoesNotWriteToStdoutTest extends TestCase
             self::assertStringContainsString('/src/', $normalized);
 
             self::assertTrue(
-                \str_contains($normalized, '/src/Runtime/')
+                \str_contains($normalized, '/src/Boot/')
+                || \str_contains($normalized, '/src/Runtime/')
                 || \str_contains($normalized, '/src/Provider/'),
                 \sprintf(
-                    'Unexpected scanned file "%s". Only src/Runtime/** and src/Provider/** should be scanned.',
+                    'Unexpected scanned file "%s". Only src/Boot/**, src/Runtime/**, and src/Provider/** should be scanned.',
                     $file,
                 ),
             );
@@ -251,6 +252,7 @@ PHP,
         $packageRoot = $this->kernelPackageRoot();
 
         $roots = [
+            $packageRoot . '/src/Boot',
             $packageRoot . '/src/Runtime',
             $packageRoot . '/src/Provider',
         ];
@@ -327,7 +329,7 @@ PHP,
                     file: $file,
                     line: $line,
                     token: 'echo',
-                    message: 'Kernel runtime/provider source must not use echo.',
+                    message: 'Kernel boot/runtime/provider source must not use echo.',
                 );
 
                 continue;
@@ -338,7 +340,7 @@ PHP,
                     file: $file,
                     line: $line,
                     token: 'print',
-                    message: 'Kernel runtime/provider source must not use print.',
+                    message: 'Kernel boot/runtime/provider source must not use print.',
                 );
 
                 continue;
@@ -355,7 +357,7 @@ PHP,
                         line: $line,
                         token: $text,
                         message: \sprintf(
-                            'Kernel runtime/provider source must not call %s().',
+                            'Kernel boot/runtime/provider source must not call %s().',
                             $text,
                         ),
                     );
@@ -369,7 +371,7 @@ PHP,
                         line: $line,
                         token: $text,
                         message: \sprintf(
-                            'Kernel runtime/provider source must not reference %s.',
+                            'Kernel boot/runtime/provider source must not reference %s.',
                             $text,
                         ),
                     );
@@ -386,7 +388,7 @@ PHP,
                             line: $line,
                             token: $stream,
                             message: \sprintf(
-                                'Kernel runtime/provider source must not reference %s.',
+                                'Kernel boot/runtime/provider source must not reference %s.',
                                 $stream,
                             ),
                         );

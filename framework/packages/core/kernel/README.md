@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider wiring, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+**Scope:** Kernel module metadata, Kernel service provider wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** full ConfigKernel Phase B config discovery/merge/directives/explain behavior, module planning, preset file parsing, public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -80,6 +80,17 @@ This package provides the Kernel baseline runtime layer:
 - Kernel hook payload normalization through `Coretsia\Kernel\Runtime\Hook\HookContextNormalizer`.
 - Kernel-owned lifecycle hook discovery tag constants through `Coretsia\Kernel\Provider\Tags`.
 - Kernel configuration defaults and validation rules under the `kernel` config root.
+- Bootstrap Phase A public input/config API:
+  - `Coretsia\Kernel\Boot\AppTarget`
+  - `Coretsia\Kernel\Boot\BootstrapInput`
+  - `Coretsia\Kernel\Boot\BootstrapConfig`
+  - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
+  - `Coretsia\Kernel\Boot\Exception\BootstrapException`
+- Bootstrap Phase A internal implementation services registered through DI:
+  - `Coretsia\Kernel\Boot\BootstrapConfigResolver`
+  - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
+  - `Coretsia\Kernel\Boot\DotenvLoader`
+  - `Coretsia\Kernel\Boot\EnvRepositoryBuilder`
 - Canonical UnitOfWork type tokens:
   - `http`
   - `cli`
@@ -116,6 +127,87 @@ Foundation also owns the reusable baseline json-like runtime value model.
 Kernel owns only the UoW-specific layer on top of that model: root map policy, unsafe metadata key policy, attributes limits, exported error map policy, and UoW exception mapping.
 
 Platform packages own transport adapters.
+
+## Bootstrap Phase A
+
+Bootstrap Phase A is the minimal deterministic Kernel boot-input phase.
+
+It resolves only:
+
+```text
+skeletonRoot
+appTarget
+appEnv
+preset
+debug
+envSourcePolicy
+appRoot
+immutable EnvRepositoryInterface snapshot
+```
+
+Phase A is not a full config merge phase.
+
+Full config file discovery, merge, directives, validation, explain output, and environment overlays are owned by ConfigKernel Phase B.
+
+Phase A MAY read only one bootstrap-only skeleton config file:
+
+```text
+skeleton/config/app.php
+```
+
+This file is not a config root and MUST NOT participate in ConfigKernel Phase B merge.
+
+Phase A MUST NOT read:
+
+```text
+skeleton/config/all.php
+skeleton/config/<root>.php
+skeleton/config/environments/**
+skeleton/apps/<appTarget>/config/**
+```
+
+Application target selection is explicit and entrypoint-owned.
+
+Canonical app targets are:
+
+```text
+web
+api
+console
+worker
+```
+
+The selected app root is derived deterministically as:
+
+```text
+skeletonRoot/apps/<appTarget>
+```
+
+Phase A MUST NOT scan `skeleton/apps/*` to infer the selected app.
+
+`BootstrapConfig` is a resolved immutable value object only. It MUST NOT resolve defaults, read `skeleton/config/app.php`, parse dotenv files, read system env, or build an env repository.
+
+`BootstrapConfigResolver` is internal and owns only Phase A config resolution:
+
+```text
+explicit BootstrapInput
+→ bootstrap-only overrides from skeleton/config/app.php
+→ package defaults from kernel.boot.* and kernel.env.*
+→ BootstrapConfig
+```
+
+`EnvRepositoryBuilder` is internal and owns only immutable env repository snapshot construction.
+
+`BootstrapEnvSourcePolicy` controls dotenv/system env source precedence:
+
+```text
+strict_dotenv
+allow_system
+```
+
+It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
+
+Kernel does not introduce public `Bootstrapper` or public `BootstrapResult` in this package. Entrypoint and platform owners compose the explicit Phase A services through DI until a future owner epic requires a stable public orchestration facade.
 
 ## KernelRuntime SPI
 
@@ -261,6 +353,25 @@ Valid shape:
 
 ```php
 return [
+    'boot' => [
+        'default_env' => 'local',
+        'default_preset' => 'micro',
+        'default_debug' => false,
+    ],
+    'env' => [
+        'source_policy' => [
+            'default_local' => 'strict_dotenv',
+            'default_production' => 'allow_system',
+        ],
+        'dotenv' => [
+            'files' => [
+                '.env',
+                '.env.local',
+                '.env.<env>',
+                '.env.<env>.local',
+            ],
+        ],
+    ],
     'uow' => [
         'attributes' => [
             'max_depth' => 10,
@@ -286,10 +397,16 @@ Runtime code reads from the global configuration under `kernel.*`.
 
 Canonical Kernel config keys:
 
-| key                               | default |
-|-----------------------------------|---------|
-| `kernel.uow.attributes.max_depth` | `10`    |
-| `kernel.uow.attributes.max_keys`  | `200`   |
+| key                                           | default                                                    |
+|-----------------------------------------------|------------------------------------------------------------|
+| `kernel.boot.default_env`                     | `"local"`                                                  |
+| `kernel.boot.default_preset`                  | `"micro"`                                                  |
+| `kernel.boot.default_debug`                   | `false`                                                    |
+| `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
+| `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
+| `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
+| `kernel.uow.attributes.max_depth`             | `10`                                                       |
+| `kernel.uow.attributes.max_keys`              | `200`                                                      |
 
 This package does not introduce generic json-like configuration.
 
@@ -880,6 +997,26 @@ framework/packages/core/kernel/PUBLIC_API.md
 
 That file is the source used by the Kernel public API gate.
 
+Bootstrap Phase A public API symbols are:
+
+```text
+Coretsia\Kernel\Boot\AppTarget
+Coretsia\Kernel\Boot\BootstrapConfig
+Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy
+Coretsia\Kernel\Boot\BootstrapInput
+Coretsia\Kernel\Boot\Exception\BootstrapException
+```
+
+Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
+
+```text
+Coretsia\Kernel\Boot\BootstrapConfigResolver
+Coretsia\Kernel\Boot\BootstrapOverridesLoader
+Coretsia\Kernel\Boot\DotenvLoader
+Coretsia\Kernel\Boot\EnvRepositoryBuilder
+Coretsia\Kernel\Boot\ArrayEnvRepository
+```
+
 `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer` is internal implementation detail.
 
 It MUST NOT be listed as Kernel public API.
@@ -910,3 +1047,4 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 - [UnitOfWork Outcome Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md)
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0020-kernel-runtime-uow-spi.md)
+- [ADR-0023: Kernel Bootstrap Phase A](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0023-kernel-bootstrap-phase-a.md)

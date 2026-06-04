@@ -325,6 +325,10 @@ jobs:
     needs:
       - prepare
 
+    concurrency:
+      group: split-publish-${{ matrix.split_repo }}
+      cancel-in-progress: false
+
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -394,6 +398,52 @@ jobs:
           repositories: ${{ matrix.split_repo_name }}
           permission-contents: write
 
+      - name: "Verify split repository token access"
+        shell: bash
+        env:
+          SPLIT_TOKEN: ${{ steps.split-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+
+          cleanup() {
+            rm -f "${response_file}"
+          }
+          trap cleanup EXIT
+
+          curl -fsS \
+            -H "Authorization: Bearer ${SPLIT_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${SPLIT_REPO}" \
+            > "${response_file}"
+
+          php -r '
+          $path = $argv[1] ?? "";
+          $raw = file_get_contents($path);
+
+          if ($raw === false) {
+              fwrite(STDERR, "Cannot read GitHub API response\n");
+              exit(1);
+          }
+
+          $payload = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+
+          if (!is_array($payload)) {
+              fwrite(STDERR, "Invalid GitHub API response\n");
+              exit(1);
+          }
+
+          echo json_encode(
+              [
+                  "full_name" => $payload["full_name"] ?? null,
+                  "permissions" => $payload["permissions"] ?? null,
+              ],
+              JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+          ), PHP_EOL;
+          ' "${response_file}"
+
       - name: "Push split main on monorepo main push"
         if: ${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
         shell: bash
@@ -402,9 +452,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          git push \
-            "https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git" \
-            "${SPLIT_BRANCH}:refs/heads/main"
+          SPLIT_REMOTE="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
+
+          for attempt in 1 2 3 4 5; do
+            if git push "${SPLIT_REMOTE}" \
+              "${SPLIT_BRANCH}:refs/heads/main"; then
+              exit 0
+            fi
+
+            echo "Split publish push failed for ${SPLIT_REPO}; retry ${attempt}/5" >&2
+            sleep $((attempt * 10))
+          done
+
+          echo "Split publish push failed for ${SPLIT_REPO} after retries" >&2
+          exit 1
 
       - name: "Push split release tag on monorepo tag push"
         if: ${{ github.ref_type == 'tag' }}
@@ -417,19 +478,45 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           SPLIT_REMOTE="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
 
+          push_with_retry() {
+            local source_ref="$1"
+            local target_ref="$2"
+
+            for attempt in 1 2 3 4 5; do
+              if git push "${SPLIT_REMOTE}" "${source_ref}:${target_ref}"; then
+                return 0
+              fi
+
+              echo "Split publish push failed for ${SPLIT_REPO} ${target_ref}; retry ${attempt}/5" >&2
+              sleep $((attempt * 10))
+            done
+
+            echo "Split publish push failed for ${SPLIT_REPO} ${target_ref} after retries" >&2
+            return 1
+          }
+
           if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release tag: ${TAG}" >&2
             exit 1
           fi
 
-          if git ls-remote --exit-code --tags "${SPLIT_REMOTE}" "refs/tags/${TAG}" >/dev/null 2>&1; then
+          set +e
+          git ls-remote --exit-code --tags "${SPLIT_REMOTE}" "refs/tags/${TAG}" >/dev/null 2>&1
+          ls_remote_status="$?"
+          set -e
+
+          if [ "${ls_remote_status}" -eq 0 ]; then
             echo "Split tag already exists in ${SPLIT_REPO}: ${TAG}" >&2
             echo "Refusing to overwrite immutable release tag." >&2
             exit 1
           fi
 
-          git push "${SPLIT_REMOTE}" \
-            "${SPLIT_BRANCH}:refs/heads/main"
+          if [ "${ls_remote_status}" -ne 2 ]; then
+            echo "Failed to check split tag existence in ${SPLIT_REPO}: ${TAG}" >&2
+            exit "${ls_remote_status}"
+          fi
+
+          push_with_retry "${SPLIT_BRANCH}" "refs/heads/main"
 
           git tag -d "${TAG}" 2>/dev/null || true
 
@@ -438,5 +525,4 @@ jobs:
             -c user.email="actions@users.noreply.github.com" \
             tag -a "${TAG}" -m "${TAG}" "${SPLIT_BRANCH}"
 
-          git push "${SPLIT_REMOTE}" \
-            "refs/tags/${TAG}:refs/tags/${TAG}"
+          push_with_retry "refs/tags/${TAG}" "refs/tags/${TAG}"

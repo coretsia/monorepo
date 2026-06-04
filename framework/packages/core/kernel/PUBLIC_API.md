@@ -25,7 +25,12 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
 - `Coretsia\Kernel\Boot\BootstrapInput`
 - `Coretsia\Kernel\Boot\Exception\BootstrapException`
+- `Coretsia\Kernel\Module\Exception\ModuleResolutionException`
+- `Coretsia\Kernel\Module\Exception\ModuleErrorCodes`
 - `Coretsia\Kernel\Module\KernelModule`
+- `Coretsia\Kernel\Module\ModulePlan`
+- `Coretsia\Kernel\Module\ModulePlanEntry`
+- `Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
 - `Coretsia\Kernel\Provider\Tags`
 - `Coretsia\Kernel\Runtime\Outcome`

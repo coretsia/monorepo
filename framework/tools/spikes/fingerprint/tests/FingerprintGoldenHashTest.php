@@ -111,7 +111,7 @@ final class FingerprintGoldenHashTest extends TestCase
         $tracked = $snapshots['tracked_env'] ?? null;
         self::assertIsArray($tracked);
 
-        // Config snapshot must cover config/** and apps/*/config/**.
+        // Config snapshot must cover config/** and apps/<app>/config/**.
         self::assertSame(
             [
                 'apps/web/config/app.php',

@@ -48,6 +48,8 @@
       "providers": [
         "Coretsia\\Platform\\Cli\\Provider\\CliServiceProvider"
       ],
+      "requires": [],
+      "conflicts": [],
       "defaultsConfigPath": "config/cli.php"
     }
   }

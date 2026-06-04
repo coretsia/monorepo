@@ -27,6 +27,7 @@
   ],
   "require": {
     "php": "^8.4",
+    "composer-runtime-api": "^2.2",
     "coretsia/core-contracts": "^0.4.0",
     "coretsia/core-foundation": "^0.4.0",
     "psr/container": "^2.0",
@@ -56,6 +57,10 @@
       "providers": [
         "Coretsia\\Kernel\\Provider\\KernelServiceProvider"
       ],
+      "requires": [
+        "core.foundation"
+      ],
+      "conflicts": [],
       "defaultsConfigPath": "config/kernel.php"
     }
   }

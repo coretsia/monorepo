@@ -36,7 +36,24 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  *
  * - appEnv
  * - preset
+ * - presets
  * - debug
+ *
+ * `preset` is a global fallback preset override.
+ *
+ * `presets` is a bootstrap-only per-app preset override map:
+ *
+ *     [
+ *         'api' => 'micro',
+ *         'web' => 'express',
+ *         'console' => 'hybrid',
+ *         'worker' => 'enterprise',
+ *     ]
+ *
+ * `presets` may be partial. Empty `presets` behaves as absent.
+ *
+ * `presets` does not select, infer, or modify app target. BootstrapConfigResolver
+ * owns final preset precedence for the already selected explicit app target.
  *
  * Module enable/disable composition is not handled here. It belongs to the
  * ModulePlan epic and is resolved from preset files plus composer metadata.
@@ -52,6 +69,7 @@ final readonly class BootstrapOverridesLoader
 
     private const string KEY_APP_ENV = 'appEnv';
     private const string KEY_PRESET = 'preset';
+    private const string KEY_PRESETS = 'presets';
     private const string KEY_DEBUG = 'debug';
 
     /**
@@ -60,7 +78,18 @@ final readonly class BootstrapOverridesLoader
     private const array ALLOWED_KEYS = [
         self::KEY_APP_ENV => true,
         self::KEY_PRESET => true,
+        self::KEY_PRESETS => true,
         self::KEY_DEBUG => true,
+    ];
+
+    /**
+     * @var array<string, true>
+     */
+    private const array APP_TARGETS = [
+        'api' => true,
+        'console' => true,
+        'web' => true,
+        'worker' => true,
     ];
 
     /**
@@ -71,6 +100,7 @@ final readonly class BootstrapOverridesLoader
      * @return array{
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
+     *     presets?: array<string, non-empty-string>,
      *     debug?: bool
      * }
      */
@@ -145,6 +175,7 @@ final readonly class BootstrapOverridesLoader
      * @return array{
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
+     *     presets?: array<string, non-empty-string>,
      *     debug?: bool
      * }
      */
@@ -156,6 +187,14 @@ final readonly class BootstrapOverridesLoader
             );
         }
 
+        /**
+         * @var array{
+         *     appEnv?: non-empty-string,
+         *     preset?: non-empty-string,
+         *     presets?: array<string, non-empty-string>,
+         *     debug?: bool
+         * } $out
+         */
         $out = [];
 
         foreach ($payload as $key => $value) {
@@ -166,25 +205,23 @@ final readonly class BootstrapOverridesLoader
             }
 
             if ($key === self::KEY_APP_ENV) {
-                if (!\is_string($value) || !self::isNonEmptySafeSingleLineString($value)) {
-                    throw BootstrapException::withReason(
-                        BootstrapException::REASON_OVERRIDES_INVALID,
-                    );
-                }
-
-                $out[self::KEY_APP_ENV] = $value;
+                $out[self::KEY_APP_ENV] = self::normalizeSafeStringOverride($value);
 
                 continue;
             }
 
             if ($key === self::KEY_PRESET) {
-                if (!\is_string($value) || !self::isNonEmptySafeSingleLineString($value)) {
-                    throw BootstrapException::withReason(
-                        BootstrapException::REASON_OVERRIDES_INVALID,
-                    );
-                }
+                $out[self::KEY_PRESET] = self::normalizeSafeStringOverride($value);
 
-                $out[self::KEY_PRESET] = $value;
+                continue;
+            }
+
+            if ($key === self::KEY_PRESETS) {
+                $presets = self::normalizePresets($value);
+
+                if ($presets !== []) {
+                    $out[self::KEY_PRESETS] = $presets;
+                }
 
                 continue;
             }
@@ -198,12 +235,56 @@ final readonly class BootstrapOverridesLoader
             $out[self::KEY_DEBUG] = $value;
         }
 
+        return $out;
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    private static function normalizeSafeStringOverride(mixed $value): string
+    {
+        if (!\is_string($value) || !self::isNonEmptySafeSingleLineString($value)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_OVERRIDES_INVALID,
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<string, non-empty-string>
+     */
+    private static function normalizePresets(mixed $value): array
+    {
+        if (!\is_array($value)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_OVERRIDES_INVALID,
+            );
+        }
+
+        if ($value !== [] && \array_is_list($value)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_OVERRIDES_INVALID,
+            );
+        }
+
+        $out = [];
+
+        foreach ($value as $appTarget => $presetName) {
+            if (!\is_string($appTarget) || !isset(self::APP_TARGETS[$appTarget])) {
+                throw BootstrapException::withReason(
+                    BootstrapException::REASON_OVERRIDES_INVALID,
+                );
+            }
+
+            $out[$appTarget] = self::normalizeSafeStringOverride($presetName);
+        }
+
+        \ksort($out, \SORT_STRING);
+
         /**
-         * @var array{
-         *     appEnv?: non-empty-string,
-         *     preset?: non-empty-string,
-         *     debug?: bool
-         * } $out
+         * @var array<string, non-empty-string> $out
          */
         return $out;
     }

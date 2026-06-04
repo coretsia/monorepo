@@ -166,7 +166,7 @@ final class BootstrapSelectsExplicitAppTargetTest extends TestCase
      * Returns a deterministic path that should not exist.
      *
      * The test intentionally uses a missing skeleton root to prove Bootstrap
-     * Phase A target selection does not scan or require skeleton/apps/*.
+     * Phase A target selection does not scan or require skeleton/apps/<app>.
      */
     private static function nonExistingSkeletonRoot(string $case): string
     {

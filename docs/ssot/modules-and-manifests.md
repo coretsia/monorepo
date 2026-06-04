@@ -68,6 +68,17 @@ kind
 moduleClass
 ```
 
+Composer runtime module metadata MAY additionally provide module graph metadata through:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+These fields are Composer metadata inputs for runtime module graph resolution.
+
+They are not module identity inputs.
+
 Only fields explicitly defined by the descriptor exported shape MAY be exported by `ModuleDescriptor::toArray()`.
 
 The package-index `kind` field maps to the exported descriptor field:
@@ -138,6 +149,68 @@ Tooling-only packages MUST NOT be described as runtime modules.
 
 In particular, packages under the tooling layer are not runtime modules.
 
+## Runtime module dependency metadata
+
+Runtime module dependency metadata is the canonical input for Kernel-owned ModulePlan graph resolution.
+
+The canonical Composer metadata fields are:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+`extra.coretsia.requires` is the canonical module dependency metadata source.
+
+`extra.coretsia.conflicts` is the canonical module conflict metadata source.
+
+These fields MUST contain runtime module ids only.
+
+They MUST NOT contain:
+
+- Composer package names;
+- packages whose `extra.coretsia.kind` is `library`;
+- compile-time-only package dependencies;
+- external vendor package names;
+- PHP extension names;
+- PSR package names;
+- filesystem paths.
+
+Composer package-level `require` and `conflict` are package installation/build constraints.
+
+Composer package-level `require` and `conflict` MUST NOT be treated as runtime module graph edges unless the dependency is explicitly represented in `extra.coretsia.requires` or `extra.coretsia.conflicts`.
+
+Missing `extra.coretsia.requires` is equivalent to an empty list.
+
+Missing `extra.coretsia.conflicts` is equivalent to an empty list.
+
+`extra.coretsia.requires` MUST be absent or a list of valid module ids.
+
+`extra.coretsia.conflicts` MUST be absent or a list of valid module ids.
+
+Duplicate module ids in `requires` or `conflicts` MUST be collapsed deterministically.
+
+Exported `requires` and `conflicts` lists MUST be sorted by byte-order `strcmp`.
+
+A module MUST NOT require itself.
+
+A module MUST NOT conflict with itself.
+
+A module MUST NOT list the same target module id in both `requires` and `conflicts`.
+
+Invalid dependency metadata MUST be rejected by the owner package that reads Composer metadata.
+
+For Kernel Composer metadata discovery, invalid dependency metadata is a deterministic module manifest error.
+
+Runtime dependency metadata MUST NOT expose:
+
+- filesystem paths;
+- Composer raw payloads;
+- install paths;
+- generated artifact paths;
+- environment-specific values;
+- secrets or PII.
+
 ## Package-index lock-source alignment
 
 The Phase 0 workspace package-index prototype cemented this metadata shape:
@@ -163,6 +236,19 @@ psr4
 kind
 moduleClass
 ```
+
+Runtime module graph metadata is intentionally not part of the Phase 0 package-index lock-source shape.
+
+Composer metadata MAY provide runtime graph metadata through:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+When a runtime manifest reader consumes those Composer fields, it MUST normalize them into `ModuleDescriptor.metadata()` as deterministic descriptor metadata.
+
+A future package-index owner MAY promote runtime graph metadata into tooling output, but until a future SSoT explicitly does so, the Phase 0 package-index shape remains unchanged.
 
 The `path` field is tooling/build metadata. It MUST NOT be required by contracts consumers at runtime and MUST NOT be exported as a runtime module descriptor path.
 
@@ -251,6 +337,23 @@ metadata
 Optional fields MUST NOT affect module id derivation.
 
 Optional fields MUST NOT be required for a package to have a valid module identity.
+
+Runtime module dependency metadata, when provided by a manifest reader, MUST be stored under descriptor metadata keys:
+
+```text
+requires
+conflicts
+```
+
+`metadata.requires` MUST be a deterministic list of module id strings.
+
+`metadata.conflicts` MUST be a deterministic list of module id strings.
+
+Missing `metadata.requires` MUST be treated as an empty list by graph resolution owners.
+
+Missing `metadata.conflicts` MUST be treated as an empty list by graph resolution owners.
+
+The `requires` and `conflicts` metadata keys MUST NOT affect module id derivation.
 
 ## Descriptor textual input policy
 
@@ -404,6 +507,28 @@ Descriptor metadata MUST NOT contain:
 - service instances
 - runtime wiring objects
 
+When descriptor metadata contains runtime module graph keys:
+
+```text
+requires
+conflicts
+```
+
+their values MUST be lists of valid module id strings.
+
+These lists are stable string sets:
+
+- duplicate module ids MUST be collapsed;
+- exported module ids MUST be sorted by byte-order `strcmp`;
+- list order from Composer metadata is not semantic;
+- values MUST NOT be Composer package names;
+- values MUST NOT be filesystem paths;
+- values MUST NOT be external vendor package names.
+
+Descriptor metadata producers MUST NOT store raw Composer package payloads in `metadata`.
+
+Descriptor metadata producers MUST NOT store Composer install paths in `metadata`.
+
 Floating-point values are intentionally forbidden in descriptor metadata.
 
 If a future owner needs decimal values, they MUST be represented as strings with a documented format.
@@ -531,6 +656,28 @@ A manifest reader implementation MAY read from:
 - generated Kernel artifact
 - another future owner-defined source
 
+When a manifest reader implementation reads Composer metadata, it MAY consume `extra.coretsia` fields.
+
+When a manifest reader implementation consumes Composer runtime module graph metadata, it MUST normalize:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+into:
+
+```text
+ModuleDescriptor.metadata()['requires']
+ModuleDescriptor.metadata()['conflicts']
+```
+
+as deterministic lists of module id strings.
+
+Manifest reader contracts MUST NOT expose Composer raw payloads.
+
+Manifest reader contracts MUST NOT expose Composer install paths.
+
 A manifest reader implementation MUST NOT be required by contracts to perform filesystem scanning.
 
 The contracts package MUST NOT implement a concrete manifest reader.
@@ -568,6 +715,30 @@ Contracts define the shape and port semantics. They do not define or require:
 - module lifecycle execution
 
 The Kernel owner package is responsible for implementing concrete module discovery later.
+
+Kernel-owned Composer metadata discovery MAY read installed Composer metadata.
+
+Kernel-owned Composer metadata discovery MUST NOT scan package directories to discover modules.
+
+Kernel-owned Composer metadata discovery MUST NOT instantiate module classes to discover modules.
+
+Kernel-owned Composer metadata discovery MUST NOT derive module identity from filesystem paths.
+
+Kernel-owned Composer metadata discovery MAY normalize runtime graph metadata from:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+into descriptor metadata keys:
+
+```text
+requires
+conflicts
+```
+
+Kernel-owned Composer metadata discovery MUST NOT expose Composer raw payloads, Composer install paths, filesystem layout, secrets, or PII through `ModuleDescriptor`, `ModuleManifest`, diagnostics, or generated ModulePlan inputs.
 
 ## Module interface
 
@@ -628,6 +799,12 @@ Descriptor and manifest metadata MUST NOT expose:
 - private customer data
 - absolute local paths
 
+Descriptor and manifest metadata MUST NOT expose Composer raw payloads.
+
+Descriptor and manifest metadata MUST NOT expose Composer install paths.
+
+Runtime graph metadata stored under `requires` and `conflicts` MUST contain only module id strings.
+
 Secret-backed runtime behavior belongs to runtime owner packages, not to contracts descriptors.
 
 ## Non-goals
@@ -636,6 +813,7 @@ This SSoT does not define:
 
 - Kernel module discovery implementation
 - Composer manifest reader implementation
+- Composer runtime API integration details
 - filesystem scanning
 - generated artifact schema for Kernel module plans
 - DI tags

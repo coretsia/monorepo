@@ -52,6 +52,8 @@ Coretsia/
 │   │   ├── ADR-0021-unit-of-work-context-shape.md
 │   │   ├── ADR-0022-unit-of-work-result-outcome-policy.md
 │   │   ├── ADR-0023-kernel-bootstrap-phase-a.md
+│   │   ├── ADR-0024-kernel-module-plan-resolution.md
+│   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -506,6 +508,12 @@ Coretsia/
 │   │   │       ├── config/
 │   │   │       │   ├── kernel.php
 │   │   │       │   └── rules.php
+│   │   │       ├── resources/
+│   │   │       │   └── modes/
+│   │   │       │       ├── enterprise.php
+│   │   │       │       ├── express.php
+│   │   │       │       ├── hybrid.php
+│   │   │       │       └── micro.php
 │   │   │       ├── src/
 │   │   │       │   ├── Boot/
 │   │   │       │   │   ├── Exception/
@@ -520,7 +528,30 @@ Coretsia/
 │   │   │       │   │   ├── DotenvLoader.php
 │   │   │       │   │   └── EnvRepositoryBuilder.php
 │   │   │       │   ├── Module/
-│   │   │       │   │   └── KernelModule.php
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ModePresetInvalidException.php
+│   │   │       │   │   │   ├── ModePresetNotFoundException.php
+│   │   │       │   │   │   ├── ModuleConflictException.php
+│   │   │       │   │   │   ├── ModuleCycleDetectedException.php
+│   │   │       │   │   │   ├── ModuleDiscoverySourceUnsupportedException.php
+│   │   │       │   │   │   ├── ModuleErrorCodes.php
+│   │   │       │   │   │   ├── ModuleManifestInvalidException.php
+│   │   │       │   │   │   ├── ModuleRequiredMissingException.php
+│   │   │       │   │   │   └── ModuleResolutionException.php
+│   │   │       │   │   ├── Warning/
+│   │   │       │   │   │   └── ModuleOptionalMissingWarning.php
+│   │   │       │   │   ├── ComposerInstalledMetadataProvider.php
+│   │   │       │   │   ├── ComposerManifestReader.php
+│   │   │       │   │   ├── FilesystemModePresetLoader.php
+│   │   │       │   │   ├── KernelModule.php
+│   │   │       │   │   ├── ModePreset.php
+│   │   │       │   │   ├── ModePresetLoaderFactory.php
+│   │   │       │   │   ├── ModePresetSchemaValidator.php
+│   │   │       │   │   ├── ModuleGraphResolver.php
+│   │   │       │   │   ├── ModulePlan.php
+│   │   │       │   │   ├── ModulePlanEntry.php
+│   │   │       │   │   ├── ModulePlanResolver.php
+│   │   │       │   │   └── TopologicalSorter.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── KernelServiceFactory.php
 │   │   │       │   │   ├── KernelServiceProvider.php
@@ -549,6 +580,14 @@ Coretsia/
 │   │   │       │   │   ├── KernelDoesNotWriteToStdoutTest.php
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
+│   │   │       │   │   ├── ModePresetExportShapeContractTest.php
+│   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
+│   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php
+│   │   │       │   │   ├── ModulePlanShapeContractTest.php
+│   │   │       │   │   ├── ModulePlanWarningShapeContractTest.php
+│   │   │       │   │   ├── ModulePlanWarningsAreDeterministicallySortedContractTest.php
+│   │   │       │   │   ├── ModuleResolutionExceptionShapeContractTest.php
+│   │   │       │   │   ├── ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php
 │   │   │       │   │   ├── OutcomeMappingStabilityContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
@@ -558,9 +597,17 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapDoesNotScanSkeletonAppsTest.php
 │   │   │       │   │   ├── BootstrapDotenvRespectedUnderStrictPolicyTest.php
 │   │   │       │   │   ├── BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
+│   │   │       │   │   ├── BootstrapPresetResolutionPrecedenceTest.php
 │   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
+│   │   │       │   │   ├── ComposerManifestReaderDoesNotLeakPathsTest.php
+│   │   │       │   │   ├── ComposerManifestReaderReadsOnlyComposerMetadataTest.php
+│   │   │       │   │   ├── ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php
+│   │   │       │   │   ├── ComposerManifestReaderRejectsDuplicateModuleIdsTest.php
+│   │   │       │   │   ├── ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php
+│   │   │       │   │   ├── ComposerManifestReaderSortsModulesDeterministicallyTest.php
+│   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 │   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php
@@ -569,11 +616,33 @@ Coretsia/
 │   │   │       │   │   ├── KernelRuntimeResetHappensAfterAfterUowHooksTest.php
 │   │   │       │   │   ├── KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
 │   │   │       │   │   ├── KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
-│   │   │       │   │   └── KernelServiceProviderWiresKernelRuntimeTest.php
+│   │   │       │   │   ├── KernelServiceProviderWiresKernelRuntimeTest.php
+│   │   │       │   │   ├── ModePresetAppliesRequiredOptionalDisabledTest.php
+│   │   │       │   │   ├── ModePresetLoaderDoesNotMergeOverrideWithDefaultTest.php
+│   │   │       │   │   ├── ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest.php
+│   │   │       │   │   ├── ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php
+│   │   │       │   │   ├── ModePresetSchemaValidatorRejectsOverlappingRequiredOptionalDisabledTest.php
+│   │   │       │   │   ├── ModePresetSchemaValidatorRejectsPathLeakingMetadataTest.php
+│   │   │       │   │   ├── ModuleConflictsFailDeterministicallyTest.php
+│   │   │       │   │   ├── ModuleGraphResolverAddsTransitiveRequiredDependenciesTest.php
+│   │   │       │   │   ├── ModuleGraphResolverFailsWhenEnabledModuleRequiresDisabledModuleTest.php
+│   │   │       │   │   ├── ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest.php
+│   │   │       │   │   ├── ModulePlanResolverDoesNotEmitPathLabelsTest.php
+│   │   │       │   │   ├── ModulePlanResolverEmitsPolicyCompliantMetricsTest.php
+│   │   │       │   │   ├── ModulePlanResolverFailurePrecedenceTest.php
+│   │   │       │   │   ├── ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest.php
+│   │   │       │   │   ├── ModulePlanResolverLogsDoNotLeakPathsTest.php
+│   │   │       │   │   ├── ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php
+│   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
+│   │   │       │   │   ├── ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php
+│   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
+│   │   │       │   │   └── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   └── Unit/
+│   │   │       │       ├── GraphCycleDetectionTest.php
 │   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
 │   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
-│   │   │       │       └── HookInvokerDeterministicOrderTest.php
+│   │   │       │       ├── HookInvokerDeterministicOrderTest.php
+│   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
 │   │   │       ├── PUBLIC_API.md

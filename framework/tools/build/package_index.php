@@ -69,7 +69,7 @@ final class PackageIndexTool
     }
 
     /**
-     * Scan pattern (single-choice): framework/packages/*\/*\/composer.json
+     * Scan pattern (single-choice): framework/packages/<layer>/<slug>/composer.json
      * Output order (single-choice): sort by package "path" using strcmp (locale-independent).
      *
      * @return list<array<string,mixed>>

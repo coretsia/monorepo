@@ -246,7 +246,7 @@ The object derives only `appRoot` from already resolved `skeletonRoot` and `appT
 
 `Coretsia\Kernel\Boot\BootstrapConfigResolver` is the canonical internal owner of Phase A config resolution.
 
-Resolution order is:
+General resolution order is:
 
 1. explicit `BootstrapInput` values;
 2. bootstrap-only overrides from `skeleton/config/app.php`;
@@ -261,6 +261,39 @@ debug
 envSourcePolicy
 ```
 
+Preset resolution has a dedicated deterministic precedence:
+
+1. explicit `BootstrapInput::preset()`;
+2. `skeleton/config/app.php` `presets[appTarget]`;
+3. `skeleton/config/app.php` global `preset`;
+4. `kernel.boot.default_preset`.
+
+The `presets[appTarget]` lookup is evaluated only for the already selected `BootstrapInput::appTarget()`.
+
+The `presets` map must not:
+
+- select app target;
+- infer app target;
+- modify app target;
+- scan `skeleton/apps/*`;
+- participate in module enable/disable composition.
+
+If `presets` exists but does not contain the selected app target, the resolver falls back to the global `preset` override.
+
+If the global `preset` override is absent, the resolver falls back to:
+
+```text
+kernel.boot.default_preset
+```
+
+Phase A validates only preset value shape.
+
+Phase A must not validate preset file existence.
+
+Phase A must not validate preset schema.
+
+Preset file existence and preset schema validation are owned by ModulePlan resolution.
+
 The resolver returns a resolved `BootstrapConfig`.
 
 The resolver must not:
@@ -270,6 +303,10 @@ The resolver must not:
 - read system env;
 - scan `skeleton/apps/*`;
 - require `appRoot` to exist;
+- read `kernel.modes.defaults_path`;
+- read `kernel.modes.overrides_path`;
+- load `resources/modes/*.php`;
+- load `skeleton/config/modes/*.php`;
 - expose raw override values in diagnostics.
 
 `envSourcePolicy` is resolved after final `appEnv` is selected.
@@ -326,10 +363,11 @@ Allowed override keys are exactly:
 ```text
 appEnv
 preset
+presets
 debug
 ```
 
-Unknown keys fail with:
+Unknown top-level keys fail with:
 
 ```text
 BootstrapException::REASON_OVERRIDES_INVALID
@@ -340,8 +378,60 @@ Allowed values are:
 ```text
 appEnv: non-empty safe string
 preset: non-empty safe string
+presets: string-keyed map of appTarget => non-empty safe preset string
 debug: bool
 ```
+
+`preset` is a global fallback preset override.
+
+`presets` is a bootstrap-only per-app preset override map.
+
+Example:
+
+```php
+return [
+    'preset' => 'hybrid',
+    'presets' => [
+        'api' => 'micro',
+        'web' => 'express',
+        'console' => 'hybrid',
+        'worker' => 'enterprise',
+    ],
+];
+```
+
+`presets` may be partial.
+
+Empty `presets` behaves as absent.
+
+`presets` must be a string-keyed map.
+
+`presets` must not be a list or sequence.
+
+`presets` keys must be valid app targets:
+
+```text
+web
+api
+console
+worker
+```
+
+Unknown `presets` app target keys fail with:
+
+```text
+BootstrapException::REASON_OVERRIDES_INVALID
+```
+
+`presets` values must be non-empty safe strings.
+
+`presets` must not:
+
+- select app target;
+- infer app target;
+- modify app target;
+- scan `skeleton/apps/*`;
+- participate in module enable/disable composition.
 
 The loader must not read:
 
@@ -742,6 +832,21 @@ Application target selection is explicit.
 
 Bare skeletons can boot from package defaults.
 
+Per-app preset selection can be expressed in bootstrap-only `skeleton/config/app.php` without introducing a module-selection source.
+
+The selected app target remains explicit even when `presets` contains entries for multiple app targets.
+
+Preset selection remains deterministic:
+
+```text
+BootstrapInput::preset()
+skeleton/config/app.php presets[appTarget]
+skeleton/config/app.php preset
+kernel.boot.default_preset
+```
+
+Phase A still does not load mode preset files or validate preset existence.
+
 `BootstrapConfig` remains a clean resolved VO.
 
 `BootstrapConfigResolver` owns Phase A config resolution.
@@ -768,7 +873,9 @@ Entrypoints or platform packages must compose the resolver and builder through D
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
-`BootstrapOverridesLoader` supports only `appEnv`, `preset`, and `debug`. Other bootstrap inputs require explicit entrypoint input or future owner epics.
+`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, and `debug`. Other bootstrap inputs require explicit entrypoint input or future owner epics.
+
+`presets` can select different preset names per app target, but it does not validate that those preset files exist. Missing preset files are reported later by ModulePlan resolution.
 
 Phase A does not validate the existence of `appRoot`, so later phases must own application root existence checks when needed.
 
@@ -962,6 +1069,10 @@ This ADR does not introduce:
 - module planning;
 - module enable/disable composition;
 - preset file parsing;
+- storing `presets` in `BootstrapConfig`;
+- validating preset file existence during Phase A;
+- loading mode preset files during Phase A;
+- reading `kernel.modes.*` during Phase A;
 - composer metadata scanning;
 - app root existence validation;
 - HTTP adapter behavior;
@@ -981,6 +1092,7 @@ framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
+framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
@@ -1000,6 +1112,16 @@ Verification must prove:
 - raw override values do not leak in exception messages;
 - bare skeleton boot works without any skeleton config files;
 - package defaults are used when explicit input and overrides are absent;
+- explicit `BootstrapInput::preset()` wins over `skeleton/config/app.php` `presets[appTarget]`;
+- explicit `BootstrapInput::preset()` wins over global `preset`;
+- `skeleton/config/app.php` `presets[appTarget]` wins over global `preset`;
+- global `preset` is used when `presets` does not contain selected app target;
+- `kernel.boot.default_preset` is used when neither explicit input nor app.php preset exists;
+- empty `presets` behaves as absent;
+- `presets` does not select or modify app target;
+- Phase A does not require selected preset file to exist;
+- Phase A does not load `resources/modes/*.php`;
+- Phase A does not load `skeleton/config/modes/*.php`;
 - strict dotenv policy ignores system env values;
 - strict dotenv policy forbids system env fallback;
 - allow-system policy lets system env values override dotenv values;

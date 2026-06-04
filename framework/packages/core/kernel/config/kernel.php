@@ -29,8 +29,14 @@ declare(strict_types=1);
  *
  * Baseline invariants:
  * - the `kernel` root is owned by `core/kernel`;
- * - dotted keys such as `kernel.boot.*`, `kernel.env.*`, `kernel.uow.*` are
- *   config key namespaces, not roots;
+ * - dotted keys such as `kernel.boot.*`, `kernel.env.*`,
+ *   `kernel.modules.*`, `kernel.modes.*`, `kernel.uow.*` are config key
+ *   namespaces, not roots;
+ * - `kernel.modules.*` owns module discovery source defaults;
+ * - `kernel.modes.*` owns mode preset path/schema defaults;
+ * - Kernel config defaults MUST NOT contain absolute paths;
+ * - Kernel config defaults MUST NOT contain monorepo-only paths such as
+ *   `framework/packages/core/kernel/...`;
  * - Bootstrap Phase A uses deterministic package defaults when explicit input
  *   and bootstrap-only overrides are absent;
  * - UnitOfWork attributes are json-like and float-forbidden;
@@ -45,11 +51,26 @@ return [
      * These values are used only as deterministic fallback defaults for
      * BootstrapConfig resolution.
      *
-     * Resolution order is:
+     * General resolution order is:
      *
      * - explicit BootstrapInput values;
      * - bootstrap-only overrides from skeleton/config/app.php;
      * - these package defaults.
+     *
+     * Preset resolution has a dedicated deterministic precedence:
+     *
+     * - explicit BootstrapInput::preset();
+     * - skeleton/config/app.php presets[appTarget];
+     * - skeleton/config/app.php preset;
+     * - kernel.boot.default_preset.
+     *
+     * `default_preset` is the only package-level preset fallback.
+     *
+     * Per-app preset overrides are skeleton-local bootstrap-only policy and may be
+     * defined in skeleton/config/app.php under the `presets` key.
+     *
+     * The Kernel package intentionally does not define package-level per-app
+     * preset defaults.
      *
      * Full config merge, environment overlays, directives, validation, explain,
      * and application config discovery are owned by ConfigKernel Phase B.
@@ -86,6 +107,54 @@ return [
                 '.env.<env>.local',
             ],
         ],
+    ],
+
+    /*
+     * Module discovery defaults.
+     *
+     * Module discovery is metadata-only. The Kernel module plan resolver reads
+     * installed Composer metadata through the configured discovery source and
+     * MUST NOT scan framework packages, vendor directories, skeleton
+     * directories, or module classes at runtime.
+     *
+     * `source` is validated by ModulePlanResolver against `allowed_sources`
+     * before discovery. Config rules validate only the string/list shape.
+     */
+    'modules' => [
+        'discovery' => [
+            'source' => 'composer',
+            'allowed_sources' => [
+                'composer',
+            ],
+        ],
+    ],
+
+    /*
+     * Mode preset loading defaults.
+     *
+     * This section does not select the active mode/preset.
+     *
+     * The selected preset is resolved by Bootstrap Phase A and exposed through
+     * BootstrapConfig::preset(). The fallback default preset is owned by
+     * `kernel.boot.default_preset`.
+     *
+     * `schema_version` is the canonical mode preset schema expected by the
+     * Kernel-owned mode preset validator.
+     *
+     * `defaults_path` is package-relative and resolves from the core/kernel
+     * package root.
+     *
+     * `overrides_path` is skeleton-root-relative and resolves from
+     * BootstrapConfig::skeletonRoot().
+     *
+     * These defaults intentionally avoid absolute paths and monorepo-only
+     * paths so split packages and installed applications can resolve them
+     * deterministically.
+     */
+    'modes' => [
+        'schema_version' => 1,
+        'defaults_path' => 'resources/modes',
+        'overrides_path' => 'config/modes',
     ],
 
     /*

@@ -133,14 +133,16 @@ The method/type mapping is canonical:
 - `MeterPortInterface::increment(...)` MUST be used only with `counter` metrics.
 - `MeterPortInterface::observe(...)` MUST be used only with `observe` metrics.
 
-| Metric name                  | Owner             | Type    | Labels                        |
-|------------------------------|-------------------|---------|-------------------------------|
-| http.request_total           | `platform/http`   | counter | `method`, `status`, `outcome` |
-| http.request_duration_ms     | `platform/http`   | observe | `method`, `status`, `outcome` |
-| foundation.reset_total       | `core/foundation` | counter | `outcome`                     |
-| foundation.reset_duration_ms | `core/foundation` | observe | `outcome`                     |
-| kernel.uow_total             | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.uow_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`        |
+| Metric name                        | Owner             | Type    | Labels                        |
+|------------------------------------|-------------------|---------|-------------------------------|
+| http.request_total                 | `platform/http`   | counter | `method`, `status`, `outcome` |
+| http.request_duration_ms           | `platform/http`   | observe | `method`, `status`, `outcome` |
+| foundation.reset_total             | `core/foundation` | counter | `outcome`                     |
+| foundation.reset_duration_ms       | `core/foundation` | observe | `outcome`                     |
+| kernel.uow_total                   | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.uow_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`        |
+| kernel.modules_resolve_total       | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.modules_resolve_duration_ms | `core/kernel`     | observe | `operation`, `outcome`        |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -211,6 +213,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `http.request`
 - `foundation.reset`
 - `kernel.uow`
+- `kernel.modules_resolve`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 
@@ -222,6 +225,8 @@ Baseline HTTP metric names and their metric-specific labels are registered in th
 - `http.request_duration_ms`
 - `kernel.uow_total`
 - `kernel.uow_duration_ms`
+- `kernel.modules_resolve_total`
+- `kernel.modules_resolve_duration_ms`
 
 Reset metric names and their metric-specific labels are registered in the canonical metrics catalog above:
 

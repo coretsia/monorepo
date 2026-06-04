@@ -11045,6 +11045,7 @@ provides:
 - "Deterministic app target selection (`web|api|console|worker`) as a minimal boot input"
 - "Selected app target resolves the app root under `skeleton/apps/<app>/` without filesystem scanning"
 - "App target selection is entrypoint-owned input; it is NOT inferred by probing `skeleton/apps/*`"
+- "Deterministic preset selection: explicit input → app.php per-app preset → app.php global preset → package default"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -11112,11 +11113,13 @@ Forbidden:
   - `skeletonRoot`
   - `appTarget`
   - `appEnv`
-  - `preset`
+  - `preset` selected from explicit input, bootstrap-only per-app/global preset overrides, or package default
   - `debug`
   - `envSourcePolicy`
   - `appRoot`
   - immutable `EnvRepositoryInterface` snapshot
+- Phase A MAY consume optional bootstrap-only `presets` map from `skeleton/config/app.php` only to resolve final `preset`.
+- `presets` MUST NOT be stored in `BootstrapConfig`.
 - Phase A MUST NOT read full skeleton config files.
 - Phase A MUST NOT read:
   - `skeleton/config/all.php`
@@ -11126,6 +11129,15 @@ Forbidden:
 - Phase A MAY read only bootstrap-only overrides from:
   - `skeleton/config/app.php`
 - `skeleton/config/app.php` is a bootstrap-only input file.
+- `skeleton/config/app.php` MAY define:
+  - `appEnv`
+  - `preset`
+  - `presets`
+  - `debug`
+- `presets` is a bootstrap-only per-app preset map.
+- `presets` MUST NOT participate in ConfigKernel Phase B merge.
+- `presets` MUST NOT be used as module enable/disable composition.
+- Module enable/disable composition remains owned by `1.310.0` ModulePlan from preset files + Composer metadata.
 - `skeleton/config/app.php` MUST NOT participate in ConfigKernel Phase B merge.
 - ConfigKernel Phase B owns full config file discovery, merge, directives, validation, explain, and env overlays.
 
@@ -11148,6 +11160,83 @@ Forbidden:
 - `BootstrapConfigResolver` MUST return a resolved `BootstrapConfig`.
 - `BootstrapConfigResolver` MUST NOT build `EnvRepositoryInterface`.
 - `EnvRepositoryBuilder` MUST consume a resolved `BootstrapConfig`; it MUST NOT resolve `BootstrapConfig` itself.
+
+### Preset resolution precedence (MUST)
+
+`preset` resolution is single-choice and MUST be deterministic.
+
+Final selected preset MUST be resolved in this order:
+
+1. explicit `BootstrapInput.preset`;
+2. `skeleton/config/app.php` per-app `presets[appTarget]`;
+3. `skeleton/config/app.php` global `preset`;
+4. package default `kernel.boot.default_preset`.
+
+`BootstrapInput.preset` MUST always win over `skeleton/config/app.php`.
+
+`skeleton/config/app.php` `presets[appTarget]` MUST win over `skeleton/config/app.php` global `preset` only for the currently selected explicit `appTarget`.
+
+If `presets` does not contain the selected `appTarget`, resolver MUST fall back to global `preset`.
+
+If neither `presets[appTarget]` nor global `preset` exists, resolver MUST fall back to `kernel.boot.default_preset`.
+
+`presets` MUST NOT select or infer `appTarget`.
+
+`appTarget` remains entrypoint-owned input and MUST NOT be read from `skeleton/config/app.php`.
+
+### Bootstrap-only app.php shape examples (MUST)
+
+Global preset for all app targets:
+
+```php
+return [
+    'preset' => 'hybrid',
+    'debug' => true,
+    'appEnv' => 'local',
+];
+```
+
+Per-app presets with global fallback:
+
+```php
+return [
+    'preset' => 'hybrid',
+    'presets' => [
+        'api' => 'micro',
+        'worker' => 'enterprise',
+    ],
+    'debug' => true,
+    'appEnv' => 'local',
+];
+```
+
+For selected `appTarget=api`, final preset is `micro`.
+
+For selected `appTarget=worker`, final preset is `enterprise`.
+
+For selected `appTarget=web`, final preset is `hybrid`.
+
+For selected `appTarget=console`, final preset is `hybrid`.
+
+Fully explicit per-app presets:
+
+```php
+return [
+    'preset' => 'hybrid',
+    'presets' => [
+        'api' => 'micro',
+        'web' => 'express',
+        'console' => 'hybrid',
+        'worker' => 'enterprise',
+    ],
+    'debug' => true,
+    'appEnv' => 'local',
+];
+```
+
+When both `preset` and matching `presets[appTarget]` exist, matching `presets[appTarget]` wins over global `preset`.
+
+When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` wins over both `presets[appTarget]` and global `preset`.
 
 ### Deliverables (MUST)
 
@@ -11233,17 +11322,33 @@ Forbidden:
 - [x] `framework/packages/core/kernel/src/Boot/BootstrapOverridesLoader.php` — reads optional bootstrap-only overrides:
   - [x] `skeleton/config/app.php`
   - [x] this file is a Phase A bootstrap-only input, NOT a reserved config root, and MUST NOT participate in Phase B config merge
-  - [x] allowed override scope is single-choice:
+  - [x] allowed override keys are:
     - [x] `appEnv`
     - [x] `preset`
+    - [x] `presets`
     - [x] `debug`
-  - [x] `skeleton/config/modules.php` MUST NOT be read here
-  - [x] module enable/disable composition is resolved only by `1.310.0` ModulePlan from preset files + composer metadata
+  - [x] `preset` is a global fallback preset override.
+  - [x] `presets` is a per-app preset override map.
+  - [x] `presets` MAY be partial.
+  - [x] `presets` keys MUST be valid app targets:
+    - [x] `web`
+    - [x] `api`
+    - [x] `console`
+    - [x] `worker`
+  - [x] `presets` values MUST be non-empty safe strings.
+  - [x] `presets` MUST be a string-keyed map of appTarget => presetName.
+  - [x] `presets` MUST NOT be a list/sequence.
+  - [x] Empty `presets` map is allowed and behaves as absent.
+  - [x] `presets` MUST NOT contain unknown app target keys.
+  - [x] `presets` MUST NOT infer or select app target.
   - [x] `BootstrapOverridesLoader` MUST accept only an array return value.
-  - [x] Unknown keys MUST fail deterministically with `BootstrapException::REASON_OVERRIDES_INVALID`.
+  - [x] Unknown top-level keys MUST fail deterministically with `BootstrapException::REASON_OVERRIDES_INVALID`.
+  - [x] Unknown `presets` keys MUST fail deterministically with `BootstrapException::REASON_OVERRIDES_INVALID`.
   - [x] `appEnv` MUST be non-empty safe string.
   - [x] `preset` MUST be non-empty safe string.
   - [x] `debug` MUST be bool.
+  - [x] `skeleton/config/modules.php` MUST NOT be read here.
+  - [x] module enable/disable composition is resolved only by `1.310.0` ModulePlan from preset files + Composer metadata.
   - [x] Values MUST NOT be logged or embedded in exception messages.
   - [x] The loader MUST NOT include/require any file except `skeleton/config/app.php`.
 
@@ -11257,6 +11362,7 @@ Forbidden:
   - [x] MUST use `BootstrapOverridesLoader` second for bootstrap-only overrides:
     - [x] `appEnv`
     - [x] `preset`
+    - [x] `presets`
     - [x] `debug`
   - [x] MUST use package defaults only as fallback:
     - [x] `kernel.boot.default_env`
@@ -11264,6 +11370,15 @@ Forbidden:
     - [x] `kernel.boot.default_debug`
     - [x] `kernel.env.source_policy.default_local`
     - [x] `kernel.env.source_policy.default_production`
+  - [x] Preset resolution order MUST be:
+    - [x] explicit `BootstrapInput.preset`
+    - [x] `skeleton/config/app.php` `presets[appTarget]`
+    - [x] `skeleton/config/app.php` `preset`
+    - [x] `kernel.boot.default_preset`
+  - [x] `presets[appTarget]` MUST be evaluated only for the already selected `BootstrapInput.appTarget()`.
+  - [x] `presets[appTarget]` MUST NOT select or modify app target.
+  - [x] If `presets` exists but does not contain selected `appTarget`, resolver MUST fall back to global `preset`.
+  - [x] If global `preset` is absent, resolver MUST fall back to `kernel.boot.default_preset`.
   - [x] MUST resolve `envSourcePolicy` after final `appEnv` is selected.
   - [x] For local-like env selection, default policy MUST be `strict_dotenv`.
   - [x] For production-like env selection, default policy MUST be `allow_system`.
@@ -11283,6 +11398,10 @@ Forbidden:
   - [x] Every other env name defaults to `strict_dotenv`.
   - [x] `staging` defaults to `strict_dotenv`.
   - [x] Non-production envs that need system env precedence MUST pass explicit `BootstrapEnvSourcePolicy::AllowSystem` through `BootstrapInput`.
+  - [x] Phase A validates only preset value shape, not preset existence.
+  - [x] Preset file existence and preset schema validation are owned by `1.310.0` ModulePlan.
+  - [x] Phase A MUST NOT read `kernel.modes.defaults_path` or `kernel.modes.overrides_path`.
+  - [x] Phase A MUST NOT load `resources/modes/*.php` or `skeleton/config/modes/*.php`.
 
 - [x] `framework/packages/core/kernel/src/Boot/BootstrapInput.php`
   - [x] Immutable VO for Phase A entrypoint-owned inputs.
@@ -11336,6 +11455,14 @@ Forbidden:
   - [x] Message MUST NOT contain dotenv values, absolute paths, raw PHP warnings, OS error messages, or raw override arrays.
 
 - [x] `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
+  - [x] documents deterministic preset resolution precedence:
+    - [x] explicit `BootstrapInput.preset`
+    - [x] `skeleton/config/app.php` `presets[appTarget]`
+    - [x] `skeleton/config/app.php` global `preset`
+    - [x] `kernel.boot.default_preset`
+  - [x] documents that `presets` is a bootstrap-only per-app preset map.
+  - [x] documents that `presets` does not select, infer, or modify `appTarget`.
+  - [x] documents that module enable/disable composition remains owned by 1.310.0 ModulePlan.
   - [x] documents that `BootstrapConfig` is a resolved VO only.
   - [x] documents that `BootstrapConfigResolver` owns Phase A config resolution.
   - [x] documents that `EnvRepositoryBuilder` owns env snapshot construction only.
@@ -11358,10 +11485,21 @@ Forbidden:
 
 - [x] `framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
   - [x] reads `skeleton/config/app.php` when present
-  - [x] allows only `appEnv`, `preset`, `debug`
+  - [x] allows only `appEnv`, `preset`, `presets`, `debug`
   - [x] does not read `skeleton/config/modules.php`
   - [x] unknown override keys fail deterministically
+  - [x] unknown `presets` app target keys fail deterministically
   - [x] raw override values do not leak in exception messages
+
+- [x] `framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
+  - [x] explicit `BootstrapInput.preset` wins over `skeleton/config/app.php` `presets[appTarget]`
+  - [x] `skeleton/config/app.php` `presets[appTarget]` wins over global `preset`
+  - [x] global `preset` is used when `presets` does not contain selected `appTarget`
+  - [x] `kernel.boot.default_preset` is used when neither explicit input nor app.php preset exists
+  - [x] `presets` does not select or modify app target
+  - [x] diagnostics do not leak raw preset values
+  - [x] empty `presets` map behaves as absent
+  - [x] Phase A does not require selected preset file to exist
 
 - [x] `framework/packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php`
   - [x] scans `src/Boot/**`
@@ -11481,6 +11619,8 @@ Allowed diagnostics:
     - [x] MUST fail on `echo|print|var_dump|print_r|printf|error_log`
     - [x] MUST fail on `STDOUT|STDERR`, `php://stdout`, `php://stderr`, `php://output`
     - [x] tests/fixtures are excluded
+  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
 
 ### DoD (MUST)
 
@@ -11490,6 +11630,12 @@ Allowed diagnostics:
   - [x] selected app is an explicit input (`web|api|console|worker`)
   - [x] selected app root resolves to `skeleton/apps/<app>/`
   - [x] bootstrap MUST NOT scan `skeleton/apps/*` to auto-detect the app
+- [x] Bootstrap Phase A includes deterministic preset selection:
+  - [x] explicit `BootstrapInput.preset` wins first
+  - [x] `skeleton/config/app.php` `presets[appTarget]` wins second for the already selected `BootstrapInput.appTarget()`
+  - [x] `skeleton/config/app.php` global `preset` wins third
+  - [x] `kernel.boot.default_preset` is the final fallback
+  - [x] `presets` MUST NOT select, infer, or modify `appTarget`
 - [x] No secret leakage in error paths
 - [x] Non-goals / out of scope:
   - [x] Phase A НЕ читає merged config через ConfigKernel (Phase B).
@@ -11589,187 +11735,791 @@ Forbidden:
 
 ### Entry points / integration points (MUST)
 
+- Kernel API:
+  - `ModulePlanResolver` is the kernel-owned runtime entrypoint for ModulePlan resolution.
+  - Adapters MAY call `ModulePlanResolver` later, but missing/conflict classification remains kernel-owned.
+
 - CLI:
-  - `coretsia debug:modules` → `platform/cli` `.../DebugModulesCommand.php` (reads ModulePlan)
-  - `coretsia config:compile` → uses ModulePlan as artifacts input
+  - `coretsia debug:modules` is a future `platform/cli` adapter integration.
+  - This epic MUST NOT create or modify `platform/cli` command files unless the epic scope is explicitly expanded.
+  - CLI maps deterministic kernel exceptions later via platform-owned error boundary.
+
+- Config compile:
+  - `coretsia config:compile` MAY use ModulePlan as input in a later config/artifacts epic.
+  - This epic MUST NOT write config compile artifacts.
+
 - Artifacts:
-  - writes (via artifacts epic): `skeleton/var/cache/<appId>/module-manifest.php`
+  - This epic introduces no artifacts directly.
+  - `skeleton/var/cache/<appId>/module-manifest.php` is written later by the artifacts/config compile owner.
+  - `ModulePlan::toArray()` is artifact-ready but not written by this epic.
+
 - Policy surface:
-  - missing/conflict classification MUST be performed only here (kernel-owned), surfaced by adapters later
+  - missing/conflict classification MUST be performed only here, in `core/kernel`.
+  - adapters surface deterministic kernel results later.
 
 ### Deliverables (MUST)
 
 #### Creates
 
 Discovery + preset loading + graph:
-- [ ] `framework/packages/core/kernel/src/Module/ComposerManifestReader.php` — ManifestReaderInterface via composer metadata
-- [ ] `framework/packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — load: skeleton override → framework default
-- [ ] `framework/packages/core/kernel/src/Module/ModePresetSchemaValidator.php` — schemaVersion/name/list-like + micro/express rules
-- [ ] `framework/packages/core/kernel/src/Module/ModuleGraphResolver.php` — preset required/optional/disabled + requires/conflicts + classification hooks
-- [ ] `framework/packages/core/kernel/src/Module/TopologicalSorter.php` — deterministic topo sort + cycle detection
-- [ ] `framework/packages/core/kernel/src/Module/ModulePlan.php` — stable payload shape for artifacts/debug (+ warnings storage)
-- [ ] `framework/packages/core/kernel/src/Module/ModulePlanResolver.php` — Plan resolution entrypoint (single brain):
-  - [ ] Single-choice module selection inputs:
-    - [ ] `BootstrapConfig.preset` selected in Phase A
-    - [ ] mode files (`skeleton/config/modes/*.php` override → framework defaults)
-    - [ ] composer metadata discovery
-    - [ ] selected app target from Phase A (`BootstrapConfig.app`) MAY affect app-root resolution for app-local config/bootstrap,
-      but MUST NOT introduce a parallel module-selection source
-    - [ ] forbidden parallel module-selection paths:
-      - [ ] `skeleton/config/modules.php`
-      - [ ] `skeleton/apps/*/config/modules.php`
-  - [ ] orchestrates:
-    - [ ] preset load (skeleton override → framework default)
-    - [ ] app-root resolution from selected app target (`skeleton/apps/<app>/`)
-    - [ ] schema validation
-    - [ ] composer metadata discovery
-    - [ ] graph resolve + topo sort
-    - [ ] returns a deterministic `ModulePlan` (same inputs → same plan)
+- [x] `framework/packages/core/kernel/src/Module/ComposerManifestReader.php` — ManifestReaderInterface via composer metadata
+  - [x] Discovery source is Composer installed metadata only.
+  - [x] Runtime MUST NOT scan `framework/packages/**`, package directories, source trees, or skeleton directories.
+  - [x] Runtime MUST NOT instantiate module classes during discovery.
+  - [x] Runtime MUST NOT require package filesystem paths to derive module identity.
+  - [x] A package is a Coretsia runtime module only when `extra.coretsia.moduleId` is present and valid.
+  - [x] `extra.coretsia.kind` MUST be `runtime` for runtime ModulePlan inclusion.
+  - [x] `extra.coretsia.moduleId` MUST be parsed through `Coretsia\Contracts\Module\ModuleId`.
+  - [x] `extra.coretsia.moduleClass`, when present, MUST be a non-empty safe single-line string.
+  - [x] `extra.coretsia.providers`, when present, MUST be a list of non-empty safe single-line strings.
+  - [x] `extra.coretsia.defaultsConfigPath`, when present, MAY be read as metadata but MUST NOT be exported in diagnostics.
+  - [x] Discovery MUST collapse duplicate composer package records deterministically by composer package name.
+  - [x] Duplicate `moduleId` across installed packages MUST hard fail deterministically.
+  - [x] Invalid Coretsia module metadata MUST hard fail with `CORETSIA_MODULE_MANIFEST_INVALID`.
+  - [x] Returned `ModuleManifest` MUST be sorted by moduleId using byte-order `strcmp`.
+  - [x] Normalized `extra.coretsia.requires` MUST be stored in `ModuleDescriptor.metadata()['requires']`.
+  - [x] Normalized `extra.coretsia.conflicts` MUST be stored in `ModuleDescriptor.metadata()['conflicts']`.
+  - [x] `requires` and `conflicts` metadata values MUST be exported as deterministic lists of module id strings.
+  - [x] Missing `requires` / `conflicts` MUST be exported as empty lists.
+  - [x] Production source MAY use `Composer\InstalledVersions` or Composer installed metadata files through a runtime-safe adapter.
+  - [x] Tests MUST be able to inject deterministic installed metadata without depending on the real project `vendor/` state.
+  - [x] Injected test metadata MUST use the same normalization/validation path as production metadata.
+  - [x] Test fixtures MUST NOT require filesystem package scans.
 
-- [ ] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-- [ ] `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
+Composer installed metadata source:
+- [x] `framework/packages/core/kernel/src/Module/ComposerInstalledMetadataProvider.php`
+  - [x] Provides normalized raw Composer package metadata to `ComposerManifestReader`.
+  - [x] Production implementation reads Composer installed metadata only.
+  - [x] Test fixtures can provide deterministic metadata arrays.
+  - [x] MUST NOT scan package directories.
+  - [x] Provider normalizes Composer package records, but does not classify Coretsia modules.
+  - [x] Provider MUST NOT validate `extra.coretsia`; that belongs to `ComposerManifestReader`.
+  - [x] Missing `extra` is normalized as `[]`.
+  - [x] Returned package records are sorted by Composer package name using byte-order `strcmp`.
+
+Module dependency metadata policy:
+- [x] Canonical module dependency metadata source is `composer.json` `extra.coretsia.requires` and `extra.coretsia.conflicts`.
+- [x] Composer package-level `require` / `conflict` MUST NOT be treated as module graph edges unless explicitly represented in `extra.coretsia.requires` / `extra.coretsia.conflicts`.
+- [x] `extra.coretsia.requires` MUST be absent or a list of valid module ids.
+- [x] `extra.coretsia.conflicts` MUST be absent or a list of valid module ids.
+- [x] Missing `extra.coretsia.requires` is equivalent to `[]`.
+- [x] Missing `extra.coretsia.conflicts` is equivalent to `[]`.
+- [x] `requires` and `conflicts` MUST be deduplicated and sorted by byte-order `strcmp`.
+- [x] A module MUST NOT require itself.
+- [x] A module MUST NOT conflict with itself.
+- [x] A module MUST NOT list the same target in both `requires` and `conflicts`.
+- [x] Invalid dependency metadata MUST hard fail with `CORETSIA_MODULE_MANIFEST_INVALID`.
+- [x] `core.kernel` MUST declare `extra.coretsia.requires = ["core.foundation"]`.
+
+Preset value objects:
+- [x] `framework/packages/core/kernel/src/Module/ModePreset.php` — immutable Kernel-owned implementation of `ModePresetInterface`
+  - [x] Stores `schemaVersion`, `name`, `description`, `required`, `optional`, `disabled`, `featureBundles`, `metadata`.
+  - [x] Exports `moduleIds()` as `required + optional - disabled`, sorted by moduleId using byte-order `strcmp`.
+  - [x] Exports `toArray()` as stable scalar/json-like shape.
+  - [x] MUST NOT expose source file path, skeleton root, defaults path, overrides path, PHP objects, services, or filesystem handles.
+  - [x] `required`, `optional`, and `disabled` are canonical string sets exported as lists sorted by byte-order `strcmp`.
+  - [x] Source list order is not semantic.
+
+Preset loader factory:
+- [x] `framework/packages/core/kernel/src/Module/ModePresetLoaderFactory.php` — creates per-resolution `FilesystemModePresetLoader`
+  - [x] Accepts Kernel modes config.
+  - [x] Accepts package root as a constructor/input safe path boundary.
+  - [x] Accepts `kernel.modes.defaults_path` as package-relative path.
+  - [x] Accepts `kernel.modes.overrides_path` as skeleton-root-relative path.
+  - [x] MUST reject absolute configured defaults/overrides paths before constructing loader.
+  - [x] Creates loader for a given `BootstrapConfig`.
+  - [x] Resolves skeleton override path from `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path`.
+  - [x] Resolves framework defaults path from package root + `kernel.modes.defaults_path`.
+  - [x] MUST NOT cache loaders.
+  - [x] MUST NOT cache loaded presets.
+  - [x] MUST NOT retain `BootstrapConfig` beyond factory method call.
+
+ModulePlan internal value objects:
+- [x] `framework/packages/core/kernel/src/Module/ModulePlanEntry.php` — immutable resolved module entry
+  - [x] Fields: `moduleId`, `composerName`, `requires`, `conflicts`.
+  - [x] `requires` and `conflicts` are sorted by byte-order `strcmp`.
+  - [x] `toArray()` returns stable scalar/json-like shape.
+  - [x] MUST NOT expose paths, provider class list, defaultsConfigPath, package filesystem metadata, or runtime services.
+
+- [x] `framework/packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — load: skeleton override → framework default
+  - [x] Input preset name MUST be a non-empty lowercase ASCII safe preset name.
+  - [x] Lookup order is single-choice:
+    - [x] Framework default path is resolved as package root + `kernel.modes.defaults_path` + `<preset>.php`.
+    - [x] Skeleton override path is resolved as `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path` + `<preset>.php`.
+  - [x] First existing preset file wins.
+  - [x] Loader MUST NOT merge skeleton preset with framework default preset.
+  - [x] Missing skeleton override is not an error.
+  - [x] Missing framework default after missing skeleton override MUST hard fail with `CORETSIA_MODE_PRESET_NOT_FOUND`.
+  - [x] A present but unreadable or invalid file MUST hard fail with `CORETSIA_MODE_PRESET_INVALID`.
+  - [x] `listNames()` MUST return available preset names in deterministic byte-order `strcmp` order.
+  - [x] Skeleton preset names override framework preset names with the same name in `listNames()`.
+  - [x] `has()` MUST return false for invalid names and missing presets.
+  - [x] `tryLoad()` MUST return null for invalid names and missing presets.
+  - [x] `load()` MUST throw deterministic exceptions for invalid or missing presets.
+  - [x] Loader diagnostics MUST NOT include filesystem paths.
+  - [x] Invalid preset names passed to `load()` MUST fail deterministically without echoing the raw invalid value.
+  - [x] Invalid preset names MUST use stable placeholder context `preset = invalid`.
+  - [x] Invalid preset names SHOULD use reason token `mode-preset-name-invalid`.
+
+- [x] `framework/packages/core/kernel/src/Module/ModePresetSchemaValidator.php` — validates canonical preset PHP array shape
+  - [x] Preset file MUST return an array.
+  - [x] Preset file MUST NOT return a root wrapper such as `['mode' => ...]`, `['modes' => ...]`, or `['kernel' => ...]`.
+  - [x] `schemaVersion` MUST be integer `1`.
+  - [x] `name` MUST be a non-empty lowercase ASCII preset name.
+  - [x] `name` MUST match the requested preset filename stem.
+  - [x] `description` MUST be `null` or non-empty safe string.
+  - [x] `required`, `optional`, and `disabled` MUST be lists.
+  - [x] Every item in `required`, `optional`, and `disabled` MUST be a valid module id.
+  - [x] Duplicate ids inside each list MUST be collapsed deterministically.
+  - [x] `required`, `optional`, and `disabled` MUST be pairwise disjoint after normalization.
+  - [x] `featureBundles` MUST be a JSON-like map.
+  - [x] `metadata` MUST be a JSON-like map.
+  - [x] Floats, objects, closures, resources, service instances, filesystem handles, and runtime wiring objects are forbidden.
+  - [x] Validation diagnostics MUST include only `presetName`, stable reason token, and stable error code.
+  - [x] Validation diagnostics MUST NOT include preset file path, skeleton root, defaults path, overrides path, raw config payload, or filesystem layout.
+  - [x] Invalid preset MUST hard fail with `CORETSIA_MODE_PRESET_INVALID`.
+  - [x] `metadata` and `featureBundles` MUST NOT contain absolute path-like string values.
+  - [x] Absolute path-like strings MUST be rejected with `CORETSIA_MODE_PRESET_INVALID`.
+  - [x] Rejection diagnostics MUST include only `presetName`, stable reason token, and stable error code.
+  - [x] Rejection diagnostics MUST NOT echo the offending path-like value.
+
+- [x] `framework/packages/core/kernel/src/Module/ModuleGraphResolver.php` — preset required/optional/disabled + module requires/conflicts policy
+  - [x] Inputs:
+    - [x] installed `ModuleManifest`
+    - [x] validated `ModePresetInterface`
+    - [x] module dependency metadata from `extra.coretsia.requires`
+    - [x] module conflict metadata from `extra.coretsia.conflicts`
+  - [x] Initial enabled seed set:
+    - [x] all preset `required`
+    - [x] preset `optional` only when installed
+    - [x] never preset `disabled`
+  - [x] Preset optional module not installed:
+    - [x] MUST be added to `optionalMissing`
+    - [x] MUST create `ModuleOptionalMissingWarning`
+    - [x] MUST NOT fail resolution
+  - [x] Preset required module not installed:
+    - [x] MUST hard fail with `CORETSIA_MODULE_REQUIRED_MISSING`
+  - [x] Required dependency closure:
+    - [x] if enabled module `A` requires installed module `B`, `B` MUST be enabled transitively
+    - [x] if enabled module `A` requires missing module `B`, resolution MUST hard fail with `CORETSIA_MODULE_REQUIRED_MISSING`
+    - [x] if enabled module `A` requires disabled module `B`, resolution MUST hard fail with `CORETSIA_MODULE_CONFLICT` using reason `required-module-disabled`
+  - [x] Conflict policy:
+    - [x] if enabled module `A` conflicts with enabled module `B`, resolution MUST hard fail with `CORETSIA_MODULE_CONFLICT`
+    - [x] conflicts against modules that are not enabled MUST NOT fail
+    - [x] conflict pair in diagnostics MUST be sorted as `[lowerModuleId, higherModuleId]` using byte-order `strcmp`
+  - [x] Disabled policy:
+    - [x] disabled modules MUST NOT appear in `enabled`
+    - [x] disabled modules MAY appear in `disabled`
+    - [x] disabled modules MUST be sorted by byte-order `strcmp`
+  - [x] Output:
+    - [x] enabled module ids sorted by byte-order `strcmp`
+    - [x] disabled module ids sorted by byte-order `strcmp`
+    - [x] optionalMissing sorted by byte-order `strcmp`
+    - [x] warning list sorted by canonical warning key using byte-order `strcmp`
+  - [x] Reads module dependency edges from `ModuleDescriptor.metadata()['requires']`.
+  - [x] Reads module conflict edges from `ModuleDescriptor.metadata()['conflicts']`.
+  - [x] Missing metadata keys are treated as empty lists.
+  - [x] Non-list or invalid metadata values MUST hard fail with `CORETSIA_MODULE_MANIFEST_INVALID`.
+  - [x] `ModuleGraphResolver::resolve()` accepts app target as output metadata only; app target MUST NOT affect module selection.
+  - [x] `ModuleGraphResolver` MUST collect graph failure candidates before throwing, so graph failures are selected deterministically before being surfaced to `ModulePlanResolver`.
+  - [x] Graph-level failure precedence is:
+    - [x] conflicts
+    - [x] required missing
+    - [x] cycle detection
+  - [x] `ModulePlanResolver` applies global pipeline precedence around preset loading, manifest reading, graph resolution, and success/warnings.
+
+- [x] `framework/packages/core/kernel/src/Module/TopologicalSorter.php` — deterministic topo sort + cycle detection
+  - [x] Edge direction: `A requires B` means `B` MUST appear before `A` in `topologicalOrder`.
+  - [x] Only enabled modules participate in topo sorting.
+  - [x] Missing required modules are classified before topo sort.
+  - [x] Conflict failures are classified before topo sort.
+  - [x] Topo order MUST be stable across runs, OS, filesystem order, and locale.
+  - [x] When multiple nodes are available, sorter MUST pick the lowest moduleId by byte-order `strcmp`.
+  - [x] Cycle detection MUST hard fail with `CORETSIA_MODULE_CYCLE_DETECTED`.
+  - [x] Cycle diagnostics MUST include only stable module ids and reason token.
+  - [x] Cycle diagnostics MUST NOT include graph dumps, paths, filesystem layout, or raw metadata payloads.
+  - [x] Cycle module ids in diagnostics MUST be sorted deterministically unless preserving the minimal canonical cycle path is explicitly required by the test.
+
+- [x] `framework/packages/core/kernel/src/Module/ModulePlan.php` — stable payload shape for artifacts/debug (+ warnings storage)
+  - [x] Shape examples below are illustrative test vectors, not hardcoded values.
+  - [x] Actual `preset` MUST come from `BootstrapConfig.preset()`.
+  - [x] Actual `app` MUST come from `BootstrapConfig.appTarget()`.
+  - [x] Actual `enabled`, `disabled`, `optionalMissing`, `topologicalOrder`, and `modules` MUST come from graph resolution.
+  - [x] `'schemaVersion' => 1`
+  - [x] `'preset' => 'micro'`
+  - [x] `'app' => 'api'`
+  - [x] `'enabled' => ['core.foundation', 'core.kernel']`
+  - [x] `'disabled' => []`
+  - [x] `'optionalMissing' => []`
+  - [x] `'warnings' => []`
+  - [x] `'topologicalOrder' => ['core.foundation', 'core.kernel']`
+  - [x] `modules`
+    - [x] `'core.foundation'`
+      - [x] `'moduleId' => 'core.foundation'`
+      - [x] `'composerName' => 'coretsia/core-foundation'`
+      - [x] `'requires' => []`
+      - [x] `'conflicts' => []`
+    - [x] `'core.kernel'`
+      - [x] `'moduleId' => 'core.kernel'`
+      - [x] `'composerName' => 'coretsia/core-kernel'`
+      - [x] `'requires' => ['core.foundation']`
+      - [x] `'conflicts' => []`
+  - [x] ModulePlan MUST NOT export `skeletonRoot/appRoot/defaultsPath/overridesPath/absolute` paths.
+  - [x] `ModulePlan::toArray()` MUST return only scalar/json-like values.
+  - [x] Top-level exported key order MUST be deterministic.
+  - [x] Canonical top-level `toArray()` key order:
+    - [x] `app`
+    - [x] `disabled`
+    - [x] `enabled`
+    - [x] `modules`
+    - [x] `optionalMissing`
+    - [x] `preset`
+    - [x] `schemaVersion`
+    - [x] `topologicalOrder`
+    - [x] `warnings`
+  - [x] `modules` MUST be a map keyed by moduleId.
+  - [x] `modules` map keys MUST be sorted by byte-order `strcmp`.
+  - [x] Each module entry key order:
+    - [x] `composerName`
+    - [x] `conflicts`
+    - [x] `moduleId`
+    - [x] `requires`
+  - [x] `enabled`, `disabled`, `optionalMissing`, and `topologicalOrder` MUST be lists of module ids.
+  - [x] `enabled`, `disabled`, and `optionalMissing` MUST be sorted by byte-order `strcmp`.
+  - [x] `topologicalOrder` MUST preserve dependency order and be deterministic.
+  - [x] `warnings` MUST be a list of warning exported arrays.
+  - [x] Warning exported key order:
+    - [x] `code`
+    - [x] `moduleId`
+    - [x] `preset`
+    - [x] `reason`
+  - [x] Warning canonical sort key is `code + "\0" + preset + "\0" + moduleId + "\0" + reason`.
+  - [x] `ModulePlan` MUST NOT contain or export `skeletonRoot`, `appRoot`, `defaultsPath`, `overridesPath`, absolute paths, provider class lists, raw composer payloads, raw config payloads, or service instances.
+
+- [x] `framework/packages/core/kernel/src/Module/ModulePlanResolver.php` — Plan resolution entrypoint (single brain):
+  - [x] Single-choice module selection inputs:
+    - [x] `BootstrapConfig.preset` selected in Phase A
+    - [x] mode files (`skeleton/config/modes/*.php` override → framework defaults)
+    - [x] First existing preset file wins:
+      - [x] 1. skeleton override path: `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path` + `<preset>.php`
+      - [x] 2. framework default path: package root + `kernel.modes.defaults_path` + `<preset>.php`
+      - [x] No merge.
+    - [x] Resolver/loader MUST NOT export either resolved path in diagnostics or ModulePlan.
+    - [x] composer metadata discovery
+    - [x] selected app target from Phase A (`BootstrapConfig.app`) MAY affect app-root resolution for app-local config/bootstrap, but MUST NOT introduce a parallel module-selection source
+    - [x] forbidden parallel module-selection paths:
+      - [x] `skeleton/config/modules.php`
+      - [x] `skeleton/apps/*/config/modules.php`
+  - [x] orchestrates:
+    - [x] preset load (skeleton override → framework default)
+    - [x] app-root is already resolved by `BootstrapConfig`; `ModulePlanResolver` MUST NOT use `appRoot()` as a module-selection source.
+    - [x] schema validation
+    - [x] composer metadata discovery
+    - [x] graph resolve + topo sort
+    - [x] returns a deterministic `ModulePlan` (same inputs → same plan)
+  - [x] MUST NOT read `skeleton/config/modules.php`.
+  - [x] MUST NOT read `skeleton/apps/*/config/modules.php`.
+  - [x] MUST NOT scan `skeleton/apps/*`.
+  - [x] MUST NOT infer app target from filesystem.
+  - [x] MUST use only `BootstrapConfig.preset()` as selected preset input.
+  - [x] MUST use only `BootstrapConfig.appTarget()` / `BootstrapConfig.appRoot()` for app-root derivation, not for module selection.
+  - [x] MUST not write artifacts; artifact writing belongs to later artifacts/config compile epic.
+  - [x] MUST not emit stdout/stderr.
+  - [x] MUST not log raw paths or raw metadata.
+  - [x] MUST return a deterministic `ModulePlan` or throw deterministic module resolution exception.
+  - [x] Uses `ModePresetLoaderFactory` to create a per-resolution loader from the current `BootstrapConfig`.
+  - [x] Emits metrics through `MeterPortInterface`.
+  - [x] Measures duration through Foundation `Stopwatch` or another deterministic monotonic duration boundary.
+  - [x] Emits `kernel.modules_resolve_total` exactly once per resolution attempt.
+  - [x] Emits `kernel.modules_resolve_duration_ms` exactly once per resolution attempt.
+  - [x] Metrics emission MUST happen for both success and deterministic failure outcomes.
+  - [x] Metrics labels MUST use only allowed `outcome` values.
+  - [x] Metrics labels MUST NOT contain module ids, preset names, paths, raw errors, or exception messages.
+  - [x] Metrics backend failures MUST NOT affect ModulePlan resolution.
+  - [x] Metrics backend failures MUST NOT replace deterministic module resolution exceptions.
+  - [x] Metrics emission is best-effort: resolver attempts `kernel.modules_resolve_total` and `kernel.modules_resolve_duration_ms` once per resolution attempt.
+  - [x] MUST validate `kernel.modules.discovery.source` before discovery.
+  - [x] Unsupported source MUST fail before preset loading and composer metadata reading.
+  - [x] MUST validate `kernel.modules.discovery.source` against `kernel.modules.discovery.allowed_sources`.
+  - [x] Unsupported source MUST fail with `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`.
+  - [x] Unsupported source validation MUST happen before preset loading and before composer metadata reading.
+  - [x] Emits safe logs through `Psr\Log\LoggerInterface`.
+  - [x] Logging MUST be optional and MUST NOT affect ModulePlan resolution.
+  - [x] Optional missing warnings MAY be logged with stable reason tokens.
+  - [x] Conflict failures MAY be logged only as safe deterministic summaries.
+  - [x] Log context MUST contain only stable error/warning code, reason token, presetName, and moduleIds.
+  - [x] Log context MUST NOT contain paths, raw composer metadata, raw preset payloads, exception messages, stack traces, secrets, or PII.
+
+Failure precedence (single-choice):
+- [x] `ModulePlanResolver` MUST classify failures in this order:
+  - [x] 1. unsupported discovery source → `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+  - [x] 2. preset not found → `CORETSIA_MODE_PRESET_NOT_FOUND`
+  - [x] 3. preset invalid → `CORETSIA_MODE_PRESET_INVALID`
+  - [x] 4. composer/module manifest invalid → `CORETSIA_MODULE_MANIFEST_INVALID`
+  - [x] 5. module conflicts → `CORETSIA_MODULE_CONFLICT`
+  - [x] 6. required missing → `CORETSIA_MODULE_REQUIRED_MISSING`
+  - [x] 7. cycle detected → `CORETSIA_MODULE_CYCLE_DETECTED`
+  - [x] 8. success with optional missing warnings
+- [x] If multiple failures of the same class exist, report the one with the smallest canonical failure key by byte-order `strcmp`.
+- [x] Conflict failure key: `lowerModuleId + "\0" + higherModuleId + "\0" + reason`.
+- [x] Required-missing failure key: `requiredBy + "\0" + missingModuleId + "\0" + reason`.
+- [x] Preset-invalid failure key: `presetName + "\0" + reason`.
 
 Framework default presets:
-- [ ] `framework/packages/core/kernel/resources/modes/micro.php`
-- [ ] `framework/packages/core/kernel/resources/modes/express.php`
-- [ ] `framework/packages/core/kernel/resources/modes/hybrid.php`
-- [ ] `framework/packages/core/kernel/resources/modes/enterprise.php`
+- [x] `framework/packages/core/kernel/resources/modes/micro.php` must return:
+  - [x] `'schemaVersion' => 1`
+  - [x] `'name' => 'micro'`
+  - [x] `'description' => 'Micro web application mode.'`
+  - [x] `required`
+    - [x] `core.foundation`
+    - [x] `core.kernel`
+    - [x] `platform.cli`
+  - [x] `optional`
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
+  - [x] `'disabled' => []`
+  - [x] `featureBundles`
+    - [x] `'observability' => 'minimal'`
+  - [x] `'metadata' => []`
+
+- [x] `framework/packages/core/kernel/resources/modes/express.php` must return:
+  - [x] `'schemaVersion' => 1`
+  - [x] `'name' => 'express'`
+  - [x] `'description' => 'Express web application mode.'`
+  - [x] `required`
+    - [x] `core.foundation`
+    - [x] `core.kernel`
+    - [x] `platform.cli`
+  - [x] `optional`
+    - [x] `platform.http`
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
+  - [x] `'disabled' => []`
+  - [x] `featureBundles`
+    - [x] `'observability' => 'minimal'`
+  - [x] `'metadata' => []`
+
+- [x] `framework/packages/core/kernel/resources/modes/hybrid.php` must return:
+  - [x] `'schemaVersion' => 1`
+  - [x] `'name' => 'hybrid'`
+  - [x] `'description' => 'Hybrid web application mode.'`
+  - [x] `required`
+    - [x] `core.foundation`
+    - [x] `core.kernel`
+    - [x] `platform.cli`
+  - [x] `optional`
+    - [x] `platform.http`
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
+  - [x] `'disabled' => []`
+  - [x] `featureBundles`
+    - [x] `'observability' => 'minimal'`
+  - [x] `'metadata' => []`
+
+- [x] `framework/packages/core/kernel/resources/modes/enterprise.php` must return:
+  - [x] `'schemaVersion' => 1`
+  - [x] `'name' => 'enterprise'`
+  - [x] `'description' => 'Enterprise web application mode.'`
+  - [x] `required`
+    - [x] `core.foundation`
+    - [x] `core.kernel`
+    - [x] `platform.cli`
+  - [x] `optional`
+    - [x] `platform.http`
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
+  - [x] `'disabled' => []`
+  - [x] `featureBundles`
+    - [x] `'observability' => 'minimal'`
+  - [x] `'metadata' => []`
 
 Deterministic exceptions (resolution + policy):
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php` — `CORETSIA_MODE_PRESET_NOT_FOUND`
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php` — `CORETSIA_MODE_PRESET_INVALID`
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModuleCycleDetectedException.php` — `CORETSIA_MODULE_CYCLE_DETECTED`
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModuleConflictException.php` — `CORETSIA_MODULE_CONFLICT`
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModuleRequiredMissingException.php` — `CORETSIA_MODULE_REQUIRED_MISSING`
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php` — `CORETSIA_MODE_PRESET_NOT_FOUND`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php` — `CORETSIA_MODE_PRESET_INVALID`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleCycleDetectedException.php` — `CORETSIA_MODULE_CYCLE_DETECTED`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleConflictException.php` — `CORETSIA_MODULE_CONFLICT`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleRequiredMissingException.php` — `CORETSIA_MODULE_REQUIRED_MISSING`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleManifestInvalidException.php` — `CORETSIA_MODULE_MANIFEST_INVALID`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Used for invalid composer installed metadata / invalid `extra.coretsia` metadata / duplicate module ids.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleDiscoverySourceUnsupportedException.php` — `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+  - [x] Extends `ModuleResolutionException`.
+  - [x] Error code MUST be read from `ModuleErrorCodes`.
+  - [x] Used when config selects unsupported `kernel.modules.discovery.source`.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] `errorCode()` MUST return stable public code.
+  - [x] `reason()` MUST return stable reason token.
+  - [x] `context()` MUST return safe deterministic json-like context.
+  - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
+
+Exception/error-code support:
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleResolutionException.php`
+  - [x] Abstract Kernel-owned base exception class, not an interface/port.
+  - [x] Extends `\RuntimeException`.
+  - [x] Exposes `errorCode(): string`.
+  - [x] Exposes `reason(): string`.
+  - [x] Exposes `context(): array`.
+  - [x] `context()` MUST contain only safe scalar/json-like diagnostic values.
+  - [x] Message format MUST be `ERROR_CODE: reason-token`.
+  - [x] MUST NOT be placed in `core/contracts`.
+  - [x] MUST NOT be treated as a framework port.
+  - [x] MAY be caught by Kernel-owned callers and future adapters as a concrete Kernel package exception base.
+  - [x] MUST NOT introduce a cross-package interface in `core/kernel`.
+  - [x] Context string values MUST be safe diagnostic tokens only.
+  - [x] Context string values MUST NOT be free-form messages.
+  - [x] Context string values MUST NOT contain path separators, whitespace, control characters, stream-wrapper-like values, or path traversal fragments.
+  - [x] Context validation MUST NOT rely on sensitive-word or SQL-like regex filtering; concrete exceptions MUST pass only pre-classified safe tokens/module ids/preset names.
+
+- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleErrorCodes.php`
+  - [x] Kernel-owned constants holder, not a contracts port.
+  - [x] Final non-instantiable class.
+  - [x] Used only by Kernel module resolution exceptions/warnings.
+  - [x] MUST NOT be placed in `core/contracts`.
+  - [x] MUST NOT be treated as a framework port.
+  - [x] Defines:
+    - [x] `CORETSIA_MODE_PRESET_NOT_FOUND`
+    - [x] `CORETSIA_MODE_PRESET_INVALID`
+    - [x] `CORETSIA_MODULE_MANIFEST_INVALID`
+    - [x] `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+    - [x] `CORETSIA_MODULE_CYCLE_DETECTED`
+    - [x] `CORETSIA_MODULE_CONFLICT`
+    - [x] `CORETSIA_MODULE_REQUIRED_MISSING`
+    - [x] `CORETSIA_MODULE_OPTIONAL_MISSING`
 
 Warnings (non-fatal):
-- [ ] `framework/packages/core/kernel/src/Module/Warning/ModuleOptionalMissingWarning.php` — `CORETSIA_MODULE_OPTIONAL_MISSING`
+- [x] `framework/packages/core/kernel/src/Module/Warning/ModuleOptionalMissingWarning.php` — `CORETSIA_MODULE_OPTIONAL_MISSING`
+  - [x] Warning code MUST be read from `ModuleErrorCodes`.
+  - [x] Fields: `code`, `moduleId`, `preset`, `reason`.
+  - [x] `code` MUST be `CORETSIA_MODULE_OPTIONAL_MISSING`.
+  - [x] `reason` MUST be a stable reason token.
+  - [x] `toArray()` MUST export keys in order:
+    - [x] `code`
+    - [x] `moduleId`
+    - [x] `preset`
+    - [x] `reason`
+  - [x] MUST NOT contain paths, raw preset payload, raw composer payload, secrets, PII, or filesystem layout.
+
+Docs:
+- [x] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
+- [x] `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
+
+Tests:
+- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderReadsOnlyComposerMetadataTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderDoesNotLeakPathsTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderSortsModulesDeterministicallyTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModePresetLoaderDoesNotMergeOverrideWithDefaultTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/KernelRequiresFoundationInModulePlanTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/ModulePlanDoesNotExportFilesystemPathsContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
+  - [x] config value `kernel.modules.discovery.source = "filesystem"` fails with `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+  - [x] diagnostics do not expose paths or config payload
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-  - [ ] `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
-- [ ] `framework/packages/core/kernel/config/kernel.php` — adds modules/modes config defaults
-- [ ] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers:
-  - [ ] `ModulePlanResolver`
-  - [ ] `ComposerManifestReader`
-  - [ ] `FilesystemModePresetLoader`
-  - [ ] `ModePresetSchemaValidator`
-  - [ ] `ModuleGraphResolver`
-  - [ ] `TopologicalSorter`
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
+  - [x] `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
+
+- [x] `docs/ssot/modules-and-manifests.md` — document module dependency metadata:
+  - [x] `extra.coretsia.requires` is the canonical module dependency metadata source.
+  - [x] `extra.coretsia.conflicts` is the canonical module conflict metadata source.
+  - [x] Composer package-level `require` / `conflict` are not module graph edges unless explicitly represented in `extra.coretsia.requires` / `extra.coretsia.conflicts`.
+  - [x] `requires` / `conflicts` are stored in `ModuleDescriptor.metadata()` as deterministic lists of module id strings.
+  - [x] `requires` / `conflicts` MUST NOT expose filesystem paths or composer raw payloads.
+
+- [x] `framework/packages/core/kernel/config/kernel.php` — adds modules/modes config defaults
+- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers:
+  - [x] `ModulePlanResolver`
+  - [x] `ComposerManifestReader`
+  - [x] `Coretsia\Contracts\Module\ManifestReaderInterface` → `ComposerManifestReader`
+  - [x] `ModePresetLoaderFactory`
+  - [x] `ModePresetSchemaValidator`
+  - [x] `ModuleGraphResolver`
+  - [x] `TopologicalSorter`
+  - [x] Provider MUST NOT bind `ModePresetLoaderInterface` globally because skeleton override path is BootstrapConfig-specific.
+  - [x] Provider MUST NOT register `FilesystemModePresetLoader` as a global service.
+  - [x] `FilesystemModePresetLoader` MUST be created only through `ModePresetLoaderFactory` per `ModulePlanResolver` call.
+  - [x] Provider registration MUST NOT resolve ModulePlan.
+  - [x] Provider registration MUST NOT read composer metadata.
+  - [x] Provider registration MUST NOT read preset files.
+  - [x] Provider registration MUST NOT scan filesystem.
+  - [x] `ModulePlanResolver` factory MUST inject `MeterPortInterface`.
+  - [x] `ModulePlanResolver` factory MUST inject `Stopwatch` or duration provider.
+  - [x] `ModulePlanResolver` factory MUST inject `Psr\Log\LoggerInterface` when logs are in scope.
+  - [x] Provider module-plan closures MUST NOT capture full `kernel` config arrays.
+  - [x] Module-plan factories MAY read the `kernel` root from Foundation `Container::config()` during lazy service creation.
+  - [x] Created module-plan services MUST retain only normalized minimal config values, not the full `kernel` config subtree.
+
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — module plan wiring
+  - [x] builds `ComposerManifestReader` from config/runtime-safe composer metadata source
+  - [x] builds `FilesystemModePresetLoader` from kernel modes config + BootstrapConfig skeleton root when resolver is invoked
+  - [x] builds `ModePresetSchemaValidator`
+  - [x] builds `ModuleGraphResolver`
+  - [x] builds `TopologicalSorter`
+  - [x] builds `ModulePlanResolver`
+  - [x] MUST NOT cache loaded presets.
+  - [x] MUST NOT cache composer metadata.
+  - [x] MUST NOT retain `BootstrapConfig`.
+  - [x] MUST NOT retain container or config arrays beyond construction.
+  - [x] wires `MeterPortInterface` into `ModulePlanResolver` when observability is enabled by this epic.
+  - [x] wires `Stopwatch` or duration provider into `ModulePlanResolver` for duration metrics.
+  - [x] wires `LoggerInterface` into `ModulePlanResolver` for safe module resolution logs.
+
+- [x] `framework/packages/core/kernel/composer.json` — extend `extra.coretsia` module metadata:
+  - [x] add `"requires": ["core.foundation"]`
+  - [x] add `"conflicts": []`
+  - [x] keep `"moduleId": "core.kernel"`
+  - [x] keep `"kind": "runtime"`
+  - [x] keep `"moduleClass": "Coretsia\\Kernel\\Module\\KernelModule"`
+  - [x] keep provider metadata deterministic
+  - [x] require `"composer-runtime-api": "^2.2"` if `Composer\InstalledVersions` is used directly.
 
 ### Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [ ] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `framework/packages/core/kernel/config/kernel.php`
 - Keys (dot):
-  - [ ] `kernel.modules.discovery.source` = "composer"
-  - [ ] `kernel.modes.defaults_path` = "framework/packages/core/kernel/resources/modes"
-  - [ ] `kernel.modes.overrides_path` = "skeleton/config/modes"
-  - [ ] `kernel.modes.schema_version` = 1
+  - [x] `kernel.modules.discovery.source` = "composer"
+  - [x] `kernel.modules.discovery.allowed_sources` = ["composer"]
+  - [x] `kernel.modes.schema_version` = 1
+  - [x] `kernel.modes.defaults_path` = "resources/modes"
+    - [x] `kernel.modes.defaults_path` is package-relative.
+  - [x] `kernel.modes.overrides_path` = "config/modes"
+    - [x] `kernel.modes.overrides_path` is skeleton-root-relative.
+  - [x] Config defaults MUST NOT contain absolute paths.
+  - [x] Config defaults MUST NOT contain monorepo-only paths such as `framework/packages/core/kernel/...` unless explicitly documented as repo-relative and never exported.
 - Rules:
-  - [ ] `framework/packages/core/kernel/config/rules.php` enforces shape
+  - [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+    - [x] `kernel.modules.discovery.source` MUST be a non-empty safe string.
+    - [x] `kernel.modules.discovery.source` shape validation MUST NOT enforce the concrete source value.
+    - [x] Supported discovery source membership is validated by `ModulePlanResolver`, not by config rules.
+    - [x] If `kernel.modules.discovery.source` is not in `kernel.modules.discovery.allowed_sources`, `ModulePlanResolver` MUST fail with `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`.
+    - [x] `kernel.modules.discovery.allowed_sources` MUST be list of non-empty strings.
+    - [x] `kernel.modes.schema_version` MUST be integer `1`.
+    - [x] `kernel.modes.defaults_path` MUST be non-empty relative safe string.
+    - [x] `kernel.modes.overrides_path` MUST be non-empty relative safe string.
+    - [x] `kernel.modes.defaults_path` MUST NOT be absolute.
+    - [x] `kernel.modes.overrides_path` MUST NOT be absolute.
+    - [x] Unknown keys under `modules` and `modes` MUST be rejected.
+    - [x] Reserved `@*` keys MUST be rejected.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `kernel.modules_resolve_total` (labels: `outcome`)
-  - [ ] `kernel.modules_resolve_duration_ms` (labels: `outcome`)
-- [ ] Logs:
-  - [ ] warnings about optionalMissing/conflicts redacted (only moduleIds)
-  - [ ] no paths/secrets
+- [x] Metrics:
+  - [x] `kernel.modules_resolve_total` (labels: `outcome`)
+  - [x] `kernel.modules_resolve_duration_ms` (labels: `outcome`)
+- [x] Logs:
+  - [x] warnings about optionalMissing/conflicts redacted (only moduleIds)
+  - [x] no paths/secrets
+
+- [x] `ModulePlanResolver` emits `kernel.modules_resolve_total` exactly once per resolution attempt.
+- [x] `ModulePlanResolver` emits `kernel.modules_resolve_duration_ms` exactly once per resolution attempt.
+- [x] Allowed `outcome` labels:
+  - [x] `success`
+  - [x] `preset_not_found`
+  - [x] `preset_invalid`
+  - [x] `manifest_invalid`
+  - [x] `discovery_source_unsupported`
+  - [x] `conflict`
+  - [x] `required_missing`
+  - [x] `cycle`
+- [x] Metrics tests:
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+- [x] Logs tests:
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 #### Errors
 
-- [ ] Deterministic exception codes:
-  - [ ] `CORETSIA_MODE_PRESET_NOT_FOUND`
-  - [ ] `CORETSIA_MODE_PRESET_INVALID`
-  - [ ] `CORETSIA_MODULE_CYCLE_DETECTED`
-  - [ ] `CORETSIA_MODULE_CONFLICT`
-  - [ ] `CORETSIA_MODULE_REQUIRED_MISSING`
-- [ ] Deterministic warning code:
-  - [ ] `CORETSIA_MODULE_OPTIONAL_MISSING`
-- [ ] Mapping:
-  - [ ] adapters/CLI map later via `platform/errors`
+- [x] Deterministic exception codes:
+  - [x] `CORETSIA_MODE_PRESET_NOT_FOUND`
+  - [x] `CORETSIA_MODE_PRESET_INVALID`
+  - [x] `CORETSIA_MODULE_MANIFEST_INVALID`
+  - [x] `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+  - [x] `CORETSIA_MODULE_CYCLE_DETECTED`
+  - [x] `CORETSIA_MODULE_CONFLICT`
+  - [x] `CORETSIA_MODULE_REQUIRED_MISSING`
+- [x] Deterministic warning code:
+  - [x] `CORETSIA_MODULE_OPTIONAL_MISSING`
+- [x] Mapping:
+  - [x] adapters/CLI map later via `platform/errors`
 
 ### Phase 0 parity: deterministic ordering + safe diagnostics (MUST)
 
 ModulePlan MUST бути детермінованим у сенсі PHASE 0 SPIKES:
 
-- будь-які списки/плани/графи/попередження:
-  - stable sort by byte-order (`strcmp`)
-  - locale-independent
+- [x] будь-які списки/плани/графи/попередження:
+  - [x] stable sort by byte-order (`strcmp`)
+  - [x] locale-independent
 
 #### Safe diagnostics invariant (single-choice)
 
 В diagnostics (exceptions/warnings) MUST NOT бути:
-- абсолютних шляхів
-- фрагментів filesystem layout
-- секретів/PII
+- [x] абсолютних шляхів
+- [x] фрагментів filesystem layout
+- [x] секретів/PII
 
 Allowed:
-- moduleId, presetName, stable reason tokens, stable error code.
+- [x] moduleId, presetName, stable reason tokens, stable error code.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Deterministic topo/cycle:
-  - [ ] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
-- [ ] Stable plan shape:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
-- [ ] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
-  - [ ] asserts `optionalMissing` and any warnings collections are sorted deterministically by canonical key using byte-order `strcmp`
-  - [ ] asserts locale does not affect ordering
-- [ ] Deterministic behaviors (missing/conflicts policy):
-  - [ ] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
+- [x] Deterministic topo/cycle:
+  - [x] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
+- [x] Stable plan shape:
+  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
+- [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
+  - [x] asserts `optionalMissing` and any warnings collections are sorted deterministically by canonical key using byte-order `strcmp`
+  - [x] asserts locale does not affect ordering
+- [x] Deterministic behaviors (missing/conflicts policy):
+  - [x] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanRecursiveKeyOrderContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModuleResolutionExceptionShapeContractTest.php`
+    - [x] asserts all module resolution exceptions extend `ModuleResolutionException`
+    - [x] asserts no `ModuleResolutionExceptionInterface` exists in `core/kernel`
+    - [x] asserts `errorCode()`, `reason()`, and `context()` shape
+    - [x] asserts exception message is `ERROR_CODE: reason-token`
+  - [x] `framework/packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModePresetAppliesRequiredOptionalDisabledTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetAppliesRequiredOptionalDisabledTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsDuplicateModuleIdsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverAddsTransitiveRequiredDependenciesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverFailsWhenEnabledModuleRequiresDisabledModuleTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverFailurePrecedenceTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsOverlappingRequiredOptionalDisabledTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsPathLeakingMetadataTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 ### DoD (MUST)
 
-- [ ] Module discovery is metadata-only (no runtime scans)
-- [ ] Mode preset load order correct + tested (skeleton override → framework default)
-- [ ] Deterministic ModulePlan (stable ordering; rerun produces identical plan)
-- [ ] Policy implemented + tested:
-  - [ ] conflicts → hard fail (`CORETSIA_MODULE_CONFLICT`)
-  - [ ] required missing → hard fail (`CORETSIA_MODULE_REQUIRED_MISSING`)
-  - [ ] optional missing → warning (`CORETSIA_MODULE_OPTIONAL_MISSING`) and does not fail
-- [ ] Failures are deterministic across runs/OS
-- [ ] `platform/cli` surfaces these failures deterministically in JSON output
-- [ ] Presets (micro/express/hybrid/enterprise) існують як framework defaults у `core/kernel/resources/modes/*.php`
-- [ ] CLI `debug:modules` (owner `platform/cli`) показує ModulePlan
-- [ ] Express preset у Phase 0/1 може падати на required missing — це очікувано
-- [ ] Non-goals / out of scope:
-  - [ ] Жодного filesystem scan `framework/packages/**` у runtime.
-  - [ ] Kernel не інстанціює module classes для discovery; only metadata.
-  - [ ] Не включає bundles (окремий ADR/Phase 6+).
-- [ ] When a preset lists an optional module that is not installed yet, then ModulePlan contains it in `optionalMissing` (as warning) and does not fail.
-- [ ] When a preset requires a module not installed, then kernel throws `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
-- [ ] Any preset that enables `core/kernel` runtime MUST also enable `core/foundation`.
-  - [ ] Rationale: KernelRuntime requires Foundation services (ContextStore/TagRegistry/ResetOrchestrator).
-- [ ] Kernel Module metadata (via ModulePlan) MUST reflect this as a **required module dependency**:
-  - [ ] `core.kernel` requires `core.foundation`
-- [ ] `core/kernel` still MUST NOT own `kernel.reset`; it only triggers `ResetOrchestrator` at runtime.
+- [x] Module discovery is metadata-only through Composer installed metadata.
+- [x] No runtime scan of `framework/packages/**`.
+- [x] Kernel does not instantiate module classes for discovery.
+- [x] Kernel does not write artifacts in this epic.
+- [x] Mode preset load order correct + tested:
+  - [x] skeleton override first
+  - [x] framework default second
+  - [x] first existing file wins
+  - [x] no merge
+- [x] Deterministic ModulePlan:
+  - [x] stable `toArray()` shape
+  - [x] stable recursive map key ordering
+  - [x] stable list ordering where lists are sets
+  - [x] deterministic topological order
+  - [x] rerun produces identical plan
+- [x] Policy implemented + tested:
+  - [x] conflicts → hard fail (`CORETSIA_MODULE_CONFLICT`)
+  - [x] required missing → hard fail (`CORETSIA_MODULE_REQUIRED_MISSING`)
+  - [x] optional missing → warning (`CORETSIA_MODULE_OPTIONAL_MISSING`) and does not fail
+- [x] Failure precedence is implemented exactly as specified.
+- [x] Failures are deterministic across runs/OS/locales.
+- [x] Diagnostics are safe:
+  - [x] no absolute paths
+  - [x] no filesystem layout fragments
+  - [x] no raw composer payload
+  - [x] no raw preset payload
+  - [x] no secrets/PII
+- [x] Presets `micro`, `express`, `hybrid`, `enterprise` exist as framework defaults in `core/kernel/resources/modes/*.php`.
+- [x] Any preset that enables `core.kernel` MUST also enable `core.foundation`.
+- [x] `core.kernel` ModulePlan metadata MUST reflect required module dependency:
+  - [x] `core.kernel` requires `core.foundation`
+- [x] `core/kernel` still MUST NOT own `kernel.reset`; it only triggers `ResetOrchestrator` at runtime.
+- [x] CLI `debug:modules` is out of scope for this epic and belongs to `platform/cli`.
+- [x] JSON CLI error rendering is out of scope for this epic and belongs to `platform/cli` / `platform/errors`.
+- [x] ModulePlanResolver emits policy-compliant metrics exactly once per resolution attempt.
+- [x] Metrics labels use only allowlisted `operation` and `outcome` labels; `operation` is stable token `resolve`.
+- [x] Metrics do not expose module ids, preset names, paths, raw metadata, secrets, or exception messages.
+- [x] ModulePlanResolver logs only policy-compliant safe records when logging is used.
+- [x] Logs do not expose absolute paths, filesystem layout, raw composer payloads, raw preset payloads, secrets, PII, exception messages, or stack traces.
+- [x] Log context contains only stable error/warning code, reason token, presetName, and moduleIds.
 
 ---
 
@@ -12085,8 +12835,26 @@ Loaders:
     - [ ] `string`
     - [ ] `non-empty-string`
     - [ ] `non-empty-string-no-ws`
+    - [ ] `relative-safe-path`
     - [ ] `bool`
     - [ ] `int`
+  - [ ] `relative-safe-path` type:
+    - [ ] MUST be a string.
+    - [ ] MUST be non-empty.
+    - [ ] MUST be relative.
+    - [ ] MUST NOT be absolute.
+    - [ ] MUST NOT contain NUL bytes.
+    - [ ] MUST NOT contain stream wrappers.
+    - [ ] MUST NOT contain Windows drive-letter prefixes.
+    - [ ] MUST NOT contain leading `/`.
+    - [ ] MUST NOT contain leading `\`.
+    - [ ] MUST NOT contain path traversal segment `..`.
+    - [ ] MAY contain `/` as a relative path separator.
+    - [ ] MUST keep diagnostics safe:
+      - [ ] report only dot-path config path;
+      - [ ] report stable reason token;
+      - [ ] MUST NOT echo the raw path value;
+      - [ ] MUST NOT expose absolute paths.
   - [ ] validates each ruleset against the subtree under `configRoot`
   - [ ] MUST NOT execute package-provided validation closures
   - [ ] Validates only roots with loaded rulesets.
@@ -12295,6 +13063,16 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
   - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
   - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
   - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+  - [ ] `framework/packages/core/kernel/tests/Unit/ConfigValidatorRelativeSafePathTypeTest.php`
+    - [ ] accepts `resources/modes`
+    - [ ] accepts `config/modes`
+    - [ ] rejects empty string
+    - [ ] rejects absolute Unix paths
+    - [ ] rejects absolute Windows drive-letter paths
+    - [ ] rejects paths with `..` traversal
+    - [ ] rejects stream wrappers
+    - [ ] rejects NUL bytes
+    - [ ] diagnostics do not include the raw path value
 
 - Contract:
   - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`

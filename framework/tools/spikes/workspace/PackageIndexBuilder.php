@@ -30,7 +30,7 @@ final class PackageIndexBuilder
 
     /**
      * Build deterministic package-index from a repo root by scanning:
-     * - framework/packages/*\/*\/composer.json
+     * - framework/packages/<layer>/<slug>/composer.json
      *
      * Output entry shape (cemented key insertion order):
      * - slug, layer, path, composerName, psr4, kind, moduleClass (if present)

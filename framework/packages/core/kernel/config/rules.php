@@ -24,11 +24,23 @@ declare(strict_types=1);
  * - unknown keys are rejected at every declared map level;
  * - reserved `@*` keys are rejected by the same strict-shape policy;
  * - `kernel.boot.default_env` must be a non-empty string;
- * - `kernel.boot.default_preset` must be a non-empty string;
+ * - `kernel.boot.default_preset` must be a non-empty string and is the only
+ *   package-level preset fallback;
+ * - per-app preset overrides belong to bootstrap-only `skeleton/config/app.php`
+ *   and are validated by BootstrapOverridesLoader, not by these config rules;
  * - `kernel.boot.default_debug` must be a bool;
  * - `kernel.env.source_policy.default_local` must be `strict_dotenv`;
  * - `kernel.env.source_policy.default_production` must be `allow_system`;
  * - `kernel.env.dotenv.files` must be a list of non-empty strings;
+ * - `kernel.modules.discovery.source` must be a non-empty safe string;
+ * - `kernel.modules.discovery.source` shape validation does not enforce the
+ *   concrete source value; supported source membership is validated by
+ *   ModulePlanResolver;
+ * - `kernel.modules.discovery.allowed_sources` must be a list of non-empty
+ *   safe strings;
+ * - `kernel.modes.schema_version` must be integer `1`;
+ * - `kernel.modes.defaults_path` must be a non-empty relative safe path;
+ * - `kernel.modes.overrides_path` must be a non-empty relative safe path;
  * - `kernel.uow.attributes.max_depth` must be an integer greater than zero;
  * - `kernel.uow.attributes.max_keys` must be an integer greater than zero;
  * - this epic introduces no runtime feature flags, reset tag constants, HTTP
@@ -37,7 +49,7 @@ declare(strict_types=1);
  *
  * The defaults file must return the subtree only:
  *
- *     config/kernel.php => ['boot' => [...], 'env' => [...], 'uow' => [...]]
+ *     config/kernel.php => ['boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'uow' => [...]]
  *
  * It must not return:
  *
@@ -106,6 +118,53 @@ return [
                             ],
                         ],
                     ],
+                ],
+            ],
+        ],
+        'modules' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'discovery' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'source' => [
+                            'required' => true,
+                            'type' => 'non-empty-string-no-ws',
+                        ],
+                        'allowed_sources' => [
+                            'required' => true,
+                            'type' => 'list',
+                            'items' => [
+                                'type' => 'non-empty-string-no-ws',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        'modes' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'schema_version' => [
+                    'required' => true,
+                    'type' => 'int',
+                    'allowedValues' => [
+                        1,
+                    ],
+                ],
+                'defaults_path' => [
+                    'required' => true,
+                    'type' => 'relative-safe-path',
+                ],
+                'overrides_path' => [
+                    'required' => true,
+                    'type' => 'relative-safe-path',
                 ],
             ],
         ],

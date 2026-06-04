@@ -29,7 +29,7 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  *
  * It MUST NOT:
  *
- * - scan skeleton/apps/*;
+ * - scan skeleton/apps/<app>;
  * - infer the application target;
  * - read the filesystem;
  * - require the derived app root to exist;

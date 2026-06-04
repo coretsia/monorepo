@@ -575,7 +575,7 @@ final class KernelDoesNotEnumerateResetDiscoveryTagTest extends TestCase
 
     private static function kernelRuntimeFile(): string
     {
-        $runtimeFile = (new ReflectionClass(KernelRuntime::class))->getFileName();
+        $runtimeFile = new ReflectionClass(KernelRuntime::class)->getFileName();
 
         self::assertIsString($runtimeFile);
 

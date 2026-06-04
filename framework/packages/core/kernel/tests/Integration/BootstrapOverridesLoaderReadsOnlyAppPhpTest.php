@@ -36,6 +36,12 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
             self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
                 'appEnv' => 'staging',
                 'preset' => 'micro',
+                'presets' => [
+                    'worker' => 'enterprise',
+                    'web' => 'express',
+                    'console' => 'hybrid',
+                    'api' => 'micro',
+                ],
                 'debug' => true,
             ]);
 
@@ -55,10 +61,71 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
                 [
                     'appEnv' => 'staging',
                     'preset' => 'micro',
+                    'presets' => [
+                        'api' => 'micro',
+                        'console' => 'hybrid',
+                        'web' => 'express',
+                        'worker' => 'enterprise',
+                    ],
                     'debug' => true,
                 ],
                 $overrides,
             );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testAcceptsPartialPresetsMap(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('partial-presets');
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'presets' => [
+                    'worker' => 'enterprise',
+                    'api' => 'micro',
+                ],
+            ]);
+
+            $overrides = self::loader()->load(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Worker,
+                ),
+            );
+
+            self::assertSame(
+                [
+                    'presets' => [
+                        'api' => 'micro',
+                        'worker' => 'enterprise',
+                    ],
+                ],
+                $overrides,
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testEmptyPresetsMapBehavesAsAbsent(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('empty-presets');
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'presets' => [],
+            ]);
+
+            $overrides = self::loader()->load(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Console,
+                ),
+            );
+
+            self::assertSame([], $overrides);
         } finally {
             self::removeDirectory($skeletonRoot);
         }
@@ -87,6 +154,35 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
         }
     }
 
+    public function testRejectsNonArrayAppPhpReturnValueDeterministically(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('non-array-return');
+
+        try {
+            self::writePhpReturnFile(
+                $skeletonRoot . '/config/app.php',
+                "'unsafe-token Authorization Cookie session_id password SELECT * FROM users /tmp/coretsia-secret'",
+            );
+
+            self::assertInvalidOverridesWithoutLeaking(
+                skeletonRoot: $skeletonRoot,
+                appTarget: AppTarget::Api,
+                forbiddenFragments: [
+                    'unsafe-token',
+                    'Authorization',
+                    'Cookie',
+                    'session_id',
+                    'password',
+                    'SELECT * FROM users',
+                    '/tmp/coretsia-secret',
+                    $skeletonRoot,
+                ],
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
     public function testUnknownOverrideKeysFailDeterministicallyAndDoNotLeakRawOverrideValues(): void
     {
         $skeletonRoot = self::createSkeletonRoot('unknown-keys');
@@ -104,42 +200,146 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
                 'modules-php-must-not-be-read',
             );
 
-            try {
-                self::loader()->load(
-                    new BootstrapInput(
-                        skeletonRoot: $skeletonRoot,
-                        appTarget: AppTarget::Console,
-                    ),
-                );
-            } catch (BootstrapException $exception) {
-                self::assertSame(BootstrapException::ERROR_CODE, $exception->errorCode());
-                self::assertSame(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                    $exception->reason(),
-                );
-                self::assertSame(
-                    'CORETSIA_BOOTSTRAP_FAILED: bootstrap-overrides-invalid',
-                    $exception->getMessage(),
-                );
-                self::assertSame(0, $exception->getCode());
-
-                self::assertStringNotContainsString('unknownKey', $exception->getMessage());
-                self::assertStringNotContainsString($unsafeValue, $exception->getMessage());
-                self::assertStringNotContainsString('unsafe-token', $exception->getMessage());
-                self::assertStringNotContainsString('Authorization', $exception->getMessage());
-                self::assertStringNotContainsString('Cookie', $exception->getMessage());
-                self::assertStringNotContainsString('session_id', $exception->getMessage());
-                self::assertStringNotContainsString('password', $exception->getMessage());
-                self::assertStringNotContainsString('SELECT * FROM users', $exception->getMessage());
-                self::assertStringNotContainsString('/tmp/coretsia-secret', $exception->getMessage());
-                self::assertStringNotContainsString($skeletonRoot, $exception->getMessage());
-
-                return;
-            }
-
-            self::fail('Expected unknown bootstrap override key to fail with BootstrapException.');
+            self::assertInvalidOverridesWithoutLeaking(
+                skeletonRoot: $skeletonRoot,
+                appTarget: AppTarget::Console,
+                forbiddenFragments: [
+                    'unknownKey',
+                    $unsafeValue,
+                    'unsafe-token',
+                    'Authorization',
+                    'Cookie',
+                    'session_id',
+                    'password',
+                    'SELECT * FROM users',
+                    '/tmp/coretsia-secret',
+                    $skeletonRoot,
+                ],
+            );
         } finally {
             self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testUnknownPresetsAppTargetKeysFailDeterministicallyAndDoNotLeakRawValues(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('unknown-presets-app-target');
+
+        $unsafeValue = 'unsafe-preset Authorization Cookie SECRET /tmp/coretsia-secret';
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'presets' => [
+                    'admin' => $unsafeValue,
+                ],
+            ]);
+
+            self::writeThrowingPhpFile(
+                $skeletonRoot . '/config/modules.php',
+                'modules-php-must-not-be-read',
+            );
+
+            self::assertInvalidOverridesWithoutLeaking(
+                skeletonRoot: $skeletonRoot,
+                appTarget: AppTarget::Api,
+                forbiddenFragments: [
+                    'admin',
+                    $unsafeValue,
+                    'unsafe-preset',
+                    'Authorization',
+                    'Cookie',
+                    'SECRET',
+                    '/tmp/coretsia-secret',
+                    $skeletonRoot,
+                ],
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testRejectsPresetsListSequenceWithoutLeakingRawValues(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('presets-list');
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'presets' => [
+                    'micro',
+                    'express',
+                    'unsafe-preset Authorization /tmp/coretsia-secret',
+                ],
+            ]);
+
+            self::assertInvalidOverridesWithoutLeaking(
+                skeletonRoot: $skeletonRoot,
+                appTarget: AppTarget::Worker,
+                forbiddenFragments: [
+                    'unsafe-preset',
+                    'Authorization',
+                    '/tmp/coretsia-secret',
+                    $skeletonRoot,
+                ],
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testRejectsInvalidPresetsValuesWithoutLeakingRawValues(): void
+    {
+        $cases = [
+            'non-string-preset-value' => [
+                'value' => 123,
+                'forbiddenFragments' => [
+                    $this->name(),
+                ],
+            ],
+            'empty-preset-value' => [
+                'value' => '',
+                'forbiddenFragments' => [
+                    $this->name(),
+                ],
+            ],
+            'unsafe-preset-value' => [
+                'value' => "invalid-preset\nAuthorization Bearer SECRET /tmp/coretsia-secret",
+                'forbiddenFragments' => [
+                    'invalid-preset',
+                    'Authorization',
+                    'Bearer',
+                    'SECRET',
+                    '/tmp/coretsia-secret',
+                ],
+            ],
+            'trimmed-preset-value' => [
+                'value' => ' micro ',
+                'forbiddenFragments' => [
+                    ' micro ',
+                ],
+            ],
+        ];
+
+        foreach ($cases as $case => $fixture) {
+            $skeletonRoot = self::createSkeletonRoot($case);
+
+            try {
+                self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                    'presets' => [
+                        'api' => $fixture['value'],
+                    ],
+                ]);
+
+                self::assertInvalidOverridesWithoutLeaking(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Api,
+                    forbiddenFragments: [
+                        ...$fixture['forbiddenFragments'],
+                        $skeletonRoot,
+                    ],
+                );
+            } finally {
+                self::removeDirectory($skeletonRoot);
+            }
         }
     }
 
@@ -154,39 +354,63 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
                 'appEnv' => $unsafeValue,
             ]);
 
-            try {
-                self::loader()->load(
-                    new BootstrapInput(
-                        skeletonRoot: $skeletonRoot,
-                        appTarget: AppTarget::Worker,
-                    ),
-                );
-            } catch (BootstrapException $exception) {
-                self::assertSame(BootstrapException::ERROR_CODE, $exception->errorCode());
-                self::assertSame(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                    $exception->reason(),
-                );
-                self::assertSame(
-                    'CORETSIA_BOOTSTRAP_FAILED: bootstrap-overrides-invalid',
-                    $exception->getMessage(),
-                );
-
-                self::assertStringNotContainsString($unsafeValue, $exception->getMessage());
-                self::assertStringNotContainsString('invalid-env', $exception->getMessage());
-                self::assertStringNotContainsString('Authorization', $exception->getMessage());
-                self::assertStringNotContainsString('Bearer', $exception->getMessage());
-                self::assertStringNotContainsString('SECRET', $exception->getMessage());
-                self::assertStringNotContainsString('/tmp/coretsia-secret', $exception->getMessage());
-                self::assertStringNotContainsString($skeletonRoot, $exception->getMessage());
-
-                return;
-            }
-
-            self::fail('Expected invalid allowed bootstrap override value to fail with BootstrapException.');
+            self::assertInvalidOverridesWithoutLeaking(
+                skeletonRoot: $skeletonRoot,
+                appTarget: AppTarget::Worker,
+                forbiddenFragments: [
+                    $unsafeValue,
+                    'invalid-env',
+                    'Authorization',
+                    'Bearer',
+                    'SECRET',
+                    '/tmp/coretsia-secret',
+                    $skeletonRoot,
+                ],
+            );
         } finally {
             self::removeDirectory($skeletonRoot);
         }
+    }
+
+    /**
+     * @param list<string> $forbiddenFragments
+     */
+    private static function assertInvalidOverridesWithoutLeaking(
+        string $skeletonRoot,
+        AppTarget $appTarget,
+        array $forbiddenFragments,
+    ): void {
+        try {
+            self::loader()->load(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: $appTarget,
+                ),
+            );
+        } catch (BootstrapException $exception) {
+            self::assertSame(BootstrapException::ERROR_CODE, $exception->errorCode());
+            self::assertSame(
+                BootstrapException::REASON_OVERRIDES_INVALID,
+                $exception->reason(),
+            );
+            self::assertSame(
+                'CORETSIA_BOOTSTRAP_FAILED: bootstrap-overrides-invalid',
+                $exception->getMessage(),
+            );
+            self::assertSame(0, $exception->getCode());
+
+            foreach ($forbiddenFragments as $fragment) {
+                if ($fragment === '') {
+                    continue;
+                }
+
+                self::assertStringNotContainsString($fragment, $exception->getMessage());
+            }
+
+            return;
+        }
+
+        self::fail('Expected invalid bootstrap overrides to fail with BootstrapException.');
     }
 
     private static function loader(): BootstrapOverridesLoader
@@ -213,7 +437,7 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param array<mixed> $payload
      */
     private static function writePhpArrayFile(string $file, array $payload): void
     {
@@ -222,6 +446,18 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
         $written = \file_put_contents(
             $file,
             "<?php\n\ndeclare(strict_types=1);\n\nreturn " . \var_export($payload, true) . ";\n",
+        );
+
+        self::assertIsInt($written);
+    }
+
+    private static function writePhpReturnFile(string $file, string $returnExpression): void
+    {
+        self::ensureDirectory(\dirname($file));
+
+        $written = \file_put_contents(
+            $file,
+            "<?php\n\ndeclare(strict_types=1);\n\nreturn " . $returnExpression . ";\n",
         );
 
         self::assertIsInt($written);

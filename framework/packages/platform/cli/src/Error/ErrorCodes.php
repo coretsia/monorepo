@@ -28,13 +28,9 @@ namespace Coretsia\Platform\Cli\Error;
 final class ErrorCodes
 {
     public const string CORETSIA_CLI_COMMAND_CLASS_MISSING = 'CORETSIA_CLI_COMMAND_CLASS_MISSING';
-
     public const string CORETSIA_CLI_COMMAND_FAILED = 'CORETSIA_CLI_COMMAND_FAILED';
-
     public const string CORETSIA_CLI_COMMAND_INVALID = 'CORETSIA_CLI_COMMAND_INVALID';
-
     public const string CORETSIA_CLI_CONFIG_INVALID = 'CORETSIA_CLI_CONFIG_INVALID';
-
     public const string CORETSIA_CLI_UNCAUGHT_EXCEPTION = 'CORETSIA_CLI_UNCAUGHT_EXCEPTION';
 
     /**

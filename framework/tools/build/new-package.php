@@ -175,6 +175,8 @@ final class NewPackage
             $coretsiaExtra['providers'] = [
                 $namespaceRoot . 'Provider\\' . $studlySlug . 'ServiceProvider',
             ];
+            $coretsiaExtra['requires'] = [];
+            $coretsiaExtra['conflicts'] = [];
             $coretsiaExtra['defaultsConfigPath'] = 'config/' . $slug . '.php';
         }
 

@@ -52,6 +52,8 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0021: UnitOfWork context shape](./ADR-0021-unit-of-work-context-shape.md) — owner: core/kernel — scope: context,kernel,shape,uow
 - [ADR-0022: UnitOfWork result and outcome policy](./ADR-0022-unit-of-work-result-outcome-policy.md) — owner: core/kernel — scope: lifecycle,outcome,result,uow
 - [ADR-0023: Kernel Bootstrap Phase A](./ADR-0023-kernel-bootstrap-phase-a.md) — owner: core/kernel — scope: bootstrap,config,env,kernel,phase-a
+- [ADR-0024: Kernel module plan resolution](./ADR-0024-kernel-module-plan-resolution.md) — owner: core/kernel — scope: composer,discovery,kernel,module-plan,presets,resolution
+- [ADR-0025: Kernel module conflicts and optional-missing policy](./ADR-0025-kernel-conflicts-optional-missing-policy.md) — owner: core/kernel — scope: conflicts,graph,kernel,module-plan,optional-missing,policy
 
 ## Cross-references
 

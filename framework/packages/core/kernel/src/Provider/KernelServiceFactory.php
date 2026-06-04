@@ -18,9 +18,11 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Container as FoundationContainer;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
@@ -32,6 +34,13 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
+use Coretsia\Kernel\Module\ComposerManifestReader;
+use Coretsia\Kernel\Module\ModePresetLoaderFactory;
+use Coretsia\Kernel\Module\ModePresetSchemaValidator;
+use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Psr\Container\ContainerInterface;
@@ -64,7 +73,6 @@ use Psr\Log\LoggerInterface;
 final class KernelServiceFactory
 {
     private const int DEFAULT_UOW_ATTRIBUTES_MAX_DEPTH = 10;
-
     private const int DEFAULT_UOW_ATTRIBUTES_MAX_KEYS = 200;
 
     private function __construct()
@@ -130,6 +138,147 @@ final class KernelServiceFactory
 
         return new EnvRepositoryBuilder(
             dotenvLoader: $dotenvLoader,
+        );
+    }
+
+    /**
+     * Creates the Composer installed metadata provider.
+     *
+     * This factory performs construction only. It does not read Composer
+     * installed metadata, scan packages, or cache composer metadata.
+     */
+    public static function composerInstalledMetadataProvider(): ComposerInstalledMetadataProvider
+    {
+        return new ComposerInstalledMetadataProvider();
+    }
+
+    /**
+     * Creates the Composer-backed module manifest reader.
+     *
+     * This factory wires the reader to the runtime-safe Composer installed
+     * metadata provider. It does not read composer metadata during factory
+     * construction and keeps no composer metadata cache.
+     */
+    public static function composerManifestReader(): ComposerManifestReader
+    {
+        return new ComposerManifestReader(
+            metadataProvider: self::composerInstalledMetadataProvider(),
+        );
+    }
+
+    /**
+     * Creates the mode preset schema validator.
+     *
+     * This factory performs construction only. It does not read preset files,
+     * resolve skeleton paths, or cache loaded presets.
+     */
+    public static function modePresetSchemaValidator(): ModePresetSchemaValidator
+    {
+        return new ModePresetSchemaValidator();
+    }
+
+    /**
+     * Creates the per-resolution mode preset loader factory.
+     *
+     * This method reads only the Kernel-owned `kernel.modes` config subtree from
+     * the already-built Foundation container config snapshot and passes that
+     * subtree to ModePresetLoaderFactory.
+     *
+     * FilesystemModePresetLoader MUST NOT be registered globally. It is created
+     * only by ModePresetLoaderFactory::createFor() for the current
+     * BootstrapConfig during ModulePlanResolver::resolve().
+     */
+    public static function modePresetLoaderFactory(
+        ContainerInterface $container,
+        string $packageRoot,
+    ): ModePresetLoaderFactory {
+        $schemaValidator = self::modulePlanService($container, ModePresetSchemaValidator::class);
+
+        if (!$schemaValidator instanceof ModePresetSchemaValidator) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        $kernelConfig = self::kernelConfig($container);
+
+        return new ModePresetLoaderFactory(
+            packageRoot: $packageRoot,
+            modesConfig: self::modesConfig($kernelConfig),
+            schemaValidator: $schemaValidator,
+        );
+    }
+
+    /**
+     * Creates the deterministic topological sorter.
+     *
+     * This factory performs construction only and keeps no graph state.
+     */
+    public static function topologicalSorter(): TopologicalSorter
+    {
+        return new TopologicalSorter();
+    }
+
+    /**
+     * Creates the module graph resolver from already-registered module plan
+     * services.
+     *
+     * This factory performs wiring only. It does not read composer metadata,
+     * load presets, resolve ModulePlan, or keep mutable graph state.
+     */
+    public static function moduleGraphResolver(ContainerInterface $container): ModuleGraphResolver
+    {
+        $topologicalSorter = self::modulePlanService($container, TopologicalSorter::class);
+
+        if (!$topologicalSorter instanceof TopologicalSorter) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        return new ModuleGraphResolver(
+            topologicalSorter: $topologicalSorter,
+        );
+    }
+
+    /**
+     * Creates the ModulePlan resolver.
+     *
+     * This factory performs wiring only. It does not resolve a ModulePlan, load
+     * preset files, read Composer installed metadata, scan filesystem paths,
+     * retain BootstrapConfig, retain the container, or retain the full Kernel
+     * config payload beyond construction.
+     */
+    public static function modulePlanResolver(
+        ContainerInterface $container,
+    ): ModulePlanResolver {
+        $presetLoaderFactory = self::modulePlanService($container, ModePresetLoaderFactory::class);
+
+        if (!$presetLoaderFactory instanceof ModePresetLoaderFactory) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        $manifestReader = self::modulePlanService($container, ManifestReaderInterface::class);
+
+        if (!$manifestReader instanceof ManifestReaderInterface) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        $graphResolver = self::modulePlanService($container, ModuleGraphResolver::class);
+
+        if (!$graphResolver instanceof ModuleGraphResolver) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        $meter = self::meter($container);
+        $stopwatch = self::stopwatch($container);
+        $logger = self::optionalLogger($container);
+        $kernelConfig = self::kernelConfig($container);
+
+        return new ModulePlanResolver(
+            presetLoaderFactory: $presetLoaderFactory,
+            manifestReader: $manifestReader,
+            graphResolver: $graphResolver,
+            meter: $meter,
+            stopwatch: $stopwatch,
+            modulesConfig: self::modulesConfig($kernelConfig),
+            logger: $logger,
         );
     }
 
@@ -321,6 +470,28 @@ final class KernelServiceFactory
         return $service;
     }
 
+    private static function optionalLogger(ContainerInterface $container): ?LoggerInterface
+    {
+        try {
+            if (!$container->has(LoggerInterface::class)) {
+                return null;
+            }
+
+            $service = $container->get(LoggerInterface::class);
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-module-plan-dependency-not-found',
+                $throwable,
+            );
+        }
+
+        if (!$service instanceof LoggerInterface) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
+        }
+
+        return $service;
+    }
+
     private static function tracer(ContainerInterface $container): TracerPortInterface
     {
         $service = self::service($container, TracerPortInterface::class);
@@ -381,6 +552,85 @@ final class KernelServiceFactory
                 $throwable,
             );
         }
+    }
+
+    private static function modulePlanService(
+        ContainerInterface $container,
+        string $id,
+    ): mixed {
+        try {
+            if (!$container->has($id)) {
+                throw new ContainerException('kernel-module-plan-dependency-not-found');
+            }
+
+            return $container->get($id);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-module-plan-dependency-not-found',
+                $throwable,
+            );
+        }
+    }
+
+    /**
+     * Reads the strict `kernel` config root from the Foundation container config
+     * snapshot.
+     *
+     * This method exists so KernelServiceProvider closures do not retain config
+     * arrays. The full config snapshot remains owned by the Foundation container;
+     * Kernel module-plan services receive only their minimal validated subtrees.
+     *
+     * @return array<string, mixed>
+     */
+    private static function kernelConfig(ContainerInterface $container): array
+    {
+        if (!$container instanceof FoundationContainer) {
+            throw new ContainerException('kernel-container-invalid');
+        }
+
+        $config = $container->config();
+        $kernelConfig = $config['kernel'] ?? null;
+
+        if (!\is_array($kernelConfig) || \array_is_list($kernelConfig)) {
+            throw new ContainerException('kernel-config-root-missing');
+        }
+
+        /** @var array<string, mixed> $kernelConfig */
+        return $kernelConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $kernelConfig
+     *
+     * @return array<string, mixed>
+     */
+    private static function modulesConfig(array $kernelConfig): array
+    {
+        $modulesConfig = $kernelConfig['modules'] ?? [];
+
+        if (!\is_array($modulesConfig) || \array_is_list($modulesConfig)) {
+            throw new ContainerException('kernel-modules-config-invalid');
+        }
+
+        return $modulesConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $kernelConfig
+     *
+     * @return array<string, mixed>
+     */
+    private static function modesConfig(array $kernelConfig): array
+    {
+        $modesConfig = $kernelConfig['modes'] ?? [];
+
+        if (!\is_array($modesConfig) || \array_is_list($modesConfig)) {
+            throw new ContainerException('kernel-modes-config-invalid');
+        }
+
+        return $modesConfig;
     }
 
     /**

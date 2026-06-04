@@ -28,7 +28,7 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * It MUST NOT:
  *
  * - read the filesystem;
- * - inspect skeleton/apps/*;
+ * - inspect skeleton/apps/<app>;
  * - infer the application target;
  * - read process env;
  * - parse dotenv files;
@@ -69,7 +69,7 @@ final readonly class BootstrapInput
     /**
      * Explicit application target.
      *
-     * The target is never inferred by scanning skeleton/apps/*.
+     * The target is never inferred by scanning skeleton/apps/<app>.
      */
     public function appTarget(): AppTarget
     {

@@ -28,7 +28,7 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * skeleton/apps/<target>
  *
  * Bootstrap Phase A MUST receive the target explicitly. It MUST NOT discover
- * the target by scanning skeleton/apps/*.
+ * the target by scanning skeleton/apps/<app>.
  *
  * Invalid targets fail with BootstrapException. The exception message is safe
  * and MUST NOT include the rejected raw input.

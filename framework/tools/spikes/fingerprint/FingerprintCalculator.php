@@ -28,7 +28,7 @@ use Coretsia\Tools\Spikes\_support\FixtureRoot;
  *
  * Cemented bucket taxonomy (epic 0.60.0):
  *  - code: everything except config PHP files and .env* files
- *  - config: config/*\*.php + apps/*\/config/**.php
+ *  - config: config/*\*.php + apps/<app>/config/**.php
  *  - dotenv: .env* files (no parsing; file-based hashing only)
  *  - tracked_env: allowlisted env keys from fixtures/repo_min/tracked_env_allowlist.php
  *  - schema_versions: fixed schema constants included as inputs

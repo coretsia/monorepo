@@ -27,9 +27,23 @@ namespace Coretsia\Kernel\Boot;
  * 2. bootstrap-only overrides from skeleton/config/app.php;
  * 3. package defaults from kernel config.
  *
+ * Preset resolution order is intentionally more specific:
+ *
+ * 1. explicit BootstrapInput::preset();
+ * 2. skeleton/config/app.php presets[BootstrapInput::appTarget()];
+ * 3. skeleton/config/app.php preset;
+ * 4. kernel.boot.default_preset.
+ *
+ * The `presets` map is evaluated only for the already selected explicit app
+ * target. It must not select, infer, or modify app target.
+ *
+ * Phase A validates only preset value shape. Preset file existence and preset
+ * schema validation are owned by ModulePlan resolution.
+ *
  * This resolver owns BootstrapConfig resolution only. It does not build the env
- * repository, parse dotenv files, read system env, scan skeleton/apps/*, or
- * require the derived app root to exist.
+ * repository, parse dotenv files, read system env, scan skeleton/apps/<app>, read
+ * kernel.modes.*, load resources/modes/*.php, load skeleton/config/modes/*.php,
+ * or require the derived app root to exist.
  *
  * Default env source policy selection:
  *
@@ -56,6 +70,7 @@ final readonly class BootstrapConfigResolver
 
     private const string OVERRIDE_APP_ENV = 'appEnv';
     private const string OVERRIDE_PRESET = 'preset';
+    private const string OVERRIDE_PRESETS = 'presets';
     private const string OVERRIDE_DEBUG = 'debug';
 
     /**
@@ -90,9 +105,11 @@ final readonly class BootstrapConfigResolver
             ?? $overrides[self::OVERRIDE_APP_ENV]
             ?? self::defaultAppEnv($kernelConfig);
 
-        $preset = $input->preset()
-            ?? $overrides[self::OVERRIDE_PRESET]
-            ?? self::defaultPreset($kernelConfig);
+        $preset = self::resolvePreset(
+            input: $input,
+            overrides: $overrides,
+            kernelConfig: $kernelConfig,
+        );
 
         $debug = $input->debug()
             ?? $overrides[self::OVERRIDE_DEBUG]
@@ -109,6 +126,90 @@ final readonly class BootstrapConfigResolver
             appTarget: $input->appTarget(),
             skeletonRoot: $input->skeletonRoot(),
         );
+    }
+
+    /**
+     * Preset resolution order:
+     *
+     * 1. explicit BootstrapInput::preset();
+     * 2. skeleton/config/app.php presets[BootstrapInput::appTarget()];
+     * 3. skeleton/config/app.php preset;
+     * 4. kernel.boot.default_preset.
+     *
+     * @param array{
+     *     appEnv?: non-empty-string,
+     *     preset?: non-empty-string,
+     *     presets?: array<string, non-empty-string>,
+     *     debug?: bool
+     * } $overrides
+     * @param array<string,mixed> $kernelConfig
+     *
+     * @return non-empty-string
+     */
+    private static function resolvePreset(
+        BootstrapInput $input,
+        array $overrides,
+        array $kernelConfig,
+    ): string {
+        $inputPreset = $input->preset();
+
+        if ($inputPreset !== null) {
+            return $inputPreset;
+        }
+
+        $appPreset = self::presetOverrideForAppTarget(
+            overrides: $overrides,
+            appTarget: $input->appTarget()->value,
+        );
+
+        if ($appPreset !== null) {
+            return $appPreset;
+        }
+
+        $globalPreset = $overrides[self::OVERRIDE_PRESET] ?? null;
+
+        if (\is_string($globalPreset) && self::isNonEmptySafeSingleLineString($globalPreset)) {
+            return $globalPreset;
+        }
+
+        return self::defaultPreset($kernelConfig);
+    }
+
+    /**
+     * @param array{
+     *     appEnv?: non-empty-string,
+     *     preset?: non-empty-string,
+     *     presets?: array<string, non-empty-string>,
+     *     debug?: bool
+     * } $overrides
+     *
+     * @return non-empty-string|null
+     */
+    private static function presetOverrideForAppTarget(
+        array $overrides,
+        string $appTarget,
+    ): ?string {
+        $presets = $overrides[self::OVERRIDE_PRESETS] ?? null;
+
+        if ($presets === null) {
+            return null;
+        }
+
+        if (!\is_array($presets)) {
+            throw new \InvalidArgumentException('bootstrap-config-presets-override-invalid');
+        }
+
+        $preset = $presets[$appTarget] ?? null;
+
+        if ($preset === null) {
+            return null;
+        }
+
+        if (!\is_string($preset) || !self::isNonEmptySafeSingleLineString($preset)) {
+            throw new \InvalidArgumentException('bootstrap-config-presets-override-invalid');
+        }
+
+        return $preset;
     }
 
     /**

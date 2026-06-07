@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** full ConfigKernel Phase B config discovery/merge/directives/explain behavior, module planning, preset file parsing, public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config artifact writing, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -91,6 +91,27 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
   - `Coretsia\Kernel\Boot\DotenvLoader`
   - `Coretsia\Kernel\Boot\EnvRepositoryBuilder`
+- Kernel-owned ConfigKernel Phase B orchestration:
+  - `Coretsia\Kernel\Config\ConfigKernel`
+  - `Coretsia\Kernel\Config\ConfigRulesLoader`
+  - `Coretsia\Kernel\Config\ConfigValidator`
+  - `Coretsia\Kernel\Config\ConfigMerger`
+  - `Coretsia\Kernel\Config\DirectiveProcessor`
+  - `Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard`
+  - `Coretsia\Kernel\Config\Explain\ConfigExplainer`
+  - `Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader`
+  - `Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader`
+  - `Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader`
+- Kernel-owned deterministic ModulePlan resolution:
+  - `Coretsia\Kernel\Module\ComposerInstalledMetadataProvider`
+  - `Coretsia\Kernel\Module\ComposerManifestReader`
+  - `Coretsia\Kernel\Module\ModePresetLoaderFactory`
+  - `Coretsia\Kernel\Module\FilesystemModePresetLoader`
+  - `Coretsia\Kernel\Module\ModePresetSchemaValidator`
+  - `Coretsia\Kernel\Module\ModuleGraphResolver`
+  - `Coretsia\Kernel\Module\TopologicalSorter`
+  - `Coretsia\Kernel\Module\ModulePlanResolver`
+  - `Coretsia\Kernel\Module\ModulePlan`
 - Canonical UnitOfWork type tokens:
   - `http`
   - `cli`
@@ -160,7 +181,7 @@ This file is not a config root and MUST NOT participate in ConfigKernel Phase B 
 Phase A MUST NOT read:
 
 ```text
-skeleton/config/all.php
+skeleton/config/roots.php
 skeleton/config/<root>.php
 skeleton/config/environments/**
 skeleton/apps/<appTarget>/config/**
@@ -208,6 +229,225 @@ allow_system
 It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
 
 Kernel does not introduce public `Bootstrapper` or public `BootstrapResult` in this package. Entrypoint and platform owners compose the explicit Phase A services through DI until a future owner epic requires a stable public orchestration facade.
+
+## ConfigKernel Phase B
+
+ConfigKernel Phase B is the deterministic full config pipeline.
+
+The canonical orchestration entrypoint is:
+
+```text
+Coretsia\Kernel\Config\ConfigKernel
+```
+
+ConfigKernel Phase B consumes:
+
+```text
+BootstrapConfig
+ModulePlan
+immutable EnvRepositoryInterface snapshot
+explicit package default source candidates
+explicit package rules source candidates
+explicit skeleton/app split-root names
+optional explicit env overlay mappings
+```
+
+ConfigKernel Phase B MUST NOT read:
+
+```text
+$_ENV
+$_SERVER
+getenv()
+skeleton/config/app.php
+```
+
+`ConfigKernel` is an orchestration service only. It coordinates loaders, directives, merge, validation, and explain generation. It does not implement loader, merger, validator, or explainer semantics itself.
+
+The active Phase B order is:
+
+```text
+package defaults
+→ skeleton shared config
+→ skeleton environment config
+→ app shared config
+→ app environment config
+→ env overlays
+→ validation
+→ optional explain
+```
+
+Package defaults are loaded only from enabled ModulePlan modules.
+
+Skeleton/app config uses:
+
+```text
+roots.php
+<root>.php
+```
+
+`roots.php` is the aggregate root-map file for a config layer.
+
+`<root>.php` is the split root-subtree file for one config root.
+
+At the same layer, root-specific `<root>.php` files override aggregate `roots.php` entries.
+
+Config directives are processed per file before merge:
+
+```text
+@append
+@prepend
+@remove
+@merge
+@replace
+```
+
+Directive application happens during merge, when the previous/base value is known.
+
+Environment overlays are generated only from the immutable `EnvRepositoryInterface` snapshot and only for known ruleset-backed or explicitly mapped config paths.
+
+Example projection:
+
+```text
+kernel.boot.default_env → KERNEL_BOOT_DEFAULT_ENV
+```
+
+User-owned/custom roots are accepted when they obey global config safety rules. If no ruleset exists for a custom root, it is merged, explained, fingerprinted, and marked as:
+
+```text
+user_owned
+unvalidated
+```
+
+Config explain is a baseline Kernel facility. It is caller-requested, not feature-disabled by config.
+
+ConfigKernel emits safe observability:
+
+```text
+span: kernel.config_merge
+span: kernel.config_explain
+metric: kernel.config_merge_total
+metric: kernel.config_merge_duration_ms
+metric: kernel.config_explain_total
+metric: kernel.config_explain_duration_ms
+label: outcome
+```
+
+Config explain, logs, metrics, and spans MUST NOT expose raw config values, raw env values, secrets, tokens, DSNs, cookies, headers, raw SQL, payloads, stack traces, previous throwable messages, or absolute local paths.
+
+Related documents:
+
+```text
+docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
+docs/ssot/config-directives.md
+docs/ssot/config-merge-order.md
+docs/ssot/config-precedence-matrix.md
+docs/ssot/observability.md
+```
+
+## ModulePlan resolution
+
+ModulePlan resolution is Kernel-owned runtime policy.
+
+The canonical orchestration entrypoint is:
+
+```text
+Coretsia\Kernel\Module\ModulePlanResolver
+```
+
+ModulePlan resolution uses these single-choice inputs:
+
+```text
+BootstrapConfig::preset()
+BootstrapConfig::appTarget()
+Composer installed metadata
+mode preset files
+```
+
+`BootstrapConfig::preset()` selects the mode preset.
+
+`BootstrapConfig::appTarget()` is output metadata for `ModulePlan::app()` and app-root derivation only. It MUST NOT create a parallel module-selection source.
+
+Mode preset lookup order is:
+
+```text
+1. skeleton override: skeleton/config/modes/<preset>.php
+2. framework default: resources/modes/<preset>.php
+```
+
+The first existing preset file wins.
+
+Skeleton mode preset overrides replace framework defaults. They are not merged.
+
+Module discovery is metadata-only. Runtime module discovery uses Composer installed metadata and Coretsia module metadata under:
+
+```text
+extra.coretsia
+```
+
+Runtime discovery MUST NOT scan:
+
+```text
+framework/packages/**
+package source trees
+skeleton/**
+skeleton/apps/*
+```
+
+Module dependency and conflict edges are read only from:
+
+```text
+extra.coretsia.requires
+extra.coretsia.conflicts
+```
+
+Composer package-level `require` and `conflict` are not Coretsia runtime module graph edges unless explicitly represented in `extra.coretsia.requires` or `extra.coretsia.conflicts`.
+
+ModulePlan output is deterministic and artifact-ready, but this package does not write module artifacts.
+
+ModulePlan resolution emits safe observability:
+
+```text
+metric: kernel.modules_resolve_total
+metric: kernel.modules_resolve_duration_ms
+label: outcome
+```
+
+Diagnostics MUST NOT expose filesystem paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, or previous throwable messages.
+
+Related documents:
+
+```text
+docs/adr/ADR-0024-kernel-module-plan-resolution.md
+docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+docs/ssot/modules-and-manifests.md
+docs/ssot/modes.md
+```
+
+## ModulePlan diagnostics
+
+ModulePlan resolution failures use deterministic Kernel-owned exceptions.
+
+Canonical error codes include:
+
+```text
+CORETSIA_MODE_PRESET_NOT_FOUND
+CORETSIA_MODE_PRESET_INVALID
+CORETSIA_MODULE_MANIFEST_INVALID
+CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED
+CORETSIA_MODULE_CYCLE_DETECTED
+CORETSIA_MODULE_CONFLICT
+CORETSIA_MODULE_REQUIRED_MISSING
+```
+
+Optional missing modules are non-fatal warnings:
+
+```text
+CORETSIA_MODULE_OPTIONAL_MISSING
+```
+
+Diagnostics expose only stable reason tokens and safe deterministic context.
+
+Diagnostics MUST NOT expose paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, or previous throwable messages.
 
 ## KernelRuntime SPI
 
@@ -372,6 +612,25 @@ return [
             ],
         ],
     ],
+    'modules' => [
+        'discovery' => [
+            'source' => 'composer',
+            'allowed_sources' => [
+                'composer',
+            ],
+        ],
+    ],
+    'modes' => [
+        'schema_version' => 1,
+        'defaults_path' => 'resources/modes',
+        'overrides_path' => 'config/modes',
+    ],
+    'config' => [
+        'forbidden_top_level_roots' => [
+            'coretsia',
+            '_internal',
+        ],
+    ],
     'uow' => [
         'attributes' => [
             'max_depth' => 10,
@@ -405,8 +664,33 @@ Canonical Kernel config keys:
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
 | `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
+| `kernel.modules.discovery.source`             | `"composer"`                                               |
+| `kernel.modules.discovery.allowed_sources`    | `["composer"]`                                             |
+| `kernel.modes.schema_version`                 | `1`                                                        |
+| `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
+| `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
+| `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
+
+`kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
+
+`kernel.modes.defaults_path` is package-relative.
+
+`kernel.modes.overrides_path` is skeleton-root-relative.
+
+Both mode paths MUST be relative safe paths.
+
+`kernel.config.forbidden_top_level_roots` configures the global forbidden top-level config roots used when wiring `ConfigNamespaceGuard`.
+
+The default forbidden roots are:
+
+```text
+coretsia
+_internal
+```
+
+`kernel` and `foundation` MUST NOT be listed as forbidden top-level roots because applications must be able to configure those roots.
 
 This package does not introduce generic json-like configuration.
 
@@ -425,6 +709,122 @@ Both values MUST be integers greater than zero.
 This package does not introduce outcome mapping configuration.
 
 Outcome mapping is canonical policy, not runtime configuration.
+
+## Config files
+
+Package default config files use root-specific files:
+
+```text
+framework/packages/<vendor>/<package>/config/<root>.php
+```
+
+Package default config files MUST return the subtree for `<root>`.
+
+Package defaults MUST NOT use:
+
+```text
+config/roots.php
+```
+
+Skeleton/app config files may use both aggregate and split styles:
+
+```text
+skeleton/config/roots.php
+skeleton/config/<root>.php
+skeleton/config/environments/<appEnv>/roots.php
+skeleton/config/environments/<appEnv>/<root>.php
+skeleton/apps/<appTarget>/config/roots.php
+skeleton/apps/<appTarget>/config/<root>.php
+skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php
+skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php
+```
+
+`roots.php` returns a global root map.
+
+`<root>.php` returns only the subtree for `<root>`.
+
+Root-specific files override aggregate `roots.php` files at the same layer.
+
+Config rules are declarative data files:
+
+```text
+config/rules.php
+```
+
+Rules files MUST return plain arrays and MUST NOT contain closures, objects, resources, or executable validation callbacks.
+
+## Config directives
+
+Config directives are normalized per file before merge and applied during merge.
+
+Supported directives are:
+
+```text
+@append
+@prepend
+@remove
+@merge
+@replace
+```
+
+Directive namespace is reserved.
+
+Any unsupported `@*` key fails as a reserved namespace violation.
+
+If a map level contains a directive key, that level must contain exactly one directive key and no normal config keys.
+
+Directive examples are documented in:
+
+```text
+docs/ssot/config-directives.md
+```
+
+The canonical merge order is documented in:
+
+```text
+docs/ssot/config-merge-order.md
+docs/ssot/config-precedence-matrix.md
+```
+
+## Config explain
+
+Config explain is a safe Kernel baseline facility.
+
+It may expose:
+
+```text
+normalized relative source ids
+config dot paths
+directive names
+source type
+source precedence/order
+validated/unvalidated root status
+safe hash/length metadata when produced upstream
+```
+
+It MUST NOT expose:
+
+```text
+raw config values
+raw env values
+secrets
+tokens
+DSNs
+cookies
+headers
+raw SQL
+payloads
+stack traces
+previous throwable messages
+absolute local paths
+```
+
+User-owned roots without loaded rulesets are marked as:
+
+```text
+user_owned
+unvalidated
+```
 
 ## UnitOfWork types
 

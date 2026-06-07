@@ -53,3 +53,5 @@ Internal Kernel symbols must instead be protected in source by one of the gate r
 - an `Internal` namespace/path segment.
 
 Bootstrap Phase A implementation helpers such as config resolvers, dotenv loaders, env repository builders, and bootstrap-only override loaders are not public API and must remain marked `@internal` in source.
+
+Config Phase B implementation services such as the config orchestrator, merger, directive processor, validator, explainer, config loaders, namespace guards, and config-specific exceptions are not public API and must remain marked `@internal` in source until a dedicated public config facade or contract is introduced.

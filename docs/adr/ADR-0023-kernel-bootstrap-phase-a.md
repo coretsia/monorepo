@@ -125,7 +125,7 @@ Phase A must not read full skeleton configuration files.
 Phase A must not read:
 
 ```text
-skeleton/config/all.php
+skeleton/config/roots.php
 skeleton/config/<root>.php
 skeleton/config/environments/**
 skeleton/apps/<appTarget>/config/**
@@ -437,7 +437,7 @@ The loader must not read:
 
 ```text
 skeleton/config/modules.php
-skeleton/config/all.php
+skeleton/config/roots.php
 skeleton/config/<root>.php
 skeleton/config/environments/**
 skeleton/apps/<appTarget>/config/**

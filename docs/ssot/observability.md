@@ -143,6 +143,10 @@ The method/type mapping is canonical:
 | kernel.uow_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`        |
 | kernel.modules_resolve_total       | `core/kernel`     | counter | `operation`, `outcome`        |
 | kernel.modules_resolve_duration_ms | `core/kernel`     | observe | `operation`, `outcome`        |
+| kernel.config_merge_total          | `core/kernel`     | counter | `outcome`                     |
+| kernel.config_merge_duration_ms    | `core/kernel`     | observe | `outcome`                     |
+| kernel.config_explain_total        | `core/kernel`     | counter | `outcome`                     |
+| kernel.config_explain_duration_ms  | `core/kernel`     | observe | `outcome`                     |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -159,6 +163,21 @@ docs/ssot/observability-and-errors.md
 ```
 
 This cross-reference MUST NOT introduce additional reset metric names, reset metric labels, reset span names, or reset logging payload fields.
+
+### Kernel config metrics label policy
+
+Kernel config metrics are operation-specific by metric name.
+
+The following metrics MUST use only the `outcome` label:
+
+- `kernel.config_merge_total`
+- `kernel.config_merge_duration_ms`
+- `kernel.config_explain_total`
+- `kernel.config_explain_duration_ms`
+
+They MUST NOT use the `operation` label.
+
+Rationale: the operation is already encoded in the metric name (`config_merge` or `config_explain`), so adding `operation` would duplicate the operation dimension and create avoidable label drift.
 
 ## Forbidden Data (MUST NOT LEAK)
 
@@ -214,12 +233,14 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `foundation.reset`
 - `kernel.uow`
 - `kernel.modules_resolve`
+- `kernel.config_merge`
+- `kernel.config_explain`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 
 ### Canonical Metrics
 
-Baseline HTTP metric names and their metric-specific labels are registered in the canonical metrics catalog above:
+Baseline metric names and their metric-specific labels are registered in the canonical metrics catalog above:
 
 - `http.request_total`
 - `http.request_duration_ms`
@@ -227,6 +248,10 @@ Baseline HTTP metric names and their metric-specific labels are registered in th
 - `kernel.uow_duration_ms`
 - `kernel.modules_resolve_total`
 - `kernel.modules_resolve_duration_ms`
+- `kernel.config_merge_total`
+- `kernel.config_merge_duration_ms`
+- `kernel.config_explain_total`
+- `kernel.config_explain_duration_ms`
 
 Reset metric names and their metric-specific labels are registered in the canonical metrics catalog above:
 

@@ -11122,7 +11122,7 @@ Forbidden:
 - `presets` MUST NOT be stored in `BootstrapConfig`.
 - Phase A MUST NOT read full skeleton config files.
 - Phase A MUST NOT read:
-  - `skeleton/config/all.php`
+  - `skeleton/config/roots.php`
   - `skeleton/config/<root>.php`
   - `skeleton/config/environments/**`
   - `skeleton/apps/<appTarget>/config/**`
@@ -12678,350 +12678,596 @@ The canonical docs are:
 #### Creates
 
 Kernel config core:
-- [ ] `framework/packages/core/kernel/src/Config/ConfigKernel.php` — orchestrates loaders + directives + merge + validate + explain
-  - [ ] MUST orchestrate the active Phase B merge pipeline in deterministic rank order.
-  - [ ] MUST treat `docs/ssot/config-merge-order.md` and `docs/ssot/config-precedence-matrix.md` as the canonical rank-order documentation.
-  - [ ] MUST call package defaults loading before skeleton/app/env overlays.
-  - [ ] MUST apply directives per-file before merge.
-  - [ ] MUST merge normalized file payloads in the active Phase B precedence order.
-  - [ ] MUST run validation only after the final merged global config is built.
-  - [ ] MUST pass source information to `ConfigExplainer`.
-  - [ ] MUST NOT re-read `$_ENV`, `$_SERVER`, or `getenv()`.
-  - [ ] MUST consume only the immutable `EnvRepositoryInterface` snapshot produced by Phase A.
-  - [ ] MUST NOT scan arbitrary directories outside declared config locations.
-  - [ ] MUST treat CLI/runtime overrides as reserved/future unless explicitly introduced by a later epic.
+- [x] `framework/packages/core/kernel/src/Config/ConfigKernel.php` — orchestrates loaders + directives + merge + validate + explain
 
-- [ ] `framework/packages/core/kernel/src/Config/ConfigMerger.php` — deterministic merge
-  - [ ] Lower rank source is weaker; higher rank source overrides lower rank source.
-  - [ ] MUST merge sources according to the active Phase B rank order supplied by `ConfigKernel`.
-  - [ ] MUST preserve deterministic map key ordering.
-  - [ ] MUST preserve list order unless a directive explicitly changes it.
-  - [ ] MUST apply normalized directives at merge time when the previous/base value is known.
-  - [ ] MUST NOT invent source precedence.
-  - [ ] MUST NOT apply env overlay logic directly; env overlays are prepared by `EnvironmentOverlayLoader`.
+  Construction / dependencies:
+  - [x] MUST be an orchestration service, not a loader, validator, merger, or explainer implementation.
+  - [x] MUST receive `ConfigMerger`, `ConfigRulesLoader`, `ConfigValidator`, `ConfigExplainer`, `PackageDefaultsConfigLoader`, `SkeletonConfigLoader`, and `EnvironmentOverlayLoader` through constructor wiring.
+  - [x] MUST receive or be passed the immutable `EnvRepositoryInterface` snapshot produced by Bootstrap Phase A.
+  - [x] MUST receive or be passed `BootstrapConfig` produced by Bootstrap Phase A.
+  - [x] MUST receive or be passed `ModulePlan` produced by the module plan resolver.
+  - [x] MUST NOT construct config primitives with mutable runtime state.
+  - [x] MUST NOT mutate `ConfigNamespaceGuard`, `DirectiveProcessor`, or `ConfigMerger` during pipeline execution.
+  - [x] MUST treat `ConfigNamespaceGuard` wiring as a provider/factory responsibility.
+  - [x] MUST NOT re-read final merged config to reconfigure namespace guard during the same pipeline run.
 
-- [ ] `framework/packages/core/kernel/src/Config/DirectiveProcessor.php` — per-file directive processing + typing rules
-  - [ ] Parses directives per-file before merge.
-  - [ ] Allows only:
-    - [ ] `@append`
-    - [ ] `@prepend`
-    - [ ] `@remove`
-    - [ ] `@merge`
-    - [ ] `@replace`
-  - [ ] Any unknown `@*` key MUST fail as reserved namespace violation.
-  - [ ] If a map level contains any `@*` key, that level MUST contain only directive keys.
-  - [ ] Each directive level MUST contain exactly one directive key.
-  - [ ] `@append`, `@prepend`, and `@remove` values MUST be lists.
-  - [ ] `@merge` value MUST be a map.
-  - [ ] `@replace` value MAY be scalar/list/map.
-  - [ ] Empty array `[]` MUST be accepted and interpreted by directive context.
-  - [ ] Locale MUST NOT affect directive classification.
+  Config location inputs:
+  - [x] MUST consume explicit package default source candidates supplied by the Kernel config-location source builder.
+  - [x] MUST consume explicit package rules source candidates supplied by the Kernel config-location source builder.
+  - [x] MUST consume explicit skeleton/app split-root candidate names as a deterministic path list.
+  - [x] MUST consume optional explicit env overlay mappings only when supplied by a future user/module mapping mechanism.
+  - [x] MUST NOT infer package filesystem paths from `ModulePlanEntry`.
+  - [x] MUST NOT scan package directories.
+  - [x] MUST NOT scan skeleton/app config directories.
+  - [x] MUST NOT scan arbitrary directories outside declared config locations.
+  - [x] MUST treat package/root ownership metadata as coming from the Kernel config-location source builder derived from `docs/ssot/config-roots.md`.
+  - [x] MUST preserve safe logical source paths, source ids, package ids, module ids, root names, and layer/kind metadata for explain/diagnostics.
+  - [x] MUST NOT expose or return absolute filesystem paths in config results, explain traces, logs, metrics, or diagnostics.
 
-- [ ] `framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php` — source tracking (no secrets)
-  - [ ] MUST record source type for every effective config path.
-  - [ ] MUST record effective source rank/order for precedence explain.
-  - [ ] MUST record whether a root was validated or unvalidated.
-  - [ ] MUST mark user-owned/custom roots without rules as:
-    - [ ] `user_owned`
-    - [ ] `unvalidated`
-  - [ ] MUST explain aggregate-vs-root override behavior.
-  - [ ] MUST explain shared-vs-environment-vs-app precedence.
-  - [ ] MUST explain env overlay wins only where env overlay mapping exists.
-  - [ ] MUST NOT include raw config values.
-  - [ ] MUST NOT include raw env values.
-  - [ ] MUST NOT include secrets, tokens, DSNs, cookies, headers, raw SQL, or absolute local paths.
-  - [ ] MAY expose safe metadata:
-    - [ ] normalized relative source ids;
-    - [ ] config dot paths;
-    - [ ] directive names;
-    - [ ] source type;
-    - [ ] hash/len metadata when needed by CLI.
+  Canonical documentation / rank order:
+  - [x] MUST orchestrate the active Phase B merge pipeline in deterministic rank order.
+  - [x] MUST treat `docs/ssot/config-merge-order.md` and `docs/ssot/config-precedence-matrix.md` as the canonical rank-order documentation.
+  - [x] MUST NOT invent source precedence in loaders, validator, explainer, or merger.
+  - [x] MUST keep source rank/order explicit in ConfigKernel-level entry metadata.
+  - [x] MUST keep rules loading separate from config value precedence; rulesets are validation/overlay metadata, not config value sources.
 
-- [ ] `framework/packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php` — reserved namespaces guard
-  - [ ] Guards forbidden top-level roots such as `coretsia` and `_internal`.
-  - [ ] MUST NOT reject user-owned top-level roots solely because they are not framework-owned.
-  - [ ] MUST allow unknown/custom top-level roots unless they violate global config safety rules.
-  - [ ] MUST reserve `@*` keys for directive processing.
-  - [ ] MUST enforce directive namespace violations before semantic config validation.
-  - [ ] MUST reject unsupported `@*` directive keys deterministically.
-  - [ ] MUST reject directive mixed-level violations deterministically.
-  - [ ] MUST NOT leak raw config values in diagnostics.
+  Phase B pipeline order:
+  - [x] MUST load package rulesets before env overlay generation.
+  - [x] MUST load package-owned rulesets through `ConfigRulesLoader`.
+  - [x] MUST load only package rulesets from enabled ModulePlan modules.
+  - [x] MUST NOT require every user-owned/custom root to have a ruleset.
+  - [x] MUST compute validation subjects after final config is built.
+  - [x] MUST call package defaults loading before skeleton/app/env overlays.
+  - [x] MUST load package defaults through `PackageDefaultsConfigLoader`.
+  - [x] MUST load package defaults only from enabled ModulePlan modules.
+  - [x] MUST load skeleton/app config through `SkeletonConfigLoader`.
+  - [x] MUST pass deterministic split root names to `SkeletonConfigLoader`.
+  - [x] MUST load env overlays through `EnvironmentOverlayLoader` after rulesets are available.
+  - [x] MUST pass only the immutable `EnvRepositoryInterface` snapshot to `EnvironmentOverlayLoader`.
+  - [x] MUST NOT read `$_ENV`, `$_SERVER`, or `getenv()`.
+  - [x] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
+  - [x] MUST treat CLI/runtime overrides as reserved/future unless explicitly introduced by a later epic.
+
+  Per-file directive processing:
+  - [x] MUST rely on loaders/`DirectiveProcessor` to apply directive namespace/type processing per file before merge.
+  - [x] MUST NOT apply directives before the source file has been normalized.
+  - [x] MUST NOT apply directives while loading rulesets.
+  - [x] MUST merge only normalized file payloads.
+  - [x] MUST apply normalized directives at merge time through `ConfigMerger`, where the previous/base value is known.
+  - [x] MUST preserve directive names in safe source metadata when available.
+  - [x] MUST NOT include directive payload values in diagnostics, logs, metrics, or explain output.
+
+  Merge entries:
+  - [x] MUST represent every loaded config value source as a deterministic merge entry.
+  - [x] Package default entries MUST be weaker than skeleton/app/env entries.
+  - [x] Skeleton shared aggregate `roots.php` entries MUST be weaker than skeleton shared split `<root>.php` entries at the same layer.
+  - [x] Skeleton environment aggregate `roots.php` entries MUST be weaker than skeleton environment split `<root>.php` entries at the same layer.
+  - [x] App shared aggregate `roots.php` entries MUST be weaker than app shared split `<root>.php` entries at the same layer.
+  - [x] App environment aggregate `roots.php` entries MUST be weaker than app environment split `<root>.php` entries at the same layer.
+  - [x] Skeleton shared entries MUST be weaker than skeleton environment entries.
+  - [x] Skeleton environment entries MUST be weaker than app shared entries.
+  - [x] App shared entries MUST be weaker than app environment entries.
+  - [x] App environment entries MUST be weaker than env overlay entries.
+  - [x] Env overlay entries MUST override only paths for which an env overlay mapping exists and a value is present in the env snapshot.
+  - [x] Unknown env vars MUST NOT create config entries.
+  - [x] ConfigKernel MUST fold entries through `ConfigMerger` in the active Phase B rank order.
+  - [x] ConfigKernel MUST NOT merge entries manually using ad-hoc array logic.
+
+  Final validation:
+  - [x] MUST run semantic validation only after the final merged global config is built.
+  - [x] MUST validate only roots with loaded rulesets.
+  - [x] MUST validate framework-owned roots strictly according to owner package rules.
+  - [x] MUST validate module-owned roots strictly when module-owned rules are present.
+  - [x] MUST NOT invent validation rules for user-owned/custom roots.
+  - [x] MUST NOT reject user-owned/custom roots solely because they do not have rules.
+  - [x] MUST obtain validation subjects from `ConfigValidator::validationSubjects()`.
+  - [x] MUST mark user-owned/custom roots without rules as `user_owned` and `unvalidated`.
+  - [x] MUST preserve validation result for explain.
+  - [x] MUST throw `ConfigInvalidException` or return a failing validation result according to the public ConfigKernel API design.
+  - [x] MUST keep validation diagnostics deterministic and safe:
+    - [x] stable reason tokens;
+    - [x] dot-path config paths;
+    - [x] no raw config values;
+    - [x] no raw env values;
+    - [x] no absolute paths;
+    - [x] no previous throwable messages exposed.
+
+  Effective source tracing:
+  - [x] MUST build effective per-path source traces during Phase B merge.
+  - [x] MUST build source traces in lockstep with value merging.
+  - [x] MUST pass effective per-path source traces to `ConfigExplainer`.
+  - [x] MUST NOT pass only root-level loader sources when explaining nested effective config paths.
+  - [x] MUST preserve the source of weaker values that survived stronger partial overrides.
+  - [x] MUST record source type for every effective config path.
+  - [x] MUST record source id for every effective config path.
+  - [x] MUST record source precedence/rank for every effective config path.
+  - [x] MUST record source order/tie-break position for every effective config path.
+  - [x] MUST record key path for path-specific effective sources.
+  - [x] MUST record directive name when a directive affected the effective value.
+  - [x] MUST mark env-overlay effective paths as redacted.
+  - [x] MUST NOT store raw config values in source traces.
+  - [x] MUST NOT store raw env values in source traces.
+  - [x] MUST NOT store absolute filesystem paths in source traces.
+
+  Source trace merge semantics:
+  - [x] Scalar replacement MUST make the higher-rank source effective for the replaced path.
+  - [x] List replacement MUST make the higher-rank source effective for the replaced list path.
+  - [x] Map merge MUST preserve weaker source traces for keys not touched by the higher-rank patch.
+  - [x] Map merge MUST update source traces only for keys touched by the higher-rank patch.
+  - [x] `@merge` MUST preserve weaker source traces for untouched nested keys.
+  - [x] `@replace` MUST mark the replaced node as coming from the directive source.
+  - [x] `@append` MUST preserve existing list item traces where feasible and mark appended items/list mutation as directive source.
+  - [x] `@prepend` MUST preserve existing list item traces where feasible and mark prepended items/list mutation as directive source.
+  - [x] `@remove` MUST remove traces for removed list items and mark the resulting list mutation as directive source.
+  - [x] If item-level list source tracking is too fine-grained for this epic, the resulting list node MUST at least be marked with the directive source and redaction-safe metadata.
+  - [x] Trace sorting MUST be deterministic by precedence, path, source id, and source type.
+
+  Explain capability:
+  - [x] Config explain capability MUST be a baseline kernel facility.
+  - [x] Config explain capability MUST NOT be feature-disabled through config.
+  - [x] Whether explain is produced MUST be decided by the caller/entrypoint, not by a runtime feature flag.
+  - [x] MUST call `ConfigExplainer` only after final merge and validation.
+  - [x] MUST pass final merged global config shape to `ConfigExplainer`.
+  - [x] MUST pass effective per-path source traces to `ConfigExplainer`.
+  - [x] MUST pass validation subjects to `ConfigExplainer`.
+  - [x] MUST pass validation result to `ConfigExplainer`.
+  - [x] MUST pass env overlay mapping metadata to `ConfigExplainer`.
+  - [x] MUST explain aggregate-vs-root override behavior.
+  - [x] MUST explain shared-vs-environment-vs-app precedence.
+  - [x] MUST explain env overlay wins only where env overlay mapping exists.
+  - [x] MUST NOT include raw config values in explain output.
+  - [x] MUST NOT include raw env values in explain output.
+  - [x] MUST NOT include secrets, tokens, DSNs, cookies, headers, raw SQL, payloads, stack traces, previous throwable messages, or absolute local paths in explain output.
+  - [x] MAY pass safe metadata for CLI use:
+    - [x] normalized relative source ids;
+    - [x] config dot paths;
+    - [x] directive names;
+    - [x] source type;
+    - [x] source precedence/order;
+    - [x] hash metadata if produced upstream;
+    - [x] length metadata if produced upstream.
+  - [x] ConfigKernel MUST NOT compute hash/length metadata from raw values inside `ConfigExplainer`; if needed, safe metadata must be produced upstream and passed through `ConfigValueSource::meta()`.
+
+  Public result shape / API:
+  - [x] MUST expose final merged global config.
+  - [x] MUST expose validation result or throw a canonical config exception according to the chosen API.
+  - [x] MAY expose explain output when requested by caller.
+  - [x] MUST expose no raw env values.
+  - [x] MUST expose no absolute filesystem paths.
+  - [x] MUST keep returned arrays deterministic:
+    - [x] stable map key ordering;
+    - [x] stable source order;
+    - [x] stable validation subjects order;
+    - [x] stable explain path order.
+
+  Observability ownership:
+  - [x] MUST own ConfigKernel-level observability boundaries for config merge and config explain.
+  - [x] MUST NOT put config merge/explain metrics or spans inside `ConfigMerger.php`.
+  - [x] MUST NOT put config merge/explain metrics or spans inside `DirectiveProcessor.php`.
+  - [x] MUST NOT put config merge/explain metrics or spans inside config loaders.
+  - [x] MUST NOT put config merge/explain metrics or spans inside `ConfigValidator.php`.
+  - [x] MUST NOT put config merge/explain metrics or spans inside `ConfigExplainer.php` unless a later explicit wrapper design changes this.
+  - [x] Observability MUST NOT change merge/validation/explain results.
+  - [x] Observability failures MUST NOT affect config pipeline success unless observability ports are explicitly defined as throwing by a later policy.
+
+  Spans:
+  - [x] MUST emit span `kernel.config_merge` around the full Phase B config merge pipeline.
+  - [x] MUST emit span `kernel.config_explain` around explain generation.
+  - [x] Span names MUST NOT include config roots, file paths, env names, key paths, app target, app env, exception messages, or user-controlled values.
+  - [x] Span attributes, if any, MUST contain only safe bounded metadata.
+  - [x] Span attributes MAY include bounded counts:
+    - [x] source entry count;
+    - [x] ruleset count;
+    - [x] validated root count;
+    - [x] unvalidated root count;
+    - [x] env overlay mapping count.
+  - [x] Span attributes MUST NOT include raw config values.
+  - [x] Span attributes MUST NOT include raw env values.
+  - [x] Span attributes MUST NOT include secrets, tokens, DSNs, cookies, headers, raw SQL, payloads, stack traces, previous throwable messages, or absolute local paths.
+
+  Metrics:
+  - [x] MUST emit `kernel.config_merge_total` with labels: `outcome`.
+  - [x] MUST emit `kernel.config_merge_duration_ms` with labels: `outcome`.
+  - [x] MUST emit `kernel.config_explain_total` with labels: `outcome`.
+  - [x] MUST emit `kernel.config_explain_duration_ms` with labels: `outcome`.
+  - [x] MUST emit merge metrics exactly once per merge operation.
+  - [x] MUST emit explain metrics exactly once per explain operation when explain is requested.
+  - [x] MUST record failure metrics when merge/explain throws.
+  - [x] MUST use only the `outcome` label for these metrics.
+  - [x] MUST NOT use `operation` label for these operation-specific metrics.
+  - [x] MUST NOT emit labels such as `root`, `path`, `file`, `key`, `env`, `app`, `source`, `exception`, `request_id`, `tenant_id`, or `user_id`.
+  - [x] Metric names MUST be registered in `docs/ssot/observability.md` canonical metrics catalog before runtime emission.
+  - [x] Metric labels MUST match both the global label allowlist and the metric-specific catalog row.
+  - [x] Metric outcome values MUST be safe bounded values:
+    - [x] `success`;
+    - [x] `failure`.
+
+  Logs:
+  - [x] MAY log config merge/explain lifecycle events only at ConfigKernel orchestration boundaries.
+  - [x] Logs MUST contain only safe metadata.
+  - [x] Logs MAY include bounded counts:
+    - [x] source entry count;
+    - [x] ruleset count;
+    - [x] validated root count;
+    - [x] unvalidated root count;
+    - [x] env overlay mapping count.
+  - [x] Logs MAY include normalized relative file paths.
+  - [x] Logs MAY include config dot paths.
+  - [x] Logs MAY include directive names.
+  - [x] Logs MAY include source type.
+  - [x] Logs MAY include source kind/layer.
+  - [x] Logs MAY include durations and outcome.
+  - [x] Logs MUST NOT include raw config values.
+  - [x] Logs MUST NOT include raw env values.
+  - [x] Logs MUST NOT include secrets, tokens, DSNs, cookies, headers, raw SQL, payloads, stack traces, previous throwable messages, or absolute local paths.
+
+  Security / redaction:
+  - [x] MUST NOT leak dotenv values, process env values, passwords, tokens, DSNs, cookies, headers, raw SQL, request payloads, stack traces, or absolute local paths.
+  - [x] MUST NOT expose previous throwable messages from file loading, env loading, validation, or explain generation.
+  - [x] MUST use stable error/reason tokens for failures.
+  - [x] MUST keep all diagnostics safe even when source files contain invalid PHP return values.
+  - [x] MUST keep all diagnostics safe even when env values are invalid for coercion.
+  - [x] MUST keep all diagnostics safe even when paths/source ids from source candidates are invalid.
+
+  Determinism:
+  - [x] MUST sort all source entries deterministically before merge.
+  - [x] MUST sort rulesets deterministically by root.
+  - [x] MUST sort validation subjects deterministically by root.
+  - [x] MUST sort explain paths deterministically by dot path.
+  - [x] MUST preserve list order unless a directive explicitly changes it.
+  - [x] MUST preserve deterministic map key ordering in final merged config.
+  - [x] MUST ensure repeated runs with the same inputs produce the same final config and explain trace, excluding observability durations.
+  - [x] MUST NOT include wall-clock time, random ids, absolute paths, object ids, or nondeterministic exception text in returned artifacts/explain output.
+
+  Future reserved behavior:
+  - [x] CLI/runtime overrides are reserved/future unless explicitly introduced by a later epic.
+  - [x] Map/list env overlay syntax is reserved/future unless explicitly introduced by a later typed env syntax epic.
+  - [x] Runtime feature flags for enabling/disabling ConfigKernel or explain are forbidden for this baseline.
+
+- [x] `framework/packages/core/kernel/src/Config/ConfigMerger.php` — deterministic merge
+  - [x] Lower rank source is weaker; higher rank source overrides lower rank source.
+  - [x] MUST merge sources according to the active Phase B rank order supplied by `ConfigKernel`.
+  - [x] MUST preserve deterministic map key ordering.
+  - [x] MUST preserve list order unless a directive explicitly changes it.
+  - [x] MUST apply normalized directives at merge time when the previous/base value is known.
+  - [x] MUST NOT invent source precedence.
+  - [x] MUST NOT apply env overlay logic directly; env overlays are prepared by `EnvironmentOverlayLoader`.
+
+- [x] `framework/packages/core/kernel/src/Config/DirectiveProcessor.php` — per-file directive processing + typing rules
+  - [x] Parses directives per-file before merge.
+  - [x] Allows only:
+    - [x] `@append`
+    - [x] `@prepend`
+    - [x] `@remove`
+    - [x] `@merge`
+    - [x] `@replace`
+  - [x] Any unknown `@*` key MUST fail as reserved namespace violation.
+  - [x] If a map level contains any `@*` key, that level MUST contain only directive keys.
+  - [x] Each directive level MUST contain exactly one directive key.
+  - [x] `@append`, `@prepend`, and `@remove` values MUST be lists.
+  - [x] `@merge` value MUST be a map.
+  - [x] `@replace` value MAY be scalar/list/map.
+  - [x] Empty array `[]` MUST be accepted and interpreted by directive context.
+  - [x] Locale MUST NOT affect directive classification.
+
+- [x] `framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php` — source tracking (no secrets)
+  - [x] MUST record source type for every effective config path.
+  - [x] MUST record effective source rank/order for precedence explain.
+  - [x] MUST record whether a root was validated or unvalidated.
+  - [x] MUST mark user-owned/custom roots without rules as:
+    - [x] `user_owned`
+    - [x] `unvalidated`
+  - [x] MUST explain aggregate-vs-root override behavior.
+  - [x] MUST explain shared-vs-environment-vs-app precedence.
+  - [x] MUST explain env overlay wins only where env overlay mapping exists.
+  - [x] MUST NOT include raw config values.
+  - [x] MUST NOT include raw env values.
+  - [x] MUST NOT include secrets, tokens, DSNs, cookies, headers, raw SQL, or absolute local paths.
+  - [x] MAY expose safe metadata:
+    - [x] normalized relative source ids;
+    - [x] config dot paths;
+    - [x] directive names;
+    - [x] source type;
+    - [x] hash/len metadata when needed by CLI.
+
+- [x] `framework/packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php` — reserved namespaces guard
+  - [x] Guards forbidden top-level roots such as `coretsia` and `_internal`.
+  - [x] MUST NOT reject user-owned top-level roots solely because they are not framework-owned.
+  - [x] MUST allow unknown/custom top-level roots unless they violate global config safety rules.
+  - [x] MUST reserve `@*` keys for directive processing.
+  - [x] MUST enforce directive namespace violations before semantic config validation.
+  - [x] MUST reject unsupported `@*` directive keys deterministically.
+  - [x] MUST reject directive mixed-level violations deterministically.
+  - [x] MUST NOT leak raw config values in diagnostics.
 
 Loaders:
-- [ ] `framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php`
-  - [ ] Loads package defaults only from enabled module package files `config/<root>.php`.
-  - [ ] MUST use ModulePlan-enabled modules only.
-  - [ ] Package defaults MUST NOT use `config/all.php`.
-  - [ ] Package default files `config/<root>.php` MUST return the subtree for `<root>`.
-  - [ ] MUST preserve package/root ownership metadata for explain and validation.
-  - [ ] MUST load files deterministically.
-  - [ ] MUST NOT scan arbitrary package directories outside ModulePlan-provided package config locations.
+- [x] `framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php`
+  - [x] Loads package defaults only from enabled module package files `config/<root>.php`.
+  - [x] MUST use ModulePlan-enabled modules only.
+  - [x] Package defaults MUST NOT use `config/roots.php`.
+  - [x] Package default files `config/<root>.php` MUST return the subtree for `<root>`.
+  - [x] MUST preserve package/root ownership metadata for explain and validation.
+  - [x] MUST load files deterministically.
+  - [x] MUST NOT scan arbitrary package directories outside ModulePlan-provided package config locations.
 
-- [ ] `framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php`
-  - [ ] Loads skeleton shared aggregate config:
-    - [ ] `skeleton/config/all.php`
-  - [ ] Loads skeleton shared root config:
-    - [ ] `skeleton/config/<root>.php`
-  - [ ] Loads skeleton environment aggregate config:
-    - [ ] `skeleton/config/environments/<appEnv>/all.php`
-  - [ ] Loads skeleton environment root config:
-    - [ ] `skeleton/config/environments/<appEnv>/<root>.php`
-  - [ ] Loads app shared aggregate config:
-    - [ ] `skeleton/apps/<appTarget>/config/all.php`
-  - [ ] Loads app shared root config:
-    - [ ] `skeleton/apps/<appTarget>/config/<root>.php`
-  - [ ] Loads app environment aggregate config:
-    - [ ] `skeleton/apps/<appTarget>/config/environments/<appEnv>/all.php`
-  - [ ] Loads app environment root config:
-    - [ ] `skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php`
-  - [ ] `all.php` files MUST return a global root map.
-  - [ ] `<root>.php` files MUST return only the subtree for that root.
-  - [ ] Root-specific files override `all.php` files at the same layer.
-  - [ ] Users MAY place custom roots in `all.php`.
-  - [ ] Users MAY split custom roots into dedicated `<root>.php` files.
-  - [ ] Aggregate and split styles MUST produce the same final global config when their effective root payloads are equivalent.
-  - [ ] Discovery MUST be deterministic and path-list based.
-  - [ ] MUST NOT scan arbitrary directories outside declared skeleton/app config locations.
-  - [ ] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
+- [x] `framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php`
+  - [x] Loads skeleton shared aggregate config:
+    - [x] `skeleton/config/roots.php`
+  - [x] Loads skeleton shared root config:
+    - [x] `skeleton/config/<root>.php`
+  - [x] Loads skeleton environment aggregate config:
+    - [x] `skeleton/config/environments/<appEnv>/roots.php`
+  - [x] Loads skeleton environment root config:
+    - [x] `skeleton/config/environments/<appEnv>/<root>.php`
+  - [x] Loads app shared aggregate config:
+    - [x] `skeleton/apps/<appTarget>/config/roots.php`
+  - [x] Loads app shared root config:
+    - [x] `skeleton/apps/<appTarget>/config/<root>.php`
+  - [x] Loads app environment aggregate config:
+    - [x] `skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php`
+  - [x] Loads app environment root config:
+    - [x] `skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php`
+  - [x] `roots.php` is the aggregate root-map file for a config layer.
+  - [x] `<root>.php` is the split root-subtree file for one config root.
+  - [x] Root-specific files override `roots.php` files at the same layer.
+  - [x] Users MAY place custom roots in `roots.php`.
+  - [x] Users MAY split custom roots into dedicated `<root>.php` files.
+  - [x] Aggregate and split styles MUST produce the same final global config when their effective root payloads are equivalent.
+  - [x] Discovery MUST be deterministic and path-list based.
+  - [x] MUST NOT scan arbitrary directories outside declared skeleton/app config locations.
+  - [x] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
 
-- [ ] `framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php`
-  - [ ] Builds env overlays only from the immutable `EnvRepositoryInterface` snapshot.
-  - [ ] MUST NOT read `$_ENV`, `$_SERVER`, or `getenv()`.
-  - [ ] Config path `kernel.boot.default_env` maps to env var `KERNEL_BOOT_DEFAULT_ENV`.
-  - [ ] Projection is uppercase ASCII.
-  - [ ] `.` maps to `_`.
-  - [ ] `-` maps to `_`.
-  - [ ] Env overlay generation MUST be allowlisted by config rules / known config paths.
-  - [ ] Unknown env vars MUST NOT create config keys automatically.
-  - [ ] User-owned custom roots MAY receive env overlays only when the user/module provides a matching ruleset or explicit env overlay mapping.
-  - [ ] User-owned custom roots without rules are loaded from config files, merged, explained, fingerprinted, and compiled, but are not env-overlay-expanded automatically.
-  - [ ] Env values are strings and MUST be coerced only according to declarative config rules.
-  - [ ] Baseline env scalar coercion supports:
-    - [ ] `string`
-    - [ ] `non-empty-string`
-    - [ ] `non-empty-string-no-ws`
-    - [ ] `bool`
-    - [ ] `int`
-  - [ ] Boolean env coercion is single-choice:
-    - [ ] `true` and `1` map to `true`;
-    - [ ] `false` and `0` map to `false`;
-    - [ ] any other bool token fails deterministically.
-  - [ ] Env overlays for `map` and `list` are out of scope unless a future typed env syntax is introduced.
-  - [ ] Env overlay diagnostics MUST NOT expose raw env values.
+- [x] `framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php`
+  - [x] Builds env overlays only from the immutable `EnvRepositoryInterface` snapshot.
+  - [x] MUST NOT read `$_ENV`, `$_SERVER`, or `getenv()`.
+  - [x] Config path `kernel.boot.default_env` maps to env var `KERNEL_BOOT_DEFAULT_ENV`.
+  - [x] Projection is uppercase ASCII.
+  - [x] `.` maps to `_`.
+  - [x] `-` maps to `_`.
+  - [x] Env overlay generation MUST be allowlisted by config rules / known config paths.
+  - [x] Unknown env vars MUST NOT create config keys automatically.
+  - [x] User-owned custom roots MAY receive env overlays only when the user/module provides a matching ruleset or explicit env overlay mapping.
+  - [x] User-owned custom roots without rules are loaded from config files, merged, explained, fingerprinted, and compiled, but are not env-overlay-expanded automatically.
+  - [x] Env values are strings and MUST be coerced only according to declarative config rules.
+  - [x] Baseline env scalar coercion supports:
+    - [x] `string`
+    - [x] `non-empty-string`
+    - [x] `non-empty-string-no-ws`
+    - [x] `bool`
+    - [x] `int`
+  - [x] Boolean env coercion is single-choice:
+    - [x] `true` and `1` map to `true`;
+    - [x] `false` and `0` map to `false`;
+    - [x] any other bool token fails deterministically.
+  - [x] Env overlays for `map` and `list` are out of scope unless a future typed env syntax is introduced.
+  - [x] Env overlay diagnostics MUST NOT expose raw env values.
 
-- [ ] `framework/packages/core/kernel/src/Config/ConfigRulesLoader.php`
-  - [ ] loads package-owned `config/rules.php` files deterministically
-  - [ ] requires each rules file and accepts only plain array return values
-  - [ ] rejects callables/closures/objects/resources deterministically
-  - [ ] preserves package/root ownership from `docs/ssot/config-roots.md`
-  - [ ] MAY load user/module-owned rulesets when provided by ModulePlan or a future explicit application rules mechanism.
-  - [ ] MUST NOT require every user-owned/custom root to have a ruleset.
-  - [ ] MUST preserve ruleset owner metadata for explain and validation diagnostics.
+- [x] `framework/packages/core/kernel/src/Config/ConfigRulesLoader.php`
+  - [x] loads package-owned `config/rules.php` files deterministically
+  - [x] requires each rules file and accepts only plain array return values
+  - [x] rejects callables/closures/objects/resources deterministically
+  - [x] MUST preserve package/root ownership metadata supplied by the Kernel config-location source builder derived from `docs/ssot/config-roots.md`.
+  - [x] MAY load user/module-owned rulesets when provided by ModulePlan or a future explicit application rules mechanism.
+  - [x] MUST NOT require every user-owned/custom root to have a ruleset.
+  - [x] MUST preserve ruleset owner metadata for explain and validation diagnostics.
 
-- [ ] `framework/packages/core/kernel/src/Config/ConfigValidator.php`
-  - [ ] validates merged global config using declarative rules arrays
-  - [ ] supports the baseline rules DSL:
-    - [ ] `configRoot`
-    - [ ] `schemaVersion`
-    - [ ] `additionalKeys`
-    - [ ] `keys`
-    - [ ] `required`
-    - [ ] `type`
-    - [ ] `items`
-    - [ ] `allowedValues`
-  - [ ] supported baseline types:
-    - [ ] `map`
-    - [ ] `list`
-    - [ ] `string`
-    - [ ] `non-empty-string`
-    - [ ] `non-empty-string-no-ws`
-    - [ ] `relative-safe-path`
-    - [ ] `bool`
-    - [ ] `int`
-  - [ ] `relative-safe-path` type:
-    - [ ] MUST be a string.
-    - [ ] MUST be non-empty.
-    - [ ] MUST be relative.
-    - [ ] MUST NOT be absolute.
-    - [ ] MUST NOT contain NUL bytes.
-    - [ ] MUST NOT contain stream wrappers.
-    - [ ] MUST NOT contain Windows drive-letter prefixes.
-    - [ ] MUST NOT contain leading `/`.
-    - [ ] MUST NOT contain leading `\`.
-    - [ ] MUST NOT contain path traversal segment `..`.
-    - [ ] MAY contain `/` as a relative path separator.
-    - [ ] MUST keep diagnostics safe:
-      - [ ] report only dot-path config path;
-      - [ ] report stable reason token;
-      - [ ] MUST NOT echo the raw path value;
-      - [ ] MUST NOT expose absolute paths.
-  - [ ] validates each ruleset against the subtree under `configRoot`
-  - [ ] MUST NOT execute package-provided validation closures
-  - [ ] Validates only roots with loaded rulesets.
-  - [ ] MUST validate framework-owned roots strictly according to owner package rules.
-  - [ ] MUST validate module-owned roots strictly when module-owned rules are present.
-  - [ ] MUST NOT invent validation rules for user-owned/custom roots.
-  - [ ] MUST NOT reject user-owned/custom roots solely because they do not have rules.
-  - [ ] MUST mark user-owned/custom roots without rules as unvalidated validation subjects.
-  - [ ] MUST report unvalidated user-owned/custom roots to `ConfigExplainer`.
-  - [ ] MUST keep validation diagnostics deterministic and safe:
-    - [ ] stable code/reason tokens;
-    - [ ] dot-path config path;
-    - [ ] no raw values;
-    - [ ] no absolute paths.
+- [x] `framework/packages/core/kernel/src/Config/ConfigValidator.php`
+  - [x] validates merged global config using declarative rules arrays
+  - [x] supports the baseline rules DSL:
+    - [x] `configRoot`
+    - [x] `schemaVersion`
+    - [x] `additionalKeys`
+    - [x] `keys`
+    - [x] `required`
+    - [x] `type`
+    - [x] `items`
+    - [x] `allowedValues`
+  - [x] supported baseline types:
+    - [x] `map`
+    - [x] `list`
+    - [x] `string`
+    - [x] `non-empty-string`
+    - [x] `non-empty-string-no-ws`
+    - [x] `relative-safe-path`
+    - [x] `bool`
+    - [x] `int`
+  - [x] `relative-safe-path` type:
+    - [x] MUST be a string.
+    - [x] MUST be non-empty.
+    - [x] MUST be relative.
+    - [x] MUST NOT be absolute.
+    - [x] MUST NOT contain NUL bytes.
+    - [x] MUST NOT contain stream wrappers.
+    - [x] MUST NOT contain Windows drive-letter prefixes.
+    - [x] MUST NOT contain leading `/`.
+    - [x] MUST NOT contain leading `\`.
+    - [x] MUST NOT contain path traversal segment `..`.
+    - [x] MAY contain `/` as a relative path separator.
+    - [x] MUST keep diagnostics safe:
+      - [x] report only dot-path config path;
+      - [x] report stable reason token;
+      - [x] MUST NOT echo the raw path value;
+      - [x] MUST NOT expose absolute paths.
+  - [x] validates each ruleset against the subtree under `configRoot`
+  - [x] MUST NOT execute package-provided validation closures
+  - [x] Validates only roots with loaded rulesets.
+  - [x] MUST validate framework-owned roots strictly according to owner package rules.
+  - [x] MUST validate module-owned roots strictly when module-owned rules are present.
+  - [x] MUST NOT invent validation rules for user-owned/custom roots.
+  - [x] MUST NOT reject user-owned/custom roots solely because they do not have rules.
+  - [x] MUST mark user-owned/custom roots without rules as unvalidated validation subjects.
+  - [x] MUST report unvalidated user-owned/custom roots to `ConfigExplainer`.
+  - [x] MUST keep validation diagnostics deterministic and safe:
+    - [x] stable code/reason tokens;
+    - [x] dot-path config path;
+    - [x] no raw values;
+    - [x] no absolute paths.
 
 Errors:
-- [ ] `framework/packages/core/kernel/src/Config/Exception/ConfigInvalidException.php` — `CORETSIA_CONFIG_INVALID`
-- [ ] `framework/packages/core/kernel/src/Config/Exception/ConfigReservedNamespaceException.php` — `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
-- [ ] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveMixedLevelException.php` — `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
-- [ ] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveTypeMismatchException.php` — `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
+- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigInvalidException.php` — `CORETSIA_CONFIG_INVALID`
+- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigReservedNamespaceException.php` — `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
+- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveMixedLevelException.php` — `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
+- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveTypeMismatchException.php` — `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
 
 SSoT docs (canonical):
-- [ ] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
-- [ ] `docs/ssot/config-directives.md` — examples for @append/@prepend/@remove/@merge/@replace (no rule duplication)
-- [ ] `docs/ssot/config-merge-order.md` — merge order narrative
-  - [ ] documents the full active Phase B rank order.
-  - [ ] documents aggregate `all.php` vs root-specific `<root>.php` behavior.
-  - [ ] documents shared skeleton vs environment skeleton vs app shared vs app environment precedence.
-  - [ ] documents directives before merge.
-  - [ ] documents env overlays after file config.
-  - [ ] documents validation after final merge.
-  - [ ] marks CLI/runtime overrides as reserved/future and NOT active Phase 1 behavior.
+- [x] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
+- [x] `docs/ssot/config-directives.md` — examples for @append/@prepend/@remove/@merge/@replace (no rule duplication)
+- [x] `docs/ssot/config-merge-order.md` — merge order narrative
+  - [x] documents the full active Phase B rank order.
+  - [x] documents aggregate `roots.php` vs root-specific `<root>.php` behavior.
+  - [x] documents shared skeleton vs environment skeleton vs app shared vs app environment precedence.
+  - [x] documents directives before merge.
+  - [x] documents env overlays after file config.
+  - [x] documents validation after final merge.
+  - [x] marks CLI/runtime overrides as reserved/future and NOT active Phase 1 behavior.
 
-- [ ] `docs/ssot/config-precedence-matrix.md` — precedence matrix
-  - [ ] includes source type + priority/rank.
-  - [ ] includes package defaults.
-  - [ ] includes preset/mode overlays.
-  - [ ] includes skeleton shared aggregate/root.
-  - [ ] includes skeleton environment aggregate/root.
-  - [ ] includes app shared aggregate/root.
-  - [ ] includes app environment aggregate/root.
-  - [ ] includes env overlays.
-  - [ ] includes user-owned/custom roots behavior.
-  - [ ] includes aggregate-vs-root examples.
-  - [ ] includes env overlay projection examples.
+- [x] `docs/ssot/config-precedence-matrix.md` — precedence matrix
+  - [x] includes source type + priority/rank.
+  - [x] includes package defaults.
+  - [x] includes preset/mode overlays.
+  - [x] includes skeleton shared aggregate/root.
+  - [x] includes skeleton environment aggregate/root.
+  - [x] includes app shared aggregate/root.
+  - [x] includes app environment aggregate/root.
+  - [x] includes env overlays.
+  - [x] includes user-owned/custom roots behavior.
+  - [x] includes aggregate-vs-root examples.
+  - [x] includes env overlay projection examples.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/config-directives.md`
-  - [ ] `docs/ssot/config-merge-order.md`
-  - [ ] `docs/ssot/config-precedence-matrix.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
-- [ ] `framework/packages/core/kernel/config/kernel.php` — adds config kernel keys
-- [ ] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
-  - [ ] registers:
-    - [ ] `ConfigKernel`
-    - [ ] `ConfigMerger`
-    - [ ] `DirectiveProcessor`
-    - [ ] `ConfigExplainer`
-    - [ ] `ConfigNamespaceGuard`
-    - [ ] `PackageDefaultsConfigLoader`
-    - [ ] `SkeletonConfigLoader`
-    - [ ] `EnvironmentOverlayLoader`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/config-directives.md`
+  - [x] `docs/ssot/config-merge-order.md`
+  - [x] `docs/ssot/config-precedence-matrix.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
+- [x] `framework/packages/core/kernel/config/kernel.php` — adds config kernel keys
+- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] registers:
+    - [x] `ConfigKernel`
+    - [x] `ConfigMerger`
+    - [x] `DirectiveProcessor`
+    - [x] `ConfigExplainer`
+    - [x] `ConfigNamespaceGuard`
+    - [x] `PackageDefaultsConfigLoader`
+    - [x] `SkeletonConfigLoader`
+    - [x] `EnvironmentOverlayLoader`
+    - [x] `ConfigRulesLoader`
+    - [x] `ConfigValidator`
 
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
-  - [ ] deterministic factory wiring for ConfigKernel services
-  - [ ] MUST NOT keep mutable runtime state
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] deterministic factory wiring for ConfigKernel services
+  - [x] MUST NOT keep mutable runtime state
+
+- [x] `docs/ssot/observability.md` — register config observability signals
+  - [x] Add canonical span `kernel.config_merge`.
+  - [x] Add canonical span `kernel.config_explain`.
+  - [x] Add metric `kernel.config_merge_total` owned by `core/kernel`, type `counter`, labels `outcome`.
+  - [x] Add metric `kernel.config_merge_duration_ms` owned by `core/kernel`, type `observe`, labels `outcome`.
+  - [x] Add metric `kernel.config_explain_total` owned by `core/kernel`, type `counter`, labels `outcome`.
+  - [x] Add metric `kernel.config_explain_duration_ms` owned by `core/kernel`, type `observe`, labels `outcome`.
+  - [x] MUST NOT add `operation` label to these four operation-specific metrics.
 
 ### Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [ ] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `framework/packages/core/kernel/config/kernel.php`
 - Keys (dot):
-  - [ ] `kernel.config.forbidden_top_level_roots` = ["coretsia","_internal"]
-    - [ ] Optional hardening (MAY, if you truly need it later)
-    - [ ] MUST NOT include "kernel" or "foundation" because apps must be able to configure those roots.
+  - [x] `kernel.config.forbidden_top_level_roots` = ["coretsia","_internal"]
+    - [x] Optional hardening (MAY, if you truly need it later)
+    - [x] MUST NOT include "kernel" or "foundation" because apps must be able to configure those roots.
 - Rules:
-  - [ ] `framework/packages/core/kernel/config/rules.php` enforces shape
+  - [x] `framework/packages/core/kernel/config/rules.php` enforces shape
 
-- `ConfigKernel` and explain capability are baseline kernel facilities and MUST NOT be feature-disabled via config.
-- Whether explain is produced is decided by the caller/entrypoint, not by a runtime feature flag.
+- [x] `ConfigKernel` and explain capability are baseline kernel facilities and MUST NOT be feature-disabled via config.
+- [x] Whether explain is produced is decided by the caller/entrypoint, not by a runtime feature flag.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `kernel.config.merge`
-  - [ ] `kernel.config.explain`
-- [ ] Metrics:
-  - [ ] `kernel.config_merge_total` (labels: `outcome`)
-  - [ ] `kernel.config_merge_duration_ms` (labels: `outcome`)
-- [ ] Logs:
-  - [ ] only safe metadata: normalized file paths, key paths, directive names; no values
+- [x] Spans:
+  - [x] `kernel.config_merge`
+  - [x] `kernel.config_explain`
+- [x] Metrics:
+  - [x] `kernel.config_merge_total` (labels: `outcome`)
+  - [x] `kernel.config_explain_total` (labels: `outcome`)
+  - [x] `kernel.config_merge_duration_ms` (labels: `outcome`)
+  - [x] `kernel.config_explain_duration_ms` (labels: `outcome`)
+- [x] Logs:
+  - [x] only safe metadata: normalized file paths, key paths, directive names; no values
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] dotenv values, passwords, tokens, DSNs
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` only (printed by CLI layer), never raw
-  - [ ] normalized file paths + key paths + directive names (no raw values)
+- [x] MUST NOT leak:
+  - [x] dotenv values, passwords, tokens, DSNs
+- [x] Allowed:
+  - [x] `hash(value)` / `len(value)` only (printed by CLI layer), never raw
+  - [x] normalized file paths + key paths + directive names (no raw values)
 
 ### Phase 0 parity: directives + precedence + explain (MUST)
 
 Цей епік MUST бути семантично еквівалентним PHASE 0 SPIKE:
-- 0.90.0 Two-phase config merge + directives + explain prototype
+- [x] 0.90.0 Two-phase config merge + directives + explain prototype
 
 #### Directive allowlist (cemented)
 Allowlist MUST бути EXACT:
-- `@append`, `@prepend`, `@remove`, `@merge`, `@replace`
+- [x] `@append`, `@prepend`, `@remove`, `@merge`, `@replace`
 
 #### Directive allowlist ownership (cemented)
 
 The directive allowlist is kernel-owned and MUST NOT be configurable via runtime config.
 The canonical set is fixed and exact:
 
-- `@append`
-- `@prepend`
-- `@remove`
-- `@merge`
-- `@replace`
+- [x] `@append`
+- [x] `@prepend`
+- [x] `@remove`
+- [x] `@merge`
+- [x] `@replace`
 
 #### Reserved namespace guard for "@*" (cemented; single-choice)
 Будь-який key, що починається з `@`, є RESERVED тільки для directives.
 
-- дозволені тільки allowlist directives
-- будь-який інший `@*` key MUST fail детерміновано
+- [x] дозволені тільки allowlist directives
+- [x] будь-який інший `@*` key MUST fail детерміновано
 
 #### Exclusive-level rule (cemented)
 Якщо map на певному рівні містить хоча б один `@*` key:
-- на цьому рівні MUST бути **тільки directives keys**
-- MUST бути **рівно один** directive key
+- [x] на цьому рівні MUST бути **тільки directives keys**
+- [x] MUST бути **рівно один** directive key
 
 #### Typing rules (cemented; incl empty-array rule)
-- `@append|@prepend|@remove`: value MUST be list
-- `@merge`: value MUST be map
-- `@replace`: value може бути scalar/list/map
+- [x] `@append|@prepend|@remove`: value MUST be list
+- [x] `@merge`: value MUST be map
+- [x] `@replace`: value може бути scalar/list/map
 
 Empty array rule (cemented):
-- `[]` приймається як порожній контейнер і трактується контекстом:
-  - list directives → empty list
-  - `@merge` → empty map
+- [x] `[]` приймається як порожній контейнер і трактується контекстом:
+  - [x] list directives → empty list
+  - [x] `@merge` → empty map
 
 Classification (cemented):
-- non-empty: `array_is_list` визначає list vs map
-- locale MUST NOT впливати
+- [x] non-empty: `array_is_list` визначає list vs map
+- [x] locale MUST NOT впливати
 
 #### Two-phase semantics (cemented)
-- Phase A (per-file): parse/allowlist/type-validate/normalize directives
-- Phase B (merge-time): apply normalized directives коли base вже відомий
+- [x] Phase A (per-file): parse/allowlist/type-validate/normalize directives
+- [x] Phase B (merge-time): apply normalized directives коли base вже відомий
 
 #### Error precedence (cemented; single-choice)
-- якщо існує unknown `@*` → MUST fail as RESERVED NAMESPACE violation
-- else якщо порушено exclusive-level (mixing або multi-directive) → MUST fail as MIXED LEVEL
-- else якщо type mismatch → MUST fail as TYPE MISMATCH
+- [x] якщо існує unknown `@*` → MUST fail as RESERVED NAMESPACE violation
+- [x] else якщо порушено exclusive-level (mixing або multi-directive) → MUST fail as MIXED LEVEL
+- [x] else якщо type mismatch → MUST fail as TYPE MISMATCH
 
 #### Error codes alignment (cemented; single-choice)
 
 Kernel ConfigKernel MUST використовувати ті самі code strings, що в spike (0.90.0):
 
-- `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
-- `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
-- `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
+- [x] `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
+- [x] `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
+- [x] `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
 
 Ці коди є “line-of-truth” для contract locks і CI.
 
@@ -13029,138 +13275,135 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Directives semantics:
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
+- [x] Directives semantics:
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
 
-- [ ] Precedence + explain:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
+- [x] Precedence + explain:
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
 
-- [ ] Spike compatibility locks:
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
+- [x] Spike compatibility locks:
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
 
-- [ ] Docs are verified by matching tests (no separate “doc tests” required, but docs MUST be consistent):
-  - [ ] `docs/ssot/config-directives.md` verified by directive unit tests above
-  - [ ] `docs/ssot/config-merge-order.md` + `docs/ssot/config-precedence-matrix.md` verified by `ConfigPrecedenceMatrixTest`
+- [x] Docs are verified by matching tests (no separate “doc tests” required, but docs MUST be consistent):
+  - [x] `docs/ssot/config-directives.md` verified by directive unit tests above
+  - [x] `docs/ssot/config-merge-order.md` + `docs/ssot/config-precedence-matrix.md` verified by `ConfigPrecedenceMatrixTest`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRejectsCallableRulesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRequiresPlainArrayRulesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorAcceptsCliRulesFixtureTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsUnknownCliKeysTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/ConfigValidatorRelativeSafePathTypeTest.php`
-    - [ ] accepts `resources/modes`
-    - [ ] accepts `config/modes`
-    - [ ] rejects empty string
-    - [ ] rejects absolute Unix paths
-    - [ ] rejects absolute Windows drive-letter paths
-    - [ ] rejects paths with `..` traversal
-    - [ ] rejects stream wrappers
-    - [ ] rejects NUL bytes
-    - [ ] diagnostics do not include the raw path value
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRejectsCallableRulesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRequiresPlainArrayRulesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorAcceptsCliRulesFixtureTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsUnknownCliKeysTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/ConfigValidatorRelativeSafePathTypeTest.php`
+    - [x] accepts `resources/modes`
+    - [x] accepts `config/modes`
+    - [x] rejects empty string
+    - [x] rejects absolute Unix paths
+    - [x] rejects absolute Windows drive-letter paths
+    - [x] rejects paths with `..` traversal
+    - [x] rejects stream wrappers
+    - [x] rejects NUL bytes
+    - [x] diagnostics do not include the raw path value
 
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
 
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
-    - [ ] asserts implementation rank order matches `docs/ssot/config-precedence-matrix.md`.
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
+    - [x] asserts implementation rank order matches `docs/ssot/config-precedence-matrix.md`.
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigAllPhpAndRootFilesMergeOrderTest.php`
-    - [ ] asserts `skeleton/config/all.php` is loaded.
-    - [ ] asserts `skeleton/config/<root>.php` is loaded.
-    - [ ] asserts root-specific file overrides `all.php` at the same layer.
-    - [ ] asserts app root-specific file overrides app `all.php` at the same layer.
-    - [ ] asserts equivalent aggregate/split config produces equivalent final config.
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigAggregateAndSplitFilesMergeOrderTest.php`
+    - [x] asserts `skeleton/config/roots.php` is loaded.
+    - [x] asserts `skeleton/config/<root>.php` is loaded.
+    - [x] asserts root-specific file overrides `roots.php` at the same layer.
+    - [x] asserts app root-specific file overrides app `roots.php` at the same layer.
+    - [x] asserts equivalent aggregate/split config produces equivalent final config.
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/ConfigEnvironmentSpecificOverlaysPrecedenceTest.php`
-    - [ ] asserts shared skeleton config is weaker than skeleton environment config.
-    - [ ] asserts skeleton environment config is weaker than app shared config.
-    - [ ] asserts app shared config is weaker than app environment config.
-    - [ ] asserts env overlays win over file config where an env overlay mapping exists.
+  - [x] `framework/packages/core/kernel/tests/Integration/ConfigEnvironmentSpecificOverlaysPrecedenceTest.php`
+    - [x] asserts shared skeleton config is weaker than skeleton environment config.
+    - [x] asserts skeleton environment config is weaker than app shared config.
+    - [x] asserts app shared config is weaker than app environment config.
+    - [x] asserts env overlays win over file config where an env overlay mapping exists.
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php`
-    - [ ] asserts custom top-level roots from `all.php` are accepted.
-    - [ ] asserts custom top-level roots from `<root>.php` are accepted.
-    - [ ] asserts custom roots appear in final config.
-    - [ ] asserts custom roots appear in explain trace.
-    - [ ] asserts custom roots are marked `user_owned`.
-    - [ ] asserts custom roots without rules are marked `unvalidated`.
-    - [ ] asserts custom roots participate in fingerprint input.
-    - [ ] asserts framework does not apply owner package rules to unowned roots.
+  - [x] `framework/packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php`
+    - [x] asserts custom top-level roots from `roots.php` are accepted.
+    - [x] asserts custom top-level roots from `<root>.php` are accepted.
+    - [x] asserts custom roots appear in final config.
+    - [x] asserts custom roots appear in explain trace.
+    - [x] asserts custom roots are marked `user_owned`.
+    - [x] asserts custom roots without rules are marked `unvalidated`.
+    - [x] asserts custom roots participate in fingerprint input.
+    - [x] asserts framework does not apply owner package rules to unowned roots.
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/EnvironmentOverlayProjectionTest.php`
-    - [ ] asserts `kernel.boot.default_env` maps to `KERNEL_BOOT_DEFAULT_ENV`.
-    - [ ] asserts projection uses uppercase ASCII.
-    - [ ] asserts `.` maps to `_`.
-    - [ ] asserts `-` maps to `_`.
-    - [ ] asserts unknown env vars do not create config keys.
-    - [ ] asserts bool env coercion accepts only `true`, `false`, `1`, `0`.
-    - [ ] asserts env overlay diagnostics do not leak raw env values.
+  - [x] `framework/packages/core/kernel/tests/Integration/EnvironmentOverlayProjectionTest.php`
+    - [x] asserts `kernel.boot.default_env` maps to `KERNEL_BOOT_DEFAULT_ENV`.
+    - [x] asserts projection uses uppercase ASCII.
+    - [x] asserts `.` maps to `_`.
+    - [x] asserts `-` maps to `_`.
+    - [x] asserts unknown env vars do not create config keys.
+    - [x] asserts bool env coercion accepts only `true`, `false`, `1`, `0`.
+    - [x] asserts env overlay diagnostics do not leak raw env values.
 
 ### DoD (MUST)
 
-- [ ] Directives semantics match SSoT + unit tests
-- [ ] Precedence matrix data-driven test green
-- [ ] Explain trace safe + stable source types
-- [ ] Reserved namespaces are enforced and tested
-- [ ] Fully compatible with spike semantics (0.90.0) — confirmed by contract locks
-- [ ] Any semantic change requires updating spike fixtures + locks in same PR
-- [ ] `docs/ssot/config-directives.md`:
-  - [ ] examples відповідають `framework/packages/core/kernel/src/Config/DirectiveProcessor.php`
-  - [ ] показує типові use-cases: додати middleware у список, змінити map, прибрати значення
-  - [ ] не дублює правила (rules — у коді/SSoT, doc — приклади)
-- [ ] `docs/ssot/config-merge-order.md` + `docs/ssot/config-precedence-matrix.md`:
-  - [ ] відповідають сценаріям `ConfigPrecedenceMatrixTest`
-  - [ ] фіксують порядок: directives per-file before merge, env overlays win, validate після merge
-  - [ ] пояснюють: defaults (packages) vs overrides (skeleton) vs overlays (env)
-  - [ ] if “runtime overrides” are mentioned, the doc MUST explicitly mark them as reserved/future and NOT part of the active Phase 1 merge pipeline
-  - [ ] мають explicit Non-goals / out of scope (1–5 bullets)
-- [ ] Example guarantee:
-  - [ ] When skeleton override uses `@append` to add a middleware class into `http.middleware.system_pre`, then the final merged config contains it in deterministic order and explain shows `directive_applied`.
-- [ ] Integration expectations:
-  - [ ] `platform/http` споживає merged config (через `config.php` artifact) для:
-    - [ ] `http.middleware.auto.*`, `http.middleware.<slot>` lists, toggles (middleware catalog).
-  - [ ] `platform/cli config:debug` читає explain trace і друкує тільки redacted value (hash/len) або без value.
-- [ ] Non-goals / out of scope (minimum):
-  - [ ] Kernel не друкує секрети/values; це робить лише CLI шар з редекцією.
-  - [ ] Не вводить нові правила precedence/directives — лише реалізує/документує SSoT.
-- [ ] Reset discipline (kernel.reset) — NOT USED in ConfigKernel (MUST)
-  - [ ] ConfigKernel Phase B MUST NOT trigger reset.
-  - [ ] Config compilation/validation/explain MUST be deterministic and safe without relying on UoW lifecycle.
-  - [ ] Rationale: config pipeline is build-time / compile-time; reset is runtime UoW lifecycle (1.280.0).
-- [ ] Config file discovery supports both aggregate and split user config:
-  - [ ] `all.php` global root map;
-  - [ ] `<root>.php` root subtree;
-  - [ ] root-specific files override aggregate files at the same layer.
-- [ ] User-owned/custom roots are accepted, merged, explained, fingerprinted, and compiled.
-- [ ] User-owned/custom roots without rules are marked `user_owned` and `unvalidated`.
-- [ ] Framework validates only roots with loaded declarative rules.
-- [ ] Unknown env vars do not create config keys.
-- [ ] Env overlays are generated only for known paths/rules/mappings.
-- [ ] `docs/ssot/config-merge-order.md` documents the complete active Phase B rank order.
-- [ ] `docs/ssot/config-precedence-matrix.md` includes aggregate-vs-root and shared-vs-env-vs-app precedence cases.
+- [x] Directives semantics match SSoT + unit tests
+- [x] Precedence matrix data-driven test green
+- [x] Explain trace safe + stable source types
+- [x] Reserved namespaces are enforced and tested
+- [x] Fully compatible with spike semantics (0.90.0) — confirmed by contract locks
+- [x] Any semantic change requires updating spike fixtures + locks in same PR
+- [x] `docs/ssot/config-directives.md`:
+  - [x] examples відповідають `framework/packages/core/kernel/src/Config/DirectiveProcessor.php`
+  - [x] показує типові use-cases: додати middleware у список, змінити map, прибрати значення
+  - [x] не дублює правила (rules — у коді/SSoT, doc — приклади)
+- [x] `docs/ssot/config-merge-order.md` + `docs/ssot/config-precedence-matrix.md`:
+  - [x] відповідають сценаріям `ConfigPrecedenceMatrixTest`
+  - [x] фіксують порядок: directives per-file before merge, env overlays win, validate після merge
+  - [x] пояснюють: defaults (packages) vs overrides (skeleton) vs overlays (env)
+  - [x] if “runtime overrides” are mentioned, the doc MUST explicitly mark them as reserved/future and NOT part of the active Phase 1 merge pipeline
+  - [x] мають explicit Non-goals / out of scope (1–5 bullets)
+- [x] Example guarantee:
+  - [x] When skeleton override uses `@append` to add a middleware class into `http.middleware.system_pre`, then the final merged config contains it in deterministic order and explain exposes the applied directive name/source trace safely.
+- [x] Kernel exposes final merged config and safe explain trace for downstream artifact, HTTP, and CLI consumers.
+- [x] Non-goals / out of scope (minimum):
+  - [x] Kernel не друкує секрети/values; це робить лише CLI шар з редекцією.
+  - [x] Не вводить нові правила precedence/directives — лише реалізує/документує SSoT.
+- [x] Reset discipline (kernel.reset) — NOT USED in ConfigKernel (MUST)
+  - [x] ConfigKernel Phase B MUST NOT trigger reset.
+  - [x] Config compilation/validation/explain MUST be deterministic and safe without relying on UoW lifecycle.
+  - [x] Rationale: config pipeline is build-time / compile-time; reset is runtime UoW lifecycle (1.280.0).
+- [x] Config file discovery supports both aggregate and split user config:
+  - [x] `roots.php` global root map;
+  - [x] `<root>.php` root subtree;
+  - [x] root-specific files override aggregate files at the same layer.
+- [x] User-owned/custom roots are accepted, merged, and explained.
+- [x] User-owned/custom roots without rules are marked `user_owned` and `unvalidated`.
+- [x] Framework validates only roots with loaded declarative rules.
+- [x] Unknown env vars do not create config keys.
+- [x] Env overlays are generated only for known paths/rules/mappings.
+- [x] `docs/ssot/config-merge-order.md` documents the complete active Phase B rank order.
+- [x] `docs/ssot/config-precedence-matrix.md` includes aggregate-vs-root and shared-vs-env-vs-app precedence cases.
 
 ---
 
@@ -13555,7 +13798,7 @@ Docs:
     - [ ] asserts fingerprint explain does not leak raw custom values.
 
   - [ ] `framework/packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
-    - [ ] asserts user-owned roots from `all.php` are emitted.
+    - [ ] asserts user-owned roots from `roots.php` are emitted.
     - [ ] asserts user-owned roots from `<root>.php` are emitted.
     - [ ] asserts split and aggregate equivalent user config produces equivalent artifact payload.
 
@@ -13567,16 +13810,18 @@ Docs:
 - [ ] Docs explain middleware linkage + fingerprint exclusions
 - [ ] Spike fixtures lock production invariants
 - [ ] Artifacts live only in `skeleton/var/cache/<appId>/*` and are written atomically (no partial writes).
-- [ ] `platform/http` будує middleware stack з compiled config:
-  - [ ] lists `http.middleware.<slot>` + auto toggles `http.middleware.auto.*`
-  - [ ] tagged middlewares (`http.middleware.*`) + compiled lists
-  - [ ] dedupe policy: “first wins” (middleware catalog)
+- [ ] HTTP middleware compiled-config contract is proven:
+  - [ ] compiled config payload preserves `http.middleware.<slot>` lists;
+  - [ ] compiled config payload preserves `http.middleware.auto.*` toggles;
+  - [ ] downstream `platform/http` middleware catalog can consume these fields without reading source config files.
 - [ ] When only `skeleton/var/maintenance/*` changes, then fingerprint remains unchanged and `cache:verify` stays clean.
 - [ ] Reset discipline (kernel.reset) — NOT USED in artifacts/fingerprint/cache:verify (MUST)
   - [ ] Artifacts pipeline MUST NOT invoke reset and MUST NOT require UoW lifecycle.
   - [ ] Cache verification MUST remain pure (read/compare) and deterministic:
     - [ ] no dependency on `ResetOrchestrator` execution
   - [ ] Rationale: artifacts/fingerprint are build-time concerns; reset is runtime UoW boundary enforcement.
+- [ ] User-owned/custom roots are included in config fingerprint inputs.
+- [ ] User-owned/custom roots are included in compiled config artifact payload.
 
 ---
 

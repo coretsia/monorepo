@@ -34,6 +34,16 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Config\ConfigKernel;
+use Coretsia\Kernel\Config\ConfigMerger;
+use Coretsia\Kernel\Config\ConfigRulesLoader;
+use Coretsia\Kernel\Config\ConfigValidator;
+use Coretsia\Kernel\Config\DirectiveProcessor;
+use Coretsia\Kernel\Config\Explain\ConfigExplainer;
+use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
+use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
+use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -283,6 +293,225 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the Kernel config namespace guard.
+     *
+     * The forbidden top-level roots are read from the already-built Kernel config
+     * snapshot:
+     *
+     *     kernel.config.forbidden_top_level_roots
+     *
+     * This factory performs deterministic construction only. It does not run the
+     * config pipeline, does not mutate guard state, and does not reconfigure the
+     * guard after construction.
+     */
+    public static function configNamespaceGuard(ContainerInterface $container): ConfigNamespaceGuard
+    {
+        $kernelConfig = self::kernelConfig($container);
+
+        try {
+            return new ConfigNamespaceGuard(
+                forbiddenTopLevelRoots: self::forbiddenTopLevelRoots($kernelConfig),
+            );
+        } catch (\InvalidArgumentException $exception) {
+            throw new ContainerException(
+                'kernel-config-forbidden-top-level-roots-invalid',
+                $exception,
+            );
+        }
+    }
+
+    /**
+     * Creates the per-file directive processor.
+     *
+     * This factory wires DirectiveProcessor to the already-registered
+     * ConfigNamespaceGuard. It does not process config files and keeps no mutable
+     * runtime state.
+     */
+    public static function directiveProcessor(ContainerInterface $container): DirectiveProcessor
+    {
+        $namespaceGuard = self::configService($container, ConfigNamespaceGuard::class);
+
+        if (!$namespaceGuard instanceof ConfigNamespaceGuard) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new DirectiveProcessor(
+            namespaceGuard: $namespaceGuard,
+        );
+    }
+
+    /**
+     * Creates the deterministic config merger.
+     *
+     * This factory wires ConfigMerger to the already-registered DirectiveProcessor.
+     * It does not merge config values and keeps no mutable runtime state.
+     */
+    public static function configMerger(ContainerInterface $container): ConfigMerger
+    {
+        $directiveProcessor = self::configService($container, DirectiveProcessor::class);
+
+        if (!$directiveProcessor instanceof DirectiveProcessor) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new ConfigMerger(
+            directiveProcessor: $directiveProcessor,
+        );
+    }
+
+    /**
+     * Creates the config rules loader.
+     *
+     * This factory performs construction only. It does not load rules files and
+     * keeps no mutable runtime state.
+     */
+    public static function configRulesLoader(): ConfigRulesLoader
+    {
+        return new ConfigRulesLoader();
+    }
+
+    /**
+     * Creates the declarative config validator.
+     *
+     * This factory performs construction only. It does not validate config and
+     * keeps no mutable runtime state.
+     */
+    public static function configValidator(): ConfigValidator
+    {
+        return new ConfigValidator();
+    }
+
+    /**
+     * Creates the safe config explainer.
+     *
+     * This factory performs construction only. It does not build explain traces and
+     * keeps no mutable runtime state.
+     */
+    public static function configExplainer(): ConfigExplainer
+    {
+        return new ConfigExplainer();
+    }
+
+    /**
+     * Creates the package defaults config loader.
+     *
+     * This factory wires the loader to DirectiveProcessor. It does not discover
+     * package paths, does not load package config files, and keeps no mutable
+     * runtime state.
+     */
+    public static function packageDefaultsConfigLoader(ContainerInterface $container): PackageDefaultsConfigLoader
+    {
+        $directiveProcessor = self::configService($container, DirectiveProcessor::class);
+
+        if (!$directiveProcessor instanceof DirectiveProcessor) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new PackageDefaultsConfigLoader(
+            directiveProcessor: $directiveProcessor,
+        );
+    }
+
+    /**
+     * Creates the skeleton/application config loader.
+     *
+     * This factory wires the loader to DirectiveProcessor. It does not scan
+     * skeleton/app directories, does not read skeleton/config/app.php, and keeps no
+     * mutable runtime state.
+     */
+    public static function skeletonConfigLoader(ContainerInterface $container): SkeletonConfigLoader
+    {
+        $directiveProcessor = self::configService($container, DirectiveProcessor::class);
+
+        if (!$directiveProcessor instanceof DirectiveProcessor) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new SkeletonConfigLoader(
+            directiveProcessor: $directiveProcessor,
+        );
+    }
+
+    /**
+     * Creates the env overlay loader.
+     *
+     * This factory performs construction only. It does not read $_ENV, $_SERVER,
+     * getenv(), dotenv files, or EnvRepository snapshots, and keeps no mutable
+     * runtime state.
+     */
+    public static function environmentOverlayLoader(): EnvironmentOverlayLoader
+    {
+        return new EnvironmentOverlayLoader();
+    }
+
+    /**
+     * Creates the Phase B ConfigKernel orchestrator.
+     *
+     * This factory performs deterministic wiring only. It does not run config
+     * compilation, does not receive BootstrapConfig, does not receive ModulePlan,
+     * does not receive EnvRepositoryInterface snapshots, and does not keep mutable
+     * runtime state.
+     */
+    public static function configKernel(ContainerInterface $container): ConfigKernel
+    {
+        $merger = self::configService($container, ConfigMerger::class);
+
+        if (!$merger instanceof ConfigMerger) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $rulesLoader = self::configService($container, ConfigRulesLoader::class);
+
+        if (!$rulesLoader instanceof ConfigRulesLoader) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $validator = self::configService($container, ConfigValidator::class);
+
+        if (!$validator instanceof ConfigValidator) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $explainer = self::configService($container, ConfigExplainer::class);
+
+        if (!$explainer instanceof ConfigExplainer) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $packageDefaultsLoader = self::configService($container, PackageDefaultsConfigLoader::class);
+
+        if (!$packageDefaultsLoader instanceof PackageDefaultsConfigLoader) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $skeletonLoader = self::configService($container, SkeletonConfigLoader::class);
+
+        if (!$skeletonLoader instanceof SkeletonConfigLoader) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        $environmentOverlayLoader = self::configService($container, EnvironmentOverlayLoader::class);
+
+        if (!$environmentOverlayLoader instanceof EnvironmentOverlayLoader) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new ConfigKernel(
+            merger: $merger,
+            rulesLoader: $rulesLoader,
+            validator: $validator,
+            explainer: $explainer,
+            packageDefaultsLoader: $packageDefaultsLoader,
+            skeletonLoader: $skeletonLoader,
+            environmentOverlayLoader: $environmentOverlayLoader,
+            meter: self::meter($container),
+            tracer: self::tracer($container),
+            stopwatch: self::stopwatch($container),
+            logger: self::optionalConfigLogger($container),
+        );
+    }
+
+    /**
      * Creates the Kernel hook invoker.
      *
      * The supplied TagRegistry MUST be the builder-owned registry instance so
@@ -492,6 +721,28 @@ final class KernelServiceFactory
         return $service;
     }
 
+    private static function optionalConfigLogger(ContainerInterface $container): ?LoggerInterface
+    {
+        try {
+            if (!$container->has(LoggerInterface::class)) {
+                return null;
+            }
+
+            $service = $container->get(LoggerInterface::class);
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-config-dependency-not-found',
+                $throwable,
+            );
+        }
+
+        if (!$service instanceof LoggerInterface) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return $service;
+    }
+
     private static function tracer(ContainerInterface $container): TracerPortInterface
     {
         $service = self::service($container, TracerPortInterface::class);
@@ -574,6 +825,26 @@ final class KernelServiceFactory
         }
     }
 
+    private static function configService(
+        ContainerInterface $container,
+        string $id,
+    ): mixed {
+        try {
+            if (!$container->has($id)) {
+                throw new ContainerException('kernel-config-dependency-not-found');
+            }
+
+            return $container->get($id);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-config-dependency-not-found',
+                $throwable,
+            );
+        }
+    }
+
     /**
      * Reads the strict `kernel` config root from the Foundation container config
      * snapshot.
@@ -631,6 +902,65 @@ final class KernelServiceFactory
         }
 
         return $modesConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $kernelConfig
+     *
+     * @return array<string, mixed>
+     */
+    private static function kernelConfigConfig(array $kernelConfig): array
+    {
+        $configConfig = $kernelConfig['config'] ?? null;
+
+        if (!\is_array($configConfig) || \array_is_list($configConfig)) {
+            throw new ContainerException('kernel-config-config-invalid');
+        }
+
+        return $configConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $kernelConfig
+     *
+     * @return list<non-empty-string>
+     */
+    private static function forbiddenTopLevelRoots(array $kernelConfig): array
+    {
+        $configConfig = self::kernelConfigConfig($kernelConfig);
+        $roots = $configConfig['forbidden_top_level_roots'] ?? null;
+
+        if (!\is_array($roots) || !\array_is_list($roots) || $roots === []) {
+            throw new ContainerException('kernel-config-forbidden-top-level-roots-invalid');
+        }
+
+        $normalized = [];
+
+        foreach ($roots as $root) {
+            if (!\is_string($root) || $root === '') {
+                throw new ContainerException('kernel-config-forbidden-top-level-roots-invalid');
+            }
+
+            if (\trim($root) !== $root || \preg_match('/\s/u', $root) === 1) {
+                throw new ContainerException('kernel-config-forbidden-top-level-roots-invalid');
+            }
+
+            if (\preg_match('/[\x00-\x1F\x7F]/', $root) === 1) {
+                throw new ContainerException('kernel-config-forbidden-top-level-roots-invalid');
+            }
+
+            $normalized[] = $root;
+        }
+
+        $normalized = \array_values(\array_unique($normalized));
+
+        \usort(
+            $normalized,
+            static fn (string $a, string $b): int => \strcmp($a, $b),
+        );
+
+        /** @var list<non-empty-string> $normalized */
+        return $normalized;
     }
 
     /**

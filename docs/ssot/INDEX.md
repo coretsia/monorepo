@@ -44,6 +44,9 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 ## Shapes and Contracts
 
 - [Config and env SSoT](./config-and-env.md) — owner: core/contracts — scope: config,contracts,directives,env,ruleset,source-tracking
+- [Config Directives Examples](./config-directives.md) — owner: core/kernel — scope: config,directives,examples,merge,runtime
+- [Config Merge Order](./config-merge-order.md) — owner: core/kernel — scope: config,kernel,merge,phase-b,precedence
+- [Config Precedence Matrix](./config-precedence-matrix.md) — owner: core/kernel — scope: config,kernel,matrix,precedence,source-tracking
 - [Database Contracts SSoT](./database-contracts.md) — owner: core/contracts — scope: contracts,database,ports,redaction
 - [ErrorDescriptor SSoT](./error-descriptor.md) — owner: core/contracts — scope: contracts,error-descriptor,errors,redaction,shape
 - [Errors Boundary SSoT](./errors-boundary.md) — owner: core/contracts — scope: boundary,contracts,errors,normalization,runtime

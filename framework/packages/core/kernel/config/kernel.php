@@ -29,9 +29,14 @@ declare(strict_types=1);
  *
  * Baseline invariants:
  * - the `kernel` root is owned by `core/kernel`;
- * - dotted keys such as `kernel.boot.*`, `kernel.env.*`,
+ * - dotted keys such as `kernel.boot.*`, `kernel.config.*`, `kernel.env.*`,
  *   `kernel.modules.*`, `kernel.modes.*`, `kernel.uow.*` are config key
  *   namespaces, not roots;
+ * - `kernel.config.*` owns ConfigKernel Phase B safety defaults;
+ * - `kernel.config.forbidden_top_level_roots` reserves global internal config
+ *   namespaces only;
+ * - `kernel.config.forbidden_top_level_roots` MUST NOT include `kernel` or
+ *   `foundation` because applications must be able to configure those roots;
  * - `kernel.modules.*` owns module discovery source defaults;
  * - `kernel.modes.*` owns mode preset path/schema defaults;
  * - Kernel config defaults MUST NOT contain absolute paths;
@@ -45,6 +50,29 @@ declare(strict_types=1);
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
+    /*
+     * ConfigKernel Phase B safety defaults.
+     *
+     * These values are consumed by Kernel-owned config services such as
+     * ConfigNamespaceGuard. They are policy inputs, not root ownership rules.
+     *
+     * Forbidden top-level roots are global internal namespaces reserved for the
+     * framework implementation itself.
+     *
+     * Important:
+     *
+     * - `kernel` MUST NOT be listed here;
+     * - `foundation` MUST NOT be listed here;
+     * - applications must remain able to configure framework-owned public roots
+     *   through normal config files and overlays.
+     */
+    'config' => [
+        'forbidden_top_level_roots' => [
+            'coretsia',
+            '_internal',
+        ],
+    ],
+
     /*
      * Bootstrap Phase A defaults.
      *

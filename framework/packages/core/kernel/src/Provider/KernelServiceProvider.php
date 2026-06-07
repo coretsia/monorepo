@@ -28,6 +28,16 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Config\ConfigKernel;
+use Coretsia\Kernel\Config\ConfigMerger;
+use Coretsia\Kernel\Config\ConfigRulesLoader;
+use Coretsia\Kernel\Config\ConfigValidator;
+use Coretsia\Kernel\Config\DirectiveProcessor;
+use Coretsia\Kernel\Config\Explain\ConfigExplainer;
+use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
+use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
+use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -55,6 +65,15 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * - registering module plan services does not read Composer installed metadata;
  * - registering module plan services does not read preset files;
  * - registering module plan services does not scan filesystem paths;
+ * - ConfigKernel Phase B services are registered as factories only;
+ * - registering ConfigKernel services does not run config compilation;
+ * - registering ConfigKernel services does not resolve BootstrapConfig;
+ * - registering ConfigKernel services does not resolve ModulePlan;
+ * - registering ConfigKernel services does not build EnvRepositoryInterface;
+ * - registering ConfigKernel services does not load package config files;
+ * - registering ConfigKernel services does not load skeleton/app config files;
+ * - registering ConfigKernel services does not build env overlays;
+ * - registering ConfigKernel services does not merge, validate, or explain config;
  * - FilesystemModePresetLoader is not registered globally because skeleton
  *   override path resolution is BootstrapConfig-specific;
  * - ModePresetLoaderInterface is not bound globally for the same reason;
@@ -72,7 +91,8 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * This provider must not emit stdout/stderr, must not use tooling-only
  * packages, must not introduce static mutable snapshots, must not trigger
  * reset orchestration, must not execute Bootstrap Phase A, must not resolve a
- * ModulePlan, and must not start a UnitOfWork during registration.
+ * ModulePlan, must not compile config, and must not start a UnitOfWork during
+ * registration.
  */
 final class KernelServiceProvider implements ServiceProviderInterface
 {
@@ -189,6 +209,81 @@ final class KernelServiceProvider implements ServiceProviderInterface
         $builder->factory(
             ModulePlanResolver::class,
             static fn (Container $container): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
+                container: $container,
+            ),
+        );
+
+        /*
+ * Register ConfigKernel Phase B services.
+ *
+ * These bindings are factories only. They do not run config compilation, do
+ * not resolve BootstrapConfig, do not resolve ModulePlan, do not build
+ * EnvRepositoryInterface snapshots, do not load package/skeleton config files,
+ * do not build env overlays, do not merge config, do not validate config, and
+ * do not build explain traces during provider registration.
+ */
+        $builder->factory(
+            ConfigNamespaceGuard::class,
+            static fn (Container $container): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            DirectiveProcessor::class,
+            static fn (Container $container): DirectiveProcessor => KernelServiceFactory::directiveProcessor(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ConfigMerger::class,
+            static fn (Container $container): ConfigMerger => KernelServiceFactory::configMerger(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ConfigRulesLoader::class,
+            static fn (Container $_container): ConfigRulesLoader => KernelServiceFactory::configRulesLoader(),
+        );
+
+        $builder->factory(
+            ConfigValidator::class,
+            static fn (Container $_container): ConfigValidator => KernelServiceFactory::configValidator(),
+        );
+
+        $builder->factory(
+            ConfigExplainer::class,
+            static fn (Container $_container): ConfigExplainer => KernelServiceFactory::configExplainer(),
+        );
+
+        $builder->factory(
+            PackageDefaultsConfigLoader::class,
+            static fn (
+                Container $container
+            ): PackageDefaultsConfigLoader => KernelServiceFactory::packageDefaultsConfigLoader(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            SkeletonConfigLoader::class,
+            static fn (Container $container): SkeletonConfigLoader => KernelServiceFactory::skeletonConfigLoader(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            EnvironmentOverlayLoader::class,
+            static fn (
+                Container $_container
+            ): EnvironmentOverlayLoader => KernelServiceFactory::environmentOverlayLoader(),
+        );
+
+        $builder->factory(
+            ConfigKernel::class,
+            static fn (Container $container): ConfigKernel => KernelServiceFactory::configKernel(
                 container: $container,
             ),
         );

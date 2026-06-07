@@ -23,6 +23,11 @@ declare(strict_types=1);
  * - the file validates the `kernel` root subtree;
  * - unknown keys are rejected at every declared map level;
  * - reserved `@*` keys are rejected by the same strict-shape policy;
+ * - `kernel.config.forbidden_top_level_roots` must be a list of non-empty safe
+ *   strings without whitespace;
+ * - `kernel.config.forbidden_top_level_roots` must not include `kernel` or
+ *   `foundation` in defaults because applications must be able to configure
+ *   those roots;
  * - `kernel.boot.default_env` must be a non-empty string;
  * - `kernel.boot.default_preset` must be a non-empty string and is the only
  *   package-level preset fallback;
@@ -49,7 +54,7 @@ declare(strict_types=1);
  *
  * The defaults file must return the subtree only:
  *
- *     config/kernel.php => ['boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'uow' => [...]]
+ *     config/kernel.php => ['config' => [...], 'boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'uow' => [...]]
  *
  * It must not return:
  *
@@ -60,6 +65,20 @@ return [
     'configRoot' => 'kernel',
     'additionalKeys' => false,
     'keys' => [
+        'config' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'forbidden_top_level_roots' => [
+                    'required' => true,
+                    'type' => 'list',
+                    'items' => [
+                        'type' => 'non-empty-string-no-ws',
+                    ],
+                ],
+            ],
+        ],
         'boot' => [
             'required' => true,
             'type' => 'map',

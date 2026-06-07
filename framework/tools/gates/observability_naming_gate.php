@@ -696,14 +696,10 @@ function coretsia_observability_naming_gate_observability_container_key_for_arra
         [
             'label' => true,
             'labels' => true,
-            'attribute' => true,
-            'attributes' => true,
             'dimension' => true,
             'dimensions' => true,
             'tag' => true,
             'tags' => true,
-            'span_attribute' => true,
-            'span_attributes' => true,
             'metric_label' => true,
             'metric_labels' => true,
         ][$containerKey]
@@ -884,7 +880,6 @@ function coretsia_observability_naming_gate_call_name_for_scalar_argument(array 
 function coretsia_observability_naming_gate_is_labelish_callable_name(string $name): bool
 {
     return \str_contains($name, 'label')
-        || \str_contains($name, 'attribute')
         || \str_contains($name, 'dimension')
         || \str_contains($name, 'tag');
 }

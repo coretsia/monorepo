@@ -772,6 +772,19 @@ Errors:
 - [ ] Observability complies with allowlist (no forbidden labels)
 - [ ] Redaction enabled by default; tests prove no leaks
 - [ ] Determinism: rerun `config:compile` produces no diff in kernel artifacts
+- [ ] `coretsia config:debug`
+  - [ ] MUST consume safe ConfigKernel explain output.
+  - [ ] MUST NOT print raw config values.
+  - [ ] MUST NOT print raw env values.
+  - [ ] MAY print only safe metadata:
+    - [ ] config dot paths;
+    - [ ] source type;
+    - [ ] source id;
+    - [ ] source precedence/order;
+    - [ ] directive names;
+    - [ ] validation status;
+    - [ ] `hash(value)` / `len(value)` when provided by upstream metadata.
+  - [ ] MUST NOT compute raw-value hash/len from unsafe sources unless the CLI redaction policy explicitly allows it.
 
 ---
 

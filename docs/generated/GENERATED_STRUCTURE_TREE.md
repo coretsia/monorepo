@@ -54,6 +54,7 @@ Coretsia/
 │   │   ├── ADR-0023-kernel-bootstrap-phase-a.md
 │   │   ├── ADR-0024-kernel-module-plan-resolution.md
 │   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
+│   │   ├── ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -122,6 +123,9 @@ Coretsia/
 │       ├── INDEX.md
 │       ├── artifacts.md
 │       ├── config-and-env.md
+│       ├── config-directives.md
+│       ├── config-merge-order.md
+│       ├── config-precedence-matrix.md
 │       ├── config-roots.md
 │       ├── context-keys.md
 │       ├── context-lifecycle.md
@@ -527,6 +531,25 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapOverridesLoader.php
 │   │   │       │   │   ├── DotenvLoader.php
 │   │   │       │   │   └── EnvRepositoryBuilder.php
+│   │   │       │   ├── Config/
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ConfigDirectiveMixedLevelException.php
+│   │   │       │   │   │   ├── ConfigDirectiveTypeMismatchException.php
+│   │   │       │   │   │   ├── ConfigInvalidException.php
+│   │   │       │   │   │   └── ConfigReservedNamespaceException.php
+│   │   │       │   │   ├── Explain/
+│   │   │       │   │   │   └── ConfigExplainer.php
+│   │   │       │   │   ├── Loaders/
+│   │   │       │   │   │   ├── EnvironmentOverlayLoader.php
+│   │   │       │   │   │   ├── PackageDefaultsConfigLoader.php
+│   │   │       │   │   │   └── SkeletonConfigLoader.php
+│   │   │       │   │   ├── Validation/
+│   │   │       │   │   │   └── ConfigNamespaceGuard.php
+│   │   │       │   │   ├── ConfigKernel.php
+│   │   │       │   │   ├── ConfigMerger.php
+│   │   │       │   │   ├── ConfigRulesLoader.php
+│   │   │       │   │   ├── ConfigValidator.php
+│   │   │       │   │   └── DirectiveProcessor.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ModePresetInvalidException.php
@@ -589,6 +612,9 @@ Coretsia/
 │   │   │       │   │   ├── ModuleResolutionExceptionShapeContractTest.php
 │   │   │       │   │   ├── ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php
 │   │   │       │   │   ├── OutcomeMappingStabilityContractTest.php
+│   │   │       │   │   ├── SpikeConfigExplainTraceCompatibilityContractTest.php
+│   │   │       │   │   ├── SpikeConfigExplainTraceIsSafeContractTest.php
+│   │   │       │   │   ├── SpikeConfigMergeCompatibilityContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
@@ -607,6 +633,13 @@ Coretsia/
 │   │   │       │   │   ├── ComposerManifestReaderRejectsDuplicateModuleIdsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderSortsModulesDeterministicallyTest.php
+│   │   │       │   │   ├── ConfigAggregateAndSplitFilesMergeOrderTest.php
+│   │   │       │   │   ├── ConfigEnvironmentSpecificOverlaysPrecedenceTest.php
+│   │   │       │   │   ├── ConfigExplainReturnsStableSourceTypesTest.php
+│   │   │       │   │   ├── ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
+│   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
+│   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
+│   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
@@ -636,8 +669,22 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
 │   │   │       │   │   ├── ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
-│   │   │       │   │   └── RequiredMissingFailsDeterministicallyTest.php
+│   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
+│   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
+│   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
 │   │   │       │   └── Unit/
+│   │   │       │       ├── Config/
+│   │   │       │       │   ├── ConfigRulesLoaderRejectsCallableRulesTest.php
+│   │   │       │       │   ├── ConfigRulesLoaderRequiresPlainArrayRulesTest.php
+│   │   │       │       │   ├── ConfigValidatorAcceptsCliRulesFixtureTest.php
+│   │   │       │       │   ├── ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php
+│   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliCommandsTest.php
+│   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
+│   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
+│   │   │       │       ├── ConfigValidatorRelativeSafePathTypeTest.php
+│   │   │       │       ├── DirectivesAppendRemoveListLikeOnlyTest.php
+│   │   │       │       ├── DirectivesExclusiveLevelTest.php
+│   │   │       │       ├── DirectivesMergeMapLikeOnlyTest.php
 │   │   │       │       ├── GraphCycleDetectionTest.php
 │   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
 │   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php

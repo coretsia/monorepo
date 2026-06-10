@@ -55,6 +55,7 @@ Coretsia/
 │   │   ├── ADR-0024-kernel-module-plan-resolution.md
 │   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
 │   │   ├── ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
+│   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -121,7 +122,9 @@ Coretsia/
 │   │   └── ROADMAP.md
 │   └── ssot/
 │       ├── INDEX.md
+│       ├── artifacts-and-fingerprint.md
 │       ├── artifacts.md
+│       ├── cache-verify.md
 │       ├── config-and-env.md
 │       ├── config-directives.md
 │       ├── config-merge-order.md
@@ -519,6 +522,38 @@ Coretsia/
 │   │   │       │       ├── hybrid.php
 │   │   │       │       └── micro.php
 │   │   │       ├── src/
+│   │   │       │   ├── Artifacts/
+│   │   │       │   │   ├── Builders/
+│   │   │       │   │   │   ├── CompiledConfigBuilder.php
+│   │   │       │   │   │   ├── ModuleManifestBuilder.php
+│   │   │       │   │   │   └── StubContainerBuilder.php
+│   │   │       │   │   ├── Compiler/
+│   │   │       │   │   │   └── ArtifactCompiler.php
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ArtifactInvalidException.php
+│   │   │       │   │   │   ├── ArtifactPathInvalidException.php
+│   │   │       │   │   │   ├── ArtifactPayloadInvalidException.php
+│   │   │       │   │   │   ├── ArtifactWriteFailedException.php
+│   │   │       │   │   │   ├── FingerprintSymlinkForbiddenException.php
+│   │   │       │   │   │   └── JsonFloatForbiddenException.php
+│   │   │       │   │   ├── Fingerprint/
+│   │   │       │   │   │   ├── ConfigFingerprintInputBuilder.php
+│   │   │       │   │   │   ├── DeterministicFileLister.php
+│   │   │       │   │   │   ├── FingerprintCalculator.php
+│   │   │       │   │   │   └── FingerprintExplainer.php
+│   │   │       │   │   ├── Header/
+│   │   │       │   │   │   └── ArtifactHeader.php
+│   │   │       │   │   ├── Paths/
+│   │   │       │   │   │   └── ArtifactPathResolver.php
+│   │   │       │   │   ├── Php/
+│   │   │       │   │   │   ├── PhpArtifactReader.php
+│   │   │       │   │   │   └── StablePhpArrayDumper.php
+│   │   │       │   │   ├── Verifier/
+│   │   │       │   │   │   ├── ArtifactSchemaValidator.php
+│   │   │       │   │   │   └── CacheVerifier.php
+│   │   │       │   │   ├── ArtifactEnvelopeFactory.php
+│   │   │       │   │   ├── ArtifactWriter.php
+│   │   │       │   │   └── PayloadNormalizer.php
 │   │   │       │   ├── Boot/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   └── BootstrapException.php
@@ -596,12 +631,24 @@ Coretsia/
 │   │   │       │       └── UnitOfWorkType.php
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
+│   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │   │       │   │   ├── FingerprintCalculatorStableInputContractTest.php
+│   │   │       │   │   ├── FingerprintExplainerDeterminismContractTest.php
+│   │   │       │   │   ├── FingerprintExplainerRedactionContractTest.php
+│   │   │       │   │   ├── FingerprintFileListingOrderContractTest.php
+│   │   │       │   │   ├── FingerprintPathSeparatorContractTest.php
+│   │   │       │   │   ├── KernelArtifactsDocsAndRegistryConsistencyContractTest.php
+│   │   │       │   │   ├── KernelArtifactsObservabilityPolicyContractTest.php
+│   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php
+│   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php
 │   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
+│   │   │       │   │   ├── KernelDoesNotEmitRoutesArtifactContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEnumerateResetDiscoveryTagTest.php
 │   │   │       │   │   ├── KernelDoesNotWriteToStdoutTest.php
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
+│   │   │       │   │   ├── KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
@@ -612,14 +659,26 @@ Coretsia/
 │   │   │       │   │   ├── ModuleResolutionExceptionShapeContractTest.php
 │   │   │       │   │   ├── ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php
 │   │   │       │   │   ├── OutcomeMappingStabilityContractTest.php
+│   │   │       │   │   ├── PayloadNormalizerDeterministicOrderTest.php
 │   │   │       │   │   ├── SpikeConfigExplainTraceCompatibilityContractTest.php
 │   │   │       │   │   ├── SpikeConfigExplainTraceIsSafeContractTest.php
 │   │   │       │   │   ├── SpikeConfigMergeCompatibilityContractTest.php
+│   │   │       │   │   ├── SpikeFingerprintExplainSafetyLockTest.php
+│   │   │       │   │   ├── SpikeFingerprintGoldenHashLockTest.php
+│   │   │       │   │   ├── SpikeFingerprintPathNormalizationCrossOsLockTest.php
+│   │   │       │   │   ├── SpikeFingerprintSymlinkForbiddenLockTest.php
+│   │   │       │   │   ├── SpikeJsonFloatForbiddenLockTest.php
+│   │   │       │   │   ├── SpikePayloadNormalizerDeterministicOrderLockTest.php
+│   │   │       │   │   ├── SpikeStableJsonEncodingLockTest.php
+│   │   │       │   │   ├── StablePhpArrayDumperDeterministicEmissionContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ArtifactPipelineTestSupport.php
+│   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
+│   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootstrapDoesNotScanSkeletonAppsTest.php
 │   │   │       │   │   ├── BootstrapDotenvRespectedUnderStrictPolicyTest.php
 │   │   │       │   │   ├── BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
@@ -627,6 +686,9 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
+│   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
+│   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
+│   │   │       │   │   ├── CompiledConfigKeepsUserOwnedRootsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderDoesNotLeakPathsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsOnlyComposerMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php
@@ -640,6 +702,11 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
 │   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
+│   │   │       │   │   ├── FingerprintIgnoresSkeletonVarTest.php
+│   │   │       │   │   ├── FingerprintIncludesUserOwnedConfigRootsTest.php
+│   │   │       │   │   ├── KernelArtifactObservabilityDoesNotChangeBehaviorTest.php
+│   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
+│   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
@@ -681,14 +748,18 @@ Coretsia/
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliCommandsTest.php
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
 │   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
+│   │   │       │       ├── ArtifactPathResolverUsesBootstrapAppTargetTest.php
+│   │   │       │       ├── ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php
 │   │   │       │       ├── ConfigValidatorRelativeSafePathTypeTest.php
 │   │   │       │       ├── DirectivesAppendRemoveListLikeOnlyTest.php
 │   │   │       │       ├── DirectivesExclusiveLevelTest.php
 │   │   │       │       ├── DirectivesMergeMapLikeOnlyTest.php
+│   │   │       │       ├── FingerprintInstalledManifestNormalizationTest.php
 │   │   │       │       ├── GraphCycleDetectionTest.php
 │   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
 │   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php
+│   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE

@@ -133,20 +133,26 @@ The method/type mapping is canonical:
 - `MeterPortInterface::increment(...)` MUST be used only with `counter` metrics.
 - `MeterPortInterface::observe(...)` MUST be used only with `observe` metrics.
 
-| Metric name                        | Owner             | Type    | Labels                        |
-|------------------------------------|-------------------|---------|-------------------------------|
-| http.request_total                 | `platform/http`   | counter | `method`, `status`, `outcome` |
-| http.request_duration_ms           | `platform/http`   | observe | `method`, `status`, `outcome` |
-| foundation.reset_total             | `core/foundation` | counter | `outcome`                     |
-| foundation.reset_duration_ms       | `core/foundation` | observe | `outcome`                     |
-| kernel.uow_total                   | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.uow_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`        |
-| kernel.modules_resolve_total       | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.modules_resolve_duration_ms | `core/kernel`     | observe | `operation`, `outcome`        |
-| kernel.config_merge_total          | `core/kernel`     | counter | `outcome`                     |
-| kernel.config_merge_duration_ms    | `core/kernel`     | observe | `outcome`                     |
-| kernel.config_explain_total        | `core/kernel`     | counter | `outcome`                     |
-| kernel.config_explain_duration_ms  | `core/kernel`     | observe | `outcome`                     |
+| Metric name                              | Owner             | Type    | Labels                        |
+|------------------------------------------|-------------------|---------|-------------------------------|
+| http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome` |
+| http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
+| foundation.reset_total                   | `core/foundation` | counter | `outcome`                     |
+| foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                     |
+| kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.uow_duration_ms                   | `core/kernel`     | observe | `operation`, `outcome`        |
+| kernel.modules_resolve_total             | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.modules_resolve_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`        |
+| kernel.config_merge_total                | `core/kernel`     | counter | `outcome`                     |
+| kernel.config_merge_duration_ms          | `core/kernel`     | observe | `outcome`                     |
+| kernel.config_explain_total              | `core/kernel`     | counter | `outcome`                     |
+| kernel.config_explain_duration_ms        | `core/kernel`     | observe | `outcome`                     |
+| kernel.artifacts_write_total             | `core/kernel`     | counter | `outcome`                     |
+| kernel.artifacts_write_duration_ms       | `core/kernel`     | observe | `outcome`                     |
+| kernel.fingerprint_calculate_total       | `core/kernel`     | counter | `outcome`                     |
+| kernel.fingerprint_calculate_duration_ms | `core/kernel`     | observe | `outcome`                     |
+| kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                     |
+| kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                     |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -179,6 +185,63 @@ They MUST NOT use the `operation` label.
 
 Rationale: the operation is already encoded in the metric name (`config_merge` or `config_explain`), so adding `operation` would duplicate the operation dimension and create avoidable label drift.
 
+### Kernel artifact/fingerprint/cache observability policy
+
+Kernel artifact, fingerprint, and cache verification observability is operation-specific by metric and span name.
+
+The following spans are canonical:
+
+- `kernel.artifacts_write`
+- `kernel.fingerprint_calculate`
+- `kernel.cache_verify`
+
+The following metrics MUST use only the `outcome` label:
+
+- `kernel.artifacts_write_total`
+- `kernel.artifacts_write_duration_ms`
+- `kernel.fingerprint_calculate_total`
+- `kernel.fingerprint_calculate_duration_ms`
+- `kernel.cache_verify_total`
+- `kernel.cache_verify_duration_ms`
+
+They MUST NOT use the `operation` label.
+
+They MUST NOT introduce any of the following metric labels:
+
+- `path`
+- `artifact`
+- `app`
+- `env`
+- `fingerprint`
+
+Rationale: the operation is already encoded in the metric name (`artifacts_write`, `fingerprint_calculate`, or `cache_verify`). Adding operation-like, artifact-like, app-like, env-like, path-like, or fingerprint-like labels would create unnecessary cardinality, privacy risk, and label drift.
+
+Ownership is canonical:
+
+- `ArtifactWriter` owns `kernel.artifacts_write`.
+- `FingerprintCalculator` owns `kernel.fingerprint_calculate`.
+- `CacheVerifier` owns `kernel.cache_verify`.
+
+Artifact/fingerprint/cache services MUST depend on observability ports/interfaces only, plus Foundation `Stopwatch` for duration measurement.
+
+Artifact/fingerprint/cache services MUST NOT instantiate Noop observability implementations.
+
+Artifact/fingerprint/cache services MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
+
+Real-vs-Noop/default binding is outside artifact service responsibility.
+
+Observability failures MUST NOT change deterministic artifact/fingerprint/cache behavior.
+
+Lifecycle logs are emitted through `LoggerInterface`.
+
+The logger implementation MAY be real or Noop, but artifact/fingerprint/cache services MUST NOT know which one they received.
+
+Logger calls MUST be failure-silent and MUST NOT change artifact/fingerprint/cache behavior.
+
+Logs MAY include normalized relative paths, artifact basenames, safe bucket names, safe reason tokens, counts, durations, and bounded outcome tokens.
+
+Logs MUST NOT include secrets, raw payloads, raw config values, raw env values, dotenv values, source file contents, full fingerprints, absolute paths, temp paths, PHP warning text, stack traces, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
+
 ## Forbidden Data (MUST NOT LEAK)
 
 The following data is forbidden in logs, metrics, span names, span attributes, and label values unless transformed into a safe representation:
@@ -197,7 +260,11 @@ The following data is forbidden in logs, metrics, span names, span attributes, a
 
 The following label keys are forbidden in the baseline policy:
 
+- `app`
+- `artifact`
+- `env`
 - `field`
+- `fingerprint`
 - `path`
 - `property`
 - `request_id`
@@ -235,6 +302,9 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `kernel.modules_resolve`
 - `kernel.config_merge`
 - `kernel.config_explain`
+- `kernel.artifacts_write`
+- `kernel.fingerprint_calculate`
+- `kernel.cache_verify`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 
@@ -252,6 +322,12 @@ Baseline metric names and their metric-specific labels are registered in the can
 - `kernel.config_merge_duration_ms`
 - `kernel.config_explain_total`
 - `kernel.config_explain_duration_ms`
+- `kernel.artifacts_write_total`
+- `kernel.artifacts_write_duration_ms`
+- `kernel.fingerprint_calculate_total`
+- `kernel.fingerprint_calculate_duration_ms`
+- `kernel.cache_verify_total`
+- `kernel.cache_verify_duration_ms`
 
 Reset metric names and their metric-specific labels are registered in the canonical metrics catalog above:
 

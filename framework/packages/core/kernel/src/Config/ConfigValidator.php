@@ -901,6 +901,10 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
             return false;
         }
 
+        if (\trim($value) !== $value || \preg_match('/\s/u', $value) === 1) {
+            return false;
+        }
+
         if (\str_contains($value, "\0") || \str_contains($value, "\r") || \str_contains($value, "\n")) {
             return false;
         }
@@ -921,8 +925,12 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
             return false;
         }
 
+        if (\str_contains($value, '//')) {
+            return false;
+        }
+
         foreach (\explode('/', $value) as $segment) {
-            if ($segment === '..') {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
                 return false;
             }
         }

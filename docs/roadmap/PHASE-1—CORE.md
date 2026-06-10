@@ -11750,7 +11750,7 @@ Forbidden:
 
 - Artifacts:
   - This epic introduces no artifacts directly.
-  - `skeleton/var/cache/<appId>/module-manifest.php` is written later by the artifacts/config compile owner.
+  - `skeleton/var/cache/<appTarget>/module-manifest.php` is written later by the artifacts/config compile owner.
   - `ModulePlan::toArray()` is artifact-ready but not written by this epic.
 
 - Policy surface:
@@ -12609,7 +12609,7 @@ Forbidden:
 - CLI:
   - `coretsia config:validate|config:debug|config:compile` → owner `platform/cli`
 - Artifacts:
-  - writes (via artifacts epic): `skeleton/var/cache/<appId>/config.php`
+  - writes (via artifacts epic): `skeleton/var/cache/<appTarget>/config.php`
 - Docs:
   - SSoT docs MUST match implementation + tests (no “creative” divergence)
 
@@ -12679,6 +12679,25 @@ The canonical docs are:
 
 Kernel config core:
 - [x] `framework/packages/core/kernel/src/Config/ConfigKernel.php` — orchestrates loaders + directives + merge + validate + explain
+  - [x] public `compile(...)` result MUST expose safe metadata needed by artifact fingerprinting:
+    - [x] `envOverlayMappings`;
+    - [x] `configSourceFiles`;
+  - [x] `envOverlayMappings` MUST be the exact resolved mappings produced by `EnvironmentOverlayLoader` from rulesets + explicit mappings;
+  - [x] `configSourceFiles` MUST be the safe source file metadata produced by config loaders for skeleton/app/user-owned config files;
+  - [x] `ConfigKernel` MUST NOT calculate artifact fingerprints;
+  - [x] `ConfigKernel` MUST NOT hash compiled artifact envelopes;
+  - [x] `ConfigKernel` MUST NOT expose absolute filesystem paths;
+  - [x] `ConfigKernel` MUST NOT expose raw config values or raw env values inside safe provenance metadata:
+    - [x] `envOverlayMappings`;
+    - [x] `configSourceFiles`;
+    - [x] `owners`;
+    - [x] `sources`;
+    - [x] `explain`;
+    - [x] logs;
+    - [x] metrics;
+    - [x] spans.
+  - [x] The existing public `config` result remains the final merged global config payload and is not treated as provenance metadata.
+  - [x] `ConfigKernel` MUST only pass through or derive safe Phase B source provenance metadata needed for merge, explain, and artifact fingerprint input.
 
   Construction / dependencies:
   - [x] MUST be an orchestration service, not a loader, validator, merger, or explainer implementation.
@@ -13016,6 +13035,29 @@ Loaders:
   - [x] Discovery MUST be deterministic and path-list based.
   - [x] MUST NOT scan arbitrary directories outside declared skeleton/app config locations.
   - [x] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
+  - [x] MUST return safe `sourceFiles` metadata for every skeleton/app config candidate it resolves;
+  - [x] `sourceFiles` MUST distinguish:
+    - [x] skeleton shared config files;
+    - [x] skeleton environment config files;
+    - [x] app shared config files;
+    - [x] app environment config files;
+    - [x] user-owned/custom split-root files;
+  - [x] each source file metadata item MUST include only safe fields:
+    - [x] `layer`;
+    - [x] `kind`;
+    - [x] `root`;
+    - [x] `sourceId`;
+    - [x] normalized relative `path`;
+    - [x] `exists`;
+    - [x] `readable`;
+    - [x] `hash` when readable;
+    - [x] `len` when readable;
+  - [x] `hash` MUST be `sha256` over LF-normalized file bytes;
+  - [x] missing expected candidates MUST be represented as `exists=false`;
+  - [x] unreadable existing candidates MUST be represented as `exists=true`, `readable=false` or fail according to existing loader policy;
+  - [x] MUST NOT expose absolute paths;
+  - [x] MUST NOT expose raw file contents;
+  - [x] MUST NOT expose mtimes, permissions, filesystem owners, hostnames, user names, or process-specific data.
 
 - [x] `framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php`
   - [x] Builds env overlays only from the immutable `EnvRepositoryInterface` snapshot.
@@ -13487,19 +13529,30 @@ Forbidden:
 
 ### Entry points / integration points (MUST)
 
-- CLI:
-  - `coretsia config:compile` → `platform/cli` `.../ConfigCompileCommand.php`
-  - `coretsia cache:verify`  → `platform/cli` `.../CacheVerifyCommand.php`
+- CLI integration:
+  - `platform/cli` owns `coretsia config:compile` command class, output formatting, and exit codes.
+  - `platform/cli` owns `coretsia cache:verify` command class, output formatting, and exit codes.
+  - `core/kernel` owns only runtime-safe services consumed by CLI:
+    - `ArtifactCompiler`;
+    - `CacheVerifier`;
+    - deterministic compile/verify result arrays or value objects.
+  - `core/kernel` MUST NOT depend on `platform/cli`.
+  - `core/kernel` MUST NOT render CLI output.
 - Artifacts:
   - writes:
-    - `skeleton/var/cache/<appId>/module-manifest.php`
-    - `skeleton/var/cache/<appId>/config.php`
-    - `skeleton/var/cache/<appId>/container.php` (stub; REAL in 1.340.0)
+    - `skeleton/var/cache/<appTarget>/module-manifest.php`
+    - `skeleton/var/cache/<appTarget>/config.php`
+    - `skeleton/var/cache/<appTarget>/container.php` (stub; REAL in 1.340.0)
   - reads (verify):
     - validates header + payload schema for the same files
 
 - `routes@1` is owned and emitted only by `platform/routing`.
 - `core/kernel` MUST NOT emit a stub or placeholder `routes.php` artifact.
+
+Recommended CLI exit-code mapping owned by `platform/cli`:
+- `0` = clean/success;
+- `1` = dirty artifacts;
+- `2` = invalid artifact or verification failure.
 
 ### Phase 0 parity: artifacts + fingerprint + payload/json determinism (MUST)
 
@@ -13516,6 +13569,23 @@ Forbidden:
 - читати `framework/tools/**` у runtime execution
 
 Spike fixtures дозволені **тільки** в test-time Contract tests як compatibility locks (читання fixtures як data).
+
+#### Hard boundary: no new discovery during artifact/fingerprint production (MUST)
+
+`core/kernel` artifact/fingerprint production MUST NOT reintroduce discovery behavior that previous kernel epics intentionally avoided.
+
+Artifact/fingerprint code MUST NOT:
+- scan `framework/packages/**`;
+- scan package source trees;
+- scan `vendor/**`;
+- scan `skeleton/apps/*` to infer applications;
+- scan config directories to discover unknown roots;
+- infer ModulePlan inputs from filesystem state;
+- infer ConfigKernel inputs from filesystem state.
+
+Artifact/fingerprint code MAY hash explicit source candidates already supplied by the entrypoint/config-location owner.
+
+For config fingerprinting, missing explicit source candidates MUST be represented deterministically as `exists=false` metadata so creating or removing a declared candidate path changes the fingerprint without relying on directory scanning.
 
 ## Required invariants (cemented; single-choice)
 
@@ -13580,248 +13650,780 @@ Allowed:
 
 #### Creates
 
-- [ ] Config fingerprint policy:
-  - [ ] ConfigKernel MUST produce a deterministic safe fingerprint input for compiled config.
-  - [ ] Fingerprint MUST include logical source ids and content hashes for:
-    - [ ] package config files;
-    - [ ] preset/mode config overlays;
-    - [ ] skeleton shared config files;
-    - [ ] skeleton environment config files;
-    - [ ] app shared config files;
-    - [ ] app environment config files;
-    - [ ] env overlay source metadata;
-    - [ ] config rules files;
-    - [ ] ModulePlan / enabled module graph identity.
-  - [ ] Fingerprint MUST include selected:
-    - [ ] `appTarget`
-    - [ ] `appEnv`
-    - [ ] `preset`
-    - [ ] `BootstrapEnvSourcePolicy`
-  - [ ] Fingerprint MUST include user-owned/custom config roots.
-  - [ ] Fingerprint MUST include user-owned/custom config file content hashes.
-  - [ ] Fingerprint MUST include unvalidated user-owned roots as data, but MUST NOT imply semantic validation for them.
-  - [ ] Fingerprint MUST NOT include raw config values directly.
-  - [ ] Fingerprint MUST NOT include raw env values directly.
-  - [ ] Fingerprint MUST NOT include secrets, absolute paths, timestamps, mtimes, permissions, owners, or host-specific bytes.
-  - [ ] Fingerprint MAY include cryptographic hashes of source content and normalized compiled payload bytes.
-  - [ ] Fingerprint explain MUST show only:
-    - [ ] normalized logical source ids;
-    - [ ] normalized relative paths;
-    - [ ] config key paths;
-    - [ ] source type;
-    - [ ] hash/len metadata;
-    - [ ] validation status such as `validated` / `unvalidated`.
-  - [ ] Fingerprint explain MUST NOT show raw values.
-  - [ ] Compiled config artifact reuse is allowed only when stored fingerprint equals current fingerprint.
-  - [ ] Reading/writing compiled artifacts belongs to this artifacts owner epic.
+- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
+  - [x] MUST produce deterministic safe fingerprint input from:
+    - [x] the resolved `BootstrapConfig`;
+    - [x] the resolved `ModulePlan`;
+    - [x] the `ConfigKernel::compile(...)` result:
+      - [x] `config`;
+      - [x] `sources`;
+      - [x] `owners`;
+      - [x] `validation`;
+      - [x] `validationSubjects`;
+      - [x] `envOverlayMappings`;
+      - [x] `configSourceFiles`;
+    - [x] the same explicit config source candidate arrays passed to `ConfigKernel::compile(...)`;
+    - [x] the immutable `EnvRepositoryInterface` source metadata needed for env-overlay provenance.
+  - [x] `ConfigKernel` MUST remain the Phase B config orchestration boundary and MUST NOT become the fingerprint builder.
+  - [x] MUST NOT re-run config discovery, module discovery, preset resolution, env loading, or config merging.
+  - [x] MUST include logical source ids and content hashes for:
+    - [x] package config files;
+    - [x] preset/mode config overlays;
+    - [x] skeleton shared config files;
+    - [x] skeleton environment config files;
+    - [x] app shared config files;
+    - [x] app environment config files;
+    - [x] env overlay source metadata;
+    - [x] config rules files;
+    - [x] ModulePlan / enabled module graph identity.
+  - [x] MUST include selected resolved bootstrap identity values:
+    - [x] `appTarget`;
+    - [x] `appEnv`;
+    - [x] `preset`;
+    - [x] `debug`;
+    - [x] `BootstrapEnvSourcePolicy`.
+  - [x] MUST include user-owned/custom config roots.
+  - [x] MUST include user-owned/custom config file content hashes.
+  - [x] MUST include unvalidated user-owned roots as data.
+  - [x] MUST NOT imply semantic validation for user-owned roots when no rules exist.
+  - [x] MUST represent missing explicit source candidates as `exists=false`.
+  - [x] MUST NOT include raw config values directly.
+  - [x] MUST NOT include raw env values directly.
+  - [x] MUST NOT include secrets, absolute paths, timestamps, mtimes, permissions, filesystem owners, host-specific bytes, or process-specific bytes.
+  - [x] MAY include cryptographic hashes of source content.
+  - [x] MAY include cryptographic hashes of normalized compiled payload bytes.
+  - [x] dotenv file content hashes MUST be derived from canonical `kernel.env.dotenv.files` templates resolved against `BootstrapConfig::skeletonRoot()` and `BootstrapConfig::appEnv()`;
+  - [x] dotenv fingerprinting MAY read only those explicitly resolved dotenv candidate files;
+  - [x] missing dotenv candidates MUST be represented as `exists=false`;
+  - [x] dotenv fingerprinting MUST NOT enumerate arbitrary dotenv files;
+  - [x] dotenv fingerprinting MUST NOT read process env directly.
+  - [x] MUST expose only safe bounded metadata that downstream fingerprint observability MAY count or log:
+    - [x] bucket names;
+    - [x] normalized logical source ids;
+    - [x] normalized relative paths;
+    - [x] source candidate counts;
+    - [x] missing candidate counts;
+    - [x] validation subject counts;
+  - [x] MUST NOT expose raw config values, raw env values, dotenv values, source file contents, compiled payload bytes, absolute paths, fingerprints, mtimes, permissions, filesystem owners, host-specific bytes, or process-specific bytes for observability.
+  - [x] MUST NOT emit spans, metrics, logs, stdout, or stderr directly.
 
-Artifacts core:
-- [ ] All kernel-owned artifacts MUST use the canonical envelope:
-  - [ ] top-level shape: `{ "_meta": <header>, "payload": <schema-specific> }`
-  - [ ] this applies even when the artifact is emitted as a PHP file returning an array
-- [ ] `framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php` — atomic write + permissions + stable bytes
-- [ ] `framework/packages/core/kernel/src/Artifacts/PayloadNormalizer.php` — map ksort, list preserve, forbids floats (NaN/INF)
-- [ ] `framework/packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php` — stable PHP emission
-- [ ] `framework/packages/core/kernel/src/Artifacts/Header/ArtifactHeader.php` — canonical artifact header:
-  - [ ] `name`
-  - [ ] `schemaVersion`
-  - [ ] `fingerprint`
-  - [ ] `generator`
-  - [ ] optional `requires`
-  - [ ] no timestamps
+- [x] `framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php`
+  - [x] writes text artifacts as LF-only bytes and ensures exactly one final newline;
+  - [x] normalizes `\r\n` and `\r` to `\n` before writing;
+  - [x] writes through a temporary file created in the same target directory;
+  - [x] writes the full temporary file before rename;
+  - [x] renames temporary file to final target atomically where supported;
+  - [x] removes temporary file on failure when possible;
+  - [x] MUST NOT leave partial final artifacts visible;
+  - [x] write-time permissions MAY be applied as best-effort safety policy;
+  - [x] write-time permissions MUST NOT become cache clean/dirty semantics;
+  - [x] MUST NOT include timestamps, absolute paths, tool versions, hostnames, mtimes, permissions, owners, or process-specific bytes in artifact content.
+  - [x] owns observability for artifact write operation:
+    - [x] span: `kernel.artifacts_write`;
+    - [x] metric: `kernel.artifacts_write_total` with labels: `outcome`;
+    - [x] metric: `kernel.artifacts_write_duration_ms` with labels: `outcome`;
+  - [x] outcome label values MUST be bounded tokens only:
+    - [x] `success`;
+    - [x] `failure`;
+  - [x] MUST NOT use path, artifact name, app target, env, fingerprint, exception class, or reason as metric labels;
+  - [x] span attributes MAY include only safe counts and bounded operation metadata;
+  - [x] span attributes MUST NOT include absolute paths, raw artifact bytes, payloads, config values, env values, fingerprints, temporary file names, permissions, owners, hostnames, or user names;
+  - [x] logs MAY include normalized relative artifact paths, artifact basenames, byte counts, duration milliseconds, and outcome;
+  - [x] logs MUST NOT include absolute paths, temp paths, raw bytes, raw payloads, config values, env values, fingerprints, PHP warning text, previous throwable messages, permissions, owners, hostnames, or user names;
+  - [x] observability failures MUST NOT change artifact write behavior.
+  - [x] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`:
+    - [x] `TracerPortInterface`;
+    - [x] `MeterPortInterface`;
+    - [x] `LoggerInterface`;
+    - [x] `Stopwatch`;
+  - [x] MUST NOT know whether observability dependencies are real adapters or Noop adapters;
+  - [x] MUST NOT instantiate `NoopLogger`, `NoopMeter`, `NoopTracer`, or other observability implementations directly;
+  - [x] log event name SHOULD be a fixed token such as `kernel.artifacts.write`;
+  - [x] logger/meter/tracer failures MUST be caught and MUST NOT change artifact write behavior;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php`
+  - [x] resolves artifact output paths from:
+    - [x] `BootstrapConfig::skeletonRoot()`;
+    - [x] `BootstrapConfig::appTarget()->value`;
+    - [x] `kernel.artifacts.cache_dir`;
+    - [x] canonical artifact basename;
+  - [x] MUST resolve only under `<skeletonRoot>/var/cache/<appTarget>/`;
+  - [x] MUST reject path traversal;
+  - [x] MUST reject absolute `cache_dir`;
+  - [x] MUST reject `cache_dir` values prefixed with `skeleton/`;
+  - [x] MUST normalize separators to `/` for diagnostics/explain;
+  - [x] MUST NOT leak absolute paths in exception messages.
+
+- [x] `framework/packages/core/kernel/src/Artifacts/PayloadNormalizer.php`
+  - [x] normalizes artifact payloads before JSON/PHP emission;
+  - [x] treats associative arrays/maps as maps and sorts map keys with bytewise `strcmp`;
+  - [x] preserves list order exactly;
+  - [x] recursively normalizes nested arrays;
+  - [x] rejects any `float`, including `NaN`, `INF`, and `-INF`;
+  - [x] rejects objects, resources, closures, and non-scalar/non-array values;
+  - [x] MUST produce deterministic diagnostics using only a path-to-value token such as `a.b[3].c`;
+  - [x] MUST NOT include the rejected raw value in exception messages;
+  - [x] MUST align with Foundation stable JSON byte rules and MUST NOT redefine conflicting serialization semantics;
+  - [x] MUST preserve `null`, `bool`, `int`, and `string` values without semantic conversion.
+  - [x] rejects non-float invalid json-like values with `ArtifactPayloadInvalidException`;
+  - [x] uses `JsonFloatForbiddenException` only for float / NaN / INF / -INF violations;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`
+  - [x] emits deterministic PHP files returning arrays;
+  - [x] output MUST start with `<?php` and return a single array expression;
+  - [x] output MUST be LF-only and end with exactly one final newline;
+  - [x] map keys MUST be emitted in the normalized order provided by `PayloadNormalizer`;
+  - [x] list order MUST be preserved;
+  - [x] string escaping MUST be deterministic and independent of locale;
+  - [x] integer, boolean, null, list, and map emission MUST be stable across OS/PHP minor versions;
+  - [x] MUST NOT emit comments containing timestamps, tool versions, absolute paths, hostnames, user names, or process-specific data;
+  - [x] MUST NOT use `var_export()` directly unless wrapped/proven by contract tests to satisfy Coretsia stable emission rules;
+  - [x] MUST be covered by rerun-no-diff and canonical-envelope tests;
+  - [x] MUST emit PHP files that return the canonical envelope array unchanged;
+  - [x] MUST NOT wrap the envelope in another root key;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Header/ArtifactHeader.php` — immutable canonical artifact header value object:
+  - [x] `name`
+  - [x] `schemaVersion`
+  - [x] `fingerprint`
+  - [x] `generator`
+  - [x] optional `requires`
+  - [x] no timestamps
+
+- [x] `framework/packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php`
+  - [x] builds canonical `{ "_meta": ..., "payload": ... }` envelopes;
+  - [x] creates a fresh `ArtifactHeader` per artifact;
+  - [x] MUST NOT keep current artifact mutable state;
+  - [x] MUST NOT include timestamps, absolute paths, tool versions, hostnames, or environment-specific bytes;
+  - [x] MUST be the only kernel-owned service that assembles artifact envelopes;
+  - [x] every envelope MUST have exactly the top-level keys:
+    - [x] `_meta`;
+    - [x] `payload`;
+  - [x] MUST reject envelope construction if payload is not normalized json-like array data;
+  - [x] MUST create envelope-compatible data for PHP artifact emission and cache verification.
 
 Fingerprint:
-- [ ] `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php` — stable listing + symlink forbidden
-- [ ] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php` — sha256 over deterministic inputs
-- [ ] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php` — safe diff explain (hashes + key names)
+- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php` — stable listing + symlink forbidden
+  - [x] MAY be used only for explicitly declared fingerprint input roots/candidates;
+  - [x] MUST NOT be used to discover modules, config roots, app targets, package lists, or unknown config files;
+  - [x] directory listing is allowed only as deterministic hashing of an already-declared input bucket.
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php`
+  - [x] calculates lowercase hex `sha256` fingerprints over deterministic fingerprint input only;
+  - [x] MUST consume the normalized structure produced by `ConfigFingerprintInputBuilder`;
+  - [x] MUST serialize fingerprint input through the canonical Foundation `StableJsonEncoder`;
+  - [x] MUST NOT use PHP native serialization;
+  - [x] MUST NOT include raw config values directly;
+  - [x] MUST NOT include raw env values directly;
+  - [x] MUST NOT include secrets, absolute paths, timestamps, mtimes, permissions, filesystem owners, hostnames, process ids, random bytes, or locale-dependent bytes;
+  - [x] MAY include cryptographic hashes of source file content;
+  - [x] MAY include cryptographic hashes of normalized compiled payload bytes;
+  - [x] MUST preserve deterministic bucket/key ordering;
+  - [x] MUST return a stable 64-character lowercase hex digest;
+  - [x] same logical input MUST produce the same fingerprint across OSes;
+  - [x] any non-normalizable input MUST fail deterministically without leaking raw values.
+  - [x] owns observability for fingerprint calculation operation:
+    - [x] span: `kernel.fingerprint_calculate`;
+    - [x] metric: `kernel.fingerprint_calculate_total` with labels: `outcome`;
+    - [x] metric: `kernel.fingerprint_calculate_duration_ms` with labels: `outcome`;
+  - [x] outcome label values MUST be bounded tokens only:
+    - [x] `success`;
+    - [x] `failure`;
+  - [x] MUST NOT use path, source id, config key, app target, env, preset, fingerprint, exception class, or reason as metric labels;
+  - [x] span attributes MAY include only safe counts:
+    - [x] fingerprint input bucket count;
+    - [x] source candidate count;
+    - [x] missing source candidate count;
+    - [x] env overlay metadata count;
+    - [x] validation subject counts;
+  - [x] span attributes MUST NOT include raw config values, raw env values, dotenv values, source file contents, compiled payloads, fingerprints, absolute paths, PHP warning text, or previous throwable messages;
+  - [x] logs MAY include safe bucket names, normalized relative paths, source counts, missing counts, and outcome;
+  - [x] logs MUST NOT include raw config values, raw env values, dotenv values, source file contents, compiled payloads, fingerprints, absolute paths, PHP warning text, or previous throwable messages;
+  - [x] observability failures MUST NOT change fingerprint calculation behavior.
+  - [x] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`:
+    - [x] `TracerPortInterface`;
+    - [x] `MeterPortInterface`;
+    - [x] `LoggerInterface`;
+    - [x] `Stopwatch`;
+  - [x] MUST NOT know whether observability dependencies are real adapters or Noop adapters;
+  - [x] MUST NOT instantiate `NoopLogger`, `NoopMeter`, `NoopTracer`, or other observability implementations directly;
+  - [x] log event name SHOULD be a fixed token such as `kernel.fingerprint.calculate`;
+  - [x] logger/meter/tracer failures MUST be caught and MUST NOT change fingerprint calculation behavior;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php`
+  - [x] produces safe deterministic explain data for cache verification and fingerprint diffs;
+  - [x] explain output MAY show:
+    - [x] normalized logical source ids;
+    - [x] normalized relative paths;
+    - [x] config key paths;
+    - [x] source type;
+    - [x] `hash(value)`;
+    - [x] `len(value)`;
+    - [x] validation status such as `validated` / `unvalidated`;
+    - [x] reason tokens such as `missing`, `changed`, `extra`, `invalid`;
+  - [x] explain output MUST NOT show:
+    - [x] raw config values;
+    - [x] raw env values;
+    - [x] dotenv values;
+    - [x] secrets;
+    - [x] raw payloads;
+    - [x] raw SQL;
+    - [x] absolute paths;
+    - [x] PHP warning text;
+    - [x] previous throwable messages;
+  - [x] MUST order explain entries deterministically using bytewise `strcmp`;
+  - [x] MUST be safe for `platform/cli` to render without additional redaction;
+  - [x] MUST NOT print output directly.
 
 Builders:
-- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php`
-- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
-  - [ ] MUST include the full merged global config payload, including user-owned/custom roots.
-  - [ ] MUST preserve deterministic map key ordering.
-  - [ ] MUST not drop unvalidated user-owned roots.
-  - [ ] MUST not mark unvalidated user-owned roots as framework-validated.
-  - [ ] MUST write canonical artifact envelope `{ "_meta", "payload" }`.
-- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+- [x] `framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php`
+  - [x] MUST use `ModulePlan::toArray()` as the canonical payload base;
+  - [x] MUST NOT re-resolve modules;
+  - [x] MUST NOT read Composer metadata;
+  - [x] MUST NOT read mode preset files;
+  - [x] MUST NOT scan filesystem paths;
+  - [x] MUST preserve the existing ModulePlan exported key order and schema semantics.
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
+  - [x] MUST include the full merged global config payload, including user-owned/custom roots.
+  - [x] MUST preserve deterministic map key ordering.
+  - [x] MUST not drop unvalidated user-owned roots.
+  - [x] MUST not mark unvalidated user-owned roots as framework-validated.
+  - [x] MUST write canonical artifact envelope `{ "_meta", "payload" }`.
+  - [x] MUST consume the `ConfigKernel::compile(...)` result instead of re-running config merge internally.
+  - [x] MUST preserve `validationSubjects` metadata for fingerprint/explain linkage.
+  - [x] MUST preserve `sources` as safe source metadata only.
+  - [x] MUST NOT include raw env values inside provenance metadata:
+    - [x] `sources`;
+    - [x] `owners`;
+    - [x] `envOverlayMappings`;
+    - [x] `configSourceFiles`;
+    - [x] `validation`;
+    - [x] `validationSubjects`.
+  - [x] `payload.config` remains the full merged global config payload and is not treated as provenance metadata.
+  - [x] MUST NOT include raw filesystem absolute paths from source candidate arrays.
+  - [x] MUST NOT include PHP objects such as `ConfigValidationResult` or `ConfigValueSource` directly; payload MUST be scalar/json-like array data only.
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+  - [x] emits `container@1` as a deterministic stub artifact in this epic;
+  - [x] payload MUST be forward-compatible with 1.340.0 compiled container work;
+  - [x] payload MUST include:
+    - [x] `kind` = `"stub"`;
+    - [x] `compiled` = `false`;
+    - [x] `services` = [];
+    - [x] `aliases` = [];
+    - [x] `tags` = [];
+  - [x] 1.340.0 MAY emit `kind = "compiled"` only if it remains compatible with `container@1`;
+  - [x] if real compiled container payload shape is incompatible, 1.340.0 MUST introduce `container@2`.
+
+Compiler:
+- [x] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+  - [x] orchestrates kernel-owned artifact generation;
+  - [x] receives already resolved:
+    - [x] `BootstrapConfig`;
+    - [x] `ModulePlan`;
+    - [x] `EnvRepositoryInterface`;
+    - [x] package default config source candidates;
+    - [x] package rule source candidates;
+    - [x] split root source candidates;
+    - [x] explicit rule source candidates;
+    - [x] explicit env overlay mappings;
+  - [x] invokes `ConfigKernel::compile(...)` exactly once per compile operation with those inputs;
+  - [x] builds:
+    - [x] `module-manifest.php`;
+    - [x] `config.php`;
+    - [x] `container.php`;
+  - [x] writes artifacts through `ArtifactWriter`;
+  - [x] returns deterministic result data for platform/cli rendering;
+  - [x] MUST NOT print output;
+  - [x] MUST NOT depend on `platform/cli`;
+  - [x] MUST NOT invoke runtime UoW/reset lifecycle;
+  - [x] MUST NOT reuse an existing compiled config artifact unless the stored artifact fingerprint equals the current fingerprint;
+  - [x] on fingerprint mismatch, MUST rebuild and rewrite kernel-owned artifacts;
+  - [x] MUST rely on `ArtifactWriter` for artifact write observability and MUST NOT duplicate `kernel.artifacts_write_*` metrics;
+  - [x] MUST rely on `FingerprintCalculator` for fingerprint calculation observability and MUST NOT duplicate `kernel.fingerprint_calculate_*` metrics;
+  - [x] compile result data MAY include safe counts and normalized relative artifact paths for platform/cli rendering;
+  - [x] compile result data MUST NOT include raw payloads, raw config values, raw env values, absolute paths, fingerprints unless explicitly required as safe hash metadata, PHP warning text, stack traces, or previous throwable messages.
 
 Verification:
-- [ ] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php` — compares **artifact content bytes only** (normalized LF); ignores mtime/permissions; validates artifact headers + payload schema
+- [x] `framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php`
+  - [x] reads existing artifact raw bytes for byte-level comparison;
+  - [x] parses PHP-returned artifact arrays for envelope/header/payload validation;
+  - [x] returns both normalized bytes and parsed envelope data to `CacheVerifier`;
+  - [x] converts file read/include/require warnings/errors into deterministic `ArtifactInvalidException`;
+  - [x] MUST NOT leak absolute paths, input path strings, PHP warning text, stack traces, or previous throwable messages.
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+  - [x] validates canonical envelope shape;
+  - [x] validates header fields:
+    - [x] `name`;
+    - [x] `schemaVersion`;
+    - [x] `fingerprint`;
+    - [x] `generator`;
+    - [x] optional `requires`;
+  - [x] validates artifact-specific payload schema for:
+    - [x] `module-manifest@1`;
+    - [x] `config@1`;
+    - [x] `container@1`;
+  - [x] MUST NOT rely on PHP object identity or class type semantics.
+  - [x] MUST reject any kernel-owned artifact that does not have exactly the canonical top-level envelope shape `{ "_meta", "payload" }`;
+  - [x] MUST reject artifact-specific alternative top-level shapes;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+  - [x] computes current deterministic fingerprint input;
+  - [x] rebuilds expected artifact envelopes in memory;
+  - [x] dumps expected PHP artifact bytes with `StablePhpArrayDumper`;
+  - [x] reads existing artifact normalized bytes and parsed envelope data with `PhpArtifactReader`;
+  - [x] validates existing artifact envelope/header/payload schema with `ArtifactSchemaValidator`;
+  - [x] normalizes LF bytes before comparison;
+  - [x] compares content bytes only;
+  - [x] ignores mtime/ctime/permissions/ownership;
+  - [x] returns deterministic clean/dirty/invalid result data for CLI rendering;
+  - [x] MUST NOT print output;
+  - [x] MUST NOT depend on `platform/cli`;
+  - [x] MUST NOT invoke `ResetOrchestrator`;
+  - [x] MUST NOT start a UnitOfWork.
+  - [x] missing expected artifact files MUST produce `dirty=true` with safe reason token `missing`;
+  - [x] unreadable files, invalid PHP-returned payloads, invalid envelopes, or schema violations MUST produce `invalid`;
+  - [x] missing/dirty/invalid explain output MUST use only artifact basenames and normalized relative paths.
+  - [x] stored artifact fingerprint MUST be compared with the current fingerprint;
+  - [x] stored fingerprint mismatch MUST produce `dirty=true` with safe reason token `fingerprint_mismatch`;
+  - [x] owns observability for cache verification operation:
+    - [x] span: `kernel.cache_verify`;
+    - [x] metric: `kernel.cache_verify_total` with labels: `outcome`;
+    - [x] metric: `kernel.cache_verify_duration_ms` with labels: `outcome`;
+  - [x] outcome label values MUST be bounded tokens only:
+    - [x] `clean`;
+    - [x] `dirty`;
+    - [x] `invalid`;
+    - [x] `failure`;
+  - [x] MUST NOT use path, artifact name, app target, env, preset, fingerprint, exception class, or reason as metric labels;
+  - [x] span attributes MAY include only safe counts:
+    - [x] expected artifact count;
+    - [x] existing artifact count;
+    - [x] missing artifact count;
+    - [x] dirty artifact count;
+    - [x] invalid artifact count;
+  - [x] span attributes MUST NOT include absolute paths, raw artifact bytes, raw payloads, config values, env values, fingerprints, PHP warning text, stack traces, or previous throwable messages;
+  - [x] logs MAY include normalized relative artifact paths, artifact basenames, safe reason tokens, counts, and verification outcome;
+  - [x] logs MUST NOT include absolute paths, raw artifact bytes, raw PHP payloads, raw config values, raw env values, fingerprints, PHP warning text, stack traces, previous throwable messages, mtimes, permissions, owners, hostnames, or user names;
+  - [x] observability failures MUST NOT change cache verification result semantics.
+  - [x] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`:
+    - [x] `TracerPortInterface`;
+    - [x] `MeterPortInterface`;
+    - [x] `LoggerInterface`;
+    - [x] `Stopwatch`;
+  - [x] MUST NOT know whether observability dependencies are real adapters or Noop adapters;
+  - [x] MUST NOT instantiate `NoopLogger`, `NoopMeter`, `NoopTracer`, or other observability implementations directly;
+  - [x] log event name SHOULD be a fixed token such as `kernel.cache.verify`;
+  - [x] logger/meter/tracer failures MUST be caught and MUST NOT change clean/dirty/invalid cache verification semantics;
 
 Errors:
-- [ ] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactWriteFailedException.php` — `CORETSIA_ARTIFACT_WRITE_FAILED`
-- [ ] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactInvalidException.php` — `CORETSIA_ARTIFACT_INVALID`
-- [ ] `framework/packages/core/kernel/src/Artifacts/Exception/FingerprintSymlinkForbiddenException.php` — `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
-- [ ] `framework/packages/core/kernel/src/Artifacts/Exception/JsonFloatForbiddenException.php` — `CORETSIA_JSON_FLOAT_FORBIDDEN`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactWriteFailedException.php` — `CORETSIA_ARTIFACT_WRITE_FAILED`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactInvalidException.php` — `CORETSIA_ARTIFACT_INVALID`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/FingerprintSymlinkForbiddenException.php` — `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/JsonFloatForbiddenException.php` — `CORETSIA_JSON_FLOAT_FORBIDDEN`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactPathInvalidException.php` — `CORETSIA_ARTIFACT_PATH_INVALID`
+- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactPayloadInvalidException.php` — `CORETSIA_ARTIFACT_PAYLOAD_INVALID`
 
 Docs:
-- [ ] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
-- [ ] `docs/ssot/artifacts-and-fingerprint.md` - kernel artifact production + fingerprint behavior
-  - [ ] MUST NOT redefine the canonical artifact envelope, header fields, or artifact registry rows from `docs/ssot/artifacts.md`.
-  - [ ] Owns only kernel-side production rules for artifacts, fingerprint behavior, exclusions, and verification linkage.
-- [ ] `docs/ssot/cache-verify.md`
+- [x] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
+- [x] `docs/ssot/artifacts-and-fingerprint.md` - kernel artifact production + fingerprint behavior
+  - [x] MUST NOT redefine the canonical artifact envelope, header fields, or artifact registry rows from `docs/ssot/artifacts.md`.
+  - [x] Owns only kernel-side production rules for artifacts, fingerprint behavior, exclusions, and verification linkage.
+- [x] `docs/ssot/cache-verify.md`
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/artifacts-and-fingerprint.md`
-  - [ ] `docs/ssot/cache-verify.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
-- [ ] `framework/packages/core/kernel/config/kernel.php` — adds artifacts/fingerprint keys
-- [ ] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
-  - [ ] registers:
-    - [ ] `ArtifactWriter`
-    - [ ] `PayloadNormalizer`
-    - [ ] `StablePhpArrayDumper`
-    - [ ] `ArtifactHeader`
-    - [ ] `DeterministicFileLister`
-    - [ ] `FingerprintCalculator`
-    - [ ] `FingerprintExplainer`
-    - [ ] `ModuleManifestBuilder`
-    - [ ] `CompiledConfigBuilder`
-    - [ ] `StubContainerBuilder`
-    - [ ] `CacheVerifier`
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
-  - [ ] deterministic factory wiring for artifact/fingerprint/verify services
-  - [ ] MUST NOT keep mutable runtime state
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/artifacts-and-fingerprint.md`
+  - [x] `docs/ssot/cache-verify.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
+
+- [x] `docs/ssot/observability.md`
+  - [x] register artifact/fingerprint/cache verify spans;
+  - [x] register artifact/fingerprint/cache verify metrics;
+  - [x] keep labels limited to `outcome`;
+  - [x] do not introduce `path`, `artifact`, `app`, `env`, or `fingerprint` labels.
+
+- [x] `framework/packages/core/kernel/config/kernel.php` — adds artifacts/fingerprint keys
+- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] registers artifact/fingerprint/cache services as factories only;
+  - [x] registration MUST happen after ConfigKernel Phase B service registrations and before Kernel runtime service registrations;
+  - [x] provider registration MUST NOT:
+    - [x] write artifacts;
+    - [x] read artifacts;
+    - [x] calculate fingerprints;
+    - [x] run cache verification;
+    - [x] resolve `BootstrapConfig`;
+    - [x] resolve `ModulePlan`;
+    - [x] build `EnvRepositoryInterface`;
+    - [x] run `ConfigKernel::compile(...)`;
+    - [x] invoke `ResetOrchestrator`;
+    - [x] start a UnitOfWork;
+    - [x] emit stdout/stderr.
+  - [x] registers:
+    - [x] `ArtifactWriter`
+    - [x] `PayloadNormalizer`
+    - [x] `StablePhpArrayDumper`
+    - [x] `ArtifactEnvelopeFactory`
+    - [x] `ArtifactPathResolver`
+    - [x] `PhpArtifactReader`
+    - [x] `ArtifactSchemaValidator`
+    - [x] `ConfigFingerprintInputBuilder`
+    - [x] `ArtifactCompiler`
+    - [x] `DeterministicFileLister`
+    - [x] `FingerprintCalculator`
+    - [x] `FingerprintExplainer`
+    - [x] `ModuleManifestBuilder`
+    - [x] `CompiledConfigBuilder`
+    - [x] `StubContainerBuilder`
+    - [x] `CacheVerifier`
+  - [x] registers observability-aware artifact/fingerprint/cache services as factories only;
+  - [x] provider registration MUST NOT start `kernel.artifacts_write`, `kernel.fingerprint_calculate`, or `kernel.cache_verify` spans;
+  - [x] provider registration MUST NOT emit artifact/fingerprint/cache metrics;
+  - [x] provider registration MUST NOT write artifact/fingerprint/cache logs.
+
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] deterministic factory wiring for artifact/fingerprint/compile/verify services;
+  - [x] artifact factory methods MUST be static construction/wiring methods only;
+  - [x] artifact factory methods MUST NOT:
+    - [x] write files;
+    - [x] read generated artifacts;
+    - [x] calculate fingerprints;
+    - [x] run cache verification;
+    - [x] resolve bootstrap/config/module plans;
+    - [x] retain the container;
+    - [x] retain mutable config snapshots;
+    - [x] depend on `ResetOrchestrator`;
+  - [x] MUST wire `StableJsonEncoder` / Foundation json-like serialization as the canonical byte-rule dependency;
+  - [x] MUST NOT keep mutable runtime state.
+  - [x] wires observability dependencies for artifact/fingerprint/cache services:
+    - [x] `MeterPortInterface`;
+    - [x] `TracerPortInterface`;
+    - [x] `Stopwatch`;
+    - [x] `LoggerInterface`;
+  - [x] factory MUST resolve observability dependencies from their public ports/interfaces only;
+  - [x] factory MUST NOT decide whether an observability dependency is real or Noop;
+  - [x] factory MUST NOT instantiate `NoopLogger`, `NoopMeter`, `NoopTracer`, or other observability implementations directly;
+  - [x] default real-vs-Noop binding is owned by the application/foundation composition layer, not by artifact services;
+  - [x] MUST wire observability only into:
+    - [x] `ArtifactWriter`;
+    - [x] `FingerprintCalculator`;
+    - [x] `CacheVerifier`;
+  - [x] factory wiring MUST NOT start spans, emit metrics, write logs, calculate fingerprints, write artifacts, read artifacts, or verify cache.
+  - [x] artifact/fingerprint/cache services MUST receive non-null observability dependencies:
+    - [x] `MeterPortInterface`;
+    - [x] `TracerPortInterface`;
+    - [x] `LoggerInterface`;
+    - [x] `Stopwatch`;
+  - [x] artifact/fingerprint/cache service code MUST NOT branch on nullable logger/meter/tracer dependencies;
+  - [x] observability adapters MAY still throw, so service code MUST catch observability failures.
+
+- [x] `framework/packages/core/kernel/README.md`
+  - [x] remove `config artifact writing` from out-of-scope;
+  - [x] add Kernel-owned artifacts/fingerprint/cache verification to package scope;
+  - [x] document that artifact services are registered as factories only;
+  - [x] document that provider registration does not write/read artifacts, calculate fingerprints, run cache verification, invoke reset, or start UoW.
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `framework/packages/core/kernel/config/kernel.php`
-- [ ] Keys (dot):
-  - [ ] `kernel.artifacts.cache_dir` = "skeleton/var/cache"
-  - [ ] `kernel.fingerprint.ignore_prefixes` = ["skeleton/var"]
-  - [ ] `kernel.fingerprint.env.tracked_keys` = ["APP_ENV","APP_DEBUG","APP_PRESET"]
-- [ ] Rules:
-  - [ ] `framework/packages/core/kernel/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `framework/packages/core/kernel/config/kernel.php`
+- [x] Keys (dot):
+  - [x] `kernel.artifacts.cache_dir` = "var/cache"
+    - [x] value is `BootstrapConfig::skeletonRoot()`-relative;
+    - [x] value MUST be a non-empty `relative-safe-path`;
+    - [x] value MUST NOT contain `skeleton/` prefix;
+    - [x] value MUST NOT be absolute;
+    - [x] value MUST NOT contain `..`.
+  - [x] `kernel.fingerprint.skeleton_ignore_prefixes` = ["var/cache", "var/maintenance"]
+    - [x] values are `BootstrapConfig::skeletonRoot()`-relative;
+    - [x] values MUST be non-empty `relative-safe-path` strings;
+    - [x] values MUST NOT contain `skeleton/` prefix;
+    - [x] values MUST NOT be absolute;
+    - [x] values MUST NOT contain `..`.
+  - [x] No `kernel.fingerprint.env.tracked_keys` config key is introduced.
+  - [x] Fingerprint env coverage is derived from:
+    - [x] resolved `BootstrapConfig` values:
+      - [x] `appTarget`;
+      - [x] `appEnv`;
+      - [x] `preset`;
+      - [x] `debug`;
+      - [x] `BootstrapEnvSourcePolicy`;
+    - [x] canonical dotenv file templates from `kernel.env.dotenv.files`;
+    - [x] existing resolved dotenv file logical names and content hashes;
+    - [x] env-overlay mappings produced from rulesets and explicit mappings;
+    - [x] `EnvRepositoryInterface::sourceOf($name)` metadata for env names that affect compiled config.
+  - [x] Raw env values MUST NOT be included in fingerprint input or explain output.
+  - [x] Env value influence MAY be represented only as `hash(value)` and `len(value)` for env names that are already allowlisted by config rules or explicit env overlay mappings.
+- [x] Rules:
+  - [x] `framework/packages/core/kernel/config/rules.php`
+    - [x] adds strict shape validation for `kernel.artifacts.*`;
+    - [x] adds strict shape validation for `kernel.fingerprint.*`;
+    - [x] removes stale comments saying this epic introduces no artifact config;
+    - [x] keeps unknown keys rejected at every declared map level;
+    - [x] keeps artifact/fingerprint facilities non-feature-flagged.
 
 - Artifacts pipeline and fingerprint verification are baseline kernel facilities and MUST NOT be feature-disabled via config.
 - Artifact schema versions are owner-locked by artifact code/SSoT and MUST NOT be runtime-configurable.
 - Fingerprint MUST reuse the canonical dotenv files list from `kernel.env.dotenv.files` defined by Phase A boot; no duplicate dotenv-files list is allowed under `kernel.fingerprint.*`.
 
+NOTE: `rules.php` validates `relative-safe-path` shape only.
+The stronger `skeleton/` prefix rejection is enforced by `ArtifactPathResolver`.
+
 #### Artifacts / outputs (if applicable)
 
-- [ ] Writes:
-  - [ ] `skeleton/var/cache/<appId>/module-manifest.php` (schemaVersion, deterministic bytes)
-  - [ ] `skeleton/var/cache/<appId>/config.php` (schemaVersion, deterministic bytes)
-  - [ ] `skeleton/var/cache/<appId>/container.php` (stub)
-- [ ] Reads:
-  - [ ] validates header + payload schema
+- [x] Writes:
+  - [x] `skeleton/var/cache/<appTarget>/module-manifest.php` (schemaVersion, deterministic bytes)
+  - [x] `skeleton/var/cache/<appTarget>/config.php` (schemaVersion, deterministic bytes)
+  - [x] `skeleton/var/cache/<appTarget>/container.php` (stub)
+- [x] Reads:
+  - [x] validates header + payload schema
+
+`<appTarget>` is derived only from `BootstrapConfig::appTarget()->value`.
+
+Allowed values are the canonical `AppTarget` tokens:
+- `web`
+- `api`
+- `console`
+- `worker`
+
+Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/*`, read app config, or infer the active app from filesystem state.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-- [ ] Fingerprint explain MUST NOT include env values; only key names + hashes/len.
-- [ ] No session ids/tokens stored or printed.
+- [x] Fingerprint explain MUST NOT include env values; only key names + hashes/len.
+- [x] No session ids/tokens stored or printed.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `kernel.artifacts.write`
-  - [ ] `kernel.fingerprint.calculate`
-- [ ] Metrics:
-  - [ ] `kernel.artifact_write_total` (labels: `outcome`)
-  - [ ] `kernel.artifact_write_duration_ms` (labels: `outcome`)
-  - [ ] `kernel.fingerprint_total` (labels: `outcome`)
-  - [ ] `kernel.fingerprint_duration_ms` (labels: `outcome`)
-- [ ] Logs:
-  - [ ] safe paths (normalized) + counts; no secrets
+- [x] Spans:
+  - [x] `kernel.artifacts_write`
+  - [x] `kernel.fingerprint_calculate`
+  - [x] `kernel.cache_verify`
+- [x] Metrics:
+  - [x] `kernel.artifacts_write_total` (labels: `outcome`)
+  - [x] `kernel.artifacts_write_duration_ms` (labels: `outcome`)
+  - [x] `kernel.fingerprint_calculate_total` (labels: `outcome`)
+  - [x] `kernel.fingerprint_calculate_duration_ms` (labels: `outcome`)
+  - [x] `kernel.cache_verify_total` (labels: `outcome`)
+  - [x] `kernel.cache_verify_duration_ms` (labels: `outcome`)
+- [x] Logs:
+  - [x] lifecycle logs are emitted through `LoggerInterface`;
+  - [x] logger implementation MAY be real or Noop, but artifact/fingerprint/cache services MUST NOT know which one they received;
+  - [x] logger calls MUST be failure-silent and MUST NOT change artifact/fingerprint/cache behavior;
+  - [x] logs MAY include normalized relative paths, artifact basenames, safe bucket names, safe reason tokens, counts, durations, and bounded outcome tokens;
+  - [x] logs MUST NOT include secrets, raw payloads, raw config values, raw env values, dotenv values, source file contents, full fingerprints, absolute paths, temp paths, PHP warning text, stack traces, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
+- Ownership:
+  - `ArtifactWriter` owns `kernel.artifacts_write`.
+  - `FingerprintCalculator` owns `kernel.fingerprint_calculate`.
+  - `CacheVerifier` owns `kernel.cache_verify`.
+- Dependency model:
+  - [x] artifact/fingerprint/cache services MUST depend on observability ports/interfaces only, plus Foundation `Stopwatch` for duration measurement;
+  - [x] artifact/fingerprint/cache services MUST NOT instantiate Noop observability implementations;
+  - [x] artifact/fingerprint/cache services MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters;
+  - [x] real-vs-Noop/default binding is outside artifact service responsibility;
+  - [x] observability failures MUST NOT change deterministic artifact/fingerprint/cache behavior.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] auth/cookies/session ids/tokens/raw payload/raw SQL
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids
+- [x] MUST NOT leak:
+  - [x] auth/cookies/session ids/tokens/raw payload/raw SQL
+- [x] Allowed:
+  - [x] `hash(value)` / `len(value)` / safe ids
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Artifact/header/payload determinism:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
-    - [ ] asserts kernel-owned PHP artifacts (`module-manifest.php`, `config.php`, `container.php`) return the canonical top-level envelope `{ "_meta", "payload" }`
-    - [ ] asserts no artifact-specific alternative top-level shape exists
-  - [ ] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
-- [ ] Fingerprint cross-OS invariants:
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
-- [ ] Spike locks:
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
+- [x] Artifact/header/payload determinism:
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
+    - [x] asserts kernel-owned PHP artifacts (`module-manifest.php`, `config.php`, `container.php`) return the canonical top-level envelope `{ "_meta", "payload" }`
+    - [x] asserts no artifact-specific alternative top-level shape exists
+    - [x] asserts builders produce envelopes through the canonical factory path
+    - [x] asserts no builder emits artifact-specific alternative top-level shape
+  - [x] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
+- [x] Fingerprint cross-OS invariants:
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
+- [x] Spike locks:
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsRuntimeDependencyBoundaryContractTest.php`
+    - [x] asserts artifact/fingerprint/cache runtime code does not import `Coretsia\Tools\Spikes\*`;
+    - [x] asserts artifact/fingerprint/cache runtime code does not import `devtools/*`;
+    - [x] asserts artifact/fingerprint/cache runtime code does not import `platform/*`;
+    - [x] asserts artifact/fingerprint/cache runtime code does not read `framework/tools/**`;
+    - [x] allows `framework/tools/spikes/fixtures/**` only from Contract tests.
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEmitRoutesArtifactContractTest.php`
+    - [x] artifact compiler does not write `routes.php`;
+    - [x] artifact builders list does not contain a routes builder;
+    - [x] kernel-owned artifact schema validator does not claim ownership of `routes@1`;
+    - [x] `routes@1` remains owned by `platform/routing`.
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsDocsAndRegistryConsistencyContractTest.php`
+    - [x] `docs/ssot/artifacts-and-fingerprint.md` does not redefine global envelope law;
+    - [x] `docs/ssot/cache-verify.md` does not redefine artifact registry rows;
+    - [x] `docs/ssot/observability.md` contains registered artifact/fingerprint/cache verify metric names;
+    - [x] `framework/packages/core/kernel/README.md` no longer lists config artifact writing as out-of-scope.
+  - [x] `framework/packages/core/kernel/tests/Contract/StablePhpArrayDumperDeterministicEmissionContractTest.php`
+    - [x] emits LF-only PHP with final newline;
+    - [x] preserves canonical envelope top-level shape;
+    - [x] preserves list order;
+    - [x] preserves normalized map order;
+    - [x] emits stable bytes on repeated runs.
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintCalculatorStableInputContractTest.php`
+    - [x] same normalized input produces same 64-char lowercase sha256;
+    - [x] map key insertion order does not affect fingerprint;
+    - [x] list order affects fingerprint;
+    - [x] raw config/env values are absent from normalized fingerprint input fixtures;
+  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerRedactionContractTest.php`
+    - [x] explain output includes only safe ids, key paths, relative paths, hash/len metadata, and validation status;
+    - [x] explain output does not include raw config values;
+    - [x] explain output does not include raw env values;
+    - [x] explain output does not include absolute paths.
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsObservabilityPolicyContractTest.php`
+    - [x] asserts artifact/fingerprint/cache observability names are exactly:
+      - [x] `kernel.artifacts_write`;
+      - [x] `kernel.fingerprint_calculate`;
+      - [x] `kernel.cache_verify`;
+      - [x] `kernel.artifacts_write_total`;
+      - [x] `kernel.artifacts_write_duration_ms`;
+      - [x] `kernel.fingerprint_calculate_total`;
+      - [x] `kernel.fingerprint_calculate_duration_ms`;
+      - [x] `kernel.cache_verify_total`;
+      - [x] `kernel.cache_verify_duration_ms`;
+    - [x] asserts metrics use only the `outcome` label;
+    - [x] asserts no metric label uses `path`, `artifact`, `app`, `env`, `preset`, `fingerprint`, `reason`, or `exception`;
+    - [x] asserts observability logs do not include absolute paths, raw payloads, raw config values, raw env values, fingerprints, PHP warning text, stack traces, or previous throwable messages.
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/FingerprintInstalledManifestNormalizationTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/FingerprintInstalledManifestNormalizationTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php`
+    - [x] resolves paths under `var/cache/<appTarget>/`;
+    - [x] rejects absolute cache_dir;
+    - [x] rejects `..`;
+    - [x] rejects `skeleton/`-prefixed cache_dir;
+    - [x] normalizes diagnostics to relative safe paths only.
+  - [x] `framework/packages/core/kernel/tests/Unit/PayloadNormalizerRejectsUnsafeValuesTest.php`
+    - [x] rejects floats;
+    - [x] rejects `NaN`, `INF`, `-INF`;
+    - [x] rejects objects/resources/closures;
+    - [x] exception message includes path token only;
+    - [x] exception message does not include raw value.
+  - [x] `framework/packages/core/kernel/tests/Unit/ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php`
+    - [x] includes declared source candidates as logical ids;
+    - [x] represents missing candidates as `exists=false`;
+    - [x] includes user-owned roots as unvalidated when no rules exist;
+    - [x] includes ModulePlan identity;
+    - [x] does not include raw config/env values.
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
-    - [ ] touching only mtime MUST keep `dirty=false`
-    - [ ] changing only permissions/ownership metadata MUST keep `dirty=false`
-    - [ ] bytes unchanged remains the only clean/dirty criterion
-
-  - [ ] `framework/packages/core/kernel/tests/Integration/FingerprintIncludesUserOwnedConfigRootsTest.php`
-    - [ ] asserts custom roots affect config fingerprint.
-    - [ ] asserts changing a user-owned config value changes fingerprint.
-    - [ ] asserts user-owned roots are present in compiled config artifact.
-    - [ ] asserts fingerprint explain marks user-owned roots as `unvalidated` when no rules exist.
-    - [ ] asserts fingerprint explain does not leak raw custom values.
-
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
-    - [ ] asserts user-owned roots from `roots.php` are emitted.
-    - [ ] asserts user-owned roots from `<root>.php` are emitted.
-    - [ ] asserts split and aggregate equivalent user config produces equivalent artifact payload.
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
+    - [x] touching only mtime MUST keep `dirty=false`
+    - [x] changing only permissions/ownership metadata MUST keep `dirty=false`
+    - [x] bytes unchanged remains the only clean/dirty criterion
+  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIncludesUserOwnedConfigRootsTest.php`
+    - [x] asserts custom roots affect config fingerprint.
+    - [x] asserts changing a user-owned config value changes fingerprint.
+    - [x] asserts user-owned roots are present in compiled config artifact.
+    - [x] asserts fingerprint explain marks user-owned roots as `unvalidated` when no rules exist.
+    - [x] asserts fingerprint explain does not leak raw custom values.
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
+    - [x] asserts user-owned roots from `roots.php` are emitted.
+    - [x] asserts user-owned roots from `<root>.php` are emitted.
+    - [x] asserts split and aggregate equivalent user config produces equivalent artifact payload.
+  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactServicesRegisterAsFactoriesOnlyTest.php`
+    - [x] provider registration does not write artifacts;
+    - [x] provider registration does not read artifacts;
+    - [x] provider registration does not calculate fingerprints;
+    - [x] provider registration does not run cache verification;
+    - [x] provider registration does not resolve `BootstrapConfig`;
+    - [x] provider registration does not resolve `ModulePlan`;
+    - [x] provider registration does not run `ConfigKernel::compile(...)`.
+  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactServicesDoNotUseResetOrUowTest.php`
+    - [x] artifact compile does not invoke `ResetOrchestrator`;
+    - [x] cache verify does not invoke `ResetOrchestrator`;
+    - [x] artifact compile does not start a UnitOfWork;
+    - [x] cache verify does not start a UnitOfWork.
+  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyDetectsArtifactByteDriftTest.php`
+    - [x] compile artifacts;
+    - [x] verify returns `dirty=false`;
+    - [x] mutate artifact bytes while preserving valid PHP syntax and canonical envelope shape;
+    - [x] verify returns `dirty=true`;
+    - [x] mutate artifact bytes into invalid PHP syntax;
+    - [x] verify returns `invalid`;
+    - [x] explain does not leak raw payload values;
+    - [x] explain does not leak absolute paths.
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactWriterAtomicNoPartialWriteTest.php`
+    - [x] failed write does not leave a partially written final artifact;
+    - [x] failed write cleans temporary files when possible;
+    - [x] successful write produces LF-only bytes with final newline;
+    - [x] write-time permission changes do not affect cache verify clean/dirty semantics.
+  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactObservabilityDoesNotChangeBehaviorTest.php`
+    - [x] failing meter does not fail artifact write;
+    - [x] failing tracer does not fail fingerprint calculation;
+    - [x] failing logger does not fail cache verification;
+    - [x] observability failures do not change clean/dirty/invalid cache verification semantics.
+    - [x] artifact/fingerprint/cache services depend only on observability ports/interfaces;
+    - [x] artifact/fingerprint/cache services do not instantiate concrete observability implementations directly, including Foundation Noop implementations;
+    - [x] fake no-op implementations of public observability ports can be injected without changing compile/verify behavior;
+    - [x] failing observability port implementations do not change artifact write, fingerprint calculation, or cache verification behavior;
+    - [x] real-vs-no-op/default observability binding is not asserted by this epic;
 
 ### DoD (MUST)
 
-- [ ] Rerun no diff for generated artifacts
-- [ ] Cross-OS deterministic invariants verified by contract tests
-- [ ] cache:verify clean immediately after compile
-- [ ] Docs explain middleware linkage + fingerprint exclusions
-- [ ] Spike fixtures lock production invariants
-- [ ] Artifacts live only in `skeleton/var/cache/<appId>/*` and are written atomically (no partial writes).
-- [ ] HTTP middleware compiled-config contract is proven:
-  - [ ] compiled config payload preserves `http.middleware.<slot>` lists;
-  - [ ] compiled config payload preserves `http.middleware.auto.*` toggles;
-  - [ ] downstream `platform/http` middleware catalog can consume these fields without reading source config files.
-- [ ] When only `skeleton/var/maintenance/*` changes, then fingerprint remains unchanged and `cache:verify` stays clean.
-- [ ] Reset discipline (kernel.reset) — NOT USED in artifacts/fingerprint/cache:verify (MUST)
-  - [ ] Artifacts pipeline MUST NOT invoke reset and MUST NOT require UoW lifecycle.
-  - [ ] Cache verification MUST remain pure (read/compare) and deterministic:
-    - [ ] no dependency on `ResetOrchestrator` execution
-  - [ ] Rationale: artifacts/fingerprint are build-time concerns; reset is runtime UoW boundary enforcement.
-- [ ] User-owned/custom roots are included in config fingerprint inputs.
-- [ ] User-owned/custom roots are included in compiled config artifact payload.
+- [x] Rerun no diff for generated artifacts
+- [x] Cross-OS deterministic invariants verified by contract tests
+- [x] cache:verify clean immediately after compile
+- [x] Docs explain middleware linkage + fingerprint exclusions
+- [x] Spike fixtures lock production invariants
+- [x] Artifacts live only in `skeleton/var/cache/<appTarget>/*` and are written atomically (no partial writes).
+- [x] Compiled config preserves platform-owned config data without semantic ownership:
+  - [x] compiled config payload preserves `http.middleware.<slot>` lists as data when present;
+  - [x] compiled config payload preserves `http.middleware.auto.*` toggles as data when present;
+  - [x] `core/kernel` MUST NOT import or depend on `platform/http`;
+  - [x] downstream `platform/http` MAY consume these fields from compiled config without reading source config files.
+- [x] When only `skeleton/var/maintenance/*` changes, then fingerprint remains unchanged and `cache:verify` stays clean.
+- [x] Reset discipline (kernel.reset) — NOT USED in artifacts/fingerprint/cache:verify (MUST)
+  - [x] Artifacts pipeline MUST NOT invoke reset and MUST NOT require UoW lifecycle.
+  - [x] Cache verification MUST remain pure (read/compare) and deterministic:
+    - [x] no dependency on `ResetOrchestrator` execution
+  - [x] Rationale: artifacts/fingerprint are build-time concerns; reset is runtime UoW boundary enforcement.
+- [x] User-owned/custom roots are included in config fingerprint inputs.
+- [x] User-owned/custom roots are included in compiled config artifact payload.
 
 ---
 
@@ -13846,12 +14448,34 @@ provides:
 
 tags_introduced: []
 config_roots_introduced: []
-artifacts_introduced: []  # registry row for `container@1` is introduced in `1.30.0`; `1.330.0` materializes the stub artifact; this epic upgrades stub -> REAL semantics
+artifacts_introduced: []  # no new artifact identity; this epic defines the first REAL payload schema for existing `container@1`. `1.330.0` materialized transitional stub bytes for `container@1`. `1.340.0` replaces stub semantics with REAL compiled-container semantics. This is not a `container@2` introduction.
 adr: "docs/adr/ADR-0029-kernel-container-compile-artifact.md"
 ssot_refs:
 - "docs/ssot/compiled-container.md" # compiled-container-specific payload + boot semantics
 - "docs/ssot/artifacts.md"          # global artifact law
 ---
+
+### `container@1` Schema Evolution Note (MUST)
+
+`container@1` is the Kernel-owned artifact identity for the compiled container artifact in Phase 1.
+
+The `1.330.0` payload was a transitional deterministic stub used to materialize the artifact slot before real compiled-container semantics existed.
+
+This epic defines the first REAL `container@1` payload schema in `docs/ssot/compiled-container.md`.
+
+The REAL `container@1` payload MAY extend or replace the earlier stub payload shape, provided that it remains compatible with:
+
+- the canonical artifact identity `container@1`;
+- the global artifact envelope `{ "_meta": <header>, "payload": <payload> }`;
+- canonical artifact header semantics;
+- deterministic serialization law;
+- `core/kernel` ownership of the container payload schema.
+
+Compatibility for this epic means compatibility with `container@1` identity and global artifact law.
+
+It does **not** mean preserving the earlier `1.330.0` stub payload as a supported runtime container format.
+
+A future `container@2` is required only if a later change needs to preserve an already-stable REAL `container@1` payload contract while introducing an incompatible compiled-container payload format.
 
 ### Dependencies (MUST)
 
@@ -13904,7 +14528,44 @@ Forbidden:
 - CLI:
   - `coretsia config:compile` → owner `platform/cli` triggers compiled container builder (Phase 1)
 - Artifacts:
-  - writes: `skeleton/var/cache/<appId>/container.php` (REAL)
+  - writes: `skeleton/var/cache/<appTarget>/container.php` (REAL)
+
+### Artifact-Only Runtime Boot Boundary (MUST)
+
+Production runtime boot paths covered by this epic MUST use compiled-artifact boot.
+
+Production runtime boot MUST read `container.php` through `CompiledContainerFactory`.
+
+Production runtime boot MUST NOT register runtime providers into Foundation `ContainerBuilder` as an implicit fallback.
+
+Provider-based container construction remains allowed only for:
+
+- compile-time artifact production;
+- test scaffolding;
+- explicitly documented non-production paths outside this epic.
+
+Any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied by this epic.
+
+### Compiled Container Boot Inputs (MUST)
+
+`CompiledContainerFactory` MUST NOT read source config files.
+
+Runtime boot MUST use artifact-owned inputs only.
+
+For this epic, runtime boot uses:
+
+- `container@1` for compiled service definitions, aliases, parameters, and tags;
+- `config@1` as the runtime config snapshot input.
+
+`container@1` MUST NOT duplicate the full compiled config payload unless `docs/ssot/compiled-container.md` explicitly defines such duplication as part of the REAL `container@1` schema.
+
+`CompiledContainerFactory` MUST receive an already-read and already-validated `config@1` payload from the caller.
+
+Reading, parsing, and schema-validating `config@1` remain owned by Kernel artifact reading/schema infrastructure outside `CompiledContainerFactory`.
+
+`CompiledContainerFactory` MUST NOT read source config files and MUST NOT run source config discovery.
+
+`container@1` MUST NOT embed raw secrets unless those values are already part of the canonical compiled config artifact semantics.
 
 ### Phase 0 parity: deterministic artifacts discipline (container.php) (MUST)
 
@@ -13936,6 +14597,72 @@ If the compiled-container pipeline is ever not executed by CI on every relevant 
 That future gate, if introduced, MUST inspect the compiled definition graph / artifact payload and MUST NOT be named `container_no_closure_definitions_gate.php`.
 
 ## Required invariants for compiled container (cemented; single-choice)
+
+### Descriptor-Based Compile Input (MUST)
+
+Compiled container input MUST be descriptor-based and closure-free.
+
+`ContainerCompiler` MUST NOT serialize or inspect runtime closures captured by `Foundation\ContainerBuilder::factory(...)`.
+
+Runtime provider closures MAY exist in non-artifact builder mode, compile-time wiring, tests, or provider-based scaffolding.
+
+However, any definition that reaches the compiled-container graph MUST be represented as deterministic schema data.
+
+Provider-owned runtime factories MAY be represented in the compiled graph only as deterministic references, for example:
+
+- factory class;
+- factory method;
+- service references;
+- parameter references;
+- scalar/list/map arguments.
+
+The compiled graph MUST NOT contain:
+
+- `Closure`;
+- anonymous function;
+- callable object;
+- raw PHP callable array as runtime data;
+- source code snippet;
+- reflection file/line metadata;
+- absolute paths;
+- runtime callable payload.
+
+### REAL `container@1` Payload Schema (MUST)
+
+The REAL `container@1` payload schema is owned by `docs/ssot/compiled-container.md`.
+
+The REAL payload MUST use the canonical artifact envelope from `docs/ssot/artifacts.md` and MUST NOT introduce a container-specific top-level artifact shape.
+
+The REAL payload MUST set:
+
+```text
+kind = compiled
+compiled = true
+```
+
+The REAL payload MAY define top-level payload fields such as:
+
+- `aliases`;
+- `compiled`;
+- `kind`;
+- `parameters`;
+- `services`;
+- `tags`.
+
+The exact REAL `container@1` payload field set is defined by `docs/ssot/compiled-container.md`.
+
+Adding `parameters` or other schema-owned top-level payload fields in this epic does **not** require `container@2`.
+
+The earlier `1.330.0` stub payload:
+
+```text
+kind = stub
+compiled = false
+```
+
+is a transitional placeholder and is not the supported runtime compiled-container format after this epic.
+
+`CompiledContainerFactory` MUST NOT accept the old stub payload as a production runtime container artifact.
 
 ### A) Deterministic graph ordering (MUST)
 Будь-які порядки у definition graph MUST бути стабільні і locale-independent:
@@ -13978,6 +14705,7 @@ Kernel повертає/кидає deterministic exceptions.
 - header shape/schema is stable (без timestamps)
 - factory builds runtime container from artifact deterministically
 - missing artifact hard-fails with deterministic code `CORETSIA_CONTAINER_ARTIFACT_MISSING` (без path leaks)
+- invalid, unreadable, schema-invalid, or legacy-stub `container.php` hard-fails with deterministic code `CORETSIA_CONTAINER_ARTIFACT_INVALID` (без path leaks)
 - closure / anonymous-function based container definitions are rejected before artifact write:
   - failure code: `CORETSIA_CONTAINER_COMPILE_FAILED`
   - message token: `container-compile-failed`
@@ -13990,53 +14718,206 @@ Kernel повертає/кидає deterministic exceptions.
 
 Compiler:
 - [ ] `framework/packages/core/kernel/src/Container/ContainerCompiler.php` — builds deterministic definition graph (json-like)
-  - [ ] MUST preserve the caller-supplied deterministic provider/module order exactly
-  - [ ] MUST NOT globally re-sort providers before applying definition override semantics
+  - [ ] MUST compile only descriptor-based, closure-free container input.
+  - [ ] MUST produce a deterministic `DefinitionGraph`.
+  - [ ] MUST use `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` as kernel-owned compilation models.
+  - [ ] MUST preserve the caller-supplied deterministic provider/module order exactly.
+  - [ ] MUST NOT globally re-sort providers before applying definition override semantics.
   - [ ] MUST preserve the canonical Foundation binding-collision rule exactly:
-    - [ ] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically
-    - [ ] compiler output MUST NOT invent a different override policy from `core/foundation`
+    - [ ] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically;
+    - [ ] compiler output MUST NOT invent a different override policy from `core/foundation`.
   - [ ] if compiled output materializes tag registrations / discovery lists, it MUST preserve Foundation tag semantics exactly:
-    - [ ] dedupe remains first-wins per `(tag, serviceId)`
-    - [ ] final discovery order remains the canonical Foundation order
-    - [ ] compiler/runtime MUST NOT introduce a second tag-merge policy
+    - [ ] dedupe remains first-wins per `(tag, serviceId)`;
+    - [ ] final discovery order remains the canonical Foundation order;
+    - [ ] compiler/runtime MUST NOT introduce a second tag-merge policy.
   - [ ] Rationale:
-    - [ ] compiled-container semantics MUST remain aligned with `core/foundation` `ContainerBuilder`
-    - [ ] later binding overrides earlier binding deterministically
-  - [ ] MUST reject any closure / anonymous-function based definition or factory deterministically before artifact write
+    - [ ] compiled-container semantics MUST remain aligned with `core/foundation` `ContainerBuilder`;
+    - [ ] later binding overrides earlier binding deterministically.
+  - [ ] MUST reject any closure / anonymous-function based definition, factory, configurator, lazy factory, argument, parameter, tag metadata, or compiled graph value deterministically before artifact write.
   - [ ] rejection MUST surface:
-    - [ ] `ContainerCompileFailedException`
-    - [ ] code: `CORETSIA_CONTAINER_COMPILE_FAILED`
-    - [ ] message: `container-compile-failed`
+    - [ ] `ContainerCompileFailedException`;
+    - [ ] code: `CORETSIA_CONTAINER_COMPILE_FAILED`;
+    - [ ] message: `container-compile-failed`.
   - [ ] diagnostics MUST NOT include:
-    - [ ] closure dumps
-    - [ ] source code snippets
-    - [ ] absolute paths
-    - [ ] raw config values
+    - [ ] closure dumps;
+    - [ ] source code snippets;
+    - [ ] absolute paths;
+    - [ ] raw config values;
+    - [ ] raw env values;
+    - [ ] raw payload dumps;
+    - [ ] OS error messages.
+  - [ ] MUST NOT read source config files.
+  - [ ] MUST NOT read generated artifacts.
+  - [ ] MUST NOT write artifacts.
+  - [ ] MUST NOT resolve `BootstrapConfig`.
+  - [ ] MUST NOT resolve `ModulePlan`.
+  - [ ] MUST NOT run provider-based runtime boot.
+  - [ ] MUST NOT instantiate runtime services while compiling the graph.
+  - [ ] MUST NOT emit stdout or stderr.
+  - [ ] owns observability for container compile operation:
+    - [ ] span: `kernel.container_compile`;
+    - [ ] metric: `kernel.container_compile_total` with labels: `outcome`;
+    - [ ] metric: `kernel.container_compile_duration_ms` with labels: `outcome`;
+  - [ ] outcome label values MUST be bounded tokens only:
+    - [ ] `success`;
+    - [ ] `failure`;
+  - [ ] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`.
+  - [ ] MUST NOT instantiate Noop observability implementations directly.
+  - [ ] logger/meter/tracer failures MUST be caught and MUST NOT change compile behavior.
+
 - [ ] `framework/packages/core/kernel/src/Container/CompiledContainerFactory.php` — builds runtime Container from artifact
-- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — writes artifact with standard header
+  - [ ] MUST build the runtime Foundation container from REAL `container@1` artifact data.
+  - [ ] MUST receive an already-read and already-validated `config@1` payload from the caller.
+  - [ ] MUST use artifact-owned runtime config input (`config@1`) and MUST NOT read source config files.
+  - [ ] MUST hard-fail deterministically when `container.php` is missing.
+  - [ ] MUST surface `ContainerArtifactMissingException` with code `CORETSIA_CONTAINER_ARTIFACT_MISSING` for missing artifact.
+  - [ ] MUST surface `ContainerArtifactInvalidException` with code `CORETSIA_CONTAINER_ARTIFACT_INVALID` for invalid, unreadable, schema-invalid, legacy-stub, or non-REAL `container@1` artifacts.
+  - [ ] MUST NOT silently fall back to provider-based container construction.
+  - [ ] MUST NOT accept the earlier `1.330.0` stub payload as a production runtime container artifact.
+  - [ ] MUST NOT run source config discovery.
+  - [ ] MUST NOT run module discovery.
+  - [ ] MUST NOT register runtime providers as a fallback.
+  - [ ] MUST NOT compile a new container during runtime boot.
+  - [ ] MUST NOT calculate fingerprints.
+  - [ ] MUST NOT write artifacts.
+  - [ ] MUST NOT mutate existing artifacts.
+  - [ ] MUST NOT emit stdout or stderr.
+  - [ ] MUST construct runtime definitions only from deterministic compiled graph entries.
+  - [ ] MUST preserve the runtime config snapshot from `config@1` when constructing the Foundation container.
+  - [ ] MUST preserve compiled aliases, parameters, service definitions, and tags according to `docs/ssot/compiled-container.md`.
+  - [ ] diagnostics MUST NOT include:
+    - [ ] absolute paths;
+    - [ ] raw artifact payloads;
+    - [ ] raw config values;
+    - [ ] raw env values;
+    - [ ] source snippets;
+    - [ ] closure dumps;
+    - [ ] PHP warning text;
+    - [ ] OS error messages.
+
+- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
+  - [ ] MUST receive deterministic compiled container data from `ContainerCompiler`.
   - [ ] MUST reuse the canonical kernel artifact envelope introduced in 1.330.0:
-    - [ ] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`
+    - [ ] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`.
   - [ ] MUST NOT introduce a container-specific top-level artifact shape.
+  - [ ] MUST build the REAL `container@1` payload schema defined by `docs/ssot/compiled-container.md`.
+  - [ ] MUST replace the earlier stub payload semantics with REAL compiled-container semantics.
+  - [ ] MUST set:
+    - [ ] `kind = compiled`;
+    - [ ] `compiled = true`.
+  - [ ] MUST use `ArtifactEnvelopeFactory` for envelope construction.
+  - [ ] MUST NOT assemble artifact envelopes manually.
+  - [ ] MUST NOT calculate fingerprints.
+  - [ ] MUST NOT compile the container graph.
+  - [ ] MUST NOT read files.
+  - [ ] MUST NOT write files.
+  - [ ] MUST NOT validate existing artifacts.
+  - [ ] MUST NOT emit stdout or stderr.
+  - [ ] MUST reject payload data that is not deterministic json-like schema data.
+  - [ ] MUST NOT include timestamps, absolute paths, hostnames, user names, process ids, raw env values, raw config values, closure dumps, or source snippets in payload/header data.
 
 Definition shapes:
 - [ ] `framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php`
+  - [ ] Represents one deterministic compiled service definition.
+  - [ ] MUST be a kernel container compilation model, not a public DTO by default.
+  - [ ] MUST expose only deterministic schema data suitable for REAL `container@1` payload emission.
+  - [ ] MUST have a stable service id.
+  - [ ] MUST represent runtime construction through deterministic class/factory references, service references, parameter references, and scalar/list/map arguments.
+  - [ ] MUST NOT store `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
+  - [ ] MUST NOT instantiate the represented service.
+  - [ ] MUST normalize nested map keys deterministically where it owns map-like data.
+  - [ ] MUST preserve list order where list order is semantic.
+  - [ ] MUST reject invalid definition values with deterministic compile failure semantics.
+  - [ ] MUST NOT include raw config values, raw env values, secrets, closure dumps, source snippets, or OS-specific metadata.
+
 - [ ] `framework/packages/core/kernel/src/Container/Definition/ParameterBag.php`
-- [ ] `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php` — stable graph, no closures
+  - [ ] MAY be an in-memory compilation model and/or part of the REAL `container@1` payload schema as defined by `docs/ssot/compiled-container.md`.
+  - [ ] Does not require `container@2` by itself.
+  - [ ] MUST NOT be treated as a public DTO marker class by default.
+  - [ ] MUST represent deterministic parameter data only.
+  - [ ] MUST use stable parameter names.
+  - [ ] MUST normalize map keys deterministically.
+  - [ ] MUST preserve list order where list order is semantic.
+  - [ ] MUST reject `Closure`, anonymous function, callable object, object instance, resource, reflection object, source snippet, or absolute path.
+  - [ ] MUST NOT duplicate the full compiled config payload from `config@1`.
+  - [ ] MUST NOT embed raw secrets unless those values are already part of the canonical compiled config artifact semantics.
+  - [ ] MUST be safe for deterministic artifact serialization.
+
+- [ ] `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
+  - [ ] Represents the complete deterministic compiled container graph.
+  - [ ] MUST contain only deterministic schema values.
+  - [ ] MUST contain service definitions, aliases, parameters, and tags according to `docs/ssot/compiled-container.md`.
+  - [ ] MUST sort service ids by byte-order `strcmp` for emitted graph order.
+  - [ ] MUST sort alias and parameter maps by byte-order `strcmp`.
+  - [ ] MUST preserve canonical Foundation tag discovery order:
+    - [ ] `priority DESC, id ASC`.
+  - [ ] MUST preserve canonical Foundation tag dedupe:
+    - [ ] first-wins per `(tag, serviceId)`.
+  - [ ] MUST preserve later-binding-overrides-earlier semantics.
+  - [ ] MUST NOT contain `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
+  - [ ] MUST be exportable to deterministic json-like payload data.
+  - [ ] MUST NOT perform runtime service resolution.
+  - [ ] MUST NOT read files, write files, calculate fingerprints, or emit output.
 
 DTO policy boundary:
 - [ ] `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` are kernel container compilation models/shapes.
 - [ ] They are NOT DTO-marker classes by default.
 - [ ] DTO gates apply only to explicitly marked DTO transport classes.
+- [ ] Their presence in the compiled-container implementation MUST NOT imply a public package API commitment.
+- [ ] Their serialized form, if any, is owned by `docs/ssot/compiled-container.md`, not by DTO-marker gates.
 
 Errors:
 - [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerCompileFailedException.php` — `CORETSIA_CONTAINER_COMPILE_FAILED`
+  - [ ] MUST use fixed public message token `container-compile-failed`.
+  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_COMPILE_FAILED`.
+  - [ ] MUST provide bounded reason tokens only.
+  - [ ] MUST NOT include closure dumps, source snippets, absolute paths, raw config values, raw env values, raw payloads, OS error messages, stack traces, or previous throwable messages in public diagnostics.
+
 - [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactMissingException.php` — `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+  - [ ] MUST use fixed public message token `container-artifact-missing`.
+  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_MISSING`.
+  - [ ] MUST NOT include the missing filesystem path.
+  - [ ] MUST NOT include absolute paths, configured path strings, OS error messages, stack traces, or previous throwable messages in public diagnostics.
+
+- [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php` — `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+  - [ ] MUST use fixed public message token `container-artifact-invalid`.
+  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
+  - [ ] MUST cover invalid, unreadable, schema-invalid, legacy-stub, or non-REAL `container@1` artifacts.
+  - [ ] MUST NOT include absolute paths, raw artifact payloads, raw config values, raw env values, PHP warning text, closure dumps, source snippets, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
 Docs:
 - [ ] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
+  - [ ] MUST record the decision to keep `container@1` and not introduce `container@2` in this epic.
+  - [ ] MUST explain that `1.330.0` stub payload was transitional.
+  - [ ] MUST explain that `1.340.0` defines the first REAL `container@1` payload schema.
+  - [ ] MUST record descriptor-based, closure-free compile input as the selected design.
+  - [ ] MUST record artifact-only production runtime boot as the selected boot policy.
+  - [ ] MUST record that provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
+  - [ ] MUST record that runtime boot uses `container@1` plus already-read/validated `config@1` payload.
+  - [ ] MUST record deterministic missing/invalid artifact failure codes:
+    - [ ] `CORETSIA_CONTAINER_ARTIFACT_MISSING`;
+    - [ ] `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
+
 - [ ] `docs/ssot/compiled-container.md` - compiled-container-specific payload + boot semantics
   - [ ] MUST NOT redefine the global artifact envelope, header fields, or artifact registry rows from `docs/ssot/artifacts.md`.
   - [ ] Owns only compiled-container payload shape, compile rules, and artifact-only boot policy.
+  - [ ] MUST define the first REAL `container@1` payload schema.
+  - [ ] MUST define allowed top-level payload fields.
+  - [ ] MUST define service definition schema.
+  - [ ] MUST define parameter bag schema if `parameters` are part of the payload.
+  - [ ] MUST define alias schema.
+  - [ ] MUST define tag schema and preserve Foundation tag ordering/dedupe semantics.
+  - [ ] MUST define closure/callable rejection semantics.
+  - [ ] MUST define artifact-only runtime boot inputs:
+    - [ ] `container@1`;
+    - [ ] already-read/validated `config@1` payload.
+  - [ ] MUST define missing artifact and invalid artifact failure semantics.
+  - [ ] MUST define legacy `1.330.0` stub payload as unsupported for production runtime boot.
+  - [ ] MUST cross-reference:
+    - [ ] `docs/ssot/artifacts.md`;
+    - [ ] `docs/ssot/artifacts-and-fingerprint.md`;
+    - [ ] `docs/ssot/cache-verify.md`;
+    - [ ] `docs/ssot/observability.md`.
 
 #### Modifies
 
@@ -14044,6 +14925,7 @@ Docs:
   - [ ] `docs/ssot/compiled-container.md`
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
+
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [ ] production/runtime container creation MUST use `CompiledContainerFactory`
   - [ ] missing compiled artifact MUST fail with `ContainerArtifactMissingException` (`CORETSIA_CONTAINER_ARTIFACT_MISSING`)
@@ -14053,16 +14935,47 @@ Docs:
     - [ ] missing compiled artifact MUST hard-fail deterministically with `CORETSIA_CONTAINER_ARTIFACT_MISSING`
     - [ ] no implicit non-artifact fallback exists in the runtime boot paths covered by this epic
     - [ ] any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied here
+
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [ ] registers:
     - [ ] `ContainerCompiler`
     - [ ] `CompiledContainerFactory`
     - [ ] `CompiledContainerBuilder`
 
+- [ ] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+  - [ ] MUST replace `StubContainerBuilder` usage with REAL `CompiledContainerBuilder`.
+  - [ ] MUST build the compiled container payload through `ContainerCompiler`.
+  - [ ] MUST NOT write the old stub container payload after this epic.
+  - [ ] MUST keep artifact set unchanged:
+    - [ ] `module-manifest.php`
+    - [ ] `config.php`
+    - [ ] `container.php`
+  - [ ] MUST keep `routes.php` out of `core/kernel`.
+
+- [ ] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+  - [ ] MUST build expected REAL `container.php` envelope in memory.
+  - [ ] MUST use the same `ContainerCompiler` / `CompiledContainerBuilder` semantics as artifact production.
+  - [ ] MUST NOT compare existing REAL container artifacts against the old stub payload.
+  - [ ] MUST keep verification read-only and MUST NOT write or repair artifacts.
+
+- [ ] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+  - [ ] MUST validate REAL `container@1` compiled payload schema.
+  - [ ] MUST validate by scalar/array schema only.
+  - [ ] MUST NOT rely on PHP object identity or runtime class checks.
+  - [ ] MUST reject closure/callable-like graph values if present in the artifact payload.
+  - [ ] MUST reject the earlier `1.330.0` stub payload as a valid REAL `container@1` runtime payload.
+  - [ ] MUST keep canonical envelope validation unchanged:
+    - [ ] top-level keys exactly `_meta`, `payload`.
+
+- [ ] `docs/ssot/observability.md`
+  - [ ] register spans and metrics;
+  - [ ] keep labels limited to `outcome`;
+
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/cache/<appId>/container.php` — REAL compiled container artifact (same path as the earlier stub; semantics upgraded from stub → REAL), schemaVersion, deterministic bytes
+  - [ ] `skeleton/var/cache/<appTarget>/container.php` — REAL `container@1` compiled container artifact, same path and artifact identity as the earlier stub placeholder, but with REAL payload schema defined by `docs/ssot/compiled-container.md`.
+  - [ ] The emitted artifact MUST use deterministic bytes, canonical header fields, the canonical `schemaVersion` for `container@1`, and the global artifact envelope.
 - [ ] Reads:
   - [ ] validates header + payload schema for same file
   - [ ] validation MUST assert the same canonical top-level envelope `{ "_meta", "payload" }` used by other kernel-owned artifacts.
@@ -14078,16 +14991,34 @@ Docs:
 
 #### Observability (policy-compliant)
 
+- [ ] Spans:
+  - [ ] `kernel.container_compile`
 - [ ] Metrics:
   - [ ] `kernel.container_compile_total` (labels: `outcome`)
   - [ ] `kernel.container_compile_duration_ms` (labels: `outcome`)
+- [ ] Metric labels:
+  - [ ] only `outcome`
+  - [ ] allowed values:
+    - [ ] `success`
+    - [ ] `failure`
 - [ ] Logs:
-  - [ ] compile summary only (counts), no secrets, no raw config dumps
+  - [ ] compile summary only (safe counts, duration milliseconds, outcome)
+  - [ ] no secrets, raw config dumps, raw env values, closure dumps, source snippets, absolute paths, fingerprints, or OS error messages
+- [ ] Observability failures MUST NOT change compile behavior.
 
 #### Security / Redaction
 
 - [ ] MUST NOT leak:
-  - [ ] any secrets embedded into compiled payload (only references/ids allowed)
+  - [ ] raw secrets;
+  - [ ] raw env values;
+  - [ ] raw config values not already owned by `config@1` artifact semantics;
+  - [ ] absolute paths;
+  - [ ] source snippets;
+  - [ ] closure dumps;
+  - [ ] OS error messages;
+  - [ ] host-specific bytes.
+- [ ] Callable-like runtime behavior MUST be represented by deterministic references, never by serialized closures/callables.
+- [ ] Secret-bearing runtime configuration MUST come from the canonical compiled config artifact semantics, not from duplicated ad-hoc `container@1` payload fields.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -14099,6 +15030,13 @@ Docs:
   - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
 - [ ] Missing artifact hard-fail:
   - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
+- [ ] Invalid artifact hard-fail:
+  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+- [ ] Closure-definition rejection:
+  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
+- [ ] Foundation semantic parity:
+  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
+  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
 
 ### Tests (MUST)
 
@@ -14113,6 +15051,11 @@ Docs:
     - [ ] asserts code `CORETSIA_CONTAINER_ARTIFACT_MISSING`
     - [ ] asserts no silent fallback to non-artifact container in production mode
     - [ ] asserts no absolute path leak in the surfaced failure
+  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+    - [ ] asserts code `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+    - [ ] asserts legacy `1.330.0` stub payload is rejected for production runtime boot
+    - [ ] asserts no absolute path leak in the surfaced failure
+    - [ ] asserts no raw payload, closure dump, source snippet, or PHP warning text leaks
   - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
     - [ ] asserts code `CORETSIA_CONTAINER_COMPILE_FAILED`
     - [ ] asserts fixed message token `container-compile-failed`
@@ -14126,10 +15069,20 @@ Docs:
 - [ ] rerun no diff
 - [ ] deterministic hard-fail when artifact missing (production policy)
 - [ ] docs complete
+- [ ] `docs/ssot/compiled-container.md` defines the first REAL `container@1` payload schema.
+- [ ] `container@2` is NOT introduced by this epic.
+- [ ] The earlier `1.330.0` stub payload is documented as a transitional placeholder, not as the supported runtime compiled-container format.
 - [ ] Phase 1 artifact-based runtime boot paths hard-fail without `container.php` with deterministic code:
   - [ ] `CORETSIA_CONTAINER_ARTIFACT_MISSING`
-- [ ] No implicit non-artifact fallback exists in the boot paths covered by this epic.
+- [ ] Phase 1 artifact-based runtime boot paths hard-fail on invalid or legacy-stub `container.php` with deterministic code:
+  - [ ] `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+- [ ] No implicit non-artifact fallback exists in the production runtime boot paths covered by this epic.
+- [ ] Provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
 - [ ] When the container is compiled twice without changes, then `git diff` is empty and `cache:verify` stays clean.
+- [ ] Artifact-only runtime boot uses artifact-owned config input:
+  - [ ] `container@1` provides service definitions / aliases / parameters / tags;
+  - [ ] `config@1` provides the runtime config snapshot;
+  - [ ] runtime boot MUST NOT read source config files.
 - [ ] Reset discipline in artifact-only boot (MUST)
   - [ ] effective reset tag resolution remains Foundation-owned and MUST NOT be duplicated in compiler/artifact code
   - [ ] When REAL container artifact becomes active (this epic scope), the compiled container MUST include Foundation reset infrastructure so runtime can trigger reset:
@@ -14145,6 +15098,7 @@ Docs:
   - [ ] KernelRuntime can execute a UoW and triggers reset once per UoW
 - [ ] Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
 - [ ] No standalone `container_no_closure_definitions_gate.php` exists.
+  - [ ] This is verified together with positive compiler-level closure rejection test evidence.
 - [ ] Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
 
 ---
@@ -14664,7 +15618,7 @@ Forbidden:
   - consumer MUST NOT enumerate reset tags directly
 
 - Artifacts:
-  - reads: `skeleton/var/cache/<appId>/container.php` (optional; compiled container)
+  - reads: `skeleton/var/cache/<appTarget>/container.php` (optional; compiled container)
   - writes: `skeleton/var/tmp/worker.pid`
   - writes: `skeleton/var/tmp/worker.sock` — only when resolved `worker.control.transport = unix`
   - writes: `skeleton/var/tmp/worker.state.json`
@@ -14885,7 +15839,7 @@ Add config contract tests (policy rails):
     - [ ] raw socket path, raw tcp host/port, absolute paths, tokens, payloads
   - [ ] `skeleton/var/tmp/worker.stop`
 - [ ] Reads:
-  - [ ] `skeleton/var/cache/<appId>/container.php` (optional)
+  - [ ] `skeleton/var/cache/<appTarget>/container.php` (optional)
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 

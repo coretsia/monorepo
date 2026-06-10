@@ -351,6 +351,7 @@ This decision gives Coretsia:
 - safe reserved namespace enforcement;
 - support for custom/user-owned config roots;
 - explainable effective source attribution;
+- safe Phase B provenance metadata for downstream artifact fingerprinting;
 - env overlays that cannot create arbitrary config keys;
 - validation that does not reject custom roots without rules;
 - safe diagnostics without raw values.
@@ -375,6 +376,8 @@ loaders
 The design requires strong integration tests because correctness emerges from the connection between the components.
 
 The design also requires explicit config-location source builders. Runtime code cannot rely on directory scanning as a shortcut.
+
+The design also requires preserving safe source-file provenance metadata for skeleton/app config candidates so downstream artifact fingerprinting can include file-content influence without making `ConfigKernel` calculate artifact fingerprints.
 
 ### Neutral consequences
 
@@ -477,6 +480,17 @@ The following invariants are accepted by this ADR.
 - Validation only applies to roots with loaded rulesets.
 - User-owned/custom roots without rulesets are not rejected only because they have no rules.
 - Unvalidated custom roots are reported as `user_owned` and `unvalidated`.
+
+### Safe provenance invariants
+
+- `ConfigKernel::compile(...)` returns safe Phase B provenance metadata for downstream artifact/fingerprint stages.
+- `envOverlayMappings` is the exact resolved mapping list produced by `EnvironmentOverlayLoader`.
+- `configSourceFiles` is the safe source-file metadata produced by `SkeletonConfigLoader`.
+- `configSourceFiles` may include only safe bounded fields such as `layer`, `kind`, `root`, `sourceId`, normalized relative `path`, `exists`, `readable`, `hash`, and `len`.
+- `configSourceFiles.hash`, when present, is `sha256` over LF-normalized file bytes.
+- Safe provenance metadata must not expose raw config values, raw env values, raw source file contents, absolute filesystem paths, mtimes, permissions, filesystem owners, hostnames, user names, process ids, or previous throwable messages.
+- `ConfigKernel` does not calculate artifact fingerprints.
+- `ConfigKernel` does not hash compiled artifact envelopes.
 
 ### Env overlay invariants
 

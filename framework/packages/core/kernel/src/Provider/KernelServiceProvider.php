@@ -24,6 +24,22 @@ use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
+use Coretsia\Kernel\Artifacts\ArtifactWriter;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
+use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
+use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
+use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
+use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
+use Coretsia\Kernel\Artifacts\PayloadNormalizer;
+use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
+use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
+use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
+use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
@@ -74,6 +90,12 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * - registering ConfigKernel services does not load skeleton/app config files;
  * - registering ConfigKernel services does not build env overlays;
  * - registering ConfigKernel services does not merge, validate, or explain config;
+ * - artifact/fingerprint/cache services are registered as factories only;
+ * - registering artifact services does not write or read generated artifacts;
+ * - registering fingerprint services does not calculate fingerprints;
+ * - registering cache services does not run cache verification;
+ * - registering artifact/fingerprint/cache services does not emit spans,
+ *   metrics, logs, stdout, or stderr;
  * - FilesystemModePresetLoader is not registered globally because skeleton
  *   override path resolution is BootstrapConfig-specific;
  * - ModePresetLoaderInterface is not bound globally for the same reason;
@@ -214,14 +236,14 @@ final class KernelServiceProvider implements ServiceProviderInterface
         );
 
         /*
- * Register ConfigKernel Phase B services.
- *
- * These bindings are factories only. They do not run config compilation, do
- * not resolve BootstrapConfig, do not resolve ModulePlan, do not build
- * EnvRepositoryInterface snapshots, do not load package/skeleton config files,
- * do not build env overlays, do not merge config, do not validate config, and
- * do not build explain traces during provider registration.
- */
+         * Register ConfigKernel Phase B services.
+         *
+         * These bindings are factories only. They do not run config compilation,
+         * do not resolve BootstrapConfig, do not resolve ModulePlan, do not build
+         * EnvRepositoryInterface snapshots, do not load package/skeleton config
+         * files, do not build env overlays, do not merge config, do not validate
+         * config, and do not build explain traces during provider registration.
+         */
         $builder->factory(
             ConfigNamespaceGuard::class,
             static fn (Container $container): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
@@ -284,6 +306,126 @@ final class KernelServiceProvider implements ServiceProviderInterface
         $builder->factory(
             ConfigKernel::class,
             static fn (Container $container): ConfigKernel => KernelServiceFactory::configKernel(
+                container: $container,
+            ),
+        );
+
+        /*
+         * Register Kernel artifact/fingerprint/cache services.
+         *
+         * These bindings are factories only. They do not write artifacts, read
+         * generated artifacts, calculate fingerprints, run cache verification,
+         * resolve BootstrapConfig, resolve ModulePlan, build EnvRepositoryInterface,
+         * run ConfigKernel::compile(), invoke ResetOrchestrator, start a
+         * UnitOfWork, emit stdout/stderr, or emit artifact/fingerprint/cache
+         * observability during provider registration.
+         *
+         * Artifact/fingerprint/cache observability-aware services receive their
+         * dependencies only when the service is resolved by the container. The
+         * provider itself does not start kernel.artifacts_write,
+         * kernel.fingerprint_calculate, or kernel.cache_verify spans and does not
+         * emit artifact/fingerprint/cache metrics or logs.
+         */
+        $builder->factory(
+            PayloadNormalizer::class,
+            static fn (Container $_container): PayloadNormalizer => KernelServiceFactory::artifactPayloadNormalizer(),
+        );
+
+        $builder->factory(
+            StablePhpArrayDumper::class,
+            static fn (Container $container): StablePhpArrayDumper => KernelServiceFactory::stablePhpArrayDumper(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactEnvelopeFactory::class,
+            static fn (Container $container): ArtifactEnvelopeFactory => KernelServiceFactory::artifactEnvelopeFactory(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactPathResolver::class,
+            static fn (Container $_container): ArtifactPathResolver => KernelServiceFactory::artifactPathResolver(),
+        );
+
+        $builder->factory(
+            DeterministicFileLister::class,
+            static fn (Container $_container): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(
+            ),
+        );
+
+        $builder->factory(
+            ConfigFingerprintInputBuilder::class,
+            static fn (
+                Container $container
+            ): ConfigFingerprintInputBuilder => KernelServiceFactory::configFingerprintInputBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            FingerprintExplainer::class,
+            static fn (Container $_container): FingerprintExplainer => KernelServiceFactory::fingerprintExplainer(),
+        );
+
+        $builder->factory(
+            FingerprintCalculator::class,
+            static fn (Container $container): FingerprintCalculator => KernelServiceFactory::fingerprintCalculator(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactWriter::class,
+            static fn (Container $container): ArtifactWriter => KernelServiceFactory::artifactWriter(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ModuleManifestBuilder::class,
+            static fn (Container $container): ModuleManifestBuilder => KernelServiceFactory::moduleManifestBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            CompiledConfigBuilder::class,
+            static fn (Container $container): CompiledConfigBuilder => KernelServiceFactory::compiledConfigBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            StubContainerBuilder::class,
+            static fn (Container $container): StubContainerBuilder => KernelServiceFactory::stubContainerBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            PhpArtifactReader::class,
+            static fn (Container $_container): PhpArtifactReader => KernelServiceFactory::phpArtifactReader(),
+        );
+
+        $builder->factory(
+            ArtifactSchemaValidator::class,
+            static fn (Container $_container): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(
+            ),
+        );
+
+        $builder->factory(
+            ArtifactCompiler::class,
+            static fn (Container $container): ArtifactCompiler => KernelServiceFactory::artifactCompiler(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            CacheVerifier::class,
+            static fn (Container $container): CacheVerifier => KernelServiceFactory::cacheVerifier(
                 container: $container,
             ),
         );

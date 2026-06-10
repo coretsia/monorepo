@@ -137,8 +137,8 @@ package defaults
 | Source type                        | Active categories                                                   | Effective precedence source                                                                                          |
 |------------------------------------|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
 | `ConfigSourceType::PackageDefault` | Package defaults                                                    | Package default source candidate metadata, normalized by `PackageDefaultsConfigLoader` and folded by `ConfigKernel`. |
-| `ConfigSourceType::SkeletonConfig` | Skeleton shared aggregate/root, skeleton environment aggregate/root | Skeleton config entry metadata produced by `SkeletonConfigLoader`.                                                   |
-| `ConfigSourceType::AppConfig`      | App shared aggregate/root, app environment aggregate/root           | App config entry metadata produced by `SkeletonConfigLoader`.                                                        |
+| `ConfigSourceType::SkeletonConfig` | Skeleton shared aggregate/root, skeleton environment aggregate/root | Skeleton config entry metadata and safe `configSourceFiles` metadata produced by `SkeletonConfigLoader`.             |
+| `ConfigSourceType::AppConfig`      | App shared aggregate/root, app environment aggregate/root           | App config entry metadata and safe `configSourceFiles` metadata produced by `SkeletonConfigLoader`.                  |
 | `ConfigSourceType::Env`            | Env overlays                                                        | Env overlay source metadata produced by `EnvironmentOverlayLoader`.                                                  |
 
 `ConfigSourceType` MUST NOT be used as the only source of precedence.
@@ -556,6 +556,41 @@ Explain output MUST NOT expose:
 - previous throwable messages;
 - absolute local paths.
 
+## Artifact fingerprint provenance implications
+
+`ConfigKernel::compile(...)` MUST expose safe Phase B provenance metadata needed by downstream artifact fingerprinting.
+
+This metadata includes:
+
+```text
+envOverlayMappings
+configSourceFiles
+```
+
+`envOverlayMappings` MUST be the exact resolved mapping list produced by `EnvironmentOverlayLoader`.
+
+`configSourceFiles` MUST be produced by `SkeletonConfigLoader` for skeleton/app config candidates.
+
+`configSourceFiles` MUST distinguish:
+
+```text
+skeleton shared config files
+skeleton environment config files
+app shared config files
+app environment config files
+user-owned/custom split-root files
+```
+
+`configSourceFiles` MUST NOT change precedence.
+
+`configSourceFiles` MUST NOT participate in merge semantics.
+
+`configSourceFiles` is provenance metadata only.
+
+Downstream artifact/fingerprint stages MAY use `configSourceFiles` content hashes and lengths as fingerprint input.
+
+Downstream artifact/fingerprint stages MUST NOT require `ConfigKernel` to calculate artifact fingerprints.
+
 `ConfigSourceType` values are vocabulary only.
 
 Effective precedence comes from the concrete source entry.
@@ -567,6 +602,8 @@ This document MUST stay consistent with:
 ```text
 docs/ssot/config-merge-order.md
 framework/packages/core/kernel/src/Config/ConfigKernel.php
+framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
+framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
 framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php
 ```
 
@@ -670,7 +707,9 @@ Tests SHOULD verify:
 - env projection is deterministic;
 - unknown env vars do not create config keys;
 - user-owned/custom roots without rules are merged and marked unvalidated;
-- explain output uses stable source types and source ranks.
+- explain output uses stable source types and source ranks;
+- `configSourceFiles` is safe provenance metadata and does not affect rank order;
+- `envOverlayMappings` returned by `ConfigKernel::compile(...)` match the resolved env overlay mappings.
 
 ## Non-goals
 

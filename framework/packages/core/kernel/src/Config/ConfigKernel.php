@@ -174,6 +174,25 @@ final readonly class ConfigKernel
      *     explain: array<string,mixed>|null,
      *     owners: array<string, array<string, null|bool|int|string>>,
      *     sources: list<ConfigValueSource>,
+     *     envOverlayMappings: list<array{
+     *         env: non-empty-string,
+     *         kind: non-empty-string,
+     *         path: non-empty-string,
+     *         root: non-empty-string,
+     *         sourceId: non-empty-string,
+     *         type: non-empty-string
+     *     }>,
+     *     configSourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: non-empty-string,
+     *         layer: non-empty-string,
+     *         len?: int,
+     *         path: non-empty-string,
+     *         readable: bool,
+     *         root?: non-empty-string,
+     *         sourceId: non-empty-string
+     *     }>,
      *     validation: ConfigValidationResult,
      *     validationSubjects: array{
      *         unvalidated: list<array{root: non-empty-string, ownership: string, validation: string}>,
@@ -270,6 +289,8 @@ final readonly class ConfigKernel
                 'explain' => $explainOutput,
                 'owners' => $result['owners'],
                 'sources' => $effectiveSources,
+                'envOverlayMappings' => $result['envOverlayMappings'],
+                'configSourceFiles' => $result['configSourceFiles'],
                 'validation' => $result['validation'],
                 'validationSubjects' => $result['validationSubjects'],
             ];
@@ -386,6 +407,17 @@ final readonly class ConfigKernel
      *         sourceId: non-empty-string,
      *         type: non-empty-string
      *     }>,
+     *     configSourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: non-empty-string,
+     *         layer: non-empty-string,
+     *         len?: int,
+     *         path: non-empty-string,
+     *         readable: bool,
+     *         root?: non-empty-string,
+     *         sourceId: non-empty-string
+     *     }>,
      *     mergeEntries: list<array<string,mixed>>,
      *     owners: array<string, array<string, null|bool|int|string>>,
      *     rulesets: list<ConfigRuleset>,
@@ -482,6 +514,7 @@ final readonly class ConfigKernel
             'config' => $merged['config'],
             'effectiveSources' => $merged['sources'],
             'envOverlayMappings' => $envOverlay['mappings'],
+            'configSourceFiles' => $skeletonConfig['sourceFiles'],
             'mergeEntries' => $mergeEntries,
             'owners' => $owners,
             'rulesets' => $rulesets,
@@ -1034,7 +1067,18 @@ final readonly class ConfigKernel
      *         type: non-empty-string
      *     }>,
      *     sources: list<ConfigValueSource>,
-     *     owners: list<array<string,mixed>>
+     *     owners: list<array<string,mixed>>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: non-empty-string,
+     *         layer: non-empty-string,
+     *         len?: int,
+     *         path: non-empty-string,
+     *         readable: bool,
+     *         root?: non-empty-string,
+     *         sourceId: non-empty-string
+     *     }>
      * } $skeletonConfig
      * @param array{
      *     config: array<string,mixed>,

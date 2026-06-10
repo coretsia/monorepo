@@ -30,6 +30,22 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
+use Coretsia\Kernel\Artifacts\ArtifactWriter;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
+use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
+use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
+use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
+use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
+use Coretsia\Kernel\Artifacts\PayloadNormalizer;
+use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
+use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
+use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
+use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
@@ -512,6 +528,403 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the Kernel artifact payload normalizer.
+     *
+     * This factory performs construction only. PayloadNormalizer is the
+     * Kernel-owned json-like normalization boundary used before stable PHP/JSON
+     * artifact byte emission. It does not emit bytes, calculate fingerprints,
+     * read files, write files, or keep mutable runtime state.
+     */
+    public static function artifactPayloadNormalizer(): PayloadNormalizer
+    {
+        return new PayloadNormalizer();
+    }
+
+    /**
+     * Creates the deterministic PHP artifact array dumper.
+     *
+     * This factory wires the dumper to PayloadNormalizer so Kernel PHP artifact
+     * emission stays aligned with the Foundation json-like normalization rules.
+     * It does not dump artifacts during factory construction.
+     */
+    public static function stablePhpArrayDumper(ContainerInterface $container): StablePhpArrayDumper
+    {
+        $payloadNormalizer = self::artifactService($container, PayloadNormalizer::class);
+
+        if (!$payloadNormalizer instanceof PayloadNormalizer) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new StablePhpArrayDumper(
+            payloadNormalizer: $payloadNormalizer,
+        );
+    }
+
+    /**
+     * Creates the canonical Kernel artifact envelope factory.
+     *
+     * This factory performs construction only. It does not assemble envelopes
+     * during provider registration and keeps no mutable artifact state.
+     */
+    public static function artifactEnvelopeFactory(ContainerInterface $container): ArtifactEnvelopeFactory
+    {
+        $payloadNormalizer = self::artifactService($container, PayloadNormalizer::class);
+
+        if (!$payloadNormalizer instanceof PayloadNormalizer) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactEnvelopeFactory(
+            payloadNormalizer: $payloadNormalizer,
+        );
+    }
+
+    /**
+     * Creates the Kernel artifact path resolver.
+     *
+     * This factory performs construction only. It does not resolve paths during
+     * provider registration and keeps no BootstrapConfig or config snapshot.
+     */
+    public static function artifactPathResolver(): ArtifactPathResolver
+    {
+        return new ArtifactPathResolver();
+    }
+
+    /**
+     * Creates the deterministic declared-input file lister.
+     *
+     * This factory performs construction only. It does not list files during
+     * provider registration.
+     */
+    public static function deterministicFileLister(): DeterministicFileLister
+    {
+        return new DeterministicFileLister();
+    }
+
+    /**
+     * Creates the deterministic fingerprint input builder.
+     *
+     * This factory performs wiring only. It does not resolve BootstrapConfig,
+     * resolve ModulePlan, compile config, read env, discover files, or calculate
+     * fingerprints during provider registration.
+     */
+    public static function configFingerprintInputBuilder(ContainerInterface $container): ConfigFingerprintInputBuilder
+    {
+        $payloadNormalizer = self::artifactService($container, PayloadNormalizer::class);
+
+        if (!$payloadNormalizer instanceof PayloadNormalizer) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $fileLister = self::artifactService($container, DeterministicFileLister::class);
+
+        if (!$fileLister instanceof DeterministicFileLister) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ConfigFingerprintInputBuilder(
+            payloadNormalizer: $payloadNormalizer,
+            fileLister: $fileLister,
+        );
+    }
+
+    /**
+     * Creates the safe fingerprint explainer.
+     *
+     * This factory performs construction only. It does not calculate
+     * fingerprints, diff inputs, read files, write files, or render output.
+     */
+    public static function fingerprintExplainer(): FingerprintExplainer
+    {
+        return new FingerprintExplainer();
+    }
+
+    /**
+     * Creates the deterministic fingerprint calculator.
+     *
+     * This factory wires only public observability ports/interfaces and
+     * Stopwatch. It does not calculate fingerprints during provider
+     * registration and does not decide whether observability adapters are real
+     * or Noop.
+     */
+    public static function fingerprintCalculator(ContainerInterface $container): FingerprintCalculator
+    {
+        $payloadNormalizer = self::artifactService($container, PayloadNormalizer::class);
+
+        if (!$payloadNormalizer instanceof PayloadNormalizer) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new FingerprintCalculator(
+            payloadNormalizer: $payloadNormalizer,
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
+            stopwatch: self::stopwatch($container),
+        );
+    }
+
+    /**
+     * Creates the atomic Kernel artifact writer.
+     *
+     * This factory performs wiring only. It does not write files, dump artifacts,
+     * start spans, emit metrics, or write logs during provider registration.
+     */
+    public static function artifactWriter(ContainerInterface $container): ArtifactWriter
+    {
+        $phpArrayDumper = self::artifactService($container, StablePhpArrayDumper::class);
+
+        if (!$phpArrayDumper instanceof StablePhpArrayDumper) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactWriter(
+            phpArrayDumper: $phpArrayDumper,
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
+            stopwatch: self::stopwatch($container),
+        );
+    }
+
+    /**
+     * Creates the module-manifest artifact builder.
+     *
+     * This factory performs wiring only. It does not resolve modules or build an
+     * artifact envelope during provider registration.
+     */
+    public static function moduleManifestBuilder(ContainerInterface $container): ModuleManifestBuilder
+    {
+        $envelopeFactory = self::artifactService($container, ArtifactEnvelopeFactory::class);
+
+        if (!$envelopeFactory instanceof ArtifactEnvelopeFactory) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ModuleManifestBuilder(
+            envelopeFactory: $envelopeFactory,
+        );
+    }
+
+    /**
+     * Creates the compiled-config artifact builder.
+     *
+     * This factory performs wiring only. It does not run ConfigKernel or build
+     * config artifacts during provider registration.
+     */
+    public static function compiledConfigBuilder(ContainerInterface $container): CompiledConfigBuilder
+    {
+        $envelopeFactory = self::artifactService($container, ArtifactEnvelopeFactory::class);
+
+        if (!$envelopeFactory instanceof ArtifactEnvelopeFactory) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new CompiledConfigBuilder(
+            envelopeFactory: $envelopeFactory,
+        );
+    }
+
+    /**
+     * Creates the stub container artifact builder.
+     *
+     * This factory performs wiring only. It does not compile a real container or
+     * inspect DI state during provider registration.
+     */
+    public static function stubContainerBuilder(ContainerInterface $container): StubContainerBuilder
+    {
+        $envelopeFactory = self::artifactService($container, ArtifactEnvelopeFactory::class);
+
+        if (!$envelopeFactory instanceof ArtifactEnvelopeFactory) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new StubContainerBuilder(
+            envelopeFactory: $envelopeFactory,
+        );
+    }
+
+    /**
+     * Creates the PHP artifact reader.
+     *
+     * This factory performs construction only. It does not read generated
+     * artifacts during provider registration.
+     */
+    public static function phpArtifactReader(): PhpArtifactReader
+    {
+        return new PhpArtifactReader();
+    }
+
+    /**
+     * Creates the artifact schema validator.
+     *
+     * This factory performs construction only. It does not validate artifacts
+     * during provider registration.
+     */
+    public static function artifactSchemaValidator(): ArtifactSchemaValidator
+    {
+        return new ArtifactSchemaValidator();
+    }
+
+    /**
+     * Creates the Kernel-owned artifact compiler.
+     *
+     * This factory performs wiring only. It does not resolve BootstrapConfig,
+     * resolve ModulePlan, compile config, calculate fingerprints, write
+     * artifacts, read artifacts, verify cache, trigger reset, or start a
+     * UnitOfWork during provider registration.
+     */
+    public static function artifactCompiler(ContainerInterface $container): ArtifactCompiler
+    {
+        $configKernel = self::configService($container, ConfigKernel::class);
+
+        if (!$configKernel instanceof ConfigKernel) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $fingerprintInputBuilder = self::artifactService($container, ConfigFingerprintInputBuilder::class);
+
+        if (!$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $fingerprintCalculator = self::artifactService($container, FingerprintCalculator::class);
+
+        if (!$fingerprintCalculator instanceof FingerprintCalculator) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $moduleManifestBuilder = self::artifactService($container, ModuleManifestBuilder::class);
+
+        if (!$moduleManifestBuilder instanceof ModuleManifestBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $compiledConfigBuilder = self::artifactService($container, CompiledConfigBuilder::class);
+
+        if (!$compiledConfigBuilder instanceof CompiledConfigBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $stubContainerBuilder = self::artifactService($container, StubContainerBuilder::class);
+
+        if (!$stubContainerBuilder instanceof StubContainerBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $artifactWriter = self::artifactService($container, ArtifactWriter::class);
+
+        if (!$artifactWriter instanceof ArtifactWriter) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $pathResolver = self::artifactService($container, ArtifactPathResolver::class);
+
+        if (!$pathResolver instanceof ArtifactPathResolver) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactCompiler(
+            configKernel: $configKernel,
+            fingerprintInputBuilder: $fingerprintInputBuilder,
+            fingerprintCalculator: $fingerprintCalculator,
+            moduleManifestBuilder: $moduleManifestBuilder,
+            compiledConfigBuilder: $compiledConfigBuilder,
+            stubContainerBuilder: $stubContainerBuilder,
+            artifactWriter: $artifactWriter,
+            pathResolver: $pathResolver,
+        );
+    }
+
+    /**
+     * Creates the Kernel-owned cache verifier.
+     *
+     * This factory performs wiring only. It does not resolve BootstrapConfig,
+     * resolve ModulePlan, compile config, calculate fingerprints, read generated
+     * artifacts, validate artifacts, compare bytes, run cache verification,
+     * trigger reset, or start a UnitOfWork during provider registration.
+     */
+    public static function cacheVerifier(ContainerInterface $container): CacheVerifier
+    {
+        $configKernel = self::configService($container, ConfigKernel::class);
+
+        if (!$configKernel instanceof ConfigKernel) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $fingerprintInputBuilder = self::artifactService($container, ConfigFingerprintInputBuilder::class);
+
+        if (!$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $fingerprintCalculator = self::artifactService($container, FingerprintCalculator::class);
+
+        if (!$fingerprintCalculator instanceof FingerprintCalculator) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $moduleManifestBuilder = self::artifactService($container, ModuleManifestBuilder::class);
+
+        if (!$moduleManifestBuilder instanceof ModuleManifestBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $compiledConfigBuilder = self::artifactService($container, CompiledConfigBuilder::class);
+
+        if (!$compiledConfigBuilder instanceof CompiledConfigBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $stubContainerBuilder = self::artifactService($container, StubContainerBuilder::class);
+
+        if (!$stubContainerBuilder instanceof StubContainerBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $phpArrayDumper = self::artifactService($container, StablePhpArrayDumper::class);
+
+        if (!$phpArrayDumper instanceof StablePhpArrayDumper) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $artifactReader = self::artifactService($container, PhpArtifactReader::class);
+
+        if (!$artifactReader instanceof PhpArtifactReader) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $schemaValidator = self::artifactService($container, ArtifactSchemaValidator::class);
+
+        if (!$schemaValidator instanceof ArtifactSchemaValidator) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $pathResolver = self::artifactService($container, ArtifactPathResolver::class);
+
+        if (!$pathResolver instanceof ArtifactPathResolver) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new CacheVerifier(
+            configKernel: $configKernel,
+            fingerprintInputBuilder: $fingerprintInputBuilder,
+            fingerprintCalculator: $fingerprintCalculator,
+            moduleManifestBuilder: $moduleManifestBuilder,
+            compiledConfigBuilder: $compiledConfigBuilder,
+            stubContainerBuilder: $stubContainerBuilder,
+            phpArrayDumper: $phpArrayDumper,
+            artifactReader: $artifactReader,
+            schemaValidator: $schemaValidator,
+            pathResolver: $pathResolver,
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
+            stopwatch: self::stopwatch($container),
+        );
+    }
+
+    /**
      * Creates the Kernel hook invoker.
      *
      * The supplied TagRegistry MUST be the builder-owned registry instance so
@@ -840,6 +1253,26 @@ final class KernelServiceFactory
         } catch (\Throwable $throwable) {
             throw new ContainerException(
                 'kernel-config-dependency-not-found',
+                $throwable,
+            );
+        }
+    }
+
+    private static function artifactService(
+        ContainerInterface $container,
+        string $id,
+    ): mixed {
+        try {
+            if (!$container->has($id)) {
+                throw new ContainerException('kernel-artifacts-dependency-not-found');
+            }
+
+            return $container->get($id);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-artifacts-dependency-not-found',
                 $throwable,
             );
         }

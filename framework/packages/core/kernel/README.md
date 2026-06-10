@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config artifact writing, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -102,6 +102,35 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader`
   - `Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader`
   - `Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader`
+- Kernel-owned artifact production, fingerprint, and cache verification services:
+  - `Coretsia\Kernel\Artifacts\PayloadNormalizer`
+  - `Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory`
+  - `Coretsia\Kernel\Artifacts\ArtifactWriter`
+  - `Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder`
+  - `Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder`
+  - `Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder`
+  - `Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler`
+  - `Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder`
+  - `Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister`
+  - `Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator`
+  - `Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer`
+  - `Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver`
+  - `Coretsia\Kernel\Artifacts\Php\PhpArtifactReader`
+  - `Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper`
+  - `Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator`
+  - `Coretsia\Kernel\Artifacts\Verifier\CacheVerifier`
+- Kernel-owned generated artifact basenames:
+  - `module-manifest.php`
+  - `config.php`
+  - `container.php`
+- Kernel-owned artifact/fingerprint/cache observability:
+  - span: `kernel.artifacts_write`
+  - span: `kernel.fingerprint_calculate`
+  - span: `kernel.cache_verify`
+  - metrics: `kernel.artifacts_write_total`, `kernel.artifacts_write_duration_ms`
+  - metrics: `kernel.fingerprint_calculate_total`, `kernel.fingerprint_calculate_duration_ms`
+  - metrics: `kernel.cache_verify_total`, `kernel.cache_verify_duration_ms`
+  - allowed metric label: `outcome`
 - Kernel-owned deterministic ModulePlan resolution:
   - `Coretsia\Kernel\Module\ComposerInstalledMetadataProvider`
   - `Coretsia\Kernel\Module\ComposerManifestReader`
@@ -344,6 +373,105 @@ docs/ssot/config-precedence-matrix.md
 docs/ssot/observability.md
 ```
 
+## Kernel artifacts, fingerprint, and cache verification
+
+`core/kernel` owns Kernel-side artifact production, fingerprint behavior, and cache verification for Kernel-owned artifacts.
+
+The Kernel-owned artifact basenames are:
+
+```text
+module-manifest.php
+config.php
+container.php
+```
+
+The corresponding canonical artifact identities are:
+
+```text
+module-manifest@1
+config@1
+container@1
+```
+
+The canonical global artifact envelope, header fields, deterministic serialization law, and artifact registry are owned by:
+
+```text
+docs/ssot/artifacts.md
+```
+
+Kernel-side artifact production and fingerprint behavior are owned by:
+
+```text
+docs/ssot/artifacts-and-fingerprint.md
+```
+
+Kernel cache verification semantics are owned by:
+
+```text
+docs/ssot/cache-verify.md
+```
+
+`routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
+
+`ArtifactCompiler` owns Kernel artifact production orchestration. It builds deterministic fingerprint input, calculates the current fingerprint, builds Kernel-owned artifact envelopes, resolves artifact paths, and writes Kernel-owned artifacts through `ArtifactWriter`.
+
+`CacheVerifier` owns Kernel cache verification. It rebuilds expected Kernel artifacts in memory, reads existing artifacts through `PhpArtifactReader`, validates existing artifact envelopes through `ArtifactSchemaValidator`, compares stored fingerprint to the current fingerprint, compares deterministic LF-normalized bytes, and returns safe clean/dirty/invalid summary data.
+
+Cache verification semantics are:
+
+```text
+missing artifact        → dirty
+fingerprint mismatch    → dirty
+byte mismatch           → dirty
+invalid PHP/envelope    → invalid
+invalid header/schema   → invalid
+valid fingerprint+bytes → clean
+```
+
+Cache verification MUST NOT use mtimes, ctimes, permissions, owners, inode ids, directory ordering, or filesystem traversal order as cache semantics.
+
+Kernel artifact/fingerprint/cache services are registered by `KernelServiceProvider` as factories only.
+
+Artifact/fingerprint/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
+
+Provider registration MUST NOT:
+
+```text
+write artifacts
+read artifacts
+calculate fingerprints
+run cache verification
+resolve BootstrapConfig
+resolve ModulePlan
+build EnvRepositoryInterface
+run ConfigKernel::compile(...)
+invoke ResetOrchestrator
+start a UnitOfWork
+emit stdout/stderr
+start artifact/fingerprint/cache spans
+emit artifact/fingerprint/cache metrics
+write artifact/fingerprint/cache logs
+```
+
+`KernelServiceFactory` artifact/fingerprint/cache methods are construction/wiring methods only.
+
+Factory methods MUST NOT write files, read generated artifacts, calculate fingerprints, run cache verification, resolve bootstrap/config/module plans, retain the container, retain mutable config snapshots, depend on `ResetOrchestrator`, or keep mutable runtime state.
+
+Artifact/fingerprint/cache services receive observability dependencies through public ports/interfaces only:
+
+```text
+Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+Coretsia\Contracts\Observability\Metrics\MeterPortInterface
+Psr\Log\LoggerInterface
+Coretsia\Foundation\Time\Stopwatch
+```
+
+`core/kernel` artifact/fingerprint/cache services MUST NOT instantiate Noop observability implementations and MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
+
+Real-vs-Noop/default binding is owned by the application/foundation composition layer.
+
+Artifact/fingerprint/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, or cache verification behavior.
+
 ## ModulePlan resolution
 
 ModulePlan resolution is Kernel-owned runtime policy.
@@ -402,7 +530,9 @@ extra.coretsia.conflicts
 
 Composer package-level `require` and `conflict` are not Coretsia runtime module graph edges unless explicitly represented in `extra.coretsia.requires` or `extra.coretsia.conflicts`.
 
-ModulePlan output is deterministic and artifact-ready, but this package does not write module artifacts.
+ModulePlan output is deterministic and artifact-ready.
+
+ModulePlan resolution itself does not write artifacts. Kernel artifact production may materialize the ModulePlan-derived `module-manifest.php` artifact through `ArtifactCompiler` and `ModuleManifestBuilder`.
 
 ModulePlan resolution emits safe observability:
 
@@ -1448,3 +1578,7 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0023: Kernel Bootstrap Phase A](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0023-kernel-bootstrap-phase-a.md)
+- [Artifact Header and Schema Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)
+- [Kernel Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
+- [Kernel Cache Verification Semantics SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/cache-verify.md)
+- [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)

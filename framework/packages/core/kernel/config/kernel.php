@@ -30,8 +30,8 @@ declare(strict_types=1);
  * Baseline invariants:
  * - the `kernel` root is owned by `core/kernel`;
  * - dotted keys such as `kernel.boot.*`, `kernel.config.*`, `kernel.env.*`,
- *   `kernel.modules.*`, `kernel.modes.*`, `kernel.uow.*` are config key
- *   namespaces, not roots;
+ *   `kernel.modules.*`, `kernel.modes.*`, `kernel.artifacts.*`,
+ *   `kernel.fingerprint.*`, `kernel.uow.*` are config key namespaces, not roots;
  * - `kernel.config.*` owns ConfigKernel Phase B safety defaults;
  * - `kernel.config.forbidden_top_level_roots` reserves global internal config
  *   namespaces only;
@@ -39,6 +39,11 @@ declare(strict_types=1);
  *   `foundation` because applications must be able to configure those roots;
  * - `kernel.modules.*` owns module discovery source defaults;
  * - `kernel.modes.*` owns mode preset path/schema defaults;
+ * - `kernel.artifacts.*` owns Kernel artifact output path defaults;
+ * - `kernel.fingerprint.*` owns deterministic fingerprint exclusion defaults;
+ * - `kernel.fingerprint.*` MUST NOT duplicate the canonical dotenv files list from
+ *   `kernel.env.dotenv.files`;
+ * - `kernel.fingerprint.env.tracked_keys` MUST NOT be introduced;
  * - Kernel config defaults MUST NOT contain absolute paths;
  * - Kernel config defaults MUST NOT contain monorepo-only paths such as
  *   `framework/packages/core/kernel/...`;
@@ -183,6 +188,49 @@ return [
         'schema_version' => 1,
         'defaults_path' => 'resources/modes',
         'overrides_path' => 'config/modes',
+    ],
+
+    /*
+     * Artifact output defaults.
+     *
+     * Artifacts are build-time/cache outputs owned by core/kernel.
+     *
+     * `cache_dir` is BootstrapConfig::skeletonRoot()-relative. It MUST remain a
+     * relative-safe path and MUST NOT contain a `skeleton/` prefix, `..`,
+     * absolute path syntax, host-specific path fragments, or monorepo-only paths.
+     *
+     * Artifact schema versions are owned by artifact code and SSoT documents.
+     * They are intentionally not runtime-configurable.
+     */
+    'artifacts' => [
+        'cache_dir' => 'var/cache',
+    ],
+
+    /*
+     * Fingerprint defaults.
+     *
+     * Fingerprinting is deterministic and safe by construction. It MUST NOT
+     * include raw config values, raw env values, secrets, absolute paths,
+     * timestamps, mtimes, permissions, owners, hostnames, or process-specific
+     * bytes.
+     *
+     * `skeleton_ignore_prefixes` values are BootstrapConfig::skeletonRoot()
+     * relative. They are used only as deterministic exclusions for skeleton-local
+     * generated/operational paths.
+     *
+     * Env fingerprint coverage is derived from resolved BootstrapConfig values,
+     * the canonical kernel.env.dotenv.files list, env-overlay mappings, and
+     * EnvRepositoryInterface source metadata.
+     *
+     * This config intentionally does not define
+     * kernel.fingerprint.env.tracked_keys. The canonical dotenv files list stays
+     * owned by kernel.env.dotenv.files and MUST NOT be duplicated here.
+     */
+    'fingerprint' => [
+        'skeleton_ignore_prefixes' => [
+            'var/cache',
+            'var/maintenance',
+        ],
     ],
 
     /*

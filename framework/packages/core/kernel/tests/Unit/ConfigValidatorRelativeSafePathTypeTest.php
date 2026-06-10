@@ -136,6 +136,25 @@ final class ConfigValidatorRelativeSafePathTypeTest extends TestCase
         yield 'backslash-path' => [
             'config\\modes',
         ];
+        yield 'leading-whitespace' => [
+            ' config/modes',
+        ];
+
+        yield 'trailing-whitespace' => [
+            'config/modes ',
+        ];
+
+        yield 'internal-whitespace' => [
+            'config /modes',
+        ];
+
+        yield 'path-traversal-parent-segment' => [
+            'config/../secrets',
+        ];
+
+        yield 'double-slash' => [
+            'config//modes',
+        ];
     }
 
     /**

@@ -139,6 +139,17 @@ final readonly class SkeletonConfigLoader
      *         root: non-empty-string,
      *         sourceId: non-empty-string,
      *         type: non-empty-string
+     *     }>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: non-empty-string,
+     *         layer: non-empty-string,
+     *         len?: int,
+     *         path: non-empty-string,
+     *         readable: bool,
+     *         root?: non-empty-string,
+     *         sourceId: non-empty-string
      *     }>
      * }
      *
@@ -158,6 +169,7 @@ final readonly class SkeletonConfigLoader
             'entries' => [],
             'owners' => [],
             'sources' => [],
+            'sourceFiles' => [],
         ];
 
         $this->loadLayer(
@@ -240,6 +252,17 @@ final readonly class SkeletonConfigLoader
      *         root: string,
      *         sourceId: string,
      *         type: string
+     *     }>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: string,
+     *         layer: string,
+     *         len?: int,
+     *         path: string,
+     *         readable: bool,
+     *         root?: string,
+     *         sourceId: string
      *     }>
      * } $collector
      *
@@ -263,6 +286,17 @@ final readonly class SkeletonConfigLoader
      *         root: non-empty-string,
      *         sourceId: non-empty-string,
      *         type: non-empty-string
+     *     }>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: non-empty-string,
+     *         layer: non-empty-string,
+     *         len?: int,
+     *         path: non-empty-string,
+     *         readable: bool,
+     *         root?: non-empty-string,
+     *         sourceId: non-empty-string
      *     }>
      * }
      *
@@ -290,6 +324,63 @@ final readonly class SkeletonConfigLoader
             }
         }
 
+        foreach ($collector['sourceFiles'] as $sourceFile) {
+            foreach (['kind', 'layer', 'path', 'sourceId'] as $key) {
+                if (!isset($sourceFile[$key]) || !\is_string($sourceFile[$key]) || $sourceFile[$key] === '') {
+                    throw ConfigInvalidException::withReason(
+                        ConfigInvalidException::REASON_SOURCE_INVALID,
+                    );
+                }
+            }
+
+            if (
+                !self::isSafeMetadataToken($sourceFile['kind'])
+                || !self::isSafeMetadataToken($sourceFile['layer'])
+                || !self::isSafeRelativeMetadataPath($sourceFile['path'])
+                || !self::isSafeSourceId($sourceFile['sourceId'])
+            ) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (!isset($sourceFile['exists']) || !\is_bool($sourceFile['exists'])) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (!isset($sourceFile['readable']) || !\is_bool($sourceFile['readable'])) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (isset($sourceFile['hash']) && (
+                !\is_string($sourceFile['hash'])
+                    || \preg_match('/\A[a-f0-9]{64}\z/', $sourceFile['hash']) !== 1
+            )) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (isset($sourceFile['len']) && (!\is_int($sourceFile['len']) || $sourceFile['len'] < 0)) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (isset($sourceFile['root']) && (
+                !\is_string($sourceFile['root'])
+                    || !self::isValidRoot($sourceFile['root'])
+            )) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+        }
+
         /** @var array{
          *     entries: list<array{
          *         config: array<string, mixed>,
@@ -310,6 +401,17 @@ final readonly class SkeletonConfigLoader
          *         root: non-empty-string,
          *         sourceId: non-empty-string,
          *         type: non-empty-string
+         *     }>,
+         *     sourceFiles: list<array{
+         *         exists: bool,
+         *         hash?: non-empty-string,
+         *         kind: non-empty-string,
+         *         layer: non-empty-string,
+         *         len?: int,
+         *         path: non-empty-string,
+         *         readable: bool,
+         *         root?: non-empty-string,
+         *         sourceId: non-empty-string
          *     }>
          * } $collector
          */
@@ -338,6 +440,17 @@ final readonly class SkeletonConfigLoader
      *         root: string,
      *         sourceId: string,
      *         type: string
+     *     }>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: string,
+     *         layer: string,
+     *         len?: int,
+     *         path: string,
+     *         readable: bool,
+     *         root?: string,
+     *         sourceId: string
      *     }>
      * } $collector
      * @param array<string, true> $declaredSplitRoots
@@ -366,6 +479,21 @@ final readonly class SkeletonConfigLoader
 
         $layerRoots = $declaredSplitRoots;
 
+        $aggregateSourceId = self::sourceId(
+            layer: $layer,
+            kind: self::KIND_AGGREGATE_ROOT_MAP,
+            path: $aggregatePath,
+        );
+
+        $collector['sourceFiles'][] = self::sourceFileMetadata(
+            layer: $layer,
+            kind: self::KIND_AGGREGATE_ROOT_MAP,
+            path: $aggregatePath,
+            sourceId: $aggregateSourceId,
+            filesystemPath: $aggregateFilesystemPath,
+            root: null,
+        );
+
         if (self::isReadableFile($aggregateFilesystemPath)) {
             $rootMap = self::requireConfigArray($aggregateFilesystemPath);
 
@@ -374,12 +502,6 @@ final readonly class SkeletonConfigLoader
 
             $normalizedRootMap = $this->directiveProcessor->processGlobalConfig($rootMap);
 
-            $sourceId = self::sourceId(
-                layer: $layer,
-                kind: self::KIND_AGGREGATE_ROOT_MAP,
-                path: $aggregatePath,
-            );
-
             $this->appendEntry(
                 collector: $collector,
                 config: $normalizedRootMap,
@@ -387,7 +509,7 @@ final readonly class SkeletonConfigLoader
                 layer: $layer,
                 kind: self::KIND_AGGREGATE_ROOT_MAP,
                 path: $aggregatePath,
-                sourceId: $sourceId,
+                sourceId: $aggregateSourceId,
                 precedence: $aggregatePrecedence,
                 appEnv: $appEnv,
                 appTarget: $appTarget,
@@ -414,6 +536,21 @@ final readonly class SkeletonConfigLoader
                 $configRelativeDirectory . '/' . $root . self::PHP_EXTENSION,
             );
 
+            $sourceId = self::sourceId(
+                layer: $layer,
+                kind: self::KIND_SPLIT_ROOT_SUBTREE,
+                path: $rootPath,
+            );
+
+            $collector['sourceFiles'][] = self::sourceFileMetadata(
+                layer: $layer,
+                kind: self::KIND_SPLIT_ROOT_SUBTREE,
+                path: $rootPath,
+                sourceId: $sourceId,
+                filesystemPath: $rootFilesystemPath,
+                root: $root,
+            );
+
             if (!self::isReadableFile($rootFilesystemPath)) {
                 continue;
             }
@@ -426,12 +563,6 @@ final readonly class SkeletonConfigLoader
             $normalizedSubtree = $this->directiveProcessor->processRootSubtree(
                 root: $root,
                 subtree: $subtree,
-            );
-
-            $sourceId = self::sourceId(
-                layer: $layer,
-                kind: self::KIND_SPLIT_ROOT_SUBTREE,
-                path: $rootPath,
             );
 
             $this->appendEntry(
@@ -472,6 +603,17 @@ final readonly class SkeletonConfigLoader
      *         root: string,
      *         sourceId: string,
      *         type: string
+     *     }>,
+     *     sourceFiles: list<array{
+     *         exists: bool,
+     *         hash?: non-empty-string,
+     *         kind: string,
+     *         layer: string,
+     *         len?: int,
+     *         path: string,
+     *         readable: bool,
+     *         root?: string,
+     *         sourceId: string
      *     }>
      * } $collector
      * @param array<string, mixed> $config
@@ -531,6 +673,70 @@ final readonly class SkeletonConfigLoader
                 self::OWNER_TYPE => $type->value,
             ];
         }
+    }
+
+    /**
+     * @return array{
+     *     exists: bool,
+     *     hash?: non-empty-string,
+     *     kind: non-empty-string,
+     *     layer: non-empty-string,
+     *     len?: int,
+     *     path: non-empty-string,
+     *     readable: bool,
+     *     root?: non-empty-string,
+     *     sourceId: non-empty-string
+     * }
+     */
+    private static function sourceFileMetadata(
+        string $layer,
+        string $kind,
+        string $path,
+        string $sourceId,
+        string $filesystemPath,
+        ?string $root,
+    ): array {
+        $metadata = [
+            'exists' => false,
+            'kind' => $kind,
+            'layer' => $layer,
+            'path' => $path,
+            'readable' => false,
+            'sourceId' => $sourceId,
+        ];
+
+        if ($root !== null && self::isValidRoot($root)) {
+            $metadata['root'] = $root;
+        }
+
+        if (!@\file_exists($filesystemPath)) {
+            return $metadata;
+        }
+
+        $metadata['exists'] = true;
+
+        if (!self::isReadableFile($filesystemPath)) {
+            return $metadata;
+        }
+
+        $contents = @\file_get_contents($filesystemPath);
+
+        if (!\is_string($contents)) {
+            return $metadata;
+        }
+
+        $bytes = self::normalizeLf($contents);
+
+        $metadata['readable'] = true;
+        $metadata['hash'] = \hash('sha256', $bytes);
+        $metadata['len'] = \strlen($bytes);
+
+        return $metadata;
+    }
+
+    private static function normalizeLf(string $bytes): string
+    {
+        return \str_replace(["\r\n", "\r"], "\n", $bytes);
     }
 
     /**
@@ -717,6 +923,52 @@ final readonly class SkeletonConfigLoader
         }
 
         return \strspn($value, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-') === \strlen($value);
+    }
+
+    private static function isSafeRelativeMetadataPath(string $path): bool
+    {
+        if ($path === '' || \strlen($path) > 256) {
+            return false;
+        }
+
+        if (
+            \str_contains($path, "\0")
+            || \str_contains($path, "\r")
+            || \str_contains($path, "\n")
+            || \str_contains($path, '://')
+            || \str_starts_with($path, '/')
+            || \str_starts_with($path, '\\')
+            || \preg_match('/\A[A-Za-z]:[\\\\\/]/', $path) === 1
+        ) {
+            return false;
+        }
+
+        if (
+            $path === '.'
+            || $path === '..'
+            || \str_starts_with($path, './')
+            || \str_starts_with($path, '../')
+            || \str_contains($path, '/./')
+            || \str_contains($path, '/../')
+            || \str_ends_with($path, '/.')
+            || \str_ends_with($path, '/..')
+        ) {
+            return false;
+        }
+
+        return \preg_match('/\A[A-Za-z0-9_.\/-]+\z/', $path) === 1;
+    }
+
+    private static function isSafeMetadataToken(string $value): bool
+    {
+        return $value !== ''
+            && \strlen($value) <= 128
+            && \preg_match('/\A[A-Za-z0-9_.-]+\z/', $value) === 1;
+    }
+
+    private static function isSafeSourceId(string $value): bool
+    {
+        return self::isSafeRelativeMetadataPath($value);
     }
 
     private static function isReadableFile(string $filesystemPath): bool

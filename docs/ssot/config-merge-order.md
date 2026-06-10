@@ -100,6 +100,9 @@ This document owns:
 - directive timing relative to merge;
 - env overlay timing relative to file config;
 - validation timing relative to final merge;
+- Phase B safe provenance handoff points needed by downstream artifact fingerprinting:
+  - `envOverlayMappings`;
+  - `configSourceFiles`;
 - reserved/future status for CLI/runtime overrides.
 
 This document does not own:
@@ -111,9 +114,10 @@ This document does not own:
 - directive type validation implementation;
 - env value coercion implementation;
 - source discovery implementation;
+- artifact fingerprint calculation;
+- generated artifact schemas;
 - config explain trace format;
-- observability naming;
-- generated artifact schemas.
+- observability naming.
 
 ## Core invariant
 
@@ -169,13 +173,15 @@ The active Phase B pipeline is:
 2. Load optional explicit rulesets supplied by a future user/module mechanism.
 3. Build the effective ruleset list.
 4. Load package defaults.
-5. Load skeleton/app config files.
+5. Load skeleton/app config files and safe config source-file metadata.
 6. Build env overlays from rulesets / explicit mappings and the immutable env snapshot.
-7. Build deterministic merge entries.
-8. Fold merge entries through ConfigMerger from weakest to strongest.
-9. Build effective per-path source traces while folding merge entries.
-10. Run semantic validation after final global config is built.
-11. Build config explain output only when requested by the caller.
+7. Preserve the exact resolved env overlay mappings.
+8. Build deterministic merge entries.
+9. Fold merge entries through ConfigMerger from weakest to strongest.
+10. Build effective per-path source traces while folding merge entries.
+11. Run semantic validation after final global config is built.
+12. Build config explain output only when requested by the caller.
+13. Return final config plus safe Phase B provenance metadata.
 ```
 
 The active Phase B invariant is:
@@ -659,6 +665,82 @@ Final effective result:
 
 If no env overlay mapping exists for `kernel.boot.default_env`, the env var MUST NOT affect config.
 
+## Safe Phase B provenance for artifact fingerprinting
+
+`ConfigKernel::compile(...)` returns the final merged config payload and safe Phase B provenance metadata needed by downstream artifact/fingerprint stages.
+
+The public `config` result is the final merged global config payload.
+
+The following returned fields are safe provenance metadata:
+
+```text
+envOverlayMappings
+configSourceFiles
+owners
+sources
+explain
+```
+
+`envOverlayMappings` MUST be the exact resolved mapping list produced by `EnvironmentOverlayLoader` from loaded rulesets plus explicit mappings.
+
+`configSourceFiles` MUST be the safe source-file metadata produced by `SkeletonConfigLoader` for skeleton/app config candidates.
+
+`configSourceFiles` metadata MAY include only:
+
+```text
+layer
+kind
+root
+sourceId
+path
+exists
+readable
+hash
+len
+```
+
+`hash`, when present, MUST be `sha256` over LF-normalized file bytes.
+
+`len`, when present, MUST be the byte length of the LF-normalized file bytes used for hashing.
+
+Missing expected skeleton/app config candidates MUST be represented as:
+
+```text
+exists=false
+readable=false
+```
+
+Unreadable existing skeleton/app config candidates MUST either fail according to the loader policy or be represented as:
+
+```text
+exists=true
+readable=false
+```
+
+Safe provenance metadata MUST NOT include:
+
+- raw config values;
+- raw env values;
+- dotenv values;
+- raw source file contents;
+- compiled payload bytes;
+- absolute filesystem paths;
+- timestamps;
+- mtimes;
+- permissions;
+- filesystem owners;
+- hostnames;
+- user names;
+- process ids;
+- random bytes;
+- previous throwable messages.
+
+`ConfigKernel` MUST NOT calculate artifact fingerprints.
+
+`ConfigKernel` MUST NOT hash compiled artifact envelopes.
+
+Downstream artifact/fingerprint stages MAY consume this safe provenance metadata, but they own fingerprint input construction and artifact fingerprint calculation.
+
 ## Validation after final merge
 
 Semantic validation runs only after the final merged global config is built.
@@ -853,6 +935,10 @@ Tests SHOULD verify:
 - app environment is weaker than env overlays;
 - directives are processed before merge and applied during merge;
 - env overlays are generated only from known mappings;
+- `ConfigKernel::compile(...)` returns the exact resolved `envOverlayMappings`;
+- `ConfigKernel::compile(...)` returns safe `configSourceFiles`;
+- `configSourceFiles` include LF-normalized `sha256` hash and length metadata when readable;
+- `configSourceFiles` do not expose absolute paths or raw file contents;
 - validation runs after final merge;
 - CLI/runtime overrides are not active.
 

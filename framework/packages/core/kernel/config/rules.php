@@ -46,15 +46,21 @@ declare(strict_types=1);
  * - `kernel.modes.schema_version` must be integer `1`;
  * - `kernel.modes.defaults_path` must be a non-empty relative safe path;
  * - `kernel.modes.overrides_path` must be a non-empty relative safe path;
+ * - `kernel.artifacts.cache_dir` must be a non-empty relative safe path;
+ * - `kernel.fingerprint.skeleton_ignore_prefixes` must be a list of non-empty
+ *   relative safe paths;
+ * - `kernel.fingerprint.*` must not define an `env` subtree or
+ *   `env.tracked_keys`; env fingerprint coverage is derived from resolved
+ *   bootstrap/config/env source metadata, not from a duplicate config allowlist;
  * - `kernel.uow.attributes.max_depth` must be an integer greater than zero;
  * - `kernel.uow.attributes.max_keys` must be an integer greater than zero;
  * - this epic introduces no runtime feature flags, reset tag constants, HTTP
- *   adapter config, CLI adapter config, artifact config, or outcome mapping
- *   config.
+ *   adapter config, CLI adapter config, outcome mapping config, artifact schema
+ *   version config, or fingerprint env tracked-key config.
  *
  * The defaults file must return the subtree only:
  *
- *     config/kernel.php => ['config' => [...], 'boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'uow' => [...]]
+ *     config/kernel.php => ['config' => [...], 'boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'artifacts' => [...], 'fingerprint' => [...], 'uow' => [...]]
  *
  * It must not return:
  *
@@ -184,6 +190,31 @@ return [
                 'overrides_path' => [
                     'required' => true,
                     'type' => 'relative-safe-path',
+                ],
+            ],
+        ],
+        'artifacts' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'cache_dir' => [
+                    'required' => true,
+                    'type' => 'relative-safe-path',
+                ],
+            ],
+        ],
+        'fingerprint' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'skeleton_ignore_prefixes' => [
+                    'required' => true,
+                    'type' => 'list',
+                    'items' => [
+                        'type' => 'relative-safe-path',
+                    ],
                 ],
             ],
         ],

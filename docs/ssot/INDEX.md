@@ -68,6 +68,8 @@ This document is the **single navigation entrypoint** for all SSoT (Single Sourc
 
 ## Runtime Invariants
 
+- [Artifacts and Fingerprint Behavior](./artifacts-and-fingerprint.md) — owner: core/kernel — scope: artifacts,determinism,fingerprint,kernel,production
+- [Cache Verification Semantics](./cache-verify.md) — owner: core/kernel — scope: artifacts,cache,kernel,verification
 - [Context Keys SSoT](./context-keys.md) — owner: core/foundation — scope: context,keys,registry,redaction,runtime
 - [ContextStore lifecycle SSoT](./context-lifecycle.md) — owner: core/foundation — scope: context,context-store,lifecycle,reset,runtime,uow
 - [Context Store SSoT](./context-store.md) — owner: core/foundation — scope: context,context-bag,context-store,correlation-id,reset,runtime

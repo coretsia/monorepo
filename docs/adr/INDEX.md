@@ -55,6 +55,7 @@ This document is the **single navigation entrypoint** for all ADR (Architecture 
 - [ADR-0024: Kernel module plan resolution](./ADR-0024-kernel-module-plan-resolution.md) — owner: core/kernel — scope: composer,discovery,kernel,module-plan,presets,resolution
 - [ADR-0025: Kernel module conflicts and optional-missing policy](./ADR-0025-kernel-conflicts-optional-missing-policy.md) — owner: core/kernel — scope: conflicts,graph,kernel,module-plan,optional-missing,policy
 - [ADR-0026: Config Kernel Merge, Directives, and Reserved Namespaces](./ADR-0026-config-kernel-merge-directives-reserved-namespaces.md) — owner: core/kernel — scope: config,directives,kernel,merge,reserved-namespaces
+- [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](./ADR-0028-kernel-artifacts-fingerprint-cache-verify.md) — owner: core/kernel — scope: artifacts,cache-verify,fingerprint,kernel
 
 ## Cross-references
 

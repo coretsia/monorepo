@@ -56,4 +56,6 @@ Bootstrap Phase A implementation helpers such as config resolvers, dotenv loader
 
 Config Phase B implementation services such as the config orchestrator, merger, directive processor, validator, explainer, config loaders, namespace guards, and config-specific exceptions are not public API and must remain marked `@internal` in source until a dedicated public config facade or contract is introduced.
 
-Artifact, fingerprint, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal` until a dedicated public artifact/cache facade or contract is introduced.
+Artifact, fingerprint, container compilation, compiled-container runtime boot, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal` until a dedicated public artifact/cache/kernel-ops facade or contract is introduced.
+
+Compiled-container implementation models such as service definitions, parameter bags, and definition graphs are internal Kernel compilation models. They are not DTO marker classes, not transport contracts, and not public package API unless a later dedicated public contract explicitly promotes them.

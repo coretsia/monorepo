@@ -14526,9 +14526,10 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `coretsia config:compile` → owner `platform/cli` triggers compiled container builder (Phase 1)
+  - Future `platform/cli` command `coretsia config:compile` will trigger Kernel artifact compilation through the Kernel ops façade.
+  - The CLI command itself is owned by `2.30.0 Platform CLI` and is not a blocking deliverable of this epic.
 - Artifacts:
-  - writes: `skeleton/var/cache/<appTarget>/container.php` (REAL)
+  - writes: `skeleton/var/cache/<appTarget>/container.php` (compiled `container@1`)
 
 ### Artifact-Only Runtime Boot Boundary (MUST)
 
@@ -14717,389 +14718,418 @@ Kernel повертає/кидає deterministic exceptions.
 #### Creates
 
 Compiler:
-- [ ] `framework/packages/core/kernel/src/Container/ContainerCompiler.php` — builds deterministic definition graph (json-like)
-  - [ ] MUST compile only descriptor-based, closure-free container input.
-  - [ ] MUST produce a deterministic `DefinitionGraph`.
-  - [ ] MUST use `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` as kernel-owned compilation models.
-  - [ ] MUST preserve the caller-supplied deterministic provider/module order exactly.
-  - [ ] MUST NOT globally re-sort providers before applying definition override semantics.
-  - [ ] MUST preserve the canonical Foundation binding-collision rule exactly:
-    - [ ] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically;
-    - [ ] compiler output MUST NOT invent a different override policy from `core/foundation`.
-  - [ ] if compiled output materializes tag registrations / discovery lists, it MUST preserve Foundation tag semantics exactly:
-    - [ ] dedupe remains first-wins per `(tag, serviceId)`;
-    - [ ] final discovery order remains the canonical Foundation order;
-    - [ ] compiler/runtime MUST NOT introduce a second tag-merge policy.
-  - [ ] Rationale:
-    - [ ] compiled-container semantics MUST remain aligned with `core/foundation` `ContainerBuilder`;
-    - [ ] later binding overrides earlier binding deterministically.
-  - [ ] MUST reject any closure / anonymous-function based definition, factory, configurator, lazy factory, argument, parameter, tag metadata, or compiled graph value deterministically before artifact write.
-  - [ ] rejection MUST surface:
-    - [ ] `ContainerCompileFailedException`;
-    - [ ] code: `CORETSIA_CONTAINER_COMPILE_FAILED`;
-    - [ ] message: `container-compile-failed`.
-  - [ ] diagnostics MUST NOT include:
-    - [ ] closure dumps;
-    - [ ] source code snippets;
-    - [ ] absolute paths;
-    - [ ] raw config values;
-    - [ ] raw env values;
-    - [ ] raw payload dumps;
-    - [ ] OS error messages.
-  - [ ] MUST NOT read source config files.
-  - [ ] MUST NOT read generated artifacts.
-  - [ ] MUST NOT write artifacts.
-  - [ ] MUST NOT resolve `BootstrapConfig`.
-  - [ ] MUST NOT resolve `ModulePlan`.
-  - [ ] MUST NOT run provider-based runtime boot.
-  - [ ] MUST NOT instantiate runtime services while compiling the graph.
-  - [ ] MUST NOT emit stdout or stderr.
-  - [ ] owns observability for container compile operation:
-    - [ ] span: `kernel.container_compile`;
-    - [ ] metric: `kernel.container_compile_total` with labels: `outcome`;
-    - [ ] metric: `kernel.container_compile_duration_ms` with labels: `outcome`;
-  - [ ] outcome label values MUST be bounded tokens only:
-    - [ ] `success`;
-    - [ ] `failure`;
-  - [ ] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`.
-  - [ ] MUST NOT instantiate Noop observability implementations directly.
-  - [ ] logger/meter/tracer failures MUST be caught and MUST NOT change compile behavior.
+- [x] `framework/packages/core/kernel/src/Container/ContainerCompiler.php` — builds deterministic definition graph (json-like)
+  - [x] MUST compile only descriptor-based, closure-free container input.
+  - [x] MUST produce a deterministic `DefinitionGraph`.
+  - [x] MUST use `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` as kernel-owned compilation models.
+  - [x] MUST preserve the caller-supplied deterministic provider/module order exactly.
+  - [x] MUST NOT globally re-sort providers before applying definition override semantics.
+  - [x] MUST preserve the canonical Foundation binding-collision rule exactly:
+    - [x] for the same service id / interface binding, the later provider definition overrides the earlier one deterministically;
+    - [x] compiler output MUST NOT invent a different override policy from `core/foundation`.
+  - [x] if compiled output materializes tag registrations / discovery lists, it MUST preserve Foundation tag semantics exactly:
+    - [x] dedupe remains first-wins per `(tag, serviceId)`;
+    - [x] final discovery order remains the canonical Foundation order;
+    - [x] compiler/runtime MUST NOT introduce a second tag-merge policy.
+  - [x] Rationale:
+    - [x] compiled-container semantics MUST remain aligned with `core/foundation` `ContainerBuilder`;
+    - [x] later binding overrides earlier binding deterministically.
+  - [x] MUST reject any closure / anonymous-function based definition, factory, configurator, lazy factory, argument, parameter, tag metadata, or compiled graph value deterministically before artifact write.
+  - [x] rejection MUST surface:
+    - [x] `ContainerCompileFailedException`;
+    - [x] code: `CORETSIA_CONTAINER_COMPILE_FAILED`;
+    - [x] message: `container-compile-failed`.
+  - [x] diagnostics MUST NOT include:
+    - [x] closure dumps;
+    - [x] source code snippets;
+    - [x] absolute paths;
+    - [x] raw config values;
+    - [x] raw env values;
+    - [x] raw payload dumps;
+    - [x] OS error messages.
+  - [x] MUST NOT read source config files.
+  - [x] MUST NOT read generated artifacts.
+  - [x] MUST NOT write artifacts.
+  - [x] MUST NOT resolve `BootstrapConfig`.
+  - [x] MUST NOT resolve `ModulePlan`.
+  - [x] MUST NOT run provider-based runtime boot.
+  - [x] MUST NOT instantiate runtime services while compiling the graph.
+  - [x] MUST NOT emit stdout or stderr.
+  - [x] owns observability for container compile operation:
+    - [x] span: `kernel.container_compile`;
+    - [x] metric: `kernel.container_compile_total` with labels: `outcome`;
+    - [x] metric: `kernel.container_compile_duration_ms` with labels: `outcome`;
+  - [x] outcome label values MUST be bounded tokens only:
+    - [x] `success`;
+    - [x] `failure`;
+  - [x] MUST receive observability dependencies through public observability ports/interfaces plus Foundation `Stopwatch`.
+  - [x] MUST NOT instantiate Noop observability implementations directly.
+  - [x] logger/meter/tracer failures MUST be caught and MUST NOT change compile behavior.
 
-- [ ] `framework/packages/core/kernel/src/Container/CompiledContainerFactory.php` — builds runtime Container from artifact
-  - [ ] MUST build the runtime Foundation container from REAL `container@1` artifact data.
-  - [ ] MUST receive an already-read and already-validated `config@1` payload from the caller.
-  - [ ] MUST use artifact-owned runtime config input (`config@1`) and MUST NOT read source config files.
-  - [ ] MUST hard-fail deterministically when `container.php` is missing.
-  - [ ] MUST surface `ContainerArtifactMissingException` with code `CORETSIA_CONTAINER_ARTIFACT_MISSING` for missing artifact.
-  - [ ] MUST surface `ContainerArtifactInvalidException` with code `CORETSIA_CONTAINER_ARTIFACT_INVALID` for invalid, unreadable, schema-invalid, legacy-stub, or non-REAL `container@1` artifacts.
-  - [ ] MUST NOT silently fall back to provider-based container construction.
-  - [ ] MUST NOT accept the earlier `1.330.0` stub payload as a production runtime container artifact.
-  - [ ] MUST NOT run source config discovery.
-  - [ ] MUST NOT run module discovery.
-  - [ ] MUST NOT register runtime providers as a fallback.
-  - [ ] MUST NOT compile a new container during runtime boot.
-  - [ ] MUST NOT calculate fingerprints.
-  - [ ] MUST NOT write artifacts.
-  - [ ] MUST NOT mutate existing artifacts.
-  - [ ] MUST NOT emit stdout or stderr.
-  - [ ] MUST construct runtime definitions only from deterministic compiled graph entries.
-  - [ ] MUST preserve the runtime config snapshot from `config@1` when constructing the Foundation container.
-  - [ ] MUST preserve compiled aliases, parameters, service definitions, and tags according to `docs/ssot/compiled-container.md`.
-  - [ ] diagnostics MUST NOT include:
-    - [ ] absolute paths;
-    - [ ] raw artifact payloads;
-    - [ ] raw config values;
-    - [ ] raw env values;
-    - [ ] source snippets;
-    - [ ] closure dumps;
-    - [ ] PHP warning text;
-    - [ ] OS error messages.
+- [x] `framework/packages/core/kernel/src/Container/CompiledContainerFactory.php` — builds runtime Container from artifact
+  - [x] MUST build the runtime Foundation container from REAL `container@1` artifact data.
+  - [x] MUST receive an already-read and already-validated `config@1` payload from the caller.
+  - [x] MUST use artifact-owned runtime config input (`config@1`) and MUST NOT read source config files.
+  - [x] MUST hard-fail deterministically when `container.php` is missing.
+  - [x] MUST surface `ContainerArtifactMissingException` with code `CORETSIA_CONTAINER_ARTIFACT_MISSING` for missing artifact.
+  - [x] MUST surface `ContainerArtifactInvalidException` with code `CORETSIA_CONTAINER_ARTIFACT_INVALID` for invalid, unreadable, schema-invalid, legacy-stub, or non-compiled `container@1` artifacts.
+  - [x] MUST NOT silently fall back to provider-based container construction.
+  - [x] MUST NOT accept the earlier `1.330.0` stub payload as a production runtime container artifact.
+  - [x] MUST NOT run source config discovery.
+  - [x] MUST NOT run module discovery.
+  - [x] MUST NOT register runtime providers as a fallback.
+  - [x] MUST NOT compile a new container during runtime boot.
+  - [x] MUST NOT calculate fingerprints.
+  - [x] MUST NOT write artifacts.
+  - [x] MUST NOT mutate existing artifacts.
+  - [x] MUST NOT emit stdout or stderr.
+  - [x] MUST construct runtime definitions only from deterministic compiled graph entries.
+  - [x] MUST preserve the runtime config snapshot from `config@1` when constructing the Foundation container.
+  - [x] MUST preserve compiled aliases, parameters, service definitions, and tags according to `docs/ssot/compiled-container.md`.
+  - [x] diagnostics MUST NOT include:
+    - [x] absolute paths;
+    - [x] raw artifact payloads;
+    - [x] raw config values;
+    - [x] raw env values;
+    - [x] source snippets;
+    - [x] closure dumps;
+    - [x] PHP warning text;
+    - [x] OS error messages.
 
-- [ ] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
-  - [ ] MUST receive deterministic compiled container data from `ContainerCompiler`.
-  - [ ] MUST reuse the canonical kernel artifact envelope introduced in 1.330.0:
-    - [ ] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`.
-  - [ ] MUST NOT introduce a container-specific top-level artifact shape.
-  - [ ] MUST build the REAL `container@1` payload schema defined by `docs/ssot/compiled-container.md`.
-  - [ ] MUST replace the earlier stub payload semantics with REAL compiled-container semantics.
-  - [ ] MUST set:
-    - [ ] `kind = compiled`;
-    - [ ] `compiled = true`.
-  - [ ] MUST use `ArtifactEnvelopeFactory` for envelope construction.
-  - [ ] MUST NOT assemble artifact envelopes manually.
-  - [ ] MUST NOT calculate fingerprints.
-  - [ ] MUST NOT compile the container graph.
-  - [ ] MUST NOT read files.
-  - [ ] MUST NOT write files.
-  - [ ] MUST NOT validate existing artifacts.
-  - [ ] MUST NOT emit stdout or stderr.
-  - [ ] MUST reject payload data that is not deterministic json-like schema data.
-  - [ ] MUST NOT include timestamps, absolute paths, hostnames, user names, process ids, raw env values, raw config values, closure dumps, or source snippets in payload/header data.
+- [x] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
+  - [x] MUST receive deterministic compiled container data from `ContainerCompiler`.
+  - [x] MUST reuse the canonical kernel artifact envelope introduced in 1.330.0:
+    - [x] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`.
+  - [x] MUST NOT introduce a container-specific top-level artifact shape.
+  - [x] MUST build the REAL `container@1` payload schema defined by `docs/ssot/compiled-container.md`.
+  - [x] MUST replace the earlier stub payload semantics with REAL compiled-container semantics.
+  - [x] MUST set:
+    - [x] `kind = compiled`;
+    - [x] `compiled = true`.
+  - [x] MUST use `ArtifactEnvelopeFactory` for envelope construction.
+  - [x] MUST NOT assemble artifact envelopes manually.
+  - [x] MUST NOT calculate fingerprints.
+  - [x] MUST NOT compile the container graph.
+  - [x] MUST NOT read files.
+  - [x] MUST NOT write files.
+  - [x] MUST NOT validate existing artifacts.
+  - [x] MUST NOT emit stdout or stderr.
+  - [x] MUST reject payload data that is not deterministic json-like schema data.
+  - [x] MUST NOT include timestamps, absolute paths, hostnames, user names, process ids, raw env values, raw config values, closure dumps, or source snippets in payload/header data.
 
 Definition shapes:
-- [ ] `framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php`
-  - [ ] Represents one deterministic compiled service definition.
-  - [ ] MUST be a kernel container compilation model, not a public DTO by default.
-  - [ ] MUST expose only deterministic schema data suitable for REAL `container@1` payload emission.
-  - [ ] MUST have a stable service id.
-  - [ ] MUST represent runtime construction through deterministic class/factory references, service references, parameter references, and scalar/list/map arguments.
-  - [ ] MUST NOT store `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
-  - [ ] MUST NOT instantiate the represented service.
-  - [ ] MUST normalize nested map keys deterministically where it owns map-like data.
-  - [ ] MUST preserve list order where list order is semantic.
-  - [ ] MUST reject invalid definition values with deterministic compile failure semantics.
-  - [ ] MUST NOT include raw config values, raw env values, secrets, closure dumps, source snippets, or OS-specific metadata.
+- [x] `framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php`
+  - [x] Represents one deterministic compiled service definition.
+  - [x] MUST be a kernel container compilation model, not a public DTO by default.
+  - [x] MUST expose only deterministic schema data suitable for REAL `container@1` payload emission.
+  - [x] MUST have a stable service id.
+  - [x] MUST represent runtime construction through deterministic class/factory references, service references, parameter references, and scalar/list/map arguments.
+  - [x] MUST NOT store `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
+  - [x] MUST NOT instantiate the represented service.
+  - [x] MUST normalize nested map keys deterministically where it owns map-like data.
+  - [x] MUST preserve list order where list order is semantic.
+  - [x] MUST reject invalid definition values with deterministic compile failure semantics.
+  - [x] MUST NOT include raw config values, raw env values, secrets, closure dumps, source snippets, or OS-specific metadata.
 
-- [ ] `framework/packages/core/kernel/src/Container/Definition/ParameterBag.php`
-  - [ ] MAY be an in-memory compilation model and/or part of the REAL `container@1` payload schema as defined by `docs/ssot/compiled-container.md`.
-  - [ ] Does not require `container@2` by itself.
-  - [ ] MUST NOT be treated as a public DTO marker class by default.
-  - [ ] MUST represent deterministic parameter data only.
-  - [ ] MUST use stable parameter names.
-  - [ ] MUST normalize map keys deterministically.
-  - [ ] MUST preserve list order where list order is semantic.
-  - [ ] MUST reject `Closure`, anonymous function, callable object, object instance, resource, reflection object, source snippet, or absolute path.
-  - [ ] MUST NOT duplicate the full compiled config payload from `config@1`.
-  - [ ] MUST NOT embed raw secrets unless those values are already part of the canonical compiled config artifact semantics.
-  - [ ] MUST be safe for deterministic artifact serialization.
+- [x] `framework/packages/core/kernel/src/Container/Definition/ParameterBag.php`
+  - [x] MAY be an in-memory compilation model and/or part of the REAL `container@1` payload schema as defined by `docs/ssot/compiled-container.md`.
+  - [x] Does not require `container@2` by itself.
+  - [x] MUST NOT be treated as a public DTO marker class by default.
+  - [x] MUST represent deterministic parameter data only.
+  - [x] MUST use stable parameter names.
+  - [x] MUST normalize map keys deterministically.
+  - [x] MUST preserve list order where list order is semantic.
+  - [x] MUST reject `Closure`, anonymous function, callable object, object instance, resource, reflection object, source snippet, or absolute path.
+  - [x] MUST NOT duplicate the full compiled config payload from `config@1`.
+  - [x] MUST NOT embed raw secrets unless those values are already part of the canonical compiled config artifact semantics.
+  - [x] MUST be safe for deterministic artifact serialization.
 
-- [ ] `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
-  - [ ] Represents the complete deterministic compiled container graph.
-  - [ ] MUST contain only deterministic schema values.
-  - [ ] MUST contain service definitions, aliases, parameters, and tags according to `docs/ssot/compiled-container.md`.
-  - [ ] MUST sort service ids by byte-order `strcmp` for emitted graph order.
-  - [ ] MUST sort alias and parameter maps by byte-order `strcmp`.
-  - [ ] MUST preserve canonical Foundation tag discovery order:
-    - [ ] `priority DESC, id ASC`.
-  - [ ] MUST preserve canonical Foundation tag dedupe:
-    - [ ] first-wins per `(tag, serviceId)`.
-  - [ ] MUST preserve later-binding-overrides-earlier semantics.
-  - [ ] MUST NOT contain `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
-  - [ ] MUST be exportable to deterministic json-like payload data.
-  - [ ] MUST NOT perform runtime service resolution.
-  - [ ] MUST NOT read files, write files, calculate fingerprints, or emit output.
+- [x] `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
+  - [x] Represents the complete deterministic compiled container graph.
+  - [x] MUST contain only deterministic schema values.
+  - [x] MUST contain service definitions, aliases, parameters, and tags according to `docs/ssot/compiled-container.md`.
+  - [x] MUST sort service ids by byte-order `strcmp` for emitted graph order.
+  - [x] MUST sort alias and parameter maps by byte-order `strcmp`.
+  - [x] MUST preserve canonical Foundation tag discovery order:
+    - [x] `priority DESC, id ASC`.
+  - [x] MUST preserve canonical Foundation tag dedupe:
+    - [x] first-wins per `(tag, serviceId)`.
+  - [x] MUST preserve later-binding-overrides-earlier semantics.
+  - [x] MUST NOT contain `Closure`, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, or absolute path.
+  - [x] MUST be exportable to deterministic json-like payload data.
+  - [x] MUST NOT perform runtime service resolution.
+  - [x] MUST NOT read files, write files, calculate fingerprints, or emit output.
 
 DTO policy boundary:
-- [ ] `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` are kernel container compilation models/shapes.
-- [ ] They are NOT DTO-marker classes by default.
-- [ ] DTO gates apply only to explicitly marked DTO transport classes.
-- [ ] Their presence in the compiled-container implementation MUST NOT imply a public package API commitment.
-- [ ] Their serialized form, if any, is owned by `docs/ssot/compiled-container.md`, not by DTO-marker gates.
+- [x] `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` are kernel container compilation models/shapes.
+- [x] They are NOT DTO-marker classes by default.
+- [x] DTO gates apply only to explicitly marked DTO transport classes.
+- [x] Their presence in the compiled-container implementation MUST NOT imply a public package API commitment.
+- [x] Their serialized form, if any, is owned by `docs/ssot/compiled-container.md`, not by DTO-marker gates.
 
 Errors:
-- [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerCompileFailedException.php` — `CORETSIA_CONTAINER_COMPILE_FAILED`
-  - [ ] MUST use fixed public message token `container-compile-failed`.
-  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_COMPILE_FAILED`.
-  - [ ] MUST provide bounded reason tokens only.
-  - [ ] MUST NOT include closure dumps, source snippets, absolute paths, raw config values, raw env values, raw payloads, OS error messages, stack traces, or previous throwable messages in public diagnostics.
+- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerCompileFailedException.php` — `CORETSIA_CONTAINER_COMPILE_FAILED`
+  - [x] MUST use fixed public message token `container-compile-failed`.
+  - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_COMPILE_FAILED`.
+  - [x] MUST provide bounded reason tokens only.
+  - [x] MUST NOT include closure dumps, source snippets, absolute paths, raw config values, raw env values, raw payloads, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
-- [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactMissingException.php` — `CORETSIA_CONTAINER_ARTIFACT_MISSING`
-  - [ ] MUST use fixed public message token `container-artifact-missing`.
-  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_MISSING`.
-  - [ ] MUST NOT include the missing filesystem path.
-  - [ ] MUST NOT include absolute paths, configured path strings, OS error messages, stack traces, or previous throwable messages in public diagnostics.
+- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactMissingException.php` — `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+  - [x] MUST use fixed public message token `container-artifact-missing`.
+  - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_MISSING`.
+  - [x] MUST NOT include the missing filesystem path.
+  - [x] MUST NOT include absolute paths, configured path strings, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
-- [ ] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php` — `CORETSIA_CONTAINER_ARTIFACT_INVALID`
-  - [ ] MUST use fixed public message token `container-artifact-invalid`.
-  - [ ] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
-  - [ ] MUST cover invalid, unreadable, schema-invalid, legacy-stub, or non-REAL `container@1` artifacts.
-  - [ ] MUST NOT include absolute paths, raw artifact payloads, raw config values, raw env values, PHP warning text, closure dumps, source snippets, OS error messages, stack traces, or previous throwable messages in public diagnostics.
+- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php` — `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+  - [x] MUST use fixed public message token `container-artifact-invalid`.
+  - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
+  - [x] MUST cover invalid, unreadable, schema-invalid, legacy-stub, or non-compiled `container@1` artifacts.
+  - [x] MUST NOT include absolute paths, raw artifact payloads, raw config values, raw env values, PHP warning text, closure dumps, source snippets, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
 Docs:
-- [ ] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
-  - [ ] MUST record the decision to keep `container@1` and not introduce `container@2` in this epic.
-  - [ ] MUST explain that `1.330.0` stub payload was transitional.
-  - [ ] MUST explain that `1.340.0` defines the first REAL `container@1` payload schema.
-  - [ ] MUST record descriptor-based, closure-free compile input as the selected design.
-  - [ ] MUST record artifact-only production runtime boot as the selected boot policy.
-  - [ ] MUST record that provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
-  - [ ] MUST record that runtime boot uses `container@1` plus already-read/validated `config@1` payload.
-  - [ ] MUST record deterministic missing/invalid artifact failure codes:
-    - [ ] `CORETSIA_CONTAINER_ARTIFACT_MISSING`;
-    - [ ] `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
+- [x] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
+  - [x] MUST record the decision to keep `container@1` and not introduce `container@2` in this epic.
+  - [x] MUST explain that `1.330.0` stub payload was transitional.
+  - [x] MUST explain that `1.340.0` defines the first REAL `container@1` payload schema.
+  - [x] MUST record descriptor-based, closure-free compile input as the selected design.
+  - [x] MUST record artifact-only production runtime boot as the selected boot policy.
+  - [x] MUST record that provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
+  - [x] MUST record that runtime boot uses `container@1` plus already-read/validated `config@1` payload.
+  - [x] MUST record deterministic missing/invalid artifact failure codes:
+    - [x] `CORETSIA_CONTAINER_ARTIFACT_MISSING`;
+    - [x] `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
 
-- [ ] `docs/ssot/compiled-container.md` - compiled-container-specific payload + boot semantics
-  - [ ] MUST NOT redefine the global artifact envelope, header fields, or artifact registry rows from `docs/ssot/artifacts.md`.
-  - [ ] Owns only compiled-container payload shape, compile rules, and artifact-only boot policy.
-  - [ ] MUST define the first REAL `container@1` payload schema.
-  - [ ] MUST define allowed top-level payload fields.
-  - [ ] MUST define service definition schema.
-  - [ ] MUST define parameter bag schema if `parameters` are part of the payload.
-  - [ ] MUST define alias schema.
-  - [ ] MUST define tag schema and preserve Foundation tag ordering/dedupe semantics.
-  - [ ] MUST define closure/callable rejection semantics.
-  - [ ] MUST define artifact-only runtime boot inputs:
-    - [ ] `container@1`;
-    - [ ] already-read/validated `config@1` payload.
-  - [ ] MUST define missing artifact and invalid artifact failure semantics.
-  - [ ] MUST define legacy `1.330.0` stub payload as unsupported for production runtime boot.
-  - [ ] MUST cross-reference:
-    - [ ] `docs/ssot/artifacts.md`;
-    - [ ] `docs/ssot/artifacts-and-fingerprint.md`;
-    - [ ] `docs/ssot/cache-verify.md`;
-    - [ ] `docs/ssot/observability.md`.
+- [x] `docs/ssot/compiled-container.md` - compiled-container-specific payload + boot semantics
+  - [x] Service definition lifecycle subsection
+  - [x] Alias lifecycle rule for compiled aliases
+  - [x] MUST NOT redefine the global artifact envelope, header fields, or artifact registry rows from `docs/ssot/artifacts.md`.
+  - [x] Owns only compiled-container payload shape, compile rules, and artifact-only boot policy.
+  - [x] MUST define the first REAL `container@1` payload schema.
+  - [x] MUST define allowed top-level payload fields.
+  - [x] MUST define service definition schema.
+  - [x] MUST define parameter bag schema if `parameters` are part of the payload.
+  - [x] MUST define alias schema.
+  - [x] MUST define tag schema and preserve Foundation tag ordering/dedupe semantics.
+  - [x] MUST define closure/callable rejection semantics.
+  - [x] MUST define artifact-only runtime boot inputs:
+    - [x] `container@1`;
+    - [x] already-read/validated `config@1` payload.
+  - [x] MUST define missing artifact and invalid artifact failure semantics.
+  - [x] MUST define legacy `1.330.0` stub payload as unsupported for production runtime boot.
+  - [x] MUST cross-reference:
+    - [x] `docs/ssot/artifacts.md`;
+    - [x] `docs/ssot/artifacts-and-fingerprint.md`;
+    - [x] `docs/ssot/cache-verify.md`;
+    - [x] `docs/ssot/observability.md`.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/compiled-container.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/compiled-container.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
 
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
-  - [ ] production/runtime container creation MUST use `CompiledContainerFactory`
-  - [ ] missing compiled artifact MUST fail with `ContainerArtifactMissingException` (`CORETSIA_CONTAINER_ARTIFACT_MISSING`)
-  - [ ] runtime MUST NOT silently fall back to a non-artifact container in production mode
-  - [ ] Artifact-only boot clarification (single-choice; cemented):
-    - [ ] after this epic, all Phase 1 runtime boot paths covered by Kernel/AppBuilder/smoke tests MUST use compiled-artifact boot
-    - [ ] missing compiled artifact MUST hard-fail deterministically with `CORETSIA_CONTAINER_ARTIFACT_MISSING`
-    - [ ] no implicit non-artifact fallback exists in the runtime boot paths covered by this epic
-    - [ ] any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied here
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] production/runtime container creation MUST use `CompiledContainerFactory`
+  - [x] missing compiled artifact MUST fail with `ContainerArtifactMissingException` (`CORETSIA_CONTAINER_ARTIFACT_MISSING`)
+  - [x] runtime MUST NOT silently fall back to a non-artifact container in production mode
+  - [x] Artifact-only boot clarification (single-choice; cemented):
+    - [x] after this epic, all Phase 1 runtime boot paths covered by Kernel/AppBuilder/smoke tests MUST use compiled-artifact boot
+    - [x] missing compiled artifact MUST hard-fail deterministically with `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+    - [x] no implicit non-artifact fallback exists in the runtime boot paths covered by this epic
+    - [x] any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied here
 
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
-  - [ ] registers:
-    - [ ] `ContainerCompiler`
-    - [ ] `CompiledContainerFactory`
-    - [ ] `CompiledContainerBuilder`
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` registers:
+  - [x] `ContainerCompiler`
+  - [x] `CompiledContainerFactory`
+  - [x] `CompiledContainerBuilder`
 
-- [ ] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
-  - [ ] MUST replace `StubContainerBuilder` usage with REAL `CompiledContainerBuilder`.
-  - [ ] MUST build the compiled container payload through `ContainerCompiler`.
-  - [ ] MUST NOT write the old stub container payload after this epic.
-  - [ ] MUST keep artifact set unchanged:
-    - [ ] `module-manifest.php`
-    - [ ] `config.php`
-    - [ ] `container.php`
-  - [ ] MUST keep `routes.php` out of `core/kernel`.
+- [x] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+  - [x] MUST replace `StubContainerBuilder` usage with REAL `CompiledContainerBuilder`.
+  - [x] MUST build the compiled container payload through `ContainerCompiler`.
+  - [x] MUST NOT write the old stub container payload after this epic.
+  - [x] MUST keep artifact set unchanged:
+    - [x] `module-manifest.php`
+    - [x] `config.php`
+    - [x] `container.php`
+  - [x] MUST keep `routes.php` out of `core/kernel`.
 
-- [ ] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
-  - [ ] MUST build expected REAL `container.php` envelope in memory.
-  - [ ] MUST use the same `ContainerCompiler` / `CompiledContainerBuilder` semantics as artifact production.
-  - [ ] MUST NOT compare existing REAL container artifacts against the old stub payload.
-  - [ ] MUST keep verification read-only and MUST NOT write or repair artifacts.
+- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+  - [x] MUST build expected REAL `container.php` envelope in memory.
+  - [x] MUST use the same `ContainerCompiler` / `CompiledContainerBuilder` semantics as artifact production.
+  - [x] MUST NOT compare existing REAL container artifacts against the old stub payload.
+  - [x] MUST keep verification read-only and MUST NOT write or repair artifacts.
 
-- [ ] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
-  - [ ] MUST validate REAL `container@1` compiled payload schema.
-  - [ ] MUST validate by scalar/array schema only.
-  - [ ] MUST NOT rely on PHP object identity or runtime class checks.
-  - [ ] MUST reject closure/callable-like graph values if present in the artifact payload.
-  - [ ] MUST reject the earlier `1.330.0` stub payload as a valid REAL `container@1` runtime payload.
-  - [ ] MUST keep canonical envelope validation unchanged:
-    - [ ] top-level keys exactly `_meta`, `payload`.
+- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+  - [x] MUST validate REAL `container@1` compiled payload schema.
+    - [x] MUST validate canonical map key order for container payload maps.
+    - [x] MUST validate canonical tag discovery order: priority DESC, id ASC.
+  - [x] MUST validate by scalar/array schema only.
+  - [x] MUST validate type-specific compiled service construction schemas:
+    - [x] class construction: exact keys class
+    - [x] factory construction: exact key factory
+    - [x] factory class-method: exact keys class, kind, method
+    - [x] factory service-method: exact keys kind, method, service
+    - [x] reject legacy flat factory construction keys
+    - [x] reject unknown service type
+    - [x] reject invalid factory kind / method name / class reference / service id shape
+  - [x] MUST NOT rely on PHP object identity or runtime class checks.
+  - [x] MUST reject closure/callable-like graph values if present in the artifact payload.
+  - [x] MUST NOT accept non-REAL `container@1` payloads, including transitional stub-shaped payloads.
+  - [x] MUST keep canonical envelope validation unchanged:
+    - [x] top-level keys exactly `_meta`, `payload`.
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] register spans and metrics;
-  - [ ] keep labels limited to `outcome`;
+- [x] `docs/ssot/observability.md`
+  - [x] register spans and metrics;
+  - [x] keep labels limited to `outcome`;
+
+- [x] `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+  - [x] Delete `StubContainerBuilder` as production code.
+  - [x] Remove `StubContainerBuilder` DI registration.
+  - [x] Remove `KernelServiceFactory::stubContainerBuilder()`.
+  - [x] Rewrite tests that depend on `StubContainerBuilder` to use:
+    - [x] CompiledContainerBuilder for valid REAL `container@1` artifacts;
+    - [x] inline invalid stub envelope fixtures for legacy-stub rejection tests.
 
 #### Artifacts / outputs (if applicable)
 
-- [ ] Writes:
-  - [ ] `skeleton/var/cache/<appTarget>/container.php` — REAL `container@1` compiled container artifact, same path and artifact identity as the earlier stub placeholder, but with REAL payload schema defined by `docs/ssot/compiled-container.md`.
-  - [ ] The emitted artifact MUST use deterministic bytes, canonical header fields, the canonical `schemaVersion` for `container@1`, and the global artifact envelope.
-- [ ] Reads:
-  - [ ] validates header + payload schema for same file
-  - [ ] validation MUST assert the same canonical top-level envelope `{ "_meta", "payload" }` used by other kernel-owned artifacts.
+- [x] Writes:
+  - [x] `skeleton/var/cache/<appTarget>/container.php` — REAL `container@1` compiled container artifact, same path and artifact identity as the earlier stub placeholder, but with REAL payload schema defined by `docs/ssot/compiled-container.md`.
+  - [x] The emitted artifact MUST use deterministic bytes, canonical header fields, the canonical `schemaVersion` for `container@1`, and the global artifact envelope.
+- [x] Reads:
+  - [x] validates header + payload schema for same file
+  - [x] validation MUST assert the same canonical top-level envelope `{ "_meta", "payload" }` used by other kernel-owned artifacts.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-- [ ] Reset discipline preserved:
-  - [ ] all services discovered through the effective Foundation reset discovery tag
-    resolved from `foundation.reset.tag` (reserved default `kernel.reset`) implement `ResetInterface` (gates)
-  - [ ] tag lists deterministic (`DeterministicOrder`)
+- N/A — all services discovered through the effective Foundation reset discovery tag implementing `ResetInterface` remains Foundation/gate-owned.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `kernel.container_compile`
-- [ ] Metrics:
-  - [ ] `kernel.container_compile_total` (labels: `outcome`)
-  - [ ] `kernel.container_compile_duration_ms` (labels: `outcome`)
-- [ ] Metric labels:
-  - [ ] only `outcome`
-  - [ ] allowed values:
-    - [ ] `success`
-    - [ ] `failure`
-- [ ] Logs:
-  - [ ] compile summary only (safe counts, duration milliseconds, outcome)
-  - [ ] no secrets, raw config dumps, raw env values, closure dumps, source snippets, absolute paths, fingerprints, or OS error messages
-- [ ] Observability failures MUST NOT change compile behavior.
+- [x] Spans:
+  - [x] `kernel.container_compile`
+- [x] Metrics:
+  - [x] `kernel.container_compile_total` (labels: `outcome`)
+  - [x] `kernel.container_compile_duration_ms` (labels: `outcome`)
+- [x] Metric labels:
+  - [x] only `outcome`
+  - [x] allowed values:
+    - [x] `success`
+    - [x] `failure`
+- [x] Logs:
+  - [x] compile summary only
+  - [x] no secrets, raw config dumps, raw env values, closure dumps, source snippets, absolute paths, fingerprints, or OS error messages
+- [x] Observability failures MUST NOT change compile behavior.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] raw secrets;
-  - [ ] raw env values;
-  - [ ] raw config values not already owned by `config@1` artifact semantics;
-  - [ ] absolute paths;
-  - [ ] source snippets;
-  - [ ] closure dumps;
-  - [ ] OS error messages;
-  - [ ] host-specific bytes.
-- [ ] Callable-like runtime behavior MUST be represented by deterministic references, never by serialized closures/callables.
-- [ ] Secret-bearing runtime configuration MUST come from the canonical compiled config artifact semantics, not from duplicated ad-hoc `container@1` payload fields.
+- [x] MUST NOT leak:
+  - [x] raw secrets;
+  - [x] raw env values;
+  - [x] raw config values not already owned by `config@1` artifact semantics;
+  - [x] absolute paths;
+  - [x] source snippets;
+  - [x] closure dumps;
+  - [x] OS error messages;
+  - [x] host-specific bytes.
+- [x] Callable-like runtime behavior MUST be represented by deterministic references, never by serialized closures/callables.
+- [x] Secret-bearing runtime configuration MUST come from the canonical compiled config artifact semantics, not from duplicated ad-hoc `container@1` payload fields.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Deterministic container bytes:
-  - [ ] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
-- [ ] Header shape:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
-- [ ] Runtime factory from artifact:
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
-- [ ] Missing artifact hard-fail:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
-- [ ] Invalid artifact hard-fail:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
-- [ ] Closure-definition rejection:
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
-- [ ] Foundation semantic parity:
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
+- [x] Deterministic container bytes:
+  - [x] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
+- [x] Header shape:
+  - [x] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
+- [x] Runtime factory from artifact:
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
+- [x] Missing artifact hard-fail:
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
+- [x] Invalid artifact hard-fail:
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+- [x] Closure-definition rejection:
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
+- [x] Foundation semantic parity:
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
+  - [x] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootResolvesResetOrchestratorTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
-    - [ ] asserts code `CORETSIA_CONTAINER_ARTIFACT_MISSING`
-    - [ ] asserts no silent fallback to non-artifact container in production mode
-    - [ ] asserts no absolute path leak in the surfaced failure
-  - [ ] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
-    - [ ] asserts code `CORETSIA_CONTAINER_ARTIFACT_INVALID`
-    - [ ] asserts legacy `1.330.0` stub payload is rejected for production runtime boot
-    - [ ] asserts no absolute path leak in the surfaced failure
-    - [ ] asserts no raw payload, closure dump, source snippet, or PHP warning text leaks
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
-    - [ ] asserts code `CORETSIA_CONTAINER_COMPILE_FAILED`
-    - [ ] asserts fixed message token `container-compile-failed`
-    - [ ] asserts no absolute paths, closure dumps, source snippets, or raw config values leak into the surfaced failure
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootResolvesResetOrchestratorTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
+    - [x] asserts code `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+    - [x] asserts no silent fallback to non-artifact container in production mode
+    - [x] asserts no absolute path leak in the surfaced failure
+  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+    - [x] asserts code `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+    - [x] asserts legacy `1.330.0` stub payload is rejected for production runtime boot
+    - [x] asserts no absolute path leak in the surfaced failure
+    - [x] asserts no raw payload, closure dump, source snippet, or PHP warning text leaks
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
+    - [x] asserts code `CORETSIA_CONTAINER_COMPILE_FAILED`
+    - [x] asserts fixed message token `container-compile-failed`
+    - [x] asserts no absolute paths, closure dumps, source snippets, or raw config values leak into the surfaced failure
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php`
+    - [x] container artifact service shared=false
+    - [x] container->get(id) twice returns different objects
+  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php`
+    - [x] target shared=false
+    - [x] alias points to target
+    - [x] container->get(alias) twice returns different objects
+- Foundation Integration:
+  - [x] `framework/packages/core/foundation/tests/Integration/Container/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
+    - [x] factory shared=false returns different objects across get()
+    - [x] factory shared=true returns same object across get()
 
 ### DoD (MUST)
 
-- [ ] REAL `container.php` produced in Phase 1 pipeline
-- [ ] rerun no diff
-- [ ] deterministic hard-fail when artifact missing (production policy)
-- [ ] docs complete
-- [ ] `docs/ssot/compiled-container.md` defines the first REAL `container@1` payload schema.
-- [ ] `container@2` is NOT introduced by this epic.
-- [ ] The earlier `1.330.0` stub payload is documented as a transitional placeholder, not as the supported runtime compiled-container format.
-- [ ] Phase 1 artifact-based runtime boot paths hard-fail without `container.php` with deterministic code:
-  - [ ] `CORETSIA_CONTAINER_ARTIFACT_MISSING`
-- [ ] Phase 1 artifact-based runtime boot paths hard-fail on invalid or legacy-stub `container.php` with deterministic code:
-  - [ ] `CORETSIA_CONTAINER_ARTIFACT_INVALID`
-- [ ] No implicit non-artifact fallback exists in the production runtime boot paths covered by this epic.
-- [ ] Provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
-- [ ] When the container is compiled twice without changes, then `git diff` is empty and `cache:verify` stays clean.
-- [ ] Artifact-only runtime boot uses artifact-owned config input:
-  - [ ] `container@1` provides service definitions / aliases / parameters / tags;
-  - [ ] `config@1` provides the runtime config snapshot;
-  - [ ] runtime boot MUST NOT read source config files.
-- [ ] Reset discipline in artifact-only boot (MUST)
-  - [ ] effective reset tag resolution remains Foundation-owned and MUST NOT be duplicated in compiler/artifact code
-  - [ ] When REAL container artifact becomes active (this epic scope), the compiled container MUST include Foundation reset infrastructure so runtime can trigger reset:
-    - [ ] `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` must be resolvable from the container
-    - [ ] `Coretsia\Foundation\Tag\TagRegistry` must be resolvable (as ResetOrchestrator dependency)
-  - [ ] Kernel MUST still not enumerate `kernel.reset`.
-    - [ ] KernelRuntime triggers reset ONLY by calling `ResetOrchestrator::resetAll()` obtained via DI/container.
-  - [ ] No semantic duplication:
-    - [ ] Container compiler/artifact builder MUST NOT re-implement reset ordering/meta parsing.
-    - [ ] That remains in `core/foundation` (1.200.0 / 1.250.0).
-- [ ] Add/extend an integration test in `core/kernel` (or wherever your artifact boot tests live) asserting:
-  - [ ] artifact-only boot can resolve `ResetOrchestrator`
-  - [ ] KernelRuntime can execute a UoW and triggers reset once per UoW
-- [ ] Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
-- [ ] No standalone `container_no_closure_definitions_gate.php` exists.
-  - [ ] This is verified together with positive compiler-level closure rejection test evidence.
-- [ ] Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
+- [x] REAL `container.php` produced in Phase 1 pipeline
+- [x] identical compiled-container inputs produce identical `container.php` bytes.
+- [x] deterministic hard-fail when artifact missing (production policy)
+- [x] docs complete
+- [x] `docs/ssot/compiled-container.md` defines the first REAL `container@1` payload schema.
+- [x] `container@2` is NOT introduced by this epic.
+- [x] The earlier `1.330.0` stub payload is documented as a transitional placeholder, not as the supported runtime compiled-container format.
+- [x] Phase 1 artifact-based runtime boot paths hard-fail without `container.php` with deterministic code:
+  - [x] `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+- [x] Phase 1 artifact-based runtime boot paths hard-fail on invalid or legacy-stub `container.php` with deterministic code:
+  - [x] `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+- [x] No implicit non-artifact fallback exists in the production runtime boot paths covered by this epic.
+- [x] Provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
+- [x] When the compiled-container input is compiled twice without changes, deterministic `container.php` bytes are identical.
+  - [x] Locked by `CompiledContainerIsDeterministicTest.php`.
+  - [x] This epic does not own the `cache:verify` CLI command.
+- [x] Artifact-only runtime boot uses artifact-owned config input:
+  - [x] `container@1` provides service definitions / aliases / parameters / tags;
+  - [x] `config@1` provides the runtime config snapshot;
+  - [x] runtime boot MUST NOT read source config files.
+- [x] Reset discipline in artifact-only boot (MUST)
+  - [x] effective reset tag resolution remains Foundation-owned and MUST NOT be duplicated in compiler/artifact code
+  - [x] When REAL container artifact becomes active (this epic scope), the compiled container MUST include Foundation reset infrastructure so runtime can trigger reset:
+    - [x] `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` must be resolvable from the container
+    - [x] `Coretsia\Foundation\Tag\TagRegistry` must be resolvable (as ResetOrchestrator dependency)
+  - [x] Kernel MUST still not enumerate `kernel.reset`.
+    - [x] KernelRuntime triggers reset ONLY by calling `ResetOrchestrator::resetAll()` obtained via DI/container.
+  - [x] No semantic duplication:
+    - [x] Container compiler/artifact builder MUST NOT re-implement reset ordering/meta parsing.
+    - [x] reset ordering, reset tag ownership, and reset metadata semantics remain in `core/foundation` (1.200.0 / 1.250.0).
+- [x] Add/extend an integration test in `core/kernel` (or wherever your artifact boot tests live) asserting:
+  - [x] artifact-only boot can resolve `ResetOrchestrator`
+  - [x] KernelRuntime can execute a UoW and triggers reset once per UoW
+- [x] Closure-definition rejection is enforced by `ContainerCompiler` + integration test evidence.
+- [x] No standalone `container_no_closure_definitions_gate.php` exists.
+  - [x] This is verified together with positive compiler-level closure rejection test evidence.
+- [x] Any future static/payload policy gate for compiled containers must be introduced as `compiled_container_policy_gate.php` by a separate tooling epic and must inspect compiled graph/artifact semantics, not arbitrary PHP closure syntax.
 
 ---
 

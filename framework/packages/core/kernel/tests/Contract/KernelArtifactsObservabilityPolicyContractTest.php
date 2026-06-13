@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 final class KernelArtifactsObservabilityPolicyContractTest extends TestCase
 {
-    public function testArtifactFingerprintAndCacheObservabilityNamesAreExact(): void
+    public function testKernelArtifactFingerprintContainerCompileAndCacheObservabilityNamesAreExact(): void
     {
         $names = [];
 
@@ -49,6 +49,9 @@ final class KernelArtifactsObservabilityPolicyContractTest extends TestCase
                 'kernel.cache_verify',
                 'kernel.cache_verify_duration_ms',
                 'kernel.cache_verify_total',
+                'kernel.container_compile',
+                'kernel.container_compile_duration_ms',
+                'kernel.container_compile_total',
                 'kernel.fingerprint_calculate',
                 'kernel.fingerprint_calculate_duration_ms',
                 'kernel.fingerprint_calculate_total',
@@ -142,17 +145,18 @@ final class KernelArtifactsObservabilityPolicyContractTest extends TestCase
         }
     }
 
-    public function testOnlyArtifactWriterFingerprintCalculatorAndCacheVerifierEmitArtifactObservability(): void
+    public function testOnlyExpectedKernelSourcesEmitTheseObservabilityOperations(): void
     {
-        $artifactSourceFiles = self::phpFiles(self::packageRoot() . '/src/Artifacts');
+        $sourceFiles = self::phpFiles(self::packageRoot() . '/src');
         $emitters = [];
 
-        foreach ($artifactSourceFiles as $path) {
-            $source = self::readFile($path);
+        foreach ($sourceFiles as $path) {
+            $source = self::stripPhpComments(self::readFile($path));
 
             if (
                 \str_contains($source, 'kernel.artifacts_write')
                 || \str_contains($source, 'kernel.fingerprint_calculate')
+                || \str_contains($source, 'kernel.container_compile')
                 || \str_contains($source, 'kernel.cache_verify')
             ) {
                 $emitters[] = self::relativeToPackage($path);
@@ -166,6 +170,7 @@ final class KernelArtifactsObservabilityPolicyContractTest extends TestCase
                 'src/Artifacts/ArtifactWriter.php',
                 'src/Artifacts/Fingerprint/FingerprintCalculator.php',
                 'src/Artifacts/Verifier/CacheVerifier.php',
+                'src/Container/ContainerCompiler.php',
             ],
             $emitters,
         );
@@ -205,6 +210,7 @@ final class KernelArtifactsObservabilityPolicyContractTest extends TestCase
                 'src/Artifacts/ArtifactWriter.php',
                 'src/Artifacts/Fingerprint/FingerprintCalculator.php',
                 'src/Artifacts/Verifier/CacheVerifier.php',
+                'src/Container/ContainerCompiler.php',
             ] as $relativePath
         ) {
             $sources[$relativePath] = self::sourceFile($relativePath);

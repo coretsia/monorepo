@@ -28,8 +28,8 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
@@ -52,6 +52,7 @@ use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
@@ -349,6 +350,19 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         );
     }
 
+    private static function containerCompiler(
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
+    ): ContainerCompiler {
+        return new ContainerCompiler(
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+            stopwatch: new Stopwatch(),
+        );
+    }
+
     private static function cacheVerifier(
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
@@ -369,7 +383,12 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             ),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            stubContainerBuilder: new StubContainerBuilder($envelopeFactory),
+            containerCompiler: self::containerCompiler(
+                tracer: $tracer,
+                meter: $meter,
+                logger: $logger,
+            ),
+            compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
             phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
             artifactReader: new PhpArtifactReader(),
             schemaValidator: new ArtifactSchemaValidator(),

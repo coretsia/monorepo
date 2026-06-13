@@ -105,6 +105,43 @@ This follow-up does not introduce or alter tag ownership, tag names, reserved ta
 
 Historical wording in this ADR that says diagnostics may include `service ids` should now be read as `safe service id diagnostics`.
 
+## Container definition lifecycle follow-up note
+
+Epic `1.340.0` extends the Foundation container runtime with explicit definition lifecycle semantics.
+
+At the time of the original `1.200.0` decision, Foundation container definitions were effectively shared because resolved definitions were cached by service id.
+
+Current live behavior distinguishes:
+
+```text
+shared = true
+shared = false
+```
+
+The default remains `shared = true` for backwards-compatible provider and builder behavior.
+
+A shared definition is resolved once per container instance and then cached.
+
+A non-shared definition is resolved on every `Container::get($id)` call and MUST NOT be stored in the resolved-instance cache.
+
+This lifecycle flag applies to container definitions registered through:
+
+```text
+ContainerBuilder::set(...)
+ContainerBuilder::bind(...)
+ContainerBuilder::factory(...)
+```
+
+`ContainerBuilder::instance(...)` continues to register an already-created shared runtime instance.
+
+This follow-up does not alter provider ordering, later-binding-overrides-earlier semantics, tag discovery ordering, tag dedupe behavior, reset orchestration, middleware discovery, or diagnostics safety policy.
+
+Canonical live policy for definition lifecycle is owned by:
+
+```text
+docs/ssot/di-tags-and-middleware-ordering.md
+```
+
 ## Context
 
 Epic `1.200.0` introduces the `core/foundation` runtime package under:
@@ -284,6 +321,14 @@ Container exception messages must remain stable machine-readable strings and mus
 
 Provider order is caller-supplied and significant.
 
+`ContainerBuilder` also owns definition lifecycle registration.
+
+`set(...)`, `bind(...)`, and `factory(...)` default to `shared = true`.
+
+Callers MAY pass `shared = false` when a definition must be resolved freshly on every `Container::get($id)` call.
+
+This lifecycle flag is deterministic definition metadata, not provider ordering metadata.
+
 `ContainerBuilder` must preserve the exact caller-supplied provider order.
 
 `ContainerBuilder` must not globally sort providers by FQCN.
@@ -307,6 +352,12 @@ This collision policy applies only to container definitions and instances.
 It does not apply to tag registrations.
 
 Tag dedupe remains independent and is owned by `TagRegistry`.
+
+Definition lifecycle is part of the replaced definition state.
+
+When a later definition replaces an earlier definition for the same service id, the later definition's `shared` flag replaces the earlier lifecycle flag.
+
+When an instance is registered for a service id, any previous definition lifecycle flag for that id is removed because instances are already-created shared runtime values.
 
 ## Service provider contract decision
 
@@ -1155,6 +1206,8 @@ Required test areas include:
 - `Container::canAutowire()` is strict on missing Foundation config;
 - provider order is preserved exactly;
 - later container bindings override earlier bindings;
+- `ContainerBuilder::factory(..., shared: false)` returns a fresh value on repeated `Container::get($id)` calls;
+- `ContainerBuilder::factory(..., shared: true)` returns the same cached value on repeated `Container::get($id)` calls;
 - `DeterministicOrder` implements `priority DESC, id ASC`;
 - ordering uses `strcmp` and is locale-independent;
 - `TagRegistry->all($tag)` returns canonical order;

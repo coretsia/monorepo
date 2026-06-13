@@ -56,6 +56,7 @@ Coretsia/
 │   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
 │   │   ├── ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
+│   │   ├── ADR-0029-kernel-container-compile-artifact.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -125,6 +126,7 @@ Coretsia/
 │       ├── artifacts-and-fingerprint.md
 │       ├── artifacts.md
 │       ├── cache-verify.md
+│       ├── compiled-container.md
 │       ├── config-and-env.md
 │       ├── config-directives.md
 │       ├── config-merge-order.md
@@ -459,6 +461,8 @@ Coretsia/
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
 │   │   │   │   │   │   └── UuidFormatContractTest.php
 │   │   │   │   │   ├── Integration/
+│   │   │   │   │   │   ├── Container/
+│   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
@@ -525,8 +529,8 @@ Coretsia/
 │   │   │       │   ├── Artifacts/
 │   │   │       │   │   ├── Builders/
 │   │   │       │   │   │   ├── CompiledConfigBuilder.php
-│   │   │       │   │   │   ├── ModuleManifestBuilder.php
-│   │   │       │   │   │   └── StubContainerBuilder.php
+│   │   │       │   │   │   ├── CompiledContainerBuilder.php
+│   │   │       │   │   │   └── ModuleManifestBuilder.php
 │   │   │       │   │   ├── Compiler/
 │   │   │       │   │   │   └── ArtifactCompiler.php
 │   │   │       │   │   ├── Exception/
@@ -585,6 +589,17 @@ Coretsia/
 │   │   │       │   │   ├── ConfigRulesLoader.php
 │   │   │       │   │   ├── ConfigValidator.php
 │   │   │       │   │   └── DirectiveProcessor.php
+│   │   │       │   ├── Container/
+│   │   │       │   │   ├── Definition/
+│   │   │       │   │   │   ├── DefinitionGraph.php
+│   │   │       │   │   │   ├── ParameterBag.php
+│   │   │       │   │   │   └── ServiceDefinition.php
+│   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ContainerArtifactInvalidException.php
+│   │   │       │   │   │   ├── ContainerArtifactMissingException.php
+│   │   │       │   │   │   └── ContainerCompileFailedException.php
+│   │   │       │   │   ├── CompiledContainerFactory.php
+│   │   │       │   │   └── ContainerCompiler.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ModePresetInvalidException.php
@@ -632,6 +647,8 @@ Coretsia/
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
+│   │   │       │   │   ├── CompiledContainerIsDeterministicTest.php
+│   │   │       │   │   ├── ContainerArtifactHeaderShapeContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   ├── FingerprintCalculatorStableInputContractTest.php
 │   │   │       │   │   ├── FingerprintExplainerDeterminismContractTest.php
@@ -676,6 +693,10 @@ Coretsia/
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
@@ -689,6 +710,12 @@ Coretsia/
 │   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
 │   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
 │   │   │       │   │   ├── CompiledConfigKeepsUserOwnedRootsTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryBuildsContainerFromArtifactTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php
+│   │   │       │   │   ├── CompiledContainerPreservesLaterBindingOverridesTest.php
+│   │   │       │   │   ├── CompiledContainerPreservesTagDedupeFirstWinsTest.php
+│   │   │       │   │   ├── CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php
 │   │   │       │   │   ├── ComposerManifestReaderDoesNotLeakPathsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsOnlyComposerMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php

@@ -46,7 +46,7 @@ final class FingerprintExplainerDeterminismContractTest extends TestCase
 
     public function testExplainEntriesAreDeterministicallySorted(): void
     {
-        $explain = (new FingerprintExplainer())->explain(self::fingerprintInput());
+        $explain = new FingerprintExplainer()->explain(self::fingerprintInput());
 
         $entryKeys = \array_map(
             static fn (array $entry): string => \implode(
@@ -92,7 +92,7 @@ final class FingerprintExplainerDeterminismContractTest extends TestCase
 
     public function testExplainDoesNotLeakUnsafeRawInputEvenWhenPresentInInputFixture(): void
     {
-        $explain = (new FingerprintExplainer())->explain(self::fingerprintInput());
+        $explain = new FingerprintExplainer()->explain(self::fingerprintInput());
         $encoded = \json_encode($explain, \JSON_THROW_ON_ERROR);
 
         foreach (

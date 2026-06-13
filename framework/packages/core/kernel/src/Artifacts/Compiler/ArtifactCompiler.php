@@ -21,8 +21,8 @@ namespace Coretsia\Kernel\Artifacts\Compiler;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactWriteFailedException;
@@ -33,6 +33,9 @@ use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
+use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
+use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
 use Coretsia\Kernel\Module\ModulePlan;
 
 /**
@@ -73,10 +76,10 @@ use Coretsia\Kernel\Module\ModulePlan;
  *
  * Reuse policy:
  *
- * 1.330.0 compile-side behavior always rebuilds and rewrites Kernel-owned
- * artifacts. It therefore never reuses an existing compiled config artifact
- * without a verified matching fingerprint. Stored-fingerprint comparison and
- * clean/dirty/invalid decisions belong to CacheVerifier.
+ * Current compile-side behavior always rebuilds and rewrites Kernel-owned
+ * artifacts. It therefore never reuses an existing compiled config or compiled
+ * container artifact without a verified matching fingerprint. Stored-fingerprint
+ * comparison and clean/dirty/invalid decisions belong to CacheVerifier.
  *
  * @internal
  */
@@ -99,7 +102,8 @@ final readonly class ArtifactCompiler
         private FingerprintCalculator $fingerprintCalculator,
         private ModuleManifestBuilder $moduleManifestBuilder,
         private CompiledConfigBuilder $compiledConfigBuilder,
-        private StubContainerBuilder $stubContainerBuilder,
+        private ContainerCompiler $containerCompiler,
+        private CompiledContainerBuilder $compiledContainerBuilder,
         private ArtifactWriter $artifactWriter,
         private ArtifactPathResolver $pathResolver,
     ) {
@@ -151,6 +155,7 @@ final readonly class ArtifactCompiler
      *     sourceId?: string|null,
      *     precedence?: int|null
      * }> $modePresetSourceCandidates
+     * @param iterable<array<string, mixed>> $containerDescriptors Descriptor-based, closure-free compiled-container input.
      *
      * @return array{
      *     schemaVersion: int,
@@ -169,11 +174,12 @@ final readonly class ArtifactCompiler
      *     }
      * }
      *
-     * @throws ConfigInvalidException
-     * @throws JsonFloatForbiddenException
      * @throws ArtifactPayloadInvalidException
      * @throws ArtifactPathInvalidException
      * @throws ArtifactWriteFailedException
+     * @throws ConfigInvalidException
+     * @throws ContainerCompileFailedException
+     * @throws JsonFloatForbiddenException
      */
     public function compile(
         BootstrapConfig $bootstrapConfig,
@@ -186,6 +192,7 @@ final readonly class ArtifactCompiler
         array $explicitRuleSources = [],
         array $explicitEnvOverlayMappings = [],
         array $modePresetSourceCandidates = [],
+        iterable $containerDescriptors = [],
     ): array {
         /*
          * Exactly one ConfigKernel::compile(...) invocation per artifact compile
@@ -219,6 +226,8 @@ final readonly class ArtifactCompiler
 
         $fingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
 
+        $containerGraph = $this->containerCompiler->compile($containerDescriptors);
+
         $writes = [
             $this->writeModuleManifest(
                 bootstrapConfig: $bootstrapConfig,
@@ -232,10 +241,11 @@ final readonly class ArtifactCompiler
                 compiledConfig: $compiledConfig,
                 fingerprint: $fingerprint,
             ),
-            $this->writeStubContainer(
+            $this->writeCompiledContainer(
                 bootstrapConfig: $bootstrapConfig,
                 kernelConfig: $kernelConfig,
                 fingerprint: $fingerprint,
+                containerGraph: $containerGraph,
             ),
         ];
 
@@ -323,12 +333,16 @@ final readonly class ArtifactCompiler
      * @throws ArtifactPathInvalidException
      * @throws ArtifactWriteFailedException
      */
-    private function writeStubContainer(
+    private function writeCompiledContainer(
         BootstrapConfig $bootstrapConfig,
         array $kernelConfig,
         string $fingerprint,
+        DefinitionGraph $containerGraph,
     ): array {
-        $envelope = $this->stubContainerBuilder->build($fingerprint);
+        $envelope = $this->compiledContainerBuilder->build(
+            graph: $containerGraph,
+            fingerprint: $fingerprint,
+        );
 
         return self::writeResult(
             name: self::ARTIFACT_CONTAINER,

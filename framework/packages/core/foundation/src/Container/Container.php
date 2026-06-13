@@ -35,6 +35,12 @@ use Psr\Container\NotFoundExceptionInterface;
  * - interfaces and abstract classes are never autowired;
  * - runtime reset execution must not depend on autowire/reflection.
  *
+ * Explicit definitions may be shared or non-shared:
+ *
+ * - shared definitions are cached after first resolution;
+ * - non-shared definitions are resolved fresh on every get();
+ * - concrete-class autowire resolutions remain cached.
+ *
  * This container must not emit stdout/stderr and must not expose constructor
  * arguments, instances, raw config payloads, environment values, tokens, or
  * absolute local paths through diagnostics.
@@ -57,6 +63,11 @@ final class Container implements ContainerInterface
     private array $config;
 
     /**
+     * @var array<string, bool>
+     */
+    private array $definitionShared;
+
+    /**
      * @var array<string, true>
      */
     private array $resolving = [];
@@ -65,11 +76,13 @@ final class Container implements ContainerInterface
      * @param array<string, mixed> $definitions
      * @param array<string, mixed> $instances
      * @param array<string, mixed> $config
+     * @param array<string, bool> $definitionShared
      */
     public function __construct(
         array $definitions = [],
         array $instances = [],
         array $config = [],
+        array $definitionShared = [],
     ) {
         foreach ($definitions as $id => $_) {
             self::assertServiceId($id);
@@ -79,9 +92,26 @@ final class Container implements ContainerInterface
             self::assertServiceId($id);
         }
 
+        foreach ($definitionShared as $id => $shared) {
+            self::assertServiceId($id);
+
+            if (!\is_bool($shared)) {
+                throw new ContainerException('container-definition-shared-flag-invalid');
+            }
+
+            if (!\array_key_exists($id, $definitions)) {
+                throw new ContainerException('container-definition-shared-flag-orphaned');
+            }
+        }
+
         $this->definitions = $definitions;
         $this->resolved = $instances;
         $this->config = $config;
+        $this->definitionShared = [];
+
+        foreach ($definitions as $id => $_definition) {
+            $this->definitionShared[$id] = $definitionShared[$id] ?? true;
+        }
     }
 
     public function get(string $id): mixed
@@ -100,9 +130,13 @@ final class Container implements ContainerInterface
 
         try {
             if (\array_key_exists($id, $this->definitions)) {
-                $this->resolved[$id] = $this->resolveDefinition($id, $this->definitions[$id]);
+                $resolved = $this->resolveDefinition($id, $this->definitions[$id]);
 
-                return $this->resolved[$id];
+                if ($this->definitionShared[$id] ?? true) {
+                    $this->resolved[$id] = $resolved;
+                }
+
+                return $resolved;
             }
 
             if (\class_exists($id) && $this->canAutowire($id)) {

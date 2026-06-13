@@ -21,11 +21,12 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 
@@ -55,7 +56,10 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
             'container.php' => [
                 'name' => ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
                 'schemaVersion' => ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
-                'envelope' => self::stubContainerBuilder()->build(self::fingerprint()),
+                'envelope' => self::compiledContainerBuilder()->build(
+                    graph: self::emptyContainerGraph(),
+                    fingerprint: self::fingerprint(),
+                ),
             ],
         ];
 
@@ -95,7 +99,10 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
                 compiledConfig: self::compiledConfig(),
                 fingerprint: self::fingerprint(),
             ),
-            self::stubContainerBuilder()->build(self::fingerprint()),
+            self::compiledContainerBuilder()->build(
+                graph: self::emptyContainerGraph(),
+                fingerprint: self::fingerprint(),
+            ),
         ];
 
         foreach ($envelopes as $envelope) {
@@ -120,7 +127,7 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
             [
                 ModuleManifestBuilder::class,
                 CompiledConfigBuilder::class,
-                StubContainerBuilder::class,
+                CompiledContainerBuilder::class,
             ] as $builderClass
         ) {
             $constructor = new \ReflectionMethod($builderClass, '__construct');
@@ -145,9 +152,14 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
         return new CompiledConfigBuilder(self::envelopeFactory());
     }
 
-    private static function stubContainerBuilder(): StubContainerBuilder
+    private static function compiledContainerBuilder(): CompiledContainerBuilder
     {
-        return new StubContainerBuilder(self::envelopeFactory());
+        return new CompiledContainerBuilder(self::envelopeFactory());
+    }
+
+    private static function emptyContainerGraph(): DefinitionGraph
+    {
+        return DefinitionGraph::empty();
     }
 
     private static function envelopeFactory(): ArtifactEnvelopeFactory

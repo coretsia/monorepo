@@ -55,7 +55,7 @@ Rules:
 - `domain` MUST be stable and technology-neutral at the observability boundary.
 - `singular_operation` MUST be singular and describe the operation kind, not raw request data.
 - Span names emitted through `TracerPortInterface::startSpan(...)` or `TracerPortInterface::inSpan(...)` MUST follow this shape.
-- Valid reset span name is `foundation.reset`.
+- Canonical span names are listed in [Baseline Canonical Events](#baseline-canonical-events-must).
 - Reset span exception-recording safety is governed by `docs/ssot/observability-and-errors.md`.
 - Plural span operation drift such as `foundation.resets` is forbidden.
 - Span names MUST NOT be added to the canonical metrics catalog.
@@ -151,6 +151,8 @@ The method/type mapping is canonical:
 | kernel.artifacts_write_duration_ms       | `core/kernel`     | observe | `outcome`                     |
 | kernel.fingerprint_calculate_total       | `core/kernel`     | counter | `outcome`                     |
 | kernel.fingerprint_calculate_duration_ms | `core/kernel`     | observe | `outcome`                     |
+| kernel.container_compile_total           | `core/kernel`     | counter | `outcome`                     |
+| kernel.container_compile_duration_ms     | `core/kernel`     | observe | `outcome`                     |
 | kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                     |
 | kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                     |
 
@@ -185,26 +187,32 @@ They MUST NOT use the `operation` label.
 
 Rationale: the operation is already encoded in the metric name (`config_merge` or `config_explain`), so adding `operation` would duplicate the operation dimension and create avoidable label drift.
 
-### Kernel artifact/fingerprint/cache observability policy
+### Kernel artifact/fingerprint/container-compile/cache observability policy
 
-Kernel artifact, fingerprint, and cache verification observability is operation-specific by metric and span name.
+Kernel artifact, fingerprint, container compile, and cache verification observability is operation-specific by metric and span name.
 
 The following spans are canonical:
 
 - `kernel.artifacts_write`
 - `kernel.fingerprint_calculate`
+- `kernel.container_compile`
 - `kernel.cache_verify`
 
-The following metrics MUST use only the `outcome` label:
+The corresponding metrics are registered in the canonical metrics catalog above.
 
-- `kernel.artifacts_write_total`
-- `kernel.artifacts_write_duration_ms`
-- `kernel.fingerprint_calculate_total`
-- `kernel.fingerprint_calculate_duration_ms`
-- `kernel.cache_verify_total`
-- `kernel.cache_verify_duration_ms`
+These metric families MUST use only the `outcome` label:
+
+- `kernel.artifacts_write_*`
+- `kernel.fingerprint_calculate_*`
+- `kernel.container_compile_*`
+- `kernel.cache_verify_*`
 
 They MUST NOT use the `operation` label.
+
+For these Kernel metric families, allowed `outcome` values are:
+
+- `success`
+- `failure`
 
 They MUST NOT introduce any of the following metric labels:
 
@@ -214,33 +222,40 @@ They MUST NOT introduce any of the following metric labels:
 - `env`
 - `fingerprint`
 
-Rationale: the operation is already encoded in the metric name (`artifacts_write`, `fingerprint_calculate`, or `cache_verify`). Adding operation-like, artifact-like, app-like, env-like, path-like, or fingerprint-like labels would create unnecessary cardinality, privacy risk, and label drift.
+Rationale: the operation is already encoded in the metric name (`artifacts_write`, `fingerprint_calculate`, `container_compile`, or `cache_verify`). Adding operation-like, artifact-like, app-like, env-like, path-like, or fingerprint-like labels would create unnecessary cardinality, privacy risk, and label drift.
 
 Ownership is canonical:
 
 - `ArtifactWriter` owns `kernel.artifacts_write`.
 - `FingerprintCalculator` owns `kernel.fingerprint_calculate`.
+- `ContainerCompiler` owns `kernel.container_compile`.
 - `CacheVerifier` owns `kernel.cache_verify`.
 
-Artifact/fingerprint/cache services MUST depend on observability ports/interfaces only, plus Foundation `Stopwatch` for duration measurement.
+Artifact/fingerprint/container-compile/cache services MUST depend on observability ports/interfaces only, plus Foundation `Stopwatch` where duration measurement is required.
 
-Artifact/fingerprint/cache services MUST NOT instantiate Noop observability implementations.
+Artifact/fingerprint/container-compile/cache services MUST NOT instantiate Noop observability implementations.
 
-Artifact/fingerprint/cache services MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
+Artifact/fingerprint/container-compile/cache services MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
 
-Real-vs-Noop/default binding is outside artifact service responsibility.
+Real-vs-Noop/default binding is outside artifact/fingerprint/container-compile/cache service responsibility.
 
-Observability failures MUST NOT change deterministic artifact/fingerprint/cache behavior.
+Observability failures MUST NOT change deterministic artifact, fingerprint, container compile, or cache verification behavior.
 
 Lifecycle logs are emitted through `LoggerInterface`.
 
-The logger implementation MAY be real or Noop, but artifact/fingerprint/cache services MUST NOT know which one they received.
+The logger implementation MAY be real or Noop, but artifact/fingerprint/container-compile/cache services MUST NOT know which one they received.
 
-Logger calls MUST be failure-silent and MUST NOT change artifact/fingerprint/cache behavior.
+Logger calls MUST be failure-silent and MUST NOT change artifact/fingerprint/container-compile/cache behavior.
 
-Logs MAY include normalized relative paths, artifact basenames, safe bucket names, safe reason tokens, counts, durations, and bounded outcome tokens.
+Artifact/fingerprint/cache logs MAY include normalized relative paths, artifact basenames, safe bucket names, safe reason tokens, counts, durations, and bounded outcome tokens.
 
-Logs MUST NOT include secrets, raw payloads, raw config values, raw env values, dotenv values, source file contents, full fingerprints, absolute paths, temp paths, PHP warning text, stack traces, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
+Container compile logs MAY include only safe compile summary data:
+
+- safe counts;
+- duration milliseconds;
+- outcome.
+
+Artifact/fingerprint/container-compile/cache logs MUST NOT include secrets, raw payloads, raw config values, raw config dumps, raw env values, dotenv values, source file contents, closure dumps, source snippets, full fingerprints, absolute paths, temp paths, OS error messages, PHP warning text, stack traces, throwable messages, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
 
 ## Forbidden Data (MUST NOT LEAK)
 
@@ -255,6 +270,16 @@ The following data is forbidden in logs, metrics, span names, span attributes, a
 - session identifiers
 - tokens
 - raw SQL
+- raw config dump
+- raw env value
+- closure dump
+- source snippet
+- raw artifact payload
+- fingerprint
+- OS error message
+- throwable message
+- previous throwable message
+- stack trace
 
 ## Forbidden Label Keys (MUST)
 
@@ -304,37 +329,23 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `kernel.config_explain`
 - `kernel.artifacts_write`
 - `kernel.fingerprint_calculate`
+- `kernel.container_compile`
 - `kernel.cache_verify`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 
 ### Canonical Metrics
 
-Baseline metric names and their metric-specific labels are registered in the canonical metrics catalog above:
+Canonical metric names and their metric-specific labels are registered in the canonical metrics catalog above.
 
-- `http.request_total`
-- `http.request_duration_ms`
-- `kernel.uow_total`
-- `kernel.uow_duration_ms`
-- `kernel.modules_resolve_total`
-- `kernel.modules_resolve_duration_ms`
-- `kernel.config_merge_total`
-- `kernel.config_merge_duration_ms`
-- `kernel.config_explain_total`
-- `kernel.config_explain_duration_ms`
-- `kernel.artifacts_write_total`
-- `kernel.artifacts_write_duration_ms`
-- `kernel.fingerprint_calculate_total`
-- `kernel.fingerprint_calculate_duration_ms`
-- `kernel.cache_verify_total`
-- `kernel.cache_verify_duration_ms`
+The canonical metrics catalog is the authoritative registry for:
 
-Reset metric names and their metric-specific labels are registered in the canonical metrics catalog above:
+- metric name;
+- owner;
+- metric type;
+- allowed metric-specific labels.
 
-- `foundation.reset_total`
-- `foundation.reset_duration_ms`
-
-No additional baseline labels are allowed for these canonical metrics beyond their catalog rows.
+No additional baseline labels are allowed for canonical metrics beyond their catalog rows.
 
 Reset observability safety policy, including sanitized reset exception recording, summary-only logs/metrics/spans, and reset failure diagnostic limits, is defined in:
 

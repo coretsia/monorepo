@@ -242,6 +242,45 @@ Container definition collision policy and tag dedupe policy are separate:
 
 Consumers MUST NOT attempt to recover provider ordering after reading `TagRegistry->all($tag)`.
 
+## Container definition lifecycle rule
+
+Foundation container definitions have explicit lifecycle semantics.
+
+`ContainerBuilder::set(...)`, `ContainerBuilder::bind(...)`, and `ContainerBuilder::factory(...)` accept a `shared` flag.
+
+The default lifecycle is:
+
+```text
+shared = true
+```
+
+A shared definition MUST be resolved at most once per container instance. After the first successful resolution, the resolved value is cached by service id and subsequent `Container::get($id)` calls MUST return the same resolved value.
+
+A non-shared definition is represented by:
+
+```text
+shared = false
+```
+
+A non-shared definition MUST be resolved on every `Container::get($id)` call. The resolved value MUST NOT be stored in the container resolved-instance cache.
+
+`ContainerBuilder::instance(...)` always registers an already-created shared runtime instance. Instances are not non-shared definitions.
+
+Definition lifecycle does not alter provider ordering or collision rules.
+
+For the same service id:
+
+- later definitions still override earlier definitions deterministically;
+- later instances still override earlier definitions or instances deterministically;
+- overriding a definition MUST replace the previous lifecycle flag for that service id;
+- registering an instance MUST remove any previous definition lifecycle flag for that service id.
+
+Tag registration lifecycle is independent from container definition lifecycle.
+
+The `shared` flag applies only to container definitions. It MUST NOT alter `TagRegistry` dedupe behavior, tag priority ordering, or discovery-list semantics.
+
+Alias-like definitions that delegate to another service SHOULD be non-shared wrappers unless the alias owner intentionally wants the alias itself to cache the resolved target. Compiled-container runtime aliases MUST be non-shared delegation wrappers so that aliases do not accidentally turn non-shared target services into shared services.
+
 ## HTTP middleware slot references
 
 The canonical HTTP middleware slot taxonomy is owned by:
@@ -492,6 +531,7 @@ Foundation ordering behavior SHOULD be locked by tests covering:
 ```text
 framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php
 framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php
+framework/packages/core/foundation/tests/Integration/Container/ContainerFactoryDefinitionsCanBeNonSharedTest.php
 framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php
 framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php
 ```
@@ -520,8 +560,8 @@ When a runtime consumer needs services registered under a DI tag:
 
 1. the consumer requests the list from `TagRegistry->all($tag)`;
 2. Foundation returns the list in canonical order:
-  - `priority DESC`;
-  - `id ASC` by byte-order `strcmp`;
+   - `priority DESC`;
+   - `id ASC` by byte-order `strcmp`;
 3. duplicate `(tag, serviceId)` registrations have already been deduped by first-wins policy;
 4. the consumer preserves the returned list exactly;
 5. the consumer resolves services by PSR-11 id only when instances are needed;

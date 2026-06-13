@@ -32,7 +32,7 @@ This document owns only Kernel-side behavior for:
 - Kernel fingerprint input construction;
 - Kernel fingerprint exclusion policy;
 - Kernel cache verification linkage;
-- Kernel artifact/fingerprint/cache service wiring constraints.
+- Kernel artifact/fingerprint/container-compile/cache service wiring constraints.
 
 This document **MUST NOT** redefine:
 
@@ -137,7 +137,9 @@ It **MUST**:
 - call `ConfigKernel` once for the supplied compile inputs;
 - build the deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
 - calculate the fingerprint through `FingerprintCalculator`;
+- compile descriptor-based container input through `ContainerCompiler`;
 - build expected Kernel artifact envelopes through Kernel artifact builders;
+- build the REAL `container@1` envelope through `CompiledContainerBuilder`;
 - resolve Kernel artifact paths through `ArtifactPathResolver`;
 - write Kernel artifacts through `ArtifactWriter`;
 - return only safe summary data.
@@ -150,6 +152,8 @@ It **MUST NOT**:
 - emit stdout or stderr;
 - expose raw config values, raw env values, secrets, absolute paths, or raw payload bytes;
 - trigger reset orchestration;
+- discover container providers or modules implicitly;
+- use provider fallback for `container.php`;
 - start or complete a UnitOfWork.
 
 ### `ArtifactPathResolver`
@@ -191,7 +195,34 @@ The Kernel artifact builders are:
 
 - `ModuleManifestBuilder`
 - `CompiledConfigBuilder`
-- `StubContainerBuilder`
+- `CompiledContainerBuilder`
+
+`ContainerCompiler` is not an artifact builder. It owns descriptor-to-`DefinitionGraph` compilation for REAL `container@1` artifacts. `CompiledContainerBuilder` receives the compiled `DefinitionGraph` and wraps its deterministic payload in the canonical Kernel artifact envelope.
+
+`CompiledContainerBuilder` **MUST** emit a REAL `container@1` payload.
+
+The `container@1` payload **MUST** use:
+
+```text
+kind = compiled
+compiled = true
+```
+
+The `container@1` payload **MUST** contain the canonical compiled-container map fields:
+
+```text
+aliases
+parameters
+services
+tags
+```
+
+`CompiledContainerBuilder` **MUST NOT** emit the legacy transitional stub payload:
+
+```text
+kind = stub
+compiled = false
+```
 
 ### Platform-Owned Config Data Linkage (MUST)
 
@@ -315,6 +346,47 @@ It **MUST NOT**:
 - write artifacts;
 - calculate fingerprints;
 - infer artifact ownership outside the canonical artifact registry.
+
+For `container@1`, `ArtifactSchemaValidator` **MUST** validate the REAL compiled-container payload shape:
+
+```text
+aliases
+compiled
+kind
+parameters
+services
+tags
+```
+
+The `container@1` payload **MUST** satisfy:
+
+```text
+kind = compiled
+compiled = true
+```
+
+The validator **MUST** reject legacy transitional stub payloads:
+
+```text
+kind = stub
+compiled = false
+```
+
+The validator **MUST** validate `aliases`, `parameters`, `services`, and `tags` as deterministic maps. Empty maps are valid.
+
+Compiled service definitions **MUST** include the canonical lifecycle field:
+
+```text
+shared
+```
+
+Container tag entries **MUST** be ordered by:
+
+```text
+priority DESC, id ASC
+```
+
+Duplicate service ids inside the same tag list **MUST** be rejected.
 
 ## Fingerprint Input Behavior (MUST)
 
@@ -524,7 +596,8 @@ It **MUST**:
 
 - compute the current deterministic fingerprint input from already-supplied resolved inputs;
 - calculate the current fingerprint;
-- build expected Kernel artifact envelopes in memory;
+- compile descriptor-based container input through `ContainerCompiler`;
+- build expected Kernel artifact envelopes in memory, including the REAL `container@1` envelope through `CompiledContainerBuilder`;
 - dump expected artifact bytes in memory;
 - resolve expected artifact paths;
 - read existing artifact bytes and returned arrays;
@@ -589,11 +662,11 @@ Provider/factory wiring **MUST NOT**:
 - invoke `ResetOrchestrator`;
 - start a UnitOfWork;
 - emit stdout or stderr;
-- start artifact/fingerprint/cache spans;
-- emit artifact/fingerprint/cache metrics;
-- write artifact/fingerprint/cache logs.
+- start artifact/fingerprint/container-compile/cache spans;
+- emit artifact/fingerprint/container-compile/cache metrics;
+- write artifact/fingerprint/container-compile/cache logs.
 
-Artifact/fingerprint/cache services that emit observability **MUST** receive non-null dependencies through public ports/interfaces only:
+Artifact/fingerprint/container-compile/cache services that emit observability **MUST** receive non-null dependencies through public ports/interfaces only:
 
 - `TracerPortInterface`;
 - `MeterPortInterface`;
@@ -608,19 +681,19 @@ Default real-vs-Noop binding is owned by the application/foundation composition 
 
 ## Observability Linkage (MUST)
 
-Artifact, fingerprint, and cache verification observability **MUST** comply with the canonical observability naming, metric catalog, label allowlist, and redaction law.
+Artifact, fingerprint, container compilation, and cache verification observability **MUST** comply with the canonical observability naming, metric catalog, label allowlist, and redaction law.
 
 This document does not own the global metrics catalog.
 
-Any artifact/fingerprint/cache metrics emitted by Kernel services **MUST** be registered in `docs/ssot/observability.md`.
+Any artifact/fingerprint/container-compile/cache metrics emitted by Kernel services **MUST** be registered in `docs/ssot/observability.md`.
 
-Artifact/fingerprint/cache metrics **MUST** use only safe bounded labels. For the baseline Kernel artifact/fingerprint/cache services, the only allowed metric label is:
+Artifact/fingerprint/container-compile/cache metrics **MUST** use only safe bounded labels. For the baseline Kernel artifact/fingerprint/container-compile/cache services, the only allowed metric label is:
 
 ```text
 outcome
 ```
 
-Artifact/fingerprint/cache spans and logs **MUST NOT** expose:
+Artifact/fingerprint/container-compile/cache spans and logs **MUST NOT** expose:
 
 - raw paths;
 - raw config values;
@@ -632,7 +705,7 @@ Artifact/fingerprint/cache spans and logs **MUST NOT** expose:
 - stack traces;
 - throwable messages.
 
-Observability failures **MUST NOT** change artifact writing, fingerprint calculation, or cache verification semantics. Services that emit observability **MUST** catch observability adapter failures.
+Observability failures **MUST NOT** change artifact writing, fingerprint calculation, container compilation, or cache verification semantics. Services that emit observability **MUST** catch observability adapter failures.
 
 ## Config Linkage (MUST)
 
@@ -663,12 +736,16 @@ This document does not redefine config root ownership.
 - This document does not define config root ownership.
 - This document does not make artifact generation part of runtime request lifecycle.
 - This document does not require generated artifacts to be read during normal Kernel runtime service registration.
-- `container@1` may be a deterministic stub artifact in this epic. Later compiled-container work may either remain compatible with `container@1` or introduce a new schema version.
+- `container@1` is not a deterministic stub artifact in current Kernel artifact production.
+- Kernel-produced `container@1` artifacts use the REAL compiled-container payload shape: `kind = compiled` and `compiled = true`.
+- Legacy stub container payloads (`kind = stub`, `compiled = false`) are invalid for current Kernel-produced `container@1` artifacts.
 
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
+- [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
+- [Cache Verification Behavior](./cache-verify.md)
 - [Config Roots Registry](./config-roots.md)
 - [Config and env SSoT](./config-and-env.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)

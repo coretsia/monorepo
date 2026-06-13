@@ -33,8 +33,8 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
@@ -60,6 +60,8 @@ use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Container\CompiledContainerFactory;
+use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -726,12 +728,14 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the stub container artifact builder.
+     * Creates the compiled-container artifact builder.
      *
-     * This factory performs wiring only. It does not compile a real container or
-     * inspect DI state during provider registration.
+     * This factory performs wiring only. It does not compile the container graph,
+     * calculate fingerprints, read files, write files, validate existing artifacts,
+     * inspect runtime containers, instantiate runtime services, or emit stdout/stderr
+     * during provider registration.
      */
-    public static function stubContainerBuilder(ContainerInterface $container): StubContainerBuilder
+    public static function compiledContainerBuilder(ContainerInterface $container): CompiledContainerBuilder
     {
         $envelopeFactory = self::artifactService($container, ArtifactEnvelopeFactory::class);
 
@@ -739,7 +743,7 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        return new StubContainerBuilder(
+        return new CompiledContainerBuilder(
             envelopeFactory: $envelopeFactory,
         );
     }
@@ -764,6 +768,97 @@ final class KernelServiceFactory
     public static function artifactSchemaValidator(): ArtifactSchemaValidator
     {
         return new ArtifactSchemaValidator();
+    }
+
+    /**
+     * Creates the compiled-container runtime factory.
+     *
+     * This factory performs wiring only. It does not read container.php, read
+     * config.php, validate artifacts, build a runtime container, run providers,
+     * compile a new container graph, calculate fingerprints, write artifacts,
+     * mutate artifacts, or emit stdout/stderr during provider registration.
+     */
+    public static function compiledContainerFactory(ContainerInterface $container): CompiledContainerFactory
+    {
+        $artifactReader = self::artifactService($container, PhpArtifactReader::class);
+
+        if (!$artifactReader instanceof PhpArtifactReader) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $schemaValidator = self::artifactService($container, ArtifactSchemaValidator::class);
+
+        if (!$schemaValidator instanceof ArtifactSchemaValidator) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new CompiledContainerFactory(
+            artifactReader: $artifactReader,
+            schemaValidator: $schemaValidator,
+        );
+    }
+
+    /**
+     * Creates the deterministic compiled-container graph compiler.
+     *
+     * This factory performs wiring only. It does not compile descriptors, inspect
+     * runtime providers, read source config files, read generated artifacts, write
+     * artifacts, calculate fingerprints, instantiate runtime services, or emit
+     * stdout/stderr during provider registration.
+     */
+    public static function containerCompiler(ContainerInterface $container): ContainerCompiler
+    {
+        return new ContainerCompiler(
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
+            stopwatch: self::stopwatch($container),
+        );
+    }
+
+    /**
+     * Builds the production runtime Foundation container through compiled-artifact
+     * boot only.
+     *
+     * The caller MUST provide:
+     *
+     * - the resolved container.php artifact path;
+     * - an already-read and already-validated config@1 payload.
+     *
+     * This method intentionally does not read source config files, run source
+     * config discovery, run module discovery, register runtime providers as a
+     * fallback, compile a new container graph, calculate fingerprints, write
+     * artifacts, mutate artifacts, or emit stdout/stderr.
+     *
+     * Missing container.php is surfaced by CompiledContainerFactory as:
+     *
+     *     CORETSIA_CONTAINER_ARTIFACT_MISSING: container-artifact-missing
+     *
+     * There is deliberately no implicit non-artifact fallback in this production
+     * runtime path. Any future developer-mode fallback requires a separate
+     * epic/ADR and MUST NOT be implied here.
+     *
+     * @param non-empty-string $containerArtifactPath
+     * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
+     *
+     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
+     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
+     */
+    public static function productionRuntimeContainer(
+        ContainerInterface $container,
+        string $containerArtifactPath,
+        array $configPayload,
+    ): FoundationContainer {
+        $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
+
+        if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return $compiledContainerFactory->build(
+            containerArtifactPath: $containerArtifactPath,
+            configPayload: $configPayload,
+        );
     }
 
     /**
@@ -806,9 +901,15 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        $stubContainerBuilder = self::artifactService($container, StubContainerBuilder::class);
+        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
 
-        if (!$stubContainerBuilder instanceof StubContainerBuilder) {
+        if (!$containerCompiler instanceof ContainerCompiler) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $compiledContainerBuilder = self::artifactService($container, CompiledContainerBuilder::class);
+
+        if (!$compiledContainerBuilder instanceof CompiledContainerBuilder) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -830,7 +931,8 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            stubContainerBuilder: $stubContainerBuilder,
+            containerCompiler: $containerCompiler,
+            compiledContainerBuilder: $compiledContainerBuilder,
             artifactWriter: $artifactWriter,
             pathResolver: $pathResolver,
         );
@@ -876,9 +978,15 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        $stubContainerBuilder = self::artifactService($container, StubContainerBuilder::class);
+        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
 
-        if (!$stubContainerBuilder instanceof StubContainerBuilder) {
+        if (!$containerCompiler instanceof ContainerCompiler) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $compiledContainerBuilder = self::artifactService($container, CompiledContainerBuilder::class);
+
+        if (!$compiledContainerBuilder instanceof CompiledContainerBuilder) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -912,7 +1020,8 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            stubContainerBuilder: $stubContainerBuilder,
+            containerCompiler: $containerCompiler,
+            compiledContainerBuilder: $compiledContainerBuilder,
             phpArrayDumper: $phpArrayDumper,
             artifactReader: $artifactReader,
             schemaValidator: $schemaValidator,

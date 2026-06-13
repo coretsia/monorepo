@@ -252,13 +252,13 @@ final class ArtifactPathResolver
         }
 
         /*
-         * 1.330.0 materializes Kernel-owned artifacts only under:
+         * Kernel-owned artifacts are materialized only under:
          *
          *     <skeletonRoot>/var/cache/<appTarget>/
          *
          * The config key exists so path policy remains explicit and validated,
-         * but this epic does not permit relocating artifacts outside the
-         * canonical `var/cache` subtree.
+         * but artifact output is intentionally constrained to the canonical
+         * `var/cache` subtree.
          */
         if ($cacheDir !== self::CANONICAL_CACHE_DIR) {
             throw ArtifactPathInvalidException::withReason(

@@ -58,8 +58,8 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
         self::assertSame(
             [
                 'CompiledConfigBuilder.php',
+                'CompiledContainerBuilder.php',
                 'ModuleManifestBuilder.php',
-                'StubContainerBuilder.php',
             ],
             $builderBasenames,
         );

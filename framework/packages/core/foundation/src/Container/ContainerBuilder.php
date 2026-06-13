@@ -35,6 +35,13 @@ use Coretsia\Foundation\Tag\TagRegistry;
  * - this applies to container bindings/definitions only;
  * - tag dedupe remains independent and is owned by `TagRegistry`, where first
  *   occurrence per `(tag, serviceId)` wins.
+ *
+ * Definition lifecycle policy:
+ *
+ * - definitions are shared by default;
+ * - shared definitions are cached by service id after first resolution;
+ * - non-shared definitions are resolved on every Container::get($id);
+ * - lifecycle flags apply only to definitions, not to tag registrations.
  */
 final class ContainerBuilder
 {
@@ -52,6 +59,11 @@ final class ContainerBuilder
      * @var array<string, mixed>
      */
     private array $config;
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $definitionShared = [];
 
     private TagRegistry $tagRegistry;
 
@@ -102,11 +114,12 @@ final class ContainerBuilder
      * Later calls for the same id override earlier definitions
      * deterministically.
      */
-    public function set(string $id, mixed $definition): self
+    public function set(string $id, mixed $definition, bool $shared = true): self
     {
         self::assertServiceId($id);
 
         $this->definitions[$id] = $definition;
+        $this->definitionShared[$id] = $shared;
         unset($this->instances[$id]);
 
         return $this;
@@ -115,9 +128,9 @@ final class ContainerBuilder
     /**
      * Alias for `set()` for provider readability.
      */
-    public function bind(string $id, mixed $definition): self
+    public function bind(string $id, mixed $definition, bool $shared = true): self
     {
-        return $this->set($id, $definition);
+        return $this->set($id, $definition, $shared);
     }
 
     /**
@@ -130,7 +143,7 @@ final class ContainerBuilder
     {
         self::assertServiceId($id);
 
-        unset($this->definitions[$id]);
+        unset($this->definitions[$id], $this->definitionShared[$id]);
         $this->instances[$id] = $instance;
 
         return $this;
@@ -144,11 +157,12 @@ final class ContainerBuilder
      *
      * @param callable(Container): mixed $factory
      */
-    public function factory(string $id, callable $factory): self
+    public function factory(string $id, callable $factory, bool $shared = true): self
     {
         return $this->set(
-            $id,
-            static fn (Container $container): mixed => $factory($container),
+            id: $id,
+            definition: static fn (Container $container): mixed => $factory($container),
+            shared: $shared,
         );
     }
 
@@ -172,6 +186,7 @@ final class ContainerBuilder
             definitions: $this->definitions,
             instances: $this->instances,
             config: $this->config,
+            definitionShared: $this->definitionShared,
         );
     }
 

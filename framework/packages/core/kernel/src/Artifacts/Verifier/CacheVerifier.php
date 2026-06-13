@@ -24,8 +24,8 @@ use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
@@ -38,6 +38,9 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
+use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
+use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
 use Coretsia\Kernel\Module\ModulePlan;
 use Psr\Log\LoggerInterface;
 
@@ -118,7 +121,8 @@ final readonly class CacheVerifier
         private FingerprintCalculator $fingerprintCalculator,
         private ModuleManifestBuilder $moduleManifestBuilder,
         private CompiledConfigBuilder $compiledConfigBuilder,
-        private StubContainerBuilder $stubContainerBuilder,
+        private ContainerCompiler $containerCompiler,
+        private CompiledContainerBuilder $compiledContainerBuilder,
         private StablePhpArrayDumper $phpArrayDumper,
         private PhpArtifactReader $artifactReader,
         private ArtifactSchemaValidator $schemaValidator,
@@ -176,6 +180,7 @@ final readonly class CacheVerifier
      *     sourceId?: string|null,
      *     precedence?: int|null
      * }> $modePresetSourceCandidates
+     * @param iterable<array<string, mixed>> $containerDescriptors Descriptor-based, closure-free compiled-container input.
      *
      * @return array{
      *     schemaVersion: int,
@@ -210,6 +215,7 @@ final readonly class CacheVerifier
      * }
      *
      * @throws ConfigInvalidException
+     * @throws ContainerCompileFailedException
      * @throws JsonFloatForbiddenException
      * @throws ArtifactPayloadInvalidException
      * @throws ArtifactPathInvalidException
@@ -227,6 +233,7 @@ final readonly class CacheVerifier
         array $explicitRuleSources = [],
         array $explicitEnvOverlayMappings = [],
         array $modePresetSourceCandidates = [],
+        iterable $containerDescriptors = [],
     ): array {
         $startedAt = $this->safeStartTimer();
         $span = $this->safeStartSpan();
@@ -262,12 +269,15 @@ final readonly class CacheVerifier
 
             $currentFingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
 
+            $containerGraph = $this->containerCompiler->compile($containerDescriptors);
+
             $expectedArtifacts = $this->expectedArtifacts(
                 bootstrapConfig: $bootstrapConfig,
                 kernelConfig: $kernelConfig,
                 modulePlan: $modulePlan,
                 compiledConfig: $compiledConfig,
                 fingerprint: $currentFingerprint,
+                containerGraph: $containerGraph,
             );
 
             $artifactResults = [];
@@ -320,6 +330,7 @@ final readonly class CacheVerifier
         ModulePlan $modulePlan,
         array $compiledConfig,
         string $fingerprint,
+        DefinitionGraph $containerGraph,
     ): array {
         return [
             $this->expectedModuleManifest(
@@ -338,6 +349,7 @@ final readonly class CacheVerifier
                 bootstrapConfig: $bootstrapConfig,
                 kernelConfig: $kernelConfig,
                 fingerprint: $fingerprint,
+                containerGraph: $containerGraph,
             ),
         ];
     }
@@ -445,8 +457,12 @@ final readonly class CacheVerifier
         BootstrapConfig $bootstrapConfig,
         array $kernelConfig,
         string $fingerprint,
+        DefinitionGraph $containerGraph,
     ): array {
-        $envelope = $this->stubContainerBuilder->build($fingerprint);
+        $envelope = $this->compiledContainerBuilder->build(
+            graph: $containerGraph,
+            fingerprint: $fingerprint,
+        );
 
         return $this->expectedArtifact(
             name: self::ARTIFACT_CONTAINER,

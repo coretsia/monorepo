@@ -152,7 +152,12 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
 
         self::assertStringContainsString(
-            'artifact/fingerprint/cache services are registered by `KernelServiceProvider` as factories only',
+            'artifact/fingerprint/container-compile/cache services are registered by `KernelServiceProvider` as factories only',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'container-compile',
             $source,
         );
     }

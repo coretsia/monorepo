@@ -24,12 +24,13 @@ use Coretsia\Contracts\Env\EnvValue;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
@@ -53,6 +54,8 @@ use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Container\CompiledContainerFactory;
+use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -228,9 +231,14 @@ final class ArtifactPipelineTestSupport
 
     /**
      * @param array<string,mixed> $config
+     * @param iterable<array<string, mixed>> $containerDescriptors
      */
-    public static function compileArtifacts(TestCase $testCase, string $skeletonRoot, array $config): array
-    {
+    public static function compileArtifacts(
+        TestCase $testCase,
+        string $skeletonRoot,
+        array $config,
+        iterable $containerDescriptors = [],
+    ): array {
         self::writeRootConfig($skeletonRoot, $config);
 
         return self::artifactCompiler($testCase)->compile(
@@ -244,11 +252,18 @@ final class ArtifactPipelineTestSupport
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: [],
+            containerDescriptors: $containerDescriptors,
         );
     }
 
-    public static function verifyArtifacts(TestCase $testCase, string $skeletonRoot): array
-    {
+    /**
+     * @param iterable<array<string, mixed>> $containerDescriptors
+     */
+    public static function verifyArtifacts(
+        TestCase $testCase,
+        string $skeletonRoot,
+        iterable $containerDescriptors = [],
+    ): array {
         return self::cacheVerifier($testCase)->verify(
             bootstrapConfig: self::bootstrapConfig($skeletonRoot),
             modulePlan: self::modulePlan(),
@@ -260,6 +275,7 @@ final class ArtifactPipelineTestSupport
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: [],
+            containerDescriptors: $containerDescriptors,
         );
     }
 
@@ -337,6 +353,42 @@ final class ArtifactPipelineTestSupport
         return $paths[$basename];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public static function artifactEnvelope(string $skeletonRoot, string $basename): array
+    {
+        $read = new PhpArtifactReader()->read(self::artifactPath($skeletonRoot, $basename));
+
+        TestCase::assertIsArray($read['envelope']);
+
+        /** @var array<string, mixed> $envelope */
+        $envelope = $read['envelope'];
+
+        return $envelope;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function configPayloadFromArtifact(string $skeletonRoot): array
+    {
+        $envelope = self::artifactEnvelope($skeletonRoot, 'config.php');
+
+        new ArtifactSchemaValidator()->validateExpected(
+            envelope: $envelope,
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONFIG,
+            expectedSchemaVersion: 1,
+        );
+
+        $payload = $envelope['payload'] ?? null;
+
+        TestCase::assertIsArray($payload);
+
+        /** @var array<string, mixed> $payload */
+        return $payload;
+    }
+
     public static function artifactCompiler(TestCase $testCase): ArtifactCompiler
     {
         $envelopeFactory = self::envelopeFactory();
@@ -347,9 +399,31 @@ final class ArtifactPipelineTestSupport
             fingerprintCalculator: self::fingerprintCalculator($testCase),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            stubContainerBuilder: new StubContainerBuilder($envelopeFactory),
+            containerCompiler: self::containerCompiler($testCase),
+            compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
             artifactWriter: self::artifactWriter($testCase),
             pathResolver: new ArtifactPathResolver(),
+        );
+    }
+
+    public static function compiledContainerFactory(): CompiledContainerFactory
+    {
+        return new CompiledContainerFactory(
+            artifactReader: new PhpArtifactReader(),
+            schemaValidator: new ArtifactSchemaValidator(),
+        );
+    }
+
+    /**
+     * @param array<string, mixed>|null $configPayload
+     */
+    public static function runtimeContainerFromArtifacts(
+        string $skeletonRoot,
+        ?array $configPayload = null,
+    ): Container {
+        return self::compiledContainerFactory()->build(
+            containerArtifactPath: self::artifactPath($skeletonRoot, 'container.php'),
+            configPayload: $configPayload ?? self::configPayloadFromArtifact($skeletonRoot),
         );
     }
 
@@ -363,7 +437,8 @@ final class ArtifactPipelineTestSupport
             fingerprintCalculator: self::fingerprintCalculator($testCase),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            stubContainerBuilder: new StubContainerBuilder($envelopeFactory),
+            containerCompiler: self::containerCompiler($testCase),
+            compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
             phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
             artifactReader: new PhpArtifactReader(),
             schemaValidator: new ArtifactSchemaValidator(),
@@ -423,6 +498,16 @@ final class ArtifactPipelineTestSupport
     {
         return new FingerprintCalculator(
             payloadNormalizer: new PayloadNormalizer(),
+            tracer: self::tracer($testCase),
+            meter: self::meter(),
+            logger: self::logger(),
+            stopwatch: new Stopwatch(),
+        );
+    }
+
+    private static function containerCompiler(TestCase $testCase): ContainerCompiler
+    {
+        return new ContainerCompiler(
             tracer: self::tracer($testCase),
             meter: self::meter(),
             logger: self::logger(),

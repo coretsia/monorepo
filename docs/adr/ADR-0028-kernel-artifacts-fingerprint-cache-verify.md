@@ -18,6 +18,10 @@
 
 Accepted.
 
+Amended by the compiled-container work in epic `1.340.0`.
+
+The original `container@1` transitional stub decision is no longer current: Kernel-produced `container@1` artifacts now use the REAL compiled-container payload shape emitted through `ContainerCompiler` and `CompiledContainerBuilder`.
+
 ## Context
 
 Coretsia needs a deterministic Kernel-owned artifact pipeline for materializing runtime-independent cache artifacts from already-resolved Kernel inputs.
@@ -138,12 +142,17 @@ Kernel artifact payload/envelope production is split across narrow services:
 ```text
 ModuleManifestBuilder
 CompiledConfigBuilder
-StubContainerBuilder
+CompiledContainerBuilder
+ContainerCompiler
 ArtifactEnvelopeFactory
 StablePhpArrayDumper
 ArtifactWriter
 ArtifactPathResolver
 ```
+
+`ContainerCompiler` owns deterministic descriptor-to-`DefinitionGraph` compilation for REAL `container@1` artifacts.
+
+`CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope.
 
 The builders produce Kernel artifact envelopes for the Kernel-owned artifact identities.
 
@@ -155,18 +164,44 @@ The builders produce Kernel artifact envelopes for the Kernel-owned artifact ide
 
 This split keeps envelope construction, byte emission, path resolution, and file writing independently testable.
 
-## Decision 5: Use a deterministic stub for `container@1` in this epic
+## Decision 5: Use REAL compiled-container semantics for `container@1`
 
-This epic materializes `container@1` as a deterministic stub artifact.
+Kernel artifact production now materializes `container@1` as a REAL compiled-container artifact.
 
-The stub exists to reserve and verify the Kernel-owned container artifact slot before real compiled-container implementation.
+The `container@1` payload is produced from explicit descriptor-based container input:
 
-Later compiled-container work may either:
+```text
+container descriptors
+  -> ContainerCompiler
+  -> DefinitionGraph
+  -> CompiledContainerBuilder
+  -> container@1 envelope
+```
 
-- remain compatible with `container@1`, or
-- introduce a new schema version if the compiled payload is incompatible.
+The REAL `container@1` payload uses:
 
-The stub must still use the canonical artifact envelope and deterministic serialization law.
+```text
+kind = compiled
+compiled = true
+```
+
+The payload contains deterministic compiled-container maps:
+
+```text
+aliases
+parameters
+services
+tags
+```
+
+Legacy transitional stub payloads are no longer produced by Kernel artifact production and are invalid as current `container@1` artifacts:
+
+```text
+kind = stub
+compiled = false
+```
+
+The REAL compiled-container payload remains compatible with `container@1`; no `container@2` schema version is introduced by this decision.
 
 ## Decision 6: Build fingerprint input from already-resolved Kernel inputs
 
@@ -270,7 +305,7 @@ Cache verification uses the following semantic sequence:
 1. compile config for the supplied resolved inputs;
 2. build deterministic fingerprint input;
 3. calculate current fingerprint;
-4. build expected Kernel artifact envelopes in memory;
+4. build expected Kernel artifact envelopes in memory, including the REAL `container@1` envelope through `ContainerCompiler` and `CompiledContainerBuilder`;
 5. dump expected deterministic artifact bytes in memory;
 6. resolve expected artifact paths;
 7. read existing artifacts;
@@ -390,7 +425,7 @@ Verification result data must not include:
 - previous throwable messages;
 - raw fingerprint input.
 
-## Decision 17: Register artifact/fingerprint/cache services as factories only
+## Decision 17: Register artifact/fingerprint/container-compile/cache services as factories only
 
 `KernelServiceProvider` registers artifact, fingerprint, compiler, and verifier services as factories only.
 
@@ -409,13 +444,13 @@ Provider registration must not:
 - invoke ResetOrchestrator;
 - start UnitOfWork;
 - emit stdout or stderr;
-- start artifact/fingerprint/cache spans;
-- emit artifact/fingerprint/cache metrics;
-- write artifact/fingerprint/cache logs.
+- start artifact/fingerprint/container-compile/cache spans;
+- emit artifact/fingerprint/container-compile/cache metrics;
+- write artifact/fingerprint/container-compile/cache logs.
 
 ## Decision 18: Keep factory methods as wiring-only construction methods
 
-`KernelServiceFactory` owns artifact/fingerprint/cache service construction.
+`KernelServiceFactory` owns artifact/fingerprint/container-compile/cache service construction.
 
 Artifact factory methods must be static construction/wiring methods only.
 
@@ -433,7 +468,7 @@ They must not:
 
 ## Decision 19: Wire observability through public ports only
 
-Artifact/fingerprint/cache services that emit observability receive non-null dependencies:
+Artifact/fingerprint/container-compile/cache services that emit observability receive non-null dependencies:
 
 ```text
 TracerPortInterface
@@ -447,6 +482,7 @@ Observability is wired only into:
 ```text
 ArtifactWriter
 FingerprintCalculator
+ContainerCompiler
 CacheVerifier
 ```
 
@@ -518,7 +554,7 @@ Observability failures must not alter artifact writing, fingerprint calculation,
 
 Services that emit observability must catch observability adapter failures.
 
-Artifact/fingerprint/cache observability must not expose raw paths, raw payloads, raw config values, raw env values, secrets, PII, raw SQL, stack traces, throwable messages, previous throwable messages, or raw fingerprint input.
+Artifact/fingerprint/container-compile/cache observability must not expose raw paths, raw payloads, raw config values, raw env values, secrets, PII, raw SQL, stack traces, throwable messages, previous throwable messages, or raw fingerprint input.
 
 Provider registration and factory wiring must not start spans, emit metrics, or write logs.
 
@@ -568,7 +604,7 @@ A malformed existing artifact is invalid rather than silently ignored.
 
 Filesystem metadata is intentionally ignored even when it could be useful for ad hoc debugging.
 
-The `container@1` artifact is a deterministic stub until compiled-container work lands.
+The `container@1` artifact now uses REAL compiled-container semantics. Empty compiled graphs are valid and are represented as empty deterministic maps for `aliases`, `parameters`, `services`, and `tags`.
 
 Observability emits only safe summaries, so raw debugging context must be obtained through controlled local investigation, not runtime logs or metrics.
 
@@ -581,7 +617,8 @@ This ADR does not define:
 - artifact registry rows;
 - `routes@1` production;
 - platform routing artifact behavior;
-- a real compiled container payload;
+- provider/runtime discovery as an implicit source for compiled-container payloads;
+- automatic runtime fallback when `container.php` is missing or invalid;
 - CLI command UX;
 - command output formatting;
 - automatic artifact generation during provider registration;
@@ -604,7 +641,9 @@ This ADR does not define:
 - `framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php`
 - `framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php`
 - `framework/packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
-- `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+- `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php`
+- `framework/packages/core/kernel/src/Container/ContainerCompiler.php`
+- `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
 - `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php`
@@ -621,3 +660,4 @@ This ADR does not define:
 ## Related epic
 
 - `1.330.0 Kernel: Artifacts (manifest + config) + fingerprint + cache:verify core`
+- `1.340.0 Kernel: Container compile (REAL) + container.php artifact (MUST) [IMPL]`

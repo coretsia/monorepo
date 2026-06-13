@@ -27,8 +27,8 @@ use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
-use Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
@@ -54,6 +54,8 @@ use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Container\CompiledContainerFactory;
+use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -399,8 +401,8 @@ final class KernelServiceProvider implements ServiceProviderInterface
         );
 
         $builder->factory(
-            StubContainerBuilder::class,
-            static fn (Container $container): StubContainerBuilder => KernelServiceFactory::stubContainerBuilder(
+            CompiledContainerBuilder::class,
+            static fn (Container $container): CompiledContainerBuilder => KernelServiceFactory::compiledContainerBuilder(
                 container: $container,
             ),
         );
@@ -413,6 +415,20 @@ final class KernelServiceProvider implements ServiceProviderInterface
         $builder->factory(
             ArtifactSchemaValidator::class,
             static fn (Container $_container): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(
+            ),
+        );
+
+        $builder->factory(
+            CompiledContainerFactory::class,
+            static fn (Container $container): CompiledContainerFactory => KernelServiceFactory::compiledContainerFactory(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ContainerCompiler::class,
+            static fn (Container $container): ContainerCompiler => KernelServiceFactory::containerCompiler(
+                container: $container,
             ),
         );
 

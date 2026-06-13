@@ -108,7 +108,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Artifacts\ArtifactWriter`
   - `Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder`
   - `Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder`
-  - `Coretsia\Kernel\Artifacts\Builders\StubContainerBuilder`
+  - `Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder`
+  - `Coretsia\Kernel\Container\ContainerCompiler`
+  - `Coretsia\Kernel\Container\CompiledContainerFactory`
   - `Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler`
   - `Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder`
   - `Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister`
@@ -123,12 +125,14 @@ This package provides the Kernel baseline runtime layer:
   - `module-manifest.php`
   - `config.php`
   - `container.php`
-- Kernel-owned artifact/fingerprint/cache observability:
+- Kernel-owned artifact/fingerprint/container-compile/cache observability:
   - span: `kernel.artifacts_write`
   - span: `kernel.fingerprint_calculate`
+  - span: `kernel.container_compile`
   - span: `kernel.cache_verify`
   - metrics: `kernel.artifacts_write_total`, `kernel.artifacts_write_duration_ms`
   - metrics: `kernel.fingerprint_calculate_total`, `kernel.fingerprint_calculate_duration_ms`
+  - metrics: `kernel.container_compile_total`, `kernel.container_compile_duration_ms`
   - metrics: `kernel.cache_verify_total`, `kernel.cache_verify_duration_ms`
   - allowed metric label: `outcome`
 - Kernel-owned deterministic ModulePlan resolution:
@@ -411,11 +415,17 @@ Kernel cache verification semantics are owned by:
 docs/ssot/cache-verify.md
 ```
 
+Compiled container payload shape and artifact-only runtime boot semantics are owned by:
+
+```text
+docs/ssot/compiled-container.md
+```
+
 `routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
 
-`ArtifactCompiler` owns Kernel artifact production orchestration. It builds deterministic fingerprint input, calculates the current fingerprint, builds Kernel-owned artifact envelopes, resolves artifact paths, and writes Kernel-owned artifacts through `ArtifactWriter`.
+`ArtifactCompiler` owns Kernel artifact production orchestration. It builds deterministic fingerprint input, calculates the current fingerprint, compiles descriptor-based container input through `ContainerCompiler`, builds Kernel-owned artifact envelopes, builds the compiled `container@1` envelope through `CompiledContainerBuilder`, resolves artifact paths, and writes Kernel-owned artifacts through `ArtifactWriter`.
 
-`CacheVerifier` owns Kernel cache verification. It rebuilds expected Kernel artifacts in memory, reads existing artifacts through `PhpArtifactReader`, validates existing artifact envelopes through `ArtifactSchemaValidator`, compares stored fingerprint to the current fingerprint, compares deterministic LF-normalized bytes, and returns safe clean/dirty/invalid summary data.
+`CacheVerifier` owns Kernel cache verification. It rebuilds expected Kernel artifacts in memory, rebuilds expected compiled `container@1` through `ContainerCompiler` and `CompiledContainerBuilder`, reads existing artifacts through `PhpArtifactReader`, validates existing artifact envelopes through `ArtifactSchemaValidator`, compares stored fingerprint to the current fingerprint, compares deterministic LF-normalized bytes, and returns safe clean/dirty/invalid summary data.
 
 Cache verification semantics are:
 
@@ -430,9 +440,35 @@ valid fingerprint+bytes → clean
 
 Cache verification MUST NOT use mtimes, ctimes, permissions, owners, inode ids, directory ordering, or filesystem traversal order as cache semantics.
 
-Kernel artifact/fingerprint/cache services are registered by `KernelServiceProvider` as factories only.
+### Compiled container artifact
 
-Artifact/fingerprint/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
+`container.php` is the Kernel-owned `container@1` compiled container artifact.
+
+The `container@1` compiled payload uses this canonical payload shape:
+
+```text
+aliases
+compiled = true
+kind = compiled
+parameters
+services
+tags
+```
+
+Container compilation is descriptor-based and closure-free. `ContainerCompiler` consumes explicit deterministic descriptor input and produces a deterministic `DefinitionGraph`. It MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
+
+Production runtime container construction is artifact-only. `CompiledContainerFactory` builds the runtime Foundation container from:
+
+```text
+container@1
+already-read and already-validated config@1 payload
+```
+
+Production runtime boot MUST NOT read source config files, run ConfigKernel, discover modules, compile a new container graph, write or repair artifacts, or silently fall back to provider-based container construction.
+
+Kernel artifact/fingerprint/container-compile/cache services are registered by `KernelServiceProvider` as factories only.
+
+Artifact/fingerprint/container-compile/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
 
 Provider registration MUST NOT:
 
@@ -441,6 +477,8 @@ write artifacts
 read artifacts
 calculate fingerprints
 run cache verification
+compile container descriptors
+build a production runtime container from container.php
 resolve BootstrapConfig
 resolve ModulePlan
 build EnvRepositoryInterface
@@ -448,16 +486,16 @@ run ConfigKernel::compile(...)
 invoke ResetOrchestrator
 start a UnitOfWork
 emit stdout/stderr
-start artifact/fingerprint/cache spans
-emit artifact/fingerprint/cache metrics
-write artifact/fingerprint/cache logs
+start artifact/fingerprint/container-compile/cache spans
+emit artifact/fingerprint/container-compile/cache metrics
+write artifact/fingerprint/container-compile/cache logs
 ```
 
-`KernelServiceFactory` artifact/fingerprint/cache methods are construction/wiring methods only.
+`KernelServiceFactory` artifact/fingerprint/container-compile/cache methods are construction/wiring methods only.
 
 Factory methods MUST NOT write files, read generated artifacts, calculate fingerprints, run cache verification, resolve bootstrap/config/module plans, retain the container, retain mutable config snapshots, depend on `ResetOrchestrator`, or keep mutable runtime state.
 
-Artifact/fingerprint/cache services receive observability dependencies through public ports/interfaces only:
+Artifact/fingerprint/container-compile/cache services receive observability dependencies through public ports/interfaces only:
 
 ```text
 Coretsia\Contracts\Observability\Tracing\TracerPortInterface
@@ -466,11 +504,31 @@ Psr\Log\LoggerInterface
 Coretsia\Foundation\Time\Stopwatch
 ```
 
-`core/kernel` artifact/fingerprint/cache services MUST NOT instantiate Noop observability implementations and MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
+`core/kernel` artifact/fingerprint/container-compile/cache services MUST NOT instantiate Noop observability implementations and MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
 
 Real-vs-Noop/default binding is owned by the application/foundation composition layer.
 
-Artifact/fingerprint/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, or cache verification behavior.
+Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
+
+Compiled-container failures use deterministic Kernel-owned exceptions and safe fixed messages.
+
+Compile-time failures use:
+
+```text
+CORETSIA_CONTAINER_COMPILE_FAILED
+container-compile-failed
+```
+
+Production runtime boot failures use:
+
+```text
+CORETSIA_CONTAINER_ARTIFACT_MISSING
+container-artifact-missing
+CORETSIA_CONTAINER_ARTIFACT_INVALID
+container-artifact-invalid
+```
+
+These failures MUST NOT expose absolute paths, raw config values, raw env values, raw payloads, closure dumps, source snippets, PHP warning text, OS error messages, stack traces, or previous throwable messages.
 
 ## ModulePlan resolution
 
@@ -1581,4 +1639,6 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 - [Artifact Header and Schema Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)
 - [Kernel Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
 - [Kernel Cache Verification Semantics SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/cache-verify.md)
+- [Compiled Container Payload and Artifact-Only Boot Semantics SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/compiled-container.md)
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)
+- [ADR-0029: Kernel compiled container artifact](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0029-kernel-container-compile-artifact.md)

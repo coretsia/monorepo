@@ -772,7 +772,7 @@ Errors:
 - [ ] Observability complies with allowlist (no forbidden labels)
 - [ ] Redaction enabled by default; tests prove no leaks
 - [ ] Determinism: rerun `config:compile` produces no diff in kernel artifacts
-- [ ] `coretsia config:debug`
+- [ ] `config:debug`
   - [ ] MUST consume safe ConfigKernel explain output.
   - [ ] MUST NOT print raw config values.
   - [ ] MUST NOT print raw env values.
@@ -785,6 +785,10 @@ Errors:
     - [ ] validation status;
     - [ ] `hash(value)` / `len(value)` when provided by upstream metadata.
   - [ ] MUST NOT compute raw-value hash/len from unsafe sources unless the CLI redaction policy explicitly allows it.
+- [ ] `cache:verify` reports clean after rerunning `coretsia config:compile` without input changes.
+  - [ ] MUST delegate to `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
+  - [ ] MUST NOT duplicate Kernel cache verification algorithms in CLI.
+  - [ ] MUST preserve deterministic output and redaction policy.
 
 ---
 

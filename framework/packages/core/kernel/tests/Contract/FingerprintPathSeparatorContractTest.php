@@ -54,7 +54,7 @@ final class FingerprintPathSeparatorContractTest extends TestCase
 
     public function testFingerprintExplainNormalizesRelativePathSeparatorsToForwardSlashes(): void
     {
-        $explain = (new FingerprintExplainer())->explain(self::buildInputWithBackslashPaths());
+        $explain = new FingerprintExplainer()->explain(self::buildInputWithBackslashPaths());
 
         self::assertTrue(
             self::containsExplainPath($explain['entries'], 'config/kernel.php'),

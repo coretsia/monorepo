@@ -57,6 +57,10 @@ final readonly class ArtifactSchemaValidator
     private const int SCHEMA_VERSION_CONTAINER = 1;
 
     private const int MAX_SAFE_STRING_BYTES = 512;
+    private const int MAX_CONTAINER_GRAPH_DEPTH = 32;
+    private const int MAX_CONTAINER_MAP_KEYS = 8192;
+    private const int MAX_CONTAINER_LIST_ITEMS = 8192;
+    private const int MAX_CONTAINER_STRING_BYTES = 2048;
 
     private const string HASH_PATTERN = '/\A[a-f0-9]{64}\z/';
     private const string FINGERPRINT_PATTERN = '/\A[a-z0-9][a-z0-9:._-]{0,255}\z/';
@@ -66,6 +70,15 @@ final readonly class ArtifactSchemaValidator
     private const string TOKEN_PATTERN = '/\A[A-Za-z0-9_.-]{1,128}\z/';
     private const string ENV_NAME_PATTERN = '/\A[A-Z][A-Z0-9_]*\z/';
     private const string CONFIG_PATH_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_]{0,63}(?:\.[A-Za-z_][A-Za-z0-9_]{0,63}|\[[0-9]{1,9}])*\z/';
+    private const string CONTAINER_SERVICE_TYPE_CLASS = 'class';
+    private const string CONTAINER_SERVICE_TYPE_FACTORY = 'factory';
+    private const string CONTAINER_FACTORY_CLASS_METHOD = 'class-method';
+    private const string CONTAINER_FACTORY_SERVICE_METHOD = 'service-method';
+    private const string CONTAINER_TAG_PATTERN = '/\A[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*\z/';
+    private const string CONTAINER_METHOD_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_]{0,127}\z/';
+    private const string CONTAINER_CLASS_LIKE_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)*\z/';
+    private const string CONTAINER_SOURCE_SNIPPET_PATTERN = '/<\?php|<\?=|\bfunction\s*\(|\bfn\s*\(|=>\s*\{|;\s*}/i';
+    private const string CONTAINER_ENV_LIKE_PATTERN = '/\$\{[A-Z_][A-Z0-9_]*}|%env\(|\benv\s*\(/i';
 
     /**
      * @var list<string>
@@ -140,6 +153,7 @@ final readonly class ArtifactSchemaValidator
         'aliases',
         'compiled',
         'kind',
+        'parameters',
         'services',
         'tags',
     ];
@@ -821,18 +835,603 @@ final readonly class ArtifactSchemaValidator
         }
 
         self::assertExactMapKeys($payload, self::CONTAINER_PAYLOAD_KEYS);
+        self::assertMapKeysSortedByByteOrder($payload);
+
+        if (($payload['kind'] ?? null) !== 'compiled') {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if (($payload['compiled'] ?? null) !== true) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        $aliases = $payload['aliases'];
+        $parameters = $payload['parameters'];
+        $services = $payload['services'];
+        $tags = $payload['tags'];
+
+        self::validateContainerAliases($aliases);
+        self::validateContainerParameters($parameters);
+        self::validateContainerServices($services);
+        self::validateContainerTags($tags);
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerAliases(mixed $aliases): void
+    {
+        if (!self::isMapArray($aliases)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($aliases);
+
+        foreach ($aliases as $alias => $serviceId) {
+            if (
+                !\is_string($alias)
+                || !self::isSafeContainerId($alias)
+                || !\is_string($serviceId)
+                || !self::isSafeContainerId($serviceId)
+                || $alias === $serviceId
+            ) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+        }
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerParameters(mixed $parameters): void
+    {
+        if (!self::isMapArray($parameters)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($parameters);
+
+        foreach ($parameters as $name => $value) {
+            if (!\is_string($name) || !self::isSafeContainerParameterName($name)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            self::assertContainerGraphValue($value, 0);
+        }
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerServices(mixed $services): void
+    {
+        if (!self::isMapArray($services)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($services);
+
+        foreach ($services as $serviceId => $definition) {
+            if (!\is_string($serviceId) || !self::isSafeContainerId($serviceId)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            self::validateContainerServiceDefinition(
+                serviceId: $serviceId,
+                definition: $definition,
+            );
+        }
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerServiceDefinition(
+        string $serviceId,
+        mixed $definition,
+    ): void {
+        if (!\is_array($definition) || \array_is_list($definition)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertExactMapKeys(
+            $definition,
+            ['arguments', 'construction', 'id', 'shared', 'type'],
+        );
+
+        self::assertMapKeysSortedByByteOrder($definition);
+
+        if (($definition['id'] ?? null) !== $serviceId) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if (!\is_string($definition['id']) || !self::isSafeContainerId($definition['id'])) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        $type = $definition['type'];
 
         if (
-            ($payload['kind'] ?? null) !== 'stub'
-            || ($payload['compiled'] ?? null) !== false
-            || ($payload['services'] ?? null) !== []
-            || ($payload['aliases'] ?? null) !== []
-            || ($payload['tags'] ?? null) !== []
+            !\is_string($type)
+            || (
+                $type !== self::CONTAINER_SERVICE_TYPE_CLASS
+                && $type !== self::CONTAINER_SERVICE_TYPE_FACTORY
+            )
         ) {
             throw ArtifactInvalidException::withReason(
                 ArtifactInvalidException::REASON_SCHEMA_INVALID,
             );
         }
+
+        if (!\is_bool($definition['shared'])) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if (!\is_array($definition['arguments']) || !\array_is_list($definition['arguments'])) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertContainerGraphValue($definition['arguments'], 0);
+
+        if (!\is_array($definition['construction']) || \array_is_list($definition['construction'])) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertContainerGraphValue($definition['construction'], 0);
+
+        self::validateContainerServiceConstruction(
+            type: $type,
+            construction: $definition['construction'],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $construction
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerServiceConstruction(
+        string $type,
+        array $construction,
+    ): void {
+        self::assertMapKeysSortedByByteOrder($construction);
+
+        if ($type === self::CONTAINER_SERVICE_TYPE_CLASS) {
+            self::validateContainerClassConstruction($construction);
+
+            return;
+        }
+
+        if ($type === self::CONTAINER_SERVICE_TYPE_FACTORY) {
+            self::validateContainerFactoryConstruction($construction);
+
+            return;
+        }
+
+        throw ArtifactInvalidException::withReason(
+            ArtifactInvalidException::REASON_SCHEMA_INVALID,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $construction
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerClassConstruction(array $construction): void
+    {
+        self::assertExactMapKeys($construction, ['class']);
+        self::assertMapKeysSortedByByteOrder($construction);
+
+        $class = $construction['class'] ?? null;
+
+        if (!\is_string($class) || !self::isContainerClassLikeString($class)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $construction
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerFactoryConstruction(array $construction): void
+    {
+        self::assertExactMapKeys($construction, ['factory']);
+        self::assertMapKeysSortedByByteOrder($construction);
+
+        $factory = $construction['factory'] ?? null;
+
+        if (!\is_array($factory) || \array_is_list($factory)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($factory);
+
+        $kind = $factory['kind'] ?? null;
+
+        if ($kind === self::CONTAINER_FACTORY_CLASS_METHOD) {
+            self::validateContainerFactoryClassMethod($factory);
+
+            return;
+        }
+
+        if ($kind === self::CONTAINER_FACTORY_SERVICE_METHOD) {
+            self::validateContainerFactoryServiceMethod($factory);
+
+            return;
+        }
+
+        throw ArtifactInvalidException::withReason(
+            ArtifactInvalidException::REASON_SCHEMA_INVALID,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $factory
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerFactoryClassMethod(array $factory): void
+    {
+        self::assertExactMapKeys($factory, ['class', 'kind', 'method']);
+        self::assertMapKeysSortedByByteOrder($factory);
+
+        if (($factory['kind'] ?? null) !== self::CONTAINER_FACTORY_CLASS_METHOD) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if (
+            !\is_string($factory['class'] ?? null)
+            || !self::isContainerClassLikeString($factory['class'])
+            || !\is_string($factory['method'] ?? null)
+            || \preg_match(self::CONTAINER_METHOD_PATTERN, $factory['method']) !== 1
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $factory
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerFactoryServiceMethod(array $factory): void
+    {
+        self::assertExactMapKeys($factory, ['kind', 'method', 'service']);
+        self::assertMapKeysSortedByByteOrder($factory);
+
+        if (($factory['kind'] ?? null) !== self::CONTAINER_FACTORY_SERVICE_METHOD) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if (
+            !\is_string($factory['service'] ?? null)
+            || !self::isSafeContainerId($factory['service'])
+            || !\is_string($factory['method'] ?? null)
+            || \preg_match(self::CONTAINER_METHOD_PATTERN, $factory['method']) !== 1
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function validateContainerTags(mixed $tags): void
+    {
+        if (!self::isMapArray($tags)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($tags);
+
+        foreach ($tags as $tag => $entries) {
+            if (!\is_string($tag) || \preg_match(self::CONTAINER_TAG_PATTERN, $tag) !== 1) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            if (!\is_array($entries) || !\array_is_list($entries)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            if (\count($entries) > self::MAX_CONTAINER_LIST_ITEMS) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            $previousPriority = null;
+            $previousId = null;
+            $seen = [];
+
+            foreach ($entries as $entry) {
+                if (!\is_array($entry) || \array_is_list($entry)) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                self::assertExactMapKeys($entry, ['id', 'priority']);
+                self::assertMapKeysSortedByByteOrder($entry);
+
+                if (!\is_string($entry['id']) || !self::isSafeContainerId($entry['id'])) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                if (!\is_int($entry['priority'])) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                $id = $entry['id'];
+                $priority = $entry['priority'];
+
+                if (
+                    $previousPriority !== null
+                    && (
+                        $priority > $previousPriority
+                        || ($priority === $previousPriority && \strcmp($id, $previousId) < 0)
+                    )
+                ) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                if (isset($seen[$id])) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                $seen[$id] = true;
+                $previousPriority = $priority;
+                $previousId = $id;
+            }
+        }
+    }
+
+    /**
+     * @throws ArtifactInvalidException
+     */
+    private static function assertContainerGraphValue(mixed $value, int $depth): void
+    {
+        if ($depth > self::MAX_CONTAINER_GRAPH_DEPTH) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        if ($value === null || \is_bool($value) || \is_int($value)) {
+            return;
+        }
+
+        if (\is_string($value)) {
+            if (!self::isSafeContainerString($value)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            return;
+        }
+
+        if (\is_float($value) || \is_resource($value) || \is_object($value)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_PAYLOAD_INVALID,
+            );
+        }
+
+        if (!\is_array($value)) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_PAYLOAD_INVALID,
+            );
+        }
+
+        if (\array_is_list($value)) {
+            self::assertContainerGraphList($value, $depth + 1);
+
+            return;
+        }
+
+        self::assertContainerGraphMap($value, $depth + 1);
+    }
+
+    /**
+     * @param list<mixed> $value
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function assertContainerGraphList(array $value, int $depth): void
+    {
+        if (\count($value) > self::MAX_CONTAINER_LIST_ITEMS) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::rejectContainerCallableLikeList($value);
+
+        foreach ($value as $item) {
+            self::assertContainerGraphValue($item, $depth);
+        }
+    }
+
+    /**
+     * @param array<array-key, mixed> $value
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function assertContainerGraphMap(array $value, int $depth): void
+    {
+        if (\count($value) > self::MAX_CONTAINER_MAP_KEYS) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertMapKeysSortedByByteOrder($value);
+
+        foreach ($value as $key => $item) {
+            if (!\is_string($key) || !self::isSafeContainerMapKey($key)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            self::assertContainerGraphValue($item, $depth);
+        }
+    }
+
+    /**
+     * @param list<mixed> $value
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function rejectContainerCallableLikeList(array $value): void
+    {
+        if (\count($value) !== 2) {
+            return;
+        }
+
+        [$target, $method] = $value;
+
+        if (!\is_string($target) || !\is_string($method)) {
+            return;
+        }
+
+        if (
+            self::isContainerClassLikeString($target)
+            && \preg_match(self::CONTAINER_METHOD_PATTERN, $method) === 1
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+    }
+
+    private static function isSafeContainerId(string $value): bool
+    {
+        return $value !== ''
+            && \strlen($value) <= self::MAX_CONTAINER_STRING_BYTES
+            && \trim($value) === $value
+            && \preg_match('/\s/u', $value) !== 1
+            && !self::containsUnsafeBytes($value)
+            && !self::looksLikeAbsolutePath($value)
+            && !\str_contains($value, '://')
+            && !\str_contains($value, '::')
+            && !self::looksLikeContainerSourceSnippet($value)
+            && !self::looksLikeContainerEnvValue($value);
+    }
+
+    private static function isSafeContainerParameterName(string $value): bool
+    {
+        return $value !== ''
+            && \strlen($value) <= self::MAX_CONTAINER_STRING_BYTES
+            && \preg_match('/\A[A-Za-z_][A-Za-z0-9_.-]{0,255}\z/', $value) === 1
+            && !self::containsUnsafeBytes($value)
+            && !self::looksLikeAbsolutePath($value)
+            && !\str_contains($value, '://')
+            && !\str_contains($value, '::')
+            && !self::looksLikeContainerSourceSnippet($value)
+            && !self::looksLikeContainerEnvValue($value);
+    }
+
+    private static function isSafeContainerMapKey(string $value): bool
+    {
+        return $value !== ''
+            && \strlen($value) <= self::MAX_CONTAINER_STRING_BYTES
+            && \trim($value) === $value
+            && !self::containsUnsafeBytes($value)
+            && !self::looksLikeAbsolutePath($value)
+            && !\str_contains($value, '://')
+            && !\str_contains($value, '::')
+            && !self::looksLikeContainerSourceSnippet($value)
+            && !self::looksLikeContainerEnvValue($value);
+    }
+
+    private static function isSafeContainerString(string $value): bool
+    {
+        return \strlen($value) <= self::MAX_CONTAINER_STRING_BYTES
+            && !self::containsUnsafeBytes($value)
+            && !self::looksLikeAbsolutePath($value)
+            && !\str_contains($value, '://')
+            && !\str_contains($value, '::')
+            && !self::looksLikeContainerSourceSnippet($value)
+            && !self::looksLikeContainerEnvValue($value);
+    }
+
+    private static function isContainerClassLikeString(string $value): bool
+    {
+        return $value !== ''
+            && \strlen($value) <= self::MAX_CONTAINER_STRING_BYTES
+            && \trim($value) === $value
+            && \preg_match(self::CONTAINER_CLASS_LIKE_PATTERN, $value) === 1
+            && !self::containsUnsafeBytes($value)
+            && !self::looksLikeAbsolutePath($value)
+            && !\str_starts_with($value, '\\')
+            && !\str_contains($value, '::')
+            && !self::looksLikeContainerSourceSnippet($value);
+    }
+
+    private static function looksLikeContainerSourceSnippet(string $value): bool
+    {
+        return \preg_match(self::CONTAINER_SOURCE_SNIPPET_PATTERN, $value) === 1;
+    }
+
+    private static function looksLikeContainerEnvValue(string $value): bool
+    {
+        return \preg_match(self::CONTAINER_ENV_LIKE_PATTERN, $value) === 1;
     }
 
     /**
@@ -1091,6 +1690,33 @@ final readonly class ArtifactSchemaValidator
         throw ArtifactInvalidException::withReason(
             ArtifactInvalidException::REASON_SCHEMA_INVALID,
         );
+    }
+
+    /**
+     * @param array<array-key, mixed> $map
+     *
+     * @throws ArtifactInvalidException
+     */
+    private static function assertMapKeysSortedByByteOrder(array $map): void
+    {
+        $keys = \array_keys($map);
+
+        foreach ($keys as $key) {
+            if (!\is_string($key)) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+        }
+
+        $sorted = $keys;
+        \sort($sorted, \SORT_STRING);
+
+        if ($keys !== $sorted) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
     }
 
     private static function isSafeRoot(string $value): bool

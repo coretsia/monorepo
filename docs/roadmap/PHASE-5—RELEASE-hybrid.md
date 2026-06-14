@@ -3008,3 +3008,142 @@ N/A
   - [ ] representative async scenarios show neutral or improved medians on pinned runner
 - [ ] Docs updated:
   - [ ] `docs/architecture/async-performance.md`
+
+---
+
+
+### 5.140.0 Test Coverage Gate (MUST) [TOOLING]
+
+---
+type: tools
+phase: 5
+epic_id: "5.140.0"
+owner_path: "framework/tools/gates/"
+
+goal: "Ensure that critical packages have sufficient test coverage by analyzing PHPUnit coverage reports and enforcing thresholds."
+provides:
+- "Deterministic coverage threshold enforcement"
+- "Configurable per-package coverage minimums"
+- "CI gate that fails if coverage drops below allowed levels"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+adr: none
+ssot_refs: []
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 1.50.0 — tooling baseline exists
+  - PHPUnit with coverage enabled (pcov or xdebug) available in CI
+  - `core/*` packages exist
+
+- Required deliverables:
+  - `framework/tools/testing/phpunit.xml` with coverage configuration.
+
+#### Compile-time deps
+
+N/A
+
+### Entry points / integration points (MUST)
+
+- Composer:
+  - `composer coverage:test` — runs tests with coverage and generates clover XML
+  - `composer coverage:gate` — runs the coverage gate
+- CI:
+  - after tests, run coverage gate.
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [ ] `framework/tools/gates/coverage_gate.php` — deterministic gate:
+  - [ ] reads `clover.xml` from `framework/var/phpunit/coverage/`
+  - [ ] parses coverage metrics per file/class
+  - [ ] compares against thresholds defined in `framework/tools/config/coverage.php`
+  - [ ] thresholds: per-package or per-directory minimum line coverage percentage
+  - [ ] if any package below threshold, prints `CORETSIA_COVERAGE_BELOW_THRESHOLD` + list of packages with current coverage
+  - [ ] uses `ConsoleOutput`
+  - [ ] if coverage file missing, prints `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
+  - [ ] supports `--path` override for testing
+  - [ ] MUST resolve the tools root deterministically from the executing gate file.
+  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] If bootstrap is missing or unreadable:
+    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [ ] MUST use two code classes when applicable:
+    - [ ] violation/finding code
+    - [ ] scan-failed/tooling-failed code
+  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
+  - [ ] On unexpected throwable:
+    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] On pass:
+    - [ ] MUST emit no output
+    - [ ] MUST exit with code `0`
+  - [ ] On violation/finding:
+    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [ ] MUST exit with code `1`
+  - [ ] Diagnostics MUST be:
+    - [ ] deduplicated
+    - [ ] sorted by byte-order `strcmp`
+    - [ ] stable across OS/filesystem order/locale
+    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+
+- [ ] `framework/tools/config/coverage.php` — tooling-local coverage thresholds config (NOT a runtime config root)
+
+#### Modifies
+
+- [ ] `composer.json` — add mirror scripts (delegates to framework):
+  - [ ] `coverage:test` → `@composer --no-interaction --working-dir=framework run-script coverage:test --`
+  - [ ] `coverage:gate` → `@composer --no-interaction --working-dir=framework run-script coverage:gate --`
+- [ ] `framework/composer.json` — add gate script
+  - [ ] `coverage:test` → `vendor/bin/phpunit -c tools/testing/phpunit.xml --coverage-clover var/phpunit/coverage/clover.xml`
+  - [ ] `coverage:gate` → `@php tools/gates/coverage_gate.php`
+- [ ] `.github/workflows/ci.yml` — after `test` job, run coverage gate
+- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [ ] `CORETSIA_COVERAGE_BELOW_THRESHOLD`
+  - [ ] `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
+
+- [ ] add command `coverage:test` in `docs/guides/commands.md`
+- [ ] add command `coverage:gate` in `docs/guides/commands.md`
+- [ ] update command `composer gates` in `docs/guides/commands.md`
+
+### Cross-cutting
+
+#### Observability
+
+- [ ] Output: package name and current coverage percentage.
+
+#### Errors
+
+- [ ] Deterministic codes.
+
+#### Security / Redaction
+
+- [ ] No secrets; only package names and percentages.
+
+### Verification
+
+- [ ] Integration test: generate mock clover.xml with low coverage, run gate, assert failure.
+
+### Tests
+
+- [ ] `framework/tools/tests/Integration/CoverageGateTest.php`
+
+### DoD
+
+- [ ] Gate implemented
+- [ ] config created
+- [ ] CI integrated.

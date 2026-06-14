@@ -54,13 +54,21 @@ declare(strict_types=1);
  *   bootstrap/config/env source metadata, not from a duplicate config allowlist;
  * - `kernel.uow.attributes.max_depth` must be an integer greater than zero;
  * - `kernel.uow.attributes.max_keys` must be an integer greater than zero;
- * - this epic introduces no runtime feature flags, reset tag constants, HTTP
- *   adapter config, CLI adapter config, outcome mapping config, artifact schema
- *   version config, or fingerprint env tracked-key config.
+ * - `kernel.runtime.frankenphp.enabled` must be a bool;
+ * - `kernel.runtime.swoole.enabled` must be a bool;
+ * - `kernel.runtime.roadrunner.enabled` must be a bool;
+ * - `kernel.runtime.*` owns only runtime-driver matrix input defaults for
+ *   Kernel-owned non-classic HTTP runtime selection;
+ * - unknown `kernel.runtime.*` keys are rejected by strict-shape rules;
+ * - `worker.*` is not defined here because the `worker` root is introduced by
+ *   the future platform/worker owner epic;
+ * - this epic introduces no reset tag constants, CLI adapter config, outcome
+ *   mapping config, artifact schema version config, or fingerprint env
+ *   tracked-key config.
  *
  * The defaults file must return the subtree only:
  *
- *     config/kernel.php => ['config' => [...], 'boot' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'artifacts' => [...], 'fingerprint' => [...], 'uow' => [...]]
+ *     config/kernel.php => ['config' => [...], 'boot' => [...], 'runtime' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'artifacts' => [...], 'fingerprint' => [...], 'uow' => [...]]
  *
  * It must not return:
  *
@@ -101,6 +109,46 @@ return [
                 'default_debug' => [
                     'required' => true,
                     'type' => 'bool',
+                ],
+            ],
+        ],
+        'runtime' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'frankenphp' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'bool',
+                        ],
+                    ],
+                ],
+                'swoole' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'bool',
+                        ],
+                    ],
+                ],
+                'roadrunner' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'bool',
+                        ],
+                    ],
                 ],
             ],
         ],

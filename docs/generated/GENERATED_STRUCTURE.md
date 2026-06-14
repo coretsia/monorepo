@@ -55,13 +55,15 @@ Coretsia/
 │   │   ├── ADR-0024-kernel-module-plan-resolution.md
 │   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
 │   │   ├── ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
+│   │   ├── ADR-0027-runtime-driver-guard.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
-│   │   └── STRUCTURE.md
+│   │   ├── STRUCTURE.md
+│   │   └── runtime-driver-guard.md
 │   ├── assets/
 │   │   └── branding/
 │   │       ├── favicon/
@@ -626,12 +628,19 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolver.php (ModulePlanResolver - resolve()/assertSupportedDiscoverySource()/emitResolutionSummary()/logOptionalMissingWarnings()/logResolutionFailure()/outcomeForException()/readDiscoverySource()/readAllowedDiscoverySources()/isSafeDiscoverySource()/safePresetNameForLog()/moduleIdsFromExceptionContext()/isValidModuleIdString()/isAsciiLowerAlpha())
 │   │   │       │   │   └── TopologicalSorter.php (TopologicalSorter - sort()/normalizeEnabledModules()/buildGraph()/detectCycleModuleIds()/visitForCycle()/moduleIdsFromStrings()/sortModuleIdStrings())
 │   │   │       │   ├── Provider/
-│   │   │       │   │   ├── KernelServiceFactory.php (KernelServiceFactory - bootstrapOverridesLoader()/bootstrapConfigResolver()/dotenvLoader()/envRepositoryBuilder()/composerInstalledMetadataProvider()/composerManifestReader()/modePresetSchemaValidator()/modePresetLoaderFactory()/topologicalSorter()/moduleGraphResolver()/modulePlanResolver()/configNamespaceGuard()/directiveProcessor()/configMerger()/configRulesLoader()/configValidator()/configExplainer()/packageDefaultsConfigLoader()/skeletonConfigLoader()/environmentOverlayLoader()/configKernel()/artifactPayloadNormalizer()/stablePhpArrayDumper()/artifactEnvelopeFactory()/artifactPathResolver()/deterministicFileLister()/configFingerprintInputBuilder()/fingerprintExplainer()/fingerprintCalculator()/artifactWriter()/moduleManifestBuilder()/compiledConfigBuilder()/compiledContainerBuilder()/phpArtifactReader()/artifactSchemaValidator()/compiledContainerFactory()/containerCompiler()/productionRuntimeContainer()/artifactCompiler()/cacheVerifier()/hookInvoker()/kernelRuntime()/unitOfWorkAttributeLimits()/unitOfWorkAttributesMaxDepth()/unitOfWorkAttributesMaxKeys()/contextStore()/resetOrchestrator()/stopwatch()/uowIds()/correlationIdProvider()/correlationIds()/hooks()/logger()/optionalLogger()/optionalConfigLogger()/tracer()/meter()/bootService()/service()/modulePlanService()/configService()/artifactService()/kernelConfig()/modulesConfig()/modesConfig()/kernelConfigConfig()/forbiddenTopLevelRoots()/uowAttributesConfig())
+│   │   │       │   │   ├── KernelServiceFactory.php (KernelServiceFactory - bootstrapOverridesLoader()/bootstrapConfigResolver()/dotenvLoader()/envRepositoryBuilder()/composerInstalledMetadataProvider()/composerManifestReader()/modePresetSchemaValidator()/modePresetLoaderFactory()/topologicalSorter()/moduleGraphResolver()/modulePlanResolver()/configNamespaceGuard()/directiveProcessor()/configMerger()/configRulesLoader()/configValidator()/configExplainer()/packageDefaultsConfigLoader()/skeletonConfigLoader()/environmentOverlayLoader()/configKernel()/artifactPayloadNormalizer()/stablePhpArrayDumper()/artifactEnvelopeFactory()/artifactPathResolver()/deterministicFileLister()/configFingerprintInputBuilder()/fingerprintExplainer()/fingerprintCalculator()/artifactWriter()/moduleManifestBuilder()/compiledConfigBuilder()/compiledContainerBuilder()/phpArtifactReader()/artifactSchemaValidator()/compiledContainerFactory()/containerCompiler()/productionRuntimeContainer()/artifactCompiler()/cacheVerifier()/runtimeDriverGuard()/hookInvoker()/kernelRuntime()/unitOfWorkAttributeLimits()/unitOfWorkAttributesMaxDepth()/unitOfWorkAttributesMaxKeys()/contextStore()/resetOrchestrator()/stopwatch()/uowIds()/correlationIdProvider()/correlationIds()/hooks()/logger()/optionalLogger()/optionalConfigLogger()/tracer()/meter()/bootService()/service()/modulePlanService()/configService()/artifactService()/kernelConfig()/modulesConfig()/modesConfig()/kernelConfigConfig()/forbiddenTopLevelRoots()/uowAttributesConfig())
 │   │   │       │   │   ├── KernelServiceProvider.php (KernelServiceProvider - register())
 │   │   │       │   │   └── Tags.php (Tags)
 │   │   │       │   └── Runtime/
+│   │   │       │       ├── Driver/
+│   │   │       │       │   ├── BackgroundDriver.php
+│   │   │       │       │   ├── HttpDriver.php
+│   │   │       │       │   ├── RuntimeDriverGuard.php (RuntimeDriverGuard - detect()/assertCompatible()/assertHttpDriverCompatibleWithModules()/activeDrivers()/throwHttpDriverConflict()/httpDriverRequiresPlatformHttp()/modulePlanHasEnabledModule()/httpDriverIds()/driverIdsFromDrivers())
+│   │   │       │       │   └── RuntimeDrivers.php (RuntimeDrivers - httpDriver()/backgroundDrivers()/driverIds()/httpDriverId()/backgroundDriverIds()/normalizeBackgroundDrivers())
 │   │   │       │       ├── Exception/
 │   │   │       │       │   ├── KernelRuntimeException.php (KernelRuntimeException - withReason()/errorCode()/reason()/message())
+│   │   │       │       │   ├── RuntimeDriverConflictException.php (RuntimeDriverConflictException - multipleHttpDrivers()/workerHttpConflictsWithHttpDriver()/errorCode()/reason()/activeDriverIds()/conflictingDriverIds()/message()/normalizeDriverIds())
+│   │   │       │       │   ├── RuntimeDriverInvalidConfigException.php (RuntimeDriverInvalidConfigException - requiresPlatformHttpModule()/workerTaskTypeInvalid()/errorCode()/reason()/activeDriverIds()/requiredModuleIds()/message()/normalizeDriverIds()/normalizeRequiredModuleIds())
 │   │   │       │       │   ├── UnitOfWorkContextInvalidException.php (UnitOfWorkContextInvalidException - atPath()/errorCode()/path()/reason()/message()/safeDiagnosticPath()/isSafeDiagnosticPath())
 │   │   │       │       │   └── UnitOfWorkResultInvalidException.php (UnitOfWorkResultInvalidException - atPath()/errorCode()/path()/reason()/message()/safeDiagnosticPath()/isSafeDiagnosticPath())
 │   │   │       │       ├── Hook/
@@ -655,7 +664,7 @@ Coretsia/
 │   │   │       │   │   ├── FingerprintExplainerRedactionContractTest.php (FingerprintExplainerRedactionContractTest - testExplainOutputIncludesOnlySafeIdsKeyPathsRelativePathsHashLenAndValidationStatus()/testExplainOutputDoesNotIncludeRawConfigValuesRawEnvValuesOrAbsolutePaths()/containsEntry()/fingerprintInput())
 │   │   │       │   │   ├── FingerprintFileListingOrderContractTest.php (FingerprintFileListingOrderContractTest - setUp()/tearDown()/testListsFilesInBytewiseDeterministicOrderRegardlessOfCreationOrder()/testReturnedPathsAreRelativeForwardSlashPathsOnly()/testSkipCallbackRemovesGeneratedSubtreesBeforeListing()/testSingleFileCandidateReturnsOnlyNormalizedBasename()/writeFile()/removeTree())
 │   │   │       │   │   ├── FingerprintPathSeparatorContractTest.php (FingerprintPathSeparatorContractTest - testFingerprintInputNormalizesCandidatePathsToForwardSlashes()/testFingerprintExplainNormalizesRelativePathSeparatorsToForwardSlashes()/buildInputWithBackslashPaths()/bootstrapConfig()/modulePlan()/kernelConfig()/envRepository()/has()/get()/all()/sourceOf()/skeletonRoot()/missingPath()/containsExplainPath())
-│   │   │       │   │   ├── KernelArtifactsDocsAndRegistryConsistencyContractTest.php (KernelArtifactsDocsAndRegistryConsistencyContractTest - testArtifactsAndFingerprintSsotDoesNotRedefineGlobalEnvelopeLaw()/testCacheVerifySsotDoesNotRedefineArtifactRegistryRows()/testObservabilitySsotContainsRegisteredArtifactFingerprintAndCacheVerifyMetricNames()/testKernelReadmeNoLongerListsConfigArtifactWritingAsOutOfScope()/section()/repoFile()/repoRoot()/markdownPlainText())
+│   │   │       │   │   ├── KernelArtifactsDocsAndRegistryConsistencyContractTest.php (KernelArtifactsDocsAndRegistryConsistencyContractTest - testArtifactsAndFingerprintSsotDoesNotRedefineGlobalEnvelopeLaw()/testCacheVerifySsotDoesNotRedefineArtifactRegistryRows()/testObservabilitySsotContainsRegisteredArtifactFingerprintAndCacheVerifyMetricNames()/testKernelReadmeNoLongerListsConfigArtifactWritingAsOutOfScope()/testCompiledContainerReusesExistingKernelArtifactPathPolicy()/testCompiledContainerDoesNotIntroduceContainerSpecificKernelConfig()/testCompiledContainerClassesDoNotReadFingerprintConfigurationDirectly()/section()/repoFile()/repoRoot()/markdownPlainText()/kernelPath()/kernelSource())
 │   │   │       │   │   ├── KernelArtifactsObservabilityPolicyContractTest.php (KernelArtifactsObservabilityPolicyContractTest - testKernelArtifactFingerprintContainerCompileAndCacheObservabilityNamesAreExact()/testMetricLabelsUseOnlyOutcome()/testNoMetricCallUsesInlineUnsafeLabels()/testObservabilityLogsDoNotUseUnsafeContextKeysOrExceptionRecording()/testOnlyExpectedKernelSourcesEmitTheseObservabilityOperations()/observabilityRuntimeSources()/observabilityRuntimeSourcesWithoutComments()/observabilityRuntimeSourcesByPath()/stripPhpComments()/sourceFile()/phpFiles()/readFile()/relativeToPackage()/packageRoot())
 │   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php (KernelArtifactsReuseFoundationStableJsonEncoderContractTest - testKernelPayloadNormalizationMatchesFoundationJsonLikeNormalization()/testFoundationStableJsonEncoderBytesAreTheCanonicalHashInput()/testFoundationStableJsonEncoderEmitsStableLfTerminatedJsonForKernelNormalizedPayloads()/fingerprintCalculator())
 │   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php (KernelArtifactsRuntimeDependencyBoundaryContractTest - testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportToolingSpikeNamespaces()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportDevtoolsPackages()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportPlatformPackages()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotReadFrameworkToolsTree()/testOnlyContractTestsMayReferenceSpikeFixtures()/artifactRuntimeFiles()/kernelTestFiles()/phpFiles()/readFile()/relativeToRepo()/packageRoot()/repoRoot())
@@ -667,6 +676,10 @@ Coretsia/
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php (KernelJsonLikePolicyMatchesFoundationContractTest - testValidContextAttributesNormalizeToSameBaselineShapeAsFoundation()/testValidResultExtensionsNormalizeToSameBaselineShapeAsFoundation()/testKernelStillRejectsRootListsForAttributes()/testKernelStillRejectsRootListsForExtensions()/testKernelStillRejectsUnsafeMetadataKeysForAttributesWithoutLeakingKeyOrValue()/testKernelStillRejectsUnsafeMetadataKeysForExtensionsWithoutLeakingKeyOrValue()/testKernelStillAppliesAttributesMaxDepth()/testKernelStillAppliesAttributesMaxKeys()/testFoundationFloatViolationsMapToContextAndResultReasonTokens()/testFoundationObjectViolationsMapToUowReasonTokensWithoutLeakingDetails()/testFoundationClosureViolationsMapToUowReasonTokensWithoutLeakingDetails()/testFoundationResourceViolationsMapToUowReasonTokensWithoutLeakingDetails()/testFoundationMapKeyViolationsMapToUowReasonTokensWithoutLeakingValues()/testFoundationTypeViolationsMapToUowReasonTokensWithoutLeakingDetails()/testKernelUowExceptionsDoNotLeakRawValuesFromFoundationLevelFailures()/makeContext()/makeResult()/assertContextInvalid()/assertResultInvalid()/assertNoDiagnosticLeak())
 │   │   │       │   │   ├── KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php (KernelPhpArtifactsUseCanonicalEnvelopeContractTest - testKernelOwnedPhpArtifactsReturnCanonicalTopLevelEnvelope()/testBuildersProduceCanonicalEnvelopesWithoutArtifactSpecificTopLevelShapes()/testBuildersUseArtifactEnvelopeFactoryAsCanonicalFactoryPath()/moduleManifestBuilder()/compiledConfigBuilder()/compiledContainerBuilder()/emptyContainerGraph()/envelopeFactory()/dumper()/modulePlan()/compiledConfig()/fingerprint()/includePhpReturn())
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php (KernelPublicApiDoesNotExposePsr7Test - testKernelRuntimePublicApiDoesNotExposePsr7OrPsr15Types()/testExternalRuntimePortPublicApiDoesNotExposePsr7OrPsr15Types()/testExternalRuntimePortIsContractsKernelRuntimeInterface()/testKernelDoesNotDefineCompetingRuntimeKernelRuntimeInterface()/testKernelSourceDoesNotReferencePsrHttpMessageOrPsrHttpServer()/testGuardDoesNotForbidAllowedPsrInfrastructureTypes()/testKernelPackageMayRequirePsrContainerAndPsrLogButNotPsrHttpPackages()/assertPublicApiDoesNotReferenceForbiddenTypes()/assertMethodSignatureDoesNotReferenceForbiddenTypes()/assertParameterSignatureDoesNotReferenceForbiddenTypes()/assertTypeDoesNotReferenceForbiddenTypes()/assertTypeNameIsAllowed()/typeNames()/kernelSourceFiles()/kernelPackageRoot())
+│   │   │       │   │   ├── KernelRuntimeDriverConfigDefaultsContractTest.php (KernelRuntimeDriverConfigDefaultsContractTest - testKernelRuntimeDriverDefaultsAreAllDisabled()/testKernelRuntimeDriverDefaultsDefineOnlyKernelOwnedRuntimeFlags()/testKernelDefaultsDoNotIntroduceWorkerRoot()/kernelConfig()/kernelConfigPath()/sortedKeys()/pathsForArrayKey())
+│   │   │       │   │   ├── KernelRuntimeDriverConfigRulesContractTest.php (KernelRuntimeDriverConfigRulesContractTest - testKernelRuntimeDriverEnabledFlagsRejectNonBoolValues()/testKernelRuntimeRulesRejectUnknownRuntimeDriverKeys()/testKernelRuntimeRulesRejectUnknownNestedRuntimeDriverKeys()/testWorkerRootIsNotIntroducedIntoKernelConfigDefaultsOrRules()/nonBoolRuntimeDriverFlagProvider()/kernelGlobalConfig()/kernelConfig()/kernelRules()/kernelRuleset()/validateKernelConfig()/setNestedValue()/assertHasViolation()/assertHasViolationWithPathPrefix()/formatViolations()/pathsForArrayKey()/kernelConfigPath()/kernelRulesPath())
+│   │   │       │   │   ├── KernelRuntimeDriverNoForbiddenDepsContractTest.php (KernelRuntimeDriverNoForbiddenDepsContractTest - testKernelRuntimeDriverSourceDoesNotReferenceAnyForbiddenDependency()/testKernelRuntimeDriverSourceDoesNotImportPlatformPackages()/testKernelRuntimeDriverSourceDoesNotImportPsr7OrPsr15Namespaces()/testKernelRuntimeDriverSourceDoesNotImportObservabilityPortsOrLoggerInterface()/testRuntimeDriverSourceScanCoversDriverAndRuntimeDriverExceptionFiles()/assertRuntimeDriverSourceDoesNotContain()/runtimeDriverSourceFiles()/runtimeDriverSourceRoots()/runtimeDriverExceptionFiles()/kernelPackageRoot()/packageRelativePath()/normalizePath())
+│   │   │       │   │   ├── KernelRuntimeDriverPublicApiContractTest.php (KernelRuntimeDriverPublicApiContractTest - testRuntimeDriverPublicApiSymbolsAreListedInPublicApiManifest()/publicApiSymbols()/publicApiPath())
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php (ModePresetExportShapeContractTest - testModePresetExportsStableShapeAndSortedModuleSets()/moduleId()/moduleIdsToStrings())
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php (ModulePlanDoesNotExportFilesystemPathsContractTest - testModulePlanExportDoesNotContainFilesystemPathKeysOrPathLikeValues()/moduleId()/assertNoForbiddenPathKeysOrValues()/looksLikeAbsoluteUnixPath()/looksLikeWindowsDrivePath())
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php (ModulePlanRecursiveKeyOrderContractTest - testModulePlanExportKeepsCanonicalRecursiveKeyOrder()/moduleId())
@@ -765,6 +778,7 @@ Coretsia/
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php (OptionalMissingDoesNotFailTest - testOptionalMissingModulesDoNotFailResolution()/resolver()/manifest()/descriptor()/preset()/composerName()/sortedUniqueStrings()/moduleIds()/moduleIdValues())
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php (RequiredMissingFailsDeterministicallyTest - testPresetRequiredMissingFailsWithSmallestMissingModuleId()/testDependencyRequiredMissingFailsWithSmallestCanonicalFailureKey()/resolver()/manifest()/descriptor()/preset()/composerName()/sortedUniqueStrings()/moduleIds())
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php (ReservedNamespaceWriteGuardTest - testRejectsForbiddenTopLevelRootsInGlobalConfig()/testAllowsFrameworkAndUserOwnedTopLevelRootsWhenTheyAreNotGloballyForbidden()/testRejectsForbiddenRootSpecificConfigFileRootName()/testRejectsUnknownDirectiveNamespaceBeforeMixedLevelViolation()/testRejectsAllowedDirectiveMixedWithNormalConfigKeys()/guard()/processor())
+│   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php (RuntimeDriverGuardChecksModulePlanForPlatformHttpTest - testNonClassicHttpDriversRequirePlatformHttpModule()/testNonClassicHttpDriversAreAllowedWhenPlatformHttpModuleIsEnabled()/testClassicHttpDoesNotRequirePlatformHttpModule()/testWorkerQueueBackgroundDriverDoesNotRequirePlatformHttpModule()/nonClassicHttpDriverProvider()/modulePlan()/composerNameForModuleId()/moduleIds()/config()/has()/get()/all()/sourceOf()/explain())
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php (UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest - setUp()/tearDown()/testCustomRootsAreMergedExplainedFingerprintableAndUnvalidatedWithoutRules()/foldEntries()/kernelRuleset()/loader()/processor()/bootstrapConfig()/writePhpReturn()/stableFingerprintInput()/sortRecursively()/pathRow()/removeTree())
 │   │   │       │   └── Unit/
 │   │   │       │       ├── Config/
@@ -787,6 +801,17 @@ Coretsia/
 │   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php (HookContextNormalizerRejectsNonJsonLikeValuesTest - testNormalizeContextRejectsNonJsonLikeValues()/testNormalizeResultRejectsNonJsonLikeValues()/testFailureMessageIsDeterministicAndDoesNotLeakRawObjectDiagnostics()/forbiddenValues()/assertRejectedSafely())
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php (HookInvokerDeterministicOrderTest - testBeforeHooksAreInvokedInExactTagRegistryOrderAfterContainerResolution()/testAfterHooksAreInvokedInExactTagRegistryOrderAfterContainerResolution()/testEmptyHookTagsAreNoop(); HookInvokerTestContainer - get()/has(); HookInvocationRecorder - recordBefore()/recordAfter()/calls(); RecordingBeforeHook - beforeUow(); RecordingAfterHook - afterUow())
 │   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php (PayloadNormalizerRejectsUnsafeValuesTest - testRejectsFloatsWithoutLeakingRawValue()/testRejectsNanInfAndNegativeInfWithoutLeakingRawValue()/testRejectsObjectsWithoutLeakingClassNameOrRawProperties()/testRejectsClosuresWithoutLeakingClosureDetails()/testRejectsResourcesWithoutLeakingResourceDetails()/assertFloatRejected()/assertNoDiagnosticLeak())
+│   │   │       │       ├── RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php (RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest - testAllowsFrankenphpHttpPlusWorkerQueueBackgroundDriver()/testAssertCompatibleAllowsFrankenphpHttpPlusWorkerQueue()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php (RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest - testAllowsRoadrunnerHttpPlusWorkerQueueBackgroundDriver()/testAssertCompatibleAllowsRoadrunnerHttpPlusWorkerQueue()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php (RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest - testAllowsSwooleHttpPlusWorkerQueueBackgroundDriver()/testAssertCompatibleAllowsSwooleHttpPlusWorkerQueue()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php (RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest - testConflictDiagnosticsUseOnlyCanonicalDriverIds()/testConflictDiagnosticsForbidShortenedAliases()/testConflictDiagnosticsAreSortedByCanonicalIdUsingByteOrderStrcmp()/detectConflict()/assertOnlyCanonicalDriverIds()/assertSortedByStrcmp()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php (RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest - testDetectsClassicHttpWhenNoNonClassicHttpDriversAreEnabled()/testAssertCompatibleAllowsClassicHttpWhenNoNonClassicHttpDriversAreEnabled()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php (RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest - testDetectsRoadrunnerWhenRoadrunnerRuntimeFlagIsEnabled()/testAssertCompatibleAllowsRoadrunnerWhenItIsTheOnlyHttpDriver()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardRejectsMultipleHttpDriversTest.php (RuntimeDriverGuardRejectsMultipleHttpDriversTest - testDetectRejectsMultipleConfiguredHttpDrivers()/testAssertCompatibleRejectsMultipleConfiguredHttpDrivers()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php (RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest - testDetectRejectsWorkerHttpWithAnyConfiguredHttpDriver()/testAssertCompatibleRejectsWorkerHttpWithAnyConfiguredHttpDriver()/workerHttpConflictProvider()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php (RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest - testDetectRejectsWorkerHttpWithRoadrunnerHttpDriver()/testAssertCompatibleRejectsWorkerHttpWithRoadrunnerHttpDriver()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php (RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest - testRejectsInvalidWorkerTaskTypeWithDeterministicDiagnostics()/testInvalidWorkerTaskTypeDoesNotLeakRawConfigDumpsOrEnvValues()/testAssertCompatibleRejectsInvalidWorkerTaskType()/config()/has()/get()/all()/sourceOf()/explain())
+│   │   │       │       ├── RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php (RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest - testTreatsMissingWorkerEnabledAsDisabled()/testTreatsMissingWorkerTaskTypeAsNoWorkerDerivedDriver()/testAssertCompatibleAllowsMissingWorkerKeys()/config()/has()/get()/all()/sourceOf()/explain())
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php (TopologicalSorterDeterministicOrderTest - testSortsDependenciesBeforeDependentsAndUsesLowestAvailableModuleId()/testSortOrderDoesNotDependOnInputOrder()/testSortOrderDoesNotDependOnLocale()/testEdgesToModulesOutsideEnabledSetAreIgnoredBySorter()/entriesInFirstOrder()/entriesInSecondOrder()/availableCollationLocales()/moduleId()/moduleIdsToStrings())
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -1166,6 +1191,79 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
 │   │       ├── Fixtures/
+│   │       │   ├── RuntimeDriverMatrix/
+│   │       │   │   ├── ClassicHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── FrankenphpHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── FrankenphpPlusWorkerHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── FrankenphpPlusWorkerQueueApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── FrankenphpWithoutPlatformHttpModuleApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── MultipleConfiguredHttpDriversApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── RoadrunnerHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── RoadrunnerPlusWorkerHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── RoadrunnerPlusWorkerQueueApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── RoadrunnerWithoutPlatformHttpModuleApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── SwooleHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── SwoolePlusWorkerHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── SwoolePlusWorkerQueueApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── SwooleWithoutPlatformHttpModuleApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── WorkerHttpApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── WorkerHttpWithoutPlatformHttpModuleApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   ├── WorkerQueueApp/
+│   │       │   │   │   ├── config.php
+│   │       │   │   │   ├── expected.php
+│   │       │   │   │   └── modules.php
+│   │       │   │   └── WorkerTaskTypeInvalidApp/
+│   │       │   │       ├── config.php
+│   │       │   │       ├── expected.php
+│   │       │   │       └── modules.php
 │   │       │   ├── package_bad/
 │   │       │   │   └── packages/
 │   │       │   │       ├── core/
@@ -1229,6 +1327,20 @@ Coretsia/
 │   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
 │   │       └── Integration/
+│   │           ├── Runtime/
+│   │           │   ├── Support/
+│   │           │   │   └── RuntimeDriverMatrixConfigRepository.php (RuntimeDriverMatrixConfigRepository - has()/get()/all()/sourceOf()/explain())
+│   │           │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php (RuntimeDriverMatrixAllFixturesMatchGuardTest - testAllRuntimeDriverMatrixFixturesMatchRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php (RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest - testClassicHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php (RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest - testFrankenphpHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php (RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest - testRoadrunnerHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php (RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest - testSwooleHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php (RuntimeDriverMatrixDefaultClassicIsAllowedTest - testDefaultClassicHttpFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php (RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest - testFrankenphpHttpPlusWorkerHttpFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php (RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest - testRoadrunnerHttpPlusWorkerHttpFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php (RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest - testSwooleHttpPlusWorkerHttpFixtureMatchesRuntimeDriverGuard())
+│   │           │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php (RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest - testWorkerHttpWithoutPlatformHttpModuleFixtureMatchesRuntimeDriverGuard())
+│   │           │   └── RuntimeDriverMatrixTestSupport.php (RuntimeDriverMatrixTestSupport - runtimeDriverMatrixFixtureNames()/assertRuntimeDriverMatrixFixtureMatchesGuard()/loadRuntimeDriverMatrixFixture()/runRuntimeDriverMatrix()/runtimeDriverMatrixFixtureRoot()/runtimeDriverMatrixFixturePath()/runtimeDriverMatrixFixtureRelativePath()/loadRuntimeDriverMatrixArrayFixture()/validateRuntimeDriverMatrixConfig()/validateRuntimeDriverMatrixModules()/validateRuntimeDriverMatrixExpected()/assertAllowedExpectedShape()/assertConflictExpectedShape()/assertInvalidConfigExpectedShape()/buildRuntimeDriverMatrixModulePlan()/composerNameForModuleId()/normalizeFixtureName()/normalizePathForMessage()/assertNullableString()/assertCanonicalDriverIdList()/assertRequiredModuleIdList()/assertSortedStringList()/assertPlainRuntimeDriverMatrixValue())
 │   │           ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/testFoundationContextOwnerUsageAndEffectiveResetTagVariablePass()/testEffectiveResetTagVariableMustComeFromFoundationServiceFactory()/testUnrelatedNonResettableClassNearStatefulTagDoesNotFailWhenTaggedServiceIsResettable()/testDirectContextStoreUsageOutsideFoundationProviderFails()/testDirectContextKeysUsageOutsideAllowedFoundationOwnersFails()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeFoundationTags()/writeFoundationConfig()/writeStatefulService())
 │   │           ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
 │   │           ├── DtoMarkerConsistencyGateTest.php (DtoMarkerConsistencyGateTest - testCanonicalMarkerUsagePasses()/testAliasImportResolvingToCanonicalMarkerPasses()/testCustomDtoMarkerAttributeFails()/testLegacyDtoInterfaceMarkerFails()/testMixedMarkerStrategyFailsWithMultipleStrategiesReason()/testPathOverrideWorksOnSyntheticTree()/testMissingBootstrapTriggersDeterministicScanFailedCode()/syntheticFrameworkRoot()/runDtoMarkerConsistencyGate()/writeSyntheticPhpFile())

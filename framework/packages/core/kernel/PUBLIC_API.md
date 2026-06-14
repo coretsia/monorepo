@@ -33,10 +33,16 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
 - `Coretsia\Kernel\Provider\Tags`
+- `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
+- `Coretsia\Kernel\Runtime\Driver\HttpDriver`
+- `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`
+- `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
 - `Coretsia\Kernel\Runtime\Outcome`
 - `Coretsia\Kernel\Runtime\UnitOfWorkType`
 - `Coretsia\Kernel\Runtime\UnitOfWorkContext`
 - `Coretsia\Kernel\Runtime\UnitOfWorkResult`
+- `Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException`
+- `Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException`
 - `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException`

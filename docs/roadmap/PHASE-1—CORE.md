@@ -15000,6 +15000,11 @@ Docs:
   - [x] validates header + payload schema for same file
   - [x] validation MUST assert the same canonical top-level envelope `{ "_meta", "payload" }` used by other kernel-owned artifacts.
 
+- [x] This epic reuses existing Kernel artifact path policy from `kernel.artifacts.cache_dir`.
+- [x] This epic does not introduce container-specific artifact path config.
+- [x] Fingerprint exclusion policy remains owned by the existing artifact/fingerprint pipeline.
+- [x] `ContainerCompiler`, `CompiledContainerBuilder`, and `CompiledContainerFactory` MUST NOT read `kernel.fingerprint.*` configuration directly.
+
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
@@ -15159,8 +15164,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr:
-- "docs/adr/ADR-0027-runtime-driver-guard.md"
+adr: "docs/adr/ADR-0027-runtime-driver-guard.md"
 
 ssot_refs:
 - "docs/ssot/runtime-drivers.md"
@@ -15176,318 +15180,642 @@ ssot_refs:
   - 1.310.0 — `ModulePlan` is resolvable and can be provided by the caller when module checks are required
   - 1.320.0 — merged config available via `Coretsia\Contracts\Config\ConfigRepositoryInterface`
 
-- Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
-  - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
-    are **config key namespaces**, not separate roots.
-  - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
+- Required existing docs:
+  - `docs/ssot/runtime-drivers.md` — canonical runtime driver ids, config keys, compatibility matrix, and decision rules
+
+- Required config roots/keys:
+  - `kernel` — existing config root owned by `core/kernel`
+
+- Forward-compatible optional inputs:
+  - `worker.enabled` — optional future-owned key; missing key MUST be treated as disabled before 1.360.0
+  - `worker.task_type` — optional future-owned key; missing key MUST activate no worker-derived driver before 1.360.0
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — guard reads selected config values through this port only
 
-- Required kernel types/services (provided by 1.310.0):
-  - `Coretsia\Kernel\Module\ModulePlan` (input for module-compat checks)
-  - `Coretsia\Kernel\Module\ModulePlanResolver` (caller-resolved; guard MUST NOT re-resolve presets/metadata internally)
+- Required kernel types/services:
+  - `Coretsia\Kernel\Module\ModulePlan` — caller-provided input for module compatibility checks
 
-- Required deliverables (exact paths):
-  - `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` — fixture apps (for E2E matrix locks)
+- Caller-owned integration boundary:
+  - `Coretsia\Kernel\Module\ModulePlanResolver` may be used by callers before invoking the guard, but `RuntimeDriverGuard` MUST NOT resolve module plans internally.
+
+- Terminology note (MUST): config root vs config key namespaces
+  - Config root for Kernel is **`kernel`**.
+  - Dotted prefixes such as `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`, and `kernel.uow.*` are config key namespaces, not separate roots.
+  - `config/<name>.php` MUST return subtree for `<name>` and MUST NOT wrap values in a repeated root key.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
-Kernel (runtime) depends on:
+Depends on:
+
 - `core/contracts`
 - `core/foundation`
 
-Kernel forbidden:
+Forbidden:
+
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
 - `Psr\Http\Server\*`
 
-Tooling (E2E tests):
-- N/A (tooling tests; no deptrac constraints beyond repo norms)
+Tooling tests:
+
+- N/A — tooling tests live under `framework/tools/tests/**`; no additional deptrac constraints beyond repo norms.
 
 #### Uses ports (API surface, NOT deps) (optional)
 
+- Contracts:
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+- Kernel public API:
+  - `Coretsia\Kernel\Module\ModulePlan`
 - Foundation stable APIs:
-  - N/A (RuntimeDriverGuard is pure; it MUST NOT require container services like TagRegistry)
+  - N/A — `RuntimeDriverGuard` is pure and MUST NOT require container services such as `TagRegistry`.
 
 ### Entry points / integration points (MUST)
 
 Kernel guard callers:
-- CLI:
-  - indirectly: `coretsia worker:start` (owner `platform/worker`) MUST call guard
-- HTTP:
-  - entrypoints (`frankenphp.php|swoole.php|roadrunner.php`) call guard pre-boot
-- Artifacts:
-  - reads config via ConfigRepositoryInterface; may resolve ModulePlan if needed
 
-E2E matrix:
 - CLI:
-  - tests may invoke entrypoints or a minimal bootstrap runner (per wiring)
+  - future `coretsia worker:start` owner `platform/worker` MUST call Kernel `RuntimeDriverGuard` before starting a long-running worker loop
+- HTTP:
+  - future runtime entrypoints such as `frankenphp.php`, `swoole.php`, and `roadrunner.php` MUST call Kernel `RuntimeDriverGuard` before runtime boot
+- Guard inputs:
+  - reads selected config values via `ConfigRepositoryInterface`
+  - receives caller-resolved `ModulePlan` only for module compatibility checks
+  - MUST NOT resolve `ModulePlan` internally
 - Artifacts:
-  - fixtures may use cache dirs under `framework/tools/tests/Fixtures/*/var/cache/...`
+  - N/A — this epic does not introduce, read, or write Kernel artifacts.
+- Notes:
+  - this epic introduces the Kernel guard used by future platform/runtime entrypoints
+  - it does not implement runtime adapters, worker pools, HTTP servers, PSR-7/15 bridges, or long-running loops
 
 ### Deliverables (MUST)
 
 #### Creates
 
 Drivers model:
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/HttpDriver.php` — enum-like `http.classic|http.frankenphp|http.swoole|http.roadrunner|http.worker`
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/BackgroundDriver.php` — enum-like `bg.worker_queue`
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDrivers.php` — VO `{httpDriver, backgroundDrivers[]}`
+- [x] `framework/packages/core/kernel/src/Runtime/Driver/HttpDriver.php` — canonical HTTP runtime driver enum
+  - [x] MUST be a string-backed enum
+  - [x] `CLASSIC = 'http.classic'`
+  - [x] `FRANKENPHP = 'http.frankenphp'`
+  - [x] `SWOOLE = 'http.swoole'`
+  - [x] `ROADRUNNER = 'http.roadrunner'`
+  - [x] `WORKER = 'http.worker'`
+  - [x] MUST expose canonical ids only through enum values
+  - [x] MUST NOT expose shortened aliases such as `classic`, `frankenphp`, `swoole`, `roadrunner`, or `worker` as runtime ids
+  - [x] MAY expose `id(): string` as a thin alias for `$this->value`
+  - [x] MUST NOT contain config-reading logic
+  - [x] MUST NOT contain compatibility matrix logic
 
-- [ ] Canonical driver ids stored/returned by the guard MUST match `docs/ssot/runtime-drivers.md` exactly.
-- [ ] The guard MUST NOT use shortened aliases (`classic`, `roadrunner`, `worker_queue`) in runtime payloads, diagnostics, sorting, or E2E assertions.
+- [x] `framework/packages/core/kernel/src/Runtime/Driver/BackgroundDriver.php` — canonical background runtime driver enum
+  - [x] MUST be a string-backed enum
+  - [x] `WORKER_QUEUE = 'bg.worker_queue'`
+  - [x] MUST expose canonical ids only through enum values
+  - [x] MUST NOT expose shortened aliases such as `worker_queue` as runtime ids
+  - [x] MAY expose `id(): string` as a thin alias for `$this->value`
+  - [x] MUST NOT contain config-reading logic
+  - [x] MUST NOT contain compatibility matrix logic
+
+- [x] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDrivers.php` — immutable selected runtime drivers value object
+  - [x] `httpDriver(): HttpDriver`
+  - [x] `backgroundDrivers(): list<BackgroundDriver>`
+  - [x] `driverIds(): list<string>` sorted by canonical id using `strcmp`
+  - [x] `httpDriverId(): string`
+  - [x] `backgroundDriverIds(): list<string>` sorted by canonical id using `strcmp`
+  - [x] constructor/factory MUST reject duplicate background driver entries deterministically
+  - [x] returned `backgroundDrivers()` and `backgroundDriverIds()` MUST never contain duplicates
+  - [x] constructor/factory MUST accept only `HttpDriver` and `BackgroundDriver` instances
+  - [x] MUST NOT accept raw string aliases as constructor input
+  - [x] MUST NOT read config
+  - [x] MUST NOT know module compatibility rules
+  - [x] MUST NOT emit stdout/stderr
 
 Guard:
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php` — main service:
-  - [ ] `detect(ConfigRepositoryInterface $cfg): RuntimeDrivers`
-  - [ ] `assertCompatible(ConfigRepositoryInterface $cfg): void`
-  - [ ] `assertHttpDriverCompatibleWithModules(ConfigRepositoryInterface $cfg, ModulePlan $plan): void`
-  - [ ] separation of responsibilities is single-choice:
-    - [ ] `detect(...)` and `assertCompatible(...)` are config-only and MUST NOT inspect `ModulePlan`
-    - [ ] `assertHttpDriverCompatibleWithModules(...)` is the only method that may validate `platform.http` / module-plan compatibility
-    - [ ] runtime driver selection MUST therefore remain derivable from config alone, exactly as locked by `docs/ssot/runtime-drivers.md`
-  - [ ] when producing conflict / invalid-config diagnostics, guard MUST use canonical driver ids from `docs/ssot/runtime-drivers.md` exactly
-  - [ ] guard MUST NOT emit shortened aliases such as `classic`, `roadrunner`, `worker_queue`
-  - [ ] any diagnostics list of active/conflicting drivers MUST be sorted by canonical driver id using byte-order `strcmp`
-  - [ ] any diagnostics list of required moduleIds MUST also be sorted by `strcmp`
+- [x] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php` — canonical runtime driver matrix guard
+  - [x] MUST be stateless
+  - [x] MUST be deterministic for the same `ConfigRepositoryInterface` values
+  - [x] MUST read config only through:
+    - [x] `ConfigRepositoryInterface::get(...)`
+    - [x] optionally `ConfigRepositoryInterface::has(...)`
+  - [x] MUST NOT call:
+    - [x] `ConfigRepositoryInterface::all()`
+    - [x] `ConfigRepositoryInterface::sourceOf(...)`
+    - [x] `ConfigRepositoryInterface::explain()`
+  - [x] MUST NOT dump config trees or source metadata
+  - [x] MUST NOT read source config files
+  - [x] MUST NOT read generated artifacts
+  - [x] MUST NOT inspect environment variables, loaded PHP extensions, process names, CLI argv, ports, filesystem adapter presence, container services, or reflection
+  - [x] `detect(ConfigRepositoryInterface $cfg): RuntimeDrivers`
+    - [x] returns `RuntimeDrivers` only for a valid single-HTTP-driver selection
+    - [x] MUST throw `RuntimeDriverConflictException` when multiple HTTP drivers are active
+    - [x] MUST apply missing-key policy for `worker.*` exactly as defined by `docs/ssot/runtime-drivers.md`
+  - [x] `assertCompatible(ConfigRepositoryInterface $cfg): void`
+    - [x] MUST be config-only
+    - [x] MUST NOT inspect `ModulePlan`
+    - [x] MAY delegate to `detect(...)`
+  - [x] `assertHttpDriverCompatibleWithModules(ConfigRepositoryInterface $cfg, ModulePlan $plan): void`
+    - [x] MUST be the only method that validates `platform.http` / module-plan compatibility
+    - [x] MUST first derive active drivers from config through the same deterministic selection logic as `detect(...)`
+    - [x] MUST NOT resolve `ModulePlan` internally
+  - [x] ModulePlan compatibility rule:
+    - [x] MUST require `platform.http` for:
+      - [x] `http.frankenphp`
+      - [x] `http.swoole`
+      - [x] `http.roadrunner`
+      - [x] `http.worker`
+    - [x] MUST NOT require `platform.http` for:
+      - [x] `http.classic`
+      - [x] `bg.worker_queue`
+    - [x] MUST inspect only caller-provided `ModulePlan`
+    - [x] MUST compare module ids by canonical string value
+    - [x] MUST NOT inspect Composer metadata, providers, package paths, module manifests, generated artifacts, config source files, or container services
+  - [x] when producing conflict / invalid-config diagnostics, guard MUST use canonical driver ids from `docs/ssot/runtime-drivers.md` exactly
+  - [x] guard MUST NOT emit shortened aliases such as `classic`, `roadrunner`, `worker_queue`
+  - [x] any diagnostics list of active/conflicting drivers MUST be sorted by canonical driver id using byte-order `strcmp`
+  - [x] any diagnostics list of required moduleIds MUST also be sorted by `strcmp`
+  - [x] MUST NOT emit stdout/stderr
+  - [x] MUST NOT log directly; callers MAY log safe exception data
+
+- [x] Guard input policy:
+  - [x] RuntimeDriverGuard MUST read only these canonical config keys:
+    - [x] `kernel.runtime.frankenphp.enabled`
+    - [x] `kernel.runtime.swoole.enabled`
+    - [x] `kernel.runtime.roadrunner.enabled`
+    - [x] `worker.enabled`
+    - [x] `worker.task_type`
+  - [x] For `kernel.runtime.*.enabled`, guard MUST treat only strict boolean `true` as active
+  - [x] For `worker.enabled`, missing key is treated as `false`
+  - [x] For `worker.enabled`, only strict boolean `true` activates worker-derived drivers
+  - [x] For `worker.task_type`, missing key activates no worker-derived driver
+  - [x] If `worker.enabled === true` and `worker.task_type === 'http'`, activate `http.worker`
+  - [x] If `worker.enabled === true` and `worker.task_type === 'queue'`, activate `bg.worker_queue`
+  - [x] If `worker.enabled === true` and `worker.task_type` is present but not `http` or `queue`, fail with:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+    - [x] reason `worker_task_type_invalid`
+  - [x] generic worker root shape / unknown-key validation remains owned by future `platform/worker` config rules
+  - [x] core/kernel MUST NOT define `worker.*` defaults or rules in this epic
 
 Errors:
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/Exception/RuntimeDriverConflictException.php`
-  - [ ] code: `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
-  - [ ] reason tokens (stable, message-safe): e.g. `multiple_http_drivers`, `worker_http_conflicts_with_http_driver`
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/Exception/RuntimeDriverInvalidConfigException.php`
-  - [ ] code: `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-  - [ ] reason tokens (stable): e.g. `requires_platform_http_module`
-  - [ ] config shape / unknown-key enforcement is owned by config rules validation, NOT by `RuntimeDriverGuard`
-  - [ ] `RuntimeDriverGuard` MUST remain matrix-focused and MUST NOT become a second source of truth for generic config validation
+- [x] `framework/packages/core/kernel/src/Runtime/Exception/RuntimeDriverConflictException.php`
+  - [x] error code: `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+  - [x] public message MUST be deterministic and safe:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT: <reason>`
+  - [x] MUST expose:
+    - [x] `errorCode(): string`
+    - [x] `reason(): string`
+    - [x] `activeDriverIds(): list<string>`
+    - [x] `conflictingDriverIds(): list<string>`
+  - [x] MUST provide named constructors:
+    - [x] `multipleHttpDrivers(list<string> $activeDriverIds, list<string> $conflictingDriverIds): self`
+    - [x] `workerHttpConflictsWithHttpDriver(list<string> $activeDriverIds, list<string> $conflictingDriverIds): self`
+  - [x] Conflict reasons:
+    - [x] `multiple_http_drivers`
+    - [x] `worker_http_conflicts_with_http_driver`
+  - [x] driver id lists MUST be sorted by byte-order `strcmp`
+  - [x] driver id lists MUST contain canonical ids only
+  - [x] MUST NOT expose config paths, config values, env values, adapter internals, stack traces, previous throwable messages, or payload dumps
 
-MUST:
-- [ ] Guard unit/E2E tests assert these exact CODE strings (line-of-truth).
-- [ ] No other driver-matrix codes are introduced to avoid drift from `docs/ssot/runtime-drivers.md`.
+- [x] `framework/packages/core/kernel/src/Runtime/Exception/RuntimeDriverInvalidConfigException.php`
+  - [x] error code: `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+  - [x] public message MUST be deterministic and safe:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: <reason>`
+  - [x] MUST expose:
+    - [x] `errorCode(): string`
+    - [x] `reason(): string`
+    - [x] `activeDriverIds(): list<string>`
+    - [x] `requiredModuleIds(): list<string>`
+  - [x] MUST provide named constructors:
+    - [x] `requiresPlatformHttpModule(list<string> $activeDriverIds): self`
+    - [x] `workerTaskTypeInvalid(list<string> $activeDriverIds = []): self`
+  - [x] Invalid-config reasons:
+    - [x] `requires_platform_http_module`
+    - [x] `worker_task_type_invalid`
+  - [x] required module ids MUST be sorted by byte-order `strcmp`
+  - [x] active driver ids MUST be sorted by byte-order `strcmp`
+  - [x] config shape / unknown-key enforcement is owned by config rules validation, NOT by `RuntimeDriverGuard`
+  - [x] `RuntimeDriverGuard` MUST remain matrix-focused and MUST NOT become a second source of truth for generic config validation
+  - [x] MUST NOT expose ModulePlan dumps, config dumps, paths, env values, adapter internals, stack traces, previous throwable messages, or payload dumps
 
 Docs:
-- [ ] `docs/adr/ADR-0027-runtime-driver-guard.md` — decision record (scope, invariants, deterministic codes)
-- [ ] `docs/architecture/runtime-driver-guard.md` — API + callers + deterministic codes
-  - [ ] API surface + callers + error codes
-  - [ ] MUST NOT duplicate the canonical matrix/rules (those live in `docs/ssot/runtime-drivers.md`)
-  - [ ] **Scope note (MUST):** This document is an architecture overview (API surface + callers + deterministic error codes).
-    - [ ] The **single canonical source** for the runtime-drivers compatibility matrix and decision rules is:
-    - [ ] `docs/ssot/runtime-drivers.md`.
-    - [ ] Any behavioral change MUST update:
-      - [ ] 1) `docs/ssot/runtime-drivers.md` (rules/matrix),
-      - [ ] 2) Kernel unit/integration locks (guard codes),
-      - [ ] 3) E2E matrix fixtures/tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*`.
-    - [ ] This document MUST NOT duplicate the matrix/rules (to avoid drift).
+- [x] `docs/adr/ADR-0027-runtime-driver-guard.md` — decision record for runtime driver guard, deterministic codes, public API boundary, and matrix ownership
+  - [x] MUST record that `RuntimeDriverGuard` is public Kernel API
+  - [x] MUST record that no new `core/contracts` runtime-driver port is introduced by this epic
+  - [x] MUST record that `docs/ssot/runtime-drivers.md` remains the single canonical source for driver ids, config keys, and matrix rules
+  - [x] MUST record deterministic error codes:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+
+- [x] `docs/architecture/runtime-driver-guard.md` — architecture overview
+  - [x] API surface + callers + deterministic error codes
+  - [x] MUST NOT duplicate the canonical matrix/rules
+  - [x] MUST state that the canonical source for compatibility matrix and decision rules is `docs/ssot/runtime-drivers.md`
+  - [x] Any behavioral change MUST update:
+    - [x] `docs/ssot/runtime-drivers.md`
+    - [x] Kernel unit/integration locks
+    - [x] E2E matrix fixtures/tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*`
+
+Tooling fixtures:
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwooleHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerQueueApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerQueueApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerQueueApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerHttpApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerQueueApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpWithoutPlatformHttpModuleApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/MultipleConfiguredHttpDriversApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerTaskTypeInvalidApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerWithoutPlatformHttpModuleApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpWithoutPlatformHttpModuleApp/`
+- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwooleWithoutPlatformHttpModuleApp/`
+
+Fixture app contract:
+- [x] each `framework/tools/tests/Fixtures/RuntimeDriverMatrix/<App>/` MUST contain:
+  - [x] `config.php` — deterministic merged-config input subset for driver detection
+  - [x] `modules.php` — deterministic enabled module ids for ModulePlan construction
+  - [x] `expected.php` — expected outcome/code/reason/active driver ids
+- [x] `config.php` MUST return a plain array using canonical config keys only
+- [x] `modules.php` MUST return a list of canonical module id strings
+- [x] `expected.php` MUST return a plain array with stable keys:
+  - [x] `outcome`
+  - [x] `code`
+  - [x] `reason`
+  - [x] `activeDriverIds`
+  - [x] `conflictingDriverIds`
+  - [x] `requiredModuleIds`
+  - [x] For allowed fixtures:
+    - [x] `outcome` MUST be `allowed`
+    - [x] `code` MUST be `null`
+    - [x] `reason` MUST be `null`
+    - [x] `conflictingDriverIds` MUST be `[]`
+    - [x] `requiredModuleIds` MUST be `[]`
+  - [x] For forbidden/conflict fixtures:
+    - [x] `outcome` MUST be `conflict`
+    - [x] `code` MUST be `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+    - [x] `reason` MUST be a fixed conflict reason token
+  - [x] For invalid-config fixtures:
+    - [x] `outcome` MUST be `invalid_config`
+    - [x] `code` MUST be `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+    - [x] `reason` MUST be a fixed invalid-config reason token
+- [x] fixture files MUST return plain arrays only
+- [x] fixture files MUST NOT contain absolute paths, timestamps, random ids, env reads, closures, objects, resources, adapter classes, or real runtime server boot logic
+
+Tooling support:
+- [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
+  - [x] loads fixture arrays deterministically
+  - [x] discovers fixture apps under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` deterministically
+  - [x] validates fixture shape before executing assertions
+  - [x] instantiates the dedicated test `ConfigRepositoryInterface`
+  - [x] builds a minimal `ModulePlan`
+  - [x] invokes `RuntimeDriverGuard`
+  - [x] asserts only deterministic outcomes / codes / reason tokens / canonical driver ids / canonical module ids
+  - [x] normalizes paths if fixture paths are ever shown in assertion messages
+  - [x] MUST NOT shell out
+  - [x] MUST NOT read environment variables
+  - [x] MUST NOT depend on real runtime adapters
+  - [x] MUST NOT start long-running loops
+  - [x] MUST NOT write artifacts
+
+- [x] `framework/tools/tests/Integration/Runtime/Support/RuntimeDriverMatrixConfigRepository.php`
+  - [x] implements test-only `ConfigRepositoryInterface`
+  - [x] supports only `has(...)` and `get(...)`
+  - [x] `all()` MUST throw deterministically
+  - [x] `sourceOf(...)` MUST throw deterministically
+  - [x] `explain()` MUST throw deterministically
+  - [x] MUST NOT read environment variables
+  - [x] MUST NOT read config source files
+  - [x] MUST NOT expose source metadata
+  - [x] MUST NOT depend on real runtime adapters
+  - [x] MUST NOT write artifacts
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0027-runtime-driver-guard.md`
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers RuntimeDriverGuard
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/kernel/config/kernel.php`
-  - [ ] add defaults:
-    - [ ] `kernel.runtime.frankenphp.enabled` = false
-    - [ ] `kernel.runtime.swoole.enabled` = false
-    - [ ] `kernel.runtime.roadrunner.enabled` = false
-- [ ] `framework/packages/core/kernel/config/rules.php`
-  - [ ] enforce bool shape for:
-    - [ ] `kernel.runtime.frankenphp.enabled`
-    - [ ] `kernel.runtime.swoole.enabled`
-    - [ ] `kernel.runtime.roadrunner.enabled`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0027-runtime-driver-guard.md`
 
-#### Creates (Tooling fixtures + E2E tests)
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] registers `RuntimeDriverGuard`
+  - [x] provider registration MUST NOT run guard detection
+  - [x] provider registration MUST NOT inspect config values
+  - [x] provider registration MUST NOT resolve `ModulePlan`
+  - [x] provider registration MUST NOT emit stdout/stderr
 
-Fixture wiring:
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/`
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerHttpApp/`
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpHttpApp/`
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwooleHttpApp/`
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerQueueApp/`
-- [ ] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpApp/`
+- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] adds stateless factory/wiring helper for `RuntimeDriverGuard`
+  - [x] MUST NOT keep mutable runtime state
+  - [x] MUST NOT cache config, module plans, detected drivers, or guard results
+  - [x] MUST NOT inspect config values while wiring the guard
 
-Tests:
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
-- [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php`
+- [x] `framework/packages/core/kernel/config/kernel.php`
+- [x] `framework/packages/core/kernel/config/rules.php`
 
-### Configuration inputs (guard inputs) (MUST)
+- [x] `framework/packages/core/kernel/PUBLIC_API.md` register runtime-driver guard public API symbols:
+  - [x] `Coretsia\Kernel\Runtime\Driver\HttpDriver`
+  - [x] `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
+  - [x] `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
+  - [x] `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`
+  - [x] `Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException`
+  - [x] `Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException`
 
-RuntimeDriverGuard MUST read only the canonical configuration keys defined in:
+#### Package skeleton (if type=package)
 
-- `docs/ssot/runtime-drivers.md`
+- N/A — `core/kernel` package already exists; this epic extends the existing package and does not create a new package skeleton.
 
-This epic MUST NOT introduce alternative key names or guard-only aliases.
+#### Configuration (keys + defaults)
 
-Missing-key behavior before `1.360.0` (single-choice; cemented):
-- If `worker.enabled` is absent, the guard MUST treat it as `false`.
-- If `worker.task_type` is absent, the guard MUST NOT activate any worker-derived runtime driver.
-- Absence of the `worker.*` root alone MUST NOT produce `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`.
-- Rationale:
-  - `worker` root is introduced later by `1.360.0`;
-    until then, guard behavior must remain deterministic and safe-by-default.
+- [x] Files:
+  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `framework/packages/core/kernel/config/rules.php`
+- [x] Keys (dot):
+  - [x] `kernel.runtime.frankenphp.enabled` = `false`
+  - [x] `kernel.runtime.swoole.enabled` = `false`
+  - [x] `kernel.runtime.roadrunner.enabled` = `false`
+- [x] Rules:
+  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.frankenphp.enabled`
+  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.swoole.enabled`
+  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.roadrunner.enabled`
+  - [x] unknown `kernel.runtime.*` keys are rejected
+  - [x] `worker.*` rules are not introduced by core/kernel
 
-The only intentional repetition in this epic is the concrete default wiring added to `framework/packages/core/kernel/config/kernel.php`; behavioral truth remains `docs/ssot/runtime-drivers.md`.
+#### Wiring / DI tags (when applicable)
 
-Any behavioral/key change MUST update:
-1) `docs/ssot/runtime-drivers.md` (canonical keys + rules),
-2) Kernel unit/integration locks (guard codes),
-3) E2E matrix fixtures/tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*`.
+- Tags introduced:
+  - N/A — this epic introduces no tags
+- [x] ServiceProvider wiring evidence:
+  - [x] registers: `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`
+  - [x] adds no tags
+- [x] Compliance delta:
+  - [x] this package MUST NOT introduce owner constants for tags it does not own
+  - [x] raw literal tag strings are not needed for this epic
+  - [x] runtime code MUST NOT use `kernel.reset` tag
+
+#### Artifacts / outputs (if applicable)
+
+- Writes:
+  - N/A — this epic writes no Kernel artifacts
+- Reads:
+  - N/A — this epic reads no Kernel artifacts
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
+#### Context & UoW
+
+- Context reads:
+  - N/A
+- Context writes:
+  - N/A
+- [x] Reset discipline:
+  - [x] This epic introduces pure guard services and tooling tests only
+  - [x] This epic does not introduce runtime loops, runtime entrypoint execution, UoW execution, or long-running runtime state
+  - [x] Reset is N/A for this epic
+  - [x] `RuntimeDriverGuard` MUST NOT call `TagRegistry`
+  - [x] `RuntimeDriverGuard` MUST NOT enumerate `kernel.reset`
+  - [x] `RuntimeDriverGuard` MUST NOT trigger reset
+  - [x] Future runtime entrypoint/loop epics MUST delegate UoW lifecycle to `KernelRuntime`
+
 #### Observability (policy-compliant)
 
-- [ ] Logs:
-  - [ ] failures log only active driver names + deterministic code (no env values)
-- [ ] Metrics/Spans:
-  - [ ] optional; not required (kept minimal)
+- Spans:
+  - N/A
+- Metrics:
+  - N/A
+- [x] Logs:
+  - [x] `RuntimeDriverGuard` MUST NOT log directly
+  - [x] RuntimeDriverGuard exceptions MUST expose only safe deterministic data that callers MAY log:
+    - [x] canonical driver ids
+    - [x] module ids
+    - [x] deterministic error code
+    - [x] fixed reason token
+  - [x] operation-level observability is deferred to caller/entrypoint epics
+
+#### Errors
+
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException` — errorCode `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+  - [x] `Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException` — errorCode `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+
+- Mapping:
+  - N/A — this epic introduces deterministic Kernel exceptions only; platform/caller error-to-output mapping is owned by later caller epics
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] full config dumps, env values, file paths
-- [ ] Allowed:
-  - [ ] driver names, moduleIds, deterministic code
+- [x] MUST NOT leak:
+  - [x] full config dumps
+  - [x] config values
+  - [x] env values
+  - [x] file paths
+  - [x] adapter internals
+  - [x] stack traces
+  - [x] previous throwable messages
+  - [x] payload dumps
+  - [x] stdout/stderr output
+- [x] Allowed:
+  - [x] canonical driver ids
+  - [x] canonical module ids
+  - [x] deterministic error code
+  - [x] fixed reason token
 
 ### Phase 0 parity: deterministic guard semantics + safe failures (MUST)
 
-RuntimeDriverGuard MUST відповідати rails-політикам детермінізму/безпечних повідомлень PHASE 0 (0.20.0):
-- deterministic ordering (byte-order; locale-independent)
-- deterministic error codes (code-first)
-- no secrets/PII, no full config dumps
-- no stdout/stderr output з kernel
+RuntimeDriverGuard MUST follow Phase 0 rails safety policy:
+- [x] deterministic ordering using byte-order `strcmp`
+- [x] deterministic error codes
+- [x] code-first failures
+- [x] no secrets/PII
+- [x] no full config dumps
+- [x] no stdout/stderr output from kernel
 
 #### Output-free invariant (MUST)
-`core/kernel` runtime MUST NOT писати в stdout/stderr (echo/print/var_dump/print_r/printf/error_log, STDOUT/STDERR writes).
-Діагностика для користувача — тільки в `platform/*`.
+
+- [x] `core/kernel` runtime MUST NOT write to stdout/stderr:
+  - [x] no `echo`
+  - [x] no `print`
+  - [x] no `var_dump`
+  - [x] no `print_r`
+  - [x] no `printf`
+  - [x] no `error_log`
+  - [x] no direct `STDOUT` / `STDERR` writes
 
 #### Deterministic decision model (single-choice; cemented)
-- detect() MUST produce the same `RuntimeDrivers` for the same config (no environment probing beyond declared inputs)
-- assertCompatible() MUST fail deterministically з одним і тим самим кодом для тієї самої конфіг-комбінації
-- ordering у будь-яких списках активних драйверів MUST бути стабільний (byte-order)
-- ordering/diagnostics MUST use the canonical SSoT driver ids exactly:
-  - `http.classic`
-  - `http.frankenphp`
-  - `http.swoole`
-  - `http.roadrunner`
-  - `http.worker`
-  - `bg.worker_queue`
 
-#### Safe error messages (cemented)
-Exceptions MUST NOT містити:
-- абсолютні шляхи
-- env values
-- повні dumps конфігу
-  Allowed:
-- driver names, moduleIds, deterministic code, fixed reason tokens
+- [x] `detect()` MUST produce the same result for the same config
+- [x] `detect()` MUST NOT probe environment/runtime state beyond declared config inputs
+- [x] `assertCompatible()` MUST fail with the same code and reason for the same config combination
+- [x] all active/conflicting driver id lists MUST be sorted by byte-order `strcmp`
+- [x] all module id lists MUST be sorted by byte-order `strcmp`
+- [x] ordering/diagnostics MUST use canonical SSoT driver ids exactly:
+  - [x] `http.classic`
+  - [x] `http.frankenphp`
+  - [x] `http.swoole`
+  - [x] `http.roadrunner`
+  - [x] `http.worker`
+  - [x] `bg.worker_queue`
 
 ## E2E matrix fixtures/tests: determinism rules (MUST)
-Fixture apps під `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*`:
-- MUST бути cross-OS stable (paths normalized у тестах; не порівнювати `\` vs `/` буквально)
-- MUST NOT покладатися на locale/environment ordering
-- MUST мати стабільні cache dirs (без timestamps/random suffix у шляхах)
 
-Matrix tests MUST:
-- assert deterministic error codes (line-of-truth)
-- не перевіряти тексти повідомлень як user-facing output (тільки codes + мінімальні reason tokens якщо потрібно)
+- [x] Fixture apps under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` MUST be cross-OS stable
+- [x] tests MUST normalize paths if paths appear in assertion messages
+- [x] tests MUST NOT compare `\` vs `/` literally
+- [x] tests MUST NOT rely on locale/environment ordering
+- [x] fixture cache dirs, if present, MUST be stable:
+  - [x] no timestamps
+  - [x] no random suffixes
+- [x] matrix tests MUST assert deterministic error codes
+- [x] matrix tests MUST NOT assert full user-facing messages
+- [x] matrix tests MAY assert minimal reason tokens
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-Kernel unit detection/conflicts:
-- [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php`
-- [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php`
-- [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php`
-- [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsMultipleHttpDriversTest.php`
-- [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php`
+#### Required policy tests matrix
 
-Kernel integration module plan check:
-- [ ] `framework/packages/core/kernel/tests/Integration/RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php`
-  - [ ] asserts exact code `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-    when a non-classic HTTP driver is selected but `platform.http` is absent from `ModulePlan`
-- [ ] Additional matrix locks to match `docs/ssot/runtime-drivers.md` examples:
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
+- If Context writes exist:
+  - N/A — this epic writes no context
+- If `kernel.reset` used:
+  - N/A — this epic must not use `kernel.reset`
+- If metrics/spans/logs exist:
+  - N/A — guard does not emit observability directly
+- [x] If redaction exists:
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
+    - [x] asserts diagnostics use only canonical ids from `docs/ssot/runtime-drivers.md`
+    - [x] forbids shortened aliases such as `classic`, `roadrunner`, `worker_queue`
+    - [x] asserts active/conflicting drivers are sorted by canonical id using byte-order `strcmp`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
+    - [x] asserts invalid worker task type does not leak raw config dumps or env values
 
-E2E matrix deterministic locks:
-- [ ] Matrix tests assert deterministic codes:
-  - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT` (conflict combos)
+#### Test harness / fixtures
+
+- [x] Fixture apps:
+  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/config.php`
+  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/modules.php`
+  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/expected.php`
+  - [x] same structure for:
+    - [x] `RoadrunnerHttpApp`
+    - [x] `FrankenphpHttpApp`
+    - [x] `SwooleHttpApp`
+    - [x] `WorkerQueueApp`
+    - [x] `WorkerHttpApp`
+    - [x] `RoadrunnerPlusWorkerHttpApp`
+    - [x] `RoadrunnerPlusWorkerQueueApp`
+    - [x] `FrankenphpPlusWorkerHttpApp`
+    - [x] `FrankenphpPlusWorkerQueueApp`
+    - [x] `SwoolePlusWorkerHttpApp`
+    - [x] `SwoolePlusWorkerQueueApp`
+    - [x] `WorkerHttpWithoutPlatformHttpModuleApp`
+    - [x] `MultipleConfiguredHttpDriversApp`
+    - [x] `WorkerTaskTypeInvalidApp`
+    - [x] `RoadrunnerWithoutPlatformHttpModuleApp`
+    - [x] `FrankenphpWithoutPlatformHttpModuleApp`
+    - [x] `SwooleWithoutPlatformHttpModuleApp`
+- Fake adapters:
+  - N/A — matrix tests must not depend on real adapters or fake server adapters
 
 ### Tests (MUST)
 
 Kernel:
+- Contract:
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigDefaultsContractTest.php`
+    - [x] asserts all three `kernel.runtime.*.enabled` defaults are false
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigRulesContractTest.php`
+    - [x] asserts non-bool values are rejected by config validation
+    - [x] asserts unknown `kernel.runtime.*` keys are rejected
+    - [x] asserts `worker.*` is not introduced into kernel config defaults/rules
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverPublicApiContractTest.php`
+    - [x] asserts runtime-driver public API symbols are listed in `PUBLIC_API.md`
+  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverNoForbiddenDepsContractTest.php`
+    - [x] asserts kernel runtime-driver source does not import `platform/*`
+    - [x] asserts kernel runtime-driver source does not import PSR-7/15 namespaces
+    - [x] asserts kernel runtime-driver source does not import observability ports or `Psr\Log\LoggerInterface`
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsMultipleHttpDriversTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
-    - [ ] asserts diagnostics use only canonical ids from `docs/ssot/runtime-drivers.md`
-    - [ ] forbids shortened aliases such as `classic`, `roadrunner`, `worker_queue`
-    - [ ] asserts active/conflicting drivers are sorted by canonical id using byte-order `strcmp`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsMultipleHttpDriversTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
+  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php`
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php`
-    - [ ] asserts `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+  - [x] `framework/packages/core/kernel/tests/Integration/RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php`
+    - [x] asserts exact code `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+    - [x] asserts non-classic HTTP drivers require `platform.http`
+    - [x] asserts classic HTTP and `bg.worker_queue` do not require `platform.http`
 - Gates/Arch:
-  - [ ] Kernel stays PSR-7/15 free (existing gate)
+  - [x] existing arch/deptrac rails prove no forbidden deps
+  - [x] existing output-free gates prove no stdout/stderr from kernel runtime code
 
 Tooling:
 - Integration:
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
-  - [ ] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php`
+  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGuardTest.php`
+    - [x] asserts the fixture corpus is explicit
+    - [x] asserts all runtime-driver matrix fixtures are read
+    - [x] asserts all fixture apps match `RuntimeDriverGuard`
+    - [x] prevents unused/stale runtime-driver matrix fixtures
 
 ### DoD (MUST)
 
-- [ ] Kernel guard:
-  - [ ] Guard exists + wired in core/kernel
-  - [ ] Deterministic conflict detection tests green
-  - [ ] Rules match `docs/ssot/runtime-drivers.md`
-  - [ ] No forbidden deps (no PSR-7/15, no platform/*)
-  - [ ] Це “єдиний мозок”. Ніхто (ні `platform/worker`, ні runtime adapters) не має мати своїх правил — вони всі викликають Kernel guard.
-- [ ] Tooling matrix locks:
-  - [ ] Matrix tests cover allowed + forbidden combos
-  - [ ] Failing combos assert deterministic error codes from guard:
-    - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT` for conflict combos
-  - [ ] Failing invalid-config combos assert deterministic error code:
-    - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-  - [ ] Tests green in CI
-  - [ ] Цементує матрицю сумісності runtime drivers через E2E тести.
-  - [ ] Доводить, що guard реально викликається і блокує конфліктні комбінації deterministic.
-  - [ ] Доводить “default не заважає”: classic http + queue OK без adapters.
-  - [ ] Tests run against fixture apps with different config/modules enablement.
-- [ ] Non-goals / out of scope:
-  - [ ] Не реалізує runtime adapters і не реалізує worker pool (це інші епіки).
-  - [ ] Не вводить PSR-7/15 в kernel (HARD RULE).
-  - [ ] Tooling не тестує продуктивність; тільки конфіг/guard/boot поведінку.
-- [ ] Concrete lock example:
-  - [ ] When enabling `kernel.runtime.roadrunner.enabled=true` + `worker.enabled=true && worker.task_type=http`, then:
-    - [ ] `RuntimeDriverGuard` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT` before starting any long-running loop, and
-    - [ ] E2E test asserts the same deterministic code.
-- [ ] Reset discipline (kernel.reset) — boundary rule (MUST)
-  - [ ] If this epic introduces any runtime entrypoint/factory/loop:
-    - [ ] it MUST delegate UoW lifecycle to KernelRuntime (1.280.0)
-    - [ ] it MUST NOT call TagRegistry for `kernel.reset`
-    - [ ] it MUST NOT trigger reset anywhere except via KernelRuntime’s standard flow
-  - [ ] If this epic is build-time only:
-    - [ ] reset is N/A (same rule as 1.330.0)
+- [x] Deliverables complete:
+  - [x] all source files in `Creates` exist
+  - [x] all docs in `Creates` exist
+  - [x] all modified files in `Modifies` updated
+  - [x] all fixture files exist with required shape
+- [x] Preconditions satisfied:
+  - [x] no unresolved forward references except explicitly future-owned `worker.*` optional keys
+  - [x] `RuntimeDriverGuard` does not require `platform/worker`, runtime adapters, or PSR-7/15
+- [x] Kernel guard:
+  - [x] guard exists and is wired in `core/kernel`
+  - [x] guard is public Kernel API and listed in `PUBLIC_API.md`
+  - [x] deterministic conflict detection tests green
+  - [x] rules match `docs/ssot/runtime-drivers.md`
+  - [x] no forbidden deps
+  - [x] no platform/runtime adapter owns a competing matrix rule in this epic
+- [x] Tooling matrix locks:
+  - [x] matrix tests cover allowed + forbidden combos
+  - [x] failing conflict combos assert:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+  - [x] failing invalid-config combos assert:
+    - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
+  - [x] tests prove guard is invoked and blocks conflicting combinations deterministically
+  - [x] tests prove default classic HTTP does not block `bg.worker_queue`
+  - [x] tests run against fixture apps with different config/modules enablement
+  - [x] tests green in CI
+- [x] Non-goals / out of scope:
+  - [x] does not implement runtime adapters
+  - [x] does not implement worker pool
+  - [x] does not introduce PSR-7/15 into kernel
+  - [x] does not test performance
+  - [x] does not start long-running loops
+  - [x] does not write/read Kernel artifacts
+- [x] Concrete lock example:
+  - [x] when `kernel.runtime.roadrunner.enabled=true` and `worker.enabled=true && worker.task_type=http`, then:
+    - [x] `RuntimeDriverGuard` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+    - [x] reason is `worker_http_conflicts_with_http_driver`
+    - [x] E2E matrix test asserts the same deterministic code/reason
+- [x] Determinism:
+  - [x] no generated outputs; rerun-no-diff applies only to fixtures/docs/source stability
+  - [x] diagnostics sorted by canonical ids using `strcmp`
+- [x] Docs updated:
+  - [x] `docs/adr/ADR-0027-runtime-driver-guard.md`
+  - [x] `docs/architecture/runtime-driver-guard.md`
+  - [x] `docs/adr/INDEX.md`
+  - [x] `framework/packages/core/kernel/PUBLIC_API.md`
 
 ---
 
@@ -15516,7 +15844,10 @@ config_roots_introduced:
 
 artifacts_introduced: []
 adr: "docs/adr/ADR-0017-worker-manager-application-worker.md"
-ssot_refs: []
+ssot_refs:
+- "docs/ssot/tags.md"
+- "docs/ssot/config-roots.md"
+- "docs/ssot/observability.md"
 ---
 
 ### Dependencies (MUST)
@@ -15534,18 +15865,18 @@ ssot_refs: []
   - 1.350.0 — `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` exists and is the only allowed runtime-composition guard here.
 
 - Guard enforcement (MUST):
-  - Before starting the pool, `coretsia worker:start` MUST invoke
-    `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` and reject conflicting runtime combinations deterministically.
-  - If `worker.task_type=http`, `worker:start` MUST also enforce module compatibility through
-    `RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)`.
+  - Before starting the pool, `WorkerStartCommand` MUST invoke `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` and reject conflicting runtime combinations deterministically.
+  - This epic MAY test `WorkerStartCommand` through direct command invocation or a package-local command harness.
+  - This epic MUST NOT require full `coretsia worker:start` dispatch through `platform/cli` container-backed tag discovery.
+  - Full end-to-end CLI dispatch for `worker:*` commands is owned by `2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops façade`.
+  - If `worker.task_type=http`, `WorkerStartCommand` MUST also enforce module compatibility through `RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)`.
   - Missing `platform.http` in `ModulePlan` MUST fail with:
     - `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
   - This failure MUST happen before `RequestHandlerInterface` resolution.
 
 - Isolation policy (single-choice; cemented):
   - When `worker.enabled=true`, other long-running integrations/adapters MUST NOT become active implicitly.
-  - If `worker.task_type=http`, the application preset MUST provide an HTTP handling stack by registering
-    a `Psr\Http\Server\RequestHandlerInterface` implementation in the container.
+  - If `worker.task_type=http`, the application preset MUST provide an HTTP handling stack by registering a `Psr\Http\Server\RequestHandlerInterface` implementation in the container.
     - Typical future provider: `platform/http` (Phase 2+), but worker MUST NOT require it as a compile-time dependency.
 
 - Hook tags ownership note (MUST):
@@ -15555,8 +15886,7 @@ ssot_refs: []
   - The only allowed lifecycle entrypoint here is:
     - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - Rationale:
-    - hook discovery/order and reset trigger semantics are kernel-owned;
-      `platform/worker` only supplies tasks to the canonical UoW runtime.
+    - hook discovery/order and reset trigger semantics are kernel-owned; `platform/worker` only supplies tasks to the canonical UoW runtime.
 
 - Required deliverables (exact paths):
   - `framework/packages/core/contracts/` — `ResetInterface`, hooks, correlation provider port.
@@ -15569,8 +15899,7 @@ ssot_refs: []
 - Required tags:
   - CLI command discovery (IMPORTANT PHASE NOTE):
     - `platform/worker` contributes CLI commands via the tag `cli.command` **only in kernel/container-backed CLI mode (Phase 1+)**.
-    - Phase 0 CLI base (0.130.0) is config-only (`cli.commands`) and does NOT consume `cli.command`;
-      therefore `worker:*` commands are out of scope for Phase 0 CLI base.
+    - Phase 0 CLI base (0.130.0) is config-only (`cli.commands`) and does NOT consume `cli.command`; therefore `worker:*` commands are out of scope for Phase 0 CLI base.
   - `cli.command` string value MUST be exactly `cli.command` (cemented).
 
 - Hook/reset lifecycle boundary (MUST):
@@ -15585,20 +15914,24 @@ ssot_refs: []
   - Hook interfaces are kernel-owned lifecycle internals here and are NOT direct compile-time API requirements for `platform/worker`.
 
 - Required contracts / ports:
-  - `Psr\Container\ContainerInterface`
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+  - `Psr\Container\ContainerInterface`
   - `Psr\Log\LoggerInterface`
   - (http task mode) `Psr\Http\Message\ServerRequestInterface`, `Psr\Http\Message\ResponseInterface`, `Psr\Http\Server\RequestHandlerInterface`
-  - (CLI) Contract-level command & IO ports from `core/contracts` (the same ports used by `platform/cli` discovery),
-    so `platform/worker` can contribute `cli.command` implementations without depending on `platform/cli`.
+  - (CLI) Contract-level command & IO ports from `core/contracts` (the same ports used by `platform/cli` discovery), so `platform/worker` can contribute `cli.command` implementations without depending on `platform/cli`.
 
 - Non-goals (legacy):
   - Not a RoadRunner replacement (in-framework pool only).
   - No assumption pcntl exists on all OS (driver abstraction).
   - No new cross-package ports (TaskFactory is internal to this package).
 
-- Acceptance scenario (legacy):
-  - When I run `coretsia worker:start`, then a master spawns N workers, and each worker can process many tasks sequentially with reset after each task.
+- Acceptance scenario:
+  - When `WorkerStartCommand` is invoked through direct command invocation or a package-local harness,
+    then a master spawns N workers, and each worker can process many tasks sequentially with reset after each task.
+  - Full `coretsia worker:start` binary dispatch is verified by `2.30.0 Platform CLI`.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -15628,15 +15961,21 @@ Forbidden:
   - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
+  - `Coretsia\Foundation\Time\Stopwatch`
+  - `Coretsia\Foundation\Serialization\StableJsonEncoder`
 
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - **Phase note (cemented):** these commands exist only in **kernel/container-backed CLI mode (Phase 1+)** via tag discovery (`cli.command`).
+  - Phase note (cemented): this epic creates worker command classes and contributes them via the canonical `cli.command` tag only.
     - Phase 0 CLI base (0.130.0) is config-only (`cli.commands`) and does NOT consume `cli.command`.
-  - `coretsia worker:start` → `platform/worker` `src/Console/WorkerStartCommand.php`
-  - `coretsia worker:stop` → `platform/worker` `src/Console/WorkerStopCommand.php`
-  - `coretsia worker:status` → `platform/worker` `src/Console/WorkerStatusCommand.php`
+    - Full `coretsia worker:*` dispatch through container-backed CLI tag discovery is owned by `2.30.0 Platform CLI`.
+  - Created command classes:
+    - `platform/worker` `src/Console/WorkerStartCommand.php` — intended command name `worker:start`
+    - `platform/worker` `src/Console/WorkerStopCommand.php` — intended command name `worker:stop`
+    - `platform/worker` `src/Console/WorkerStatusCommand.php` — intended command name `worker:status`
+  - This epic MUST test worker command behavior through direct command invocation or package-local harnesses.
+  - This epic MUST NOT require `platform/cli` to discover or dispatch these commands.
 
 - HTTP:
   - N/A (worker can execute HTTP tasks internally; does not add endpoints)
@@ -15662,31 +16001,485 @@ Package skeleton:
 - [ ] `framework/packages/platform/worker/src/Module/WorkerModule.php`
 - [ ] `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
 - [ ] `framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+  - [ ] MUST create `WorkerPoolSpec` from validated worker config
+    - [ ] MUST read all required worker config keys:
+      - [ ] `worker.enabled`
+      - [ ] `worker.workers`
+      - [ ] `worker.max_requests`
+      - [ ] `worker.task_type`
+      - [ ] `worker.socket_path`
+      - [ ] `worker.pid_path`
+      - [ ] `worker.driver`
+      - [ ] `worker.control.transport`
+      - [ ] `worker.tcp.host`
+      - [ ] `worker.tcp.port`
+      - [ ] `worker.state_path`
+      - [ ] `worker.stop_flag_path`
+      - [ ] `worker.stop_timeout_ms`
+    - [ ] MUST NOT silently invent missing defaults outside `config/worker.php`
+    - [ ] MUST NOT read environment variables for config defaults
+    - [ ] MUST NOT perform CLI command discovery
+    - [ ] MUST NOT depend on `platform/cli`
+    - [ ] MUST inject logger/tracer/meter/stopwatch dependencies into worker services through DI
+    - [ ] MUST NOT instantiate Noop logger/meter/tracer directly
+  - [ ] MUST inject `ContextAccessorInterface` into services that read context values
+
 - [ ] `framework/packages/platform/worker/README.md` (Observability / Errors / Security-Redaction)
 
 Implementation:
 - [ ] `framework/packages/platform/worker/src/Manager/WorkerManager.php`
-- [ ] `framework/packages/platform/worker/src/Manager/Driver/WorkerManagerDriverInterface.php`
+  - [ ] owns high-level worker pool orchestration: start / stop / status
+  - [ ] MUST accept already-built `WorkerPoolSpec`
+  - [ ] MUST delegate process-specific behavior to `WorkerManagerDriverInterface`
+  - [ ] MUST NOT fork, call `proc_open`, open sockets, or write state files directly when this is driver/store responsibility
+  - [ ] MUST select only an explicitly supported driver for the resolved `WorkerPoolSpec`
+  - [ ] MUST use `ProcWorkerManagerDriver` as deterministic fallback when `pcntl` is unavailable or disabled
+  - [ ] MUST persist pool state only through `WorkerStateStore`
+  - [ ] MUST NOT write `worker.state.json` directly
+  - [ ] MUST NOT write pid/socket/stop files except through the dedicated runtime/storage/control collaborator
+  - [ ] MUST NOT call `RuntimeDriverGuard`; guard enforcement belongs to `WorkerStartCommand` before manager start
+  - [ ] MUST NOT call `KernelRuntimeInterface` directly for individual task execution; that belongs to `ApplicationWorker`
+  - [ ] MUST NOT enumerate `kernel.reset`, `kernel.hook.before_uow`, or `kernel.hook.after_uow`
+  - [ ] MUST NOT call `ResetOrchestrator::resetAll()` directly
+  - [ ] MUST emit `worker.process` span around pool lifecycle operations when tracing port is available
+  - [ ] MUST record `worker.process_total` metric with allowlisted label `status`
+  - [ ] span attributes MAY include only policy-allowed safe attrs:
+    - [ ] `worker_id`
+    - [ ] `pid`
+    - [ ] `outcome`
+  - [ ] `worker_id` and `pid` MUST NOT be metric labels
+  - [ ] MUST emit/log only start/stop/status summary data through injected observability/logger ports
+  - [ ] MUST NOT log payloads, raw socket paths, raw tcp endpoints, absolute paths, or config dumps
+  - [ ] MUST surface deterministic worker exceptions only:
+    - [ ] `WorkerStartFailedException`
+    - [ ] `WorkerForkFailedException`
+    - [ ] `WorkerCommunicationFailedException`
+  - [ ] MUST NOT expose previous throwable messages in public diagnostics
+  - [ ] MUST NOT write to stdout/stderr directly
+  - [ ] MUST NOT write ContextStore values directly
+  - [ ] MAY include safe correlation/uow ids in logs only if provided by context accessor and allowed by redaction policy
+
+- [ ] `framework/packages/platform/worker/src/Internal/WorkerManagerDriverInterface.php`
+  - [ ] package-internal process driver strategy seam only
+  - [ ] MUST be marked `@internal`
+  - [ ] MUST NOT be treated as public package API
+  - [ ] MUST NOT be documented as an extension point in README
+  - [ ] MUST NOT be exported through composer extra metadata
+  - [ ] MUST NOT be moved to `core/contracts`
+  - [ ] Rationale:
+    - [ ] this is not a framework-level port
+    - [ ] this is only the internal seam between `WorkerManager`, `PcntlWorkerManagerDriver`, `ProcWorkerManagerDriver`, and worker package tests
+  - [ ] MUST expose deterministic driver identity:
+    - [ ] `name(): string` returning `pcntl` or `proc`
+  - [ ] MUST expose deterministic support check:
+    - [ ] `supports(WorkerPoolSpec $spec): bool`
+  - [ ] MUST expose lifecycle operations:
+    - [ ] `start(WorkerPoolSpec $spec): WorkerPoolState`
+    - [ ] `stop(WorkerPoolSpec $spec): WorkerPoolState`
+    - [ ] `status(WorkerPoolSpec $spec): WorkerPoolState`
+  - [ ] lifecycle methods MUST return immutable `WorkerPoolState`
+  - [ ] lifecycle methods MUST throw deterministic worker exceptions on failure
+  - [ ] MUST NOT use stdout/stderr directly
+  - [ ] MUST NOT log payloads or raw endpoints
+  - [ ] MUST NOT contain task execution logic
+  - [ ] MUST NOT call `KernelRuntimeInterface`
+  - [ ] MUST NOT know about CLI command dispatch or `platform/cli`
+  - [ ] MUST NOT depend on `platform/http`
+
 - [ ] `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
+  - [ ] implements `WorkerManagerDriverInterface`
+  - [ ] `name()` MUST return `pcntl`
+  - [ ] `supports(...)` MUST return false deterministically when:
+    - [ ] `pcntl_fork` is unavailable
+    - [ ] platform is Windows
+    - [ ] resolved worker driver is not `pcntl`
+  - [ ] MUST be skipped/disabled deterministically when pcntl is unavailable
+  - [ ] MUST NOT fail just because pcntl is unavailable when `worker.driver=auto`; fallback selection must choose `proc`
+  - [ ] MUST fork exactly `worker.workers` child workers when selected
+  - [ ] MUST track master pid and worker count without writing raw process details into unsafe diagnostics
+  - [ ] MUST respect `worker.max_requests`
+  - [ ] MUST respect graceful stop via stop flag / control channel according to `WorkerPoolSpec`
+  - [ ] MUST return `WorkerPoolState` with resolved driver `pcntl`
+  - [ ] MUST NOT write `worker.state.json` directly; state persistence goes through `WorkerStateStore`
+  - [ ] MUST NOT transmit raw task payloads over the control channel
+  - [ ] MUST NOT log raw socket path, raw tcp endpoint, task payload, headers, tokens, or config dumps
+  - [ ] MUST convert fork failure into `WorkerForkFailedException::forkFailed()`
+  - [ ] MUST convert communication/control failures into `WorkerCommunicationFailedException::communicationFailed()`
+  - [ ] MUST catch logger/meter/tracer failures and MUST NOT let observability failures change worker control flow
+  - [ ] MUST NOT write to stdout/stderr directly
+
 - [ ] `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
+  - [ ] implements `WorkerManagerDriverInterface`
+  - [ ] `name()` MUST return `proc`
+  - [ ] MUST be the cross-platform fallback
+  - [ ] MUST support resolved worker driver `proc`
+  - [ ] MUST support `worker.driver=auto` after fallback resolution has selected `proc`
+  - [ ] MUST start child worker processes without relying on pcntl
+  - [ ] MUST construct process commands deterministically
+  - [ ] MUST NOT shell-inject untrusted config values
+  - [ ] MUST NOT expose full command lines, absolute paths, env values, or raw endpoints in public diagnostics
+  - [ ] MUST respect `worker.workers`
+  - [ ] MUST respect `worker.max_requests`
+  - [ ] MUST respect graceful stop via stop flag / control channel according to `WorkerPoolSpec`
+  - [ ] MUST return `WorkerPoolState` with resolved driver `proc`
+  - [ ] MUST NOT write `worker.state.json` directly; state persistence goes through `WorkerStateStore`
+  - [ ] MUST NOT transmit raw task payloads over the control channel
+  - [ ] MUST convert process start failures into `WorkerStartFailedException::startFailed()` or a narrower worker exception when applicable
+  - [ ] MUST convert communication/control failures into `WorkerCommunicationFailedException::communicationFailed()`
+  - [ ] MUST catch logger/meter/tracer failures and MUST NOT let observability failures change worker control flow
+  - [ ] MUST NOT write to stdout/stderr directly
+
 - [ ] `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
+  - [ ] owns sequential task execution inside a long-running worker child
+  - [ ] MUST process many tasks sequentially without restarting PHP
+  - [ ] MUST execute each task as a separate UoW only through `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+  - [ ] MUST pass the resolved UoW type (`http` or `queue`) into `KernelRuntimeInterface`
+  - [ ] MAY read safe context values for observability/log correlation only:
+    - [ ] `ContextKeys::CORRELATION_ID`
+    - [ ] `ContextKeys::UOW_ID`
+    - [ ] `ContextKeys::UOW_TYPE`
+  - [ ] MUST NOT write context directly
+  - [ ] MUST NOT create its own UoW id
+  - [ ] MUST NOT create its own correlation id
+  - [ ] MUST NOT override `uow_type` after passing it to `KernelRuntimeInterface`
+  - [ ] MUST NOT write context directly; KernelRuntime owns base `ContextStore` writes
+  - [ ] MUST NOT invoke kernel hooks directly
+  - [ ] MUST NOT enumerate `kernel.hook.before_uow` / `kernel.hook.after_uow`
+  - [ ] MUST NOT enumerate `kernel.reset`
+  - [ ] MUST NOT call `ResetOrchestrator::resetAll()` directly
+  - [ ] MUST stop/recycle after `worker.max_requests`
+  - [ ] MUST observe graceful stop requests between tasks
+  - [ ] MUST NOT interrupt an in-flight task unless future cancellation semantics are explicitly introduced
+  - [ ] MUST obtain task work only through `TaskFactoryInternalInterface`
+  - [ ] MUST NOT implement queue adapter or HTTP adapter logic itself
+  - [ ] MUST emit `worker.task` span / task metrics around task execution
+  - [ ] metric labels MUST be only allowlisted labels:
+    - [ ] `operation`
+    - [ ] `outcome`
+  - [ ] resolved task type MUST be passed as UoW type only and MUST NOT become a metric label
+  - [ ] MUST emit `worker.task` span around each task when tracing port is available
+  - [ ] MUST record `worker.task_total` with labels:
+    - [ ] `operation`
+    - [ ] `outcome`
+  - [ ] MUST record `worker.task_duration_ms` with labels:
+    - [ ] `operation`
+    - [ ] `outcome`
+  - [ ] MUST measure duration using Foundation `Stopwatch`
+  - [ ] MUST catch tracer/meter failures and MUST NOT change task control-flow semantics
+  - [ ] MUST NOT log raw payloads
+  - [ ] MUST NOT write to stdout/stderr directly
+
 - [ ] `framework/packages/platform/worker/src/Internal/TaskFactoryInternalInterface.php`
+  - [ ] package-internal task factory seam only
+  - [ ] MUST be marked `@internal`
+  - [ ] MUST NOT be treated as public package API
+  - [ ] MUST NOT be documented as an extension point in README
+  - [ ] MUST NOT be exported through composer extra metadata
+  - [ ] MUST NOT be moved to `core/contracts`
+  - [ ] Rationale:
+    - [ ] this is not a framework-level task-source port
+    - [ ] this epic does not introduce external worker task providers
+    - [ ] real HTTP/queue task sources are owned by later `platform/http` or integration epics
+  - [ ] MUST produce package-internal task work consumed by `ApplicationWorker`
+  - [ ] produced task work MUST expose a safe operation id for observability
+  - [ ] produced operation id MUST be deterministic and safe for metric label `operation`
+  - [ ] MUST NOT expose raw payloads through operation ids
+  - [ ] MUST NOT expose raw socket paths, raw tcp endpoints, headers, tokens, or config values
+  - [ ] MUST support task types defined by worker config:
+    - [ ] `queue`
+    - [ ] `http`
+  - [ ] MUST fail deterministically for unsupported task types
+  - [ ] MUST NOT read from `platform/cli`
+  - [ ] MUST NOT depend on `platform/http`
+  - [ ] MUST NOT write to stdout/stderr directly
+
 - [ ] `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
+  - [ ] implements `TaskFactoryInternalInterface`
+  - [ ] handles `worker.task_type=http`
+  - [ ] MUST NOT create PSR-7 requests itself
+  - [ ] MUST NOT implement a real HTTP request source in this epic
+  - [ ] MUST NOT depend on `platform/http`
+  - [ ] MUST NOT import `Coretsia\Platform\Http\*`
+  - [ ] MAY validate that `Psr\Http\Server\RequestHandlerInterface` is resolvable
+  - [ ] MUST fail deterministically with `WorkerStartFailedException::requestHandlerMissing()` when HTTP task mode requires a handler and it is not resolvable
+  - [ ] request handler missing failure MUST happen only after RuntimeDriverGuard/module compatibility has already passed
+  - [ ] MUST NOT bypass `RuntimeDriverGuard`
+  - [ ] MUST NOT transmit or log raw HTTP payloads
+  - [ ] MUST NOT log headers, cookies, Authorization, tokens, or body fragments
+  - [ ] MUST expose safe operation id such as `http`
+  - [ ] MUST NOT write to stdout/stderr directly
+  - [ ] real HTTP task payload production remains owned by a later `platform/http` or runtime adapter epic
+
 - [ ] `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
+  - [ ] implements `TaskFactoryInternalInterface`
+  - [ ] handles `worker.task_type=queue`
+  - [ ] MUST NOT implement a real external queue adapter in this epic
+  - [ ] MUST NOT depend on integrations or external queue packages
+  - [ ] MAY produce deterministic package-local queue task work for smoke/integration tests
+  - [ ] MUST execute queue task work through `KernelRuntimeInterface` via `ApplicationWorker`
+  - [ ] MUST expose safe operation id such as `queue`
+  - [ ] MUST NOT expose raw queue payloads
+  - [ ] MUST NOT log raw payloads
+  - [ ] MUST NOT transmit payloads over control socket
+  - [ ] MUST NOT write to stdout/stderr directly
+  - [ ] future real queue sources/adapters MUST be introduced by later epics
+
 - [ ] `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`
+  - [ ] owns worker control channel behavior
+  - [ ] MUST support resolved control transport:
+    - [ ] `unix`
+    - [ ] `tcp`
+  - [ ] MUST NOT be used for task payload transport
+  - [ ] control protocol MUST be payload-free
+  - [ ] MUST support only safe control operations:
+    - [ ] start/status summary as applicable
+    - [ ] stop request
+    - [ ] health/status query
+  - [ ] MUST NOT transmit raw task payloads
+  - [ ] MUST NOT log raw socket path
+  - [ ] MUST NOT log raw tcp host/port
+  - [ ] MUST hash endpoint identifiers before logging/state output
+  - [ ] MUST convert communication failures into `WorkerCommunicationFailedException::communicationFailed()`
+  - [ ] MUST NOT expose absolute paths, socket paths, tcp endpoints, payload fragments, headers, or tokens in exceptions
+  - [ ] MUST NOT write to stdout/stderr directly
+
 - [ ] `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
+  - [ ] package worker start command class
+  - [ ] intended command name MUST be `worker:start`
+  - [ ] MUST use contract-level CLI command / input / output ports from `core/contracts`
+  - [ ] MUST NOT depend on `platform/cli`
+  - [ ] MUST be invokable directly or through a package-local command harness in this epic
+  - [ ] MUST NOT require full `coretsia worker:start` binary/catalog dispatch
+  - [ ] MUST invoke `RuntimeDriverGuard` before starting the pool
+  - [ ] MUST surface guard failures without translating them into worker-specific conflict codes
+  - [ ] MUST call `RuntimeDriverGuard::assertCompatible(...)` before start
+  - [ ] when `worker.task_type=http`, MUST call `RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)`
+  - [ ] RuntimeDriverGuard failure MUST happen before:
+    - [ ] `RequestHandlerInterface` resolution
+    - [ ] process fork
+    - [ ] `proc_open`
+    - [ ] socket open
+    - [ ] pid file write
+    - [ ] state file write
+    - [ ] stop flag write
+  - [ ] MUST build or receive `WorkerPoolSpec` from validated config
+  - [ ] MUST delegate pool startup to `WorkerManager`
+  - [ ] MUST use only CLI output abstraction, never raw stdout/stderr
+  - [ ] MUST NOT echo/print/printf/var_dump/print_r/error_log
+  - [ ] MUST NOT expose raw config values, raw endpoints, absolute paths, env values, payloads, headers, or tokens
+  - [ ] MUST log/emit only redacted start summary through allowed logger/observability ports
+  - [ ] MUST NOT write ContextStore values directly
+  - [ ] MUST let KernelRuntime own runtime UoW context writes
+  - [ ] MAY log start summary only through `LoggerInterface`
+  - [ ] start summary MUST NOT contain raw socket path, raw tcp endpoint, absolute paths, config dumps, env values, payloads, headers, or tokens
+
 - [ ] `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
+  - [ ] package worker stop command class
+  - [ ] intended command name MUST be `worker:stop`
+  - [ ] MUST use contract-level CLI command / input / output ports from `core/contracts`
+  - [ ] MUST NOT depend on `platform/cli`
+  - [ ] MUST be invokable directly or through a package-local command harness in this epic
+  - [ ] MUST NOT require full binary/catalog dispatch
+  - [ ] MUST delegate stop behavior to `WorkerManager` or dedicated control service
+  - [ ] MUST use configured stop flag / control transport through `WorkerPoolSpec`
+  - [ ] MUST NOT write stop files directly if stop handling is owned by manager/driver/control collaborator
+  - [ ] MUST handle “not running” deterministically
+  - [ ] MUST NOT expose raw pid path, socket path, tcp endpoint, or absolute path in diagnostics
+  - [ ] MUST use only CLI output abstraction, never raw stdout/stderr
+  - [ ] MUST NOT log payloads
+  - [ ] MUST NOT write ContextStore values directly
+  - [ ] MUST let KernelRuntime own runtime UoW context writes
+  - [ ] MAY log stop summary only through `LoggerInterface`
+  - [ ] stop summary MUST NOT contain raw socket path, raw tcp endpoint, absolute paths, config dumps, env values, payloads, headers, or tokens
+
 - [ ] `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
+  - [ ] package worker status command class
+  - [ ] intended command name MUST be `worker:status`
+  - [ ] MUST use contract-level CLI command / input / output ports from `core/contracts`
+  - [ ] MUST NOT depend on `platform/cli`
+  - [ ] MUST be invokable directly or through a package-local command harness in this epic
+  - [ ] MUST NOT require full binary/catalog dispatch
+  - [ ] MUST read worker state only through `WorkerStateStore` or manager status API
+  - [ ] MUST output only safe status data:
+    - [ ] pid
+    - [ ] worker count
+    - [ ] resolved driver
+    - [ ] resolved control transport
+    - [ ] endpoint hash
+    - [ ] operation/outcome summary
+  - [ ] MUST NOT output raw socket path
+  - [ ] MUST NOT output raw tcp host/port
+  - [ ] MUST NOT output absolute paths
+  - [ ] MUST NOT output payloads, headers, tokens, config dumps, or env values
+  - [ ] MUST use only CLI output abstraction, never raw stdout/stderr
+  - [ ] MUST NOT write ContextStore values directly
+  - [ ] MUST let KernelRuntime own runtime UoW context writes
+  - [ ] MAY log status summary only through `LoggerInterface`
+  - [ ] status summary MUST use endpoint hash only
+  - [ ] status summary MUST NOT contain raw socket path, raw tcp endpoint, absolute paths, config dumps, env values, payloads, headers, or tokens
+
 - [ ] `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
+  - [ ] only class allowed to write `worker.state.json`
+  - [ ] MUST read and write worker state using `WorkerPoolState`
+  - [ ] MUST use `Coretsia\Foundation\Serialization\StableJsonEncoder`
+  - [ ] MUST NOT call raw `json_encode(...)` directly unless wrapped to provide identical canonical behavior
+  - [ ] MUST preserve cemented schema:
+    - [ ] `version`
+    - [ ] `pid`
+    - [ ] `worker_count`
+    - [ ] `driver_requested`
+    - [ ] `driver`
+    - [ ] `control_transport_requested`
+    - [ ] `control_transport`
+    - [ ] `endpoint_hash`
+  - [ ] `version` MUST be exactly `1`
+  - [ ] `started_at` MUST be forbidden
+  - [ ] `env` MUST be forbidden
+  - [ ] MUST NOT persist timestamps
+  - [ ] MUST NOT persist raw socket path
+  - [ ] MUST NOT persist raw tcp host/port
+  - [ ] MUST NOT persist absolute paths
+  - [ ] MUST NOT persist task payloads
+  - [ ] MUST compute endpoint hash from canonical endpoint identifier:
+    - [ ] unix: `unix:` + configured socket path exactly
+    - [ ] tcp: `tcp:` + host + `:` + resolved port
+  - [ ] hash encoding MUST be lowercase hex sha256
+  - [ ] MUST normalize LF and ensure final newline
+  - [ ] MUST not expose absolute paths in exceptions/logs
+  - [ ] MUST not expose raw state file path in public diagnostics
+  - [ ] MAY use atomic write mechanics, but persisted JSON bytes MUST remain deterministic for the same state
+  - [ ] MUST return deterministic failure exceptions on invalid/unreadable state
+
 - [ ] `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
+  - [ ] immutable normalized worker pool specification
+  - [ ] MUST represent validated `worker.*` config input
+  - [ ] MUST be built from the complete worker config key set:
+    - [ ] `worker.enabled`
+    - [ ] `worker.workers`
+    - [ ] `worker.max_requests`
+    - [ ] `worker.task_type`
+    - [ ] `worker.socket_path`
+    - [ ] `worker.pid_path`
+    - [ ] `worker.driver`
+    - [ ] `worker.control.transport`
+    - [ ] `worker.tcp.host`
+    - [ ] `worker.tcp.port`
+    - [ ] `worker.state_path`
+    - [ ] `worker.stop_flag_path`
+    - [ ] `worker.stop_timeout_ms`
+  - [ ] MUST preserve default values exactly as defined by `framework/packages/platform/worker/config/worker.php`
+  - [ ] MUST preserve path values as relative strings:
+    - [ ] `socket_path`
+    - [ ] `pid_path`
+    - [ ] `state_path`
+    - [ ] `stop_flag_path`
+  - [ ] MUST NOT prepend `skeleton/` to stored path values
+  - [ ] MUST expose resolved values separately from requested values:
+    - [ ] requested driver: `auto|pcntl|proc`
+    - [ ] resolved driver: `pcntl|proc`
+    - [ ] requested control transport: `auto|unix|tcp`
+    - [ ] resolved control transport: `unix|tcp`
+  - [ ] MUST expose endpoint identifier for hashing without exposing it in logs/public diagnostics
+  - [ ] MUST expose:
+    - [ ] `enabled(): bool`
+    - [ ] `workers(): int`
+    - [ ] `maxRequests(): int`
+    - [ ] `taskType(): string`
+    - [ ] `driverRequested(): string`
+    - [ ] `driver(): string`
+    - [ ] `controlTransportRequested(): string`
+    - [ ] `controlTransport(): string`
+    - [ ] `socketPath(): string`
+    - [ ] `pidPath(): string`
+    - [ ] `statePath(): string`
+    - [ ] `stopFlagPath(): string`
+    - [ ] `tcpHost(): string`
+    - [ ] `tcpPort(): int`
+    - [ ] `stopTimeoutMs(): int`
+  - [ ] MUST normalize defaults exactly from `config/worker.php`
+  - [ ] MUST keep configured paths relative
+  - [ ] MUST NOT expand relative paths with `realpath`
+  - [ ] MUST NOT store absolute paths
+  - [ ] MUST resolve `worker.driver=auto` deterministically:
+    - [ ] `pcntl` when `pcntl_fork` is available and platform is not Windows
+    - [ ] otherwise `proc`
+  - [ ] MUST resolve `worker.control.transport=auto` deterministically:
+    - [ ] `unix` when resolved driver is `pcntl` and unix domain sockets are supported
+    - [ ] otherwise `tcp`
+  - [ ] MUST reject or receive already-rejected invalid values:
+    - [ ] workers <= 0
+    - [ ] max_requests <= 0
+    - [ ] tcp port outside `1..65535`
+    - [ ] tcp port `0`
+    - [ ] float values
+    - [ ] absolute paths
+    - [ ] unknown enum values
+  - [ ] MUST expose deterministic endpoint identifier for hashing
+  - [ ] MUST NOT expose raw endpoint in logs/exception messages
+  - [ ] MUST NOT read environment variables except deterministic capability checks needed for driver/transport auto-resolution
+  - [ ] MUST NOT write files
+  - [ ] MUST NOT emit stdout/stderr
+  - [ ] auto-resolution MUST be testable with explicit capability inputs
+  - [ ] tests MUST NOT depend on the host machine actually having pcntl or unix sockets
+  - [ ] production resolution MAY use deterministic runtime capability checks:
+    - [ ] `pcntl_fork` availability
+    - [ ] platform family
+    - [ ] unix domain socket support
+
 - [ ] `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
+  - [ ] immutable runtime pool state DTO
+  - [ ] MUST represent only safe state fields allowed in `worker.state.json`
+  - [ ] MUST expose:
+    - [ ] `version(): int`
+    - [ ] `pid(): int`
+    - [ ] `workerCount(): int`
+    - [ ] `driverRequested(): string`
+    - [ ] `driver(): string`
+    - [ ] `controlTransportRequested(): string`
+    - [ ] `controlTransport(): string`
+    - [ ] `endpointHash(): string`
+    - [ ] `toArray(): array`
+  - [ ] `version()` MUST always be `1`
+  - [ ] `toArray()` MUST return stable keys matching the cemented JSON schema
+  - [ ] `toArray()` MUST NOT include:
+    - [ ] timestamps
+    - [ ] env
+    - [ ] raw socket path
+    - [ ] raw tcp host/port
+    - [ ] absolute paths
+    - [ ] payloads
+    - [ ] headers
+    - [ ] tokens
+  - [ ] MUST validate pid and worker count as ints
+  - [ ] MUST validate resolved driver is only `pcntl|proc`
+  - [ ] MUST validate resolved transport is only `unix|tcp`
+  - [ ] MUST validate `endpoint_hash` is lowercase hex sha256
+  - [ ] MUST NOT write files
+  - [ ] MUST NOT emit stdout/stderr
+
+- [ ] Worker observability dependencies MUST be injected through public ports/interfaces plus Foundation `Stopwatch`.
+  - [ ] worker services MUST receive logger/tracer/meter/stopwatch from DI
+  - [ ] worker services MUST NOT instantiate Noop logger/meter/tracer implementations directly
+  - [ ] worker services MUST NOT construct observability adapters directly
+  - [ ] logger/meter/tracer failures MUST be caught
+  - [ ] logger/meter/tracer failures MUST NOT change worker control-flow semantics
+  - [ ] spans MUST use names registered in `docs/ssot/observability.md`
+  - [ ] metrics MUST use names registered in `docs/ssot/observability.md`
+  - [ ] metric labels MUST stay within allowlist:
+    - [ ] `status`
+    - [ ] `operation`
+    - [ ] `outcome`
+  - [ ] worker id and pid MAY be span attributes only if allowed by observability policy
+  - [ ] worker id and pid MUST NOT be metric labels
+  - [ ] path/socket/endpoint/payload/exception class/error reason MUST NOT be metric labels
+  - [ ] logs MUST contain summary only
+  - [ ] logs MUST NOT contain payloads, raw endpoints, absolute paths, config dumps, env values, headers, tokens, or stack traces
 
 Docs:
 - [ ] `docs/adr/ADR-0017-worker-manager-application-worker.md`
 - [ ] `docs/architecture/worker.md` — MUST include:
   - [ ] process model (master + N workers) and driver selection (`pcntl` vs `proc_open`)
-  - [ ] reset discipline between UoW is achieved only transitively via `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
-    (`begin -> before hooks -> task -> after hooks -> ResetOrchestrator::resetAll()`).
+  - [ ] reset discipline between UoW is achieved only transitively via `Coretsia\Contracts\Runtime\KernelRuntimeInterface` (`begin -> before hooks -> task -> after hooks -> ResetOrchestrator::resetAll()`).
   - [ ] `platform/worker` MUST NOT call hooks or `ResetOrchestrator` directly.
   - [ ] safety limits (`max_requests`, graceful shutdown, stop timeout)
   - [ ] ops notes (pid/state files, control transport, redaction rules)
@@ -15696,8 +16489,7 @@ Configuration:
 - [ ] `framework/packages/platform/worker/config/rules.php`
 
 Wiring / tags constants:
-- [ ] `framework/packages/platform/worker/src/Provider/Tags.php` — local tag constants to avoid typos
-  (allowed because `platform/cli` is a forbidden compile-time dependency here):
+- [ ] `framework/packages/platform/worker/src/Provider/Tags.php` — local tag constants to avoid typos (allowed because `platform/cli` is a forbidden compile-time dependency here):
   - [ ] `public const CLI_COMMAND = 'cli.command';`
   - [ ] Policy:
     - [ ] The canonical string value is cemented (`cli.command`).
@@ -15711,6 +16503,53 @@ Artifacts (runtime outputs):
 - [ ] `skeleton/var/tmp/worker.state.json`
 - [ ] `skeleton/var/tmp/worker.stop`
 
+- [ ] `framework/packages/platform/worker/tests/Fake/FakeWorkerManagerDriver.php`
+  - [ ] simulates spawn/stop/status deterministically
+  - [ ] does not fork
+  - [ ] does not call proc_open
+  - [ ] does not use sockets
+  - [ ] used by unit/integration tests that verify manager lifecycle and max_requests behavior
+
+Error:
+- [ ] `framework/packages/platform/worker/src/Exception/WorkerException.php`
+  - [ ] abstract base exception for package-level worker failures
+  - [ ] MUST expose:
+    - [ ] `errorCode(): string`
+    - [ ] `reason(): string`
+  - [ ] public message MUST be deterministic:
+    - [ ] `<ERROR_CODE>: <reason>`
+  - [ ] MUST NOT be thrown directly unless no narrower worker exception applies
+  - [ ] MUST NOT expose previous throwable messages in public diagnostics
+  - [ ] `WorkerException` messages MUST be stable and MUST NOT include:
+    - [ ] absolute paths (POSIX/Windows/UNC),
+    - [ ] raw socket paths, raw tcp endpoints,
+    - [ ] payload fragments, headers, tokens.
+
+- [ ] `framework/packages/platform/worker/src/Exception/WorkerStartFailedException.php`
+  - [ ] errorCode: `CORETSIA_WORKER_START_FAILED`
+  - [ ] reasons:
+    - [ ] `start_failed`
+    - [ ] `invalid_state`
+    - [ ] `request_handler_missing`
+  - [ ] named constructors:
+    - [ ] `startFailed(): self`
+    - [ ] `invalidState(): self`
+    - [ ] `requestHandlerMissing(): self`
+
+- [ ] `framework/packages/platform/worker/src/Exception/WorkerForkFailedException.php`
+  - [ ] errorCode: `CORETSIA_WORKER_FORK_FAILED`
+  - [ ] reasons:
+    - [ ] `fork_failed`
+  - [ ] named constructors:
+    - [ ] `forkFailed(): self`
+
+- [ ] `framework/packages/platform/worker/src/Exception/WorkerCommunicationFailedException.php`
+  - [ ] errorCode: `CORETSIA_WORKER_COMMUNICATION_FAILED`
+  - [ ] reasons:
+    - [ ] `communication_failed`
+  - [ ] named constructors:
+    - [ ] `communicationFailed(): self`
+
 Tests:
 - [ ] `framework/packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php`
 - [ ] `framework/packages/platform/worker/tests/Unit/SocketProtocolDoesNotLeakPayloadTest.php`
@@ -15720,6 +16559,8 @@ Tests:
 - [ ] `framework/packages/platform/worker/tests/Fixtures/WorkerApp/config/modes/micro.php`
   - [ ] fixture app MUST express module enable/disable through a mode override, not through `config/modules.php`
 - [ ] `framework/packages/platform/worker/tests/Integration/WorkerStartRejectsHttpTaskWithoutPlatformHttpModuleTest.php`
+  - [ ] asserts `WorkerStartCommand` invokes `RuntimeDriverGuard` through direct command invocation or package-local harness
+  - [ ] MUST NOT require `platform/cli` command catalog discovery
 
 Add contract-style tests (Phase 0 aligned):
 - [ ] `framework/packages/platform/worker/tests/Contract/WorkerStateJsonContainsNoAbsolutePathsTest.php`
@@ -15742,10 +16583,13 @@ Add config contract tests (policy rails):
   - [ ] rejects any float anywhere under `worker.*` subtree (safe deterministic messages)
 
 - [ ] `framework/packages/platform/worker/tests/Integration/WorkerStartRejectsRuntimeDriverConflictTest.php`
-  - [ ] asserts `worker:start` invokes `RuntimeDriverGuard`
+  - [ ] asserts `WorkerStartCommand` invokes `RuntimeDriverGuard` through direct command invocation or package-local harness
+  - [ ] MUST NOT require `platform/cli` command catalog discovery
   - [ ] asserts conflict is surfaced with:
     - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
 - [ ] `framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php`
+  - [ ] asserts `WorkerStartCommand` invokes `RuntimeDriverGuard` through direct command invocation or package-local harness
+  - [ ] MUST NOT require `platform/cli` command catalog discovery
   - [ ] covers the later DI/runtime failure only after runtime-driver/module compatibility has already passed
   - [ ] asserts `worker.task_type=http` hard-fails deterministically when `Psr\Http\Server\RequestHandlerInterface` is not resolvable
 
@@ -15759,14 +16603,41 @@ Add config contract tests (policy rails):
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0017-worker-manager-application-worker.md`
 
+- [ ] `docs/ssot/observability.md`
+  - [ ] register worker spans:
+    - [ ] `worker.process`
+    - [ ] `worker.task`
+  - [ ] register worker metrics:
+    - [ ] `worker.process_total`
+    - [ ] `worker.task_total`
+    - [ ] `worker.task_duration_ms`
+  - [ ] register label allowlist:
+    - [ ] `status`
+    - [ ] `operation`
+    - [ ] `outcome`
+  - [ ] MUST NOT allow worker id, pid, path, socket, endpoint, payload, exception class, or error reason as metric labels
+
 #### Package skeleton (if type=package)
 
 - [ ] `framework/packages/platform/worker/composer.json`
+  - [ ] package name MUST be `coretsia/platform-worker`
+  - [ ] type MUST be `library`
   - [ ] MUST require runtime packages:
     - [ ] `psr/container`
     - [ ] `psr/log`
     - [ ] `psr/http-message`
     - [ ] `psr/http-server-handler`
+  - [ ] autoload PSR-4:
+    - [ ] `Coretsia\\Platform\\Worker\\` => `src/`
+  - [ ] autoload-dev PSR-4:
+    - [ ] `Coretsia\\Platform\\Worker\\Tests\\` => `tests/`
+  - [ ] composer extra MUST define:
+    - [ ] `kind = runtime`
+    - [ ] `moduleId = platform.worker`
+    - [ ] `moduleClass = Coretsia\\Platform\\Worker\\Module\\WorkerModule`
+    - [ ] providers:
+      - [ ] `Coretsia\\Platform\\Worker\\Provider\\WorkerServiceProvider`
+    - [ ] defaultsConfigPath = `config/worker.php`
 - [ ] `framework/packages/platform/worker/src/Module/WorkerModule.php`
 - [ ] `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
 - [ ] `framework/packages/platform/worker/config/worker.php`
@@ -15782,24 +16653,24 @@ Add config contract tests (policy rails):
   - [ ] `worker.workers` = 4
   - [ ] `worker.max_requests` = 1000
   - [ ] `worker.task_type` = "queue"  # allowed: "http" | "queue"
-  - [ ] `worker.socket_path` = "skeleton/var/tmp/worker.sock"
-  - [ ] `worker.pid_path` = "skeleton/var/tmp/worker.pid"
+  - [ ] `worker.socket_path` = "var/tmp/worker.sock"
+  - [ ] `worker.pid_path` = "var/tmp/worker.pid"
   - [ ] `worker.driver` = "auto" # "pcntl"|"proc"
   - [ ] `worker.control.transport` = "auto" # "unix"|"tcp"
   - [ ] `worker.tcp.host` = "127.0.0.1"
   - [ ] `worker.tcp.port` = 9327
-  - [ ] `worker.state_path` = "skeleton/var/tmp/worker.state.json"
-  - [ ] `worker.stop_flag_path` = "skeleton/var/tmp/worker.stop"
+  - [ ] `worker.state_path` = "var/tmp/worker.state.json"
+  - [ ] `worker.stop_flag_path` = "var/tmp/worker.stop"
   - [ ] `worker.stop_timeout_ms` = 3000
 - [ ] Rules:
   - [ ] `framework/packages/platform/worker/config/rules.php` enforces shape
-  - [ ] **Reserved namespace parity (cemented):**
+  - [ ] Reserved namespace parity (cemented):
     - [ ] any key starting with `@` under `worker` subtree (any depth) MUST hard-fail
-  - [ ] **No absolute paths (cemented):**
+  - [ ] No absolute paths (cemented):
     - [ ] `worker.socket_path`, `worker.pid_path`, `worker.state_path`, `worker.stop_flag_path` MUST be relative paths (reject POSIX/Windows/UNC absolute forms deterministically)
-  - [ ] **No floats (cemented):**
+  - [ ] No floats (cemented):
     - [ ] numeric keys under `worker.*` MUST be `int` only (reject float/NaN/INF)
-  - [ ] **Explicit enum / bounds rules (cemented):**
+  - [ ] Explicit enum / bounds rules (cemented):
     - [ ] `worker.enabled` MUST be `bool`
     - [ ] `worker.workers` MUST be `int > 0`
     - [ ] `worker.max_requests` MUST be `int > 0`
@@ -15829,7 +16700,10 @@ Add config contract tests (policy rails):
   - [ ] tags worker CLI command services with canonical tag `cli.command`
   - [ ] command-name metadata/schema for `cli.command` is owned only by `platform/cli`
   - [ ] this epic MUST NOT define a competing `cli.command` meta contract
-  - [ ] until the owner `platform/cli` epic cements tag metadata semantics, the only hard requirement here is the canonical tag string equality (`cli.command`) and successful command discovery through the CLI owner implementation
+  - [ ] until the owner `platform/cli` epic cements tag metadata semantics, this epic MUST NOT require command metadata beyond the canonical tag string equality (`cli.command`).
+  - [ ] This epic only contributes worker command services via `cli.command`.
+  - [ ] This epic MUST NOT assert full command catalog discovery or binary dispatch through `platform/cli`.
+  - [ ] Full discovery/dispatch assertions for worker commands belong to `2.30.0 Platform CLI`.
 
 #### Artifacts / outputs (if applicable)
 
@@ -15881,8 +16755,7 @@ Add config contract tests (policy rails):
   - [ ] `ContextKeys::UOW_TYPE`
 - [ ] Context writes:
   - N/A directly in `platform/worker`
-  - [ ] worker passes the UoW type (`http|queue`) into `Coretsia\Contracts\Runtime\KernelRuntimeInterface`;
-    KernelRuntime owns base `ContextStore` writes
+  - [ ] worker passes the UoW type (`http|queue`) into `Coretsia\Contracts\Runtime\KernelRuntimeInterface`; KernelRuntime owns base `ContextStore` writes
 - [ ] Reset discipline:
   - [ ] each task is executed as a separate UoW via `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - [ ] after each task, reset happens only through the standard KernelRuntime flow:
@@ -15915,10 +16788,10 @@ Add config contract tests (policy rails):
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/worker/src/Exception/WorkerException.php` — errorCodes:
-    - [ ] `CORETSIA_WORKER_START_FAILED`
-    - [ ] `CORETSIA_WORKER_FORK_FAILED`
-    - [ ] `CORETSIA_WORKER_COMMUNICATION_FAILED`
+  - [ ] `Coretsia\Platform\Worker\Exception\WorkerException` — abstract/base package exception
+  - [ ] `Coretsia\Platform\Worker\Exception\WorkerStartFailedException` — errorCode `CORETSIA_WORKER_START_FAILED`
+  - [ ] `Coretsia\Platform\Worker\Exception\WorkerForkFailedException` — errorCode `CORETSIA_WORKER_FORK_FAILED`
+  - [ ] `Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException` — errorCode `CORETSIA_WORKER_COMMUNICATION_FAILED`
 
 - [ ] Runtime driver conflicts / invalid runtime composition:
   - [ ] MUST be enforced by `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` (owner: guard epic; SSoT: 1.260.0).
@@ -15926,11 +16799,6 @@ Add config contract tests (policy rails):
   - [ ] On guard failure, worker:start MUST surface the guard’s deterministic codes (single-choice; cemented by SSoT):
     - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
     - [ ] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-
-- [ ] `WorkerException` messages MUST be stable and MUST NOT include:
-  - [ ] absolute paths (POSIX/Windows/UNC),
-  - [ ] raw socket paths, raw tcp endpoints,
-  - [ ] payload fragments, headers, tokens.
 
 #### Security / Redaction
 
@@ -15985,6 +16853,17 @@ Add config contract tests (policy rails):
     - [ ] asserts `version = 1`
     - [ ] asserts field name remains exactly `version`
   - [ ] `framework/packages/platform/worker/tests/Contract/WorkerConfigRejectsTcpPortZeroContractTest.php`
+  - [ ] `framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php`
+    - [ ] asserts each concrete worker exception exposes exact `errorCode()`
+    - [ ] asserts each exception exposes fixed `reason()`
+    - [ ] asserts public message is exactly `<ERROR_CODE>: <reason>`
+    - [ ] asserts previous throwable messages are not exposed
+    - [ ] asserts messages do not contain absolute paths, raw socket paths, tcp endpoints, payload fragments, headers, or tokens
+  - [ ] `framework/packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php`
+    - [ ] asserts worker internal interfaces are under `Coretsia\Platform\Worker\Internal\*`
+    - [ ] asserts internal interfaces contain `@internal`
+    - [ ] asserts README does not document them as extension points
+    - [ ] asserts composer extra does not export them
 - Integration:
   - [ ] `framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
   - [ ] `framework/packages/platform/worker/tests/Integration/MaxRequestsTriggersRecycleTest.php`
@@ -16004,16 +16883,20 @@ Add config contract tests (policy rails):
 
 ### DoD (MUST)
 
+- [ ] This epic creates worker command classes and contributes them via `cli.command`.
+- [ ] Full end-to-end `worker:start` dispatch through container-backed CLI discovery is owned by the platform/cli tag-discovery epic and is not a blocking deliverable of this epic unless that CLI mode already exists.
 - [ ] Deliverables complete (creates+modifies), paths exact
 - [ ] Preconditions satisfied (no forward references)
 - [ ] deps/forbidden respected (deptrac; no cycles)
 - [ ] Observability policy satisfied (names + label allowlist + redaction)
-- [ ] Tests: unit + contract + integration + E2E pass
+- [ ] Tests: unit + contract + package-local integration tests pass
+- [ ] Full CLI binary/catalog dispatch tests are owned by `2.30.0 Platform CLI`
 - [ ] Docs updated:
   - [ ] `docs/architecture/worker.md`
   - [ ] `framework/packages/platform/worker/README.md`
   - [ ] `docs/adr/ADR-0017-worker-manager-application-worker.md`
   - [ ] `docs/ssot/config-roots.md`
+  - [ ] `docs/ssot/observability.md`
 
 ---
 
@@ -16035,7 +16918,10 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 adr: none
-ssot_refs: []
+ssot_refs:
+- "docs/ssot/modes.md"
+- "docs/ssot/artifacts.md"
+- "docs/ssot/artifacts-and-fingerprint.md"
 ---
 
 ### Dependencies (MUST)
@@ -16060,6 +16946,20 @@ ssot_refs: []
   - `Coretsia\Contracts\Module\ModePresetLoaderInterface`
   - `Coretsia\Contracts\Module\ManifestReaderInterface`
 
+- Express fail lock (MUST):
+  - `framework/packages/core/kernel/resources/modes/express.php` MUST require a Phase-2-only module that is intentionally absent from the boot-smoke fixture manifest.
+  - For this epic, the missing required module MUST be:
+    - `platform.http`
+  - The boot-smoke fixture manifest MUST include enough modules for `micro` to pass:
+    - `core.foundation`
+    - `core.kernel`
+    - `platform.cli`
+  - The boot-smoke fixture manifest MUST NOT include:
+    - `platform.http`
+  - Therefore:
+    - `micro` MUST resolve successfully
+    - `express` MUST fail with `CORETSIA_MODULE_REQUIRED_MISSING`
+
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 N/A (tests/tooling)
@@ -16074,14 +16974,112 @@ N/A (tests/tooling)
 #### Creates
 
 - [ ] `framework/packages/core/kernel/tests/Support/AppBuilder.php` — helper to boot fixture apps deterministically
-  - [ ] MUST prepare the same compiled artifacts the runtime expects after `1.340.0` before asserting boot behavior:
+  - [ ] MUST support two explicit flows:
+    - [ ] `bootMicro()` / equivalent success path
+    - [ ] `bootExpressExpectingRequiredMissing()` / equivalent failure path
+  - [ ] Micro success path MUST:
+    - [ ] load framework default `micro` preset from `framework/packages/core/kernel/resources/modes/micro.php`
+    - [ ] resolve `ModulePlan` from deterministic fixture manifest
+    - [ ] compile all runtime artifacts before boot:
+      - [ ] `module-manifest.php`
+      - [ ] `config.php`
+      - [ ] `container.php`
+    - [ ] boot only through artifact-only runtime path after `1.340.0`
+    - [ ] MUST NOT bypass `CompiledContainerFactory`
+  - [ ] Express failure path MUST:
+    - [ ] load framework default `express` preset from `framework/packages/core/kernel/resources/modes/express.php`
+    - [ ] use deterministic fixture manifest where `platform.http` is absent
+    - [ ] fail with `CORETSIA_MODULE_REQUIRED_MISSING`
+    - [ ] assert deterministic error code, not full exception message
+    - [ ] MUST NOT require compiled artifacts to exist after expected pre-boot failure
+  - [ ] MUST NOT require `skeleton/config/modes/*.php`
+  - [ ] MUST NOT use skeleton mode overrides
+  - [ ] MUST NOT print stdout/stderr
+  - [ ] MUST NOT assert absolute paths
+
+- [ ] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [ ] uses `AppBuilder`
+  - [ ] MUST use framework default `micro` preset
+  - [ ] MUST NOT create `skeleton/config/modes/micro.php`
+  - [ ] MUST compile:
     - [ ] `module-manifest.php`
     - [ ] `config.php`
     - [ ] `container.php`
-  - [ ] MUST NOT bypass artifact-only boot policy in production-like paths
-  - [ ] express smoke MAY fail during compile/boot pipeline, but MUST fail with deterministic code `CORETSIA_MODULE_REQUIRED_MISSING`
-- [ ] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [ ] MUST boot through compiled artifacts only
+  - [ ] MUST assert no deterministic failure code is thrown
+  - [ ] MUST NOT assert stdout/stderr
+  - [ ] MUST NOT assert absolute paths
+
 - [ ] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [ ] uses `AppBuilder`
+  - [ ] MUST use framework default `express` preset
+  - [ ] MUST NOT create `skeleton/config/modes/express.php`
+  - [ ] MUST use fixture manifest without `platform.http`
+  - [ ] MUST assert exact error code:
+    - [ ] `CORETSIA_MODULE_REQUIRED_MISSING`
+  - [ ] MUST assert only fixed reason token if reason is asserted
+  - [ ] MUST NOT assert full exception message
+  - [ ] MUST NOT assert stdout/stderr
+  - [ ] MUST NOT assert absolute paths
+  - [ ] MUST NOT require `container.php` to exist after expected pre-boot failure
+
+- [ ] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php`
+  - [ ] proves owner-defined custom preset names are supported through skeleton mode files
+  - [ ] MUST create a fixture preset:
+    - [ ] `skeleton/config/modes/worker-only.php`
+  - [ ] MUST NOT create:
+    - [ ] `framework/packages/core/kernel/resources/modes/worker-only.php`
+  - [ ] MUST select preset through `BootstrapConfig::preset()` or bootstrap override:
+    - [ ] `worker-only`
+  - [ ] MUST resolve `ModulePlan` successfully from the skeleton-only preset
+  - [ ] MUST use normal `required|optional|disabled` rules
+  - [ ] MUST NOT require `skeleton/config/modules.php`
+  - [ ] MUST NOT use app-local module selection
+  - [ ] MUST NOT expose skeleton paths in diagnostics
+  - [ ] MUST assert deterministic enabled module list
+
+#### Modifies
+
+- [ ] `docs/ssot/modes.md`
+  - [ ] clarify terminology:
+    - [ ] framework canonical presets are `micro|express|hybrid|enterprise`
+    - [ ] owner-defined custom preset names are non-canonical names
+    - [ ] owner-defined custom preset names MUST NOT use canonical names
+    - [ ] skeleton overrides MAY override framework canonical preset names through `skeleton/config/modes/<canonical>.php`
+
+- [ ] `docs/ssot/modes.md`
+  - [ ] clarify Express Phase 1/Phase 2 cutline:
+    - [ ] `express` is the conventional HTTP/web application mode
+    - [ ] framework-owned `express` preset requires `platform.http`
+    - [ ] until `platform.http` exists in the installed manifest, Express boot MUST fail deterministically with `CORETSIA_MODULE_REQUIRED_MISSING`
+
+- [ ] `framework/tools/testing/phpunit.xml` or package test discovery config
+  - [ ] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
+  - [ ] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
+  - [ ] If `integration-fast` is a named CI job/script, update the exact owner config/script for that job.
+
+- [ ] `framework/packages/core/kernel/resources/modes/express.php`
+  - [ ] move `platform.http` from `optional` to `required`
+  - [ ] required MUST become:
+    - [ ] `core.foundation`
+    - [ ] `core.kernel`
+    - [ ] `platform.cli`
+    - [ ] `platform.http`
+  - [ ] optional MUST become:
+    - [ ] `platform.logging`
+    - [ ] `platform.metrics`
+    - [ ] `platform.tracing`
+
+- [ ] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [ ] update Express canonical rules expectation:
+    - [ ] `platform.http` MUST be in `required`
+    - [ ] `platform.http` MUST NOT be in `optional`
+  - [ ] Express `moduleIds()` MUST still include:
+    - [ ] `platform.http`
+    - [ ] `platform.logging`
+    - [ ] `platform.metrics`
+    - [ ] `platform.tracing`
+  - [ ] Express `toArray()` MUST reflect `platform.http` under `required`, not `optional`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -16139,28 +17137,44 @@ Assertions MUST базуватись на deterministic error codes (не на s
   - [ ] Не реалізує HTTP runtime; лише boot.
 - [ ] Є 2 smoke тести, що доводять: micro boot стабільно працює, express — стабільно падає з очікуваним кодом (до Phase 2).
 - [ ] When booting Express fixture in Phase 0, then it fails with `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
+- [ ] Micro boot success means:
+  - [ ] fixture app compiles `module-manifest.php`, `config.php`, and `container.php`
+  - [ ] runtime boot uses `CompiledContainerFactory`
+  - [ ] runtime boot reads compiled `container.php`
+  - [ ] runtime boot uses compiled `config.php` payload
+  - [ ] runtime boot does not read source config files as fallback
+  - [ ] runtime boot does not run provider discovery as fallback
+  - [ ] runtime boot does not require HTTP runtime
+- [ ] Owner-defined custom preset support is locked:
+  - [ ] skeleton-only preset name such as `worker-only` can be selected
+  - [ ] `skeleton/config/modes/worker-only.php` is loaded without a framework default file
+  - [ ] normal `required|optional|disabled` rules apply
 
 ---
 
-## 1.380.0 Cyclic Dependencies Gate (package level) (MUST) [TOOLING]
+### 1.380.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 1
 epic_id: "1.380.0"
-owner_path: "framework/tools/gates/"
+owner_path: "framework/tools/build/"
 
-goal: "Automatically detect and block cyclic dependencies between packages at compile time."
+goal: "Ensure internal Composer require edges cannot drift from the canonical SSoT dependency table used by deptrac generation."
 provides:
-- "Deterministic cyclic dependency detection via deptrac or direct graph analysis"
-- "Single canonical gate that fails on cycles with stable error code"
-- "Integration into CI rails to prevent merging with cycles"
+- "Composer internal require edge validation inside the existing deptrac SSoT generator/checker"
+- "Deterministic failure when a materialized internal Composer dependency is missing from the SSoT dependency table"
+- "No new architecture gate wrapper and no second architecture-rules/config brain"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 adr: none
-ssot_refs: []
+ssot_refs:
+- docs/roadmap/phase0/00_2-dependency-table.md
+- docs/architecture/PACKAGING.md
+- docs/architecture/STRUCTURE.md
+- docs/ops/architecture-generator-evidence.md
 ---
 
 ### Dependencies (MUST)
@@ -16168,115 +17182,161 @@ ssot_refs: []
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 0.30.0 — spikes boundary enforcement gate exists (tools/gates/ infrastructure)
-  - 0.40.0 — internal-toolkit exists (for stable JSON if needed)
-  - 0.80.0 — deptrac generator prototype exists (provides cycle detection logic)
-  - 1.50.0 — tooling baseline + arch-rails exist (CI jobs for gates)
+  - 0.80.0 — deptrac generator prototype exists
+  - 1.50.0 — tooling baseline exists
+  - `docs/roadmap/phase0/00_2-dependency-table.md` defines canonical compile-time dependency edges.
+  - `docs/architecture/PACKAGING.md` and `docs/architecture/STRUCTURE.md` document package/structure architecture.
+  - `docs/ops/architecture-generator-evidence.md` documents architecture generator evidence / operational proof.
 
-- Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory exists
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical output writer
-  - `framework/tools/spikes/_support/ErrorCodes.php` — error codes registry
-  - `framework/tools/spikes/_support/bootstrap.php` — tools bootstrap
+- Required deliverables:
+  - `framework/tools/build/deptrac_generate.php` — canonical SSoT → deptrac config generator/checker
+  - `framework/tools/testing/deptrac.yaml` — generated canonical deptrac config
+  - `docs/roadmap/phase0/00_2-dependency-table.md` — canonical compile-time dependency SSoT
 
-- Required config roots/keys:
-  - none
-
-- Required tags:
-  - none
-
-- Required contracts / ports:
-  - none
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
+#### Compile-time deps
 
 Depends on:
 
-- `devtools/internal-toolkit` (for Path normalization)
-- (no runtime deps)
+- `devtools/internal-toolkit` (for path normalization)
 
 Forbidden:
 
-- `core/*`
-- `platform/*`
-- `integrations/*`
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-N/A
+- none
 
 ### Entry points / integration points (MUST)
 
-- Composer:
-  - `composer cyclic-dependencies:gate` — runs the cyclic dependencies gate (root + workspace mirror)
+- Composer, framework workspace:
+  - `composer arch:deptrac:check` — verifies generated deptrac config is up to date from SSoT and validates internal Composer require edges against the SSoT dependency table.
+  - `composer arch:deptrac:generate` — regenerates canonical deptrac config from SSoT.
+  - `composer arch:deptrac:analyze` — runs raw deptrac analysis against `framework/tools/testing/deptrac.yaml`.
+
+- Composer, repo root:
+  - existing `composer arch` delegates to framework workspace `arch`.
+
 - CI:
-  - MUST be executed in Phase 1 arch rails, e.g., before `spike:test` or in dedicated `arch` job.
+  - no new CI entrypoint is introduced.
+  - existing architecture rail remains:
+    - `arch:package-index:check`
+    - `arch:deptrac:check`
+    - `arch:deptrac:analyze`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/gates/cyclic_dependencies_gate.php` — deterministic gate:
-  - [ ] MUST reuse the canonical dependency-graph inputs already promoted by `0.80.0` + `1.50.0`
-  - [ ] MUST NOT introduce an independent second package-graph implementation that can drift from arch rails
-  - [ ] detects/report cycles deterministically from the canonical graph source
-  - [ ] if a cycle is found, prints `CORETSIA_CYCLIC_DEPENDENCY_DETECTED` on line 1
-  - [ ] next lines: list of cycle paths in stable order (sorted by package id, then cycle representation)
-  - [ ] uses `ConsoleOutput` for output, follows Phase 0 gate output policy
-  - [ ] supports `--path` override for testing on synthetic trees
-  - [ ] exit code 0 on pass, 1 on fail
+- N/A
+
+#### Explicit non-goals / duplicate-gate guard (MUST)
+
+- [ ] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
+- [ ] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
+- [ ] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
+
+#### Internal Composer dependency consistency (MUST)
+
+The policy “core packages do not depend on forbidden platform/integrations/devtools packages” MUST be enforced through the canonical dependency chain:
+
+`docs/roadmap/phase0/00_2-dependency-table.md`
+→ `framework/tools/build/deptrac_generate.php --check`
+→ `framework/tools/testing/deptrac.yaml`
+→ `arch:deptrac:analyze`
+
+Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
+
+- [ ] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
+  - [ ] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
+  - [ ] map internal Composer names to package ids
+  - [ ] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [ ] dependencies not present in SSoT MUST fail deterministically
+  - [ ] diagnostics MUST include:
+    - [ ] source package id
+    - [ ] target package id
+    - [ ] reason token `composer-edge-not-in-ssot`
+  - [ ] diagnostics MUST NOT include absolute paths or raw composer file dumps
+
+This check closes forbidden dependency drift without introducing a second architecture policy gate.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `cyclic-dependencies:gate` → `@composer --no-interaction --working-dir=framework run-script cyclic-dependencies:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `cyclic-dependencies:gate` → `@php tools/gates/cyclic_dependencies_gate.php`
-- [ ] `.github/workflows/ci.yml` — add gate execution to `arch` job or a new `gate` job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_CYCLIC_DEPENDENCY_DETECTED`
+- [ ] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
+  - [ ] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [ ] internal package self-requires are forbidden
+  - [ ] unknown internal package names MUST fail deterministically
+  - [ ] diagnostics MUST use package ids, not absolute paths
+  - [ ] failure MUST use a deterministic code:
+    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [ ] this check MUST NOT inspect or enforce external vendor packages
+  - [ ] this check MUST NOT create a second architecture ruleset
 
-### Cross-cutting (only if applicable; otherwise `N/A`)
+- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
 
-#### Context & UoW
+- [ ] update command in `docs/guides/commands.md` if necessary:
+  - [ ] `composer arch`
+  - [ ] `arch:package-index:check`
+  - [ ] `arch:deptrac:check`
+  - [ ] `arch:deptrac:analyze`
 
-N/A
+- [ ] Composer package name → package id mapping MUST reuse the existing canonical package metadata / package-index logic already used by the deptrac generation rail.
+- [ ] This epic MUST NOT introduce a second Composer-name-to-package-id mapping source.
 
-#### Observability (policy-compliant)
+### Cross-cutting
 
-- [ ] Output is stable and safe:
-  - [ ] line1: CODE only
-  - [ ] line2+: package ids and cycle edges only (no absolute paths, no secrets)
+#### Observability
+
+- N/A
 
 #### Errors
 
-- [ ] Deterministic error code: `CORETSIA_CYCLIC_DEPENDENCY_DETECTED`
+- [ ] Deterministic codes.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak any package contents, only package ids.
+- [ ] Output MUST NOT contain absolute paths, raw composer JSON, source code, or filesystem layout.
+- [ ] Output contains only deterministic package ids, reason tokens, and error codes.
+- [ ] Diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
 
-### Verification (TEST EVIDENCE) (MUST when applicable)
+### Verification
 
-- [ ] Integration test in `framework/tools/tests/Integration/CyclicDependenciesGateTest.php`:
-  - [ ] creates a synthetic tree with a cycle, runs gate with `--path`, asserts failure with expected code.
-  - [ ] creates a tree without cycles, asserts pass.
+- N/A
 
 ### Tests (MUST)
 
-- Integration:
-  - [ ] `framework/tools/tests/Integration/CyclicDependenciesGateTest.php`
+- [ ] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
+  - [ ] creates synthetic package composer metadata with internal `coretsia/*` require edge
+  - [ ] asserts edge missing from SSoT `depends_on` fails with:
+    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [ ] asserts diagnostics include source package id, target package id, reason token
+  - [ ] asserts diagnostics do not include absolute paths or raw composer JSON dumps
 
-### DoD (MUST)
+### DoD
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Gate is deterministic and integrated into CI
-- [ ] Error code registered and used
-- [ ] Verification test exists and passes
+- [ ] `deptrac_generate.php --check` validates internal Composer require edges against the SSoT dependency table.
+- [ ] No new Composer script is introduced.
+- [ ] Existing `arch` script remains the architecture rail.
+- [ ] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
+- [ ] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
+- [ ] No new `architecture:gate` Composer script is introduced.
+- [ ] No new `framework/tools/gates/architecture_gate.php` file is introduced.
+- [ ] Output semantics MUST remain compatible with existing tooling checks:
+  - [ ] pass: no output, exit `0`
+  - [ ] failure: deterministic code + deterministic diagnostics, exit `1`
+- [ ] New diagnostics for Composer-edge drift MUST include only:
+  - [ ] source package id
+  - [ ] target package id
+  - [ ] reason token
+  - [ ] deterministic error code
+- [ ] New diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
+- [ ] New diagnostics MUST NOT include:
+  - [ ] absolute paths
+  - [ ] raw composer JSON
+  - [ ] source code
+  - [ ] filesystem layout
+  - [ ] exception messages
+  - [ ] stack traces
 
 ---
 
-## 1.390.0 Deprecated API Gate (MUST) [TOOLING]
+### 1.390.0 Atomic Transaction Gate (MUST) [TOOLING]
 
 ---
 type: tools
@@ -16284,11 +17344,11 @@ phase: 1
 epic_id: "1.390.0"
 owner_path: "framework/tools/gates/"
 
-goal: "Prevent usage of deprecated APIs in new code by scanning for `@deprecated` docblocks and failing if referenced outside allowed contexts."
+goal: "Ensure that all file write operations in tools follow the atomic write pattern (temp → rename) to prevent corruption."
 provides:
-- "Deterministic detection of deprecated symbol usage"
-- "Configurable allowlist for legacy exceptions"
-- "Integration into CI to block merging with new deprecation usage"
+- "Static analysis of tools code to detect unsafe file writes"
+- "Deterministic failure on direct writes without backup/rename"
+- "Integration into CI to block unsafe file operations"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -16303,92 +17363,156 @@ ssot_refs: []
 
 - Epic prerequisites:
   - 0.30.0 — spikes boundary gate infrastructure exists
-  - 0.40.0 — internal-toolkit exists
-  - 1.50.0 — tooling baseline exists
+  - 0.50.0 — DeterministicFile helper exists (canonical atomic writer)
+  - 0.100.0 — workspace sync demonstrates atomic pattern
+  - Existing production tools that write files MUST be migrated to `DeterministicFile` before enabling this gate in CI.
 
-- Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory
-  - `framework/tools/spikes/_support/ConsoleOutput.php`
-  - `framework/tools/spikes/_support/ErrorCodes.php`
-  - `framework/tools/spikes/_support/bootstrap.php`
+- Required deliverables:
+  - `framework/tools/spikes/_support/DeterministicFile.php` — canonical deterministic file helper and reference pattern for safe tools-side writes.
 
-- Required config roots/keys:
-  - none
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-
-- `devtools/internal-toolkit` (Path)
-
-Forbidden:
-
-- `core/*`, `platform/*`, `integrations/*`
-
-#### Uses ports (API surface, NOT deps) (optional)
+#### Compile-time deps
 
 N/A
 
 ### Entry points / integration points (MUST)
 
 - Composer:
-  - `composer deprecated-api:gate`
-- CI: executed in arch rails.
+  - `composer atomic-write:gate` — runs atomic write gate
+- CI:
+  - run in framework gates aggregate after existing writer migration
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/config/deprecated_allowlist.php` — optional tooling allowlist for approved legacy exceptions
-- [ ] `framework/tools/gates/deprecated_api_gate.php` — deterministic gate:
-  - [ ] scans `framework/packages/**/src/**/*.php` (excluding tests/fixtures)
-  - [ ] builds a map of deprecated symbols (classes, methods, functions) by parsing `@deprecated` in docblocks
-  - [ ] scans all other PHP files under `framework/packages/**/src/` for usage of those symbols
-  - [ ] token-based detection (like 0.30.0)
-  - [ ] if any usage found, prints `CORETSIA_DEPRECATED_API_USAGE_DETECTED` + list of files with offending lines (repo-relative paths)
-  - [ ] supports the exact optional allowlist path `framework/tools/config/deprecated_allowlist.php` to ignore known legacy usages
-  - [ ] output follows Phase 0 gate policy
+- [ ] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
+  - [ ] Each entry MUST include a fixed reason token.
+  - [ ] Wildcard patterns are forbidden in Phase 1.
+  - [ ] Absolute paths are forbidden.
+  - [ ] Allowlist entries MUST use exact shape:
+    - [ ] `path` — framework-relative path string, relative to `framework/`
+    - [ ] `reason` — fixed lowercase reason token
+  - [ ] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
+  - [ ] Unknown allowlist keys MUST fail deterministically.
+
+```php
+return [
+    [
+        'path' => 'tools/example.php',
+        'reason' => 'legacy-writer-migrated-later',
+    ],
+];
+```
+
+- [ ] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
+  - [ ] scans production tooling PHP files under `framework/tools/**/*.php`
+  - [ ] excludes:
+    - [ ] `framework/tools/tests/**`
+    - [ ] `framework/tools/**/fixtures/**`
+    - [ ] `framework/tools/spikes/fixtures/**`
+    - [ ] `framework/tools/spikes/_support/DeterministicFile.php`
+  - [ ] Phase 1 single-choice policy:
+    - [ ] persistent tools-side writes MUST go through `DeterministicFile`
+  - [ ] forbidden raw write sinks outside allowlisted files:
+    - [ ] `file_put_contents`
+    - [ ] `fwrite`
+    - [ ] `rename` used as custom atomic-write implementation outside `DeterministicFile`
+    - [ ] `copy` used as write/update sink
+  - [ ] `fopen` in read-only modes (`r`, `rb`) is allowed.
+  - [ ] `fopen` with write/append/create modes (`w`, `wb`, `a`, `ab`, `c`, `cb`, `x`, `xb`, and `+` variants) is forbidden outside allowlisted files.
+  - [ ] `SplFileObject` / `FilesystemIterator` read-only usage is allowed.
+  - [ ] `SplFileObject` with write/append/create modes is forbidden outside allowlisted files.
+  - [ ] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [ ] On scanner/tooling failure, prints:
+    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+  - [ ] diagnostics include framework-relative file path and line number only
+  - [ ] diagnostics MUST NOT include source code snippets
+  - [ ] uses `ConsoleOutput`
+  - [ ] supports `--path` override for test fixture roots
+  - [ ] MUST resolve the tools root deterministically from the executing gate file.
+  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] If bootstrap is missing or unreadable:
+    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [ ] MUST use two code classes when applicable:
+    - [ ] violation/finding code
+    - [ ] scan-failed/tooling-failed code
+  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
+  - [ ] On unexpected throwable:
+    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] On pass:
+    - [ ] MUST emit no output
+    - [ ] MUST exit with code `0`
+  - [ ] On violation/finding:
+    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [ ] MUST exit with code `1`
+  - [ ] Diagnostics MUST be:
+    - [ ] deduplicated
+    - [ ] sorted by byte-order `strcmp`
+    - [ ] stable across OS/filesystem order/locale
+    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
 
 #### Modifies
 
 - [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `deprecated-api:gate` → `@composer --no-interaction --working-dir=framework run-script deprecated-api:gate --`
+  - [ ] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
+
 - [ ] `framework/composer.json` — add gate script
-  - [ ] `deprecated-api:gate` → `@php tools/gates/deprecated_api_gate.php`
-- [ ] `.github/workflows/ci.yml` — add gate to arch job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPRECATED_API_USAGE_DETECTED`
+  - [ ] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
+  - [ ] add to `gates`
+
+- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [ ] `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+
+- [ ] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
+  - [ ] `framework/tools/gates/package_compliance_allowlist.php`
+    → `framework/tools/config/package_compliance_allowlist.php`
+  - [ ] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
+  - [ ] this move MUST NOT change package compliance semantics
+
+- [ ] add command `atomic-write:gate` in `docs/guides/commands.md`
+- [ ] update command `composer gates` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
 #### Observability
 
-- [ ] Output contains only repo-relative paths and symbol names; no code snippets.
+- N/A
 
 #### Errors
 
-- [ ] Deterministic code: `CORETSIA_DEPRECATED_API_USAGE_DETECTED`
+- [ ] Deterministic error codes.
 
 #### Security / Redaction
 
-- [ ] No leakage of code contents; only paths and symbol names.
+- [ ] No file contents; only paths.
 
 ### Verification
 
-- [ ] Integration test: create synthetic package with a deprecated class and a usage outside allowlist; gate fails.
+- [ ] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/DeprecatedApiGateTest.php`
+- [ ] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
+  - [ ] scanner failure / unreadable root / invalid allowlist fails with:
+    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
 ### DoD
 
-- [ ] Gate implemented and integrated
-- [ ] Error code registered
-- [ ] Verification test exists
+- [ ] Gate implemented, CI integrated, error code registered.
 
 ---
 
-## 1.400.0 Composer Audit Gate (MUST) [TOOLING]
+### 1.400.0 Composer Audit Gate (MUST) [TOOLING]
 
 ---
 type: tools
@@ -16433,7 +17557,9 @@ Forbidden:
 
 - Composer:
   - `composer composer-audit:gate`
-- CI: run in security job or arch job.
+- CI:
+  - MUST run in a dedicated security job or security lane.
+  - MUST NOT run as part of architecture/deptrac job.
 
 ### Deliverables (MUST)
 
@@ -16451,23 +17577,80 @@ Forbidden:
   - [ ] uses `ConsoleOutput` for output
   - [ ] if `composer` command fails (not found), prints `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
   - [ ] supports `--path` override for testing
+  - [ ] MUST parse JSON stdout/stderr when available even if `composer audit` exits non-zero.
+  - [ ] If valid audit JSON contains advisories, classify as:
+    - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [ ] Classify as `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED` only when:
+    - [ ] composer executable cannot be run
+    - [ ] process times out
+    - [ ] output is not valid JSON
+    - [ ] expected audit fields are absent or unusable
+  - [ ] MUST resolve repository root from the framework workspace:
+    - [ ] default repo root is parent directory of `framework/`
+  - [ ] MUST audit install roots relative to repo root:
+    - [ ] `<repo-root>/composer.json`
+    - [ ] `<repo-root>/framework/composer.json`
+    - [ ] `<repo-root>/skeleton/composer.json`
+  - [ ] `--path` override MUST be treated as fixture repo root in tests.
+  - [ ] MUST resolve the tools root deterministically from the executing gate file.
+  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] If bootstrap is missing or unreadable:
+    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [ ] MUST use two code classes when applicable:
+    - [ ] violation/finding code
+    - [ ] scan-failed/tooling-failed code
+  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
+  - [ ] On unexpected throwable:
+    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] On pass:
+    - [ ] MUST emit no output
+    - [ ] MUST exit with code `0`
+  - [ ] On violation/finding:
+    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [ ] MUST exit with code `1`
+  - [ ] Diagnostics MUST be:
+    - [ ] deduplicated
+    - [ ] sorted by byte-order `strcmp`
+    - [ ] stable across OS/filesystem order/locale
+    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [ ] MUST run Composer audit with captured stdout/stderr.
+  - [ ] MUST NOT stream raw Composer audit output directly to stdout/stderr.
+  - [ ] MUST parse JSON output from captured stdout/stderr only.
+  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
+- [ ] `composer.json` — add mirror scripts:
   - [ ] `composer-audit:gate` → `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
+  - [ ] `security` → `@composer --no-interaction --working-dir=framework run-script security --`
+
 - [ ] `framework/composer.json` — add gate script
   - [ ] `composer-audit:gate` → `@php tools/gates/composer_audit_gate.php`
-- [ ] `.github/workflows/ci.yml` — add audit step
+  - [ ] MUST NOT add `composer-audit:gate` to the generic `gates` aggregate.
+  - [ ] MUST add or update dedicated security aggregate:
+    - [ ] `security` MUST include `@composer-audit:gate`
+
 - [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
   - [ ] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+
+- [ ] add command `composer-audit:gate` in `docs/guides/commands.md`
+- [ ] add command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
 #### Observability
 
-- [ ] Output contains only package names and advisory IDs; no full advisory details (to avoid noise).
+- N/A
 
 #### Errors
 
@@ -16486,6 +17669,7 @@ Forbidden:
 - [ ] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
   - [ ] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
   - [ ] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+  - [ ] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
 
 ### Tests
 
@@ -16499,7 +17683,7 @@ Forbidden:
 
 ---
 
-## 1.410.0 Unified Code Style Gate (MUST) [TOOLING]
+### 1.410.0 Secret Leakage Gate (MUST) [TOOLING]
 
 ---
 type: tools
@@ -16507,416 +17691,7 @@ phase: 1
 epic_id: "1.410.0"
 owner_path: "framework/tools/gates/"
 
-goal: "Enforce a single coding style across all packages using PHP CS Fixer with a deterministic configuration."
-provides:
-- "Deterministic code style check via PHP CS Fixer"
-- "Canonical `.php-cs-fixer.dist.php` config at repo root"
-- "CI gate that fails on style violations"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 1.50.0 — tooling baseline exists
-  - PHP CS Fixer installed as dev dependency (root `composer.json` require-dev)
-
-- Required deliverables:
-  - `composer.json` (root) with `friendsofphp/php-cs-fixer` in require-dev.
-
-#### Compile-time deps
-
-N/A
-
-### Entry points / integration points (MUST)
-
-- Composer:
-  - `composer cs:check` — dry-run check
-  - `composer cs:fix` — apply fixes (local use only)
-  - `code-style:gate`
-- CI:
-  - `composer cs:check` runs in arch job.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `.php-cs-fixer.dist.php` — canonical config at repo root:
-  - [ ] ruleset based on PSR-12 with additional rules (strict types, no unused imports, etc.)
-  - [ ] config is deterministic (no random ordering)
-- [ ] `framework/tools/gates/code_style_gate.php` — deterministic gate:
-  - [ ] runs `php-cs-fixer fix --dry-run --diff --format=json` from repo root
-  - [ ] parses JSON output; if files are modified, prints `CORETSIA_CODE_STYLE_VIOLATION` + list of files
-  - [ ] uses `ConsoleOutput`
-  - [ ] if php-cs-fixer not available, prints `CORETSIA_CODE_STYLE_GATE_SCAN_FAILED`
-  - [ ] supports `--path` override for testing (but config still from repo root)
-
-#### Modifies
-
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `cs:check` → `@composer --no-interaction --working-dir=framework run-script cs:check --`
-  - [ ] `cs:fix` → `@composer --no-interaction --working-dir=framework run-script cs:fix --`
-  - [ ] `code-style:gate` → `@composer --no-interaction --working-dir=framework run-script code-style:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `cs:check` → `php-cs-fixer fix --dry-run --diff --format=json`
-  - [ ] `cs:fix` → `php-cs-fixer fix`
-  - [ ] `code-style:gate` → `@php tools/gates/code_style_gate.php`
-- [ ] `.github/workflows/ci.yml` — add `cs:check` step
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_CODE_STYLE_VIOLATION`
-  - [ ] `CORETSIA_CODE_STYLE_GATE_SCAN_FAILED`
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output lists only file paths (repo-relative) that need fixing.
-
-#### Errors
-
-- [ ] Deterministic codes.
-
-#### Security / Redaction
-
-- [ ] No code contents printed; only paths.
-
-### Verification
-
-- [ ] Integration test: create a file with style violation, run gate with `--path` to a temp repo, assert failure.
-
-### Tests
-
-- [ ] `framework/tools/tests/Integration/CodeStyleGateTest.php`
-
-### DoD
-
-- [ ] Config created
-- [ ] gate implemented
-- [ ] CI integrated.
-
----
-
-## 1.420.0 Test Coverage Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.420.0"
-owner_path: "framework/tools/gates/"
-
-goal: "Ensure that critical packages have sufficient test coverage by analyzing PHPUnit coverage reports and enforcing thresholds."
-provides:
-- "Deterministic coverage threshold enforcement"
-- "Configurable per-package coverage minimums"
-- "CI gate that fails if coverage drops below allowed levels"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 1.50.0 — tooling baseline exists
-  - PHPUnit with coverage enabled (pcov or xdebug) available in CI
-  - `core/*` packages exist
-
-- Required deliverables:
-  - `framework/tools/testing/phpunit.xml` with coverage configuration.
-
-#### Compile-time deps
-
-N/A
-
-### Entry points / integration points (MUST)
-
-- Composer:
-  - `composer coverage:test` — runs tests with coverage and generates clover XML
-  - `composer coverage:gate` — runs the coverage gate
-- CI:
-  - after tests, run coverage gate.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `framework/tools/gates/coverage_gate.php` — deterministic gate:
-  - [ ] reads `clover.xml` from `framework/var/phpunit/coverage/`
-  - [ ] parses coverage metrics per file/class
-  - [ ] compares against thresholds defined in `framework/tools/config/coverage.php`
-  - [ ] thresholds: per-package or per-directory minimum line coverage percentage
-  - [ ] if any package below threshold, prints `CORETSIA_COVERAGE_BELOW_THRESHOLD` + list of packages with current coverage
-  - [ ] uses `ConsoleOutput`
-  - [ ] if coverage file missing, prints `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
-  - [ ] supports `--path` override for testing
-
-- [ ] `framework/tools/config/coverage.php` — tooling-local coverage thresholds config (NOT a runtime config root)
-
-#### Modifies
-
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `coverage:test` → `@composer --no-interaction --working-dir=framework run-script coverage:test --`
-  - [ ] `coverage:gate` → `@composer --no-interaction --working-dir=framework run-script coverage:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `coverage:test` → `vendor/bin/phpunit -c tools/testing/phpunit.xml --coverage-clover var/phpunit/coverage/clover.xml`
-  - [ ] `coverage:gate` → `@php tools/gates/coverage_gate.php`
-- [ ] `.github/workflows/ci.yml` — after `test` job, run coverage gate
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_COVERAGE_BELOW_THRESHOLD`
-  - [ ] `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output: package name and current coverage percentage.
-
-#### Errors
-
-- [ ] Deterministic codes.
-
-#### Security / Redaction
-
-- [ ] No secrets; only package names and percentages.
-
-### Verification
-
-- [ ] Integration test: generate mock clover.xml with low coverage, run gate, assert failure.
-
-### Tests
-
-- [ ] `framework/tools/tests/Integration/CoverageGateTest.php`
-
-### DoD
-
-- [ ] Gate implemented
-- [ ] config created
-- [ ] CI integrated.
-
----
-
-## 1.430.0 SOLID Architecture Enforcer Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.430.0"
-owner_path: "framework/tools/gates/"
-
-goal: "Provide a deterministic architecture gate wrapper around the canonical deptrac config and SSoT generator, without creating a second architecture-rules brain."
-provides:
-- "Deterministic architecture gate wrapper over canonical deptrac analysis"
-- "CI blocker for architecture violations"
-- "SSoT freshness check via existing deptrac generator"
-- "No second architecture-rules/config brain"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs:
-- docs/ssot/architecture-layers.md
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 0.80.0 — deptrac generator prototype exists
-  - 1.50.0 — tooling baseline exists
-  - `docs/ssot/architecture-layers.md` defines allowed dependencies.
-
-- Required deliverables:
-  - `framework/tools/build/deptrac_generate.php` — canonical SSoT → deptrac config generator/checker
-  - `framework/tools/testing/deptrac.yaml` — generated canonical deptrac config
-  - `docs/roadmap/phase0/00_2-dependency-table.md` — canonical compile-time dependency SSoT
-
-#### Compile-time deps
-
-Depends on:
-
-- `devtools/internal-toolkit` (for path normalization)
-
-Forbidden:
-
-- none
-
-### Entry points / integration points (MUST)
-
-- Composer, framework workspace:
-  - `composer arch:deptrac:check` — verifies generated deptrac config is up to date from SSoT
-  - `composer arch:deptrac:generate` — regenerates canonical deptrac config from SSoT
-  - `composer arch:deptrac:analyze` — runs raw deptrac analysis against `framework/tools/testing/deptrac.yaml`
-  - `composer architecture:gate` — runs deterministic architecture gate wrapper
-
-- Composer, repo root:
-  - `composer architecture:gate` — delegates to framework workspace `architecture:gate`
-  - optional aliases MAY exist for `deptrac:generate` / `deptrac:analyze`, but MUST delegate to the existing framework arch scripts and MUST NOT bypass SSoT freshness checks in CI.
-
-- CI:
-  - architecture job MUST run:
-    - `arch:deptrac:check`
-    - `architecture:gate`
-  - CI MUST NOT run a separate `deptrac_ssot_ruleset_gate.php`.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `framework/tools/gates/architecture_gate.php` — deterministic architecture gate:
-  - [ ] MUST first verify canonical config freshness by invoking or semantically matching:
-    - [ ] `php tools/build/deptrac_generate.php --check`
-  - [ ] MUST then analyze the canonical generated config:
-    - [ ] `vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache`
-  - [ ] MUST analyze only the canonical deptrac config generated from SSoT.
-  - [ ] MUST NOT introduce a second architecture-rules/config brain.
-  - [ ] MUST NOT parse roadmap docs independently as an alternative ruleset source.
-  - [ ] MUST NOT create or require `deptrac_gate.php`.
-  - [ ] MUST NOT create or require `deptrac_ssot_ruleset_gate.php`.
-  - [ ] captures deptrac output and normalizes diagnostics deterministically:
-    - [ ] repo-relative paths only
-    - [ ] stable LF line endings
-    - [ ] diagnostics sorted by byte-order `strcmp`
-    - [ ] no absolute paths
-    - [ ] no code snippets
-  - [ ] on SSoT/config freshness failure, surfaces deterministic diagnostics from the generator under architecture-gate output policy.
-  - [ ] on architecture violations, prints:
-    - [ ] `CORETSIA_ARCHITECTURE_VIOLATION`
-    - [ ] normalized list of violations
-  - [ ] on deptrac/generator/tooling failure, prints:
-    - [ ] `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override only as an analysis narrowing input.
-    - [ ] `--path` MUST NOT mutate `framework/tools/testing/deptrac.yaml`.
-    - [ ] `--path` MUST NOT create an alternate deptrac config.
-
-#### Explicit non-goals / duplicate-gate guard (MUST)
-
-- [ ] MUST NOT create `framework/tools/gates/deptrac_ssot_ruleset_gate.php`.
-- [ ] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
-- [ ] Architecture gate MUST call or require the result of the existing SSoT generator/checker instead of implementing its own parser/ruleset.
-- [ ] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
-
-#### Internal Composer dependency consistency (MUST)
-
-This epic MUST NOT create `framework/tools/gates/no_platform_integrations_dep_gate.php`.
-
-The policy “core packages do not depend on forbidden platform/integrations/devtools packages” MUST be enforced through the canonical dependency chain:
-
-`docs/roadmap/phase0/00_2-dependency-table.md`
-→ `framework/tools/build/deptrac_generate.php`
-→ `framework/tools/testing/deptrac.yaml`
-→ `framework/tools/gates/architecture_gate.php`
-
-Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
-
-- [ ] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
-  - [ ] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
-  - [ ] map internal Composer names to package ids
-  - [ ] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] dependencies not present in SSoT MUST fail deterministically
-  - [ ] diagnostics MUST include:
-    - [ ] source package id
-    - [ ] target package id
-    - [ ] reason token `composer-edge-not-in-ssot`
-  - [ ] diagnostics MUST NOT include absolute paths or raw composer file dumps
-
-This check closes forbidden dependency drift without introducing a second architecture policy gate.
-
-#### Modifies
-
-- [ ] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
-  - [ ] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] internal package self-requires are forbidden
-  - [ ] unknown internal package names MUST fail deterministically
-  - [ ] diagnostics MUST use package ids, not absolute paths
-  - [ ] failure MUST use a deterministic code:
-    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-  - [ ] this check MUST NOT inspect or enforce external vendor packages
-  - [ ] this check MUST NOT create a second architecture ruleset
-- [ ] `composer.json` — add/ensure mirror scripts:
-  - [ ] `architecture:gate` → `@composer --no-interaction --working-dir=framework run-script architecture:gate --`
-  - [ ] optional `deptrac:generate` alias MAY delegate to `framework` `arch:deptrac:generate`
-  - [ ] optional `deptrac:analyze` alias MAY delegate to `framework` `arch:deptrac:analyze`
-- [ ] `framework/composer.json` — add/ensure scripts:
-  - [ ] `architecture:gate` → `@php tools/gates/architecture_gate.php`
-  - [ ] keep canonical existing arch scripts:
-    - [ ] `arch:deptrac:check` → `@php tools/build/deptrac_generate.php --check`
-    - [ ] `arch:deptrac:generate` → `@php tools/build/deptrac_generate.php --apply`
-    - [ ] `arch:deptrac:analyze` → `@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache`
-  - [ ] `gates` aggregate SHOULD include `@architecture:gate` only if the CI architecture job does not run it separately.
-    - [ ] Single-choice CI policy: do not run the same architecture gate twice in the same job.
-- [ ] `.github/workflows/ci.yml` — add architecture analysis job:
-  - [ ] runs SSoT freshness check
-  - [ ] runs architecture gate
-  - [ ] fails deterministically on violations
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_ARCHITECTURE_VIOLATION`
-  - [ ] `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
-  - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output: list of violations with file paths and rule descriptions.
-
-#### Errors
-
-- [ ] Deterministic codes.
-
-#### Security / Redaction
-
-- [ ] No code contents; only paths and rule names.
-
-### Verification
-
-- [ ] Integration test: create synthetic code with layer violation, run gate, assert failure.
-
-### Tests (MUST)
-
-- [ ] `framework/tools/tests/Integration/ArchitectureGateTest.php`
-  - [ ] synthetic layer violation fails with `CORETSIA_ARCHITECTURE_VIOLATION`
-  - [ ] stale generated deptrac config fails deterministically through architecture gate
-  - [ ] missing deptrac binary / deptrac execution failure maps to `CORETSIA_ARCHITECTURE_GATE_SCAN_FAILED`
-  - [ ] diagnostics contain repo-relative paths only
-  - [ ] diagnostics do not contain source snippets or absolute paths
-
-### DoD
-
-- [ ] Gate implemented, CI integrated.
-- [ ] No `framework/tools/gates/deptrac_gate.php` exists.
-- [ ] No `framework/tools/gates/deptrac_ssot_ruleset_gate.php` exists.
-- [ ] `architecture_gate.php` is the only architecture gate wrapper.
-- [ ] `deptrac_generate.php --check` remains the only SSoT freshness enforcement entrypoint.
-- [ ] No `no_platform_integrations_dep_gate.php` exists.
-- [ ] Forbidden package dependency drift is enforced through SSoT dependency table + deptrac generator/check + architecture gate.
-- [ ] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
-
----
-
-## 1.440.0 Secret Leakage Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.440.0"
-owner_path: "framework/tools/gates/"
-
-goal: "Prevent accidental commits of secrets (API keys, passwords, tokens) by scanning the entire repository with Gitleaks or a custom scanner."
+goal: "Prevent accidental commits of secrets by scanning the repository with Gitleaks."
 provides:
 - "Deterministic secret scanning"
 - "Canonical configuration for allowed false positives"
@@ -16935,7 +17710,7 @@ ssot_refs: []
 
 - Epic prerequisites:
   - 1.50.0 — tooling baseline exists
-  - Gitleaks installed in CI (or use a custom PHP scanner)
+  - Gitleaks is the scanner.
 
 - Required deliverables:
   - `.gitleaks.toml` config file.
@@ -16957,28 +17732,79 @@ N/A (external tool)
 
 - [ ] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
 - [ ] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
-  - [ ] runs `gitleaks detect --source=. --config=.gitleaks.toml --no-git` (or `--no-git` to scan working directory)
+  - [ ] MUST resolve repository root from the framework workspace:
+    - [ ] default repo root is parent directory of `framework/`
+  - [ ] MUST run scanner against repo root, not only `framework/`
+  - [ ] MUST use repo-root `.gitleaks.toml`
+  - [ ] default command shape:
+    - [ ] `gitleaks detect --source=<repo-root> --config=<repo-root>/.gitleaks.toml --no-git --report-format=json --redact`
+  - [ ] MUST NOT print raw matches
   - [ ] parses JSON output; if any leak, prints `CORETSIA_SECRET_LEAK_DETECTED` + list of files and findings (sanitized)
   - [ ] if gitleaks not available, prints `CORETSIA_SECRET_GATE_SCAN_FAILED`
   - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override
+  - [ ] supports `--path` override for test fixture repo roots.
+  - [ ] when `--path` is provided, both source root and config path are resolved relative to that fixture root unless explicitly overridden by test-only flags.
+  - [ ] MUST invoke Gitleaks in JSON report mode only.
+  - [ ] MUST NOT parse human-readable Gitleaks output.
+  - [ ] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
+  - [ ] MUST resolve the tools root deterministically from the executing gate file.
+  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] If bootstrap is missing or unreadable:
+    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [ ] MUST use two code classes when applicable:
+    - [ ] violation/finding code
+    - [ ] scan-failed/tooling-failed code
+  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
+  - [ ] On unexpected throwable:
+    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] On pass:
+    - [ ] MUST emit no output
+    - [ ] MUST exit with code `0`
+  - [ ] On violation/finding:
+    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [ ] MUST exit with code `1`
+  - [ ] Diagnostics MUST be:
+    - [ ] deduplicated
+    - [ ] sorted by byte-order `strcmp`
+    - [ ] stable across OS/filesystem order/locale
+    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [ ] MUST run Gitleaks with captured stdout/stderr.
+  - [ ] MUST NOT stream raw Gitleaks output directly to stdout/stderr.
+  - [ ] MUST parse JSON report output from captured stdout/stderr only.
+  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
 - [ ] `composer.json` — add mirror scripts (delegates to framework):
   - [ ] `secret-leakage:gate` → `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
+
 - [ ] `framework/composer.json` — add gate script
   - [ ] `secret-leakage:gate` → `@php tools/gates/secret_leakage_gate.php`
-- [ ] `.github/workflows/ci.yml` — add secret scan step
+  - [ ] MUST NOT add `secret-leakage:gate` to the generic `gates` aggregate.
+  - [ ] MUST add it to the dedicated security aggregate:
+    - [ ] `security` → [`@secret-leakage:gate`]
+
 - [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_SECRET_LEAK_DETECTED`
   - [ ] `CORETSIA_SECRET_GATE_SCAN_FAILED`
+
+- [ ] add command `secret-leakage:gate` in `docs/guides/commands.md`
+- [ ] update command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
 #### Observability
 
-- [ ] Output: list of files and finding descriptions (redacted to avoid printing actual secrets).
+- N/A
 
 #### Errors
 
@@ -16990,299 +17816,20 @@ N/A (external tool)
 
 ### Verification
 
-- [ ] Integration test: create a file with a fake secret (e.g., `API_KEY=sk_live_123`), run gate, assert failure.
+- [ ] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
+- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
+- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
+- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
+- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
+  - [ ] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
+  - [ ] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (may mock gitleaks output)
+- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
+  - [ ] tests MUST use mocked Gitleaks JSON output fixtures
+  - [ ] tests MUST NOT commit realistic live credentials
 
 ### DoD
 
 - [ ] Gate implemented, config created, CI integrated.
-
----
-
-## 1.450.0 PR Size / Focus Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.450.0"
-owner_path: ".github/workflows/"
-
-goal: "Prevent overly large or unfocused pull requests by analyzing changed files and failing if limits exceeded."
-provides:
-- "Deterministic PR size check"
-- "Configurable thresholds (max files, max lines, max packages touched)"
-- "GitHub Actions check that runs on PRs"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - GitHub Actions workflows exist (0.110.0)
-  - `jq` or similar available in runner for parsing.
-
-#### Compile-time deps
-
-N/A
-
-### Entry points / integration points (MUST)
-
-- Composer:
-  - `pr-size:gate`
-- GitHub Actions:
-  - workflow `pr-size-check.yml` triggered on pull_request.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `.github/workflows/pr-size-check.yml` — workflow:
-  - [ ] runs on `pull_request` (synchronize, opened, reopened)
-  - [ ] uses `actions/github-script` or `git diff --stat` to compute changed files and lines
-  - [ ] compares against thresholds defined in the workflow `env` block (single-choice; line-of-truth for Phase 1):
-    - [ ] `MAX_FILES`
-    - [ ] `MAX_LINES`
-    - [ ] `MAX_PACKAGES`
-  - [ ] if thresholds exceeded, fails with message listing the counts and which thresholds were violated
-  - [ ] optional local fallback script (`framework/tools/gates/pr_size_gate.php`) MUST use the same threshold names/defaults
-- [ ] `framework/tools/gates/pr_size_gate.php` — fallback local script (optional) to run same check locally via composer.
-
-#### Modifies
-
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `pr-size:gate` → `@composer --no-interaction --working-dir=framework run-script pr-size:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `pr-size:gate` → `@php tools/gates/pr_size_gate.php`
-- [ ] `.github/workflows/ci.yml` — ensure PR size check runs (or separate workflow)
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_PR_SIZE_EXCEEDED` (if local script used)
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output: counts and thresholds.
-
-#### Errors
-
-- [ ] Deterministic exit code (non-zero) and message.
-
-#### Security / Redaction
-
-- [ ] No secrets; only file paths and counts.
-
-### Verification
-
-- [ ] Integration test: create a PR with many files, assert check fails.
-
-### Tests
-
-- [ ] (Manual verification in CI; local script test in `framework/tools/tests/Integration/PrSizeGateTest.php`)
-
-### DoD
-
-- [ ] Workflow created and integrated.
-
----
-
-## 1.460.0 CLI Performance Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.460.0"
-owner_path: "framework/tools/gates/"
-
-goal: "Benchmark execution time of key CLI commands on a pinned benchmark runner and fail only there if performance degrades beyond threshold."
-provides:
-- "Deterministic performance benchmarking of CLI commands"
-- "Baseline timings stored in SSoT"
-- "CI gate that compares current timings against baseline"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 0.130.0 — CLI base exists
-  - 0.140.0 — cli-spikes commands exist (for testing)
-  - 1.50.0 — tooling baseline exists
-
-- Required deliverables:
-  - `coretsia` CLI executable.
-
-#### Compile-time deps
-
-N/A
-
-### Entry points / integration points (MUST)
-
-- Composer:
-  - `composer performance:gate` — runs performance benchmarks
-- CI:
-  - run only in a dedicated pinned benchmark job
-  - MUST NOT gate generic shared-runner CI, because timings there are not deterministic
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `framework/tools/config/performance.php` — tooling-local performance benchmark config:
-  - [ ] list of commands to benchmark (e.g., `coretsia list`, `coretsia help`, `coretsia spike:fingerprint`)
-  - [ ] threshold multiplier (e.g., 1.2 = 20% slower allowed)
-  - [ ] baseline file path `framework/tools/config/performance.baseline.json`
-  - [ ] baseline MUST be tied to the pinned benchmark environment / runner class
-- [ ] `framework/tools/gates/performance_gate.php` — deterministic gate:
-  - [ ] runs each command multiple times (e.g., 3) and takes median execution time
-  - [ ] compares against baseline (if exists) or creates baseline if not
-  - [ ] if any command exceeds baseline * threshold, prints `CORETSIA_PERFORMANCE_DEGRADED` + details
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--update-baseline` flag to update baseline after intentional improvements
-- [ ] `framework/tools/config/performance.baseline.json` — initial baseline (committed)
-
-#### Modifies
-
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `performance:gate` → `@composer --no-interaction --working-dir=framework run-script performance:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `performance:gate` → `@php tools/gates/performance_gate.php`
-- [ ] `.github/workflows/performance-benchmark.yml` — dedicated pinned-runner workflow/job for the performance gate
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_PERFORMANCE_DEGRADED`
-  - [ ] `CORETSIA_PERFORMANCE_GATE_SCAN_FAILED`
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output: command name, baseline time, current time, threshold.
-
-#### Errors
-
-- [ ] Deterministic codes.
-
-#### Security / Redaction
-
-- [ ] No secrets; only command names and timings.
-
-### Verification
-
-- [ ] Integration test: mock slow command, run gate, assert failure.
-
-### Tests
-
-- [ ] `framework/tools/tests/Integration/PerformanceGateTest.php`
-
-### DoD
-
-- [ ] Gate implemented, baseline created, CI integrated.
-
----
-
-## 1.470.0 Atomic Transaction Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 1
-epic_id: "1.470.0"
-owner_path: "framework/tools/gates/"
-
-goal: "Ensure that all file write operations in tools follow the atomic write pattern (temp → rename) to prevent corruption."
-provides:
-- "Static analysis of tools code to detect unsafe file writes"
-- "Deterministic failure on direct writes without backup/rename"
-- "Integration into CI to block unsafe file operations"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 0.30.0 — spikes boundary gate infrastructure exists
-  - 0.50.0 — DeterministicFile helper exists (canonical atomic writer)
-  - 0.100.0 — workspace sync demonstrates atomic pattern
-
-- Required deliverables:
-  - `framework/tools/spikes/_support/DeterministicFile.php` — canonical deterministic file helper and reference pattern for safe tools-side writes.
-
-#### Compile-time deps
-
-N/A
-
-### Entry points / integration points (MUST)
-
-- Composer:
-  - `composer atomic-write:gate` — runs atomic write gate
-- CI:
-  - run in arch job.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
-  - [ ] scans `framework/tools/**/*.php` (excluding tests/fixtures)
-  - [ ] token-based detection of:
-    - [ ] direct `file_put_contents`, `fopen+write`, `fwrite` to non-temp paths
-    - [ ] any write that does not use `DeterministicFile` methods (which are assumed atomic) or explicit temp+rename pattern
-  - [ ] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION` + list of files and line numbers
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override
-
-#### Modifies
-
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
-- [ ] `.github/workflows/ci.yml` — add atomic gate
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_ATOMIC_WRITE_VIOLATION`
-
-### Cross-cutting
-
-#### Observability
-
-- [ ] Output: list of offending files with repo-relative paths.
-
-#### Errors
-
-- [ ] Deterministic code.
-
-#### Security / Redaction
-
-- [ ] No file contents; only paths.
-
-### Verification
-
-- [ ] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
-
-### Tests
-
-- [ ] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
-
-### DoD
-
-- [ ] Gate implemented, CI integrated, error code registered.

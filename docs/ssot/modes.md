@@ -321,7 +321,9 @@ enterprise
 
 Owner-defined custom preset names MAY exist.
 
-Custom preset names MUST NOT redefine framework canonical preset names.
+Owner-defined custom preset names MUST NOT redefine framework canonical preset names.
+
+However, skeleton override files MAY override framework canonical presets using the same canonical name through the standard skeleton override mechanism.
 
 Preset names MUST be safe lowercase ASCII identifiers.
 

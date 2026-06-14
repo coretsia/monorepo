@@ -62,6 +62,7 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 
@@ -98,6 +99,10 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * - registering cache services does not run cache verification;
  * - registering artifact/fingerprint/cache services does not emit spans,
  *   metrics, logs, stdout, or stderr;
+ * - RuntimeDriverGuard is registered as a factory-only stateless guard;
+ * - registering RuntimeDriverGuard does not run runtime driver detection;
+ * - registering RuntimeDriverGuard does not inspect config values;
+ * - registering RuntimeDriverGuard does not resolve ModulePlan;
  * - FilesystemModePresetLoader is not registered globally because skeleton
  *   override path resolution is BootstrapConfig-specific;
  * - ModePresetLoaderInterface is not bound globally for the same reason;
@@ -114,8 +119,9 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  *
  * This provider must not emit stdout/stderr, must not use tooling-only
  * packages, must not introduce static mutable snapshots, must not trigger
- * reset orchestration, must not execute Bootstrap Phase A, must not resolve a
- * ModulePlan, must not compile config, and must not start a UnitOfWork during
+ * reset orchestration, must not execute Bootstrap Phase A, must not inspect
+ * runtime driver config, must not run runtime driver detection, must not resolve
+ * a ModulePlan, must not compile config, and must not start a UnitOfWork during
  * registration.
  */
 final class KernelServiceProvider implements ServiceProviderInterface
@@ -402,7 +408,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             CompiledContainerBuilder::class,
-            static fn (Container $container): CompiledContainerBuilder => KernelServiceFactory::compiledContainerBuilder(
+            static fn (
+                Container $container
+            ): CompiledContainerBuilder => KernelServiceFactory::compiledContainerBuilder(
                 container: $container,
             ),
         );
@@ -420,7 +428,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             CompiledContainerFactory::class,
-            static fn (Container $container): CompiledContainerFactory => KernelServiceFactory::compiledContainerFactory(
+            static fn (
+                Container $container
+            ): CompiledContainerFactory => KernelServiceFactory::compiledContainerFactory(
                 container: $container,
             ),
         );
@@ -449,10 +459,18 @@ final class KernelServiceProvider implements ServiceProviderInterface
         /*
          * Register Kernel runtime services.
          *
-         * These bindings are factories only. They do not enumerate hooks, do not
-         * trigger reset, do not start a UnitOfWork, and do not execute runtime
-         * lifecycle during provider registration.
+         * These bindings are factories only. They do not run runtime driver detection,
+         * inspect runtime config, resolve ModulePlan, enumerate hooks, trigger reset,
+         * start a UnitOfWork, execute runtime lifecycle, or emit stdout/stderr during
+         * provider registration.
          */
+        $builder->factory(
+            RuntimeDriverGuard::class,
+            static fn (
+                Container $_container
+            ): RuntimeDriverGuard => KernelServiceFactory::runtimeDriverGuard(),
+        );
+
         $builder->factory(
             HookInvoker::class,
             static fn (Container $container): HookInvoker => KernelServiceFactory::hookInvoker(

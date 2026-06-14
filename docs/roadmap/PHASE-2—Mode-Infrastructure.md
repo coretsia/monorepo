@@ -434,6 +434,7 @@ provides:
 - "Mode-aware ops without CLI-owned mode state (`--mode` is explicit override input only)"
 - "Safe output (deterministic JSON/table/plain) + redaction (no secrets/PII)"
 - "Reserved names implemented (`help`, `list`) and enforced"
+- "Container-backed external command discovery: tagged package commands such as worker:* are discoverable and dispatchable through the CLI catalog when their package is enabled."
 
 tags_introduced: []          # uses existing reserved tag(s)
 config_roots_introduced: []  # `cli` root exists (owner platform/cli)
@@ -490,19 +491,31 @@ ssot_refs:
   - `Coretsia\Foundation\Context\ContextKeys`
   - `Coretsia\Foundation\Observability\CorrelationIdProvider`
 
+- Optional cross-package command discovery fixture:
+  - `platform/worker` MAY contribute `worker:start`, `worker:stop`, and `worker:status` command services via the canonical `cli.command` tag.
+  - `platform/cli` MUST NOT require a compile-time dependency on `platform/worker`.
+  - Integration tests that verify worker command discovery MUST enable the worker package only through a test fixture / composed test app.
+  - If `platform/worker` is not available in the test graph yet, this epic MUST still prove external tagged command discovery through a fixture command service that implements `Coretsia\Contracts\Cli\Command\CommandInterface`.
+
 > **Policy (single-choice):** `platform/cli` MUST consume kernel operations ONLY via `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` and MUST NOT reference any `Coretsia\Kernel\Ops\*` symbols. Other `Coretsia\Kernel\*` public APIs MAY be used only where required by this epic’s declared compile-time dependency on `core/kernel` (boot/UoW runtime orchestration), but MUST NOT duplicate kernel algorithms.
 
 ### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
+
 - `core/contracts`
 - `core/foundation`
 - `core/kernel`
 
 Forbidden:
+
 - `integrations/*`
+- `platform/worker` in production source
 - external console frameworks / parsers
 - filesystem scanning for discovery (commands/workflows)
+
+- Integration tests MAY enable `platform.worker` only through a composed test fixture/app.
+- `platform/cli` production source MUST NOT import `Coretsia\Platform\Worker\*`.
 
 ### Entry points / integration points (MUST)
 
@@ -528,6 +541,12 @@ Forbidden:
 - ONLY discovery mechanism: DI tag `cli.command`.
 - CLI MUST NOT read any `cli.commands` registry list.
 - Consumer MUST NOT re-sort or re-dedupe TagRegistry output.
+
+- External package commands:
+  - [ ] CLI catalog MUST discover commands contributed by other enabled packages through `cli.command`.
+  - [ ] CLI MUST NOT special-case `platform/worker`.
+  - [ ] CLI MUST NOT depend on `platform/worker` at compile time.
+  - [ ] Worker command discovery, when tested, MUST happen through the same generic `cli.command` mechanism as all other package commands.
 
 ### Deliverables (exact paths only) (MUST)
 
@@ -761,6 +780,20 @@ Errors:
   - [ ] `framework/packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
   - [ ] `framework/packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php` *(rename from …FacadeTest)*
   - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php` *(rename from …FacadeTest)*
+  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
+    - [ ] proves commands from an enabled non-CLI package are discovered through `cli.command`
+    - [ ] MUST NOT rely on filesystem scanning
+    - [ ] MUST NOT use a `cli.commands` registry list
+  - [ ] `framework/packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
+    - [ ] enables `platform.worker` in a composed test fixture/app
+    - [ ] asserts `worker:start`, `worker:stop`, and `worker:status` appear in the command catalog
+    - [ ] asserts discovery happens via `cli.command`
+    - [ ] MUST NOT require `platform/cli` compile-time dependency on `platform/worker`
+  - [ ] `framework/packages/platform/cli/tests/Integration/WorkerStartDispatchesThroughCommandCatalogTest.php`
+    - [ ] dispatches `worker:start` through `CliApplication` / `CommandCatalog`
+    - [ ] uses a safe fake worker manager or fake command handler
+    - [ ] MUST NOT start real worker processes
+    - [ ] MUST NOT fork, call `proc_open`, or open sockets
 
 ### DoD (MUST)
 
@@ -785,10 +818,15 @@ Errors:
     - [ ] validation status;
     - [ ] `hash(value)` / `len(value)` when provided by upstream metadata.
   - [ ] MUST NOT compute raw-value hash/len from unsafe sources unless the CLI redaction policy explicitly allows it.
-- [ ] `cache:verify` reports clean after rerunning `coretsia config:compile` without input changes.
+- [ ] `cache:verify` reports clean after rerunning `config:compile` without input changes.
   - [ ] MUST delegate to `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
   - [ ] MUST NOT duplicate Kernel cache verification algorithms in CLI.
   - [ ] MUST preserve deterministic output and redaction policy.
+- [ ] External package command discovery:
+  - [ ] commands contributed by enabled packages through `cli.command` are discoverable through `CommandCatalog`
+  - [ ] `platform/cli` does not depend on those packages at compile time
+  - [ ] `worker:start`, `worker:stop`, and `worker:status` are discoverable when `platform.worker` is enabled in the composed test app
+  - [ ] `worker:start` can be dispatched through the CLI catalog in a safe test mode without starting real worker processes
 
 ---
 
@@ -1189,3 +1227,140 @@ Forbidden:
   - [ ] commands still dispatch only to tools/spikes
   - [ ] user-visible output still goes only through CLI `OutputInterface`
   - [ ] no bootstrap/runtime drift into production package semantics
+
+---
+
+
+### 2.70.0 CLI Performance Gate (MUST) [TOOLING]
+
+---
+type: tools
+phase: 2
+epic_id: "2.70.0"
+owner_path: "framework/tools/gates/"
+
+goal: "Benchmark execution time of key CLI commands on a pinned benchmark runner and fail only there if performance degrades beyond threshold."
+provides:
+- "Deterministic performance benchmarking of CLI commands"
+- "Baseline timings stored in SSoT"
+- "CI gate that compares current timings against baseline"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+adr: none
+ssot_refs: []
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 0.130.0 — CLI base exists
+  - 0.140.0 — cli-spikes commands exist (for testing)
+  - 1.50.0 — tooling baseline exists
+
+- Required deliverables:
+  - `coretsia` CLI executable.
+
+#### Compile-time deps
+
+N/A
+
+### Entry points / integration points (MUST)
+
+- Composer:
+  - `composer performance:gate` — runs performance benchmarks
+- CI:
+  - run only in a dedicated pinned benchmark job
+  - MUST NOT gate generic shared-runner CI, because timings there are not deterministic
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [ ] `framework/tools/config/performance.php` — tooling-local performance benchmark config:
+  - [ ] list of commands to benchmark (e.g., `coretsia list`, `coretsia help`, `coretsia spike:fingerprint`)
+  - [ ] threshold multiplier (e.g., 1.2 = 20% slower allowed)
+  - [ ] baseline file path `framework/tools/config/performance.baseline.json`
+  - [ ] baseline MUST be tied to the pinned benchmark environment / runner class
+
+- [ ] `framework/tools/gates/performance_gate.php` — deterministic gate:
+  - [ ] runs each command multiple times (e.g., 3) and takes median execution time
+  - [ ] compares against baseline (if exists) or creates baseline if not
+  - [ ] if any command exceeds baseline * threshold, prints `CORETSIA_PERFORMANCE_DEGRADED` + details
+  - [ ] uses `ConsoleOutput`
+  - [ ] supports `--update-baseline` flag to update baseline after intentional improvements
+  - [ ] MUST resolve the tools root deterministically from the executing gate file.
+  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] If bootstrap is missing or unreadable:
+    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [ ] MUST use two code classes when applicable:
+    - [ ] violation/finding code
+    - [ ] scan-failed/tooling-failed code
+  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
+  - [ ] On unexpected throwable:
+    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [ ] MUST exit with code `1`
+  - [ ] On pass:
+    - [ ] MUST emit no output
+    - [ ] MUST exit with code `0`
+  - [ ] On violation/finding:
+    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [ ] MUST exit with code `1`
+  - [ ] Diagnostics MUST be:
+    - [ ] deduplicated
+    - [ ] sorted by byte-order `strcmp`
+    - [ ] stable across OS/filesystem order/locale
+    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+
+- [ ] `framework/tools/config/performance.baseline.json` — initial baseline (committed)
+
+#### Modifies
+
+- [ ] `composer.json` — add mirror scripts (delegates to framework):
+  - [ ] `performance:gate` → `@composer --no-interaction --working-dir=framework run-script performance:gate --`
+- [ ] `framework/composer.json` — add gate script
+  - [ ] `performance:gate` → `@php tools/gates/performance_gate.php`
+- [ ] `.github/workflows/performance-benchmark.yml` — dedicated pinned-runner workflow/job for the performance gate
+- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [ ] `CORETSIA_PERFORMANCE_DEGRADED`
+  - [ ] `CORETSIA_PERFORMANCE_GATE_SCAN_FAILED`
+
+- [ ] add command `performance:gate` in `docs/guides/commands.md`
+- [ ] update command `composer gates` in `docs/guides/commands.md`
+
+### Cross-cutting
+
+#### Observability
+
+- [ ] Output: command name, baseline time, current time, threshold.
+
+#### Errors
+
+- [ ] Deterministic codes.
+
+#### Security / Redaction
+
+- [ ] No secrets; only command names and timings.
+
+### Verification
+
+- [ ] Integration test: mock slow command, run gate, assert failure.
+
+### Tests
+
+- [ ] `framework/tools/tests/Integration/PerformanceGateTest.php`
+
+### DoD
+
+- [ ] Gate implemented, baseline created, CI integrated.

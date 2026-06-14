@@ -69,6 +69,7 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Psr\Container\ContainerInterface;
@@ -1031,6 +1032,18 @@ final class KernelServiceFactory
             logger: self::logger($container),
             stopwatch: self::stopwatch($container),
         );
+    }
+
+    /**
+     * Creates the canonical runtime driver matrix guard.
+     *
+     * This factory performs construction only. It does not read config values,
+     * does not resolve ModulePlan, does not detect active drivers, does not cache
+     * guard results, and keeps no mutable runtime state.
+     */
+    public static function runtimeDriverGuard(): RuntimeDriverGuard
+    {
+        return new RuntimeDriverGuard();
     }
 
     /**

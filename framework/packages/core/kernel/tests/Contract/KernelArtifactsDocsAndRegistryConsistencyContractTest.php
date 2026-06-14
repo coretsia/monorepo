@@ -162,6 +162,112 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
     }
 
+    public function testCompiledContainerReusesExistingKernelArtifactPathPolicy(): void
+    {
+        $pathResolver = self::kernelSource('src/Artifacts/Paths/ArtifactPathResolver.php');
+        $artifactCompiler = self::kernelSource('src/Artifacts/Compiler/ArtifactCompiler.php');
+        $cacheVerifier = self::kernelSource('src/Artifacts/Verifier/CacheVerifier.php');
+
+        self::assertStringContainsString(
+            "private const string KEY_ARTIFACTS = 'artifacts';",
+            $pathResolver,
+        );
+        self::assertStringContainsString(
+            "private const string KEY_CACHE_DIR = 'cache_dir';",
+            $pathResolver,
+        );
+        self::assertStringContainsString(
+            "private const string CANONICAL_CACHE_DIR = 'var/cache';",
+            $pathResolver,
+        );
+        self::assertStringContainsString(
+            "public const string CONTAINER_BASENAME = 'container.php';",
+            $pathResolver,
+        );
+        self::assertStringContainsString(
+            'public function containerPath(',
+            $pathResolver,
+        );
+
+        self::assertStringContainsString(
+            '$this->pathResolver->containerPath($bootstrapConfig, $kernelConfig)',
+            $artifactCompiler,
+        );
+        self::assertStringContainsString(
+            'basename: ArtifactPathResolver::CONTAINER_BASENAME',
+            $artifactCompiler,
+        );
+
+        self::assertStringContainsString(
+            '$this->pathResolver->containerPath($bootstrapConfig, $kernelConfig)',
+            $cacheVerifier,
+        );
+        self::assertStringContainsString(
+            'basename: ArtifactPathResolver::CONTAINER_BASENAME',
+            $cacheVerifier,
+        );
+    }
+
+    public function testCompiledContainerDoesNotIntroduceContainerSpecificKernelConfig(): void
+    {
+        $config = require self::kernelPath('config/kernel.php');
+
+        self::assertIsArray($config);
+
+        self::assertArrayHasKey('artifacts', $config);
+        self::assertArrayHasKey('cache_dir', $config['artifacts']);
+        self::assertSame('var/cache', $config['artifacts']['cache_dir']);
+
+        self::assertArrayHasKey('fingerprint', $config);
+        self::assertArrayHasKey('skeleton_ignore_prefixes', $config['fingerprint']);
+
+        self::assertArrayNotHasKey('container', $config);
+        self::assertArrayNotHasKey('container_compile', $config);
+        self::assertArrayNotHasKey('compiled_container', $config);
+        self::assertArrayNotHasKey('di', $config);
+    }
+
+    public function testCompiledContainerClassesDoNotReadFingerprintConfigurationDirectly(): void
+    {
+        $sources = [
+            'src/Container/ContainerCompiler.php' => self::kernelSource('src/Container/ContainerCompiler.php'),
+            'src/Artifacts/Builders/CompiledContainerBuilder.php' => self::kernelSource(
+                'src/Artifacts/Builders/CompiledContainerBuilder.php'
+            ),
+            'src/Container/CompiledContainerFactory.php' => self::kernelSource(
+                'src/Container/CompiledContainerFactory.php'
+            ),
+        ];
+
+        foreach ($sources as $path => $source) {
+            self::assertStringNotContainsString(
+                'kernel.fingerprint',
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                'skeleton_ignore_prefixes',
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                'KEY_FINGERPRINT',
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                'fingerprintConfig',
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                'kernelConfig',
+                $source,
+                $path,
+            );
+        }
+    }
+
     private static function section(string $source, string $startNeedle, string $endNeedle): string
     {
         $start = \strpos($source, $startNeedle);
@@ -203,5 +309,30 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             '',
             $source,
         );
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    private static function kernelPath(string $relativePath): string
+    {
+        $path = \dirname(__DIR__, 2) . '/' . \ltrim($relativePath, '/');
+
+        if ($path === '' || !\is_file($path)) {
+            self::fail('Kernel test fixture source file is missing: ' . $relativePath);
+        }
+
+        return $path;
+    }
+
+    private static function kernelSource(string $relativePath): string
+    {
+        $source = \file_get_contents(self::kernelPath($relativePath));
+
+        if (!\is_string($source)) {
+            self::fail('Kernel test fixture source file is unreadable: ' . $relativePath);
+        }
+
+        return $source;
     }
 }

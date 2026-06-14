@@ -14,21 +14,21 @@
 
 # Phase 0 — Spikes boundary (tools-only, single-choice)
 
-> **Canonical / single-choice.**  
-> Цей документ фіксує **єдину** межу для Phase 0 spikes. Будь-які інші документи/реалізації **MUST** відповідати цьому файлу і **MUST NOT** вводити альтернативні “either/or” правила.
+> **Canonical / single-choice.**\
+> This document fixes the **single** boundary for Phase 0 spikes.\
+> Any other documents/implementations **MUST** conform to this file and **MUST NOT** introduce alternative “either/or” rules.
 
 ---
 
 ## 0) Scope
 
-- **Scope:** Phase 0 spikes / prototypes та Phase 0 tooling rails.
-- **Goal:** жорстко зацементувати, що spikes — це **tools-only**, і вони **не можуть** “просочитися” в runtime-пакети.
+- **Scope:** Phase 0 spikes / prototypes and Phase 0 tooling rails.
+- **Goal:** strictly cement that spikes are **tools-only**, and they **cannot** “leak” into runtime packages.
 - **Non-goals:**
-  - цей документ **не** вводить runtime behavior;
-  - цей документ **не** вводить plugin/extensibility frameworks;
-  - цей документ **не** змінює Phase 0 dependency SSoT (`00_2-dependency-table.md`);
-  - цей документ **MUST NOT** вимагати, вводити або імплікувати compile-time dependency на `core/kernel`
-    (якщо це явно не сказано в epic / не належить до scope іншого епіку).
+  - this document **does not** introduce runtime behavior;
+  - this document **does not** introduce plugin/extensibility frameworks;
+  - this document **does not** change the Phase 0 dependency SSoT (`00_2-dependency-table.md`);
+  - this document **MUST NOT** require, introduce, or imply a compile-time dependency on `core/kernel` (unless this is explicitly stated in an epic / belongs to the scope of another epic).
 
 ---
 
@@ -36,19 +36,18 @@
 
 ### 1.1 Packaging law (MUST)
 
-Всі твердження про “package vs tooling” **MUST** спиратися на monorepo packaging law:
+All statements about “package vs tooling” **MUST** rely on the monorepo packaging law:
 
 - `docs/architecture/PACKAGING.md`
 
-Ключове (для цього boundary):
+Key points (for this boundary):
 
 - `framework/packages/**` — **publishable units** (runtime/devtools packages).
-- `framework/tools/**` — **non-publishable tooling** (gates, rails, spikes, generators).  
-  (див. `docs/architecture/PACKAGING.md`)
+- `framework/tools/**` — **non-publishable tooling** (gates, rails, spikes, generators). (see `docs/architecture/PACKAGING.md`)
 
 ### 1.2 Phase 0 dependency truth (MUST)
 
-Цей boundary **не** є таблицею залежностей. Єдина truth-source для Phase 0 compile-time edges:
+This boundary **is not** a dependency table. The single truth-source for Phase 0 compile-time edges:
 
 - `docs/roadmap/phase0/00_2-dependency-table.md`
 
@@ -56,11 +55,10 @@
 
 ## 2) Terms (normative)
 
-- **Spike** — прототип/експеримент Phase 0, який допускає швидкі ітерації, але **MUST** бути детермінований, rerun-no-diff та без leakage секретів.
-- **Tooling-only** — код, який живе у `framework/tools/**` і **MUST NOT** бути частиною production/runtime поверхні.
-- **Runtime packages area** — будь-які publishable units під `framework/packages/**` (включно з `core/*`, `platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`).
-- **Path-based import** — будь-який `require|require_once|include|include_once` шляхом до `framework/packages/**/src/**`
-  (або еквівалент, включно з `..`/backslashes).
+- **Spike** — a Phase 0 prototype/experiment that allows fast iterations, but **MUST** be deterministic, rerun-no-diff, and free from secret leakage.
+- **Tooling-only** — code that lives in `framework/tools/**` and **MUST NOT** be part of the production/runtime surface.
+- **Runtime packages area** — any publishable units under `framework/packages/**` (including `core/*`, `platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`).
+- **Path-based import** — any `require|require_once|include|include_once` path to `framework/packages/**/src/**` (or equivalent, including `..`/backslashes).
 
 ---
 
@@ -68,19 +66,19 @@
 
 ### 3.1 Spikes location (MUST)
 
-- Spikes **MUST** жити **тільки** під:
+- Spikes **MUST** live **only** under:
   - `framework/tools/spikes/**`
 
 ### 3.2 Spikes MUST NOT live in runtime packages (MUST NOT)
 
-- Spike implementations **MUST NOT** жити під:
+- Spike implementations **MUST NOT** live under:
   - `framework/packages/**`
 
-Це включає будь-які класи/скрипти “spike-логіки”, навіть якщо їх “зручно” запускати через CLI.
+This includes any classes/scripts containing “spike logic”, even if it is “convenient” to run them through CLI.
 
 ### 3.3 Spikes MUST NOT import runtime code (MUST NOT)
 
-Spikes **MUST NOT** імпортувати (namespace imports) runtime packages:
+Spikes **MUST NOT** import (namespace imports) runtime packages:
 
 - `core/*`
 - `platform/*`
@@ -88,20 +86,20 @@ Spikes **MUST NOT** імпортувати (namespace imports) runtime packages:
 - `enterprise/*`
 - `presets/*`
 
-Тобто spikes **MUST NOT** мати `use Coretsia\...` імпорти до runtime namespaces (наприклад `Coretsia\Kernel\...`, `Coretsia\Foundation\...`, `Coretsia\Platform\...`, `Coretsia\Integrations\...`).
+That is, spikes **MUST NOT** have `use Coretsia\...` imports to runtime namespaces (for example `Coretsia\Kernel\...`, `Coretsia\Foundation\...`, `Coretsia\Platform\...`, `Coretsia\Integrations\...`).
 
-> Note: окремо дозволений один tooling-only виняток — `coretsia/internal-toolkit` (див. §4).
+> Note: one tooling-only exception is allowed separately — `coretsia/internal-toolkit` (see §4).
 
 ### 3.4 Spikes MUST NOT do path-based imports from packages/src (MUST NOT)
 
-Spikes **MUST NOT** робити `require/include` з `framework/packages/**/src/**` (в будь-якій формі шляху):
+Spikes **MUST NOT** `require/include` from `framework/packages/**/src/**` (in any path form):
 
 - `framework/packages/core/*/src/**`
 - `framework/packages/platform/*/src/**`
 - `framework/packages/integrations/*/src/**`
 - etc.
 
-Це правило **забороняє** “обхід” залежностей через файлові шляхи.
+This rule **forbids** “bypassing” dependencies through filesystem paths.
 
 ---
 
@@ -109,15 +107,15 @@ Spikes **MUST NOT** робити `require/include` з `framework/packages/**/src
 
 ### 4.1 Allowed Coretsia dependency (exactly one) (MAY)
 
-Spikes **MAY** залежати рівно від **однієї** Coretsia internal tooling library:
+Spikes **MAY** depend on exactly **one** Coretsia internal tooling library:
 
 - `coretsia/internal-toolkit`
 
-І **MUST** використовувати її **лише** через Composer autoload (namespace-based), а не через `require` по шляху.
+And **MUST** use it **only** through Composer autoload (namespace-based), not through path-based `require`.
 
 ### 4.2 What the exception covers (CLOSED set) (MUST)
 
-Цей виняток **закритий** і покриває **тільки** канонічні *determinism primitives*:
+This exception is **closed** and covers **only** canonical *determinism primitives*:
 
 - slug casing helpers: `Slug::*`
 - path normalization helpers: `Path::*`
@@ -125,44 +123,41 @@ Spikes **MAY** залежати рівно від **однієї** Coretsia inte
 
 ### 4.3 What the exception does NOT cover (MUST NOT)
 
-- Tooling **MUST NOT** дублювати `Slug::*`, `Path::*`, `Json::*` де-небудь під `framework/tools/**`.
-- Deterministic file IO helpers (наприклад Phase 0 `DeterministicFile` для EOL/LF normalization і safe writes)
-  **не** є частиною `internal-toolkit` primitive set і **MAY** жити у:
-  - `framework/tools/spikes/_support/**`
-    за умови, що вони **не** дублюють `Slug::*`, `Path::*`, `Json::*`.
+- Tooling **MUST NOT** duplicate `Slug::*`, `Path::*`, `Json::*` anywhere under `framework/tools/**`.
+- Deterministic file IO helpers (for example Phase 0 `DeterministicFile` for EOL/LF normalization and safe writes) **are not** part of the `internal-toolkit` primitive set and **MAY** live in:
+  - `framework/tools/spikes/_support/**` provided that they **do not** duplicate `Slug::*`, `Path::*`, `Json::*`.
 
-> Цей виняток не “відкриває двері” для перенесення будь-якої Phase 0 логіки в publishable packages.
+> This exception does not “open the door” for moving any Phase 0 logic into publishable packages.
 
 ---
 
 ## 5) Third-party tooling deps (allowed) vs Coretsia runtime deps (forbidden) (MUST)
 
-- Spikes **MAY** використовувати third-party dev tooling dependencies (наприклад PHPUnit) через tooling workspace.
-- Spikes **MUST NOT** мати compile-time dependencies на Coretsia runtime packages:
-  - `core/*`, `platform/*`, `integrations/*` (і інші runtime publishable units),
-    навіть якщо “це тільки для прототипу”.
+- Spikes **MAY** use third-party dev tooling dependencies (for example PHPUnit) through the tooling workspace.
+- Spikes **MUST NOT** have compile-time dependencies on Coretsia runtime packages:
+  - `core/*`, `platform/*`, `integrations/*` (and other runtime publishable units), even if “it is only for a prototype”.
 
 ---
 
 ## 6) Non-primitive Phase 0 rails infrastructure (allowed in tools) (MAY)
 
-Phase 0 rails infrastructure (gates/runner/diagnostics utilities) **MAY** жити під:
+Phase 0 rails infrastructure (gates/runner/diagnostics utilities) **MAY** live under:
 
 - `framework/tools/spikes/_support/**`
 
-за умови, що вона:
+provided that it:
 
-- поважає заборони з §3 (no runtime imports, no path-imports з `framework/packages/**/src/**`);
-- не дублює primitive set `Slug::*`, `Path::*`, `Json::*` (див. §4).
+- respects the prohibitions in §3 (no runtime imports, no path-imports from `framework/packages/**/src/**`);
+- does not duplicate the primitive set `Slug::*`, `Path::*`, `Json::*` (see §4).
 
-Приклади допустимої rails-інфраструктури:
+Examples of allowed rails infrastructure:
 
 - ErrorCodes registry,
 - deterministic exception carrier,
-- deterministic IO wrappers (не primitives),
+- deterministic IO wrappers (not primitives),
 - CI rails runner,
 - gates scripts,
-- safe console output adapter (якщо policy/rails це дозволяє).
+- safe console output adapter (if the policy/rails allow it).
 
 ---
 
@@ -170,32 +165,32 @@ Phase 0 rails infrastructure (gates/runner/diagnostics utilities) **MAY** жит
 
 ### 7.1 CLI runtime package may exist (MAY)
 
-- CLI runtime package `coretsia/cli` **MAY** існувати як UX entrypoint.
+- CLI runtime package `coretsia/cli` **MAY** exist as a UX entrypoint.
 
 ### 7.2 Spike command implementations MUST NOT live in production runtime packages (MUST NOT)
 
-- Phase 0 spike command **IMPLEMENTATIONS MUST NOT** жити в production runtime packages.
-- Spike commands **MUST** жити:
-  - або як tools-only scripts у `framework/tools/spikes/**`,
-  - або в devtools-only package (`coretsia/cli-spikes`, epic `0.140.0`) як thin dispatcher **без** spike бізнес-логіки.
+- Phase 0 spike command **IMPLEMENTATIONS MUST NOT** live in production runtime packages.
+- Spike commands **MUST** live:
+  - either as tools-only scripts in `framework/tools/spikes/**`,
+  - or in a devtools-only package (`coretsia/cli-spikes`, epic `0.140.0`) as a thin dispatcher **without** spike business logic.
 
 ### 7.3 Production safety invariant (MUST)
 
-- Installing only `coretsia/cli` **MUST NOT** включати doctor/spike/deptrac/workspace command classes у package.
+- Installing only `coretsia/cli` **MUST NOT** include doctor/spike/deptrac/workspace command classes in the package.
 
 ### 7.4 Boundary remains tools-only (MUST)
 
-- CLI **не** дає права переносити spikes з `framework/tools/spikes/**`.
-- CLI може лише dispatch/exec spikes і читати fixtures; spikes лишаються tools-only.
+- CLI **does not** grant permission to move spikes out of `framework/tools/spikes/**`.
+- CLI may only dispatch/exec spikes and read fixtures; spikes remain tools-only.
 
-> Цей boundary decision **не** вимагає, щоб `0.120/0.130/0.140` вже були реалізовані — він лише фіксує правило.
+> This boundary decision **does not** require `0.120/0.130/0.140` to already be implemented — it only fixes the rule.
 
 ---
 
 ## 8) Examples (copy-pastable)
 
-> **DoD note:** мінімальний набір прикладів (3–4) — це **§8.1–§8.4** (4 приклади).  
-> **§8.5** — додатковий edge-case приклад (не змінює boundary та не розширює rules).
+> **DoD note:** the minimal set of examples (3–4) is **§8.1–§8.4** (4 examples).\
+> **§8.5** is an additional edge-case example (does not change the boundary and does not extend the rules).
 
 ### 8.1 ✅ Valid: spike lives under `framework/tools/spikes/**` and uses `internal-toolkit` via autoload
 
@@ -282,7 +277,7 @@ final class FingerprintPrototype
 }
 ```
 
-Навіть якщо це “тимчасово” і навіть якщо CLI може це запустити — це **MUST** вважатися порушенням boundary.
+Even if this is “temporary” and even if CLI can run it — this **MUST** be considered a boundary violation.
 
 ---
 
@@ -316,10 +311,10 @@ require __DIR__ . '/../../../packages/core/kernel/src/KernelRuntime.php'; // ❌
 
 ## 9) Cutline / enforcement intent (MUST)
 
-- Цей документ — **cutline blocker** для Phase 0:
-  - поки boundary не зацементований, наступні tooling epics не повинні розширювати поверхню spikes.
-- Будь-яка реалізація Phase 0 tooling **MUST** бути сумісна з цим boundary.
-- Подальші epics **SHOULD** додати enforcement gates, але цей epic є **doc-only** і фіксує правило.
+- This document is a **cutline blocker** for Phase 0:
+  - until the boundary is cemented, subsequent tooling epics must not expand the spikes surface.
+- Any Phase 0 tooling implementation **MUST** be compatible with this boundary.
+- Subsequent epics **SHOULD** add enforcement gates, but this epic is **doc-only** and fixes the rule.
 
 ---
 

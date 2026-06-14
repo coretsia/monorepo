@@ -112,18 +112,12 @@
 ### 1.340.0 Kernel: Container compile (REAL) + `container.php` artifact (MUST) [IMPL]
 ### 1.350.0 Kernel: RuntimeDriverGuard + Runtime driver matrix E2E locks (MUST) [IMPL+TOOLING]
 ### 1.360.0 Long-Running Runtime: Worker Manager & Application Worker (MUST) [IMPL]
-### 1.370.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
 
-## 1.380.0 Cyclic Dependencies Gate (package level) (MUST) [TOOLING]
-## 1.390.0 Deprecated API Gate (MUST) [TOOLING]
-## 1.400.0 Composer Audit Gate (MUST) [TOOLING]
-## 1.410.0 Unified Code Style Gate (MUST) [TOOLING]
-## 1.420.0 Test Coverage Gate (MUST) [TOOLING]
-## 1.430.0 SOLID Architecture Enforcer Gate (MUST) [TOOLING]
-## 1.440.0 Secret Leakage Gate (MUST) [TOOLING]
-## 1.450.0 PR Size / Focus Gate (MUST) [TOOLING]
-## 1.460.0 CLI Performance Gate (MUST) [TOOLING]
-## 1.470.0 Atomic Transaction Gate (MUST) [TOOLING]
+### 1.370.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
+### 1.380.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
+### 1.390.0 Atomic Transaction Gate (MUST) [TOOLING]
+### 1.400.0 Composer Audit Gate (MUST) [TOOLING]
+### 1.410.0 Secret Leakage Gate (MUST) [TOOLING]
 
 ---
 
@@ -136,6 +130,7 @@
 ### 2.40.0 Platform CLI: Workflows + Advanced UX (SHOULD) [IMPL]
 ### 2.50.0 Front Controller stub + deterministic smoke (MUST) [IMPL]
 ### 2.60.0 Devtools CLI-spikes: migrate to tag-first `cli.command` (MUST) [IMPL]
+### 2.70.0 CLI Performance Gate (MUST) [TOOLING]
 
 ---
 
@@ -230,6 +225,7 @@
 ### 5.110.0 coretsia/scheduler — Schedule registry + schedule:run (MUST) [IMPL]
 ### 5.120.0 Enterprise fixture E2E (RC MUST) (MUST) [IMPL]
 ### 5.130.0 Asynchronous Performance Tuning (SHOULD) [IMPL+TOOLING]
+### 5.140.0 Test Coverage Gate (MUST) [TOOLING]
 
 ---
 

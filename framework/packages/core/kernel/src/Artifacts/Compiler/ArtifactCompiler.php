@@ -48,6 +48,15 @@ use Coretsia\Kernel\Module\ModulePlan;
  * - config.php;
  * - container.php.
  *
+ * `container.php` uses the same Kernel artifact path policy as the other
+ * Kernel-owned artifacts. Artifact paths remain resolved by ArtifactPathResolver
+ * from the existing `kernel.artifacts.cache_dir` key; this compiler does not
+ * introduce container-specific artifact path configuration.
+ *
+ * Fingerprint exclusion policy remains owned by ConfigFingerprintInputBuilder
+ * and FingerprintCalculator. Compiled-container compiler/builder/runtime boot
+ * services do not read `kernel.fingerprint.*` configuration directly.
+ *
  * It receives already resolved Phase A / module inputs and explicit config
  * source candidate arrays. It invokes ConfigKernel::compile(...) exactly once
  * per compile operation, builds deterministic fingerprint input through

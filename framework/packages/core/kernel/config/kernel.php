@@ -29,9 +29,10 @@ declare(strict_types=1);
  *
  * Baseline invariants:
  * - the `kernel` root is owned by `core/kernel`;
- * - dotted keys such as `kernel.boot.*`, `kernel.config.*`, `kernel.env.*`,
- *   `kernel.modules.*`, `kernel.modes.*`, `kernel.artifacts.*`,
- *   `kernel.fingerprint.*`, `kernel.uow.*` are config key namespaces, not roots;
+ * - dotted keys such as `kernel.boot.*`, `kernel.config.*`, `kernel.runtime.*`,
+ *   `kernel.env.*`, `kernel.modules.*`, `kernel.modes.*`,
+ *   `kernel.artifacts.*`, `kernel.fingerprint.*`, `kernel.uow.*` are config
+ *   key namespaces, not roots;
  * - `kernel.config.*` owns ConfigKernel Phase B safety defaults;
  * - `kernel.config.forbidden_top_level_roots` reserves global internal config
  *   namespaces only;
@@ -40,6 +41,7 @@ declare(strict_types=1);
  * - `kernel.modules.*` owns module discovery source defaults;
  * - `kernel.modes.*` owns mode preset path/schema defaults;
  * - `kernel.artifacts.*` owns Kernel artifact output path defaults;
+ * - `kernel.runtime.*` owns Kernel runtime driver default flags;
  * - `kernel.fingerprint.*` owns deterministic fingerprint exclusion defaults;
  * - `kernel.fingerprint.*` MUST NOT duplicate the canonical dotenv files list from
  *   `kernel.env.dotenv.files`;
@@ -112,6 +114,30 @@ return [
         'default_env' => 'local',
         'default_preset' => 'micro',
         'default_debug' => false,
+    ],
+
+    /*
+     * Runtime driver defaults.
+     *
+     * Non-classic HTTP runtime drivers are opt-in. With these defaults and no
+     * worker runtime enabled, RuntimeDriverGuard resolves the safe classic HTTP
+     * driver.
+     *
+     * Worker runtime inputs are intentionally not defined here. The `worker.*`
+     * config root is introduced by the future platform/worker owner epic. Before
+     * that root exists, missing `worker.enabled` is treated as false and missing
+     * `worker.task_type` must not activate any runtime driver.
+     */
+    'runtime' => [
+        'frankenphp' => [
+            'enabled' => false,
+        ],
+        'swoole' => [
+            'enabled' => false,
+        ],
+        'roadrunner' => [
+            'enabled' => false,
+        ],
     ],
 
     /*

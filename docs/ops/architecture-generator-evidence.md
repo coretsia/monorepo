@@ -52,6 +52,19 @@ The current target is intentionally small:
 - generated files remain unchanged;
 - duration is visible in the GitHub Actions summary.
 
+## CI workflow
+
+The current evidence is collected by the dedicated GitHub Actions workflow:
+
+- `architecture-evidence`
+- job: `architecture-generator-idempotence / ubuntu / PHP 8.4`
+
+The workflow summary contains the per-iteration command result and `duration_ms` for each repeated architecture generator check.
+
+Workflow runs: [architecture-evidence](https://github.com/coretsia/monorepo/actions/workflows/architecture-evidence.yml)
+
+Historical run summaries are retained according to GitHub Actions retention policy.
+
 ## Non-goals
 
 This evidence does not yet measure:
@@ -60,7 +73,8 @@ This evidence does not yet measure:
 - application-level performance;
 - flaky test rate;
 - Windows parity;
-- comparison with other frameworks.
+- comparison with other frameworks;
+- production runtime determinism claims.
 
 ## Why this exists
 

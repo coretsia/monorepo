@@ -14,6 +14,12 @@
 
 # coretsia/platform-worker
 
+**Experimental long-running worker runtime substrate.**
+
+**No real queue/HTTP task sources yet.**
+
+**Used by future Coretsia queue/HTTP/runtime integrations.**
+
 `platform/worker` is the **long-running Worker runtime** package for the Coretsia Framework monorepo.
 
 **Scope:** worker module metadata, worker service provider/factory wiring, worker pool specification, process-driver lifecycle orchestration, application worker task loops, deterministic worker state storage, payload-free control transport, package-contributed worker command classes, safe worker exceptions, and worker runtime observability summaries.
@@ -33,6 +39,8 @@ This README is a consumer-oriented package summary.
 - **Config root:** `worker`
 - **Child launcher:** `bin/coretsia-worker`
 
+The child launcher is process-driver infrastructure. It is not the user-facing `coretsia worker:*` command dispatcher.
+
 Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
 
 Per-package independent versions **MUST NOT** be used.
@@ -45,7 +53,7 @@ This package is runtime-safe and process-oriented.
   - `core/contracts`
   - `core/foundation`
   - `core/kernel`
-  - PSR container/log/http handler interfaces used as ports
+  - PSR interfaces used only as ports
 - **Forbidden:**
   - `platform/cli`
   - `platform/http`

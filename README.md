@@ -57,6 +57,8 @@ Authoritative planning and invariants:
 - [Single Source of Truth (invariants/shapes/policies)](docs/ssot/INDEX.md)
 - [Security policy](SECURITY.md)
 
+Coretsia also tracks early architecture generator idempotence evidence in CI. See [Architecture Generator Idempotence Evidence](docs/ops/architecture-generator-evidence.md).
+
 ## Repository layout (canonical)
 
 - `framework/` — framework meta-package + all framework packages
@@ -170,10 +172,6 @@ composer ci
 - [SSoT index](docs/ssot/INDEX.md)
 - [Branding spec](docs/architecture/BRANDING.md)
 - [Architecture generator idempotence evidence](docs/ops/architecture-generator-evidence.md)
-
-The dedicated `architecture-evidence` workflow collects lightweight architecture generator idempotence evidence by repeatedly running architecture generator checks and verifying that tracked generated architecture files do not drift.
-
-This evidence is not an application benchmark, not a production framework comparison, and not a claim of production runtime determinism.
 
 ## Community RFCs
 

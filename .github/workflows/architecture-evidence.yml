@@ -100,6 +100,12 @@ jobs:
           if ! assert_clean_tracked_files; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "Initial tracked generated files were dirty before the evidence run." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
@@ -110,6 +116,12 @@ jobs:
             if ! assert_clean_tracked_files; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "Generated architecture files drifted after iteration ${iteration}." >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
               failed=1
               break
             fi

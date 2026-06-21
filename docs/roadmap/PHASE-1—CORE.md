@@ -16402,9 +16402,10 @@ Implementation:
   - [x] MUST preserve default values exactly as defined by `framework/packages/platform/worker/config/worker.php`
   - [x] MUST preserve path values as relative strings:
     - [x] `socket_path`
-    - [x] `pid_path`
     - [x] `state_path`
     - [x] `stop_flag_path`
+  - [x] MUST NOT introduce a separate `worker.pid_path`
+  - [x] master pid MUST be stored only inside `worker.state.json`
   - [x] MUST NOT prepend `skeleton/` to stored path values
   - [x] MUST expose resolved values separately from requested values:
     - [x] requested driver: `auto|pcntl|proc`
@@ -16422,7 +16423,8 @@ Implementation:
     - [x] `controlTransportRequested(): string`
     - [x] `controlTransport(): string`
     - [x] `socketPath(): string`
-    - [x] `pidPath(): string`
+    - [x] no `pidPath()` accessor is exposed
+    - [x] `pid()` belongs to `WorkerPoolState`, not `WorkerPoolSpec`
     - [x] `statePath(): string`
     - [x] `stopFlagPath(): string`
     - [x] `tcpHost(): string`

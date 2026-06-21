@@ -1582,7 +1582,7 @@ Forbidden:
     - "http_client.driver"
     - Owner: `platform/http-client`
     - Owner constant MUST exist:
-      - `framework/packages/platform/http-client/src/Provider/Tags.php` with `HTTP_CLIENT_DRIVER = 'http_client.driver'`
+      - `framework/packages/core/foundation/src/Tag/ReservedTags.php` with `HTTP_CLIENT_DRIVER = 'http_client.driver'`
 
   **Model B (minimal core):**
   - This package does NOT provide a transport.
@@ -1889,7 +1889,7 @@ Runtime MUST re-encode Phase 0 path invariants without importing tooling:
 - [ ] `framework/packages/platform/filesystem/src/Module/FilesystemModule.php` — runtime module
 - [ ] `framework/packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php` — DI wiring
 - [ ] `framework/packages/platform/filesystem/src/Provider/FilesystemServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/filesystem/src/Provider/Tags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
 - [ ] `framework/packages/platform/filesystem/config/filesystem.php` — config subtree (no repeated root)
 - [ ] `framework/packages/platform/filesystem/config/rules.php` — config shape rules + path-safety policy
 - [ ] `framework/packages/platform/filesystem/README.md` — docs (Observability / Errors / Security-Redaction + path safety)
@@ -1967,7 +1967,7 @@ Driver:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/filesystem/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constant(s):
     - [ ] `DISK_DRIVER = 'filesystem.disk_driver'`
 - [ ] ServiceProvider wiring evidence:
@@ -2280,7 +2280,7 @@ Forbidden:
   - `http.middleware.*` tags are owned by `platform/http`.
   - `error.mapper` tag is owned by `platform/errors`.
   - `platform/uploads` MUST NOT claim ownership and MUST NOT duplicate owner constants.
-  - Therefore: remove `framework/packages/platform/uploads/src/Provider/Tags.php` **if it only contains** constants for `http.middleware.*` and/or `error.mapper`.
+  - Therefore: remove `framework/packages/core/foundation/src/Tag/ReservedTags.php` **if it only contains** constants for `http.middleware.*` and/or `error.mapper`.
   - Wiring uses string literals in ServiceProvider:
     - `'http.middleware.app_pre'`
     - `'error.mapper'`
@@ -2633,7 +2633,7 @@ It MUST update:
 - [ ] `framework/packages/platform/database/src/Module/DatabaseModule.php` — runtime module
 - [ ] `framework/packages/platform/database/src/Provider/DatabaseServiceProvider.php` — DI wiring
 - [ ] `framework/packages/platform/database/src/Provider/DatabaseServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database/src/Provider/Tags.php` — constants (`DB_DRIVER = 'database.driver'`)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DB_DRIVER = 'database.driver'`)
 - [ ] `framework/packages/platform/database/config/database.php` — config subtree (no repeated root)
 - [ ] `framework/packages/platform/database/config/rules.php` — config shape rules
 - [ ] `framework/packages/platform/database/README.md` — docs (Observability / Errors / Security-Redaction)
@@ -6185,7 +6185,7 @@ Forbidden:
 - [ ] `framework/packages/platform/session/src/Module/SessionModule.php` — runtime module entry.
 - [ ] `framework/packages/platform/session/src/Provider/SessionServiceProvider.php` — DI wiring.
 - [ ] `framework/packages/platform/session/src/Provider/SessionServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/session/src/Provider/Tags.php` — constants for used tags/slots.
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants for used tags/slots.
 - [ ] `framework/packages/platform/session/config/session.php` — config subtree `session` (no repeated root).
 - [ ] `framework/packages/platform/session/config/rules.php` — config shape rules.
 - [ ] `framework/packages/platform/session/README.md` — Observability / Errors / Security-Redaction.
@@ -7298,7 +7298,7 @@ N/A
 - [ ] `framework/packages/platform/encryption/src/Encryption/SodiumEncrypter.php` — ext-sodium implementation
 - [ ] `framework/packages/platform/encryption/src/Encryption/NullEncrypter.php` — noop/dev
 - [ ] `framework/packages/platform/encryption/src/Exception/EncryptionException.php` — deterministic error codes
-- [ ] `framework/packages/platform/encryption/src/Provider/Tags.php` — optional constants (if needed)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — optional constants (if needed)
 - [ ] `framework/packages/platform/encryption/tests/Contract/EncryptDecryptRoundTripTest.php` — round-trip proof
 - [ ] `framework/packages/platform/encryption/tests/Contract/WrongKeyThrowsDeterministicExceptionTest.php` — deterministic failure proof
 

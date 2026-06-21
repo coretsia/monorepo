@@ -63,10 +63,16 @@ It does not own ContextStore safe-write policy, safe value model, or context res
 docs/ssot/context-store.md
 ```
 
-It does not own the canonical reserved tag registry. Tag names, tag ownership rows, reserved prefixes, and tag naming rules are owned by:
+It does not own the canonical reserved tag registry. Tag names, tag ownership rows, reserved prefixes, tag naming rules, and framework-reserved DI tag identifier code-level registry rules are owned by:
 
 ```text
 docs/ssot/tags.md
+```
+
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
 ```
 
 This document MUST NOT redefine:
@@ -198,6 +204,13 @@ kernel.stateful
 kernel.reset
 ```
 
+Their canonical code-level identifiers are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 When `foundation.reset.tag` is changed, the reset discovery tag is the resolved effective tag value, not necessarily the literal `kernel.reset`.
 
 ## Reset discipline
@@ -226,6 +239,12 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 Kernel runtime MUST trigger reset after every UoW.
 
 Kernel runtime MUST NOT enumerate reset-tagged services directly.
@@ -248,6 +267,12 @@ The fixed enforcement marker is:
 kernel.stateful
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
+
 The effective reset discovery tag is resolved from:
 
 ```text
@@ -258,6 +283,12 @@ The reserved default effective reset discovery tag is:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 The canonical stateful-service rule is:
@@ -704,7 +735,7 @@ The minimum enforcement model is:
 
 ```text
 stateful service
-→ kernel.stateful
+→ kernel.stateful (`ReservedTags::KERNEL_STATEFUL`)
 → implements ResetInterface
 → tagged with effective reset discovery tag
 → ResetOrchestrator can reset it after every UoW

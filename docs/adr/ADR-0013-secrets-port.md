@@ -542,6 +542,12 @@ A downstream package must not log, print, trace, export, render, or otherwise em
 
 ## Config, DI tag, and artifact decision
 
+If a runtime owner introduces framework-reserved secrets DI tags, their code-level identifier strings must be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
 Epic `1.180.0` introduces no config roots, no config keys, no DI tags, and no artifacts.
 
 The contracts package must not introduce:
@@ -550,8 +556,8 @@ The contracts package must not introduce:
 - package config files;
 - config defaults;
 - config rules;
-- secrets DI tag constants;
-- package-local mirror constants for secrets tags;
+- secrets DI tag identifier constants;
+- additional code-level registries for secrets DI tag identifiers;
 - secrets tag metadata keys;
 - resolver discovery semantics;
 - backend discovery semantics;
@@ -749,7 +755,7 @@ secret health check implementation
 secret debug endpoint
 secret CLI command
 secret exception mapper
-DI tag constants
+DI tag identifier constants
 artifact files
 ```
 

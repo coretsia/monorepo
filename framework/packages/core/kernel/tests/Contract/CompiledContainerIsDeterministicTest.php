@@ -134,7 +134,7 @@ final class CompiledContainerIsDeterministicTest extends TestCase
             fingerprint: self::fingerprint(),
         );
 
-        (new ArtifactSchemaValidator())->validateExpected(
+        new ArtifactSchemaValidator()->validateExpected(
             envelope: $envelope,
             expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
             expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,

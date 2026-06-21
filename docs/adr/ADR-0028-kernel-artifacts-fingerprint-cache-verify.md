@@ -194,7 +194,7 @@ services
 tags
 ```
 
-Legacy transitional stub payloads are no longer produced by Kernel artifact production and are invalid as current `container@1` artifacts:
+Transitional stub payloads are invalid as current `container@1` artifacts:
 
 ```text
 kind = stub

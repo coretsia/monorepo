@@ -518,9 +518,9 @@ Epic `1.140.0` does not create or modify those runtime packages.
 
 Epic `1.140.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public filesystem tag constants.
+The contracts package MUST NOT declare filesystem tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for filesystem tags.
+The contracts package MUST NOT define filesystem tag identifier constants.
 
 The contracts package MUST NOT define filesystem tag metadata keys, tag priority semantics, or discovery semantics.
 
@@ -530,7 +530,13 @@ If a future runtime owner needs filesystem DI tags, that owner MUST introduce th
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved filesystem tag identifiers.
 
 ## Config policy
 
@@ -679,7 +685,7 @@ This test is expected to verify:
 - public method signatures do not depend on `Psr\Http\Message\*`;
 - public method signatures do not depend on vendor filesystem concretes;
 - public method signatures do not expose streams, resources, iterators, or `SplFileInfo`;
-- filesystem contracts do not declare DI tag constants.
+- filesystem contracts do not declare DI tag identifier constants.
 
 Architecture gates are expected to verify that `core/contracts` does not introduce forbidden compile-time dependencies.
 

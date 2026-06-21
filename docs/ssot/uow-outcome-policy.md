@@ -361,7 +361,13 @@ Runtime lifecycle implementation is introduced by a later Kernel runtime epic.
 
 ## Reset tag boundary
 
-This epic MUST NOT introduce reset-tag constants.
+This epic MUST NOT introduce reset DI tag identifier constants.
+
+Framework-reserved reset and hook tag identifier constants are declared only in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 This epic MUST NOT depend on reset tag naming.
 
@@ -834,7 +840,13 @@ docs/ssot/uow-shapes.md
 
 This SSoT introduces no new tags.
 
-This SSoT introduces no tag constants.
+This SSoT introduces no DI tag identifier constants.
+
+Existing framework-reserved DI tag identifier constants are declared only in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 This SSoT MUST NOT redefine ownership of:
 
@@ -844,6 +856,17 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 kernel.stateful
 ```
+
+Their canonical code-level identifiers are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
+
+Runtime package source MUST use these constants for framework-reserved DI tag identifiers.
 
 Tag ownership and discovery policy are governed by:
 
@@ -1042,7 +1065,7 @@ This SSoT does not define:
 - hook discovery implementation;
 - hook priority schema;
 - reset discovery implementation;
-- reset tag constants;
+- reset DI tag identifier constants;
 - `TagRegistry` enumeration logic;
 - reset failure aggregation policy;
 - HTTP response construction;

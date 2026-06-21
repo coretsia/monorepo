@@ -1748,7 +1748,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   3) `composer no-skeleton-mode-presets-default:gate`
   4) `composer no-skeleton-modules-default:gate`
   5) `composer contracts-only-ports:gate`
-  6) `composer tag-constant-mirror:gate`
+  6) `composer reserved-tags:gate`
   7) `composer observability-naming:gate`
   8) `composer observability-span-naming:gate`
   9) `composer observability-metric-catalog:gate`
@@ -2249,38 +2249,52 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### Tag constant mirror gate
+### Reserved tags gate
 
-**Id:** `tool.tag_constant_mirror_gate`  
-**Entrypoint:** `composer tag-constant-mirror:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.reserved_tags_registry_gate`
+**Entrypoint:** `composer reserved-tags:gate`
+**Category:** repo policy / guard
 **Outputs:**
-- none (exits non-zero on tag constant / mirror drift; emits deterministic diagnostics)
+- none on success
+- deterministic diagnostics on reserved DI tag registry drift
 
 **Determinism:**
 
-| Mode / flags                         | Determinism   | Notes                                                                  |
-|--------------------------------------|---------------|------------------------------------------------------------------------|
-| `composer tag-constant-mirror:gate`  | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
+| Mode / flags                  | Determinism   | Notes                                                                  |
+|-------------------------------|---------------|------------------------------------------------------------------------|
+| `composer reserved-tags:gate` | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
 
 **Notes:**
-- Purpose: validates reserved DI tag constant usage against `docs/ssot/tags.md`.
-- Enforces the temporal tag-constant policy:
-  - registry rows may exist before the owner public constant becomes mandatory;
-  - existing owner constants, if present, must equal the canonical tag string;
-  - package-local mirror constants, if present, must equal the canonical tag string;
-  - non-owner packages must not expose competing owner-like tag APIs.
+- Purpose: validates the centralized framework-reserved DI tag identifier model.
+- The canonical code-level registry is:
+  - `Coretsia\Foundation\Tag\ReservedTags`
+  - file: `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+- `ReservedTags` owns reserved DI tag identifier strings only.
+- Runtime semantics, metadata schema, discovery, ordering, dispatch, validation, and consumer behavior remain owned by the semantic owner packages declared in `docs/ssot/tags.md`.
+- Enforces the reserved tag registry policy:
+  - `docs/ssot/tags.md` must contain a parseable reserved tag registry;
+  - every reserved tag from `docs/ssot/tags.md` must have a matching public constant in `ReservedTags`;
+  - each `ReservedTags` constant value must exactly equal the canonical tag string;
+  - `ReservedTags` must not expose extra public tag-like constants outside the SSoT registry;
+  - runtime packages must not define `src/Provider/Tags.php`;
+  - runtime package source must not define package-local mirror constants for framework-reserved tags;
+  - runtime package source must not define local constants that alias `ReservedTags::*`.
 - Output policy:
-  - first line is stable code: `CORETSIA_TAG_CONSTANT_MIRROR_DRIFT`
-  - next lines are framework-root-relative violating paths + short reason tokens sorted by `strcmp`
-- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
-  - `@composer --working-dir=framework run-script tag-constant-mirror:gate --`
-  - framework implementation detail: `@php tools/gates/tag_constant_mirror_gate.php`
-- Direct call `php framework/tools/gates/tag_constant_mirror_gate.php` is **NOT** a canonical entrypoint (implementation detail only).
+  - first line is stable code: `CORETSIA_RESERVED_TAGS_REGISTRY_DRIFT`
+  - next lines are repo-root-relative violating paths + short reason tokens sorted by `strcmp`
+- Scan-failure policy:
+  - first line is stable code: `CORETSIA_RESERVED_TAGS_REGISTRY_GATE_FAILED`
+  - no exception messages, stack traces, absolute paths, raw source snippets, secrets, or environment-specific diagnostics are emitted
+- Under the hood:
+  - repo-root wrapper delegates to framework workspace script:
+    - `@composer --working-dir=framework run-script reserved-tags:gate --`
+  - framework implementation detail:
+    - `@php tools/gates/reserved_tags_registry_gate.php`
+- Direct call `php framework/tools/gates/reserved_tags_registry_gate.php` is **NOT** a canonical entrypoint; it is an implementation detail only.
 - CI/rails policy: `composer gates` MUST execute this gate through the named composer script, not by raw PHP path.
 
 **Usage (repo root):**
-- `composer tag-constant-mirror:gate`
+- `composer reserved-tags:gate`
 
 ---
 

@@ -155,6 +155,9 @@ The method/type mapping is canonical:
 | kernel.container_compile_duration_ms     | `core/kernel`     | observe | `outcome`                     |
 | kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                     |
 | kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                     |
+| worker.process_total                     | `platform/worker` | counter | `status`                      |
+| worker.task_total                        | `platform/worker` | counter | `operation`, `outcome`        |
+| worker.task_duration_ms                  | `platform/worker` | observe | `operation`, `outcome`        |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -257,6 +260,139 @@ Container compile logs MAY include only safe compile summary data:
 
 Artifact/fingerprint/container-compile/cache logs MUST NOT include secrets, raw payloads, raw config values, raw config dumps, raw env values, dotenv values, source file contents, closure dumps, source snippets, full fingerprints, absolute paths, temp paths, OS error messages, PHP warning text, stack traces, throwable messages, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
 
+### Worker observability policy
+
+Worker observability is owned by `platform/worker`.
+
+The following spans are canonical:
+
+- `worker.process`
+- `worker.task`
+
+The corresponding worker metrics are registered in the canonical metrics catalog above.
+
+Worker observability dependencies MUST be injected through public ports/interfaces plus Foundation `Stopwatch` where duration measurement is required.
+
+Worker services MAY depend on:
+
+- `Psr\Log\LoggerInterface`
+- `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+- `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+- `Coretsia\Foundation\Time\Stopwatch`
+
+Worker services MAY use `Coretsia\Contracts\Observability\Tracing\SpanInterface` only as a runtime span handle returned by `TracerPortInterface`.
+
+`SpanInterface` MUST NOT be injected as a worker service dependency.
+
+Worker services MUST end spans they create, and span finalization failures MUST be failure-silent when they would otherwise alter worker control-flow semantics.
+
+Worker services MUST NOT instantiate Noop logger, tracer, meter, or observability adapter implementations directly.
+
+Worker services MUST NOT know whether observability dependencies are real adapters or Noop/no-op adapters.
+
+Real-vs-Noop/default binding is outside worker service responsibility.
+
+Worker service factories and providers MUST pass logger, tracer, meter, and stopwatch dependencies from DI/container wiring.
+
+Worker services MUST NOT construct logger, tracer, meter, stopwatch, span, or adapter instances internally.
+
+Worker observability failures MUST NOT change worker process, worker task, or worker control-flow semantics.
+
+Logger, tracer, meter, span, and stopwatch calls in worker services MUST be failure-silent where observability failure would otherwise alter worker lifecycle behavior.
+
+Worker process metrics MUST use only the metric-specific label already registered in this catalog:
+
+```text
+status
+```
+
+Worker task metrics MUST use only the metric-specific labels already registered in this catalog:
+
+```text
+operation
+outcome
+```
+
+For worker process metrics, allowed `status` values are:
+
+- `start_success`
+- `start_failure`
+- `stop_success`
+- `stop_failure`
+- `status_success`
+- `status_failure`
+
+For worker task metrics and worker task spans, allowed `operation` values are:
+
+- `queue`
+- `http`
+
+For worker task metrics and worker task spans, allowed `outcome` values are:
+
+- `success`
+- `failure`
+
+Worker metrics MUST NOT introduce any of the following metric labels:
+
+- `worker_id`
+- `pid`
+- `path`
+- `socket`
+- `socket_path`
+- `endpoint`
+- `endpoint_hash`
+- `payload`
+- `headers`
+- `token`
+- `exception_class`
+- `error_reason`
+- `reason`
+
+Worker process spans MAY include only safe lifecycle attributes:
+
+- `pid`
+- `outcome`
+
+Worker task spans MAY include only safe task summary attributes:
+
+- `operation`
+- `outcome`
+
+Worker id MUST NOT be emitted as a metric label.
+
+Worker id MUST NOT be emitted as a span attribute unless a future SSoT update defines a bounded, non-sensitive worker id policy.
+
+Pid MAY be emitted as a span attribute for worker process spans only.
+
+Pid MUST NOT be emitted as a metric label.
+
+Worker lifecycle logs are summary-only.
+
+Worker lifecycle logs MAY include only:
+
+- `status`
+- `outcome`
+- `duration_ms`
+- `pid`
+- `worker_count`
+- `driver`
+- `control_transport`
+- `endpoint_hash`
+
+Worker task logs, if introduced, MUST be summary-only and MAY include only:
+
+- `operation`
+- `outcome`
+- `duration_ms`
+
+Worker logs MUST NOT include payloads, raw socket paths, raw TCP endpoints, absolute paths, config dumps, environment values, headers, cookies, authorization values, tokens, command lines, stack traces, throwable messages, previous throwable messages, OS error messages, or PHP warning text.
+
+Worker observability MUST NOT use raw endpoint identifiers.
+
+When endpoint correlation is required, worker observability MAY use only the already-redacted lowercase hexadecimal SHA-256 `endpoint_hash`, and only in logs or safe state summaries.
+
+`endpoint_hash` MUST NOT be used as a metric label.
+
 ## Forbidden Data (MUST NOT LEAK)
 
 The following data is forbidden in logs, metrics, span names, span attributes, and label values unless transformed into a safe representation:
@@ -316,6 +452,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `len(value)` MUST expose only size, not content.
 - Safe ids MUST be explicitly non-sensitive, bounded-cardinality identifiers whose semantics are safe to expose.
 - Safe transformations MUST NOT be used to smuggle unstable or user-identifying data back into labels or names.
+- Worker `endpoint_hash` is a safe redacted representation for logs and state summaries only. It MUST NOT be emitted as a metric label.
 
 ## Baseline Canonical Events (MUST)
 
@@ -331,6 +468,8 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `kernel.fingerprint_calculate`
 - `kernel.container_compile`
 - `kernel.cache_verify`
+- `worker.process`
+- `worker.task`
 
 Canonical span names are validated by span naming policy and MUST NOT be registered in the canonical metrics catalog.
 

@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -48,7 +48,7 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
             $orchestrator = $container->get(ResetOrchestrator::class);
 
             self::assertInstanceOf(ResetOrchestrator::class, $orchestrator);
-            self::assertSame(FoundationTags::KERNEL_RESET, $orchestrator->effectiveResetTag());
+            self::assertSame(ReservedTags::KERNEL_RESET, $orchestrator->effectiveResetTag());
             self::assertFalse($orchestrator->priorityEnabled());
 
             $resetSpy = $container->get(ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class);
@@ -77,7 +77,7 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
             [
                 'kind' => 'parameter',
                 'name' => 'reset.tag',
-                'value' => FoundationTags::KERNEL_RESET,
+                'value' => ReservedTags::KERNEL_RESET,
             ],
             [
                 'kind' => 'service.class',
@@ -107,7 +107,7 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
             ],
             [
                 'kind' => 'tag',
-                'tag' => FoundationTags::KERNEL_RESET,
+                'tag' => ReservedTags::KERNEL_RESET,
                 'serviceId' => ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
                 'priority' => 100,
                 'meta' => [],

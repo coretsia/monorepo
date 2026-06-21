@@ -51,7 +51,7 @@ This document owns only compiled-container-specific rules for:
 - compiled-container closure/callable rejection semantics;
 - compiled-container runtime boot semantics;
 - compiled-container missing/invalid artifact failure semantics;
-- legacy `1.330.0` stub payload rejection semantics.
+- unsupported `1.330.0` transitional stub payload rejection semantics.
 
 This document **MUST NOT** redefine:
 
@@ -65,7 +65,8 @@ This document **MUST NOT** redefine:
 - Kernel cache clean/dirty/invalid classification;
 - global observability metric catalog or label allowlist;
 - Foundation container provider ordering policy;
-- Foundation tag registry ownership;
+- Foundation `TagRegistry` discovery, ordering, and dedupe semantics;
+- framework-reserved DI tag identifier ownership through `Coretsia\Foundation\Tag\ReservedTags`;
 - reset orchestration semantics;
 - platform routing artifacts such as `routes@1`.
 
@@ -394,7 +395,7 @@ Its construction map **MUST** use exactly one nested `factory` map:
 
 The factory map **MUST** use one of the canonical factory shapes defined below.
 
-The factory map **MUST NOT** use legacy flat construction keys such as:
+The factory map **MUST NOT** use non-canonical flat construction keys such as:
 
 ```text
 factoryClass
@@ -640,6 +641,12 @@ Empty tag maps are valid.
 
 Tag names **MUST** be deterministic safe tag strings.
 
+Framework-reserved tag names, when present in the compiled `tags` payload, **MUST** use the canonical identifier strings declared by `Coretsia\Foundation\Tag\ReservedTags`.
+
+This document does not introduce new reserved tag identifiers and does not authorize additional code-level registries for framework-reserved DI tag identifiers.
+
+Custom or user-defined non-reserved tag strings MAY appear in compiled payloads only when they come from compile-time container metadata and satisfy the tag string safety rules.
+
 Each tag entry **MUST** contain exactly these fields:
 
 ```text
@@ -678,11 +685,14 @@ Compiled-container code **MUST NOT** invent a second tag dedupe rule.
 
 Reset discovery semantics remain Foundation/reset-owned.
 
+The reset discovery tag identifier is the framework-reserved DI tag string `kernel.reset`, declared by `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET` and registered in `docs/ssot/tags.md`.
+
 The compiled-container payload may carry the service ids and priorities required for reset discovery, but it **MUST NOT** redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
 
 Those rules are owned by:
 
 ```text
+docs/ssot/tags.md
 docs/ssot/di-tags-and-middleware-ordering.md
 docs/ssot/reset-tags.md
 ```
@@ -764,7 +774,7 @@ kind = compiled
 compiled = true
 ```
 
-A legacy transitional stub payload **MUST** be rejected for production runtime boot:
+A transitional stub payload **MUST** be rejected for production runtime boot:
 
 ```text
 kind = stub
@@ -781,7 +791,7 @@ Existing artifact validation **MUST** reject:
 - unknown payload fields;
 - non-REAL payload kind;
 - `compiled !== true`;
-- legacy stub payloads;
+- unsupported stub payloads;
 - invalid service definition shapes;
 - invalid parameter maps;
 - invalid alias maps;
@@ -896,7 +906,7 @@ Invalid artifact failure covers:
 - wrong schema version;
 - invalid payload shape;
 - schema-invalid REAL payload data;
-- legacy `1.330.0` stub payloads;
+- unsupported `1.330.0` transitional stub payloads;
 - non-REAL `container@1` payloads.
 
 Invalid artifact diagnostics **MUST NOT** expose:
@@ -1062,6 +1072,7 @@ framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.p
 framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
 framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
 framework/packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php
+framework/packages/core/foundation/src/Tag/ReservedTags.php
 framework/packages/core/foundation/src/Tag/TagRegistry.php
 framework/packages/core/foundation/src/Discovery/DeterministicOrder.php
 ```

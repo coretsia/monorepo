@@ -20,9 +20,9 @@ namespace Coretsia\Kernel\Tests\Unit;
 
 use Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface;
 use Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TaggedService;
 use Coretsia\Foundation\Tag\TagRegistry;
-use Coretsia\Kernel\Provider\Tags;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -45,15 +45,15 @@ final class HookInvokerDeterministicOrderTest extends TestCase
 
         $tags = new TagRegistry();
 
-        $tags->add(Tags::KERNEL_HOOK_BEFORE_UOW, 'hook.gamma', priority: 5);
-        $tags->add(Tags::KERNEL_HOOK_BEFORE_UOW, 'hook.beta', priority: 10);
-        $tags->add(Tags::KERNEL_HOOK_BEFORE_UOW, 'hook.alpha', priority: 10);
-        $tags->add(Tags::KERNEL_HOOK_BEFORE_UOW, 'hook.shared.two', priority: 1);
-        $tags->add(Tags::KERNEL_HOOK_BEFORE_UOW, 'hook.shared.one', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.gamma', priority: 5);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.beta', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.alpha', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.shared.two', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.shared.one', priority: 1);
 
         $expectedOrder = \array_map(
             static fn (TaggedService $service): string => $service->id(),
-            $tags->all(Tags::KERNEL_HOOK_BEFORE_UOW),
+            $tags->all(ReservedTags::KERNEL_HOOK_BEFORE_UOW),
         );
 
         self::assertSame(
@@ -102,15 +102,15 @@ final class HookInvokerDeterministicOrderTest extends TestCase
 
         $tags = new TagRegistry();
 
-        $tags->add(Tags::KERNEL_HOOK_AFTER_UOW, 'hook.gamma', priority: 5);
-        $tags->add(Tags::KERNEL_HOOK_AFTER_UOW, 'hook.beta', priority: 10);
-        $tags->add(Tags::KERNEL_HOOK_AFTER_UOW, 'hook.alpha', priority: 10);
-        $tags->add(Tags::KERNEL_HOOK_AFTER_UOW, 'hook.shared.two', priority: 1);
-        $tags->add(Tags::KERNEL_HOOK_AFTER_UOW, 'hook.shared.one', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.gamma', priority: 5);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.beta', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.alpha', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.shared.two', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.shared.one', priority: 1);
 
         $expectedOrder = \array_map(
             static fn (TaggedService $service): string => $service->id(),
-            $tags->all(Tags::KERNEL_HOOK_AFTER_UOW),
+            $tags->all(ReservedTags::KERNEL_HOOK_AFTER_UOW),
         );
 
         self::assertSame(

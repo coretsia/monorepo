@@ -47,6 +47,7 @@ Coretsia/
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
+│   │   ├── ADR-0017-worker-manager-application-worker.md
 │   │   ├── ADR-0019-enhanced-reset-long-running.md
 │   │   ├── ADR-0020-kernel-runtime-uow-spi.md
 │   │   ├── ADR-0021-unit-of-work-context-shape.md
@@ -63,7 +64,8 @@ Coretsia/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
 │   │   ├── STRUCTURE.md
-│   │   └── runtime-driver-guard.md
+│   │   ├── runtime-driver-guard.md
+│   │   └── worker.md
 │   ├── assets/
 │   │   └── branding/
 │   │       ├── favicon/
@@ -416,8 +418,7 @@ Coretsia/
 │   │   │   │   │   │   └── CorrelationIdProvider.php
 │   │   │   │   │   ├── Provider/
 │   │   │   │   │   │   ├── FoundationServiceFactory.php
-│   │   │   │   │   │   ├── FoundationServiceProvider.php
-│   │   │   │   │   │   └── Tags.php
+│   │   │   │   │   │   └── FoundationServiceProvider.php
 │   │   │   │   │   ├── Runtime/
 │   │   │   │   │   │   └── Reset/
 │   │   │   │   │   │       ├── PriorityResetOrchestrator.php
@@ -430,8 +431,10 @@ Coretsia/
 │   │   │   │   │   │   ├── Exception/
 │   │   │   │   │   │   │   └── JsonLikeNormalizationException.php
 │   │   │   │   │   │   ├── JsonLikeNormalizer.php
+│   │   │   │   │   │   ├── StableJsonDecoder.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
 │   │   │   │   │   ├── Tag/
+│   │   │   │   │   │   ├── ReservedTags.php
 │   │   │   │   │   │   ├── TagRegistry.php
 │   │   │   │   │   │   └── TaggedService.php
 │   │   │   │   │   └── Time/
@@ -456,10 +459,13 @@ Coretsia/
 │   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
 │   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php
+│   │   │   │   │   │   ├── StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderSortsMapKeysRecursivelyContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
+│   │   │   │   │   │   ├── StableJsonSerializationRootShapeContractTest.php
+│   │   │   │   │   │   ├── StableJsonSerializationSafetyContractTest.php
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
 │   │   │   │   │   │   └── UuidFormatContractTest.php
 │   │   │   │   │   ├── Integration/
@@ -509,6 +515,7 @@ Coretsia/
 │   │   │   │   │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 │   │   │   │   │       ├── DeterministicOrderSortRuleTest.php
 │   │   │   │   │       ├── FrozenClockReturnsDeterministicNowTest.php
+│   │   │   │   │       ├── ReservedTagsRegistryTest.php
 │   │   │   │   │       ├── ResetExceptionRuntimeShapeTest.php
 │   │   │   │   │       ├── StopwatchDurationIsNonNegativeTest.php
 │   │   │   │   │       └── UlidFormatTest.php
@@ -562,9 +569,11 @@ Coretsia/
 │   │   │       │   │   └── PayloadNormalizer.php
 │   │   │       │   ├── Boot/
 │   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ArtifactRuntimeBootException.php
 │   │   │       │   │   │   └── BootstrapException.php
 │   │   │       │   │   ├── AppTarget.php
 │   │   │       │   │   ├── ArrayEnvRepository.php
+│   │   │       │   │   ├── ArtifactRuntimeBooter.php
 │   │   │       │   │   ├── BootstrapConfig.php
 │   │   │       │   │   ├── BootstrapConfigResolver.php
 │   │   │       │   │   ├── BootstrapEnvSourcePolicy.php
@@ -629,8 +638,7 @@ Coretsia/
 │   │   │       │   │   └── TopologicalSorter.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── KernelServiceFactory.php
-│   │   │       │   │   ├── KernelServiceProvider.php
-│   │   │       │   │   └── Tags.php
+│   │   │       │   │   └── KernelServiceProvider.php
 │   │   │       │   └── Runtime/
 │   │   │       │       ├── Driver/
 │   │   │       │       │   ├── BackgroundDriver.php
@@ -882,50 +890,139 @@ Coretsia/
 │   │   │       ├── SECURITY.md
 │   │   │       └── composer.json
 │   │   └── platform/
-│   │       └── cli/
+│   │       ├── cli/
+│   │       │   ├── config/
+│   │       │   │   ├── cli.php
+│   │       │   │   └── rules.php
+│   │       │   ├── src/
+│   │       │   │   ├── Command/
+│   │       │   │   │   ├── HelpCommand.php
+│   │       │   │   │   └── ListCommand.php
+│   │       │   │   ├── Error/
+│   │       │   │   │   └── ErrorCodes.php
+│   │       │   │   ├── Exception/
+│   │       │   │   │   ├── CliCommandClassMissingException.php
+│   │       │   │   │   ├── CliCommandFailedException.php
+│   │       │   │   │   ├── CliCommandInvalidException.php
+│   │       │   │   │   ├── CliConfigInvalidException.php
+│   │       │   │   │   ├── CliException.php
+│   │       │   │   │   └── CliExceptionInterface.php
+│   │       │   │   ├── Input/
+│   │       │   │   │   └── CliInput.php
+│   │       │   │   ├── Module/
+│   │       │   │   │   └── CliModule.php
+│   │       │   │   ├── Output/
+│   │       │   │   │   ├── CliOutput.php
+│   │       │   │   │   └── TrackedOutput.php
+│   │       │   │   ├── Provider/
+│   │       │   │   │   ├── CliServiceFactory.php
+│   │       │   │   │   └── CliServiceProvider.php
+│   │       │   │   └── Application.php
+│   │       │   ├── tests/
+│   │       │   │   ├── Contract/
+│   │       │   │   │   ├── CliConfigSubtreeShapeAndMergeSemanticsTest.php
+│   │       │   │   │   ├── CommandsDoNotWriteToStdoutTest.php
+│   │       │   │   │   └── CrossCuttingNoopDoesNotThrowTest.php
+│   │       │   │   ├── Fake/
+│   │       │   │   │   ├── FakeWorkspaceSyncApplyCommand.php
+│   │       │   │   │   └── FakeWorkspaceSyncDryRunCommand.php
+│   │       │   │   ├── Fixtures/
+│   │       │   │   │   ├── LeakCommand.php
+│   │       │   │   │   └── LeakCommand.prepend.php
+│   │       │   │   └── Integration/
+│   │       │   │       ├── ApplicationSkeletonDispatchIntegrationTest.php
+│   │       │   │       ├── CliBootHelpWorksWithEmptyCommandsTest.php
+│   │       │   │       ├── CliRejectsMissingCommandClassDeterministicallyTest.php
+│   │       │   │       └── OutputRedactionDoesNotLeakTest.php
+│   │       │   ├── LICENSE
+│   │       │   ├── NOTICE
+│   │       │   ├── README.md
+│   │       │   ├── SECURITY.md
+│   │       │   └── composer.json
+│   │       └── worker/
+│   │           ├── bin/
+│   │           │   └── coretsia-worker
 │   │           ├── config/
-│   │           │   ├── cli.php
-│   │           │   └── rules.php
+│   │           │   ├── rules.php
+│   │           │   └── worker.php
 │   │           ├── src/
-│   │           │   ├── Command/
-│   │           │   │   ├── HelpCommand.php
-│   │           │   │   └── ListCommand.php
-│   │           │   ├── Error/
-│   │           │   │   └── ErrorCodes.php
+│   │           │   ├── Communication/
+│   │           │   │   └── WorkerSocketServer.php
+│   │           │   ├── Console/
+│   │           │   │   ├── WorkerStartCommand.php
+│   │           │   │   ├── WorkerStatusCommand.php
+│   │           │   │   └── WorkerStopCommand.php
 │   │           │   ├── Exception/
-│   │           │   │   ├── CliCommandClassMissingException.php
-│   │           │   │   ├── CliCommandFailedException.php
-│   │           │   │   ├── CliCommandInvalidException.php
-│   │           │   │   ├── CliConfigInvalidException.php
-│   │           │   │   ├── CliException.php
-│   │           │   │   └── CliExceptionInterface.php
-│   │           │   ├── Input/
-│   │           │   │   └── CliInput.php
+│   │           │   │   ├── WorkerCommunicationFailedException.php
+│   │           │   │   ├── WorkerException.php
+│   │           │   │   ├── WorkerForkFailedException.php
+│   │           │   │   ├── WorkerNotRunningException.php
+│   │           │   │   └── WorkerStartFailedException.php
+│   │           │   ├── Internal/
+│   │           │   │   ├── TaskFactoryInternalInterface.php
+│   │           │   │   └── WorkerManagerDriverInterface.php
+│   │           │   ├── Manager/
+│   │           │   │   ├── Driver/
+│   │           │   │   │   ├── PcntlWorkerManagerDriver.php
+│   │           │   │   │   └── ProcWorkerManagerDriver.php
+│   │           │   │   └── WorkerManager.php
 │   │           │   ├── Module/
-│   │           │   │   └── CliModule.php
-│   │           │   ├── Output/
-│   │           │   │   ├── CliOutput.php
-│   │           │   │   └── TrackedOutput.php
+│   │           │   │   └── WorkerModule.php
 │   │           │   ├── Provider/
-│   │           │   │   ├── CliServiceFactory.php
-│   │           │   │   └── CliServiceProvider.php
-│   │           │   └── Application.php
+│   │           │   │   ├── WorkerServiceFactory.php
+│   │           │   │   └── WorkerServiceProvider.php
+│   │           │   ├── Runtime/
+│   │           │   │   ├── WorkerPoolSpec.php
+│   │           │   │   ├── WorkerPoolState.php
+│   │           │   │   └── WorkerStateStore.php
+│   │           │   ├── Task/
+│   │           │   │   ├── HttpTaskFactory.php
+│   │           │   │   └── QueueTaskFactory.php
+│   │           │   └── Worker/
+│   │           │       └── ApplicationWorker.php
 │   │           ├── tests/
 │   │           │   ├── Contract/
-│   │           │   │   ├── CliConfigSubtreeShapeAndMergeSemanticsTest.php
-│   │           │   │   ├── CommandsDoNotWriteToStdoutTest.php
-│   │           │   │   └── CrossCuttingNoopDoesNotThrowTest.php
+│   │           │   │   ├── CoretsiaWorkerChildLauncherContractTest.php
+│   │           │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │           │   │   ├── ProcWorkerManagerDriverSafetyContractTest.php
+│   │           │   │   ├── WorkerCommandMetadataConstantsTest.php
+│   │           │   │   ├── WorkerCommandsUseCliContractsOnlyTest.php
+│   │           │   │   ├── WorkerConfigSubtreeShapeContractTest.php
+│   │           │   │   ├── WorkerExceptionsAreDeterministicContractTest.php
+│   │           │   │   ├── WorkerInternalInterfacesAreNotPublicApiContractTest.php
+│   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
+│   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
+│   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
+│   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
+│   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
+│   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
+│   │           │   │   ├── WorkerStartCommandContractTest.php
+│   │           │   │   ├── WorkerStateJsonSchemaContractTest.php
+│   │           │   │   ├── WorkerStateStoreOwnershipContractTest.php
+│   │           │   │   ├── WorkerStatusCommandContractTest.php
+│   │           │   │   └── WorkerStopCommandContractTest.php
 │   │           │   ├── Fake/
-│   │           │   │   ├── FakeWorkspaceSyncApplyCommand.php
-│   │           │   │   └── FakeWorkspaceSyncDryRunCommand.php
+│   │           │   │   └── FakeWorkerManagerDriver.php
 │   │           │   ├── Fixtures/
-│   │           │   │   ├── LeakCommand.php
-│   │           │   │   └── LeakCommand.prepend.php
-│   │           │   └── Integration/
-│   │           │       ├── ApplicationSkeletonDispatchIntegrationTest.php
-│   │           │       ├── CliBootHelpWorksWithEmptyCommandsTest.php
-│   │           │       ├── CliRejectsMissingCommandClassDeterministicallyTest.php
-│   │           │       └── OutputRedactionDoesNotLeakTest.php
+│   │           │   │   └── WorkerApp/
+│   │           │   │       └── config/
+│   │           │   │           └── modes/
+│   │           │   │               └── micro.php
+│   │           │   ├── Integration/
+│   │           │   │   ├── MaxRequestsTriggersRecycleTest.php
+│   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
+│   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
+│   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
+│   │           │   │   ├── WorkerSocketServerTransportTest.php
+│   │           │   │   └── WorkerStateStoreFilesystemTest.php
+│   │           │   └── Unit/
+│   │           │       ├── ApplicationWorkerTest.php
+│   │           │       ├── ProcWorkerManagerDriverSupportTest.php
+│   │           │       ├── WorkerManagerLifecycleTest.php
+│   │           │       ├── WorkerPoolSpecTest.php
+│   │           │       ├── WorkerPoolStateTest.php
+│   │           │       ├── WorkerServiceProviderTaskFactorySelectionTest.php
+│   │           │       └── WorkerStateStoreStateFactoryTest.php
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md
@@ -966,14 +1063,12 @@ Coretsia/
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── package_publish_safety_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
+│   │   │   ├── reserved_tags_registry_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
 │   │   │   ├── spikes_io_policy_gate.php
 │   │   │   ├── spikes_output_gate.php
-│   │   │   ├── tag_constant_mirror_gate.php
 │   │   │   └── tools_invalid_argument_exception_gate.php
-│   │   ├── policies/
-│   │   │   └── tag_owner_constants.php
 │   │   ├── release/
 │   │   │   ├── release-line.json
 │   │   │   ├── sync_package_public_constraints.php
@@ -1350,6 +1445,7 @@ Coretsia/
 │   │           ├── NoRuntimeToolingArtifactsGateTest.php
 │   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php
 │   │           ├── PackageComplianceGateRejectsBadFixtureTest.php
+│   │           ├── ReservedTagsRegistryGateTest.php
 │   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php
 │   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php
 │   ├── var/
@@ -1367,10 +1463,13 @@ Coretsia/
 │   │   │   │   ├── framework__composer.json.bak
 │   │   │   │   ├── framework__composer.json.bak.1
 │   │   │   │   ├── framework__composer.json.bak.2
+│   │   │   │   ├── framework__composer.json.bak.3
 │   │   │   │   ├── monorepo__composer.json.bak
+│   │   │   │   ├── monorepo__composer.json.bak.1
 │   │   │   │   ├── skeleton__composer.json.bak
 │   │   │   │   ├── skeleton__composer.json.bak.1
-│   │   │   │   └── skeleton__composer.json.bak.2
+│   │   │   │   ├── skeleton__composer.json.bak.2
+│   │   │   │   └── skeleton__composer.json.bak.3
 │   │   │   └── .gitignore
 │   │   └── .gitignore
 │   ├── composer.json

@@ -46,7 +46,12 @@ final class DeptracGraphCommand implements CommandInterface
 
     public function run(InputInterface $input, OutputInterface $output): int
     {
-        $args = self::parseArgs($input->tokens());
+        $args = [
+            'fixture' => self::stringOption($input, 'fixture'),
+            'out' => self::stringOption($input, 'out'),
+            'json' => self::flagOption($input, 'json'),
+            'help' => self::flagOption($input, 'help') || self::flagOption($input, 'h'),
+        ];
 
         if ($args['help'] === true) {
             self::renderHelp($output);
@@ -127,47 +132,6 @@ final class DeptracGraphCommand implements CommandInterface
 
             return SpikesExitCodeMapper::failure();
         }
-    }
-
-    /**
-     * @param list<string> $tokens
-     * @return array{fixture: string|null, out: string|null, json: bool, help: bool}
-     */
-    private static function parseArgs(array $tokens): array
-    {
-        $fixture = null;
-        $out = null;
-        $json = false;
-        $help = false;
-
-        foreach ($tokens as $t) {
-            if ($t === '--json') {
-                $json = true;
-                continue;
-            }
-
-            if ($t === '--help' || $t === '-h') {
-                $help = true;
-                continue;
-            }
-
-            if (\str_starts_with($t, '--fixture=')) {
-                $fixture = \substr($t, \strlen('--fixture='));
-                continue;
-            }
-
-            if (\str_starts_with($t, '--out=')) {
-                $out = \substr($t, \strlen('--out='));
-                continue;
-            }
-        }
-
-        return [
-            'fixture' => $fixture,
-            'out' => $out,
-            'json' => $json,
-            'help' => $help,
-        ];
     }
 
     private static function renderHelp(OutputInterface $output): void
@@ -274,5 +238,23 @@ final class DeptracGraphCommand implements CommandInterface
         }
 
         return true;
+    }
+
+    private static function stringOption(InputInterface $input, string $name): ?string
+    {
+        $value = $input->option($name);
+
+        return \is_string($value) ? $value : null;
+    }
+
+    private static function flagOption(InputInterface $input, string $name): bool
+    {
+        if (!$input->hasOption($name)) {
+            return false;
+        }
+
+        $value = $input->option($name);
+
+        return $value === true || $value === null;
     }
 }

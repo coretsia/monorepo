@@ -20,9 +20,9 @@ namespace Coretsia\Kernel\Runtime\Hook;
 
 use Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface;
 use Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TaggedService;
 use Coretsia\Foundation\Tag\TagRegistry;
-use Coretsia\Kernel\Provider\Tags;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
 use Psr\Container\ContainerInterface;
 
@@ -58,7 +58,7 @@ final readonly class HookInvoker
      */
     public function invokeBeforeHooks(array $context): void
     {
-        foreach ($this->tags->all(Tags::KERNEL_HOOK_BEFORE_UOW) as $taggedService) {
+        foreach ($this->tags->all(ReservedTags::KERNEL_HOOK_BEFORE_UOW) as $taggedService) {
             $hook = $this->resolveBeforeHook($taggedService);
 
             $hook->beforeUow($context);
@@ -75,7 +75,7 @@ final readonly class HookInvoker
      */
     public function invokeAfterHooks(array $context, array $result): void
     {
-        foreach ($this->tags->all(Tags::KERNEL_HOOK_AFTER_UOW) as $taggedService) {
+        foreach ($this->tags->all(ReservedTags::KERNEL_HOOK_AFTER_UOW) as $taggedService) {
             $hook = $this->resolveAfterHook($taggedService);
 
             $hook->afterUow($context, $result);

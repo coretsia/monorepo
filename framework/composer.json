@@ -31,7 +31,6 @@
   "require-dev": {
     "ext-ctype": "*",
     "ext-dom": "*",
-    "ext-imagick": "*",
     "ext-libxml": "*",
     "coretsia/core-contracts": "0.4.x-dev",
     "coretsia/core-dto-attribute": "0.4.x-dev",
@@ -40,10 +39,14 @@
     "coretsia/devtools-cli-spikes": "0.4.x-dev",
     "coretsia/devtools-internal-toolkit": "0.4.x-dev",
     "coretsia/platform-cli": "0.4.x-dev",
+    "coretsia/platform-worker": "0.4.x-dev",
     "deptrac/deptrac": "^4.6",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
     "symplify/easy-coding-standard": "^13.0"
+  },
+  "suggest": {
+    "ext-imagick": "Required only for optional icon/image asset generation scripts such as build:icons."
   },
   "autoload-dev": {
     "psr-4": {
@@ -70,7 +73,8 @@
           "coretsia/core-kernel": "0.4.x-dev",
           "coretsia/devtools-cli-spikes": "0.4.x-dev",
           "coretsia/devtools-internal-toolkit": "0.4.x-dev",
-          "coretsia/platform-cli": "0.4.x-dev"
+          "coretsia/platform-cli": "0.4.x-dev",
+          "coretsia/platform-worker": "0.4.x-dev"
         }
       },
       "coretsia_managed": true
@@ -89,7 +93,7 @@
       "@no-skeleton-mode-presets-default:gate",
       "@no-skeleton-modules-default:gate",
       "@contracts-only-ports:gate",
-      "@tag-constant-mirror:gate",
+      "@reserved-tags:gate",
       "@observability-naming:gate",
       "@observability-span-naming:gate",
       "@observability-metric-catalog:gate",
@@ -144,7 +148,7 @@
     "no-skeleton-mode-presets-default:gate": "@php tools/gates/no_skeleton_mode_presets_default_gate.php",
     "no-skeleton-modules-default:gate": "@php tools/gates/no_skeleton_modules_default_gate.php",
     "contracts-only-ports:gate": "@php tools/gates/contracts_only_ports_gate.php",
-    "tag-constant-mirror:gate": "@php tools/gates/tag_constant_mirror_gate.php",
+    "reserved-tags:gate": "@php tools/gates/reserved_tags_registry_gate.php",
     "observability-naming:gate": "@php tools/gates/observability_naming_gate.php",
     "observability-span-naming:gate": "@php tools/gates/observability_span_naming_gate.php",
     "observability-metric-catalog:gate": "@php tools/gates/observability_metric_catalog_gate.php",

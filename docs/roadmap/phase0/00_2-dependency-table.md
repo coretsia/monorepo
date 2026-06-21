@@ -103,6 +103,7 @@ These invariants are part of Phase 0 dependency law:
 | platform/metrics          | core/contracts, core/foundation              |       |
 | platform/problem-details  | core/contracts, core/foundation              |       |
 | platform/tracing          | core/contracts, core/foundation              |       |
+| platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
 ---
 

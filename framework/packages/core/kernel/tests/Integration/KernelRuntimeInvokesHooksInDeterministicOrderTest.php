@@ -28,11 +28,10 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Kernel\Provider\Tags as KernelTags;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\Outcome;
@@ -73,26 +72,26 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
 
         $tags = new TagRegistry();
 
-        $tags->add(KernelTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.gamma', priority: 5);
-        $tags->add(KernelTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.beta', priority: 10);
-        $tags->add(KernelTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.alpha', priority: 10);
-        $tags->add(KernelTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.shared.two', priority: 1);
-        $tags->add(KernelTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.shared.one', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.gamma', priority: 5);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.beta', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.alpha', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.shared.two', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_BEFORE_UOW, 'hook.before.shared.one', priority: 1);
 
-        $tags->add(KernelTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.gamma', priority: 5);
-        $tags->add(KernelTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.beta', priority: 10);
-        $tags->add(KernelTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.alpha', priority: 10);
-        $tags->add(KernelTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.shared.two', priority: 1);
-        $tags->add(KernelTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.shared.one', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.gamma', priority: 5);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.beta', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.alpha', priority: 10);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.shared.two', priority: 1);
+        $tags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'hook.after.shared.one', priority: 1);
 
         $expectedBeforeServiceOrder = \array_map(
             static fn ($service): string => $service->id(),
-            $tags->all(KernelTags::KERNEL_HOOK_BEFORE_UOW),
+            $tags->all(ReservedTags::KERNEL_HOOK_BEFORE_UOW),
         );
 
         $expectedAfterServiceOrder = \array_map(
             static fn ($service): string => $service->id(),
-            $tags->all(KernelTags::KERNEL_HOOK_AFTER_UOW),
+            $tags->all(ReservedTags::KERNEL_HOOK_AFTER_UOW),
         );
 
         self::assertSame(
@@ -321,7 +320,7 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
         $tagRegistry = new TagRegistry();
 
         $tagRegistry->add(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             ContextStore::class,
         );
 

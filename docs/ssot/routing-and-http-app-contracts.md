@@ -870,6 +870,12 @@ The canonical middleware tag is:
 http.middleware.app
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
+```
+
 This is runtime policy, not a `core/contracts` dependency.
 
 The canonical HTTP middleware taxonomy is:
@@ -892,6 +898,8 @@ This epic introduces no DI tags.
 
 The contracts package MUST NOT declare routing or HttpApp tag constants.
 
+The contracts package MUST NOT define additional code-level registries for framework-reserved middleware tag identifiers.
+
 The contracts package MAY reference existing reserved middleware tags in documentation as runtime policy.
 
 Reserved tag ownership remains governed by:
@@ -900,7 +908,7 @@ Reserved tag ownership remains governed by:
 docs/ssot/tags.md
 ```
 
-Non-owner packages using existing reserved tags MUST follow the tag registry rules and MUST NOT redefine competing tag semantics or competing metadata schema.
+Non-owner packages using existing reserved tags MUST follow the tag registry rules, MUST use `Coretsia\Foundation\Tag\ReservedTags::*` in runtime package source, and MUST NOT redefine competing tag semantics, competing metadata schema, or additional code-level registries for framework-reserved DI tag identifiers.
 
 ## Config policy
 

@@ -33,8 +33,8 @@ use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -148,7 +148,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             $resetSpy,
         );
         $builder->tag(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
         );
 
@@ -186,7 +186,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             $resetSpy,
         );
         $builder->tag(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
         );
 
@@ -215,7 +215,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
                     'default' => 'ulid',
                 ],
                 'reset' => [
-                    'tag' => FoundationTags::KERNEL_RESET,
+                    'tag' => ReservedTags::KERNEL_RESET,
                     'priority' => [
                         'enabled' => false,
                     ],

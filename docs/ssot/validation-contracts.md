@@ -801,9 +801,15 @@ The relevant existing reserved tag is:
 
 `core/contracts` is not the owner of `error.mapper`.
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
+```
+
 `core/contracts` MUST NOT define a public tag API for `error.mapper`.
 
-`core/contracts` MUST NOT define a package-local mirror constant for `error.mapper`.
+`core/contracts` MUST NOT define an additional code-level registry for `error.mapper`.
 
 `core/contracts` MUST NOT define competing tag metadata keys.
 
@@ -975,7 +981,8 @@ This SSoT does not define:
 - package validation rules;
 - executable validators;
 - validator DI registration;
-- DI tag constants in `core/contracts`;
+- DI tag identifier constants in `core/contracts`;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - error mapper implementation;
 - mapper registry implementation;
 - mapper priority algorithm;

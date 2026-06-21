@@ -1071,9 +1071,9 @@ Future runtime owner packages MAY introduce mail config only through their own o
 
 Epic `1.170.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public mail tag constants.
+The contracts package MUST NOT declare mail tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for mail tags.
+The contracts package MUST NOT define mail tag identifier constants.
 
 The contracts package MUST NOT define mail tag metadata keys, mailer discovery semantics, transport discovery semantics, priority semantics, or policy discovery semantics.
 
@@ -1083,7 +1083,13 @@ If a future runtime owner needs mail DI tags, that owner MUST introduce them thr
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved mail tag identifiers.
 
 ## Artifact policy
 

@@ -225,6 +225,10 @@ Baseline Foundation services are registered explicitly by the provider and MUST 
 
 ## Tags and deterministic discovery
 
+`Coretsia\Foundation\Tag\ReservedTags` is the canonical code-level registry for framework-reserved DI tag identifiers.
+
+It owns tag strings only. Runtime semantics remain owned by the semantic owner packages declared in `docs/ssot/tags.md`.
+
 `Coretsia\Foundation\Tag\TagRegistry` is the single source of truth for tagged service discovery lists.
 
 Canonical ordering:
@@ -243,8 +247,8 @@ Dedupe policy:
 
 Reserved Foundation-owned tags:
 
-- `kernel.reset`
-- `kernel.stateful`
+- `ReservedTags::KERNEL_RESET`
+- `ReservedTags::KERNEL_STATEFUL`
 
 `kernel.reset` is the reserved default reset-discovery tag.
 
@@ -264,7 +268,7 @@ The orchestrator MUST:
 - resolve services through PSR-11 container access;
 - call `Coretsia\Contracts\Runtime\ResetInterface::reset()` exactly once per resolved service per reset cycle;
 - be safely callable when the discovery list is empty;
-- preserve the exact `TagRegistry` order in legacy/base mode;
+- preserve the exact `TagRegistry` order in base mode;
 - never rely on reflection/autowire during reset execution;
 - never emit stdout or stderr.
 

@@ -511,9 +511,9 @@ It does not create or modify `platform/mail`.
 
 Epic `1.170.0` introduces no DI tags.
 
-The contracts package must not declare public mail tag constants.
+The contracts package must not declare mail DI tag identifier constants.
 
-The contracts package must not define package-local mirror constants for mail tags.
+The contracts package must not define additional code-level registries for mail DI tag identifiers.
 
 The contracts package must not define:
 
@@ -530,7 +530,11 @@ If a future runtime owner needs mail DI tags, that owner must introduce them thr
 docs/ssot/tags.md
 ```
 
-according to the tag registry rules.
+Framework-reserved DI tag identifier strings must be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 Epic `1.170.0` introduces no config roots and no config keys.
 

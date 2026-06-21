@@ -36,7 +36,7 @@ This document also owns the Foundation reset semantics introduced by epic `1.250
 foundation.reset.priority.enabled
 foundation.reset.group.default
 reset tag meta keys: priority, group
-legacy/base reset mode
+base reset mode
 enhanced priority/group reset mode
 deterministic reset failure codes
 summary-only enhanced reset observability
@@ -83,13 +83,21 @@ The reset span name is validated by canonical span naming policy.
 
 Reset metric names and metric-specific labels are registered in the canonical metrics catalog.
 
-It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, and tag naming rules are owned by:
+It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, tag naming rules, and framework-reserved DI tag identifier code-level registry rules are owned by:
 
 ```text
 docs/ssot/tags.md
 ```
 
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
 This document MUST NOT redeclare reserved tag registry rows from `docs/ssot/tags.md`.
+
+This document MUST NOT introduce additional code-level registries for framework-reserved DI tag identifiers.
 
 It does not own general tag discovery ordering, dedupe behavior, or consumer obligations. Those are owned by:
 
@@ -167,10 +175,22 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 The fixed stateful-service enforcement marker is:
 
 ```text
 kernel.stateful
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
 Legacy/base reset mode is reset execution with enhanced priority/group planning disabled:
@@ -206,6 +226,12 @@ The reserved default value is:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 Enhanced reset planning is controlled by:
@@ -305,6 +331,12 @@ kernel.reset
 
 `kernel.reset` is owned by `core/foundation` in the canonical tag registry.
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 `kernel.reset` is not a direct instruction for consumers to enumerate tagged services themselves.
 
 Runtime consumers MUST NOT iterate `kernel.reset` services directly.
@@ -347,7 +379,7 @@ or any configured reset tag directly.
 `ResetOrchestrator` owns mode selection:
 
 ```text
-foundation.reset.priority.enabled=false → legacy/base mode
+foundation.reset.priority.enabled=false → base mode
 foundation.reset.priority.enabled=true  → enhanced mode
 ```
 
@@ -388,7 +420,7 @@ effective reset discovery tag
 → ResetOrchestrator::resetAll()
 ```
 
-The priority flag controls only whether reset execution uses legacy/base ordering or enhanced planning.
+The priority flag controls only whether reset execution uses base ordering or enhanced planning.
 
 ## ResetInterface requirement
 
@@ -421,6 +453,12 @@ Concrete reset failure semantics are owned by Foundation reset orchestration.
 `kernel.stateful` is a fixed enforcement marker.
 
 It is owned by `core/foundation`.
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
 
 It exists so CI, static analysis, and wiring checks can detect services that retain mutable in-memory state.
 
@@ -480,7 +518,7 @@ Kernel after-UoW phase
 
 ## Reset ordering modes
 
-### Legacy/base mode
+### Base mode
 
 Legacy/base mode is selected when:
 
@@ -488,7 +526,7 @@ Legacy/base mode is selected when:
 foundation.reset.priority.enabled = false
 ```
 
-In legacy/base mode, reset execution MUST preserve the exact list order returned by:
+In base mode, reset execution MUST preserve the exact list order returned by:
 
 ```text
 TagRegistry->all($effectiveResetTag)
@@ -510,9 +548,9 @@ Because `TagRegistry::all()` already returns canonical deterministic discovery o
 priority DESC, id ASC
 ```
 
-legacy/base reset order is not insertion order.
+Base reset order is not insertion order.
 
-Legacy/base reset order means exact output of:
+Base reset order means exact output of:
 
 ```text
 TagRegistry->all($effectiveResetTag)
@@ -1026,11 +1064,14 @@ It defines policy that MUST be enforced by owner package tests, integration chec
 Expected enforcement rails include:
 
 ```text
+framework/tools/gates/reserved_tags_registry_gate.php
 framework/tools/gates/cross_cutting_contract_gate.php
 framework/tools/gates/observability_span_naming_gate.php
 framework/tools/gates/observability_metric_catalog_gate.php
 phpstan rule: kernel.stateful ⇒ implements ResetInterface
 ```
+
+`reserved_tags_registry_gate.php` enforces that framework-reserved DI tag identifiers are declared in `Coretsia\Foundation\Tag\ReservedTags` and that runtime package source does not define additional code-level registries for those identifiers.
 
 `observability_span_naming_gate.php` validates reset span naming policy for `foundation.reset`.
 
@@ -1169,6 +1210,12 @@ outcome
 ```
 
 Reset diagnostics MUST prefer omission over unsafe emission.
+
+## Code-level tag identifier note
+
+Examples in this document may show raw tag strings to document canonical values and serialized/tag-registry payload shapes.
+
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
 
 ## Examples
 

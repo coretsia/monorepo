@@ -108,7 +108,7 @@ N/A
 - [ ] `framework/packages/platform/secrets/src/Module/SecretsModule.php` — runtime module entry.
 - [ ] `framework/packages/platform/secrets/src/Provider/SecretsServiceProvider.php` — DI wiring.
 - [ ] `framework/packages/platform/secrets/src/Provider/SecretsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/secrets/src/Provider/Tags.php` — constants (avoid typos).
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (avoid typos).
 - [ ] `framework/packages/platform/secrets/config/secrets.php` — config subtree `secrets` (no repeated root).
 - [ ] `framework/packages/platform/secrets/config/rules.php` — config shape rules.
 - [ ] `framework/packages/platform/secrets/README.md` — Observability / Errors / Security-Redaction.
@@ -149,7 +149,7 @@ N/A
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/secrets/src/Provider/Tags.php` (constants to avoid typos)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants to avoid typos)
   - [ ] constant(s): `SECRETS_DRIVER` (optional, if you select by tag) OR none if selected by config
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Contracts\Secrets\SecretsResolverInterface` → selected driver (config-driven)
@@ -689,9 +689,9 @@ ssot_refs:
   - `framework/packages/core/contracts/src/Events/EventDispatcherInterface.php` — dispatcher port
   - `framework/packages/core/contracts/src/Events/EventListenerInterface.php` — listener port
   - `framework/packages/core/contracts/src/Events/DeferredEventQueueInterface.php` — deferred queue port
-  - `framework/packages/core/kernel/src/Provider/Tags.php` — owner constants for `kernel.hook.*`
-  - `framework/packages/core/foundation/src/Provider/Tags.php` — owner constants for `kernel.reset` / `kernel.stateful`
-  - `framework/packages/platform/cli/src/Provider/Tags.php` — owner constants for `cli.command` (not used here, but reserve policy)
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.hook.*`
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.reset` / `kernel.stateful`
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `cli.command` (not used here, but reserve policy)
 
 - Required config roots/keys:
   - `events.*` — introduced by this epic (see Configuration)
@@ -759,7 +759,7 @@ Forbidden:
 - [ ] `framework/packages/platform/events/README.md` — MUST include: Observability / Errors / Security-Redaction
 - [ ] `framework/packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
-- [ ] `framework/packages/platform/events/src/Provider/Tags.php` — constants (ONLY owner tag):
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (ONLY owner tag):
   - [ ] `EVENTS_LISTENER = 'events.listener'`
 - [ ] `framework/packages/platform/events/src/Dispatcher/SyncEventDispatcher.php` — implements `EventDispatcherInterface` (sync dispatch)
 - [ ] `framework/packages/platform/events/src/Dispatcher/ListenerRegistry.php` — collects listeners from tag `events.listener` (DeterministicOrder)
@@ -802,15 +802,15 @@ Forbidden:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/events/src/Provider/Tags.php` (constants)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `EVENTS_LISTENER` → `events.listener`
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Contracts\Events\EventDispatcherInterface` → `Coretsia\Events\Dispatcher\SyncEventDispatcher`
   - [ ] registers: `Coretsia\Contracts\Events\DeferredEventQueueInterface` → `Coretsia\Events\Deferred\DeferredEventQueue`
   - [ ] registers: `Coretsia\Events\Kernel\DeferredEventsAfterUowHook`
-  - [ ] adds tag: `<Coretsia\Foundation\...\Tags::KERNEL_RESET>` priority `0` meta `{"reason":"clear deferred queue between UoW"}`
-  - [ ] adds tag: `<Coretsia\Kernel\...\Tags::KERNEL_HOOK_AFTER_UOW>` priority `0` meta `{"reason":"flush deferred events only on success"}`
+  - [ ] adds tag: `<Coretsia\Foundation\...\ReservedTags::KERNEL_RESET>` priority `0` meta `{"reason":"clear deferred queue between UoW"}`
+  - [ ] adds tag: `<Coretsia\Kernel\...\ReservedTags::KERNEL_HOOK_AFTER_UOW>` priority `0` meta `{"reason":"flush deferred events only on success"}`
   - [ ] listener discovery via tag: `events.listener` (other packages contribute listeners)
 
 #### Artifacts / outputs (if applicable)
@@ -1099,8 +1099,8 @@ ssot_refs:
   - `queue.*` — introduced by this epic (see Configuration)
 
 - Required tags:
-  - `kernel.reset` — used to reset worker runtime state (if stateful) via `framework/packages/platform/cli/src/Provider/Tags.php` (owner)
-  - `cli.command` — referenced for commands (commands are in 5.90.0; discovered by `platform/cli`) via `framework/packages/core/foundation/src/Provider/Tags.php` (owner)
+  - `kernel.reset` — used to reset worker runtime state (if stateful) via `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner)
+  - `cli.command` — referenced for commands (commands are in 5.90.0; discovered by `platform/cli`) via `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner)
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Queue\JobInterface`
@@ -2043,7 +2043,7 @@ N/A
 - [ ] `framework/packages/platform/cqrs/src/Bus/Middleware/Pipeline.php` — deterministic middleware chain
 - [ ] `framework/packages/platform/cqrs/src/Exception/CommandHandlerNotFoundException.php` — deterministic code `CORETSIA_CQRS_HANDLER_NOT_FOUND`
 - [ ] `framework/packages/platform/cqrs/src/Exception/CommandBusProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
-- [ ] `framework/packages/platform/cqrs/src/Provider/Tags.php` — constants (`error.mapper`)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`error.mapper`)
 - [ ] `docs/architecture/cqrs.md` — usage + handler mapping + redaction
 
 #### Modifies
@@ -2313,7 +2313,7 @@ Forbidden:
 - [ ] `framework/packages/platform/scheduler/config/scheduler.php`
 - [ ] `framework/packages/platform/scheduler/config/rules.php`
 - [ ] `framework/packages/platform/scheduler/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/scheduler/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - Allowed:
     - `public const SCHEDULER_SCHEDULE = 'scheduler.schedule';`
   - Forbidden (not owner):
@@ -2361,7 +2361,7 @@ Forbidden:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/scheduler/src/Provider/Tags.php` (constants)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `SCHEDULER_SCHEDULE = 'scheduler.schedule'`
 - [ ] ServiceProvider wiring evidence:

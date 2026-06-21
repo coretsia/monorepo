@@ -21,9 +21,11 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 ## Public symbols
 
 - `Coretsia\Kernel\Boot\AppTarget`
+- `Coretsia\Kernel\Boot\ArtifactRuntimeBooter`
 - `Coretsia\Kernel\Boot\BootstrapConfig`
 - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
 - `Coretsia\Kernel\Boot\BootstrapInput`
+- `Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException`
 - `Coretsia\Kernel\Boot\Exception\BootstrapException`
 - `Coretsia\Kernel\Module\Exception\ModuleResolutionException`
 - `Coretsia\Kernel\Module\Exception\ModuleErrorCodes`
@@ -32,7 +34,6 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Module\ModulePlanEntry`
 - `Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
-- `Coretsia\Kernel\Provider\Tags`
 - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
 - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
 - `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`

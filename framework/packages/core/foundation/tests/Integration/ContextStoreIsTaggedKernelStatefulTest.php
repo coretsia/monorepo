@@ -22,7 +22,7 @@ use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
-use Coretsia\Foundation\Provider\Tags;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -35,7 +35,7 @@ final class ContextStoreIsTaggedKernelStatefulTest extends TestCase
 
         self::assertInstanceOf(TagRegistry::class, $tagRegistry);
 
-        $taggedServices = $tagRegistry->all(Tags::KERNEL_STATEFUL);
+        $taggedServices = $tagRegistry->all(ReservedTags::KERNEL_STATEFUL);
 
         self::assertCount(1, $taggedServices);
         self::assertSame(ContextStore::class, $taggedServices[0]->id());
@@ -52,7 +52,7 @@ final class ContextStoreIsTaggedKernelStatefulTest extends TestCase
 
         $taggedIds = \array_map(
             static fn ($taggedService): string => $taggedService->id(),
-            $tagRegistry->all(Tags::KERNEL_STATEFUL),
+            $tagRegistry->all(ReservedTags::KERNEL_STATEFUL),
         );
 
         self::assertSame([ContextStore::class], $taggedIds);

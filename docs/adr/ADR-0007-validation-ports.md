@@ -53,19 +53,25 @@ The detailed normative policy for this ADR is defined by:
 docs/ssot/validation-contracts.md
 ```
 
-The existing tag registry already reserves the runtime discovery tag used for error mapping:
+The tag registry reserves the runtime discovery tag used for error mapping:
 
 ```text
 docs/ssot/tags.md
 ```
 
-Relevant existing tag:
+Relevant reserved tag:
 
 ```text
 error.mapper
 ```
 
-This tag is existing runtime policy owned by `platform/errors`, not a tag introduced by `core/contracts`.
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
+```
+
+This tag is runtime policy owned by `platform/errors`, not a tag introduced by `core/contracts`.
 
 The existing normalized error mapping target is:
 
@@ -269,7 +275,7 @@ This is a transport hint only.
 
 Non-HTTP runtimes may ignore the HTTP status hint.
 
-A runtime mapper discovered through the existing `error.mapper` tag may map `ValidationException` to `ErrorDescriptor` using:
+A runtime mapper discovered through the `error.mapper` tag may map `ValidationException` to `ErrorDescriptor` using:
 
 ```text
 code: CORETSIA_VALIDATION_FAILED
@@ -289,7 +295,7 @@ The contracts package must not require `ErrorDescriptor` construction inside `Va
 
 Epic `1.130.0` introduces no DI tags.
 
-The relevant existing reserved tag is:
+The relevant reserved tag is:
 
 ```text
 error.mapper
@@ -301,11 +307,17 @@ That tag is owned by:
 platform/errors
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
+```
+
 The contracts package may reference `error.mapper` in documentation as runtime policy.
 
-It must not declare public tag constants for `error.mapper`.
+It must not declare DI tag identifier constants for `error.mapper`.
 
-It must not define a package-local mirror constant for `error.mapper`.
+It must not define additional code-level registries for `error.mapper`.
 
 It must not define competing tag metadata keys, mapper priority semantics, or mapper registry semantics.
 
@@ -464,7 +476,7 @@ Rejected.
 
 This epic does not need a new validation discovery tag.
 
-Error mapping uses the existing reserved `error.mapper` tag owned by `platform/errors`.
+Error mapping uses the reserved `error.mapper` tag owned by `platform/errors`.
 
 The contracts package is not the owner of that tag.
 
@@ -502,7 +514,8 @@ This ADR does not implement:
 - package validation rules;
 - executable validators;
 - validator DI registration;
-- DI tag constants in `core/contracts`;
+- DI tag identifier constants in `core/contracts`;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - error mapper implementation;
 - mapper registry implementation;
 - mapper priority algorithm;

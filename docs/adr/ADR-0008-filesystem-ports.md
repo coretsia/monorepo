@@ -431,9 +431,9 @@ The contracts package must not depend on any of those driver packages.
 
 Epic `1.140.0` introduces no DI tags.
 
-The contracts package must not declare public filesystem tag constants.
+The contracts package must not declare filesystem DI tag identifier constants.
 
-The contracts package must not define package-local mirror constants for filesystem tags.
+The contracts package must not define additional code-level registries for filesystem DI tag identifiers.
 
 The contracts package must not define filesystem tag metadata keys, tag priority semantics, or discovery semantics.
 
@@ -443,7 +443,11 @@ If a future runtime owner needs filesystem DI tags, that owner must introduce th
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+Framework-reserved DI tag identifier strings must be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 ## Config decision
 
@@ -601,6 +605,8 @@ Rejected.
 Epic `1.140.0` does not need a new discovery tag.
 
 DI tag ownership is governed by `docs/ssot/tags.md`.
+
+Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 A future runtime owner may introduce filesystem tags through its own owner epic.
 

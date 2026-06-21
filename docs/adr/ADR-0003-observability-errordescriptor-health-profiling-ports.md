@@ -116,10 +116,16 @@ Mapper implementations may inspect throwables internally, but the returned descr
 
 Returning `null` means that the mapper does not handle the throwable and the owner registry may try the next mapper or use a fallback descriptor.
 
-Runtime discovery of exception mappers is platform-owned through the existing reserved tag:
+Runtime discovery of exception mappers is platform-owned through the reserved tag:
 
 ```text
 error.mapper
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
 ```
 
 The contracts package does not introduce or own this tag.
@@ -179,10 +185,16 @@ status
 
 Health endpoint routing, response rendering, aggregation, and health check discovery are platform-owned.
 
-Runtime discovery is through the existing reserved tag:
+Runtime discovery is through the reserved tag:
 
 ```text
 health.check
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::HEALTH_CHECK
 ```
 
 The contracts package does not introduce or own this tag.
@@ -230,11 +242,18 @@ The payload must never be logged, printed, traced, exported as metric labels, em
 
 Profiling metadata must be json-like and deterministic.
 
-Profiling implementations may be wired by future owner packages through existing kernel hook tags:
+Profiling implementations may be wired by future owner packages through kernel hook tags:
 
 ```text
 kernel.hook.before_uow
 kernel.hook.after_uow
+```
+
+The canonical code-level identifiers for these framework-reserved DI tags are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
 The contracts package does not introduce profiling-specific DI tags in epic `1.90.0`.
@@ -326,7 +345,9 @@ Rejected.
 
 DI tag ownership is defined by `docs/ssot/tags.md`.
 
-This epic references existing reserved tags as runtime policy only.
+Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+
+This epic references reserved tags as runtime policy only.
 
 ## Cross-references
 

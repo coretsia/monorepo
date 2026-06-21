@@ -20,8 +20,8 @@ namespace Coretsia\Foundation\Tests\Integration;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
-use Coretsia\Foundation\Provider\Tags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use PHPUnit\Framework\TestCase;
 
 final class ResetOrchestratorInvokesResetExactlyOncePerServiceTest extends TestCase
@@ -40,9 +40,9 @@ final class ResetOrchestratorInvokesResetExactlyOncePerServiceTest extends TestC
         $builder->instance('service.reset.beta', $beta);
         $builder->instance('service.reset.alpha', $alpha);
 
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.zeta', 0);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.beta', 50);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.alpha', 50);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.zeta', 0);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.beta', 50);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.alpha', 50);
 
         self::orchestratorFrom($builder)->resetAll();
 
@@ -72,8 +72,8 @@ final class ResetOrchestratorInvokesResetExactlyOncePerServiceTest extends TestC
         $builder->instance('service.reset.beta', $beta);
         $builder->instance('service.reset.alpha', $alpha);
 
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.beta', 0);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.alpha', 0);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.beta', 0);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.alpha', 0);
 
         $orchestrator = self::orchestratorFrom($builder);
 
@@ -112,7 +112,7 @@ final class ResetOrchestratorInvokesResetExactlyOncePerServiceTest extends TestC
         $builder = new ContainerBuilder();
 
         $builder->instance('service.reset.explicit', $service);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.explicit');
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.explicit');
 
         self::orchestratorFrom($builder)->resetAll();
 
@@ -140,7 +140,7 @@ final class ResetOrchestratorInvokesResetExactlyOncePerServiceTest extends TestC
                     'allow_reflection_for_concrete' => true,
                 ],
                 'reset' => [
-                    'tag' => Tags::KERNEL_RESET,
+                    'tag' => ReservedTags::KERNEL_RESET,
                 ],
             ],
         ];

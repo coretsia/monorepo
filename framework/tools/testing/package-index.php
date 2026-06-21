@@ -127,6 +127,23 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Cli\\',
       'slug' => 'cli',
     ),
+    7 =>
+    array(
+      'composerName' => 'coretsia/platform-worker',
+      'defaultsConfigPath' => 'config/worker.php',
+      'id' => 'platform.worker',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Worker\\Module\\WorkerModule',
+      'moduleId' => 'platform.worker',
+      'path' => 'framework/packages/platform/worker',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Worker\\Provider\\WorkerServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Worker\\',
+      'slug' => 'worker',
+    ),
   ),
   'schemaVersion' => 1,
 );

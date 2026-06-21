@@ -136,35 +136,37 @@ declare(strict_types=1);
         $packagesRoot = $frameworkRoot . '/packages';
 
         $resetInterfaceFile = $packagesRoot . '/core/contracts/src/Runtime/ResetInterface.php';
-        $foundationTagsFile = $packagesRoot . '/core/foundation/src/Provider/Tags.php';
+        $reservedTagsFile = $packagesRoot . '/core/foundation/src/Tag/ReservedTags.php';
 
         if (
             !\is_file($resetInterfaceFile)
             || !\is_readable($resetInterfaceFile)
-            || !\is_file($foundationTagsFile)
-            || !\is_readable($foundationTagsFile)
+            || !\is_file($reservedTagsFile)
+            || !\is_readable($reservedTagsFile)
         ) {
             exit(0);
         }
 
-        $foundationTags = coretsia_cross_cutting_contract_gate_extract_string_constants($foundationTagsFile);
+        $reservedTags = coretsia_cross_cutting_contract_gate_extract_string_constants($reservedTagsFile);
 
         if (
-            ($foundationTags['KERNEL_STATEFUL'] ?? null) !== 'kernel.stateful'
-            || ($foundationTags['KERNEL_RESET'] ?? null) !== 'kernel.reset'
+            ($reservedTags['KERNEL_STATEFUL'] ?? null) !== 'kernel.stateful'
+            || ($reservedTags['KERNEL_RESET'] ?? null) !== 'kernel.reset'
         ) {
             $ConsoleOutput::codeWithDiagnostics($codeViolation, [
-                'packages/core/foundation/src/Provider/Tags.php: kernel-tags-drift',
+                'packages/core/foundation/src/Tag/ReservedTags.php: kernel-tags-drift',
             ]);
             exit(1);
         }
+
+        $defaultResetTag = $reservedTags['KERNEL_RESET'] ?? 'kernel.reset';
 
         [
             $effectiveResetTag,
             $effectiveResetTagViolations
         ] = coretsia_cross_cutting_contract_gate_resolve_effective_foundation_reset_tag(
             $packagesRoot,
-            'kernel.reset',
+            $defaultResetTag,
         );
 
         if ($effectiveResetTagViolations !== []) {
@@ -799,7 +801,7 @@ function coretsia_cross_cutting_contract_gate_extract_stateful_service_evidence(
         return [];
     }
 
-    if (coretsia_cross_cutting_contract_gate_is_tag_constant_definition_file($phpFile)) {
+    if (coretsia_cross_cutting_contract_gate_is_reserved_tags_registry_file($phpFile)) {
         return [];
     }
 
@@ -1115,15 +1117,15 @@ function coretsia_cross_cutting_contract_gate_resolve_tag_expression(
     }
 
     if (
-        $expression === 'Tags::KERNEL_STATEFUL'
-        || \str_ends_with($expression, '\\Tags::KERNEL_STATEFUL')
+        $expression === 'ReservedTags::KERNEL_STATEFUL'
+        || \str_ends_with($expression, '\\ReservedTags::KERNEL_STATEFUL')
     ) {
         return 'kernel.stateful';
     }
 
     if (
-        $expression === 'Tags::KERNEL_RESET'
-        || \str_ends_with($expression, '\\Tags::KERNEL_RESET')
+        $expression === 'ReservedTags::KERNEL_RESET'
+        || \str_ends_with($expression, '\\ReservedTags::KERNEL_RESET')
     ) {
         return 'kernel.reset';
     }
@@ -1154,12 +1156,17 @@ function coretsia_cross_cutting_contract_gate_add_service_tag(
     $serviceTags[$serviceClass][$tag] = true;
 }
 
-function coretsia_cross_cutting_contract_gate_is_tag_constant_definition_file(string $phpFile): bool
+function coretsia_cross_cutting_contract_gate_is_reserved_tags_registry_file(string $phpFile): bool
 {
-    $constants = coretsia_cross_cutting_contract_gate_extract_string_constants($phpFile);
+    $path = \rtrim(\str_replace('\\', '/', $phpFile), '/');
 
-    return ($constants['KERNEL_STATEFUL'] ?? null) === 'kernel.stateful'
-        && ($constants['KERNEL_RESET'] ?? null) === 'kernel.reset';
+    return \str_ends_with(
+        $path,
+        '/framework/packages/core/foundation/src/Tag/ReservedTags.php',
+    ) || \str_ends_with(
+        $path,
+        '/packages/core/foundation/src/Tag/ReservedTags.php',
+    );
 }
 
 /**

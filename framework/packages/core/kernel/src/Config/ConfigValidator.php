@@ -63,6 +63,7 @@ use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
  * Existing package rules also use:
  *
  * - min
+ * - max
  *
  * Supported baseline types:
  *
@@ -101,6 +102,8 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
     private const string REASON_KEYS_TYPE = 'rule-keys-type';
     private const string REASON_MIN = 'min';
     private const string REASON_MIN_TYPE = 'rule-min-type';
+    private const string REASON_MAX = 'max';
+    private const string REASON_MAX_TYPE = 'rule-max-type';
     private const string REASON_RELATIVE_SAFE_PATH = 'relative-safe-path';
     private const string REASON_REQUIRED = 'required';
     private const string REASON_REQUIRED_TYPE = 'rule-required-type';
@@ -146,6 +149,7 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
         'configRoot' => true,
         'items' => true,
         'keys' => true,
+        'max' => true,
         'min' => true,
         'required' => true,
         'schemaVersion' => true,
@@ -537,6 +541,16 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
             );
         }
 
+        if (isset($rule['max']) && !\is_int($rule['max'])) {
+            $violations[] = self::violation(
+                root: $root,
+                path: self::appendPath($rulePath, 'max'),
+                reason: self::REASON_MAX_TYPE,
+                expected: self::EXPECTED_INT,
+                actualType: self::actualType($rule['max']),
+            );
+        }
+
         if (isset($rule['allowedValues'])) {
             if (!\is_array($rule['allowedValues']) || !\array_is_list($rule['allowedValues'])) {
                 $violations[] = self::violation(
@@ -721,6 +735,16 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
                 path: $path,
                 reason: self::REASON_MIN,
                 expected: 'min',
+                actualType: self::actualType($value),
+            );
+        }
+
+        if (isset($rule['max']) && \is_int($rule['max']) && \is_int($value) && $value > $rule['max']) {
+            $violations[] = self::violation(
+                root: $root,
+                path: $path,
+                reason: self::REASON_MAX,
+                expected: 'max',
                 actualType: self::actualType($value),
             );
         }

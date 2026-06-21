@@ -19,7 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Runtime\Reset;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
-use Coretsia\Foundation\Provider\Tags;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Psr\Container\ContainerInterface;
 
@@ -66,7 +66,7 @@ final readonly class ResetOrchestrator
     public function __construct(
         private ContainerInterface $container,
         private TagRegistry $tagRegistry,
-        private string $effectiveResetTag = Tags::KERNEL_RESET,
+        private string $effectiveResetTag = ReservedTags::KERNEL_RESET,
         private bool $priorityEnabled = false,
         private ?PriorityResetOrchestrator $priorityResetOrchestrator = null,
     ) {

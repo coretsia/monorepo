@@ -586,9 +586,9 @@ Future runtime owner packages MAY introduce secrets config only through their ow
 
 Epic `1.180.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public secrets tag constants.
+The contracts package MUST NOT declare secrets tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for secrets tags.
+The contracts package MUST NOT define secrets tag identifier constants.
 
 The contracts package MUST NOT define secrets tag metadata keys, resolver discovery semantics, backend discovery semantics, priority semantics, or policy discovery semantics.
 
@@ -598,7 +598,13 @@ If a future runtime owner needs secrets DI tags, that owner MUST introduce them 
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved secrets tag identifiers.
 
 ## Artifact policy
 
@@ -936,7 +942,8 @@ This test is expected to verify:
 - secrets contracts do not depend on `Psr\Http\Message\*`;
 - secrets contracts do not depend on Vault, cloud SDK, dotenv, filesystem, database, Redis, cache, lock, or vendor concretes;
 - secrets contracts do not expose streams, resources, iterators, generators, closures, vendor clients, backend objects, or runtime wiring objects;
-- secrets contracts do not declare DI tag constants;
+- secrets contracts do not declare DI tag identifier constants;
+- secrets contracts do not define additional code-level registries for framework-reserved DI tag identifiers;
 - secrets contracts do not introduce config roots, config keys, or artifact concepts;
 - secrets contracts do not introduce a secrets exception hierarchy;
 - secrets contracts do not expose `float` as an accepted value or returned result value.

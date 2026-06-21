@@ -207,10 +207,7 @@ final class CliOwnedFailuresUseCliBaseCodesTest extends TestCase
      */
     private function stubInput(array $tokens): InputInterface
     {
-        $input = $this->createStub(InputInterface::class);
-        $input->method('tokens')->willReturn($tokens);
-
-        return $input;
+        return new CliOwnedFailuresParsedInput($tokens);
     }
 
     private function assertSingleError(
@@ -334,14 +331,14 @@ final class CliOwnedFailuresRecordingOutput implements OutputInterface
     /** @var list<array{code:string,message:string}> */
     private array $errors = [];
 
-    public function json(array $data): void
+    public function json(array $payload): void
     {
-        $this->json[] = $data;
+        $this->json[] = $payload;
     }
 
-    public function text(string $line): void
+    public function text(string $text): void
     {
-        $this->text[] = $line;
+        $this->text[] = $text;
     }
 
     public function error(string $code, string $message): void
@@ -374,5 +371,129 @@ final class CliOwnedFailuresRecordingOutput implements OutputInterface
     public function errors(): array
     {
         return $this->errors;
+    }
+}
+
+/**
+ * Minimal parsed InputInterface implementation for CLI-owned failure tests.
+ */
+final class CliOwnedFailuresParsedInput implements InputInterface
+{
+    /**
+     * @var list<string>
+     */
+    private array $tokens;
+
+    /**
+     * @var list<string>
+     */
+    private array $arguments;
+
+    /**
+     * @var array<string, string|bool|list<string>|null>
+     */
+    private array $options;
+
+    /**
+     * @param list<string> $tokens
+     */
+    public function __construct(array $tokens)
+    {
+        $this->tokens = $tokens;
+
+        [$this->arguments, $this->options] = self::parseTokens($tokens);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
+
+    public function commandName(): string
+    {
+        return '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    /**
+     * @return array<string, string|bool|list<string>|null>
+     */
+    public function options(): array
+    {
+        return $this->options;
+    }
+
+    public function hasOption(string $name): bool
+    {
+        return \array_key_exists($name, $this->options);
+    }
+
+    public function option(string $name): string|bool|array|null
+    {
+        return $this->options[$name] ?? null;
+    }
+
+    /**
+     * @param list<string> $tokens
+     * @return array{0: list<string>, 1: array<string, string|bool|list<string>|null>}
+     */
+    private static function parseTokens(array $tokens): array
+    {
+        $arguments = [];
+        $options = [];
+
+        $count = \count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if ($token === '') {
+                continue;
+            }
+
+            if (!\str_starts_with($token, '--')) {
+                $arguments[] = $token;
+                continue;
+            }
+
+            $raw = \substr($token, 2);
+
+            if ($raw === '') {
+                continue;
+            }
+
+            if (\str_contains($raw, '=')) {
+                [$name, $value] = \explode('=', $raw, 2);
+
+                if ($name !== '') {
+                    $options[$name] = $value;
+                }
+
+                continue;
+            }
+
+            $next = $tokens[$i + 1] ?? null;
+
+            if (\is_string($next) && $next !== '' && !\str_starts_with($next, '-')) {
+                $options[$raw] = $next;
+                $i++;
+
+                continue;
+            }
+
+            $options[$raw] = true;
+        }
+
+        return [$arguments, $options];
     }
 }

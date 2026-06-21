@@ -71,7 +71,11 @@ final class WorkflowBackedCommandsDispatchToToolsRuntimeTest extends TestCase
             $payload = $jsonPayloads[0];
         });
 
-        self::assertSame(1, AliasFingerprintWorkflowFake::$calls, 'Fingerprint fake workflow MUST be called exactly once.');
+        self::assertSame(
+            1,
+            AliasFingerprintWorkflowFake::$calls,
+            'Fingerprint fake workflow MUST be called exactly once.'
+        );
         self::assertIsArray($payload);
         self::assertSame('spike:fingerprint', $payload['command'] ?? null);
         self::assertSame(true, $payload['ok'] ?? null);
@@ -121,7 +125,11 @@ final class WorkflowBackedCommandsDispatchToToolsRuntimeTest extends TestCase
             $payload = $jsonPayloads[0];
         });
 
-        self::assertCount(1, AliasConfigDebugWorkflowFake::$calls, 'Config debug fake workflow MUST be called exactly once.');
+        self::assertCount(
+            1,
+            AliasConfigDebugWorkflowFake::$calls,
+            'Config debug fake workflow MUST be called exactly once.'
+        );
         self::assertSame(
             ['scenario' => 'baseline.defaults_only.all_middleware_slots_present', 'key' => 'cli.commands'],
             AliasConfigDebugWorkflowFake::$calls[0]
@@ -191,7 +199,11 @@ final class WorkflowBackedCommandsDispatchToToolsRuntimeTest extends TestCase
             $payload = $jsonPayloads[0];
         });
 
-        self::assertCount(1, AliasDeptracGraphWorkflowFake::$calls, 'Deptrac graph fake workflow MUST be called exactly once.');
+        self::assertCount(
+            1,
+            AliasDeptracGraphWorkflowFake::$calls,
+            'Deptrac graph fake workflow MUST be called exactly once.'
+        );
 
         $call = AliasDeptracGraphWorkflowFake::$calls[0];
         self::assertSame($repoRoot, $call['repoRoot']);
@@ -265,7 +277,11 @@ final class WorkflowBackedCommandsDispatchToToolsRuntimeTest extends TestCase
             $applyPayload = $applyJsonPayloads[0];
         });
 
-        self::assertCount(2, AliasWorkspaceSyncEntryWorkflowFake::$calls, 'Workspace entry fake workflow MUST be called twice.');
+        self::assertCount(
+            2,
+            AliasWorkspaceSyncEntryWorkflowFake::$calls,
+            'Workspace entry fake workflow MUST be called twice.'
+        );
 
         self::assertSame(
             ['workspaceRoot' => $repoRoot, 'apply' => false],
@@ -302,10 +318,7 @@ final class WorkflowBackedCommandsDispatchToToolsRuntimeTest extends TestCase
      */
     private function stubInput(array $tokens): InputInterface
     {
-        $input = $this->createStub(InputInterface::class);
-        $input->method('tokens')->willReturn($tokens);
-
-        return $input;
+        return new WorkflowBackedDispatchParsedInput($tokens);
     }
 
     private function repoRoot(): string
@@ -379,14 +392,14 @@ final class DispatchProofOutput implements OutputInterface
     /** @var list<array{code:string,message:string}> */
     private array $errors = [];
 
-    public function json(array $data): void
+    public function json(array $payload): void
     {
-        $this->json[] = $data;
+        $this->json[] = $payload;
     }
 
-    public function text(string $line): void
+    public function text(string $text): void
     {
-        $this->text[] = $line;
+        $this->text[] = $text;
     }
 
     public function error(string $code, string $message): void
@@ -419,6 +432,127 @@ final class DispatchProofOutput implements OutputInterface
     public function errors(): array
     {
         return $this->errors;
+    }
+}
+
+final class WorkflowBackedDispatchParsedInput implements InputInterface
+{
+    /**
+     * @var list<string>
+     */
+    private array $tokens;
+
+    /**
+     * @var list<string>
+     */
+    private array $arguments;
+
+    /**
+     * @var array<string, string|bool|list<string>|null>
+     */
+    private array $options;
+
+    /**
+     * @param list<string> $tokens
+     */
+    public function __construct(array $tokens)
+    {
+        $this->tokens = $tokens;
+
+        [$this->arguments, $this->options] = self::parseTokens($tokens);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
+
+    public function commandName(): string
+    {
+        return '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    /**
+     * @return array<string, string|bool|list<string>|null>
+     */
+    public function options(): array
+    {
+        return $this->options;
+    }
+
+    public function hasOption(string $name): bool
+    {
+        return \array_key_exists($name, $this->options);
+    }
+
+    public function option(string $name): string|bool|array|null
+    {
+        return $this->options[$name] ?? null;
+    }
+
+    /**
+     * @param list<string> $tokens
+     * @return array{0: list<string>, 1: array<string, string|bool|list<string>|null>}
+     */
+    private static function parseTokens(array $tokens): array
+    {
+        $arguments = [];
+        $options = [];
+
+        $count = \count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if ($token === '') {
+                continue;
+            }
+
+            if (!\str_starts_with($token, '--')) {
+                $arguments[] = $token;
+                continue;
+            }
+
+            $raw = \substr($token, 2);
+
+            if ($raw === '') {
+                continue;
+            }
+
+            if (\str_contains($raw, '=')) {
+                [$name, $value] = \explode('=', $raw, 2);
+
+                if ($name !== '') {
+                    $options[$name] = $value;
+                }
+
+                continue;
+            }
+
+            $next = $tokens[$i + 1] ?? null;
+
+            if (\is_string($next) && $next !== '' && !\str_starts_with($next, '-')) {
+                $options[$raw] = $next;
+                $i++;
+
+                continue;
+            }
+
+            $options[$raw] = true;
+        }
+
+        return [$arguments, $options];
     }
 }
 

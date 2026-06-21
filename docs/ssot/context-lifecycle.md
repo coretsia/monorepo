@@ -382,6 +382,12 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 In this document, `kernel.reset` is used only as the reserved default-name shorthand.
 
 Runtime consumers MUST NOT enumerate reset tags directly.
@@ -424,7 +430,7 @@ The lifecycle formula is:
 KernelRuntime afterUoW phase
 → ResetOrchestrator::resetAll()
 → effective reset discovery tag from foundation.reset.tag
-→ reserved default value: kernel.reset
+→ reserved default value: kernel.reset (`ReservedTags::KERNEL_RESET`)
 → ContextStore::reset()
 → next UoW starts without previous values
 ```
@@ -441,6 +447,12 @@ with reserved default:
 
 ```text
 kernel.reset
+```
+
+Code-level identifier:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 For each discovered service id, `ResetOrchestrator` resolves the service through the PSR-11 container and calls:
@@ -534,6 +546,14 @@ http.middleware.route
 http.middleware.route_post
 ```
 
+The corresponding framework-reserved DI tag identifiers are declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime package source MUST use `ReservedTags::*` for these identifiers.
+
 These names are TagRegistry tag names.
 
 The config namespace:
@@ -594,7 +614,7 @@ Coretsia\Contracts\Context\ContextAccessorInterface
 
 7. Logs, metrics, spans, and errors follow observability SSoTs and do not treat ContextStore presence as export permission.
 8. After the unit of work, Kernel runtime triggers Foundation reset orchestration through `ResetOrchestrator`.
-9. `ResetOrchestrator` uses the effective reset discovery tag from `foundation.reset.tag`, whose reserved default is `kernel.reset`.
+9. `ResetOrchestrator` uses the effective reset discovery tag from `foundation.reset.tag`, whose reserved default is `kernel.reset` (`ReservedTags::KERNEL_RESET`).
 10. `ContextStore::reset()` clears all context.
 11. The next unit of work cannot observe previous request values.
 

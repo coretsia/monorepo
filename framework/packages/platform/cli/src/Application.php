@@ -362,7 +362,16 @@ final class Application
 
         $matched = $this->resolveCatalogCommand($tokens, $catalog);
         if ($matched !== null) {
-            $exitCode = (int)$matched->run($input, $tracked);
+            $command = $matched['command'];
+
+            $commandInput = CliInput::forResolvedCommand(
+                tokens: $tokens,
+                commandName: $command->name(),
+                consumedTokenCount: $matched['token_count'],
+            );
+
+            $exitCode = (int)$command->run($commandInput, $tracked);
+
             return $this->finalizeExitCode($tracked, $exitCode);
         }
 
@@ -394,8 +403,9 @@ final class Application
      *
      * @param list<string> $inputTokens
      * @param array<string, CommandInterface> $catalog
+     * @return array{command: CommandInterface, token_count: int}|null
      */
-    private function resolveCatalogCommand(array $inputTokens, array $catalog): ?CommandInterface
+    private function resolveCatalogCommand(array $inputTokens, array $catalog): ?array
     {
         $best = null;
         $bestTokenCount = 0;
@@ -420,7 +430,14 @@ final class Application
             $bestTokenCount = $signatureTokenCount;
         }
 
-        return $best;
+        if ($best === null) {
+            return null;
+        }
+
+        return [
+            'command' => $best,
+            'token_count' => $bestTokenCount,
+        ];
     }
 
     /**

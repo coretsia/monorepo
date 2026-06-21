@@ -6,7 +6,6 @@ parameters:
         - ../../packages
         - ../../tools/build
         - ../../tools/gates
-        - ../../tools/policies
         - ../../tools/testing
 
     bootstrapFiles:

@@ -217,7 +217,7 @@ services
 tags
 ```
 
-`CompiledContainerBuilder` **MUST NOT** emit the legacy transitional stub payload:
+`CompiledContainerBuilder` **MUST NOT** emit the unsupported transitional stub payload:
 
 ```text
 kind = stub
@@ -365,7 +365,7 @@ kind = compiled
 compiled = true
 ```
 
-The validator **MUST** reject legacy transitional stub payloads:
+The validator **MUST** reject unsupported transitional stub payloads:
 
 ```text
 kind = stub
@@ -738,7 +738,7 @@ This document does not redefine config root ownership.
 - This document does not require generated artifacts to be read during normal Kernel runtime service registration.
 - `container@1` is not a deterministic stub artifact in current Kernel artifact production.
 - Kernel-produced `container@1` artifacts use the REAL compiled-container payload shape: `kind = compiled` and `compiled = true`.
-- Legacy stub container payloads (`kind = stub`, `compiled = false`) are invalid for current Kernel-produced `container@1` artifacts.
+- Stub container payloads (`kind = stub`, `compiled = false`) are invalid for current Kernel-produced `container@1` artifacts.
 
 ## Cross-references
 

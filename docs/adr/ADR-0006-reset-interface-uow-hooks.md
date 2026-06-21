@@ -90,13 +90,13 @@ The detailed normative policy for this ADR is defined by:
 docs/ssot/uow-and-reset-contracts.md
 ```
 
-The existing tag registry already reserves the runtime discovery tags used by this epic:
+The tag registry reserves the runtime discovery tags used by this epic:
 
 ```text
 docs/ssot/tags.md
 ```
 
-Relevant existing tags:
+Relevant reserved tags:
 
 ```text
 kernel.reset
@@ -104,7 +104,15 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-These tags are existing runtime policy, not tags introduced by `core/contracts`.
+Their canonical code-level identifiers are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
+```
+
+These tags are runtime policy, not tags introduced by `core/contracts`.
 
 ## Decision
 
@@ -155,10 +163,18 @@ This keeps reset behavior usable across HTTP, CLI, worker, scheduler, queue, and
 
 Reset orchestration belongs to the Foundation runtime owner.
 
-A Foundation reset orchestrator is expected to discover reset-capable services through the effective Foundation reset tag:
+A Foundation reset orchestrator is expected to discover reset-capable services through the effective Foundation reset tag.
+
+The reserved default is:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 and call:
@@ -274,7 +290,7 @@ Any future change to the exported context/result payload shape must remain forma
 
 Epic `1.120.0` introduces no DI tags.
 
-The contracts package must not declare public tag constants for:
+The contracts package must not declare DI tag identifier constants for:
 
 ```text
 kernel.reset
@@ -290,9 +306,15 @@ Those tags are reserved in the tag registry and owned by runtime owner packages:
 | `kernel.hook.before_uow` | `core/kernel`     |
 | `kernel.hook.after_uow`  | `core/kernel`     |
 
+Their canonical code-level identifiers are declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
 The contracts package may reference these tag strings in documentation as runtime policy.
 
-It must not define competing public tag APIs, competing tag metadata keys, or competing priority semantics.
+It must not define competing public tag APIs, additional code-level registries for framework-reserved DI tag identifiers, competing tag metadata keys, or competing priority semantics.
 
 ## Runtime ownership decision
 
@@ -452,9 +474,11 @@ Those responsibilities belong to `core/kernel`, not `core/contracts`.
 
 Rejected.
 
-The needed tags already exist in `docs/ssot/tags.md`.
+The needed tags are reserved in `docs/ssot/tags.md`.
 
 The contracts package is not the owner of `kernel.reset` or `kernel.hook.*`.
+
+Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 ### Define tag priority metadata in contracts
 
@@ -471,7 +495,8 @@ This ADR does not implement:
 - concrete reset orchestrator;
 - concrete hook executor;
 - DI service discovery;
-- DI tag constants in `core/contracts`;
+- DI tag identifier constants in `core/contracts`;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - tag metadata schema;
 - tag priority schema;
 - worker loop behavior;

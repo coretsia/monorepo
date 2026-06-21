@@ -468,9 +468,9 @@ It does not create or modify `platform/http`.
 
 Epic `1.160.0` introduces no DI tags.
 
-The contracts package must not declare public rate limit tag constants.
+The contracts package must not declare rate limit DI tag identifier constants.
 
-The contracts package must not define package-local mirror constants for rate limit tags.
+The contracts package must not define additional code-level registries for rate limit DI tag identifiers.
 
 The contracts package must not define:
 
@@ -486,7 +486,11 @@ If a future runtime owner needs rate limit DI tags, that owner must introduce th
 docs/ssot/tags.md
 ```
 
-according to the tag registry rules.
+Framework-reserved DI tag identifier strings must be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 ## Config decision
 

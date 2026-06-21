@@ -29,11 +29,10 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Kernel\Provider\Tags as KernelTags;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
@@ -492,19 +491,19 @@ final class KernelRuntimeAlwaysResetsAfterUowTest extends TestCase
         $hookRegistry = new TagRegistry();
 
         $hookRegistry->add(
-            KernelTags::KERNEL_HOOK_BEFORE_UOW,
+            ReservedTags::KERNEL_HOOK_BEFORE_UOW,
             KernelRuntimeAlwaysResetsAfterUowBeforeHook::class,
         );
 
         $hookRegistry->add(
-            KernelTags::KERNEL_HOOK_AFTER_UOW,
+            ReservedTags::KERNEL_HOOK_AFTER_UOW,
             KernelRuntimeAlwaysResetsAfterUowAfterHook::class,
         );
 
         $resetRegistry = new TagRegistry();
 
         $resetRegistry->add(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             KernelRuntimeAlwaysResetsAfterUowResetService::class,
         );
 

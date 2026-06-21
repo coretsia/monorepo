@@ -570,6 +570,12 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
+The canonical code-level identifiers for these framework-reserved DI tags are declared only in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
 The contracts package MAY reference these tag strings in documentation as existing runtime policy.
 
 The reserved tag names are owned by their registry owners in:
@@ -586,9 +592,19 @@ Relevant existing reserved tags:
 | `kernel.hook.before_uow` | `core/kernel`     | existing before-UoW hook discovery tag used by runtime policy       |
 | `kernel.hook.after_uow`  | `core/kernel`     | existing after-UoW hook discovery tag used by runtime policy        |
 
+Their canonical code-level identifiers are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
+```
+
 `core/contracts` is not the owner of these tags.
 
 `core/contracts` MUST NOT define competing public tag APIs.
+
+`core/contracts` MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
 
 `core/contracts` MUST NOT define competing tag metadata keys.
 
@@ -616,6 +632,12 @@ The effective Foundation reset tag is:
 
 ```text
 kernel.reset
+```
+
+The reserved default code-level identifier is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 Foundation reset orchestration owns reset service discovery, ordering, execution, failure mapping, and reset observability.
@@ -657,10 +679,22 @@ The existing before-UoW hook tag is:
 kernel.hook.before_uow
 ```
 
+Its canonical code-level identifier is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+```
+
 The existing after-UoW hook tag is:
 
 ```text
 kernel.hook.after_uow
+```
+
+Its canonical code-level identifier is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
 A Kernel hook executor is expected to discover hook services through these tags and call:
@@ -853,7 +887,8 @@ This SSoT does not define:
 - hook payload normalization implementation in `core/contracts`;
 - KernelRuntime implementation in `core/contracts`;
 - DI service discovery implementation;
-- DI tag constants in `core/contracts`;
+- DI tag identifier constants in `core/contracts`;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - tag metadata schema;
 - tag priority schema;
 - worker loop implementation;

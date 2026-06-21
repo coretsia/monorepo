@@ -53,7 +53,8 @@
           "coretsia/core-kernel": "0.4.x-dev",
           "coretsia/devtools-cli-spikes": "0.4.x-dev",
           "coretsia/devtools-internal-toolkit": "0.4.x-dev",
-          "coretsia/platform-cli": "0.4.x-dev"
+          "coretsia/platform-cli": "0.4.x-dev",
+          "coretsia/platform-worker": "0.4.x-dev"
         }
       },
       "coretsia_managed": true
@@ -127,7 +128,7 @@
     "no-skeleton-mode-presets-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-mode-presets-default:gate --",
     "no-skeleton-modules-default:gate": "@composer --no-interaction --working-dir=framework run-script no-skeleton-modules-default:gate --",
     "contracts-only-ports:gate": "@composer --no-interaction --working-dir=framework run-script contracts-only-ports:gate --",
-    "tag-constant-mirror:gate": "@composer --no-interaction --working-dir=framework run-script tag-constant-mirror:gate --",
+    "reserved-tags:gate": "@composer --no-interaction --working-dir=framework run-script reserved-tags:gate --",
     "observability-naming:gate": "@composer --no-interaction --working-dir=framework run-script observability-naming:gate --",
     "observability-span-naming:gate": "@composer --no-interaction --working-dir=framework run-script observability-span-naming:gate --",
     "observability-metric-catalog:gate": "@composer --no-interaction --working-dir=framework run-script observability-metric-catalog:gate --",

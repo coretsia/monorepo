@@ -142,14 +142,27 @@ jobs:
         shell: bash
         run: composer --no-interaction spike:test:determinism
 
-      - name: "Debug (safe): extract CORETSIA codes + failing PHPUnit cases (Windows only)"
-        if: ${{ runner.os == 'Windows' && failure() && env.CORETSIA_CI_SAFE_DEBUG == '1' }}
+      - name: "Debug (safe): determinism dirty worktree"
+        if: ${{ failure() && env.CORETSIA_CI_SAFE_DEBUG == '1' }}
         shell: bash
         run: |
           set -euo pipefail
+
+          echo "== git status --porcelain =="
+          git status --porcelain=v1 || true
+
+          echo "== git diff --summary =="
+          git diff --summary || true
+
+          echo "== git diff --name-status =="
+          git diff --name-status || true
+
+          echo "== git diff --cached --name-status =="
+          git diff --cached --name-status || true
+
           rm -f .tmp_spike_test.log || true
 
-          (composer --no-interaction --working-dir=framework run-script spike:test -- || true) \
+          (composer --no-interaction --working-dir=framework run-script spike:test -- 2>&1 || true) \
             | tr -d '\r' > .tmp_spike_test.log
 
           echo "== CORETSIA codes =="

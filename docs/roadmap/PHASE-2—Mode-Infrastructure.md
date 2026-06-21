@@ -538,15 +538,85 @@ Forbidden:
 
 ### Command discovery (tag-first, deterministic) (MUST)
 
-- ONLY discovery mechanism: DI tag `cli.command`.
-- CLI MUST NOT read any `cli.commands` registry list.
-- Consumer MUST NOT re-sort or re-dedupe TagRegistry output.
+- [ ] ONLY discovery mechanism: DI tag `cli.command`.
+- [ ] CLI MUST NOT read any `cli.commands` registry list.
+- [ ] Consumer MUST NOT re-sort or re-dedupe TagRegistry output.
 
-- External package commands:
+- [ ] External package commands:
   - [ ] CLI catalog MUST discover commands contributed by other enabled packages through `cli.command`.
   - [ ] CLI MUST NOT special-case `platform/worker`.
   - [ ] CLI MUST NOT depend on `platform/worker` at compile time.
   - [ ] Worker command discovery, when tested, MUST happen through the same generic `cli.command` mechanism as all other package commands.
+
+### Command identity ownership (MUST)
+
+- [ ] command name MUST be declared by the command class
+- [ ] command class SHOULD expose:
+  - [ ] `public const string NAME`
+  - [ ] `public const string SUMMARY`
+  - [ ] `public const string GROUP`
+  - [ ] `public const bool HIDDEN`
+  - [ ] `public const string MODE`
+  - [ ] `public const array ARGUMENTS`
+  - [ ] `public const array OPTIONS`
+- [ ] `CommandInterface::name()` MUST return the same value as tag metadata `name`
+- [ ] command provider MUST reference command class constants when tagging commands
+- [ ] command provider MUST NOT invent command names as unrelated string literals
+- [ ] command name MUST match:
+  - [ ] `\A[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*\z`
+
+### `cli.command` tag metadata schema (MUST)
+
+- [ ] required keys:
+  - [ ] `name`
+  - [ ] `summary`
+- [ ] optional keys:
+  - [ ] `group`
+  - [ ] `hidden`
+  - [ ] `mode`
+  - [ ] `arguments`
+  - [ ] `options`
+- [ ] allowed `mode` values:
+  - [ ] `none`
+  - [ ] `optional`
+  - [ ] `required`
+- [ ] unknown metadata keys MUST hard-fail deterministically
+- [ ] metadata key `priority` MUST be forbidden
+- [ ] metadata MUST NOT contain:
+  - [ ] closures
+  - [ ] objects
+  - [ ] resources
+  - [ ] raw config values
+  - [ ] raw paths
+  - [ ] raw endpoints
+  - [ ] env values
+  - [ ] secrets
+  - [ ] tokens
+  - [ ] payloads
+
+### Command priority policy (MUST)
+
+- [ ] command tags MUST NOT define `priority`
+- [ ] command routing MUST NOT use priority
+- [ ] duplicate command names MUST hard-fail deterministically
+- [ ] reserved command names MUST hard-fail for external commands:
+  - [ ] `help`
+  - [ ] `list`
+- [ ] reserved names are allowed only for the built-in command service ids registered by `platform/cli`
+- [ ] CLI consumer MUST preserve TagRegistry order
+- [ ] CLI consumer MUST NOT re-sort TagRegistry output
+- [ ] CLI consumer MUST NOT silently de-dupe TagRegistry output
+
+### Lazy command discovery (MUST)
+
+- [ ] `CommandCatalog` MUST build descriptors from `cli.command` tag metadata
+- [ ] `CommandCatalog` MUST NOT instantiate command services while building the catalog
+- [ ] `list` MUST be renderable from descriptors without instantiating all command services
+- [ ] `help` MUST be renderable from descriptors without instantiating all command services
+- [ ] command service MUST be resolved only when the selected command is dispatched
+- [ ] on dispatch, resolved service MUST implement `Coretsia\Contracts\Cli\Command\CommandInterface`
+- [ ] on dispatch, resolved command `name()` MUST match descriptor/tag metadata `name`
+- [ ] mismatch MUST hard-fail with `InvalidCommandTagMetaException`
 
 ### Deliverables (exact paths only) (MUST)
 
@@ -558,18 +628,42 @@ Entrypoint + application:
 - [ ] `framework/packages/platform/cli/bin/coretsia`
   - [ ] PHP executable (`#!/usr/bin/env php`), reads `argv`, delegates to `CliApplication`.
   - [ ] MUST NOT do heavy boot itself; only bootstrap minimal kernel container and run dispatcher.
+
 - [ ] `framework/packages/platform/cli/src/Application/CliApplication.php`
   - [ ] Owns top-level flow: parse argv → resolve command → run inside kernel UoW → render output → map exit codes deterministically.
 
 Input:
 - [ ] `framework/packages/platform/cli/src/Input/ArgvInput.php`
   - [ ] Concrete `InputInterface` implementation; deterministic parse rules (no locale-dependent behavior).
+  - [ ] MUST implement expanded `InputInterface`
+  - [ ] MUST expose:
+    - [ ] raw tokens
+    - [ ] command name
+    - [ ] positional arguments
+    - [ ] normalized options
+    - [ ] option lookup by name
+    - [ ] boolean flags
+  - [ ] MUST NOT expose parser internals
+  - [ ] MUST NOT require commands to depend on `platform/cli` concrete classes
+
 - [ ] `framework/packages/platform/cli/src/Input/ArgvInputParser.php`
   - [ ] Minimal parser (no external libs): `<command> [--key=val] [--flag] [args...]`; stable precedence rules.
+  - [ ] MUST parse deterministic syntax:
+    - [ ] `<command>`
+    - [ ] positional arguments
+    - [ ] `--key=value`
+    - [ ] `--flag`
+    - [ ] repeated `--key=value` into `list<string>`
+  - [ ] MUST reject malformed option names deterministically
+  - [ ] MUST normalize option names deterministically
+  - [ ] MUST NOT use locale-dependent parsing
+  - [ ] MUST NOT read environment variables
+  - [ ] MUST NOT perform filesystem scanning
 
 Output:
 - [ ] `framework/packages/platform/cli/src/Output/ConsoleOutput.php`
   - [ ] Concrete `OutputInterface` implementation; owns stream writing; commands MUST use this, not `echo`.
+
 - [ ] `framework/packages/platform/cli/src/Output/FormatResolver.php`
 
 Output (deterministic + redacted):
@@ -577,10 +671,13 @@ Output (deterministic + redacted):
   - [ ] SHOULD be stateless transformer; if implemented as multi-step accumulator/buffer (`begin/add/flush`) → MUST be `kernel.stateful + kernel.reset`.
   - [ ] MUST consume canonical redaction services from top-level `framework/packages/platform/cli/src/Redaction/RedactionEngine.php` and `framework/packages/platform/cli/src/Redaction/RedactionPolicy.php`.
   - [ ] `framework/packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
+
 - [ ] `framework/packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
   - [ ] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
+
 - [ ] `framework/packages/platform/cli/src/Output/Formatter/TableFormatter.php` — safe table output
   - [ ] Stateless table renderer: no cross-run width/column memory; compute from current payload only.
+
 - [ ] `framework/packages/platform/cli/src/Output/Formatter/PlainFormatter.php` — safe plain output
   - [ ] Stateless plain renderer; no hidden global formatting state.
 
@@ -592,12 +689,59 @@ Output schema:
 Catalog:
 - [ ] `framework/packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
   - [ ] MUST be stateless *or* frozen immutable map; if you add lazy cache that can vary per-UoW (mode/format/interactive/overrides) → MUST become `kernel.stateful + kernel.reset` (+ `ResetInterface`).
+  - [ ] MUST consume only `ReservedTags::CLI_COMMAND`
+  - [ ] MUST build descriptors from tag metadata
+  - [ ] MUST preserve TagRegistry order
+  - [ ] MUST NOT re-sort discovery output
+  - [ ] MUST NOT silently de-dupe discovery output
+  - [ ] duplicate command names MUST hard-fail with `InvalidCommandTagMetaException`
+  - [ ] reserved external command name collisions MUST hard-fail:
+    - [ ] `help`
+    - [ ] `list`
+  - [ ] reserved names MUST be allowed only for built-in service ids registered by `platform/cli`
+  - [ ] MUST NOT instantiate command services while building descriptors
+  - [ ] MUST NOT depend on `platform/worker`
+  - [ ] MUST NOT use filesystem scanning
+  - [ ] MUST NOT read `cli.commands` registry list
+
 - [ ] `framework/packages/platform/cli/src/Catalog/CommandTagSchema.php` — validates `cli.command` tag meta shape at runtime (dev-safe; throws deterministic error)
   - [ ] Stateless validator: `validate(meta): void`; no “last error” fields; unknown keys hard-fail deterministically.
+  - [ ] MUST validate canonical command name regex:
+    - [ ] `\A[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*\z`
+  - [ ] MUST require `name`
+  - [ ] MUST require `summary`
+  - [ ] MUST allow optional `group`
+  - [ ] MUST allow optional `hidden`
+  - [ ] MUST allow optional `mode`
+  - [ ] MUST allow optional `arguments`
+  - [ ] MUST allow optional `options`
+  - [ ] MUST reject unknown keys
+  - [ ] MUST reject `priority`
+  - [ ] MUST reject closures, objects, resources
+  - [ ] MUST reject raw path-like or endpoint-like metadata values where applicable
+  - [ ] MUST reject non-json-like metadata
+  - [ ] MUST throw `InvalidCommandTagMetaException`
+
 - [ ] `framework/packages/platform/cli/src/Catalog/CommandOverrides.php` — applies `cli.commands.overrides` from config
   - [ ] Stateless overlay applier: input catalog+overrides → output catalog/view; MUST NOT introduce new commands/aliases.
+
 - [ ] `framework/packages/platform/cli/src/Catalog/CommandDescriptor.php` — canonical descriptor DTO (name/summary/args/options/security/mode policy)
   - [ ] Stateless immutable DTO (readonly). No derived caches; safe to share.
+  - [ ] MUST be internal CLI catalog DTO built from tag metadata
+  - [ ] MUST NOT be imported by external packages
+  - [ ] MUST include:
+    - [ ] service id
+    - [ ] name
+    - [ ] summary
+    - [ ] group
+    - [ ] hidden
+    - [ ] mode
+    - [ ] arguments
+    - [ ] options
+  - [ ] MUST be immutable / readonly
+  - [ ] MUST NOT contain command object instance
+  - [ ] MUST NOT contain closures
+  - [ ] MUST NOT contain raw config values, secrets, paths, endpoints, or payloads
 
 Kernel ops adapter:
 - [ ] `framework/packages/platform/cli/src/Kernel/CliKernelFacade.php`
@@ -612,6 +756,16 @@ Mode resolver:
 Runner + diagnostics:
 - [ ] `framework/packages/platform/cli/src/Runner/CommandRunner.php`
   - [ ] Executes `CommandInterface::run()` inside kernel UoW wrapper, creates spans, catches and renders exceptions via `ErrorHandlerInterface`.
+  - [ ] MUST resolve command service only after catalog selects a descriptor
+  - [ ] resolved service MUST implement `CommandInterface`
+  - [ ] resolved command `name()` MUST equal descriptor name
+  - [ ] mismatch MUST throw `InvalidCommandTagMetaException`
+  - [ ] MUST pass parsed `InputInterface` to command
+  - [ ] MUST pass `OutputInterface` to command
+  - [ ] MUST NOT let commands parse raw argv through platform-specific classes
+  - [ ] MUST execute runtime commands inside kernel UoW wrapper
+  - [ ] MUST NOT instantiate all commands for `list` / `help`
+
 - [ ] `framework/packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
   - [ ] Stable, secret-free diagnostics payload generator (no absolute paths, no stack traces by default).
 
@@ -635,24 +789,31 @@ Built-in commands:
 - [ ] `framework/packages/platform/cli/src/Command/ListCommand.php`
   - [ ] Lists commands from `CommandCatalog` deterministically; honors `hidden`, supports groups.
   - [ ] MUST be reserved name `list` (so “reserved” is actually implemented).
+
 - [ ] `framework/packages/platform/cli/src/Command/HelpCommand.php`
 - [ ] `framework/packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
   - [ ] Stateless orchestrator; any per-run diagnostics collection MUST be local (if extracted into a service collector → that collector becomes resettable).
+
 - [ ] `framework/packages/platform/cli/src/Command/DebugModulesCommand.php` — prints module plan/manifest summary
   - [ ] Stateless orchestrator; no memoization of module plan across runs.
+
 - [ ] `framework/packages/platform/cli/src/Command/ConfigValidateCommand.php` — kernel validate only (mode aware)
   - [ ] Stateless; delegates to kernel; mode is explicit input only.
+
 - [ ] `framework/packages/platform/cli/src/Command/ConfigDebugCommand.php` — explain trace + redacted value/summary (mode aware)
   - [ ] Stateless; no cached traces; redaction is per payload.
+
 - [ ] `framework/packages/platform/cli/src/Command/ConfigCompileCommand.php` — delegates compile artifacts to kernel (mode aware)
   - [ ] Stateless; no CLI-owned artifact/cache state.
+
 - [ ] `framework/packages/platform/cli/src/Command/ConfigHashCommand.php` — prints kernel fingerprint for selected mode (no new cache)
   - [ ] Stateless; no fingerprint caching.
+
 - [ ] `framework/packages/platform/cli/src/Command/CacheVerifyCommand.php` — delegates verify to kernel (mode aware; uses kernel dirty reasons)
   - [ ] Stateless; reports kernel results; no local “last verify outcome”.
 
 Tag owner constants:
-- [ ] `framework/packages/platform/cli/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] `CLI_COMMAND = 'cli.command'`
 
 - [ ] `docs/adr/ADR-0030-cli-tag-first-command-catalog.md`
@@ -665,10 +826,46 @@ Tag owner constants:
 Errors:
 - [ ] `framework/packages/platform/cli/src/Exception/CliCommandFailedException.php` (`CORETSIA_CLI_COMMAND_FAILED`)
   - [ ] Stateless exception wrapper for command execution; MUST keep payload secret-free and deterministic.
+
 - [ ] `framework/packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php` (`CORETSIA_CLI_INVALID_COMMAND_META`)
   - [ ] Stateless schema/registry violation exception; error details limited to names/serviceIds (no secrets/paths).
+
 - [ ] `framework/packages/platform/cli/src/Exception/RedactionViolationException.php` (`CORETSIA_CLI_REDACTION_VIOLATION`)
   - [ ] Stateless redaction policy violation exception; MUST NOT contain raw sensitive values (hash/len only).
+
+Tests:
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityTest.php`
+  - [ ] `priority` key hard-fails deterministically
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaRejectsUnknownKeysTest.php`
+  - [ ] unknown metadata keys hard-fail deterministically
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaValidatesNameRegexTest.php`
+  - [ ] invalid command names hard-fail deterministically
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogDoesNotInstantiateCommandsForListTest.php`
+  - [ ] catalog can build descriptors from tag metadata without resolving command services
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
+  - [ ] duplicate command names hard-fail deterministically
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
+  - [ ] external `help` hard-fails
+  - [ ] external `list` hard-fails
+  - [ ] built-in `help` and `list` are allowed only for platform/cli built-in service ids
+
+- [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
+  - [ ] descriptor name and command `name()` mismatch hard-fails with `InvalidCommandTagMetaException`
+
+- [ ] `framework/packages/platform/cli/tests/Integration/ExternalTaggedCommandIsLazyDiscoveredTest.php`
+  - [ ] external tagged command appears in catalog
+  - [ ] command constructor is not called during catalog/list/help descriptor build
+  - [ ] command constructor is called only on dispatch
+
+- [ ] `framework/packages/platform/cli/tests/Integration/WorkerCommandMetadataCompatibilityTest.php`
+  - [ ] when `platform.worker` is enabled, worker command tag metadata passes `CommandTagSchema`
+  - [ ] worker command service ids are discovered through generic `cli.command`
+  - [ ] `platform/cli` production source still does not import `Coretsia\Platform\Worker\*`
 
 #### Modifies
 
@@ -679,8 +876,28 @@ Errors:
   - [ ] MUST register `CliKernelFacade` with explicit dependency on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class`
   - [ ] MUST NOT import/reference any `Coretsia\Kernel\Ops\*` symbols anywhere; kernel ops are consumed only via `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
   - [ ] MUST register app/runner/catalog/services
-  - [ ] MUST tag all built-in commands with `Tags::CLI_COMMAND` + deterministic meta
+  - [ ] MUST tag all built-in commands with `ReservedTags::CLI_COMMAND` + deterministic meta
   - [ ] MUST register `RedactionEngine`
+  - [ ] MUST register built-in command services
+  - [ ] MUST tag all built-in commands with `ReservedTags::CLI_COMMAND`
+  - [ ] MUST tag built-in commands using command class constants:
+    - [ ] `NAME`
+    - [ ] `SUMMARY`
+    - [ ] `GROUP`
+    - [ ] `HIDDEN`
+    - [ ] `MODE`
+    - [ ] `ARGUMENTS`
+    - [ ] `OPTIONS`
+  - [ ] MUST NOT invent built-in command names as unrelated string literals
+  - [ ] MUST NOT build `CommandCatalog` during provider registration
+  - [ ] MUST NOT instantiate command services during provider registration
+  - [ ] MUST NOT parse CLI input during provider registration
+  - [ ] MUST NOT inspect runtime command options during provider registration
+  - [ ] MUST NOT use filesystem scanning
+  - [ ] MUST NOT read `cli.commands` registry list
+  - [ ] MUST provide reserved built-in command service id map to catalog/factory:
+    - [ ] `help`
+    - [ ] `list`
 
 - [ ] `framework/packages/platform/cli/config/cli.php`
   - [ ] MUST NOT contain `cli.mode.*`
@@ -938,7 +1155,7 @@ Errors:
 
 - [ ] `framework/packages/platform/cli/src/Provider/CliServiceProvider.php`
   - [ ] register workflow + UX services
-  - [ ] tag Workflow commands + Help (if present) with `Tags::CLI_COMMAND`
+  - [ ] tag Workflow commands + Help (if present) with `ReservedTags::CLI_COMMAND`
 
 - [ ] `framework/packages/platform/cli/README.md`
   - [ ] Workflows / UX / Replay artifact policy / Security-Redaction
@@ -1197,7 +1414,7 @@ Forbidden:
 
 - [ ] `framework/packages/devtools/cli-spikes/src/Provider/CliSpikesServiceProvider.php` (or existing provider)
   - [ ] register each command as DI service
-  - [ ] tag each service with package-local mirror constant `Tags::CLI_COMMAND` + deterministic meta:
+  - [ ] tag each service with package-local mirror constant `ReservedTags::CLI_COMMAND` + deterministic meta:
     - [ ] `name` required, optional `summary|aliases|hidden|group`
     - [ ] MUST NOT write stdout/stderr
 
@@ -1210,7 +1427,7 @@ Forbidden:
 
 ### Creates (if missing)
 
-- [ ] `framework/packages/devtools/cli-spikes/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] package-local mirror constant only:
     - [ ] `CLI_COMMAND = 'cli.command'`
   - [ ] MUST be package-internal only

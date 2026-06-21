@@ -1103,11 +1103,11 @@ Migrations tooling MUST NOT expose credentials, DSNs, tokens, private customer d
 
 Epic `1.150.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public database tag constants.
+The contracts package MUST NOT declare database tag constants.
 
-The contracts package MUST NOT declare public migration tag constants.
+The contracts package MUST NOT declare migration tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for database or migration tags.
+The contracts package MUST NOT define database or migration tag identifier constants.
 
 The contracts package MUST NOT define database tag metadata keys, migration tag metadata keys, tag priority semantics, driver discovery semantics, or migration discovery semantics.
 
@@ -1117,7 +1117,13 @@ If a future runtime owner needs database or migration DI tags, that owner MUST i
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved database or migration tag identifiers.
 
 ## Config policy
 
@@ -1349,7 +1355,7 @@ These tests are expected to verify:
 - public method signatures do not depend on `Psr\Http\Message\*`;
 - public method signatures do not depend on PDO or vendor database concretes;
 - public method signatures do not expose streams, resources, iterators, generators, closures, or vendor result objects;
-- database contracts do not declare DI tag constants;
+- database contracts do not declare DI tag identifier constants;
 - database contracts do not introduce config or artifact concepts;
 - database contracts never expose `float` as an accepted value or returned result value.
 

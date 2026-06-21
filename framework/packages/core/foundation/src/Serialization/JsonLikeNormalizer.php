@@ -42,6 +42,14 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  * Maps are sorted recursively by byte-order string comparison (`strcmp`).
  * Lists preserve caller-supplied order.
  *
+ * Empty maps and empty lists both normalize to PHP `[]`. This normalizer does
+ * not preserve JSON object/list syntax shape and does not distinguish an empty
+ * map from an empty list after normalization.
+ *
+ * Root or nested shape requirements belong to callers or to shape-aware
+ * encoder/decoder entrypoints. This normalizer operates only on the baseline
+ * runtime json-like value model.
+ *
  * Diagnostics are intentionally stable and safe. They include only a safe
  * path-to-value and a stable reason token. They must never include rejected
  * raw values, object class names, resource ids, payloads, secrets, raw SQL,
@@ -60,6 +68,9 @@ final class JsonLikeNormalizer
 
     /**
      * Normalizes a runtime value into a deterministic json-like shape.
+     *
+     * This method is shape-insensitive for empty arrays: an empty map and an
+     * empty list both normalize to PHP `[]`.
      *
      * @return null|bool|int|string|array<int|string, mixed>
      */

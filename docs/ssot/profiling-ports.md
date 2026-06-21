@@ -179,6 +179,13 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
+The canonical code-level identifiers for these framework-reserved DI tags are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
+```
+
 The contracts package MUST NOT declare these tags as constants.
 
 ## Profiling session interface
@@ -494,6 +501,13 @@ Future owner packages MAY use existing kernel hook tags:
 ```text
 kernel.hook.before_uow
 kernel.hook.after_uow
+```
+
+Runtime package source MUST use the corresponding framework-reserved DI tag identifier constants:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
 This SSoT does not define hook metadata schema.

@@ -69,7 +69,7 @@ ssot_refs:
 - Tag owner implementation note (MUST):
   - This epic MUST NOT re-introduce `error.mapper` in the tag registry.
   - This epic is the owner implementation epic that introduces the canonical owner constant in
-    `framework/packages/platform/errors/src/Provider/Tags.php`.
+    `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Required config roots registry:
   - N/A at epic start.
@@ -77,7 +77,7 @@ ssot_refs:
 
 - Tag usage (MUST) — make ordering source-of-truth explicit
   - `ExceptionMapperRegistry` MUST enumerate mappers ONLY via:
-    - `Coretsia\Foundation\Tag\TagRegistry::all(Tags::ERROR_MAPPER)`
+    - `Coretsia\Foundation\Tag\TagRegistry::all(ReservedTags::ERROR_MAPPER)`
   - Registry MUST NOT re-sort or de-duplicate results (TagRegistry already enforces):
     - order = `priority DESC, serviceId ASC (strcmp)`,
     - dedupe = `first wins`.
@@ -139,7 +139,7 @@ Forbidden:
 - [ ] `framework/packages/platform/errors/src/Module/ErrorsModule.php` — module entry (runtime)
 - [ ] `framework/packages/platform/errors/src/Provider/ErrorsServiceProvider.php` — DI wiring
 - [ ] `framework/packages/platform/errors/src/Provider/ErrorsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/errors/src/Provider/Tags.php` — tag constants (owner)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants (owner)
 - [ ] `framework/packages/platform/errors/config/errors.php` — config subtree (no repeated root)
 - [ ] `framework/packages/platform/errors/config/rules.php` — config shape rules
 - [ ] `framework/packages/platform/errors/README.md` — docs (Observability / Errors / Security-Redaction)
@@ -198,7 +198,7 @@ Forbidden:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/errors/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `ERROR_MAPPER = 'error.mapper'`
 - [ ] ServiceProvider wiring evidence:
@@ -1387,7 +1387,7 @@ ssot_refs:
 - Required tags registry:
   - All nine `http.middleware.*` tags above MUST already be reserved in `docs/ssot/tags.md` with owner `platform/http`.
   - This epic is the owner implementation epic that introduces the canonical owner constants in
-    `framework/packages/platform/http/src/Provider/Tags.php`.
+    `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — UoW hooks
@@ -1484,7 +1484,7 @@ Forbidden:
 - [ ] `framework/packages/platform/http/src/Module/HttpModule.php` — module entry
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/http/src/Provider/Tags.php` —  define constants for ALL 9 tags above (owner = platform/http)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` —  define constants for ALL 9 tags above (owner = platform/http)
 - [ ] `framework/packages/platform/http/config/http.php` — config subtree
 - [ ] `framework/packages/platform/http/config/rules.php` — config rules
 - [ ] `framework/packages/platform/http/README.md` — docs (Observability / Errors / Security-Redaction)
@@ -1649,7 +1649,7 @@ Normative:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/http/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `MIDDLEWARE_SYSTEM_PRE = 'http.middleware.system_pre'`
     - [ ] `MIDDLEWARE_SYSTEM = 'http.middleware.system'`
@@ -1841,7 +1841,7 @@ ssot_refs:
   - 3.50.0 — `framework/packages/platform/http/src/HttpKernelInterface.php` exists.
   - 3.50.0 — HTTP middleware stack, terminal handler, config root, provider wiring, and UoW envelope exist.
   - 3.50.0 — `framework/packages/platform/http/config/http.php` and `framework/packages/platform/http/config/rules.php` exist.
-  - 3.50.0 — canonical HTTP middleware tag owner constants exist in `framework/packages/platform/http/src/Provider/Tags.php`.
+  - 3.50.0 — canonical HTTP middleware tag owner constants exist in `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
   - 1.280.0 — `core/kernel` provides `KernelRuntime`, which wraps each request as a UoW and executes the canonical after/reset flow.
   - 1.250.0 — Foundation reset orchestration exists and owns reset ordering/meta behavior.
 
@@ -1851,7 +1851,7 @@ ssot_refs:
   - `framework/packages/platform/http/src/HttpKernelInterface.php`
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php`
   - `framework/packages/platform/http/src/Provider/HttpServiceFactory.php`
-  - `framework/packages/platform/http/src/Provider/Tags.php`
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - `framework/packages/platform/http/config/http.php`
   - `framework/packages/platform/http/config/rules.php`
   - `framework/packages/platform/http/README.md`
@@ -1963,7 +1963,7 @@ N/A for new tags.
 
 - [ ] This epic MUST NOT introduce or modify `http.middleware.*` tag constants.
 - [ ] HTTP middleware tag constants are already owned and introduced by `3.50.0` in:
-  - [ ] `framework/packages/platform/http/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
 - [ ] This epic MUST NOT add new middleware slots.
 - [ ] This epic MUST NOT alter middleware stack ordering.
 
@@ -2095,7 +2095,7 @@ ssot_refs: []
   - `framework/packages/platform/http/config/http.php` — base config file must exist
   - `framework/packages/platform/http/config/rules.php` — base rules must exist
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring base exists
-  - `framework/packages/platform/http/src/Provider/Tags.php` — provides `http.middleware.system_pre`
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — provides `http.middleware.system_pre`
 
 - Required config roots/keys:
   - `http.request_id.*` — introduced by this epic
@@ -2558,7 +2558,7 @@ ssot_refs: []
   - `framework/packages/platform/http/config/http.php` — додаємо `http.maintenance.*` ключі
   - `framework/packages/platform/http/config/rules.php` — додаємо rules для `http.maintenance.*`
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring middleware + CLI commands
-  - `framework/packages/platform/http/src/Provider/Tags.php` — tag constants owner=http (для `http.middleware.system_pre`)
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner=http (для `http.middleware.system_pre`)
 
 - Runtime state location policy (MUST):
   - `skeleton/var/maintenance/` is the reserved runtime state directory for this epic.
@@ -3673,11 +3673,11 @@ ssot_refs:
   - `routing.route_provider`:
     - N/A at epic start.
     - This epic is the owner epic that adds `routing.route_provider` to `docs/ssot/tags.md`
-      and introduces the canonical owner constant in `framework/packages/platform/routing/src/Provider/Tags.php`.
+      and introduces the canonical owner constant in `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Tag usage (MUST) — make ordering source-of-truth explicit
   - `RouteProviderRegistry` MUST enumerate providers ONLY via:
-    - `Coretsia\Foundation\Tag\TagRegistry::all(Tags::ROUTE_PROVIDER)`
+    - `Coretsia\Foundation\Tag\TagRegistry::all(ReservedTags::ROUTE_PROVIDER)`
   - Registry/compiler MUST NOT re-sort or de-duplicate provider entries returned by TagRegistry.
   - Effective provider order is:
     - tag order = `priority DESC, serviceId ASC (strcmp)`
@@ -3759,7 +3759,7 @@ Package skeleton:
 - [ ] `framework/packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Tags + registry:
-- [ ] `framework/packages/platform/routing/src/Provider/Tags.php` — tag constants
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants
 - [ ] `framework/packages/platform/routing/src/Compile/RouteProviderRegistry.php` — collects `RouteProviderInterface` via tag `routing.route_provider`
 
 Compile:
@@ -3851,13 +3851,13 @@ Tests:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/routing/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `ROUTE_PROVIDER = 'routing.route_provider'`
 - [ ] `cli.command` usage rule (MUST):
   - [ ] because owner package `platform/cli` is a forbidden compile-time dependency here, any mirror constant for `cli.command`
     MUST be package-internal only (for example a private constant inside the wiring class)
-  - [ ] `cli.command` MUST NOT be exposed from `src/Provider/Tags.php` as public API of `platform/routing`
+  - [ ] `cli.command` MUST NOT be exposed from `framework/packages/core/foundation/src/Tag/ReservedTags.php` as public API of `platform/routing`
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Routing\Compile\RouteProviderRegistry`
   - [ ] registers: `Coretsia\Routing\Compile\RoutesCompiler`
@@ -4019,15 +4019,15 @@ ssot_refs:
   - Phase 0 HTTP stack model exists in `platform/http` and executes `http.middleware.app` slot.
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/src/Provider/Tags.php` — defines middleware slots incl. `http.middleware.app`
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — defines middleware slots incl. `http.middleware.app`
   - `docs/ssot/http-middleware-catalog.md` — canonical placement/priority table
   - `framework/packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php` — provided by 2.20.0
 
 - Tag usage rule (MUST):
   - for `http.middleware.app`, runtime code MUST use the owner public constant from `platform/http`
-    (canonical owner constant in this roadmap set: `Coretsia\Http\Provider\Tags::MIDDLEWARE_APP`)
+    (canonical owner constant in this roadmap set: `Coretsia\Foundation\Tag\ReservedTags::MIDDLEWARE_APP`)
   - for `error.mapper`, `platform/errors` is a forbidden compile-time dependency here,
-    so runtime code MUST NOT import `Coretsia\Errors\Provider\Tags`
+    so runtime code MUST NOT import `Coretsia\Foundation\Tag\ReservedTags`
   - `error.mapper` MUST follow the non-owner tag usage rule:
     - runtime wiring SHOULD use a package-local internal mirror constant
     - canonical string literal `'error.mapper'` is allowed only as fallback
@@ -4185,7 +4185,7 @@ Framework / E2E:
 #### Wiring / DI tags (when applicable)
 
 - Tags introduced (this epic is the OWNER):
-  - N/A (uses existing owner tags; this epic MUST NOT create a public `src/Provider/Tags.php` owner file)
+  - N/A (uses existing owner tags; this epic MUST NOT create a public `framework/packages/core/foundation/src/Tag/ReservedTags.php` owner file)
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\HttpApp\Middleware\RouterMiddleware`
   - [ ] adds tag: `http.middleware.app` priority `100`

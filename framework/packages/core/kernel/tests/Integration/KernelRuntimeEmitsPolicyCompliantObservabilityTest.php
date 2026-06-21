@@ -27,8 +27,8 @@ use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
@@ -255,7 +255,7 @@ final class KernelRuntimeEmitsPolicyCompliantObservabilityTest extends TestCase
         $resetRegistry = new TagRegistry();
 
         $resetRegistry->add(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             KernelRuntimeEmitsPolicyCompliantObservabilityResetService::class,
         );
 

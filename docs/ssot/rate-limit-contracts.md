@@ -1041,9 +1041,9 @@ Future runtime owner packages MAY introduce rate limit config only through their
 
 Epic `1.160.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public rate limit tag constants.
+The contracts package MUST NOT declare rate limit tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for rate limit tags.
+The contracts package MUST NOT define rate limit tag identifier constants.
 
 The contracts package MUST NOT define rate limit tag metadata keys, store discovery semantics, key hasher discovery semantics, middleware priority semantics, or policy discovery semantics.
 
@@ -1053,7 +1053,13 @@ If a future runtime owner needs rate limit DI tags, that owner MUST introduce th
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved rate limit tag identifiers.
 
 ## Artifact policy
 
@@ -1364,7 +1370,7 @@ This test is expected to verify:
 - `RateLimitDecision::reason()` has PHPDoc `@return non-empty-string|null`;
 - `RateLimitDecision::toArray()` exposes deterministic safe keys in canonical order, including `reason`;
 - `RateLimitState` and `RateLimitDecision` are not DTO-marker classes by default;
-- rate limit contracts do not declare DI tag constants;
+- rate limit contracts do not declare DI tag identifier constants;
 - rate limit contracts do not introduce config or artifact concepts;
 - rate limit contracts never expose `float` as an accepted value or returned result value.
 

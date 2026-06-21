@@ -118,11 +118,18 @@ The canonical exception is:
 Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 ```
 
-The implementation paths are:
+The baseline normalizer implementation paths are:
 
 ```text
 framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
 framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
+```
+
+The stable JSON serialization consumer implementation paths are:
+
+```text
+framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
+framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
 ```
 
 The baseline model is governed by:
@@ -308,17 +315,20 @@ Unsafe, empty, long, control-character, whitespace, URL-like, SQL-like, path-lik
 
 Invalid root paths must be sanitized before they are used in diagnostics.
 
-## Decision 5: StableJsonEncoder delegates baseline normalization to Foundation JsonLikeNormalizer
+## Decision 5: Stable JSON serialization delegates baseline normalization to Foundation JsonLikeNormalizer
 
 `StableJsonEncoder` remains the Foundation stable JSON encoder.
 
-The implementation path remains:
+`StableJsonDecoder` is the Foundation stable JSON decoder.
+
+The implementation paths are:
 
 ```text
 framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
+framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
 ```
 
-It must delegate baseline recursive normalization to:
+Both stable JSON serialization primitives must delegate baseline recursive normalization to:
 
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
@@ -329,10 +339,21 @@ Coretsia\Foundation\Serialization\JsonLikeNormalizer
 - `json_encode()` invocation;
 - JSON flags;
 - final LF;
+- root encode shape entrypoints;
 - stable-json reason mapping;
 - `stable-json-encode-failed`.
 
-The required JSON flags remain:
+`StableJsonDecoder` owns only decoder-specific behavior:
+
+- `json_decode()` invocation;
+- `associative: false`;
+- decoded JSON object/list root checks;
+- JSON object key safety checks before PHP map conversion;
+- root decode shape entrypoints;
+- stable-json reason mapping;
+- `stable-json-decode-failed`.
+
+The required encoder JSON flags remain:
 
 ```text
 JSON_UNESCAPED_SLASHES
@@ -340,11 +361,55 @@ JSON_UNESCAPED_UNICODE
 JSON_THROW_ON_ERROR
 ```
 
+The required decoder JSON behavior is:
+
+```text
+associative: false
+JSON_THROW_ON_ERROR
+```
+
 The encoded output must end with a final LF.
 
-`StableJsonEncoder` must preserve deterministic byte output for valid json-like values.
+Generic stable JSON methods are shape-insensitive at the root:
 
-`StableJsonEncoder` may map baseline Foundation reason tokens to encoder-specific reason tokens.
+```text
+StableJsonEncoder::encode(...)
+StableJsonEncoder::encodeStable(...)
+StableJsonDecoder::decode(...)
+StableJsonDecoder::decodeStable(...)
+```
+
+Callers that require root JSON object shape must use:
+
+```text
+StableJsonEncoder::encodeMap(...)
+StableJsonEncoder::encodeStableMap(...)
+StableJsonDecoder::decodeMap(...)
+StableJsonDecoder::decodeStableMap(...)
+```
+
+Callers that require root JSON array shape must use:
+
+```text
+StableJsonEncoder::encodeList(...)
+StableJsonEncoder::encodeStableList(...)
+StableJsonDecoder::decodeList(...)
+StableJsonDecoder::decodeStableList(...)
+```
+
+`StableJsonEncoder::encodeStableMap([])` emits JSON object `{}` followed by a final LF.
+
+`StableJsonEncoder::encodeStableList([])` emits JSON array `[]` followed by a final LF.
+
+`StableJsonDecoder::decodeStableMap('{}')` accepts an empty JSON object root and returns PHP `[]` after verifying root object shape.
+
+`StableJsonDecoder::decodeStableList('[]')` accepts an empty JSON array root and returns PHP `[]` after verifying root array shape.
+
+Empty root map/list distinction is preserved only by shape-aware root entrypoints.
+
+Nested empty map/list distinction is not preserved by the baseline json-like model.
+
+Stable JSON serialization may map baseline Foundation reason tokens to stable-json reason tokens.
 
 The canonical mapping is:
 
@@ -363,7 +428,15 @@ json-like-type-forbidden              -> stable-json-type-forbidden
 stable-json-encode-failed
 ```
 
-`StableJsonEncoder` must not reintroduce a private recursive json-like walker.
+`json_decode()` failures use:
+
+```text
+stable-json-decode-failed
+```
+
+Stable JSON serialization must not reintroduce private recursive json-like walkers.
+
+Stable JSON serialization must not perform schema-specific validation or redaction.
 
 ## Decision 6: ContextStorePolicy delegates value-shape validation to Foundation JsonLikeNormalizer
 
@@ -624,6 +697,10 @@ Runtime packages remain independent from tooling packages and spike code.
 
 `StableJsonEncoder` keeps its stable-json surface while reusing the baseline normalizer.
 
+`StableJsonDecoder` is aligned with the same baseline normalizer and stable-json reason mapping policy.
+
+Stable JSON serialization now has explicit root object/list entrypoints for callers that need root-shape guarantees without introducing objects into the baseline json-like runtime value model.
+
 `ContextStorePolicy` keeps context key policy and context reason tokens while reusing the baseline normalizer.
 
 `JsonLikeShapeNormalizer` keeps UoW root map policy, unsafe key policy, limits, and exception mapping while reusing the baseline normalizer.
@@ -637,6 +714,8 @@ Consumers now depend on Foundation reason-token stability.
 `StableJsonEncoder`, `ContextStorePolicy`, and Kernel UoW shape normalization need explicit local reason mapping.
 
 The normalizer is intentionally narrow and rejects floats, objects, resources, closures, enum objects, and unsupported PHP value types.
+
+Nested empty map/list distinction is intentionally not preserved by the baseline json-like model. Schema-specific formats that need nested object/list distinction must use required keys, schema-level validation, or a future shape-preserving serialization model.
 
 The normalizer is not configurable.
 
@@ -786,6 +865,10 @@ This ADR does not implement:
 - config keys for json-like behavior;
 - generated artifacts;
 - artifact schema;
+- shape-preserving nested JSON object/list model;
+- preservation of nested empty object/list distinction;
+- duplicate JSON object member name rejection;
+- custom JSON parser;
 - observability backend;
 - logging backend;
 - metric backend;
@@ -804,8 +887,25 @@ Foundation tests include:
 ```text
 framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
 framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
+framework/packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
+framework/packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 ```
+
+Stable JSON serialization tests must verify:
+
+- generic encoder and decoder entrypoints are shape-insensitive at the root;
+- `encodeStable([])` emits `[]` followed by a final LF;
+- `encodeStableMap([])` emits `{}` followed by a final LF;
+- `encodeStableList([])` emits `[]` followed by a final LF;
+- `decodeStable('{}')` and `decodeStable('[]')` both normalize to PHP `[]`;
+- `decodeStableMap('{}')` accepts an empty JSON object root;
+- `decodeStableMap('[]')` rejects a JSON array root with `stable-json-root-map-required`;
+- `decodeStableList('[]')` accepts an empty JSON array root;
+- `decodeStableList('{}')` rejects a JSON object root with `stable-json-root-list-required`;
+- JSON object keys that cannot be safely represented as PHP string map keys are rejected;
+- conversion-stage and normalization-stage failures are mapped to stable `stable-json-*` failures;
+- stable JSON failures do not expose raw JSON payloads, raw rejected values, object class names, resource ids, file paths, secrets, tokens, payload fragments, or environment-specific data.
 
 Kernel tests include:
 

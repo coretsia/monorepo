@@ -16,9 +16,9 @@
 
 `core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
@@ -76,9 +76,21 @@ This package provides the Kernel baseline runtime layer:
 - Contracts-level runtime port binding:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - bound by DI to `Coretsia\Kernel\Runtime\KernelRuntime`
+- Canonical runtime driver selection and matrix guarding:
+  - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
+  - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
+  - `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
+  - `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`
+- Runtime driver compatibility checks:
+  - `RuntimeDriverGuard::detect(...)`
+  - `RuntimeDriverGuard::assertCompatible(...)`
+  - `RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)`
+- Deterministic runtime-driver matrix failures:
+  - `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
+  - `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
 - Kernel hook invocation through `Coretsia\Kernel\Runtime\Hook\HookInvoker`.
 - Kernel hook payload normalization through `Coretsia\Kernel\Runtime\Hook\HookContextNormalizer`.
-- Kernel-owned lifecycle hook discovery tag constants through `Coretsia\Kernel\Provider\Tags`.
+- Kernel lifecycle hook discovery tag identifiers through `Coretsia\Foundation\Tag\ReservedTags`.
 - Kernel configuration defaults and validation rules under the `kernel` config root.
 - Bootstrap Phase A public input/config API:
   - `Coretsia\Kernel\Boot\AppTarget`
@@ -135,6 +147,9 @@ This package provides the Kernel baseline runtime layer:
   - metrics: `kernel.container_compile_total`, `kernel.container_compile_duration_ms`
   - metrics: `kernel.cache_verify_total`, `kernel.cache_verify_duration_ms`
   - allowed metric label: `outcome`
+- Public artifact-only runtime boot facade:
+  - `Coretsia\Kernel\Boot\ArtifactRuntimeBooter`
+  - `Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException`
 - Kernel-owned deterministic ModulePlan resolution:
   - `Coretsia\Kernel\Module\ComposerInstalledMetadataProvider`
   - `Coretsia\Kernel\Module\ComposerManifestReader`
@@ -466,6 +481,35 @@ already-read and already-validated config@1 payload
 
 Production runtime boot MUST NOT read source config files, run ConfigKernel, discover modules, compile a new container graph, write or repair artifacts, or silently fall back to provider-based container construction.
 
+`ArtifactRuntimeBooter` is the public artifact-only production runtime boot facade.
+
+It is the supported public Kernel boundary for runtime consumers that need to build a PSR container from already generated Kernel-owned artifacts.
+
+Callers provide already resolved artifact filesystem paths:
+
+```text
+config.php
+container.php
+```
+
+`ArtifactRuntimeBooter` reads and validates `config@1`, extracts the validated config payload, and delegates runtime container construction to Kernel-owned compiled-container internals.
+
+External packages MUST use:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+```
+
+External packages MUST NOT import or depend directly on Kernel artifact/container implementation classes such as:
+
+```text
+Coretsia\Kernel\Artifacts\Php\PhpArtifactReader
+Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator
+Coretsia\Kernel\Container\CompiledContainerFactory
+```
+
+Those classes remain Kernel implementation details.
+
 Kernel artifact/fingerprint/container-compile/cache services are registered by `KernelServiceProvider` as factories only.
 
 Artifact/fingerprint/container-compile/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
@@ -510,7 +554,7 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
-Compiled-container failures use deterministic Kernel-owned exceptions and safe fixed messages.
+Compiled-container compile, factory, and public artifact-runtime boot failures use deterministic Kernel-owned exceptions and safe fixed messages.
 
 Compile-time failures use:
 
@@ -519,7 +563,7 @@ CORETSIA_CONTAINER_COMPILE_FAILED
 container-compile-failed
 ```
 
-Production runtime boot failures use:
+Internal compiled-container artifact failures use:
 
 ```text
 CORETSIA_CONTAINER_ARTIFACT_MISSING
@@ -528,7 +572,16 @@ CORETSIA_CONTAINER_ARTIFACT_INVALID
 container-artifact-invalid
 ```
 
-These failures MUST NOT expose absolute paths, raw config values, raw env values, raw payloads, closure dumps, source snippets, PHP warning text, OS error messages, stack traces, or previous throwable messages.
+Public artifact-only runtime boot facade failures use:
+
+```text
+CORETSIA_ARTIFACT_RUNTIME_BOOT_FAILED
+artifact-runtime-boot-config-artifact-invalid
+artifact-runtime-boot-container-artifact-invalid
+artifact-runtime-boot-runtime-container-invalid
+```
+
+`ArtifactRuntimeBooter` MUST NOT expose artifact paths, absolute paths, raw config values, raw artifact payloads, env values, secrets, tokens, headers, command lines, PHP warning text, filesystem details, previous throwable messages, or stack traces.
 
 ## ModulePlan resolution
 
@@ -637,6 +690,98 @@ Diagnostics expose only stable reason tokens and safe deterministic context.
 
 Diagnostics MUST NOT expose paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, or previous throwable messages.
 
+## Runtime driver guard
+
+`core/kernel` owns the canonical runtime-driver selection model and compatibility guard.
+
+The public Kernel API is:
+
+```text
+Coretsia\Kernel\Runtime\Driver\HttpDriver
+Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
+Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
+```
+
+Canonical HTTP driver ids are:
+
+```text
+http.classic
+http.frankenphp
+http.swoole
+http.roadrunner
+http.worker
+```
+
+The canonical background driver id is:
+
+```text
+bg.worker_queue
+```
+
+`RuntimeDriverGuard` derives active drivers only from declared config inputs:
+
+```text
+kernel.runtime.frankenphp.enabled
+kernel.runtime.swoole.enabled
+kernel.runtime.roadrunner.enabled
+worker.enabled
+worker.task_type
+```
+
+`kernel.runtime.*.enabled` values activate non-classic HTTP drivers only when the value is strict boolean `true`.
+
+`worker.enabled` and `worker.task_type` are external runtime-owner inputs used only for the Kernel-owned runtime-driver matrix.
+
+Kernel does not own the `worker` config root, does not define `worker.*` defaults, and does not validate the full `worker` subtree.
+
+If these inputs are absent from the merged configuration, `worker.enabled` is treated as `false`, and no worker-derived runtime driver is activated.
+
+`RuntimeDriverGuard::detect()` returns `RuntimeDrivers` only for a valid single-HTTP-driver selection.
+
+`RuntimeDriverGuard::assertCompatible()` is config-only and MUST NOT inspect `ModulePlan`.
+
+`RuntimeDriverGuard::assertHttpDriverCompatibleWithModules()` is the only method that validates the module requirement for non-classic HTTP drivers. It requires `platform.http` for:
+
+```text
+http.frankenphp
+http.swoole
+http.roadrunner
+http.worker
+```
+
+It does not require `platform.http` for:
+
+```text
+http.classic
+bg.worker_queue
+```
+
+Runtime-driver failures are deterministic and safe:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+```
+
+Diagnostics expose only canonical driver ids, canonical module ids, deterministic error codes, and fixed reason tokens.
+
+Diagnostics MUST NOT expose raw config values, config dumps, env values, adapter internals, filesystem paths, stack traces, previous throwable messages, or payload dumps.
+
+The canonical source for runtime-driver ids, config keys, compatibility matrix, and decision rules is:
+
+```text
+docs/ssot/runtime-drivers.md
+```
+
+The architecture overview is:
+
+```text
+docs/architecture/runtime-driver-guard.md
+```
+
 ## KernelRuntime SPI
 
 The external runtime SPI is owned by `core/contracts`:
@@ -723,13 +868,13 @@ No `UnitOfWorkContext`, `UnitOfWorkResult`, `ErrorDescriptor`, `Throwable`, tran
 
 ## Hook discovery
 
-Kernel lifecycle hooks are discovered through Kernel-owned tags.
+Kernel lifecycle hooks are discovered through Kernel-owned reserved tags.
 
-The canonical public owner constants are:
+The canonical code-level identifiers for these framework-reserved DI tags are:
 
 ```text
-Coretsia\Kernel\Provider\Tags::KERNEL_HOOK_BEFORE_UOW
-Coretsia\Kernel\Provider\Tags::KERNEL_HOOK_AFTER_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
 Their values are:
@@ -739,7 +884,7 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-Runtime code that is allowed to depend on `core/kernel` and needs these tags SHOULD use the constants instead of raw literal strings.
+Runtime package source MUST use `ReservedTags::*` for framework-reserved DI tag identifiers.
 
 Hook services are resolved by `HookInvoker` from Foundation `TagRegistry` entries.
 
@@ -781,10 +926,27 @@ Valid shape:
 
 ```php
 return [
+    'config' => [
+        'forbidden_top_level_roots' => [
+            'coretsia',
+            '_internal',
+        ],
+    ],
     'boot' => [
         'default_env' => 'local',
         'default_preset' => 'micro',
         'default_debug' => false,
+    ],
+    'runtime' => [
+        'frankenphp' => [
+            'enabled' => false,
+        ],
+        'swoole' => [
+            'enabled' => false,
+        ],
+        'roadrunner' => [
+            'enabled' => false,
+        ],
     ],
     'env' => [
         'source_policy' => [
@@ -813,10 +975,13 @@ return [
         'defaults_path' => 'resources/modes',
         'overrides_path' => 'config/modes',
     ],
-    'config' => [
-        'forbidden_top_level_roots' => [
-            'coretsia',
-            '_internal',
+    'artifacts' => [
+        'cache_dir' => 'var/cache',
+    ],
+    'fingerprint' => [
+        'skeleton_ignore_prefixes' => [
+            'var/cache',
+            'var/maintenance',
         ],
     ],
     'uow' => [
@@ -849,6 +1014,9 @@ Canonical Kernel config keys:
 | `kernel.boot.default_env`                     | `"local"`                                                  |
 | `kernel.boot.default_preset`                  | `"micro"`                                                  |
 | `kernel.boot.default_debug`                   | `false`                                                    |
+| `kernel.runtime.frankenphp.enabled`           | `false`                                                    |
+| `kernel.runtime.swoole.enabled`               | `false`                                                    |
+| `kernel.runtime.roadrunner.enabled`           | `false`                                                    |
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
 | `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
@@ -858,6 +1026,8 @@ Canonical Kernel config keys:
 | `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
 | `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
 | `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
+| `kernel.artifacts.cache_dir`                  | `"var/cache"`                                              |
+| `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/cache", "var/maintenance"]`                         |
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
 
@@ -1595,6 +1765,26 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+Artifact-only production runtime boot public API symbols are:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException
+```
+
+`ArtifactRuntimeBooter` is not a Bootstrap Phase A resolver and does not own bootstrap input resolution. It is a production runtime artifact boot facade for already generated Kernel-owned artifacts.
+
+Runtime driver public API symbols are:
+
+```text
+Coretsia\Kernel\Runtime\Driver\HttpDriver
+Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
+Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
+```
+
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 
 ```text
@@ -1635,6 +1825,9 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 - [UnitOfWork Outcome Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md)
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0020-kernel-runtime-uow-spi.md)
+- [Runtime Drivers SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/runtime-drivers.md)
+- [Runtime Driver Guard Architecture](https://github.com/coretsia/monorepo/blob/main/docs/architecture/runtime-driver-guard.md)
+- [ADR-0027: Runtime driver guard](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0027-runtime-driver-guard.md)
 - [ADR-0023: Kernel Bootstrap Phase A](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0023-kernel-bootstrap-phase-a.md)
 - [Artifact Header and Schema Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)
 - [Kernel Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)

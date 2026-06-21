@@ -28,6 +28,7 @@ use Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator;
 use Coretsia\Foundation\Runtime\Reset\ResetException;
 use Coretsia\Foundation\Runtime\Reset\ResetGroup;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Psr\Container\ContainerInterface;
@@ -272,7 +273,7 @@ final class FoundationServiceFactory
     {
         $resetConfig = self::resetConfig($foundationConfig);
 
-        $tag = $resetConfig['tag'] ?? Tags::KERNEL_RESET;
+        $tag = $resetConfig['tag'] ?? ReservedTags::KERNEL_RESET;
 
         if (!\is_string($tag)) {
             throw new ContainerException('foundation-reset-tag-invalid');

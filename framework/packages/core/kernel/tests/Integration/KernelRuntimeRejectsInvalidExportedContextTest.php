@@ -26,8 +26,8 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
@@ -344,7 +344,7 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
         $resetRegistry = new TagRegistry();
 
         $resetRegistry->add(
-            FoundationTags::KERNEL_RESET,
+            ReservedTags::KERNEL_RESET,
             KernelRuntimeRejectsInvalidExportedContextResetService::class,
         );
 

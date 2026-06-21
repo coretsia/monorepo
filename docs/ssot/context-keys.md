@@ -377,10 +377,22 @@ The reserved default effective reset tag is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 `ContextStore` MUST also be tagged as:
 
 ```text
 kernel.stateful
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
 ## Kernel lifecycle note

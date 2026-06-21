@@ -55,8 +55,7 @@ final class DeptracGraphRunsTest extends TestCase
         $this->withLauncherAtRepoRoot($repoRoot, function () use (&$payload, $outRel): void {
             $cmd = new DeptracGraphCommand();
 
-            $input = $this->createStub(InputInterface::class);
-            $input->method('tokens')->willReturn([
+            $input = new DeptracGraphRunsParsedInput([
                 '--json',
                 '--fixture=deptrac_min/package_index_ok.php',
                 '--out=' . $outRel,
@@ -206,7 +205,132 @@ final class DeptracGraphRunsTest extends TestCase
     {
         self::assertFalse(\str_contains($s, '\\'), 'Payload MUST NOT contain backslashes: ' . $s);
         self::assertFalse(\str_starts_with($s, '/'), 'Payload MUST NOT contain absolute POSIX paths: ' . $s);
-        self::assertSame(0, \preg_match('/(?i)\b[A-Z]:[\\\\\/]/', $s), 'Payload MUST NOT contain drive-letter paths: ' . $s);
+        self::assertSame(
+            0,
+            \preg_match('/(?i)\b[A-Z]:[\\\\\/]/', $s),
+            'Payload MUST NOT contain drive-letter paths: ' . $s
+        );
         self::assertFalse(\str_starts_with($s, '\\\\'), 'Payload MUST NOT contain UNC paths: ' . $s);
+    }
+}
+
+final class DeptracGraphRunsParsedInput implements InputInterface
+{
+    /**
+     * @var list<string>
+     */
+    private array $tokens;
+
+    /**
+     * @var list<string>
+     */
+    private array $arguments;
+
+    /**
+     * @var array<string, string|bool|list<string>|null>
+     */
+    private array $options;
+
+    /**
+     * @param list<string> $tokens
+     */
+    public function __construct(array $tokens)
+    {
+        $this->tokens = $tokens;
+
+        [$this->arguments, $this->options] = self::parseTokens($tokens);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
+
+    public function commandName(): string
+    {
+        return 'deptrac:graph';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    /**
+     * @return array<string, string|bool|list<string>|null>
+     */
+    public function options(): array
+    {
+        return $this->options;
+    }
+
+    public function hasOption(string $name): bool
+    {
+        return \array_key_exists($name, $this->options);
+    }
+
+    public function option(string $name): string|bool|array|null
+    {
+        return $this->options[$name] ?? null;
+    }
+
+    /**
+     * @param list<string> $tokens
+     * @return array{0: list<string>, 1: array<string, string|bool|list<string>|null>}
+     */
+    private static function parseTokens(array $tokens): array
+    {
+        $arguments = [];
+        $options = [];
+
+        $count = \count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if ($token === '') {
+                continue;
+            }
+
+            if (!\str_starts_with($token, '--')) {
+                $arguments[] = $token;
+                continue;
+            }
+
+            $raw = \substr($token, 2);
+
+            if ($raw === '') {
+                continue;
+            }
+
+            if (\str_contains($raw, '=')) {
+                [$name, $value] = \explode('=', $raw, 2);
+
+                if ($name !== '') {
+                    $options[$name] = $value;
+                }
+
+                continue;
+            }
+
+            $next = $tokens[$i + 1] ?? null;
+
+            if (\is_string($next) && $next !== '' && !\str_starts_with($next, '-')) {
+                $options[$raw] = $next;
+                $i++;
+
+                continue;
+            }
+
+            $options[$raw] = true;
+        }
+
+        return [$arguments, $options];
     }
 }

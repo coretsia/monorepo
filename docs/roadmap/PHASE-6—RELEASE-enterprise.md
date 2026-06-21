@@ -139,7 +139,7 @@ Forbidden:
 - [ ] `framework/packages/platform/health/src/Module/HealthModule.php` — runtime module entry
 - [ ] `framework/packages/platform/health/src/Provider/HealthServiceProvider.php` — wiring
 - [ ] `framework/packages/platform/health/src/Provider/HealthServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/health/src/Provider/Tags.php` — tag constants (`health.check`)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants (`health.check`)
 - [ ] `framework/packages/platform/health/config/health.php` — config subtree (root: `health`)
 - [ ] `framework/packages/platform/health/config/rules.php` — config shape rules
 - [ ] `framework/packages/platform/health/README.md` — usage + Observability / Errors / Security-Redaction
@@ -186,7 +186,7 @@ Forbidden:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/health/src/Provider/Tags.php` (constants)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `HEALTH_CHECK = "health.check"`
 - [ ] ServiceProvider wiring evidence:
@@ -424,7 +424,7 @@ Platform (`coretsia/metrics`):
 - [ ] `framework/packages/platform/metrics/src/Module/MetricsModule.php` — runtime module entry
 - [ ] `framework/packages/platform/metrics/src/Provider/MetricsServiceProvider.php` — wiring
 - [ ] `framework/packages/platform/metrics/src/Provider/MetricsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/metrics/src/Provider/Tags.php` — (optional) constants for exporter tagging
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — (optional) constants for exporter tagging
 - [ ] `framework/packages/platform/metrics/config/metrics.php` — config subtree (root: `metrics`)
 - [ ] `framework/packages/platform/metrics/config/rules.php` — config shape rules
 - [ ] `framework/packages/platform/metrics/README.md` — usage + Observability / Errors / Security-Redaction
@@ -477,7 +477,7 @@ Tests:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/metrics/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constant(s): `EXPORTER = 'metrics.exporter'` (optional) (if you choose tag-based selection)
 - [ ] ServiceProvider wiring evidence:
   - [ ] `platform/metrics` registers: `\Coretsia\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`
@@ -927,7 +927,7 @@ Platform (`coretsia/tracing`):
 - [ ] `framework/packages/platform/tracing/src/Module/TracingModule.php`
 - [ ] `framework/packages/platform/tracing/src/Provider/TracingServiceProvider.php`
 - [ ] `framework/packages/platform/tracing/src/Provider/TracingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/tracing/src/Provider/Tags.php` — (optional) exporter tag constants
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — (optional) exporter tag constants
 - [ ] `framework/packages/platform/tracing/config/tracing.php`
 - [ ] `framework/packages/platform/tracing/config/rules.php`
 - [ ] `framework/packages/platform/tracing/README.md`
@@ -977,7 +977,7 @@ N/A
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/tracing/src/Provider/Tags.php` (optional)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (optional)
   - [ ] constant(s): `TRACING_EXPORTER = 'tracing.exporter'` (optional)
 - [ ] ServiceProvider wiring evidence:
   - [ ] `platform/tracing` binds `TracerPortInterface` → `SdkTracer` (or noop if disabled)
@@ -1694,7 +1694,7 @@ Forbidden:
 - Tag ownership fix (MUST)
   - `platform/observability` MUST NOT define constants for `http.middleware.*` tags (owner is `platform/http` per `docs/ssot/tags.md`).
   - Remove deliverable:
-    - `framework/packages/platform/observability/src/Provider/Tags.php`
+    - `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - Use tag string literal in wiring:
     - `'http.middleware.system_post'`
 
@@ -1928,7 +1928,7 @@ Forbidden:
 - [ ] `framework/packages/platform/profiling/src/Module/ProfilingModule.php`
 - [ ] `framework/packages/platform/profiling/src/Provider/ProfilingServiceProvider.php`
 - [ ] `framework/packages/platform/profiling/src/Provider/ProfilingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/profiling/src/Provider/Tags.php` — constants (`profiling.exporter`)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`profiling.exporter`)
 - [ ] `framework/packages/platform/profiling/config/profiling.php`
 - [ ] `framework/packages/platform/profiling/config/rules.php`
 - [ ] `framework/packages/platform/profiling/README.md`
@@ -1979,7 +1979,7 @@ Tests:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/profiling/src/Provider/Tags.php` (constants)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `PROFILING_EXPORTER = "profiling.exporter"`
 - [ ] ServiceProvider wiring evidence:
@@ -4305,7 +4305,7 @@ N/A
 - [ ] `framework/packages/platform/event-sourcing/src/Projection/Projector.php` — reference projector
 - [ ] `framework/packages/platform/event-sourcing/src/Observability/EventSourcingInstrumentation.php` — spans/metrics helper
 - [ ] `framework/packages/platform/event-sourcing/src/Exception/EventSourcingException.php` — deterministic error codes
-- [ ] `framework/packages/platform/event-sourcing/src/Provider/Tags.php` — (optional) constants if package documents tags usage
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — (optional) constants if package documents tags usage
 - [ ] `framework/packages/platform/event-sourcing/tests/Fixtures/EventSourcingApp/config/modules.php` — reference fixture wiring
 - [ ] `framework/packages/platform/event-sourcing/tests/Fixtures/EventSourcingApp/src/Domain/*` — fixture-only aggregate + events
 - [ ] `docs/architecture/event-sourcing.md` — optional module rules + fixture walkthrough
@@ -6108,7 +6108,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - Tag: `websocket.handler` (owner `platform/websocket`)
-- Ordering (cemented): `WebSocketHandlerRegistry` **MUST** consume handlers in the exact order returned by `TagRegistry::all(Tags::WEBSOCKET_HANDLER)` and **MUST NOT** re-sort or dedupe.
+- Ordering (cemented): `WebSocketHandlerRegistry` **MUST** consume handlers in the exact order returned by `TagRegistry::all(ReservedTags::WEBSOCKET_HANDLER)` and **MUST NOT** re-sort or dedupe.
   - canonical order already applied: `priority DESC, serviceId ASC`
 - Meta schema (closed allowlist; priority НЕ тут):
   - required:
@@ -6132,7 +6132,7 @@ Forbidden:
 - [ ] `framework/packages/platform/websocket/src/Module/WebsocketModule.php`
 - [ ] `framework/packages/platform/websocket/src/Provider/WebsocketServiceProvider.php`
 - [ ] `framework/packages/platform/websocket/src/Provider/WebsocketServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/websocket/src/Provider/Tags.php` — constants for owned tags
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants for owned tags
 - [ ] `framework/packages/platform/websocket/src/WebSocket/WebSocketHandlerRegistry.php`
 - [ ] `framework/packages/platform/websocket/src/WebSocket/WebSocketKernel.php`
 - [ ] `framework/packages/platform/websocket/src/Exception/WebsocketException.php`
@@ -6173,9 +6173,9 @@ Forbidden:
 ### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/websocket/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
-    - [ ] `Tags::WEBSOCKET_HANDLER = 'websocket.handler'`
+    - [ ] `ReservedTags::WEBSOCKET_HANDLER = 'websocket.handler'`
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `\Coretsia\Platform\Websocket\WebSocket\WebSocketHandlerRegistry`
   - [ ] registry builds deterministic ordered list from tag `websocket.handler`
@@ -6349,7 +6349,7 @@ Forbidden:
 - [ ] `framework/packages/platform/graphql/src/Module/GraphQlModule.php`
 - [ ] `framework/packages/platform/graphql/src/Provider/GraphQlServiceProvider.php`
 - [ ] `framework/packages/platform/graphql/src/Provider/GraphQlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/graphql/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
 - [ ] `framework/packages/platform/graphql/src/Schema/SchemaProviderRegistry.php`
 - [ ] `framework/packages/platform/graphql/src/Routing/GraphQlRouteProvider.php`
   - make `GraphQlMiddleware.php` explicitly optional **and** only if a stable middleware interface exists in the already-cemented HTTP stack.
@@ -6388,11 +6388,11 @@ Forbidden:
 ### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/graphql/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
-    - [ ] `Tags::GRAPHQL_SCHEMA_PROVIDER = 'graphql.schema_provider'`
+    - [ ] `ReservedTags::GRAPHQL_SCHEMA_PROVIDER = 'graphql.schema_provider'`
       - Tag: `graphql.schema_provider` (owner `platform/graphql`)
-      - Ordering (cemented): `TagRegistry::all(Tags::GRAPHQL_SCHEMA_PROVIDER)` order is final.
+      - Ordering (cemented): `TagRegistry::all(ReservedTags::GRAPHQL_SCHEMA_PROVIDER)` order is final.
       - "Meta schema (closed allowlist; priority is NOT meta):
         - optional:
           - `id` (string, optional stable schema id; NOT used for ordering)
@@ -6548,7 +6548,7 @@ Forbidden:
     - `proto` (string, required)     # stable proto id (low-cardinality)
     - `id` (string, optional; NOT used for ordering)
 - Tag `grpc.interceptor` (owner `platform/grpc`)
-  - Ordering: `TagRegistry::all(Tags::GRPC_INTERCEPTOR)` order is final
+  - Ordering: `TagRegistry::all(ReservedTags::GRPC_INTERCEPTOR)` order is final
   - Meta schema (closed allowlist; priority НЕ тут):
     - `stage` (`auth|metrics|tracing|custom`, required; low-cardinality)
     - `id` (string, optional; NOT used for ordering)
@@ -6564,7 +6564,7 @@ Forbidden:
 - [ ] `framework/packages/platform/grpc/src/Module/GrpcModule.php`
 - [ ] `framework/packages/platform/grpc/src/Provider/GrpcServiceProvider.php`
 - [ ] `framework/packages/platform/grpc/src/Provider/GrpcServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/grpc/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
 - [ ] `framework/packages/platform/grpc/src/Grpc/GrpcServiceRegistry.php`
 - [ ] `framework/packages/platform/grpc/src/Grpc/InterceptorPipeline.php`
 - [ ] `framework/packages/platform/grpc/config/grpc.php`
@@ -6593,9 +6593,9 @@ Forbidden:
 ### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/grpc/src/Provider/Tags.php` constants:
-    - [ ] `Tags::GRPC_SERVICE = 'grpc.service'`
-    - [ ] `Tags::GRPC_INTERCEPTOR = 'grpc.interceptor'`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` constants:
+    - [ ] `ReservedTags::GRPC_SERVICE = 'grpc.service'`
+    - [ ] `ReservedTags::GRPC_INTERCEPTOR = 'grpc.interceptor'`
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `\Coretsia\Platform\Grpc\Grpc\GrpcServiceRegistry`
     - deterministic list from tag `grpc.service`
@@ -8205,7 +8205,7 @@ ssot_refs:
 
 ### Tag usage (SSoT)
 - Tag string literals MUST NOT be duplicated. Use the owner constant:
-  - `Coretsia\Platform\Cli\Provider\Tags::CLI_COMMAND` (or equivalent owner constant defined by `platform/cli`).
+  - `Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND` (or equivalent owner constant defined by `platform/cli`).
 - Tag meta schema MUST be stable and minimal; for `cli.command` MUST include:
   - `{"name": "<command-name>"}` only (no extra keys unless owner SSoT permits).
 
@@ -9036,7 +9036,7 @@ ssot_refs:
 #### Ordering / tags (MUST)
 - Middleware **MUST** be discovered via Foundation TagRegistry and executed **exactly** in TagRegistry order.
 - Ordering law is **cemented**: `priority DESC, id ASC` (strcmp, locale-independent) via `Coretsia\Foundation\Discovery\DeterministicOrder`.
-- Wiring **MUST** use owner constants from `platform/http` (e.g. `Coretsia\Http\Provider\Tags::HTTP_MIDDLEWARE_SYSTEM_POST`) — **no inline tag strings** in providers.
+- Wiring **MUST** use owner constants from `platform/http` (e.g. `Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST`) — **no inline tag strings** in providers.
 
 #### Headers determinism (MUST)
 - PSR-7 does **not** guarantee emitted header order. This epic MUST guarantee:
@@ -9312,7 +9312,7 @@ ssot_refs:
 #### Ordering / tags (MUST)
 - Middleware MUST be discovered via TagRegistry and executed exactly in TagRegistry order (no re-sort/dedupe by consumers).
 - Ordering law: `priority DESC, id ASC` via `Coretsia\Foundation\Discovery\DeterministicOrder`.
-- Wiring MUST use owner constants from `platform/http` `Provider\Tags` (no inline tag strings).
+- Wiring MUST use owner constants from `platform/http` `Coretsia\Foundation\Tag\ReservedTags` (no inline tag strings).
 
 #### PSR-7 constraints (MUST)
 - Epic guarantees deterministic ETag **value computation** and **header set**, but MUST NOT claim deterministic **emitted header order**.
@@ -10774,7 +10774,7 @@ Forbidden:
 - [ ] `framework/packages/enterprise/sso-saml/src/Module/SsoSamlModule.php` — runtime module entry
 - [ ] `framework/packages/enterprise/sso-saml/src/Provider/SsoSamlServiceProvider.php` — DI wiring
 - [ ] `framework/packages/enterprise/sso-saml/src/Provider/SsoSamlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/enterprise/sso-saml/src/Provider/Tags.php` — tag/constants owner
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag/constants owner
 - [ ] `framework/packages/enterprise/sso-saml/config/sso_saml.php` — config subtree provider (no repeated root)
 - [ ] `framework/packages/enterprise/sso-saml/config/rules.php` — config shape rules
 - [ ] `framework/packages/enterprise/sso-saml/README.md` — must include: Observability / Errors / Security-Redaction
@@ -11316,7 +11316,7 @@ Forbidden:
 - [ ] `framework/packages/enterprise/tenancy/src/Module/TenancyModule.php` — runtime module entry
 - [ ] `framework/packages/enterprise/tenancy/src/Provider/TenancyServiceProvider.php` — DI wiring
 - [ ] `framework/packages/enterprise/tenancy/src/Provider/TenancyServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/enterprise/tenancy/src/Provider/Tags.php` — tag/constants owner
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag/constants owner
 - [ ] `framework/packages/enterprise/tenancy/config/tenancy.php` — config subtree provider (no repeated root)
 - [ ] `framework/packages/enterprise/tenancy/config/rules.php` — config shape rules
 - [ ] `framework/packages/enterprise/tenancy/README.md` — must include: Observability / Errors / Security-Redaction
@@ -11382,7 +11382,7 @@ Forbidden:
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/enterprise/tenancy/src/Provider/Tags.php` (constants)
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `TENANCY_RESOLVER`
 - [ ] ServiceProvider wiring evidence:
@@ -11622,7 +11622,7 @@ Forbidden:
 - [ ] `framework/packages/enterprise/audit/src/Module/AuditModule.php` — runtime module entry
 - [ ] `framework/packages/enterprise/audit/src/Provider/AuditServiceProvider.php` — DI wiring
 - [ ] `framework/packages/enterprise/audit/src/Provider/AuditServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/enterprise/audit/src/Provider/Tags.php` — tag/constants owner
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag/constants owner
 - [ ] `framework/packages/enterprise/audit/config/audit.php` — config subtree provider (no repeated root)
 - [ ] `framework/packages/enterprise/audit/config/rules.php` — config shape rules
 - [ ] `framework/packages/enterprise/audit/README.md` — must include: Observability / Errors / Security-Redaction
@@ -12985,7 +12985,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `framework/packages/core/contracts/` — contracts package exists (цей епік додає Search ports у нього).
-  - `framework/packages/platform/search/src/Provider/Tags.php` with constant: public const `SEARCH_CLIENT = 'search.client'`;
+  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` with constant: public const `SEARCH_CLIENT = 'search.client'`;
 
 - Required tags:
   - `cli.command` — існуючий tag (епік додає command за потреби).
@@ -15102,7 +15102,7 @@ Forbidden:
 - [ ] `framework/packages/platform/scheduler/src/Leader/LeaderPolicy.php` — VO (ttl/renew ints only)
 - [ ] `framework/packages/platform/scheduler/src/Observability/SchedulerLeaderInstrumentation.php` — spans/metrics helpers
 - [ ] `framework/packages/platform/scheduler/src/Security/Redaction.php` — hash lock key, no raw key logs
-- [ ] `framework/packages/platform/scheduler/src/Provider/Tags.php` — only if not already present (tag constants)
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — only if not already present (tag constants)
 
 #### Modifies
 
@@ -15975,7 +15975,7 @@ N/A
 - [ ] `framework/packages/platform/ai/src/Module/AiModule.php`
 - [ ] `framework/packages/platform/ai/src/Provider/AiServiceProvider.php`
 - [ ] `framework/packages/platform/ai/src/Provider/AiServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/ai/src/Provider/Tags.php` — owns `ai.tool`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owns `ai.tool`
 - [ ] `framework/packages/platform/ai/src/Tools/ToolRegistry.php`
 - [ ] `framework/packages/platform/ai/src/Llm/ConfigDrivenLlmGateway.php` (selects driver)
 - [ ] `framework/packages/platform/ai/src/Llm/NullLlmGateway.php` (policy: deterministic error/empty)
@@ -16025,9 +16025,9 @@ N/A
 ### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/ai/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
-    - [ ] `Tags::AI_TOOL = 'ai.tool'`
+    - [ ] `ReservedTags::AI_TOOL = 'ai.tool'`
 - [ ] Tag `ai.tool` meta schema (closed allowlist; validated by registry):
   - `id` is required for diagnostics/selection only; it MUST NOT be used for ordering.
   - `name` (string, optional; for UI only)
@@ -16039,7 +16039,7 @@ N/A
     - `Coretsia\Contracts\AI\Llm\LlmGatewayInterface` → `ConfigDrivenLlmGateway`
     - `Coretsia\Contracts\AI\Embeddings\EmbeddingProviderInterface` → config-driven provider
   - [ ] registers: `Coretsia\Platform\Ai\Tools\ToolRegistry`
-    - deterministic order: `ToolRegistry` preserves the exact order returned by `TagRegistry::all(Tags::AI_TOOL)`; meta `id` is **NOT** an ordering key.
+    - deterministic order: `ToolRegistry` preserves the exact order returned by `TagRegistry::all(ReservedTags::AI_TOOL)`; meta `id` is **NOT** an ordering key.
     - validates tag meta schema; throws typed exception with `CORETSIA_AI_TOOL_FAILED` (no args leak)
   - [ ] registers null/fake drivers:
     - `NullLlmGateway`, `FakeLlmGateway`
@@ -16318,11 +16318,11 @@ Forbidden:
 - [ ] `framework/packages/platform/ai-guardrails/src/Module/AiGuardrailsModule.php`
 - [ ] `framework/packages/platform/ai-guardrails/src/Provider/AiGuardrailsServiceProvider.php`
 - [ ] `framework/packages/platform/ai-guardrails/src/Provider/AiGuardrailsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/ai-guardrails/src/Provider/Tags.php`
+- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
 - [ ] `framework/packages/platform/ai-guardrails/src/Guardrails/GuardrailsPipeline.php`
   - builds lists in the exact order returned by TagRegistry:
-    - `TagRegistry::all(Tags::AI_GUARDRAIL)` order is final
-    - `TagRegistry::all(Tags::AI_REDACTION_HOOK)` order is final
+    - `TagRegistry::all(ReservedTags::AI_GUARDRAIL)` order is final
+    - `TagRegistry::all(ReservedTags::AI_REDACTION_HOOK)` order is final
     - pipeline MUST NOT re-sort/dedupe
 - [ ] `framework/packages/platform/ai-guardrails/src/Guardrails/AllowDenyPolicy.php`
 - [ ] `framework/packages/platform/ai-guardrails/src/Redaction/RegexPiiRedactionHook.php`
@@ -16367,10 +16367,10 @@ Forbidden:
 ### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/platform/ai-guardrails/src/Provider/Tags.php`
+  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
-    - [ ] `Tags::AI_GUARDRAIL = 'ai.guardrail'`
-    - [ ] `Tags::AI_REDACTION_HOOK = 'ai.redaction_hook'`
+    - [ ] `ReservedTags::AI_GUARDRAIL = 'ai.guardrail'`
+    - [ ] `ReservedTags::AI_REDACTION_HOOK = 'ai.redaction_hook'`
 - [ ] Tag meta schemas (validated; closed allowlist):
   - `ai.guardrail` meta (closed):
     - `id` (string, required; NOT for ordering)

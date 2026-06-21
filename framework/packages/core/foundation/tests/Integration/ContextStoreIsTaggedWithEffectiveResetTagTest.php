@@ -23,8 +23,8 @@ use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
-use Coretsia\Foundation\Provider\Tags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -37,7 +37,7 @@ final class ContextStoreIsTaggedWithEffectiveResetTagTest extends TestCase
 
         self::assertInstanceOf(TagRegistry::class, $tagRegistry);
 
-        $taggedServices = $tagRegistry->all(Tags::KERNEL_RESET);
+        $taggedServices = $tagRegistry->all(ReservedTags::KERNEL_RESET);
 
         self::assertCount(1, $taggedServices);
         self::assertSame(ContextStore::class, $taggedServices[0]->id());
@@ -54,7 +54,7 @@ final class ContextStoreIsTaggedWithEffectiveResetTagTest extends TestCase
 
         self::assertInstanceOf(ContextStore::class, $store);
         self::assertInstanceOf(ResetOrchestrator::class, $orchestrator);
-        self::assertSame(Tags::KERNEL_RESET, $orchestrator->effectiveResetTag());
+        self::assertSame(ReservedTags::KERNEL_RESET, $orchestrator->effectiveResetTag());
 
         $store->set(ContextKeys::CORRELATION_ID, '01ARZ3NDEKTSV4RRFFQ69G5FAV');
 
@@ -83,7 +83,7 @@ final class ContextStoreIsTaggedWithEffectiveResetTagTest extends TestCase
         self::assertSame($customResetTag, $orchestrator->effectiveResetTag());
 
         $customTaggedServices = $tagRegistry->all($customResetTag);
-        $defaultTaggedServices = $tagRegistry->all(Tags::KERNEL_RESET);
+        $defaultTaggedServices = $tagRegistry->all(ReservedTags::KERNEL_RESET);
 
         self::assertCount(1, $customTaggedServices);
         self::assertSame(ContextStore::class, $customTaggedServices[0]->id());

@@ -21,8 +21,8 @@ namespace Coretsia\Foundation\Tests\Integration;
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
-use Coretsia\Foundation\Provider\Tags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use PHPUnit\Framework\TestCase;
 
 final class ResetOrchestratorUsesConfiguredResetTagTest extends TestCase
@@ -40,7 +40,7 @@ final class ResetOrchestratorUsesConfiguredResetTagTest extends TestCase
         $builder->instance('service.reset.default', $default);
 
         $builder->tag('custom.reset', 'service.reset.custom', 100);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.default', 100);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.default', 100);
 
         $builder->register(new FoundationServiceProvider());
 
@@ -65,14 +65,14 @@ final class ResetOrchestratorUsesConfiguredResetTagTest extends TestCase
         $builder = new ContainerBuilder(config: self::configWithoutResetTag());
 
         $builder->instance('service.reset.default', $service);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.default');
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.default');
 
         $builder->register(new FoundationServiceProvider());
 
         $orchestrator = $builder->build()->get(ResetOrchestrator::class);
 
         self::assertInstanceOf(ResetOrchestrator::class, $orchestrator);
-        self::assertSame(Tags::KERNEL_RESET, $orchestrator->effectiveResetTag());
+        self::assertSame(ReservedTags::KERNEL_RESET, $orchestrator->effectiveResetTag());
 
         $orchestrator->resetAll();
 

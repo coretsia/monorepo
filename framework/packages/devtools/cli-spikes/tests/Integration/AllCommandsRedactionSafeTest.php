@@ -61,7 +61,10 @@ final class AllCommandsRedactionSafeTest extends TestCase
                 ['cmd' => new DoctorCommand(), 'tokens' => []],
                 ['cmd' => new SpikeFingerprintCommand(), 'tokens' => []],
                 ['cmd' => new SpikeConfigDebugCommand(), 'tokens' => ['--key=cli.commands']],
-                ['cmd' => new DeptracGraphCommand(), 'tokens' => ['--json', '--fixture=deptrac_min/package_index_ok.php', '--out=' . $outRel]],
+                [
+                    'cmd' => new DeptracGraphCommand(),
+                    'tokens' => ['--json', '--fixture=deptrac_min/package_index_ok.php', '--out=' . $outRel]
+                ],
                 ['cmd' => new WorkspaceSyncDryRunCommand(), 'tokens' => ['--format=json']],
                 ['cmd' => new WorkspaceSyncApplyCommand(), 'tokens' => ['--apply']],
             ];
@@ -70,23 +73,10 @@ final class AllCommandsRedactionSafeTest extends TestCase
                 $cmd = $case['cmd'];
                 $tokens = $case['tokens'];
 
-                $input = new class($tokens) implements InputInterface {
-                    /** @var list<string> */
-                    private array $tokens;
-
-                    /**
-                     * @param list<string> $tokens
-                     */
-                    public function __construct(array $tokens)
-                    {
-                        $this->tokens = $tokens;
-                    }
-
-                    public function tokens(): array
-                    {
-                        return $this->tokens;
-                    }
-                };
+                $input = new CliSpikesParsedInput(
+                    commandName: $cmd->name(),
+                    tokens: $tokens,
+                );
 
                 $output = new BufferingOutput();
 
@@ -258,14 +248,14 @@ final class BufferingOutput implements OutputInterface
     /** @var list<array{code:string,message:string}> */
     private array $errors = [];
 
-    public function json(array $data): void
+    public function json(array $payload): void
     {
-        $this->json[] = $data;
+        $this->json[] = $payload;
     }
 
-    public function text(string $line): void
+    public function text(string $text): void
     {
-        $this->text[] = $line;
+        $this->text[] = $text;
     }
 
     public function error(string $code, string $message): void
@@ -314,5 +304,129 @@ final class BufferingOutput implements OutputInterface
         }
 
         return \implode("\n", $chunks);
+    }
+}
+
+final class CliSpikesParsedInput implements InputInterface
+{
+    /**
+     * @var list<string>
+     */
+    private array $tokens;
+
+    /**
+     * @var list<string>
+     */
+    private array $arguments;
+
+    /**
+     * @var array<string, string|bool|list<string>|null>
+     */
+    private array $options;
+
+    /**
+     * @param list<string> $tokens
+     */
+    public function __construct(
+        private readonly string $commandName,
+        array $tokens,
+    ) {
+        $this->tokens = $tokens;
+
+        [$this->arguments, $this->options] = self::parseTokens($tokens);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
+
+    public function commandName(): string
+    {
+        return $this->commandName;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    /**
+     * @return array<string, string|bool|list<string>|null>
+     */
+    public function options(): array
+    {
+        return $this->options;
+    }
+
+    public function hasOption(string $name): bool
+    {
+        return \array_key_exists($name, $this->options);
+    }
+
+    public function option(string $name): string|bool|array|null
+    {
+        return $this->options[$name] ?? null;
+    }
+
+    /**
+     * @param list<string> $tokens
+     * @return array{0: list<string>, 1: array<string, string|bool|list<string>|null>}
+     */
+    private static function parseTokens(array $tokens): array
+    {
+        $arguments = [];
+        $options = [];
+
+        $count = \count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if (!\is_string($token) || $token === '') {
+                continue;
+            }
+
+            if (!\str_starts_with($token, '--')) {
+                $arguments[] = $token;
+
+                continue;
+            }
+
+            $option = \substr($token, 2);
+
+            if ($option === '') {
+                continue;
+            }
+
+            if (\str_contains($option, '=')) {
+                [$name, $value] = \explode('=', $option, 2);
+
+                if ($name !== '') {
+                    $options[$name] = $value;
+                }
+
+                continue;
+            }
+
+            $next = $tokens[$i + 1] ?? null;
+
+            if (\is_string($next) && $next !== '' && !\str_starts_with($next, '-')) {
+                $options[$option] = $next;
+                $i++;
+
+                continue;
+            }
+
+            $options[$option] = true;
+        }
+
+        return [$arguments, $options];
     }
 }

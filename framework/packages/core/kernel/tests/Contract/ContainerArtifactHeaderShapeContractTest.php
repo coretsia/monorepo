@@ -62,7 +62,7 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
         self::assertArrayNotHasKey('user', $header);
         self::assertArrayNotHasKey('pid', $header);
 
-        (new ArtifactSchemaValidator())->validateExpected(
+        new ArtifactSchemaValidator()->validateExpected(
             envelope: $envelope,
             expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
             expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
@@ -102,7 +102,7 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
         self::assertSame(self::fingerprint(), $header['fingerprint']);
         self::assertSame('core/kernel/artifacts', $header['generator']);
 
-        (new ArtifactSchemaValidator())->validateExpected(
+        new ArtifactSchemaValidator()->validateExpected(
             envelope: $returned,
             expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
             expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,

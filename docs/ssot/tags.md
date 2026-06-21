@@ -26,9 +26,11 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 - Every reserved tag **MUST** have exactly one owner `package_id`.
 - Shared ownership is forbidden.
 - Only the owner epic may introduce or modify a reserved tag entry.
-- Registry rows **MAY** exist before the owner package becomes tag-aware in runtime.
-- The canonical owner public constant becomes mandatory in the owner epic that introduces the corresponding tag-aware mode or entrypoint.
-- Every reserved tag **MUST** be declared as a public constant by the owner package, usually in `src/Provider/Tags.php`.
+- Registry rows **MAY** exist independently of whether the semantic owner package currently registers runtime services for that tag.
+- Every framework-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
+- Framework packages MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
+- `ReservedTags` owns tag identifier strings only.
+- Runtime semantics, metadata schema, discovery, ordering, dispatch, validation, and consumer behavior remain owned by the semantic owner package declared in this SSoT.
 - Non-owner packages **MAY** use existing reserved tags, but **MUST NOT** redefine competing semantics or competing meta-schema for the same tag.
 - Raw literal tag strings are allowed in docs, tests, and fixtures for readability, but **MUST NOT** be the preferred runtime-code pattern.
 
@@ -46,12 +48,17 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 
 ## Ownership Model (MUST)
 
-For every reserved tag, the owner package exclusively owns:
+For every reserved tag, this SSoT declares a semantic owner package.
 
-- the registry row in this document
-- the canonical public constant
-- the canonical meta-schema, if any
-- the canonical consumer and discovery semantics
+`Coretsia\Foundation\Tag\ReservedTags` owns the tag identifier string.
+
+The semantic owner package owns:
+
+- metadata schema, if any
+- runtime consumer behavior
+- discovery semantics
+- dispatch/execution semantics, if any
+- validation semantics
 
 Non-owner packages:
 
@@ -101,9 +108,9 @@ Stability enum is single-choice:
 | `kernel.reset`                | `core/foundation` | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.    |
 | `kernel.stateful`             | `core/foundation` | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                               |
 
-## Forbidden / Legacy Tags (MUST)
+## Forbidden Non-canonical Tags (MUST)
 
-The following legacy tags are cemented as forbidden and **MUST NOT** be introduced anywhere:
+The following non-canonical tags are forbidden and **MUST NOT** be introduced anywhere:
 
 - `http.middleware.user_before_routing`
 - `http.middleware.user`
@@ -112,29 +119,20 @@ The following legacy tags are cemented as forbidden and **MUST NOT** be introduc
 Rationale:
 
 - Canonical Phase 0+ HTTP middleware taxonomy is single-choice: `system/app/route`.
-- Any new epic mentioning `http.middleware.user*` **MUST** treat it only as legacy or renamed terminology.
-- Legacy `http.middleware.user*` names **MUST NOT** appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
+- Any new epic mentioning `http.middleware.user*` **MUST** treat it only as forbidden non-canonical terminology.
+- `http.middleware.user*` names **MUST NOT** appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
 
 ## Runtime Usage Rule (MUST)
 
-- If the owner package is an allowed compile-time dependency, runtime code **MUST** use the owner public tag constant.
-- If the owner package is a forbidden compile-time dependency, runtime code **MAY** define a package-local mirror constant.
-- A package-local mirror constant:
-  - **MUST** be package-internal only
-  - **MUST** equal the canonical tag string exactly
-  - **MUST NOT** be treated as public API
-  - **MUST** be verified by tooling gates for string equality
+Runtime code in framework packages MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for framework-reserved DI tags.
 
-## Local Mirror Constants (MUST)
+Raw literal tag strings are allowed in docs, tests, fixtures, and config defaults where readability or user-owned configuration is the subject.
 
-A reserved registry row may exist before the owner package exposes its canonical constant in runtime.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tags.
 
-Until the owner epic introduces the tag-aware runtime entrypoint, non-owner packages may still reference the canonical tag only under the runtime usage rule above:
+Runtime package source MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
 
-- owner public constant when the owner package is an allowed compile-time dependency
-- package-local mirror constant when the owner package is a forbidden compile-time dependency
-
-Local mirror constants are a compatibility mechanism only. They do not create ownership, public API, or schema authority outside the owner package.
+Custom/user tags are outside this reserved registry unless explicitly promoted to framework-reserved status through this SSoT.
 
 ## Contributor Rule (MUST)
 
@@ -146,8 +144,9 @@ Local mirror constants are a compatibility mechanism only. They do not create ow
 
 Introducing a new reserved tag requires both of the following in the owner epic:
 
-1. add a registry row in `docs/ssot/tags.md`
-2. add the canonical public constant in the owner package
+1. add registry row in `docs/ssot/tags.md`
+2. add public constant in `Coretsia\Foundation\Tag\ReservedTags`
+3. document semantic owner behavior in the owner package or SSoT
 
 A new tag is not complete unless both artifacts exist.
 

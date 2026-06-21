@@ -633,6 +633,12 @@ Mapper discovery is runtime policy owned by `platform/errors` through the existi
 error.mapper
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
+```
+
 The contracts package MUST NOT declare this tag as a constant.
 
 ## Error reporter port
@@ -802,6 +808,12 @@ Health check discovery is runtime policy owned by `platform/health` through the 
 health.check
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::HEALTH_CHECK
+```
+
 The contracts package MUST NOT declare this tag as a constant.
 
 ## Noop-safe port policy
@@ -830,9 +842,15 @@ Runtime discovery tags are reserved in:
 docs/ssot/tags.md
 ```
 
+Framework-reserved DI tag identifier strings are declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
 This epic does not introduce DI tags.
 
-Contracts MAY reference existing reserved tags in documentation as runtime policy, but MUST NOT own tag constants or tag schemas.
+Contracts MAY reference existing reserved tags in documentation as runtime policy, but MUST NOT own DI tag identifier constants, additional code-level registries for framework-reserved DI tag identifiers, or tag schemas.
 
 ## Security and redaction
 

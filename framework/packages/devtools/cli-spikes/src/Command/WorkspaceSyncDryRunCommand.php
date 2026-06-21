@@ -51,10 +51,8 @@ final class WorkspaceSyncDryRunCommand implements CommandInterface
 
     public function run(InputInterface $input, OutputInterface $output): int
     {
-        $tokens = $input->tokens();
-
         try {
-            $options = self::parseOptions($tokens);
+            $options = self::parseOptions($input);
         } catch (\Throwable) {
             $output->error(CliErrorCodes::CORETSIA_CLI_COMMAND_INVALID, self::MSG_INVALID_ARGUMENTS);
 
@@ -144,48 +142,21 @@ final class WorkspaceSyncDryRunCommand implements CommandInterface
     }
 
     /**
-     * @param list<string> $tokens
      * @return array{fixture:?string,format:'json'|'text'}
      */
-    private static function parseOptions(array $tokens): array
+    private static function parseOptions(InputInterface $input): array
     {
-        $fixture = null;
-        $format = 'json';
+        $fixture = self::stringOption($input, 'fixture');
 
-        $n = \count($tokens);
-        for ($i = 0; $i < $n; $i++) {
-            $t = (string)$tokens[$i];
+        $format = self::stringOption($input, 'format');
 
-            if (\str_starts_with($t, '--fixture=')) {
-                $fixture = (string)\substr($t, \strlen('--fixture='));
-                continue;
-            }
-
-            if ($t === '--fixture') {
-                $fixture = ($i + 1) < $n ? (string)$tokens[$i + 1] : '';
-                $i++;
-                continue;
-            }
-
-            if (\str_starts_with($t, '--format=')) {
-                $format = (string)\substr($t, \strlen('--format='));
-                continue;
-            }
-
-            if ($t === '--format') {
-                $format = ($i + 1) < $n ? (string)$tokens[$i + 1] : '';
-                $i++;
-                continue;
-            }
-
-            if ($t === '--json') {
-                $format = 'json';
-                continue;
-            }
-
-            if ($t === '--text') {
+        if ($format === null) {
+            if (self::flagOption($input, 'text')) {
                 $format = 'text';
-                continue;
+            } elseif (self::flagOption($input, 'json')) {
+                $format = 'json';
+            } else {
+                $format = 'json';
             }
         }
 
@@ -202,6 +173,7 @@ final class WorkspaceSyncDryRunCommand implements CommandInterface
         }
 
         $format = self::normalizePath($format);
+
         if ($format !== 'json' && $format !== 'text') {
             throw new \RuntimeException(self::MSG_INVALID_ARGUMENTS);
         }
@@ -210,6 +182,24 @@ final class WorkspaceSyncDryRunCommand implements CommandInterface
             'fixture' => $fixture,
             'format' => $format,
         ];
+    }
+
+    private static function stringOption(InputInterface $input, string $name): ?string
+    {
+        $value = $input->option($name);
+
+        return \is_string($value) ? $value : null;
+    }
+
+    private static function flagOption(InputInterface $input, string $name): bool
+    {
+        if (!$input->hasOption($name)) {
+            return false;
+        }
+
+        $value = $input->option($name);
+
+        return $value === true || $value === null;
     }
 
     private static function isValidEntry(mixed $entry, string $expectedMode): bool

@@ -21,29 +21,55 @@ namespace Coretsia\Contracts\Cli\Output;
 /**
  * CLI output port.
  *
+ * This is the only output abstraction that package-contributed commands should
+ * use. Commands must write user-visible output through this contracts-level
+ * port and must not write to stdout/stderr directly.
+ *
  * Contract invariants:
- * - Output implementation MUST enforce determinism (no timestamps/randomness) and redaction (no secrets/PII).
- * - This interface intentionally does not define formatting/verbosity/styling semantics.
+ *
+ * - this contract MUST remain independent from platform/cli;
+ * - package-contributed commands MUST NOT depend on platform/cli output
+ *   implementation classes;
+ * - command implementations MUST NOT use echo, print, printf, fwrite(STDOUT),
+ *   fwrite(STDERR), var_dump(), print_r(), or error_log() for command output;
+ * - JSON payloads passed to json() MUST be intended as safe JSON-like payloads;
+ * - JSON payloads SHOULD contain only null, bool, int, string, lists, and
+ *   string-keyed maps;
+ * - JSON payloads MUST NOT intentionally contain secrets, raw payloads, raw
+ *   endpoints, headers, tokens, environment values, resources, closures,
+ *   objects, or implementation internals;
+ * - error messages passed to error() MUST be safe, normalized, and secret-free;
+ * - final deterministic rendering, newline policy, formatting, verbosity,
+ *   styling, stream selection, and redaction policy remain owned by the
+ *   platform/cli implementation.
  */
 interface OutputInterface
 {
     /**
-     * Write a plain text message (implementation decides newline policy; must be deterministic).
+     * Writes a plain text message.
+     *
+     * The message MUST be safe for user-visible command output. Final rendering
+     * details are owned by the concrete CLI output implementation.
      */
     public function text(string $text): void;
 
     /**
-     * Write a JSON payload (implementation MUST emit deterministic bytes).
+     * Writes a safe JSON-like payload.
+     *
+     * Commands MUST pass only payloads intended to be safe JSON-like data.
+     * The concrete CLI output implementation owns final deterministic JSON
+     * rendering and redaction behavior.
      *
      * @param array<string, mixed>|list<mixed> $payload
      */
     public function json(array $payload): void;
 
     /**
-     * Emit a normalized error record.
+     * Emits a normalized error record.
      *
-     * IMPORTANT:
-     * - $message MUST NOT contain secrets; output implementation enforces redaction as a final safety net.
+     * The code MUST be a stable diagnostic identifier. The message MUST be
+     * safe, normalized, and secret-free. The concrete CLI output implementation
+     * owns final rendering and redaction behavior.
      */
     public function error(string $code, string $message): void;
 }

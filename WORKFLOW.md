@@ -91,7 +91,7 @@ Run before staging when the current task may affect source files, composer manif
 composer docs:structure                    # regenerate docs structure output
 composer cs:fix                            # apply code style fixes
 composer sync:check                        # check managed composer repositories
-`````
+```
 
 If managed composer repositories drift is reported:
 

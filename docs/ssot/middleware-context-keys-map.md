@@ -114,6 +114,16 @@ The canonical middleware list/slot ownership/order reference is:
 docs/ssot/http-middleware-catalog.md
 ```
 
+The middleware slot strings shown in this reference map are documentation values.
+
+Runtime package source MUST use the corresponding framework-reserved DI tag identifier constants from:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+This document MUST NOT introduce additional code-level registries for framework-reserved DI tag identifiers.
+
 ## Table: Middleware FQCN → ContextKeys written/read
 
 The table below is a reference map only.

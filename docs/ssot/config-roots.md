@@ -136,20 +136,8 @@ Non-owner packages:
 | `logging`         | `platform/logging`         | `framework/packages/platform/logging/config/logging.php`                 | `framework/packages/platform/logging/config/rules.php`         | Platform logging root.            |
 | `metrics`         | `platform/metrics`         | `framework/packages/platform/metrics/config/metrics.php`                 | `framework/packages/platform/metrics/config/rules.php`         | Platform metrics root.            |
 | `tracing`         | `platform/tracing`         | `framework/packages/platform/tracing/config/tracing.php`                 | `framework/packages/platform/tracing/config/rules.php`         | Platform tracing root.            |
+| `worker`          | `platform/worker`          | `framework/packages/platform/worker/config/worker.php`                   | `framework/packages/platform/worker/config/rules.php`          | Long-running worker runtime root. |
 | `problem_details` | `platform/problem-details` | `framework/packages/platform/problem-details/config/problem_details.php` | `framework/packages/platform/problem-details/config/rules.php` | Platform problem-details root.    |
-
-## Initial Rows Introduced by This Epic (MUST)
-
-This epic introduces the following initial canonical registry rows:
-
-- `cli`
-- `foundation`
-- `kernel`
-- `http`
-- `logging`
-- `metrics`
-- `tracing`
-- `problem_details`
 
 ## Rules for Later Extensions (MUST)
 

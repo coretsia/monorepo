@@ -20,24 +20,27 @@ Accepted.
 
 ## Context
 
-Epic `1.340.0` introduces the first REAL Kernel-owned compiled-container artifact payload for the existing `container@1` artifact identity.
+Epic `1.340.0` defines the REAL Kernel-owned compiled-container artifact payload for the existing `container@1` artifact identity.
 
-The global artifact registry already contains the Kernel-owned `container@1` artifact identity. That registry, the canonical artifact envelope, canonical header fields, and deterministic serialization law are owned by:
+The global artifact registry contains the Kernel-owned `container@1` artifact identity. That registry, the canonical artifact envelope, canonical header fields, and deterministic serialization law are owned by:
 
 ```text
 docs/ssot/artifacts.md
 ```
 
-Epic `1.330.0` previously materialized `container@1` as a transitional deterministic stub payload so the artifact slot, envelope/header infrastructure, writer, reader, schema validator, and cache verification pipeline could exist before real compiled-container semantics were available.
+Current Kernel-produced `container@1` artifacts use REAL compiled-container semantics:
 
-That transitional payload used:
+```text
+kind = compiled
+compiled = true
+```
+
+The unsupported transitional stub payload shape is invalid for production artifact-only runtime boot:
 
 ```text
 kind = stub
 compiled = false
 ```
-
-Epic `1.340.0` replaces that transitional stub semantics with the first REAL `container@1` compiled-container payload schema.
 
 The live payload law and artifact-only runtime boot semantics are owned by:
 
@@ -70,33 +73,29 @@ This epic does not introduce:
 container@2
 ```
 
-The reason is that `1.330.0` did not define a stable production-ready compiled-container payload contract. It only materialized a transitional deterministic stub payload for the already-registered `container@1` artifact identity.
+`1.340.0` defines the REAL `container@1` payload schema for the registered `container@1` artifact identity.
 
-`1.340.0` defines the first REAL `container@1` payload schema.
+A future `container@2` is required only if a later change needs to preserve the REAL `container@1` payload contract while introducing an incompatible compiled-container payload format.
 
-A future `container@2` is required only if a later change needs to preserve an already-stable REAL `container@1` payload contract while introducing an incompatible compiled-container payload format.
+### Decision 2: Reject the unsupported transitional stub payload
 
-### Decision 2: Treat the `1.330.0` stub payload as transitional
-
-The `1.330.0` payload shape:
+The unsupported transitional payload shape is:
 
 ```text
 kind = stub
 compiled = false
 ```
 
-was transitional.
+It is not a supported production runtime container format.
 
-It is not a supported production runtime container format after this epic.
-
-Kernel-produced `container@1` artifacts after this epic use REAL compiled-container semantics:
+Kernel-produced `container@1` artifacts use REAL compiled-container semantics:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-Production artifact-only runtime boot must reject the legacy transitional stub payload.
+Production artifact-only runtime boot must reject the unsupported transitional stub payload.
 
 ### Decision 3: Define the first REAL `container@1` payload schema in SSoT
 
@@ -122,7 +121,7 @@ The SSoT owns:
 - closure/callable rejection semantics;
 - artifact-only runtime boot inputs;
 - missing/invalid artifact failure semantics;
-- legacy stub rejection semantics.
+- unsupported stub rejection semantics.
 
 ### Decision 4: Use descriptor-based, closure-free compile input
 

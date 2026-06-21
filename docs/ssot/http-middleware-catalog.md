@@ -122,7 +122,15 @@ docs/architecture/PACKAGING.md
 docs/roadmap/phase0/00_2-dependency-table.md
 ```
 
-The tag registry remains the canonical owner of reserved DI tag names.
+The tag registry remains the canonical owner of reserved DI tag names and semantic owner rows.
+
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+This document may list raw reserved tag strings for taxonomy readability, but runtime package source MUST use `ReservedTags::*` for framework-reserved DI tag identifiers.
 
 The config roots registry remains the canonical owner of reserved config roots and config defaults authority.
 
@@ -198,9 +206,25 @@ http.middleware.route
 http.middleware.route_post
 ```
 
+The canonical code-level identifiers for these framework-reserved DI tags are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP_POST
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST
+```
+
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for these framework-reserved DI tags.
+
 No other HTTP middleware slot taxonomy is allowed.
 
-The following legacy tags are forbidden:
+The following non-canonical tags are forbidden:
 
 ```text
 http.middleware.user_before_routing
@@ -208,9 +232,9 @@ http.middleware.user
 http.middleware.user_after_routing
 ```
 
-These legacy names MUST NOT appear as current tag names in contracts, SSoT docs, defaults, runtime code, generated artifacts, package providers, tests, or gates.
+These non-canonical names MUST NOT appear as current tag names in contracts, SSoT docs, defaults, runtime code, generated artifacts, package providers, tests, or gates.
 
-A future document may mention them only as forbidden legacy terminology.
+A future document may mention them only as forbidden non-canonical terminology.
 
 ## Kernel and reset tags
 
@@ -221,6 +245,15 @@ kernel.reset
 kernel.stateful
 kernel.hook.before_uow
 kernel.hook.after_uow
+```
+
+Their canonical code-level identifiers are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
 Consumers MUST NOT enumerate reset tags directly as an alternative reset protocol.
@@ -253,7 +286,7 @@ Compiled artifacts MUST NOT redefine:
 - tag ownership;
 - package ownership;
 - default optional package participation;
-- forbidden legacy tag policy.
+- forbidden non-canonical tag policy.
 
 Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy when the corresponding owner epic introduces them.
 
@@ -818,6 +851,7 @@ An optional owner MUST obey:
 
 - the canonical slot taxonomy;
 - tag registry ownership;
+- centralized framework-reserved tag identifier usage through `Coretsia\Foundation\Tag\ReservedTags`;
 - observability redaction law;
 - config roots ownership;
 - package dependency rules;

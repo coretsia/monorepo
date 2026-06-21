@@ -160,7 +160,7 @@ N/A
 
 - [ ] Tags introduced (this epic is the OWNER):
   - [ ] if this epic owns one or more reserved tags:
-    - [ ] `src/Provider/Tags.php` (owner constants)
+    - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner constants)
     - [ ] constants:
       - [ ] `<TAG_CONST> = '<tag>'`
   - [ ] if this epic does not own the referenced tags:
@@ -177,7 +177,7 @@ N/A
   - [ ] this package MUST NOT introduce owner constants for tags it does not own
   - [ ] runtime code MUST use:
     - [ ] the owner public constant, if the owner package is an allowed compile-time dependency; OR
-    - [ ] a package-local mirror constant in `src/Provider/Tags.php`, if the owner package is a forbidden compile-time dependency
+    - [ ] a package-local mirror constant in `framework/packages/core/foundation/src/Tag/ReservedTags.php`, if the owner package is a forbidden compile-time dependency
   - [ ] any package-local mirror constant:
     - [ ] MUST be package-internal only
     - [ ] MUST equal the canonical tag string exactly

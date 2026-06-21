@@ -40,7 +40,7 @@ docs/adr/ADR-0019-enhanced-reset-long-running.md
 
 Historical future/deferred wording in this ADR should be read as describing the state of the `1.200.0` decision, not current live reset policy.
 
-## Json-like normalization follow-up note
+## Json-like normalization and stable JSON serialization follow-up note
 
 This ADR preserves the historical decision context for the `1.200.0` Foundation stable JSON encoder.
 
@@ -48,7 +48,7 @@ At the time of this decision, `StableJsonEncoder` owned its local recursive json
 
 That baseline json-like value validation and recursive deterministic normalization policy is now materialized as a reusable Foundation primitive by epic `1.275.0`.
 
-Canonical live policy for baseline runtime json-like value validation, recursive deterministic normalization, safe path/reason diagnostics, and reason token ownership is owned by:
+Canonical live policy for baseline runtime json-like value validation, recursive deterministic normalization, safe path/reason diagnostics, reason token ownership, and stable JSON encode/decode root-shape entrypoints is owned by:
 
 ```text
 docs/ssot/json-like-runtime-values.md
@@ -65,11 +65,43 @@ The canonical live implementation is:
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
 Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
+Coretsia\Foundation\Serialization\StableJsonEncoder
+Coretsia\Foundation\Serialization\StableJsonDecoder
 ```
 
 `StableJsonEncoder` remains the Foundation stable JSON encoder, but it now delegates baseline json-like normalization to `JsonLikeNormalizer`.
 
-Historical wording in this ADR that describes `StableJsonEncoder` as directly owning recursive json-like normalization should be read as describing the state of the `1.200.0` decision, not current live json-like normalization ownership.
+`StableJsonDecoder` is the Foundation stable JSON decoder. It decodes JSON objects as `stdClass` first, decodes JSON arrays as lists, converts accepted decoded JSON shapes into baseline json-like runtime values, and delegates final baseline validation and deterministic recursive normalization to `JsonLikeNormalizer`.
+
+The generic `encode()` / `encodeStable()` and `decode()` / `decodeStable()` paths are shape-insensitive at the root.
+
+Callers that require root JSON object shape must use:
+
+```text
+StableJsonEncoder::encodeMap(...)
+StableJsonEncoder::encodeStableMap(...)
+StableJsonDecoder::decodeMap(...)
+StableJsonDecoder::decodeStableMap(...)
+```
+
+Callers that require root JSON array shape must use:
+
+```text
+StableJsonEncoder::encodeList(...)
+StableJsonEncoder::encodeStableList(...)
+StableJsonDecoder::decodeList(...)
+StableJsonDecoder::decodeStableList(...)
+```
+
+Empty root maps encoded through `encodeMap()` / `encodeStableMap()` are emitted as JSON object `{}` with a final LF.
+
+Empty root lists encoded through `encodeList()` / `encodeStableList()` are emitted as JSON array `[]` with a final LF.
+
+Empty JSON object `{}` and empty JSON array `[]` both normalize to PHP `[]` in generic decode mode.
+
+Nested empty object/list distinction is not preserved by the baseline json-like model. Schema-specific formats must not rely on that distinction unless a shape-preserving encoder/decoder is introduced.
+
+Historical wording in this ADR that describes `StableJsonEncoder` as directly owning recursive json-like normalization should be read as describing the state of the `1.200.0` decision, not current live json-like normalization or stable JSON serialization ownership.
 
 ## Container diagnostics safety hardening follow-up note
 
@@ -186,7 +218,7 @@ The tag registry SSoT already reserves relevant tags in:
 docs/ssot/tags.md
 ```
 
-Relevant existing reserved tags include:
+Relevant reserved tags include:
 
 ```text
 kernel.reset
@@ -229,7 +261,7 @@ Coretsia will introduce `core/foundation` as the runtime package that owns:
 - canonical `TaggedService` value object;
 - canonical `DeterministicOrder` ordering primitive;
 - Foundation reset orchestrator;
-- Foundation tag constants for already-owned Foundation tags;
+- canonical framework-reserved DI tag identifier registry;
 - Foundation configuration defaults and rules;
 - stable JSON encoder for deterministic diagnostics;
 - container diagnostics snapshot.
@@ -249,9 +281,12 @@ framework/packages/core/foundation/src/Discovery/DeterministicOrder.php
 framework/packages/core/foundation/src/Module/FoundationModule.php
 framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php
 framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php
-framework/packages/core/foundation/src/Provider/Tags.php
 framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php
 framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
+framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
+framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
+framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
+framework/packages/core/foundation/src/Tag/ReservedTags.php
 framework/packages/core/foundation/src/Tag/TagRegistry.php
 framework/packages/core/foundation/src/Tag/TaggedService.php
 framework/packages/core/foundation/config/foundation.php
@@ -406,7 +441,7 @@ Autowiring must not silently guess defaults when the Foundation container config
 
 ## Config decision
 
-`core/foundation` owns the existing reserved config root:
+`core/foundation` owns the reserved config root:
 
 ```text
 foundation
@@ -429,13 +464,15 @@ The defaults file must return the `foundation` subtree only.
 Valid shape:
 
 ```php
+use Coretsia\Foundation\Tag\ReservedTags;
+
 return [
     'container' => [
         'autowire_concrete' => true,
         'allow_reflection_for_concrete' => true,
     ],
     'reset' => [
-        'tag' => 'kernel.reset',
+        'tag' => ReservedTags::KERNEL_RESET,
     ],
 ];
 ```
@@ -472,7 +509,13 @@ The reserved default value is:
 kernel.reset
 ```
 
-`kernel.reset` is the default tag value, not a Kernel-owned runtime feature.
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
+`kernel.reset` is the default Foundation reset discovery tag value.
 
 Consumers outside Foundation must not read or hardcode `foundation.reset.tag` or the default tag string as a runtime discovery shortcut.
 
@@ -520,6 +563,12 @@ all(string $tag): list<Coretsia\Foundation\Tag\TaggedService>
 
 `TagRegistry::all($tag)` is the single source of truth for discovery lists.
 
+`TagRegistry` owns runtime tagged-service discovery lists, deterministic ordering, and dedupe behavior.
+
+`ReservedTags` owns framework-reserved DI tag identifier strings only.
+
+`ReservedTags` MUST NOT be used as a runtime discovery source.
+
 Consumers must treat `TagRegistry->all($tag)` output as canonical.
 
 Consumers must not:
@@ -542,7 +591,9 @@ The tag name grammar follows the canonical tag registry grammar:
 ^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$
 ```
 
-Runtime code should use owner public constants when the owner package is an allowed dependency.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for framework-reserved DI tag identifiers.
+
+Custom non-reserved tag strings MAY be passed directly only when they are owner-defined, documented, and satisfy the canonical tag grammar.
 
 ## Tagged service decision
 
@@ -669,6 +720,20 @@ http.middleware.route
 http.middleware.route_post
 ```
 
+The canonical code-level identifiers for these framework-reserved DI tags are:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP_POST
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE_PRE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE
+Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST
+```
+
 HTTP middleware stack composition must consume each slot through:
 
 ```text
@@ -679,7 +744,7 @@ HTTP middleware consumers must preserve the exact returned order.
 
 HTTP middleware consumers must not re-sort or re-dedupe the slot lists.
 
-The legacy `http.middleware.user*` names remain forbidden by the tag registry policy.
+The non-canonical `http.middleware.user*` names are forbidden by the tag registry policy.
 
 ## CLI discovery decision
 
@@ -697,7 +762,13 @@ A future Kernel-backed CLI mode may use tag-based discovery through:
 cli.command
 ```
 
-only when that mode runs over Kernel/container infrastructure.
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND
+```
+
+This tag may be used only when that mode runs over Kernel/container infrastructure.
 
 `core/foundation` provides the tag registry and deterministic ordering mechanism.
 
@@ -733,9 +804,15 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 The reset orchestrator must:
 
-1. use the effective reset discovery tag supplied by Foundation wiring/config;
+1. use the effective reset discovery tag supplied by Foundation wiring/config, defaulting to `ReservedTags::KERNEL_RESET`;
 2. obtain the discovery list only through `TagRegistry->all($effectiveResetTag)`;
 3. resolve each service through `Psr\Container\ContainerInterface`;
 4. verify that each resolved service implements `Coretsia\Contracts\Runtime\ResetInterface`;
@@ -747,15 +824,15 @@ The reset orchestrator must:
 
 ## Reset ordering decision
 
-Before epic `1.250.0`, reset orchestration runs in legacy/base mode.
+Base reset orchestration uses exact `TagRegistry` discovery order.
 
-Legacy/base mode ordering is single-choice:
+Base mode ordering is single-choice:
 
 ```text
 exact TagRegistry->all($effectiveResetTag) order
 ```
 
-In legacy/base mode the reset executor must not:
+In base mode the reset executor must not:
 
 - parse reset metadata;
 - apply additional sorting;
@@ -775,9 +852,9 @@ group ASC using strcmp after normalization
 serviceId ASC using strcmp
 ```
 
-When enhanced mode is disabled, behavior must remain exact legacy/base mode.
+When enhanced mode is disabled, behavior must remain exact base mode.
 
-Epic `1.200.0` locks only the legacy/base behavior.
+Epic `1.200.0` locks base behavior.
 
 ## Reset failure decision
 
@@ -813,6 +890,12 @@ They must lock only deterministic hard-fail behavior and the stable message.
 
 `kernel.stateful` is a fixed non-configurable enforcement marker.
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
+
 It is used only by CI/static-analysis rails.
 
 Runtime reset execution must not depend on:
@@ -821,10 +904,16 @@ Runtime reset execution must not depend on:
 kernel.stateful
 ```
 
-If a service is stateful, it must be explicitly tagged:
+If a service is stateful, it must be explicitly tagged with:
 
 ```text
 kernel.stateful
+```
+
+Runtime package source MUST use:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
 Any service tagged `kernel.stateful` must:
@@ -836,6 +925,12 @@ The effective Foundation reset discovery tag defaults to:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this reserved default is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 but may be configured through:
@@ -871,19 +966,22 @@ Foundation owns the reset orchestrator.
 
 Kernel owns lifecycle timing and hook execution.
 
-## Stable JSON encoder decision
+## Stable JSON serialization decision
 
-`core/foundation` provides a stable JSON encoder:
+`core/foundation` provides stable JSON serialization primitives:
 
 ```text
 Coretsia\Foundation\Serialization\StableJsonEncoder
+Coretsia\Foundation\Serialization\StableJsonDecoder
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 ```
 
-The encoder exists to produce byte-stable JSON for diagnostics and runtime-safe outputs.
+The stable JSON encoder and decoder exist to produce and consume byte-stable JSON for diagnostics, runtime-safe artifacts, and deterministic structural outputs.
 
-The `1.200.0` decision established the stable JSON encoder behavior.
+The `1.200.0` decision established the original stable JSON encoder behavior.
 
-Current live baseline json-like value validation and recursive deterministic normalization used by `StableJsonEncoder` are owned by:
+Current live baseline json-like value validation and recursive deterministic normalization used by stable JSON serialization are owned by:
 
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
@@ -901,7 +999,7 @@ The canonical live SSoT is:
 docs/ssot/json-like-runtime-values.md
 ```
 
-Accepted input types remain intentionally narrow:
+Accepted baseline runtime json-like values remain intentionally narrow:
 
 ```text
 null
@@ -912,7 +1010,7 @@ list<value>
 array<string, value>
 ```
 
-Rejected input types include:
+Rejected baseline runtime json-like values include:
 
 ```text
 float
@@ -937,9 +1035,10 @@ Stable JSON output rules remain:
 - LF-only;
 - final newline required;
 - no implicit redaction;
-- no environment inspection.
+- no environment inspection;
+- no schema-specific validation.
 
-The required JSON flags remain:
+The required encoder JSON flags remain:
 
 ```text
 JSON_UNESCAPED_SLASHES
@@ -947,21 +1046,96 @@ JSON_UNESCAPED_UNICODE
 JSON_THROW_ON_ERROR
 ```
 
+The required decoder JSON behavior is:
+
+```text
+associative: false
+JSON_THROW_ON_ERROR
+```
+
+The decoder MUST NOT rely on PHP associative JSON decoding because it can collapse JSON object/list distinctions too early.
+
 `StableJsonEncoder` owns only encoder-specific behavior:
 
 - `json_encode()` invocation;
 - JSON flags;
 - final LF;
+- root encode shape entrypoints;
 - stable-json reason mapping;
 - `stable-json-encode-failed`.
 
-`StableJsonEncoder` MUST NOT reintroduce a private recursive json-like walker.
+`StableJsonDecoder` owns only decoder-specific behavior:
+
+- `json_decode()` invocation;
+- `associative: false`;
+- root decode shape entrypoints;
+- decoded JSON object/list root checks;
+- JSON object key safety checks before PHP map conversion;
+- stable-json reason mapping;
+- `stable-json-decode-failed`.
+
+`StableJsonEncoder` and `StableJsonDecoder` MUST NOT reintroduce private competing baseline json-like recursive walkers.
+
+They MAY perform encoder-specific or decoder-specific root-shape checks before delegating baseline validation to `JsonLikeNormalizer`.
+
+Generic stable JSON methods are shape-insensitive at the root:
+
+```text
+StableJsonEncoder::encode(...)
+StableJsonEncoder::encodeStable(...)
+StableJsonDecoder::decode(...)
+StableJsonDecoder::decodeStable(...)
+```
+
+Callers that require root JSON object shape MUST use:
+
+```text
+StableJsonEncoder::encodeMap(...)
+StableJsonEncoder::encodeStableMap(...)
+StableJsonDecoder::decodeMap(...)
+StableJsonDecoder::decodeStableMap(...)
+```
+
+Callers that require root JSON array shape MUST use:
+
+```text
+StableJsonEncoder::encodeList(...)
+StableJsonEncoder::encodeStableList(...)
+StableJsonDecoder::decodeList(...)
+StableJsonDecoder::decodeStableList(...)
+```
+
+`StableJsonEncoder::encodeStableMap([])` MUST emit:
+
+```text
+{}
+```
+
+followed by a final LF.
+
+`StableJsonEncoder::encodeStableList([])` MUST emit:
+
+```text
+[]
+```
+
+followed by a final LF.
+
+`StableJsonDecoder::decodeStableMap('{}')` MUST return an empty PHP array after verifying that the JSON root was an object.
+
+`StableJsonDecoder::decodeStableList('[]')` MUST return an empty PHP array after verifying that the JSON root was an array.
+
+Empty root map/list distinction is preserved only by shape-aware root entrypoints.
+
+Nested empty map/list distinction is not preserved by the baseline json-like model.
+
+Schema-specific formats that require nested object/list distinction MUST use required keys, schema-level validation, or a future shape-preserving serialization model.
 
 Redaction is caller responsibility.
 
-The encoder must not silently accept floats because floats create precision and serialization drift.
+The encoder and decoder must not silently accept floats because floats create precision and serialization drift.
 
-This ADR does not move UoW-specific policy, unsafe metadata key policy, transport payload semantics, DTO semantics, or generic redaction policy into Foundation stable JSON encoding.
+This ADR does not move UoW-specific policy, unsafe metadata key policy, transport payload semantics, DTO semantics, schema-specific validation, or generic redaction policy into Foundation stable JSON serialization.
 
 ## Container diagnostics decision
 
@@ -1177,17 +1351,32 @@ It must not keep mutable runtime state:
 
 Epic `1.200.0` introduces no new tag registry rows.
 
-It implements owner constants for Foundation-owned existing reserved tags:
+Epic `1.200.0` introduces no new tag registry rows.
+
+Framework-reserved DI tag identifier strings are declared in:
 
 ```text
-kernel.reset
-kernel.stateful
+framework/packages/core/foundation/src/Tag/ReservedTags.php
 ```
 
-The implementation path is:
+The canonical runtime class is:
 
 ```text
-framework/packages/core/foundation/src/Provider/Tags.php
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+`ReservedTags` owns identifier strings only.
+
+Runtime semantics, metadata schema, discovery, dispatch, ordering, and validation remain owned by the semantic owner packages declared in:
+
+```text
+docs/ssot/tags.md
+```
+
+Runtime tagged-service discovery remains owned by:
+
+```text
+Coretsia\Foundation\Tag\TagRegistry
 ```
 
 Epic `1.200.0` introduces no new config root registry rows.
@@ -1211,6 +1400,10 @@ Required test areas include:
 - `DeterministicOrder` implements `priority DESC, id ASC`;
 - ordering uses `strcmp` and is locale-independent;
 - `TagRegistry->all($tag)` returns canonical order;
+- `ReservedTags` exposes the canonical framework-reserved DI tag identifier strings;
+- `ReservedTags::all()` returns the canonical reserved tag list without duplicates;
+- runtime package source uses `ReservedTags::*` for framework-reserved DI tag identifiers;
+- runtime package source defines no additional code-level registries for framework-reserved DI tag identifiers;
 - tag dedupe is first-wins;
 - reset orchestrator invokes each resettable service exactly once per cycle;
 - reset orchestrator uses configured `foundation.reset.tag`;
@@ -1227,12 +1420,43 @@ Required test areas include:
 - `ContainerDiagnostics` does not leak URL-like, token-like, credential-like, SQL-like, path-like, control-character, or overlong service ids;
 - `ContainerDiagnostics` preserves normal FQCN service ids and conservative safe aliases when safe;
 
+Additional stable JSON serialization tests must verify that:
+
+- `StableJsonEncoder::encodeStable([])` emits `[]` followed by a final LF;
+- `StableJsonEncoder::encodeStableMap([])` emits `{}` followed by a final LF;
+- `StableJsonEncoder::encodeStableList([])` emits `[]` followed by a final LF;
+- `StableJsonEncoder::encodeStableMap(...)` rejects non-map root values with `stable-json-root-map-required`;
+- `StableJsonEncoder::encodeStableList(...)` rejects non-list root values with `stable-json-root-list-required`;
+- `StableJsonDecoder::decodeStable('{}')` and `StableJsonDecoder::decodeStable('[]')` both normalize to PHP `[]` in generic mode;
+- `StableJsonDecoder::decodeStableMap('{}')` accepts an empty JSON object root;
+- `StableJsonDecoder::decodeStableMap('[]')` rejects a JSON array root with `stable-json-root-map-required`;
+- `StableJsonDecoder::decodeStableList('[]')` accepts an empty JSON array root;
+- `StableJsonDecoder::decodeStableList('{}')` rejects a JSON object root with `stable-json-root-list-required`;
+- `StableJsonDecoder` rejects JSON object keys that cannot be safely represented as PHP string map keys;
+- conversion-stage `JsonLikeNormalizationException` failures are mapped to stable `stable-json-*` failures;
+- normalization-stage `JsonLikeNormalizationException` failures are mapped to stable `stable-json-*` failures;
+- stable JSON encoder and decoder failures do not expose raw JSON payloads, raw rejected values, file paths, secrets, tokens, payload fragments, object class names, resource ids, or environment-specific data.
+
 Architecture gates must verify that `core/foundation` does not depend on forbidden package families.
+
+Repository policy gates must verify that framework-reserved DI tag identifier strings remain synchronized between:
+
+```text
+docs/ssot/tags.md
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+The canonical gate is:
+
+```text
+composer reserved-tags:gate
+```
 
 ## Consequences
 
 Positive consequences:
 
+- Framework-reserved DI tag identifiers have one canonical code-level registry.
 - Runtime packages get one canonical tag discovery mechanism.
 - Service discovery order is stable across operating systems and process locales.
 - HTTP middleware, reset services, CLI commands, error mappers, health checks, and future tagged lists can share one ordering law.
@@ -1246,6 +1470,7 @@ Positive consequences:
 
 Trade-offs:
 
+- Runtime packages must use `ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
 - Provider order must be made deterministic by the upstream module/kernel planner.
 - Foundation does not support arbitrary container extension strategies in this epic.
 - `DeterministicOrder` is not replaceable through DI.
@@ -1386,7 +1611,7 @@ Rejected.
 
 Reset metadata planning belongs to the enhanced reset epic `1.250.0`.
 
-Epic `1.200.0` locks legacy/base reset behavior only.
+Epic `1.200.0` locks base reset behavior only.
 
 Base behavior executes exactly in `TagRegistry->all($effectiveResetTag)` order.
 
@@ -1467,12 +1692,14 @@ This ADR does not implement:
 - unsafe metadata key denylist;
 - transport/request payload semantics;
 - generic redaction engine;
-- tooling gates implementation.
+- tooling gates implementation;
+- package-local constants for framework-reserved DI tags.
 
 ## Related SSoT
 
 - `docs/ssot/di-tags-and-middleware-ordering.md`
 - `docs/ssot/tags.md`
+- `docs/ssot/reset-tags.md`
 - `docs/ssot/config-roots.md`
 - `docs/ssot/json-like-runtime-values.md`
 - `docs/ssot/http-middleware-catalog.md`

@@ -119,13 +119,20 @@ Coretsia\Contracts\Runtime\ResetInterface
 Coretsia\Contracts\Observability\CorrelationIdProviderInterface
 ```
 
-Foundation already owns deterministic reset/tag infrastructure:
+Foundation owns deterministic reset/tag infrastructure:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
+Coretsia\Foundation\Tag\TagRegistry
+```
+
+The corresponding reserved tag strings are:
 
 ```text
 kernel.reset
 kernel.stateful
-Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
-Coretsia\Foundation\Tag\TagRegistry
 ```
 
 The runtime needs a single mutable context store that is reset between units of work. Without a single store, package-local context stores would create drift, stale state leaks, and inconsistent reads between logging, tracing, HTTP, and kernel lifecycle code.
@@ -438,6 +445,12 @@ It MUST be tagged with:
 kernel.stateful
 ```
 
+Runtime package source MUST use:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
+
 It MUST also be tagged with the effective Foundation reset discovery tag.
 
 The effective reset discovery tag is read from:
@@ -450,6 +463,12 @@ The reserved default value is:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 Provider tag wiring MUST use the same effective reset tag resolver used by `ResetOrchestrator`.
@@ -717,7 +736,7 @@ Verification MUST prove:
 - non-string map keys are rejected;
 - callable strings remain accepted as strings;
 - error messages do not expose raw values;
-- `ContextStore` is tagged with `kernel.stateful`;
+- `ContextStore` is tagged with `kernel.stateful` through `ReservedTags::KERNEL_STATEFUL`;
 - `ContextStore` is tagged with the effective Foundation reset discovery tag;
 - provider wiring uses the same `ContextStore` instance for concrete and accessor bindings;
 - correlation id format is stable uppercase ULID;

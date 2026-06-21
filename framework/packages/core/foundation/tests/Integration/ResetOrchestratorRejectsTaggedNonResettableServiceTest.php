@@ -20,10 +20,10 @@ namespace Coretsia\Foundation\Tests\Integration;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
-use Coretsia\Foundation\Provider\Tags;
 use Coretsia\Foundation\Runtime\Reset\ResetErrorCodes;
 use Coretsia\Foundation\Runtime\Reset\ResetException;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use PHPUnit\Framework\TestCase;
 
 final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestCase
@@ -37,7 +37,7 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
             new ResetOrchestratorRejectsNonResettableService(),
         );
 
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.invalid');
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.invalid');
 
         try {
             self::orchestratorFrom($builder)->resetAll();
@@ -63,9 +63,9 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
         $builder->instance('service.reset.invalid', new ResetOrchestratorRejectsNonResettableService());
         $builder->instance('service.reset.after', $after);
 
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.before', 100);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.invalid', 50);
-        $builder->tag(Tags::KERNEL_RESET, 'service.reset.after', 0);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.before', 100);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.invalid', 50);
+        $builder->tag(ReservedTags::KERNEL_RESET, 'service.reset.after', 0);
 
         try {
             self::orchestratorFrom($builder)->resetAll();
@@ -124,7 +124,7 @@ final class ResetOrchestratorRejectsTaggedNonResettableServiceTest extends TestC
                     'allow_reflection_for_concrete' => true,
                 ],
                 'reset' => [
-                    'tag' => Tags::KERNEL_RESET,
+                    'tag' => ReservedTags::KERNEL_RESET,
                 ],
             ],
         ];

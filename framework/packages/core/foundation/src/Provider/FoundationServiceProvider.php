@@ -43,6 +43,7 @@ use Coretsia\Foundation\Observability\Tracing\NoopContextPropagation;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Psr\Clock\ClockInterface;
@@ -132,7 +133,7 @@ final class FoundationServiceProvider implements ServiceProviderInterface
         $builder->instance(CorrelationIdProviderInterface::class, $correlationIdProvider);
 
         $builder->tag($effectiveResetTag, ContextStore::class);
-        $builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);
+        $builder->tag(ReservedTags::KERNEL_STATEFUL, ContextStore::class);
 
         $builder->instance(LoggerInterface::class, $logger);
         $builder->instance(TracerPortInterface::class, $tracer);

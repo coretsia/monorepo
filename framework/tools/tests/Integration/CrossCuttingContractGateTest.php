@@ -27,7 +27,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $sandbox = $this->createCrossCuttingGateSandbox();
 
         $this->writeStatefulService($sandbox, implementsResetInterface: false);
-        $this->writeStatefulProvider($sandbox, resetTagExpression: 'Tags::KERNEL_RESET');
+        $this->writeStatefulProvider($sandbox, resetTagExpression: 'ReservedTags::KERNEL_RESET');
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
@@ -57,7 +57,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $sandbox = $this->createCrossCuttingGateSandbox();
 
         $this->writeStatefulService($sandbox, implementsResetInterface: true);
-        $this->writeStatefulProvider($sandbox, resetTagExpression: 'Tags::KERNEL_RESET');
+        $this->writeStatefulProvider($sandbox, resetTagExpression: 'ReservedTags::KERNEL_RESET');
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
@@ -83,7 +83,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $sandbox = $this->createCrossCuttingGateSandbox(foundationResetTag: 'app.reset');
 
         $this->writeStatefulService($sandbox, implementsResetInterface: true);
-        $this->writeStatefulProvider($sandbox, resetTagExpression: 'Tags::KERNEL_RESET');
+        $this->writeStatefulProvider($sandbox, resetTagExpression: 'ReservedTags::KERNEL_RESET');
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
@@ -111,7 +111,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $sandbox = $this->createCrossCuttingGateSandbox(foundationResetTag: 'Invalid Tag With Spaces');
 
         $this->writeStatefulService($sandbox, implementsResetInterface: true);
-        $this->writeStatefulProvider($sandbox, resetTagExpression: 'Tags::KERNEL_RESET');
+        $this->writeStatefulProvider($sandbox, resetTagExpression: 'ReservedTags::KERNEL_RESET');
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
@@ -227,7 +227,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $this->writeResetInterface($sandbox);
 
         if ($includeFoundationEvidence) {
-            $this->writeFoundationTags($sandbox);
+            $this->writeReservedTags($sandbox);
 
             if ($foundationResetTag !== null) {
                 $this->writeFoundationConfig($sandbox, $foundationResetTag);
@@ -263,13 +263,13 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         );
     }
 
-    private function writeFoundationTags(string $sandbox): void
+    private function writeReservedTags(string $sandbox): void
     {
         $this->writeBytesExact(
-            $sandbox . '/framework/packages/core/foundation/src/Provider/Tags.php',
+            $sandbox . '/framework/packages/core/foundation/src/Tag/ReservedTags.php',
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
-            . "namespace Coretsia\\Foundation\\Provider;\n\n"
+            . "namespace Coretsia\\Foundation\\Tag;\n\n"
             . "final class Tags\n"
             . "{\n"
             . "    public const string KERNEL_STATEFUL = 'kernel.stateful';\n"
@@ -315,7 +315,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
     private function writeStatefulProvider(string $sandbox, ?string $resetTagExpression): void
     {
         $tags = [
-            'Tags::KERNEL_STATEFUL',
+            'ReservedTags::KERNEL_STATEFUL',
         ];
 
         if ($resetTagExpression !== null) {
@@ -464,7 +464,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
             . "        \$contextStore = new ContextStore();\n"
             . "        \$builder->instance(ContextStore::class, \$contextStore);\n"
             . "        \$builder->tag(\$effectiveResetTag, ContextStore::class);\n"
-            . "        \$builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);\n"
+            . "        \$builder->tag(ReservedTags::KERNEL_STATEFUL, ContextStore::class);\n"
             . "    }\n"
             . "}\n",
         );
@@ -521,7 +521,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
             . "        \$builder->instance(UnrelatedService::class, \$unrelated);\n"
             . "        \$builder->instance(ContextStore::class, \$contextStore);\n"
             . "        \$builder->tag(\$effectiveResetTag, ContextStore::class);\n"
-            . "        \$builder->tag(Tags::KERNEL_STATEFUL, ContextStore::class);\n"
+            . "        \$builder->tag(ReservedTags::KERNEL_STATEFUL, ContextStore::class);\n"
             . "    }\n"
             . "}\n",
         );

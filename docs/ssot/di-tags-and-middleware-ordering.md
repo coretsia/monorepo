@@ -26,6 +26,14 @@ It applies to every runtime consumer that obtains ordered service discovery list
 Coretsia\Foundation\Tag\TagRegistry::all(string $tag)
 ```
 
+Framework-reserved DI tag identifier strings are declared separately in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+`ReservedTags` owns identifier strings only. `TagRegistry` owns runtime tagged-service discovery lists, ordering, and dedupe behavior.
+
 This document does not introduce DI tags, config roots, config keys, generated artifacts, middleware classes, middleware stacks, kernel lifecycle behavior, or package-specific tag metadata schemas.
 
 ## Normative language
@@ -56,7 +64,13 @@ docs/ssot/tags.md
 docs/ssot/http-middleware-catalog.md
 ```
 
-The tag registry remains the canonical owner of reserved DI tag names, tag ownership, reserved prefixes, and tag naming rules.
+The tag registry SSoT remains the canonical owner of reserved DI tag names, semantic owner rows, reserved prefixes, and tag naming rules.
+
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
 
 The HTTP middleware catalog remains the canonical owner of HTTP middleware slot taxonomy, slot contents, baseline middleware placement, and HTTP-specific ownership boundaries.
 
@@ -67,6 +81,10 @@ This document MUST NOT redefine tag ownership or registry rows from:
 ```text
 docs/ssot/tags.md
 ```
+
+This document MUST NOT declare or duplicate framework-reserved DI tag identifier constants.
+
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
 
 This document MUST NOT redefine HTTP middleware catalog ownership, slot contents, middleware class placement, optional package participation, or HTTP middleware implementation rules from:
 
@@ -88,6 +106,8 @@ This document does not define:
 - new DI tags;
 - new reserved tag prefixes;
 - tag owner package IDs;
+- reserved tag identifier constants;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - tag metadata schemas;
 - config roots;
 - config keys;
@@ -361,15 +381,21 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 Reset execution MUST obtain the reset list through:
 
 ```text
 TagRegistry->all($effectiveResetTag)
 ```
 
-In legacy/base mode before epic `1.250.0`, reset execution MUST use the exact order returned by `TagRegistry->all($effectiveResetTag)` and MUST NOT apply additional sorting.
+In base mode, reset execution MUST use the exact order returned by `TagRegistry->all($effectiveResetTag)` and MUST NOT apply additional sorting.
 
-Enhanced reset planning from epic `1.250.0` MAY define a reset-specific planned order, but when enhanced mode is disabled, reset execution MUST remain exact legacy/base mode.
+Enhanced reset planning from epic `1.250.0` MAY define a reset-specific planned order, but when enhanced mode is disabled, reset execution MUST remain exact base mode.
 
 This document does not define reset exception taxonomy or reset plan metadata.
 
@@ -454,6 +480,10 @@ docs/ssot/http-middleware-catalog.md
 
 ### Discovering HTTP middleware for a slot
 
+Documentation examples may show raw tag strings for readability.
+
+Runtime package source MUST use the corresponding `ReservedTags::*` constant for framework-reserved DI tags.
+
 ```php
 $middleware = $tagRegistry->all('http.middleware.app_pre');
 
@@ -465,7 +495,7 @@ foreach ($middleware as $taggedService) {
 
 The consumer preserves the exact `TagRegistry->all(...)` order.
 
-### Discovering resettable services in legacy/base mode
+### Discovering resettable services in base mode
 
 ```php
 foreach ($tagRegistry->all($effectiveResetTag) as $taggedService) {
@@ -479,7 +509,7 @@ foreach ($tagRegistry->all($effectiveResetTag) as $taggedService) {
 }
 ```
 
-The reset executor preserves the exact `TagRegistry->all(...)` order in legacy/base mode.
+The reset executor preserves the exact `TagRegistry->all(...)` order in base mode.
 
 ## Incorrect usage examples
 

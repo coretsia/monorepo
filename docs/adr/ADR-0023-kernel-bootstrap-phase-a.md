@@ -1045,7 +1045,7 @@ ResetOrchestrator
 TagRegistry
 ResetInterface
 KernelRuntime
-kernel.reset
+reset DI tag identifiers
 ```
 
 Phase A does not start a unit of work.

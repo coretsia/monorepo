@@ -548,11 +548,11 @@ kernel.uow.attributes.max_keys
 
 This ADR introduces no tags.
 
-This ADR introduces no tag constants.
+This ADR introduces no DI tag identifier constants.
 
 This ADR introduces no generated artifacts.
 
-In particular, this ADR must not introduce reset-tag constants or redefine ownership of:
+This ADR must not introduce reset or hook DI tag identifiers and must not redefine ownership of:
 
 ```text
 kernel.reset
@@ -567,6 +567,12 @@ Tag ownership remains governed by:
 docs/ssot/tags.md
 docs/ssot/reset-tags.md
 docs/ssot/uow-and-reset-contracts.md
+```
+
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
 ```
 
 ## Security and redaction
@@ -798,7 +804,8 @@ This ADR does not implement:
 - hook dispatcher;
 - hook discovery;
 - reset orchestration;
-- reset tag constants;
+- reset DI tag identifier constants;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - outcome mapping;
 - result shape;
 - HTTP response construction;

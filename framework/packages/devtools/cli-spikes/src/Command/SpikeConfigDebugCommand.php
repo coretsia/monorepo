@@ -58,11 +58,9 @@ final class SpikeConfigDebugCommand implements CommandInterface
 
     public function run(InputInterface $input, OutputInterface $output): int
     {
-        $tokens = $input->tokens();
-
-        $key = self::normalizeKey(self::readOptionValue($tokens, 'key'));
+        $key = self::normalizeKey(self::stringOption($input, 'key'));
         $scenarioId = self::normalizeScenarioId(
-            self::readOptionValue($tokens, 'scenario') ?? self::DEFAULT_SCENARIO_ID
+            self::stringOption($input, 'scenario') ?? self::DEFAULT_SCENARIO_ID
         );
 
         if ($key === null) {
@@ -125,35 +123,6 @@ final class SpikeConfigDebugCommand implements CommandInterface
             $output->error(CliErrorCodes::CORETSIA_CLI_COMMAND_FAILED, 'unexpected-exception');
             return SpikesExitCodeMapper::failure();
         }
-    }
-
-    /**
-     * Supports:
-     * - --key=value
-     * - --key value
-     */
-    private static function readOptionValue(array $tokens, string $name): ?string
-    {
-        $needleEq = '--' . $name . '=';
-
-        $n = \count($tokens);
-        for ($i = 0; $i < $n; $i++) {
-            $t = $tokens[$i] ?? null;
-            if (!\is_string($t) || $t === '') {
-                continue;
-            }
-
-            if (\str_starts_with($t, $needleEq)) {
-                return \substr($t, \strlen($needleEq));
-            }
-
-            if ($t === '--' . $name) {
-                $next = $tokens[$i + 1] ?? null;
-                return \is_string($next) ? $next : null;
-            }
-        }
-
-        return null;
     }
 
     private static function normalizeKey(?string $key): ?string
@@ -229,5 +198,12 @@ final class SpikeConfigDebugCommand implements CommandInterface
             && \is_string($result['key'])
             && \is_array($result['resolved'])
             && \is_array($result['trace']);
+    }
+
+    private static function stringOption(InputInterface $input, string $name): ?string
+    {
+        $value = $input->option($name);
+
+        return \is_string($value) ? $value : null;
     }
 }

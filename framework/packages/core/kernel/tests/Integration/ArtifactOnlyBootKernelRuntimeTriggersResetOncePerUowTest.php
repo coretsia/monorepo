@@ -29,8 +29,8 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -128,7 +128,7 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
             [
                 'kind' => 'parameter',
                 'name' => 'reset.tag',
-                'value' => FoundationTags::KERNEL_RESET,
+                'value' => ReservedTags::KERNEL_RESET,
             ],
             [
                 'kind' => 'service.class',
@@ -304,7 +304,7 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
             ],
             [
                 'kind' => 'tag',
-                'tag' => FoundationTags::KERNEL_RESET,
+                'tag' => ReservedTags::KERNEL_RESET,
                 'serviceId' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
                 'priority' => 0,
                 'meta' => [],

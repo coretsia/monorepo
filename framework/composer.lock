@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "838aa55b3695cd3ef1480607c18c03cb",
+    "content-hash": "a4a895e5a48ea61437c7ff86bbbc2be6",
     "packages": [],
     "packages-dev": [
         {
@@ -155,7 +155,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/contracts",
-                "reference": "b3fb945239f4affef66c61847efbc69f2d2f4715"
+                "reference": "34b031d8aec8c4b9706a9507c0f1c9e7dcb839f8"
             },
             "require": {
                 "php": "^8.4"
@@ -211,7 +211,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "bb412a38a74aa79dac037044b86000a7c91c750c"
+                "reference": "3ce87f71421ec1728da2cb9e821448b1387f01fc"
             },
             "require": {
                 "php": "^8.4"
@@ -267,7 +267,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "0854ebfe3b25ba7cdaa195595ccb9331da7eab86"
+                "reference": "3b867706c1d9aad7ad67aab5d98efd5bb7b22f4e"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -337,12 +337,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/kernel",
-                "reference": "34e1a802fdaafad4c9f593698d8dfca3870a813b"
+                "reference": "658392dd066071aa497c5d53452532be2e4da664"
             },
             "require": {
                 "composer-runtime-api": "^2.2",
                 "coretsia/core-contracts": "^0.4.0",
                 "coretsia/core-foundation": "^0.4.0",
+                "ext-ctype": "*",
                 "php": "^8.4",
                 "psr/container": "^2.0",
                 "psr/log": "^3.0"
@@ -410,7 +411,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/cli-spikes",
-                "reference": "59d2cf8addccb10bc3848a224277b787a2c25211"
+                "reference": "a912a36598f269090be74e0b6c97ea00797eb6f1"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -467,7 +468,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "977080c4d59d5fe2014b92d170383de3ccd9c345"
+                "reference": "5637d9ceb87766f903bf6baf29881173674e3910"
             },
             "require": {
                 "ext-json": "*",
@@ -523,7 +524,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "e0e786af8e7bc0f935512615411ba9a28b898477"
+                "reference": "d297206ca17484cf3bc716270fce701ba7d6d0a7"
             },
             "require": {
                 "coretsia/core-contracts": "^0.4.0",
@@ -573,6 +574,86 @@
                 "php",
                 "redaction",
                 "runtime"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "coretsia/platform-worker",
+            "version": "0.4.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/worker",
+                "reference": "683b823a70e42fab76f6f65d71b44df6e0e7ff33"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.4.0",
+                "coretsia/core-foundation": "^0.4.0",
+                "coretsia/core-kernel": "^0.4.0",
+                "php": "^8.4",
+                "psr/container": "^2.0",
+                "psr/http-message": "^2.0",
+                "psr/http-server-handler": "^1.0",
+                "psr/log": "^3.0"
+            },
+            "suggest": {
+                "ext-pcntl": "Enables the optional pcntl worker manager driver on supported Unix-like platforms.",
+                "ext-posix": "Enables POSIX signal handling for the optional pcntl worker manager driver on supported Unix-like platforms."
+            },
+            "bin": [
+                "bin/coretsia-worker"
+            ],
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.worker",
+                    "moduleClass": "Coretsia\\Platform\\Worker\\Module\\WorkerModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Worker\\Provider\\WorkerServiceProvider"
+                    ],
+                    "requires": [
+                        "core.kernel"
+                    ],
+                    "conflicts": [],
+                    "defaultsConfigPath": "config/worker.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Worker\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Worker\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Coretsia Team",
+                    "email": "team@coretsia.dev",
+                    "homepage": "https://coretsia.dev/"
+                }
+            ],
+            "description": "Coretsia long-running worker runtime package: worker pool orchestration, application workers, and deterministic runtime safety.",
+            "keywords": [
+                "coretsia",
+                "deterministic",
+                "framework",
+                "http",
+                "long-running",
+                "php",
+                "processes",
+                "queue",
+                "reset",
+                "runtime",
+                "worker"
             ],
             "transport-options": {
                 "symlink": true,
@@ -1614,16 +1695,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.29",
+            "version": "12.5.30",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "9aa66a47db3ea70f1a468e66dd969f67e594945a"
+                "reference": "900400a5b616d6fb306f9549f6da33ba615d3fbb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/9aa66a47db3ea70f1a468e66dd969f67e594945a",
-                "reference": "9aa66a47db3ea70f1a468e66dd969f67e594945a",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/900400a5b616d6fb306f9549f6da33ba615d3fbb",
+                "reference": "900400a5b616d6fb306f9549f6da33ba615d3fbb",
                 "shasum": ""
             },
             "require": {
@@ -1692,7 +1773,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.29"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.30"
             },
             "funding": [
                 {
@@ -1700,7 +1781,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-06-04T06:14:42+00:00"
+            "time": "2026-06-15T13:12:30+00:00"
         },
         {
             "name": "psr/clock",
@@ -1852,6 +1933,115 @@
                 "source": "https://github.com/php-fig/event-dispatcher/tree/1.0.0"
             },
             "time": "2019-01-08T18:20:26+00:00"
+        },
+        {
+            "name": "psr/http-message",
+            "version": "2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-message.git",
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.2 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for HTTP messages",
+            "homepage": "https://github.com/php-fig/http-message",
+            "keywords": [
+                "http",
+                "http-message",
+                "psr",
+                "psr-7",
+                "request",
+                "response"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/http-message/tree/2.0"
+            },
+            "time": "2023-04-04T09:54:51+00:00"
+        },
+        {
+            "name": "psr/http-server-handler",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-server-handler.git",
+                "reference": "84c4fb66179be4caaf8e97bd239203245302e7d4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-server-handler/zipball/84c4fb66179be4caaf8e97bd239203245302e7d4",
+                "reference": "84c4fb66179be4caaf8e97bd239203245302e7d4",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0",
+                "psr/http-message": "^1.0 || ^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for HTTP server-side request handler",
+            "keywords": [
+                "handler",
+                "http",
+                "http-interop",
+                "psr",
+                "psr-15",
+                "psr-7",
+                "request",
+                "response",
+                "server"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/http-server-handler/tree/1.0.2"
+            },
+            "time": "2023-04-10T20:06:20+00:00"
         },
         {
             "name": "psr/log",
@@ -4156,16 +4346,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.2.2",
+            "version": "13.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "3da31a9c267ead69664eb1258aaea62bf9b66f79"
+                "reference": "94f56bce0420d4e837a85c4b2c6501293a5974eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/3da31a9c267ead69664eb1258aaea62bf9b66f79",
-                "reference": "3da31a9c267ead69664eb1258aaea62bf9b66f79",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/94f56bce0420d4e837a85c4b2c6501293a5974eb",
+                "reference": "94f56bce0420d4e837a85c4b2c6501293a5974eb",
                 "shasum": ""
             },
             "require": {
@@ -4200,9 +4390,9 @@
                 "static analysis"
             ],
             "support": {
-                "source": "https://github.com/ecsphp/ecs/tree/13.2.2"
+                "source": "https://github.com/ecsphp/ecs/tree/13.2.3"
             },
-            "time": "2026-06-13T19:45:53+00:00"
+            "time": "2026-06-15T22:08:41+00:00"
         },
         {
             "name": "theseer/tokenizer",
@@ -4264,7 +4454,8 @@
         "coretsia/core-kernel": 20,
         "coretsia/devtools-cli-spikes": 20,
         "coretsia/devtools-internal-toolkit": 20,
-        "coretsia/platform-cli": 20
+        "coretsia/platform-cli": 20,
+        "coretsia/platform-worker": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
@@ -4274,7 +4465,6 @@
     "platform-dev": {
         "ext-ctype": "*",
         "ext-dom": "*",
-        "ext-imagick": "*",
         "ext-libxml": "*"
     },
     "platform-overrides": {

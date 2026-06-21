@@ -84,6 +84,12 @@ The reserved default value is:
 kernel.reset
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
+
 Kernel runtime must call the single Foundation reset executor:
 
 ```text
@@ -104,7 +110,7 @@ TagRegistry->all($effectiveResetTag)
 priority DESC, id ASC
 ```
 
-Therefore legacy/base reset order is not insertion order. Legacy/base reset order is exactly the output of:
+Therefore base reset order is not insertion order. Base reset order is exactly the output of:
 
 ```text
 TagRegistry->all($effectiveResetTag)
@@ -194,19 +200,21 @@ Kernel runtime MUST call:
 ResetOrchestrator::resetAll()
 ```
 
-Kernel runtime MUST NOT enumerate:
+Kernel runtime MUST NOT enumerate the reset discovery tag or the stateful marker directly.
+
+The relevant reserved tag identifiers are:
 
 ```text
-kernel.reset
-kernel.stateful
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
-or any configured reset tag directly.
+Kernel runtime MUST use the Foundation reset executor boundary only.
 
 `ResetOrchestrator` owns mode selection:
 
 ```text
-foundation.reset.priority.enabled=false → legacy/base mode
+foundation.reset.priority.enabled=false → base mode
 foundation.reset.priority.enabled=true  → enhanced mode
 ```
 
@@ -245,9 +253,9 @@ effective reset discovery tag
 → ResetOrchestrator::resetAll()
 ```
 
-The priority flag controls only whether reset execution uses legacy/base ordering or enhanced planning.
+The priority flag controls only whether reset execution uses base ordering or enhanced planning.
 
-## Decision 3: Legacy/base mode preserves exact TagRegistry order
+## Decision 3: Base mode preserves exact TagRegistry order
 
 When enhanced reset planning is disabled:
 
@@ -279,7 +287,7 @@ Because `TagRegistry::all()` already sorts discovery lists as:
 priority DESC, id ASC
 ```
 
-legacy/base mode means exact registry output order, not insertion order.
+Base mode means exact registry output order, not insertion order.
 
 ## Decision 4: Enhanced mode uses priority, group, and service id ordering
 
@@ -789,8 +797,10 @@ return ['foundation' => [...]];
 The reset defaults are:
 
 ```php
+use Coretsia\Foundation\Tag\ReservedTags;
+
 'reset' => [
-    'tag' => 'kernel.reset',
+    'tag' => ReservedTags::KERNEL_RESET,
     'priority' => [
         'enabled' => true,
     ],
@@ -884,7 +894,7 @@ Reset behavior remains available through one stable public entrypoint.
 
 Kernel runtime does not need to change its reset call site.
 
-Legacy/base mode remains available and preserves exact `TagRegistry` order.
+Base mode remains available and preserves exact `TagRegistry` order.
 
 Enhanced mode gives deterministic priority/group reset ordering for long-running runtimes.
 
@@ -904,7 +914,7 @@ Config defaults and runtime validation use the same reset group id shape.
 
 ### Negative / trade-offs
 
-Default enhanced mode is enabled in 1.250.0, so old tests that assumed legacy ordering must explicitly set:
+Default enhanced mode is enabled in 1.250.0, so tests that need base ordering must explicitly set:
 
 ```php
 'priority' => ['enabled' => false]
@@ -940,13 +950,13 @@ ResetOrchestrator::resetAll()
 
 as the stable runtime boundary.
 
-### Alternative 2: Treat legacy order as insertion order
+### Alternative 2: Treat base order as insertion order
 
 Rejected.
 
 `TagRegistry::all()` already returns canonical deterministic discovery order.
 
-Legacy/base mode means exact `TagRegistry->all($effectiveResetTag)` output.
+Base mode means exact `TagRegistry->all($effectiveResetTag)` output.
 
 It does not mean provider insertion order.
 
@@ -1153,7 +1163,7 @@ Unit of Work finishes
 → Kernel runtime after-UoW phase
 → ResetOrchestrator::resetAll()
 → effective reset discovery tag from foundation.reset.tag
-→ legacy/base or enhanced reset execution
+→ base or enhanced reset execution
 → next Unit of Work starts without previous mutable state
 ```
 

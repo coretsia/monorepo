@@ -581,9 +581,9 @@ The contracts package must not introduce:
 - package config files;
 - config defaults;
 - config rules;
-- database DI tag constants;
-- migration DI tag constants;
-- package-local mirror constants for database or migration tags;
+- database DI tag identifier constants;
+- migration DI tag identifier constants;
+- additional code-level registries for database or migration DI tag identifiers;
 - database artifacts;
 - migration artifacts;
 - schema artifacts;
@@ -595,7 +595,9 @@ The contracts package must not introduce:
 
 Configuration ownership belongs to future runtime owner packages and must go through the config roots registry process.
 
-DI tag ownership belongs to future runtime owner packages and must go through the tag registry process.
+DI tag ownership belongs to runtime owner packages and must go through the tag registry process.
+
+Framework-reserved DI tag identifier strings must be declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 Artifact ownership belongs to future runtime owner packages and must go through the artifact registry process.
 
@@ -824,6 +826,8 @@ Rejected.
 
 DI tag ownership is governed by `docs/ssot/tags.md`.
 
+Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+
 This epic does not need database or migration discovery tags in `core/contracts`.
 
 Future runtime owners may introduce tags through their own owner epics.
@@ -857,7 +861,7 @@ transaction manager implementation
 connection registry
 connection factory implementation
 database exception mapper
-DI tag constants
+DI tag identifier constants
 artifact files
 ```
 

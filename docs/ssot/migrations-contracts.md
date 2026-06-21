@@ -767,11 +767,11 @@ Those paths are not introduced by `core/contracts`.
 
 Epic `1.150.0` introduces no DI tags.
 
-The contracts package MUST NOT declare public migration tag constants.
+The contracts package MUST NOT declare migration tag constants.
 
-The contracts package MUST NOT declare public database tag constants.
+The contracts package MUST NOT declare database tag constants.
 
-The contracts package MUST NOT define package-local mirror constants for migration or database tags.
+The contracts package MUST NOT define migration or database tag identifier constants.
 
 The contracts package MUST NOT define migration tag metadata keys, migration tag priority semantics, migration discovery semantics, or migration runner semantics.
 
@@ -781,7 +781,13 @@ If a future runtime owner needs migration DI tags, that owner MUST introduce the
 docs/ssot/tags.md
 ```
 
-according to tag registry rules.
+If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
+```
+
+Runtime packages MUST NOT define additional code-level registries for framework-reserved migration or database tag identifiers.
 
 ## Artifact policy
 
@@ -946,7 +952,7 @@ This test is expected to verify:
 - migration contracts do not depend on `Psr\Http\Message\*`;
 - migration contracts do not depend on PDO or vendor database concretes;
 - migration contracts do not expose streams, resources, iterators, generators, closures, or vendor migration objects;
-- migration contracts do not declare DI tag constants;
+- migration contracts do not declare DI tag identifier constants;
 - migration contracts do not introduce config or artifact concepts.
 
 Architecture gates are expected to verify that `core/contracts` does not introduce forbidden compile-time dependencies.

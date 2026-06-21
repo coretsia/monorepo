@@ -668,9 +668,9 @@ Epic `1.270.0` defines this policy and its contract evidence only.
 
 Runtime lifecycle implementation is introduced by a later Kernel runtime epic.
 
-## Decision 18: No reset tag constants are introduced
+## Decision 18: No reset DI tag identifiers are introduced
 
-Epic `1.270.0` must not introduce reset-tag constants.
+Epic `1.270.0` must not introduce reset DI tag identifier constants.
 
 Epic `1.270.0` must not depend on reset tag naming.
 
@@ -684,6 +684,12 @@ Reset tag naming and tag ownership remain governed by:
 docs/ssot/tags.md
 docs/ssot/reset-tags.md
 docs/ssot/uow-and-reset-contracts.md
+```
+
+The canonical code-level registry for framework-reserved DI tag identifier strings is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags
 ```
 
 This ADR may reference `ResetOrchestrator.resetAll()` as the canonical reset trigger action.
@@ -1030,11 +1036,13 @@ The reset guarantee is required to prevent state leakage into the next UnitOfWor
 
 Once the after-phase is entered, reset must run exactly once even if an after hook throws.
 
-### Introduce reset-tag constants in Kernel
+### Introduce reset DI tag identifiers in Kernel
 
 Rejected.
 
 Reset discovery and reset tag mechanics remain owned by Foundation and the tag SSoTs.
+
+Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 This epic cements only the lifecycle invariant.
 
@@ -1063,7 +1071,8 @@ This ADR does not implement:
 - hook discovery;
 - reset orchestration;
 - reset discovery;
-- reset tag constants;
+- reset DI tag identifier constants;
+- additional code-level registries for framework-reserved DI tag identifiers;
 - `TagRegistry` enumeration logic;
 - reset failure aggregation policy;
 - HTTP response construction;

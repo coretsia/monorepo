@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
-use Coretsia\Foundation\Provider\Tags as FoundationTags;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -82,7 +82,7 @@ final class KernelDoesNotEnumerateResetDiscoveryTagTest extends TestCase
         self::assertSame(
             [],
             $violations,
-            "core/kernel/src/** must not reference Foundation Tags::KERNEL_RESET and must not define a competing KERNEL_RESET constant.\n"
+            "core/kernel/src/** must not call TagRegistry::all(ReservedTags::KERNEL_RESET) or define a competing KERNEL_RESET constant.\n"
             . self::formatViolations($violations),
         );
     }
@@ -169,11 +169,11 @@ final class KernelDoesNotEnumerateResetDiscoveryTagTest extends TestCase
         self::assertNotContains(ResetInterface::class, $parameterTypes);
     }
 
-    public function testResetTagOwnershipRemainsInFoundation(): void
+    public function testResetTagIdentifierExistsInReservedTagsRegistry(): void
     {
-        self::assertSame(self::RESET_TAG_LITERAL, FoundationTags::KERNEL_RESET);
+        self::assertSame(self::RESET_TAG_LITERAL, ReservedTags::KERNEL_RESET);
 
-        $foundationTagsReflection = new ReflectionClass(FoundationTags::class);
+        $foundationTagsReflection = new ReflectionClass(ReservedTags::class);
 
         self::assertTrue($foundationTagsReflection->hasConstant(self::RESET_TAG_CONSTANT));
     }

@@ -891,6 +891,12 @@ Baseline context services MUST remain resolvable even when concrete autowiring i
 kernel.stateful
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
+```
+
 `ContextStore` MUST also be tagged with the effective Foundation reset discovery tag.
 
 The effective Foundation reset discovery tag is resolved from:
@@ -903,6 +909,12 @@ The reserved default is:
 
 ```text
 kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
 
 Provider tag wiring MUST use the same effective reset tag resolver used by `ResetOrchestrator`.

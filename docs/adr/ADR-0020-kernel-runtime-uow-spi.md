@@ -377,9 +377,21 @@ Kernel runtime code MUST NOT enumerate reset services directly.
 
 Kernel runtime code MUST NOT call `ResetInterface::reset()` directly on discovered services.
 
-Kernel runtime code MUST NOT own or define the `kernel.reset` tag.
+Kernel runtime code MUST NOT own reset discovery tag identifiers.
 
-The reset discovery tag remains Foundation-owned.
+The Foundation reset discovery tag remains Foundation-owned.
+
+The reserved default reset discovery tag is:
+
+```text
+kernel.reset
+```
+
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
+```
 
 ## Observability decision
 
@@ -546,7 +558,7 @@ This ADR does not define:
 - a contracts-level UnitOfWork object;
 - a second json-like policy in `core/kernel`;
 - reset service discovery in `core/kernel`;
-- reset tag ownership in `core/kernel`;
+- reset DI tag identifier ownership in `core/kernel`;
 - hook priority metadata schema;
 - hook retry policy;
 - hook timeout policy;
@@ -582,7 +594,7 @@ These tests are expected to verify:
 - adapters consume the contracts port;
 - Kernel does not define a competing runtime interface;
 - Kernel does not expose PSR-7/15 in public runtime APIs;
-- Kernel does not enumerate reset discovery tags;
+- Kernel does not enumerate reset discovery tags or depend on reset DI tag identifiers directly;
 - Kernel delegates reset to Foundation `ResetOrchestrator`;
 - Kernel provider binds the contracts port to the Kernel implementation.
 

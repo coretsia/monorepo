@@ -196,6 +196,12 @@ The canonical reserved discovery tag is:
 error.mapper
 ```
 
+The canonical code-level identifier for this framework-reserved DI tag is:
+
+```text
+Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
+```
+
 The tag is registered in:
 
 ```text
@@ -208,7 +214,7 @@ The contracts package MUST NOT declare this tag as a public constant.
 
 The contracts package MUST NOT own mapper registry semantics.
 
-Non-owner packages using the tag MUST follow the tag registry rules and MUST NOT redefine competing semantics or competing metadata schema for `error.mapper`.
+Non-owner packages using the tag MUST follow the tag registry rules, MUST use `Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER` in runtime package source, and MUST NOT redefine competing semantics, competing metadata schema, or additional code-level registries for `error.mapper`.
 
 ## Forbidden dependency directions
 

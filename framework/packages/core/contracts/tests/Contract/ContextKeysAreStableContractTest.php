@@ -16,9 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Foundation\Tests\Contract;
+namespace Coretsia\Contracts\Tests\Contract;
 
-use Coretsia\Foundation\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextKeys;
 use PHPUnit\Framework\TestCase;
 
 final class ContextKeysAreStableContractTest extends TestCase

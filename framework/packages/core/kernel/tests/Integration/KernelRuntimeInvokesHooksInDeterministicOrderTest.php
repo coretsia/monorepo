@@ -18,10 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface;
 use Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface;
-use Coretsia\Foundation\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;

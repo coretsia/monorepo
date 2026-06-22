@@ -372,7 +372,7 @@ len(value)
 
 and only when allowed by the owner policy.
 
-The following keys are reserved for later safe use only and are not baseline writers in this epic:
+The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
 
 ```text
 request_id
@@ -382,9 +382,14 @@ actor_id
 tenant_id
 ```
 
-Concrete `Coretsia\Foundation\Context\ContextKeys` constants are introduced and locked only by the owning Foundation epic.
+Concrete `Coretsia\Contracts\Context\ContextKeys` constants are owned by the public context key registry.
 
-This coordination epic MUST NOT require that class before the owner package is reviewed and fixed.
+Middleware catalog policy MUST reference only canonical keys declared by:
+
+```text
+docs/ssot/context-keys.md
+Coretsia\Contracts\Context\ContextKeys
+```
 
 ## Unit-of-work and reset discipline
 
@@ -922,7 +927,7 @@ They are not owned by this epic.
 Future owner-package evidence may include:
 
 ```text
-framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php
+framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
 framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php
 framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php

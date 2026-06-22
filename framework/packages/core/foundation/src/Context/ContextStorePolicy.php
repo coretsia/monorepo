@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Context;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\Exception\ContextInvalidKeyException;
 use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
 use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
@@ -26,8 +27,8 @@ use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 /**
  * Always-on safe-write guard for ContextStore.
  *
- * The policy accepts only canonical keys from ContextKeys and json-like
- * deterministic values:
+ * The policy accepts only keys declared by the public ContextKeys contract
+ * registry and json-like deterministic values:
  *
  * - null
  * - bool
@@ -38,9 +39,12 @@ use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
  *
  * ContextStorePolicy owns context-specific write policy:
  *
- * - canonical ContextKeys allowlist;
+ * - public ContextKeys contract allowlist;
  * - reserved @* key rejection;
  * - context-specific exception mapping.
+ *
+ * The context key vocabulary is owned by core/contracts. This class owns
+ * write validation only.
  *
  * Baseline json-like value validation is delegated to JsonLikeNormalizer.
  *

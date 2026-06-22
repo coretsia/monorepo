@@ -55,6 +55,18 @@ The external runtime port is:
 Coretsia\Contracts\Runtime\KernelRuntimeInterface
 ```
 
+Base UnitOfWork context key identifiers are provided by:
+
+```text
+Coretsia\Contracts\Context\ContextKeys
+```
+
+The read-only context access boundary is provided by:
+
+```text
+Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
 The concrete Kernel implementation is:
 
 ```text
@@ -73,6 +85,8 @@ The contracts package owns:
 Coretsia\Contracts\Runtime\KernelRuntimeInterface
 Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface
 Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface
+Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 The Kernel package owns:
@@ -242,7 +256,7 @@ Those internal objects are Kernel-owned and must not become part of the contract
 
 - validating UnitOfWork type tokens;
 - creating UnitOfWork context objects;
-- writing base context keys;
+- writing base context keys using `Coretsia\Contracts\Context\ContextKeys`;
 - invoking before-uow hooks;
 - executing the external body for the high-level API;
 - validating low-level exported context arrays;
@@ -253,6 +267,18 @@ Those internal objects are Kernel-owned and must not become part of the contract
 - delegating reset to Foundation reset orchestration;
 - preserving deterministic failure precedence;
 - emitting safe lifecycle summary observability.
+
+The Kernel-owned base context writes are:
+
+```text
+Coretsia\Contracts\Context\ContextKeys::CORRELATION_ID
+Coretsia\Contracts\Context\ContextKeys::UOW_ID
+Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
+```
+
+Importing `ContextKeys` provides stable key vocabulary only.
+
+Write ownership remains Kernel-owned for these base UnitOfWork keys.
 
 ## Hook payload production decision
 
@@ -311,7 +337,7 @@ They do not construct or typehint the concrete implementation.
 
 The concrete `KernelRuntime` receives its implementation dependencies through DI, including:
 
-- Foundation `ContextStore`;
+- Foundation `ContextStore` for Kernel-owned base context writes;
 - Foundation `ResetOrchestrator`;
 - Foundation `Stopwatch`;
 - Foundation `IdGeneratorInterface`;
@@ -590,6 +616,7 @@ These tests are expected to verify:
 - `core/contracts` owns the external `KernelRuntimeInterface`;
 - `core/kernel` owns the `KernelRuntime` implementation;
 - `core/contracts` owns hook signatures;
+- `core/contracts` owns public context key identifiers used by Kernel base context writes;
 - `core/kernel` owns normalized hook payload production;
 - adapters consume the contracts port;
 - Kernel does not define a competing runtime interface;
@@ -605,6 +632,7 @@ These tests are expected to verify:
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/context-keys.md`
+- `docs/ssot/context-store.md`
 
 ## Related ADRs
 

@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
@@ -25,7 +26,6 @@ use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
-use Coretsia\Foundation\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;

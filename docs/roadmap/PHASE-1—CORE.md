@@ -4743,7 +4743,7 @@ N/A
   - [x] stateful services MUST also be discoverable through Foundation reset discovery (effective reset tag; reserved default `kernel.reset`)
   - [x] runtime execution MUST NOT depend on `kernel.stateful`; it is enforcement-only
 
-- [x] Concrete `Coretsia\Foundation\Context\ContextKeys` constants are introduced and locked only by the owning Foundation epic; this coordination epic MUST NOT require that class before the owner package is reviewed and fixed.
+- [x] Concrete `Coretsia\Contracts\Context\ContextKeys` constants are introduced and locked only by the owning Foundation epic; this coordination epic MUST NOT require that class before the owner package is reviewed and fixed.
 
 #### Observability (policy-compliant)
 
@@ -4802,7 +4802,7 @@ N/A
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - Future owner-package evidence (reference only; NOT owned by this epic):
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
   - [x] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
   - [x] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
   - [x] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
@@ -5678,7 +5678,7 @@ ssot_refs:
   - ContextStore MUST NOT store direct user identifiers:
     - email, phone, full name, external account identifiers (unless explicitly introduced later as safe ids).
   - Request metadata keys (e.g. `client_ip`, `user_agent`, `host`, `path`) are allowed ONLY if:
-    - the key is declared in `Coretsia\Foundation\Context\ContextKeys`
+    - the key is declared in `Coretsia\Contracts\Context\ContextKeys`
     - and the value obeys ContextStorePolicy (JSON-safe types, no floats, no objects).
   - For potentially sensitive request metadata (e.g. `client_ip`):
     - writers SHOULD prefer normalization or hashing when feasible (policy guidance),
@@ -5706,7 +5706,7 @@ Forbidden:
   - `Coretsia\Contracts\Runtime\ResetInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -5733,7 +5733,7 @@ Forbidden:
 #### Creates
 
 Context keys + store:
-- [x] `framework/packages/core/foundation/src/Context/ContextKeys.php`
+- [x] `framework/packages/core/contracts/src/Context/ContextKeys.php`
   - [x] canonical keys (Phase 0 list + reserved future list)
 - [x] `framework/packages/core/foundation/src/Context/ContextBag.php`
   - [x] immutable snapshot view
@@ -5767,7 +5767,7 @@ Context keys + store:
     - [x] MUST NOT include the raw value
     - [x] MAY include only a stable path-to-value (e.g. `a.b[3].c`)
 - [x] **Context key allowlist (single-choice; cemented):**
-  - [x] `ContextStorePolicy` MUST allow writes ONLY for keys declared in `Coretsia\Foundation\Context\ContextKeys`.
+  - [x] `ContextStorePolicy` MUST allow writes ONLY for keys declared in `Coretsia\Contracts\Context\ContextKeys`.
   - [x] Any attempt to write a key not present in `ContextKeys` MUST fail deterministically.
   - [x] Rationale: prevents uncontrolled key sprawl; `ContextKeys` remains the only SSoT.
 
@@ -5816,7 +5816,7 @@ Tests:
 - [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php`
 - [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
 - [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
 - [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
 - [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
 - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
@@ -5936,7 +5936,7 @@ N/A
 
 - [x] If Context writes exist → `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
 - [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-- [x] If key stability is promised → `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] If key stability is promised → `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5948,7 +5948,7 @@ N/A
   - [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
   - [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
   - [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
   - [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
 - Integration:
@@ -6344,7 +6344,7 @@ Forbidden:
   - `Coretsia\Contracts\Runtime\ResetInterface`
 - Foundation stable APIs (conceptual):
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -10105,7 +10105,7 @@ ssot_refs:
   - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing port.
   - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics port.
   - `framework/packages/core/foundation/src/Context/ContextStore.php` — safe context store.
-  - `framework/packages/core/foundation/src/Context/ContextKeys.php` — canonical base context keys.
+  - `framework/packages/core/contracts/src/Context/ContextKeys.php` — canonical base context keys.
   - `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php` — reset executor boundary.
   - `framework/packages/core/foundation/src/Tag/TagRegistry.php` — deterministic tag ordering source.
   - `framework/packages/core/foundation/src/Time/Stopwatch.php` — canonical duration measurement.
@@ -10172,7 +10172,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` — only reset execution boundary KernelRuntime may call.
   - `Coretsia\Foundation\Tag\TagRegistry`
   - `Psr\Clock\ClockInterface` (via foundation binding)

@@ -855,9 +855,9 @@ begin → hooks → external runtime → after → reset
 `KernelRuntime` writes these base context keys before the external runtime body is executed:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys::CORRELATION_ID
-Coretsia\Foundation\Context\ContextKeys::UOW_ID
-Coretsia\Foundation\Context\ContextKeys::UOW_TYPE
+Coretsia\Contracts\Context\ContextKeys::CORRELATION_ID
+Coretsia\Contracts\Context\ContextKeys::UOW_ID
+Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 ```
 
 Before hooks receive the normalized exported UnitOfWork context array.

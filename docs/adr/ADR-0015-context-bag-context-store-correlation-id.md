@@ -143,10 +143,10 @@ This ADR records the decision introduced by epic `1.210.0`.
 
 ## Decision
 
-Foundation introduces a single runtime context model:
+The runtime context model uses one public key registry and one Foundation-owned mutable store:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 Coretsia\Foundation\Context\ContextBag
 Coretsia\Foundation\Context\ContextStore
 Coretsia\Foundation\Context\ContextStorePolicy
@@ -162,9 +162,13 @@ docs/ssot/context-keys.md
 docs/ssot/context-store.md
 ```
 
-## Decision 1: ContextKeys is the canonical key registry
+## Decision 1: ContextKeys is the canonical public key registry
 
-`Coretsia\Foundation\Context\ContextKeys` is the runtime implementation of the canonical context key registry.
+`Coretsia\Contracts\Context\ContextKeys` is the canonical public context key identifier registry.
+
+It defines stable key vocabulary only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
 
 The key registry is documented by:
 
@@ -173,6 +177,8 @@ docs/ssot/context-keys.md
 ```
 
 `ContextStorePolicy` MUST allow writes only for keys declared in `ContextKeys`.
+
+Read-only consumers MAY import `ContextKeys` to avoid raw string key drift.
 
 Unknown keys MUST be rejected deterministically.
 
@@ -203,7 +209,7 @@ actor_id
 tenant_id
 ```
 
-Reserved future keys are allowed to exist in the registry to prevent naming drift, but concrete writers MAY be absent until later owner epics.
+Reserved future keys are allowed to exist in the registry to prevent naming drift, but concrete writers MAY be absent until the responsible owner package implements them.
 
 ## Decision 2: ContextStore is the single mutable runtime store
 
@@ -393,7 +399,7 @@ It SHOULD return `null` when no valid current correlation id is available.
 
 It MUST NOT generate a correlation id as a side effect of reading.
 
-Generation belongs to the unit-of-work owner, such as the later Kernel runtime integration.
+Generation belongs to Kernel runtime at begin-UoW.
 
 The provider MUST NOT define:
 
@@ -521,9 +527,9 @@ Objects and stringable objects are forbidden.
 
 The store cannot be used as a general-purpose metadata bag.
 
-HTTP header extraction and propagation remain out of scope, so platform packages must introduce that behavior later.
+HTTP header extraction and propagation remain out of scope, so platform packages own that behavior.
 
-Kernel begin-UoW integration remains out of scope for this ADR and must be implemented by a later owner epic.
+Kernel begin-UoW base context writes are owned by Kernel runtime.
 
 ## Rejected alternatives
 
@@ -646,7 +652,7 @@ docs/ssot/observability-and-errors.md
 
 All ContextStore values are unit-of-work-local.
 
-A later Kernel runtime integration MUST set base keys at begin-UoW:
+Kernel runtime MUST set base keys at begin-UoW:
 
 ```text
 correlation_id
@@ -687,7 +693,7 @@ This ADR does not introduce:
 - skeleton defaults;
 - a second ULID implementation.
 
-The detailed middleware-to-context-key map is out of scope and is owned by a later HTTP owner epic:
+The detailed middleware-to-context-key map is out of scope for this ADR and is owned by:
 
 ```text
 docs/ssot/middleware-context-keys-map.md
@@ -701,7 +707,7 @@ Expected verification includes:
 framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
-framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php
+framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php

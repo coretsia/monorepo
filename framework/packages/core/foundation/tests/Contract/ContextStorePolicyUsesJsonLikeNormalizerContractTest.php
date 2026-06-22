@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Tests\Contract;
 
-use Coretsia\Foundation\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStorePolicy;
 use Coretsia\Foundation\Context\Exception\ContextInvalidKeyException;
 use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;

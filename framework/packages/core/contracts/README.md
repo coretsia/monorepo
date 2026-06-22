@@ -16,7 +16,7 @@
 
 `core/contracts` is the **contracts-only** package for the Coretsia Framework monorepo.
 
-**Scope:** public interfaces, ports, enums, small value objects, and contract-level shapes that define cross-package boundaries.
+**Scope:** public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define cross-package boundaries.
 
 **Out of scope:** runtime implementations, DI wiring, filesystem scanning, platform adapters, integrations, generated artifacts, and tooling-only behavior.
 
@@ -63,6 +63,7 @@ This package contains contracts for cross-package capabilities such as:
 - module identity, descriptors, manifests, and mode preset access;
 - config, env, source tracking, and validation result shapes;
 - runtime reset and unit-of-work hooks;
+- read-only runtime context access and public context key identifiers;
 - observability, health, profiling, and error descriptor boundaries;
 - routing and HTTP application ports;
 - validation ports;
@@ -114,6 +115,40 @@ The contracts package does not own DI tags, reset discovery, hook discovery, lif
 
 Runtime discovery and execution are owned by runtime implementation packages.
 
+## Context contracts
+
+Context contracts define the public vocabulary and read-only access boundary for runtime context data.
+
+The canonical public context key registry is:
+
+```text
+Coretsia\Contracts\Context\ContextKeys
+```
+
+`ContextKeys` defines stable key identifiers only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
+
+The read-only context access port is:
+
+```text
+Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
+Runtime readers SHOULD depend on `ContextAccessorInterface` when they need access to current context values.
+
+Runtime readers MAY import `ContextKeys` to avoid raw string key drift.
+
+The contracts package does not own context storage, mutable context writes, write validation, reset behavior, lifecycle writes, context propagation, logging, tracing, or export policy.
+
+Those responsibilities are owned by runtime implementation packages.
+
+Known implementation owners include:
+
+- `core/foundation` for `ContextStore`, `ContextBag`, `ContextStorePolicy`, and accessor binding;
+- `core/kernel` for base UnitOfWork context writes;
+- platform packages for transport/runtime-specific context enrichment.
+
 ## Config and env contracts
 
 Config and env contracts define stable ports and safe shapes for:
@@ -161,6 +196,10 @@ Implementation packages MAY depend on `core/contracts`.
 
 `core/contracts` MUST NOT depend back on implementation packages.
 
+Importing contract-level vocabulary classes such as `Coretsia\Contracts\Context\ContextKeys` does not imply ownership of the corresponding runtime behavior.
+
+Implementation packages MUST enforce their own write, lifecycle, propagation, and safety rules at their owner boundaries.
+
 ## Observability
 
 This package does not emit telemetry directly.
@@ -179,6 +218,10 @@ This package does not process sensitive runtime payloads directly.
 
 Contracts that expose diagnostic or exported shapes MUST be safe by construction and MUST NOT require storing raw secrets, raw env values, raw request data, raw response data, credentials, tokens, cookies, authorization headers, private customer data, or absolute local paths.
 
+Context contracts expose key identifiers and read-only access only.
+
+They MUST NOT require exposing secrets, credentials, tokens, cookies, authorization headers, raw request payloads, raw response payloads, raw SQL, private customer data, transport objects, runtime objects, or mutable context storage.
+
 ## References
 
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
@@ -188,6 +231,7 @@ Contracts that expose diagnostic or exported shapes MUST be safe by construction
 - [Modules and manifests SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modules-and-manifests.md)
 - [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
+- [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)
 - [Routing and HttpApp Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-and-http-app-contracts.md)
 - [Validation Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/validation-contracts.md)

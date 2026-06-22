@@ -42,6 +42,7 @@ It does not own the canonical context key registry. The key registry is owned by
 
 ```text
 docs/ssot/context-keys.md
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 It does not own the `ContextStore`, `ContextBag`, or `ContextStorePolicy` implementation/write-policy details. Those are owned by:
@@ -125,7 +126,7 @@ Coretsia\Contracts\Context\ContextAccessorInterface
 
 Runtime readers SHOULD depend on the context accessor port instead of the concrete store.
 
-Runtime writers MUST write only through Foundation-owned controlled mutation APIs and only with keys accepted by `ContextStorePolicy`.
+Runtime writers MUST write only through controlled Foundation context mutation APIs and only with keys accepted by `ContextStorePolicy`.
 
 ## Base context keys
 
@@ -167,7 +168,7 @@ Runtime owners MAY enrich context after base keys are established.
 
 Runtime enrichment is allowed only when all of the following are true:
 
-- the key is declared by `Coretsia\Foundation\Context\ContextKeys`;
+- the key is declared by `Coretsia\Contracts\Context\ContextKeys`;
 - the value is accepted by `ContextStorePolicy`;
 - the value is unit-of-work-local;
 - the value is safe for in-process runtime context;
@@ -176,11 +177,11 @@ Runtime enrichment is allowed only when all of the following are true:
 
 Runtime enrichment MUST NOT create ad hoc context keys.
 
-No new context keys may be introduced outside:
+No new context keys may be introduced outside the canonical key registry:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
 docs/ssot/context-keys.md
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 Runtime enrichment MUST NOT use `ContextStore` as a generic request dump, debug bag, payload cache, session store, auth token store, or transport object registry.
@@ -711,8 +712,9 @@ The cross-cutting contract gate MUST validate forbidden context writes and lifec
 
 The gate/test should check at least:
 
-- no forbidden ContextKeys writes;
-- no raw secrets, headers, cookies, Authorization values, tokens, session ids, or payloads are written to ContextStore;
+- no legacy Foundation-owned context key registry references;
+- no unauthorized direct `ContextStore` ownership or construction outside owner boundaries;
+- no raw secrets, headers, cookies, Authorization values, tokens, session ids, or payloads are written to `ContextStore`;
 - raw `path` is not exported as a metric label or raw observability value;
 - runtime reset uses `ResetOrchestrator`;
 - runtime reset does not enumerate `kernel.reset` services directly;

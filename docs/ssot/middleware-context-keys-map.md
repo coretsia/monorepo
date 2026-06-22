@@ -16,7 +16,7 @@
 
 ## Purpose
 
-This document is the reference-only map from HTTP middleware FQCNs to canonical `ContextKeys` that the middleware may write or read.
+This document is the reference-only map from HTTP middleware FQCNs to canonical `Coretsia\Contracts\Context\ContextKeys` entries that the middleware may write or read.
 
 It exists to prevent drift between:
 
@@ -41,7 +41,7 @@ The canonical context key registry is owned by:
 
 ```text
 docs/ssot/context-keys.md
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 The canonical `ContextStore` write policy and safe-value model are owned by:
@@ -133,7 +133,7 @@ A row does not redefine catalog membership or slot placement. If a row conflicts
 `Writes` and `Reads` list only canonical context key names from:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 `—` means no canonical ContextKeys write/read is owned by this map.
@@ -185,7 +185,7 @@ Coretsia\Foundation\Context\ContextKeys
 Middleware MUST write only keys declared by:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 Middleware MUST NOT create ad hoc ContextKeys.
@@ -330,7 +330,7 @@ http.middleware.route_post
 
 This document does not add middleware entries to those slots.
 
-If later owner epics add middleware to those slots, this map MUST be updated only for their ContextKeys written/read behavior.
+If owner packages add middleware to those slots, this map MUST be updated only for their `ContextKeys` written/read behavior.
 
 ## Non-goals
 

@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Tests\Integration;
 
-use Coretsia\Foundation\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
 use PHPUnit\Framework\TestCase;

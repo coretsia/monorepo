@@ -89,6 +89,10 @@ final class ReservedTags
     }
 
     /**
+     * Returns all framework-reserved DI tag identifiers.
+     *
+     * Ordering is stable and intentionally deterministic.
+     *
      * @return list<non-empty-string>
      */
     public static function all(): array

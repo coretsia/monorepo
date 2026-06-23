@@ -133,6 +133,15 @@ final class ArtifactPayloadInvalidException extends \RuntimeException
         return $this->path;
     }
 
+    public function safePath(): ?string
+    {
+        if ($this->path === '') {
+            return null;
+        }
+
+        return $this->path;
+    }
+
     private static function message(string $reason, string $path): string
     {
         $message = self::ERROR_CODE . ': ' . $reason;

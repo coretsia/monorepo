@@ -782,26 +782,56 @@ The gate MAY allow:
 #### Creates
 
 - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
-  - [x] MUST enforce at minimum:
+  - [x] MUST enforce Kernel/Foundation reset discipline once the required owner-package evidence exists:
     - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
     - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag
   - [x] MUST resolve the effective Foundation reset discovery tag from available Foundation evidence:
-    - [x] default reserved tag is `kernel.reset`
+    - [x] default reserved reset discovery tag is `kernel.reset`
+    - [x] `ReservedTags::KERNEL_STATEFUL` MUST remain `kernel.stateful`
+    - [x] `ReservedTags::KERNEL_RESET` MUST remain `kernel.reset`
     - [x] if `foundation.reset.tag` config evidence exists, that configured value is the effective reset discovery tag
+    - [x] configured reset tag evidence MUST be validated deterministically
+    - [x] invalid configured reset tag evidence MUST fail with stable reason token `foundation-reset-tag-invalid`
     - [x] the gate MUST NOT hardcode only `kernel.reset` when custom `foundation.reset.tag` evidence is present
+    - [x] the gate MUST recognize local variables assigned from `FoundationServiceFactory::effectiveResetTag(...)` as effective reset tag evidence in service tagging code
+  - [x] MUST inspect supported deterministic service tag evidence:
+    - [x] container builder `->tag(...)` calls
+    - [x] array definition `tags` metadata
+    - [x] direct string tag literals
+    - [x] `ReservedTags::KERNEL_STATEFUL`
+    - [x] `ReservedTags::KERNEL_RESET`
+    - [x] variables proven to originate from `FoundationServiceFactory::effectiveResetTag(...)`
   - [x] MUST preserve deterministic no-op behavior:
+    - [x] if `Coretsia\Contracts\Runtime\ResetInterface` evidence is not present yet, the gate exits successfully
+    - [x] if Foundation reserved tag evidence is not present yet, the gate exits successfully
     - [x] if Foundation owner-package evidence is not present yet, the gate exits successfully
     - [x] if Kernel owner-package evidence is not present yet, the gate exits successfully for kernel-specific checks
     - [x] no missing-future-package failure is allowed
-  - [x] MUST NOT create `framework/tools/gates/kernel_reset_discipline_gate.php`.
-  - [x] MAY additionally enforce forbidden `ContextStore` / `ContextKeys` usage once the owning Foundation/Kernel evidence exists.
+  - [x] MUST enforce context boundary rules once owning evidence exists:
+    - [x] direct `Coretsia\Foundation\Context\ContextStore` usage is forbidden outside explicit owner boundaries
+    - [x] `Coretsia\Foundation\Context\ContextStore` remains allowed for Foundation service construction where explicitly required
+    - [x] `Coretsia\Foundation\Context\ContextStore` remains allowed for Kernel-owned base UnitOfWork context writes
+    - [x] legacy `Coretsia\Foundation\Context\ContextKeys` references are forbidden
+    - [x] public `Coretsia\Contracts\Context\ContextKeys` references are allowed as stable public context key vocabulary
+    - [x] importing `Coretsia\Contracts\Context\ContextKeys` MUST NOT imply mutable context ownership
+  - [x] MUST emit stable reason tokens:
+    - [x] `kernel-tags-drift`
+    - [x] `foundation-reset-tag-invalid`
+    - [x] `kernel-stateful-service-missing-reset-tag`
+    - [x] `kernel-stateful-service-class-unresolved`
+    - [x] `kernel-stateful-service-not-resettable`
+    - [x] `forbidden-context-store-usage`
+    - [x] `forbidden-context-keys-usage`
   - [x] diagnostics MUST be deterministic:
-    - [x] repo-relative paths only
+    - [x] repo/framework-relative paths only
     - [x] stable reason tokens
-    - [x] sorted by byte-order `strcmp`
+    - [x] duplicate diagnostics deduplicated deterministically
+    - [x] diagnostics sorted by byte-order `strcmp`
     - [x] no raw config payloads
     - [x] no secrets
     - [x] no absolute paths
+  - [x] MUST NOT create `framework/tools/gates/kernel_reset_discipline_gate.php`.
+
 - [x] `framework/tools/gates/no_runtime_tooling_artifacts_gate.php`
   - [x] enforces the “No runtime tooling artifacts” gate policy above
   - [x] deterministic no-op when no runtime package scan roots exist
@@ -815,11 +845,13 @@ The gate MAY allow:
     - [x] `runtime-reads-architecture-artifact`
   - [x] MUST NOT duplicate deptrac layer rules
   - [x] MUST NOT parse `docs/roadmap/phase0/00_2-dependency-table.md`
+
 - [x] `framework/tools/gates/kernel_public_api_gate.php`
   - [x] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
   - [x] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
   - [x] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
   - [x] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
+
 - [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
 - [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
@@ -834,6 +866,7 @@ The gate MAY allow:
     - [x] `src/**/Port/**`
   - [x] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+
 - [x] `framework/tools/gates/reserved_tags_registry_gate.php`
   - [x] validates `docs/ssot/tags.md` as the canonical reserved tag registry source
   - [x] validates that every framework-reserved DI tag from `docs/ssot/tags.md` has a matching public constant in `Coretsia\Foundation\Tag\ReservedTags`
@@ -851,6 +884,7 @@ The gate MAY allow:
   - [x] preserves runtime tagged-service discovery, ordering, and dedupe ownership in `Coretsia\Foundation\Tag\TagRegistry`
   - [x] outputs no text on success
   - [x] output format follows the canonical Phase 0 gate policy
+
 - [x] `framework/tools/gates/observability_naming_gate.php`
   - [x] MUST enforce at minimum:
     - [x] metric names follow the canonical form from `docs/ssot/observability.md`
@@ -866,6 +900,7 @@ The gate MAY allow:
       - [x] `user_id`
   - [x] output format follows the canonical Phase 0 gate policy
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
+
 - [x] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
   - [x] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
   - [x] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
@@ -5204,6 +5239,7 @@ Tests:
 - [x] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
 - [x] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
 - [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
+- [x] `framework/packages/core/foundation/tests/Integration/ContainerDefinitionsAreSharedByDefaultTest.php`
 - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
 - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
 - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`

@@ -215,6 +215,18 @@ Container behavior is deterministic:
 - Later container bindings override earlier container bindings deterministically.
 - Tag dedupe remains independent: `TagRegistry` keeps the first occurrence per `(tag, serviceId)`.
 
+Explicit container definitions are shared by default.
+
+A shared definition is resolved once per container instance and cached for subsequent `get()` calls.
+
+A non-shared definition must be marked explicitly by container builder metadata.
+
+Concrete-class autowire resolutions are also cached.
+
+This default is intentional: Foundation container wiring favors stable runtime service identity.
+
+Services that require a fresh instance per resolution must opt out explicitly.
+
 Autowiring is strict:
 
 - Interfaces MUST NOT be autowired.

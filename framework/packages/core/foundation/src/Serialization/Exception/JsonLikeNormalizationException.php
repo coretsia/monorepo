@@ -33,6 +33,7 @@ namespace Coretsia\Foundation\Serialization\Exception;
 final class JsonLikeNormalizationException extends \InvalidArgumentException
 {
     public const string ERROR_CODE = 'CORETSIA_JSON_LIKE_INVALID';
+    public const string REASON_INVALID = 'json-like-invalid';
 
     public const string REASON_FLOAT_FORBIDDEN = 'json-like-float-forbidden';
     public const string REASON_RESOURCE_FORBIDDEN = 'json-like-resource-forbidden';
@@ -41,17 +42,34 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
     public const string REASON_MAP_KEY_MUST_BE_STRING = 'json-like-map-key-must-be-string';
     public const string REASON_TYPE_FORBIDDEN = 'json-like-type-forbidden';
 
+    /**
+     * @var array<string, true>
+     */
+    private const array REASONS = [
+        self::REASON_INVALID => true,
+        self::REASON_FLOAT_FORBIDDEN => true,
+        self::REASON_RESOURCE_FORBIDDEN => true,
+        self::REASON_CLOSURE_FORBIDDEN => true,
+        self::REASON_OBJECT_FORBIDDEN => true,
+        self::REASON_MAP_KEY_MUST_BE_STRING => true,
+        self::REASON_TYPE_FORBIDDEN => true,
+    ];
+
     private readonly string $path;
 
     private readonly string $reason;
 
     public function __construct(
         string $path = '',
-        string $reason = 'json-like-invalid',
+        string $reason = self::REASON_INVALID,
         ?\Throwable $previous = null,
     ) {
         if ($reason === '') {
             throw new \InvalidArgumentException('json-like-normalization-reason-empty');
+        }
+
+        if (!isset(self::REASONS[$reason])) {
+            throw new \InvalidArgumentException('json-like-normalization-reason-invalid');
         }
 
         $this->path = $path;
@@ -75,6 +93,15 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
 
     public function path(): string
     {
+        return $this->path;
+    }
+
+    public function safePath(): ?string
+    {
+        if ($this->path === '') {
+            return null;
+        }
+
         return $this->path;
     }
 

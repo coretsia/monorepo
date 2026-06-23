@@ -473,6 +473,7 @@ Coretsia/
 │   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php

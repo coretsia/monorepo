@@ -29,14 +29,20 @@ namespace Coretsia\Foundation\Time\Exception;
 final class StopwatchInvalidStateException extends \RuntimeException
 {
     public const string ERROR_CODE = 'CORETSIA_STOPWATCH_INVALID_STATE';
+    public const string REASON_INVALID_STATE = 'stopwatch-invalid-state';
+    public const string REASON_START_TOKEN_INVALID = 'stopwatch-start-token-invalid';
+
+    private readonly string $reason;
 
     public function __construct(
-        string $reason = 'stopwatch-invalid-state',
+        string $reason = self::REASON_INVALID_STATE,
         ?\Throwable $previous = null,
     ) {
         if ($reason === '') {
             throw new \InvalidArgumentException('stopwatch-invalid-state-reason-empty');
         }
+
+        $this->reason = $reason;
 
         parent::__construct($reason, 0, $previous);
     }
@@ -44,5 +50,10 @@ final class StopwatchInvalidStateException extends \RuntimeException
     public function errorCode(): string
     {
         return self::ERROR_CODE;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

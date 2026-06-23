@@ -34,6 +34,35 @@ A single SSoT defines observability naming, the canonical metrics catalog, metri
 - Reset observability safety policy is defined in `docs/ssot/observability-and-errors.md`; this document owns only the canonical reset span name, reset metric names, metric-specific labels, and global redaction law.
 - Safe derivations such as hashes, lengths, and explicitly safe identifiers MAY be used when they preserve privacy and bounded cardinality.
 
+## Observability dependency model (MUST)
+
+Operation-boundary runtime services MUST depend on public observability ports/interfaces only:
+
+```text
+Psr\Log\LoggerInterface
+Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+Coretsia\Contracts\Observability\Metrics\MeterPortInterface
+Coretsia\Foundation\Time\Stopwatch
+```
+
+Operation-boundary and business services MUST NOT instantiate Noop observability implementations directly.
+
+Provider, composition, and default binding layers MAY instantiate Noop implementations when establishing baseline bindings.
+
+Services MUST NOT know whether an injected observability dependency is backed by a real adapter or by a Noop/no-op implementation.
+
+Real-vs-Noop/default binding is owned by provider, composition, or default binding layers.
+
+Operation-boundary services SHOULD receive non-null observability dependencies.
+
+Services SHOULD NOT branch on observability availability.
+
+Observability failures MUST NOT change business behavior, runtime lifecycle failure precedence, reset semantics, artifact write behavior, fingerprint calculation behavior, container compile behavior, config compilation behavior, module plan resolution behavior, or cache verification semantics.
+
+Low-level helpers, pure value objects, normalizers, builders, and deterministic serialization utilities SHOULD NOT emit observability directly.
+
+Observability SHOULD live at operation-boundary services.
+
 ## Naming Rules (MUST)
 
 ### Spans
@@ -212,10 +241,19 @@ These metric families MUST use only the `outcome` label:
 
 They MUST NOT use the `operation` label.
 
-For these Kernel metric families, allowed `outcome` values are:
+For artifact write, fingerprint calculation, and container compile metric families, allowed `outcome` values are:
 
 - `success`
 - `failure`
+
+For cache verification metric families, allowed `outcome` values are:
+
+- `clean`
+- `dirty`
+- `invalid`
+- `failure`
+
+Rationale: cache verification reports artifact cache state, not only command execution success. These values are bounded, non-sensitive, and owned by `CacheVerifier`.
 
 They MUST NOT introduce any of the following metric labels:
 

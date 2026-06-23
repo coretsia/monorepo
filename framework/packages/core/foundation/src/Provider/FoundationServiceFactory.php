@@ -91,9 +91,9 @@ final class FoundationServiceFactory
         TagRegistry $tagRegistry,
         array $foundationConfig,
         Stopwatch $stopwatch,
-        ?TracerPortInterface $tracer = null,
-        ?MeterPortInterface $meter = null,
-        ?LoggerInterface $logger = null,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
     ): ResetOrchestrator {
         $priorityEnabled = self::resetPriorityEnabled($foundationConfig);
 
@@ -129,9 +129,9 @@ final class FoundationServiceFactory
         TagRegistry $tagRegistry,
         array $foundationConfig,
         Stopwatch $stopwatch,
-        ?TracerPortInterface $tracer = null,
-        ?MeterPortInterface $meter = null,
-        ?LoggerInterface $logger = null,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
     ): PriorityResetOrchestrator {
         return new PriorityResetOrchestrator(
             container: $container,

@@ -33,6 +33,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest extends TestCase
 {
@@ -191,8 +192,8 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: $meter,
             stopwatch: new Stopwatch(),
+            logger: new NullLogger(),
             modulesConfig: $modulesConfig,
-            logger: null,
         );
     }
 

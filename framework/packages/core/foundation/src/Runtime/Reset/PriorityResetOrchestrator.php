@@ -61,9 +61,9 @@ final readonly class PriorityResetOrchestrator
         private TagRegistry $tagRegistry,
         string $defaultGroup,
         private Stopwatch $stopwatch,
-        private ?TracerPortInterface $tracer = null,
-        private ?MeterPortInterface $meter = null,
-        private ?LoggerInterface $logger = null,
+        private TracerPortInterface $tracer,
+        private MeterPortInterface $meter,
+        private LoggerInterface $logger,
     ) {
         $this->defaultGroup = ResetGroup::fromString($defaultGroup);
     }
@@ -101,20 +101,14 @@ final readonly class PriorityResetOrchestrator
             $durationMs = $this->stopwatch->stop($startedAt);
             $outcome = $failure === null ? self::OUTCOME_OK : self::OUTCOME_FAILED;
 
-            try {
-                $this->emitObservabilitySummary(
-                    span: $span,
-                    servicesCount: $servicesCount,
-                    groupsCount: $groupsCount,
-                    outcome: $outcome,
-                    durationMs: $durationMs,
-                    failure: $failure,
-                );
-            } catch (\Throwable $exception) {
-                if ($failure === null) {
-                    throw ResetException::observabilityFailed($exception);
-                }
-            }
+            $this->emitObservabilitySummary(
+                span: $span,
+                servicesCount: $servicesCount,
+                groupsCount: $groupsCount,
+                outcome: $outcome,
+                durationMs: $durationMs,
+                failure: $failure,
+            );
         }
     }
 
@@ -226,10 +220,6 @@ final readonly class PriorityResetOrchestrator
 
     private function startSpan(int $servicesCount, int $groupsCount): ?SpanInterface
     {
-        if ($this->tracer === null) {
-            return null;
-        }
-
         try {
             return $this->tracer->startSpan(
                 self::SPAN_NAME,
@@ -239,8 +229,8 @@ final readonly class PriorityResetOrchestrator
                     'outcome' => self::OUTCOME_OK,
                 ],
             );
-        } catch (\Throwable $exception) {
-            throw ResetException::observabilityFailed($exception);
+        } catch (\Throwable) {
+            return null;
         }
     }
 
@@ -259,30 +249,52 @@ final readonly class PriorityResetOrchestrator
         ];
 
         if ($span !== null) {
-            $span->setAttributes($attributes);
-
-            if ($failure !== null) {
-                $span->recordException(
-                    $failure->withoutPrevious(),
-                    [
-                        'outcome' => self::OUTCOME_FAILED,
-                    ],
-                );
+            try {
+                $span->setAttributes($attributes);
+            } catch (\Throwable) {
+                /*
+                 * Observability must not change reset behavior.
+                 */
             }
 
-            $span->end();
+            if ($failure !== null) {
+                try {
+                    $span->recordException(
+                        $failure->withoutPrevious(),
+                        [
+                            'outcome' => self::OUTCOME_FAILED,
+                        ],
+                    );
+                } catch (\Throwable) {
+                    /*
+                     * Observability must not change reset behavior.
+                     */
+                }
+            }
+
+            try {
+                $span->end();
+            } catch (\Throwable) {
+                /*
+                 * Observability must not change reset behavior.
+                 */
+            }
         }
 
-        if ($this->meter !== null) {
+        try {
             $labels = [
                 'outcome' => $outcome,
             ];
 
             $this->meter->increment(self::METRIC_RESET_TOTAL, 1, $labels);
             $this->meter->observe(self::METRIC_RESET_DURATION_MS, $durationMs, $labels);
+        } catch (\Throwable) {
+            /*
+             * Observability must not change reset behavior.
+             */
         }
 
-        if ($this->logger !== null) {
+        try {
             $this->logger->info(
                 self::SPAN_NAME,
                 [
@@ -291,6 +303,10 @@ final readonly class PriorityResetOrchestrator
                     'outcome' => $outcome,
                 ],
             );
+        } catch (\Throwable) {
+            /*
+             * Observability must not change reset behavior.
+             */
         }
     }
 

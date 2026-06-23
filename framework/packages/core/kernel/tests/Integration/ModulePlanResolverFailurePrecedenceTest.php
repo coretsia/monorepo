@@ -39,6 +39,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class ModulePlanResolverFailurePrecedenceTest extends TestCase
 {
@@ -344,6 +345,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: $meter,
             stopwatch: new Stopwatch(),
+            logger: new NullLogger(),
             modulesConfig: [
                 'discovery' => [
                     'source' => 'composer',
@@ -352,7 +354,6 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
                     ],
                 ],
             ],
-            logger: null,
         );
     }
 

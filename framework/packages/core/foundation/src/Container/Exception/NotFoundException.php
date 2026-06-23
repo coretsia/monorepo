@@ -30,6 +30,7 @@ use Psr\Container\NotFoundExceptionInterface;
 final class NotFoundException extends ContainerException implements NotFoundExceptionInterface
 {
     public const string ERROR_CODE = 'CORETSIA_CONTAINER_NOT_FOUND';
+    public const string REASON_SERVICE_NOT_FOUND = 'container-service-not-found';
 
     private readonly string $serviceId;
 
@@ -47,7 +48,7 @@ final class NotFoundException extends ContainerException implements NotFoundExce
 
         $this->serviceId = $serviceId;
 
-        parent::__construct('container-service-not-found', $previous);
+        parent::__construct(self::REASON_SERVICE_NOT_FOUND, $previous);
     }
 
     public function serviceId(): string

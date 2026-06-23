@@ -225,6 +225,15 @@ final class ConfigDirectiveTypeMismatchException extends \RuntimeException
         return $this->path;
     }
 
+    public function safePath(): ?string
+    {
+        if ($this->path === '') {
+            return null;
+        }
+
+        return $this->path;
+    }
+
     /**
      * @return 'list'|'map'
      */

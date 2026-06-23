@@ -90,8 +90,8 @@ final readonly class ModulePlanResolver
         private ModuleGraphResolver $graphResolver,
         private MeterPortInterface $meter,
         private Stopwatch $stopwatch,
+        private LoggerInterface $logger,
         array $modulesConfig,
-        private ?LoggerInterface $logger = null,
     ) {
         $this->discoverySource = self::readDiscoverySource($modulesConfig);
         $this->allowedDiscoverySources = self::readAllowedDiscoverySources($modulesConfig);
@@ -197,10 +197,6 @@ final readonly class ModulePlanResolver
 
     private function logOptionalMissingWarnings(ModulePlan $plan): void
     {
-        if ($this->logger === null) {
-            return;
-        }
-
         foreach ($plan->warnings() as $warning) {
             $payload = $warning->toArray();
 
@@ -230,10 +226,6 @@ final readonly class ModulePlanResolver
         ModuleResolutionException $exception,
         BootstrapConfig $bootstrapConfig,
     ): void {
-        if ($this->logger === null) {
-            return;
-        }
-
         $context = [
             'code' => $exception->errorCode(),
             'reason' => $exception->reason(),

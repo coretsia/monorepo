@@ -20,6 +20,7 @@
   colors="true"
   failOnRisky="true"
   failOnWarning="true"
+  failOnNotice="true"
   beStrictAboutChangesToGlobalState="true"
   beStrictAboutOutputDuringTests="true"
   defaultTestSuite="all"

@@ -804,18 +804,19 @@ It MUST NOT store or return the normalized value.
 
 It MUST NOT reorder caller-owned arrays as a side effect.
 
-`ContextStorePolicy` owns context-specific policy:
+`ContextStorePolicy` owns context-specific write-validation policy:
 
-- context key allowlist;
+- context key allowlist enforcement against `Coretsia\Contracts\Context\ContextKeys`;
 - empty context key rejection;
 - reserved `@*` namespace rejection;
-- unknown `ContextKeys` rejection;
+- unknown context key rejection;
 - context exception mapping.
 
-The context key registry remains owned by:
+The public context key registry is owned by:
 
 ```text
 docs/ssot/context-keys.md
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 The context store policy remains governed by:
@@ -823,6 +824,10 @@ The context store policy remains governed by:
 ```text
 docs/ssot/context-store.md
 ```
+
+`ContextKeys` defines vocabulary only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
 
 `ContextStorePolicy` MAY map Foundation reason tokens to context-specific reason tokens.
 

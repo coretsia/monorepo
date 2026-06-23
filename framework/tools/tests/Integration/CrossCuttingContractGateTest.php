@@ -182,12 +182,25 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
-    public function testDirectContextKeysUsageOutsideAllowedFoundationOwnersFails(): void
+    public function testContractsContextKeysUsageFromPlatformConsumerPasses(): void
     {
         $sandbox = $this->createCrossCuttingGateSandbox();
 
         $this->writeFoundationContextSymbols($sandbox);
-        $this->writeForbiddenContextKeysConsumer($sandbox);
+        $this->writeContractsContextKeysConsumer($sandbox);
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', trim($output));
+    }
+
+    public function testLegacyFoundationContextKeysUsageFails(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeLegacyFoundationContextKeysConsumer($sandbox);
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
@@ -366,10 +379,10 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
     private function writeFoundationContextSymbols(string $sandbox): void
     {
         $this->writeBytesExact(
-            $sandbox . '/framework/packages/core/foundation/src/Context/ContextKeys.php',
+            $sandbox . '/framework/packages/core/contracts/src/Context/ContextKeys.php',
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
-            . "namespace Coretsia\\Foundation\\Context;\n\n"
+            . "namespace Coretsia\\Contracts\\Context;\n\n"
             . "final class ContextKeys\n"
             . "{\n"
             . "    public const string CORRELATION_ID = 'correlation_id';\n\n"
@@ -399,6 +412,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace Coretsia\\Foundation\\Context;\n\n"
+            . "use Coretsia\\Contracts\\Context\\ContextKeys;\n\n"
             . "final class ContextStorePolicy\n"
             . "{\n"
             . "    public function assertKey(string \$key): void\n"
@@ -413,7 +427,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace Coretsia\\Foundation\\Observability;\n\n"
-            . "use Coretsia\\Foundation\\Context\\ContextKeys;\n\n"
+            . "use Coretsia\\Contracts\\Context\\ContextKeys;\n\n"
             . "final class CorrelationIdProvider\n"
             . "{\n"
             . "    public function key(): string\n"
@@ -545,15 +559,33 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         );
     }
 
-    private function writeForbiddenContextKeysConsumer(string $sandbox): void
+    private function writeContractsContextKeysConsumer(string $sandbox): void
     {
         $this->writeBytesExact(
-            $sandbox . '/framework/packages/platform/logging/src/BadContextKeysConsumer.php',
+            $sandbox . '/framework/packages/platform/logging/src/ContextKeysConsumer.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Platform\\Logging;\n\n"
+            . "use Coretsia\\Contracts\\Context\\ContextKeys;\n\n"
+            . "final class ContextKeysConsumer\n"
+            . "{\n"
+            . "    public function key(): string\n"
+            . "    {\n"
+            . "        return ContextKeys::CORRELATION_ID;\n"
+            . "    }\n"
+            . "}\n",
+        );
+    }
+
+    private function writeLegacyFoundationContextKeysConsumer(string $sandbox): void
+    {
+        $this->writeBytesExact(
+            $sandbox . '/framework/packages/platform/logging/src/LegacyFoundationContextKeysConsumer.php',
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace Coretsia\\Platform\\Logging;\n\n"
             . "use Coretsia\\Foundation\\Context\\ContextKeys;\n\n"
-            . "final class BadContextKeysConsumer\n"
+            . "final class LegacyFoundationContextKeysConsumer\n"
             . "{\n"
             . "    public function key(): string\n"
             . "    {\n"

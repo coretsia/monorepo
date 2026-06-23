@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Observability;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
-use Coretsia\Foundation\Context\ContextKeys;
 
 /**
  * Foundation correlation id provider.

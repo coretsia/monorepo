@@ -18,7 +18,7 @@
 
 This document is the Single Source of Truth for Coretsia Foundation runtime context storage, immutable context snapshots, controlled context mutation, safe-write policy, value validation, reset discipline, and correlation id storage boundaries.
 
-This document governs the Foundation runtime implementation introduced under:
+This document governs the Foundation runtime implementation under:
 
 ```text
 framework/packages/core/foundation/src/Context/
@@ -45,7 +45,7 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Canonical authority
 
-`core/foundation` owns the runtime context store, context snapshots, context key policy, context write policy, reset discipline, and correlation id context boundary.
+`core/foundation` owns the runtime context store, context snapshots, context write policy, reset discipline, and correlation id context boundary.
 
 This document is the canonical human-readable reference for:
 
@@ -82,7 +82,7 @@ The Foundation context model provides:
 - one runtime `ContextStore`;
 - one immutable snapshot view, `ContextBag`;
 - one context-specific safe-write policy, `ContextStorePolicy`;
-- one canonical key registry, `ContextKeys`;
+- one public contract key registry consumed by write policy, `Coretsia\Contracts\Context\ContextKeys`;
 - one canonical ULID source, `UlidGenerator`;
 - one correlation id generator delegating to the ULID source;
 - one correlation id provider reading the current context.
@@ -95,16 +95,21 @@ The context store implementation is owned by package:
 core/foundation
 ```
 
-The canonical implementation files are:
+The Foundation implementation files are:
 
 ```text
-framework/packages/core/foundation/src/Context/ContextKeys.php
 framework/packages/core/foundation/src/Context/ContextBag.php
 framework/packages/core/foundation/src/Context/ContextStore.php
 framework/packages/core/foundation/src/Context/ContextStorePolicy.php
 framework/packages/core/foundation/src/Id/UlidGenerator.php
 framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php
 framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php
+```
+
+The public context key registry consumed by `ContextStorePolicy` is:
+
+```text
+framework/packages/core/contracts/src/Context/ContextKeys.php
 ```
 
 `core/foundation` depends on `core/contracts` for stable ports and reset contracts.
@@ -182,7 +187,7 @@ A second store would make context reads non-deterministic and could leak or lose
 It MUST:
 
 - store only values accepted by `ContextStorePolicy`;
-- allow writes only for keys declared by `ContextKeys`;
+- allow writes only for keys declared by `Coretsia\Contracts\Context\ContextKeys`;
 - distinguish an absent key from a present key with `null` through `has()`;
 - return stored values through `get(string $key): mixed`;
 - expose an immutable snapshot through `ContextBag`;
@@ -240,14 +245,14 @@ Consumers MUST NOT be able to mutate the stored snapshot by mutating the returne
 - context key allowlist enforcement;
 - empty context key rejection;
 - reserved `@*` key namespace rejection;
-- unknown `ContextKeys` rejection;
+- unknown context key rejection;
 - mapping baseline json-like value failures to context write failures;
 - deterministic safe context failure messages.
 
 `ContextStorePolicy` MUST allow writes only for keys declared by:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 Any attempt to write an unknown key MUST fail deterministically.
@@ -350,12 +355,13 @@ Context validation failures MUST NOT leak raw rejected values.
 
 ## Key allowlist
 
-`ContextStore` and `ContextStorePolicy` MUST use `ContextKeys` as the only key allowlist.
+`ContextStore` and `ContextStorePolicy` MUST use `Coretsia\Contracts\Context\ContextKeys` as the only key allowlist.
 
 The canonical key registry is owned by:
 
 ```text
 docs/ssot/context-keys.md
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 The active baseline keys are:
@@ -381,7 +387,7 @@ actor_id
 tenant_id
 ```
 
-Reserved future keys MAY be accepted by the store because they are declared in `ContextKeys`, but their concrete writers MAY be absent until later owner epics.
+Reserved future keys MAY be accepted by the store because they are declared in `ContextKeys`, but their concrete writers MAY be absent until the responsible owner package implements them.
 
 ## Reserved `@*` namespace
 
@@ -995,7 +1001,11 @@ The canonical middleware catalog reference is:
 docs/ssot/http-middleware-catalog.md
 ```
 
-The detailed middleware-to-context-key map is not introduced by this epic and is owned only by a later HTTP owner epic.
+The detailed middleware-to-context-key map is owned by:
+
+```text
+docs/ssot/middleware-context-keys-map.md
+```
 
 ## Observability boundary
 
@@ -1165,7 +1175,7 @@ Expected verification includes:
 framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
-framework/packages/core/foundation/tests/Contract/ContextKeysAreStableContractTest.php
+framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
 framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php

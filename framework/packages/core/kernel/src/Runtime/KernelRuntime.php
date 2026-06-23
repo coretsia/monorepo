@@ -18,12 +18,12 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Runtime;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
-use Coretsia\Foundation\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
@@ -77,10 +77,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         array $attributes = [],
     ): mixed {
         $context = null;
-        $contextPayload = null;
         $bodyResult = null;
         $primaryFailure = null;
         $resetRequired = false;
+        $afterPhaseRequired = false;
 
         try {
             $context = $this->createUnitOfWorkContext($type, $attributes);
@@ -89,42 +89,24 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $this->writeBaseContextKeys($context);
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
+            $afterPhaseRequired = true;
 
             $this->hooks->invokeBeforeHooks($contextPayload);
 
-            try {
-                $bodyResult = $body();
-            } catch (\Throwable $throwable) {
-                $primaryFailure = $throwable;
-            }
+            $primaryFailure = $this->runBodyAndCaptureFailure($body, $bodyResult);
         } catch (\Throwable $throwable) {
             $primaryFailure = $throwable;
         }
 
-        if ($context !== null && $contextPayload !== null) {
-            try {
-                $this->runAfterPhase(
-                    context: $context,
-                    outcome: $primaryFailure === null ? Outcome::SUCCESS : Outcome::FATAL_ERROR,
-                    error: $primaryFailure,
-                    extensions: [],
-                );
-            } catch (\Throwable $throwable) {
-                if ($primaryFailure === null) {
-                    $primaryFailure = $throwable;
-                }
-            }
+        if ($context !== null && $afterPhaseRequired) {
+            $primaryFailure = $this->runAfterPhaseAndSelectFailure($context, $primaryFailure);
         }
 
         if ($resetRequired) {
-            $resetFailure = $this->resetFailure();
+            $failure = $this->resetAndSelectFailure($primaryFailure);
 
-            if ($primaryFailure !== null) {
-                throw $primaryFailure;
-            }
-
-            if ($resetFailure !== null) {
-                throw $resetFailure;
+            if ($failure !== null) {
+                throw $failure;
             }
 
             return $bodyResult;
@@ -164,10 +146,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             return $contextPayload;
         } catch (\Throwable $throwable) {
             if ($resetRequired) {
-                $resetFailure = $this->resetFailure();
+                $failure = $this->resetAndSelectFailure($throwable);
 
-                if ($resetFailure !== null) {
-                    throw $throwable;
+                if ($failure !== null) {
+                    throw $failure;
                 }
             }
 
@@ -205,14 +187,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $primaryFailure = $throwable;
         }
 
-        $resetFailure = $this->resetFailure();
+        $failure = $this->resetAndSelectFailure($primaryFailure);
 
-        if ($primaryFailure !== null) {
-            throw $primaryFailure;
-        }
-
-        if ($resetFailure !== null) {
-            throw $resetFailure;
+        if ($failure !== null) {
+            throw $failure;
         }
 
         if ($resultPayload === null) {
@@ -222,6 +200,48 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         }
 
         return $resultPayload;
+    }
+
+    /**
+     * Executes the UnitOfWork body and captures its primary failure.
+     *
+     * @param mixed $bodyResult
+     */
+    private function runBodyAndCaptureFailure(callable $body, mixed &$bodyResult): ?\Throwable
+    {
+        try {
+            $bodyResult = $body();
+
+            return null;
+        } catch (\Throwable $throwable) {
+            return $throwable;
+        }
+    }
+
+    /**
+     * Runs the after phase and preserves Kernel failure precedence.
+     *
+     * If a primary failure already exists, an after-phase failure is suppressed
+     * and the original primary failure remains the surfaced failure.
+     */
+    private function runAfterPhaseAndSelectFailure(
+        UnitOfWorkContext $context,
+        ?\Throwable $primaryFailure,
+    ): ?\Throwable {
+        try {
+            $this->runAfterPhase(
+                context: $context,
+                outcome: $primaryFailure === null ? Outcome::SUCCESS : Outcome::FATAL_ERROR,
+                error: $primaryFailure,
+                extensions: [],
+            );
+        } catch (\Throwable $throwable) {
+            if ($primaryFailure === null) {
+                return $throwable;
+            }
+        }
+
+        return $primaryFailure;
     }
 
     /**
@@ -514,6 +534,25 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         }
 
         return Outcome::FATAL_ERROR;
+    }
+
+    /**
+     * Runs reset orchestration and returns the failure that must be surfaced.
+     *
+     * Failure precedence is Kernel-owned:
+     *
+     * - primary lifecycle/body failure wins;
+     * - reset failure is surfaced only when there is no primary failure.
+     */
+    private function resetAndSelectFailure(?\Throwable $primaryFailure): ?\Throwable
+    {
+        $resetFailure = $this->resetFailure();
+
+        if ($primaryFailure !== null) {
+            return $primaryFailure;
+        }
+
+        return $resetFailure;
     }
 
     private function resetFailure(): ?KernelRuntimeException

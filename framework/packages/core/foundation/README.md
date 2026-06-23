@@ -63,7 +63,7 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
 - Foundation runtime context storage through `ContextStore`.
 - Immutable context snapshots through `ContextBag`.
-- Canonical context key registry through `ContextKeys`.
+- Context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
 - Always-on context safe-write validation through `ContextStorePolicy`.
 - Canonical json-like runtime value normalization through `JsonLikeNormalizer`.
 - Path-aware safe json-like normalization failures through `JsonLikeNormalizationException`.
@@ -214,6 +214,18 @@ Container behavior is deterministic:
 - `ContainerBuilder` MUST NOT globally sort providers by FQCN.
 - Later container bindings override earlier container bindings deterministically.
 - Tag dedupe remains independent: `TagRegistry` keeps the first occurrence per `(tag, serviceId)`.
+
+Explicit container definitions are shared by default.
+
+A shared definition is resolved once per container instance and cached for subsequent `get()` calls.
+
+A non-shared definition must be marked explicitly by container builder metadata.
+
+Concrete-class autowire resolutions are also cached.
+
+This default is intentional: Foundation container wiring favors stable runtime service identity.
+
+Services that require a fresh instance per resolution must opt out explicitly.
 
 Autowiring is strict:
 
@@ -406,17 +418,21 @@ Creating more than one context store for the same container would make context r
 
 ## Context keys
 
-The canonical context key registry is:
+The canonical public context key registry is:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
-It is the runtime implementation of:
+The governing SSoT is:
 
 ```text
 docs/ssot/context-keys.md
 ```
+
+`ContextKeys` defines stable key identifiers only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
 
 `ContextStorePolicy` MUST allow writes only for keys declared in `ContextKeys`.
 
@@ -465,7 +481,7 @@ for every write.
 
 `ContextStorePolicy` owns context-specific write policy:
 
-- context key allowlist enforcement through `ContextKeys`;
+- allowlist enforcement against `Coretsia\Contracts\Context\ContextKeys`;
 - empty context key rejection;
 - reserved `@*` key rejection;
 - unknown context key rejection;
@@ -734,7 +750,7 @@ Coretsia\Contracts\Context\ContextAccessorInterface
 using:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys::CORRELATION_ID
+Coretsia\Contracts\Context\ContextKeys::CORRELATION_ID
 ```
 
 The provider returns the current context correlation id only when the stored value is a string matching the canonical Foundation correlation id format:
@@ -986,7 +1002,7 @@ scheduler tick
 custom runtime boundary
 ```
 
-At begin-UoW, a later Kernel runtime integration MUST set base keys:
+At begin-UoW, Kernel runtime MUST set base keys:
 
 ```text
 correlation_id

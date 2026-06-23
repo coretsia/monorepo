@@ -56,7 +56,9 @@ final class Stopwatch
     public function stop(int $startedAt): int
     {
         if ($startedAt <= 0) {
-            throw new StopwatchInvalidStateException('stopwatch-start-token-invalid');
+            throw new StopwatchInvalidStateException(
+                StopwatchInvalidStateException::REASON_START_TOKEN_INVALID,
+            );
         }
 
         $durationNs = \hrtime(true) - $startedAt;

@@ -33,6 +33,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends TestCase
 {
@@ -65,6 +66,7 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: $meter,
             stopwatch: new Stopwatch(),
+            logger: new NullLogger(),
             modulesConfig: [
                 'discovery' => [
                     'source' => 'filesystem',
@@ -73,7 +75,6 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
                     ],
                 ],
             ],
-            logger: null,
         );
 
         try {

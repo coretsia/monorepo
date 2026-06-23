@@ -33,16 +33,30 @@ use Psr\Container\ContainerExceptionInterface;
 class ContainerException extends \RuntimeException implements ContainerExceptionInterface
 {
     public const string ERROR_CODE = 'CORETSIA_CONTAINER_ERROR';
+    public const string REASON_CONTAINER_ERROR = 'container-error';
+
+    private readonly string $reason;
 
     public function __construct(
-        string $message = 'container-error',
+        string $reason = self::REASON_CONTAINER_ERROR,
         ?\Throwable $previous = null,
     ) {
-        parent::__construct($message, 0, $previous);
+        if ($reason === '') {
+            throw new \InvalidArgumentException('container-exception-reason-empty');
+        }
+
+        $this->reason = $reason;
+
+        parent::__construct($reason, 0, $previous);
     }
 
     public function errorCode(): string
     {
         return static::ERROR_CODE;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

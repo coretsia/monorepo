@@ -297,7 +297,7 @@ final class KernelServiceFactory
 
         $meter = self::meter($container);
         $stopwatch = self::stopwatch($container);
-        $logger = self::optionalLogger($container);
+        $logger = self::modulePlanLogger($container);
         $kernelConfig = self::kernelConfig($container);
 
         return new ModulePlanResolver(
@@ -306,8 +306,8 @@ final class KernelServiceFactory
             graphResolver: $graphResolver,
             meter: $meter,
             stopwatch: $stopwatch,
-            modulesConfig: self::modulesConfig($kernelConfig),
             logger: $logger,
+            modulesConfig: self::modulesConfig($kernelConfig),
         );
     }
 
@@ -526,7 +526,7 @@ final class KernelServiceFactory
             meter: self::meter($container),
             tracer: self::tracer($container),
             stopwatch: self::stopwatch($container),
-            logger: self::optionalConfigLogger($container),
+            logger: self::configLogger($container),
         );
     }
 
@@ -1234,36 +1234,16 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function optionalLogger(ContainerInterface $container): ?LoggerInterface
+    private static function configLogger(ContainerInterface $container): LoggerInterface
     {
         try {
             if (!$container->has(LoggerInterface::class)) {
-                return null;
+                throw new ContainerException('kernel-config-dependency-not-found');
             }
 
             $service = $container->get(LoggerInterface::class);
-        } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-module-plan-dependency-not-found',
-                $throwable,
-            );
-        }
-
-        if (!$service instanceof LoggerInterface) {
-            throw new ContainerException('kernel-module-plan-dependency-invalid');
-        }
-
-        return $service;
-    }
-
-    private static function optionalConfigLogger(ContainerInterface $container): ?LoggerInterface
-    {
-        try {
-            if (!$container->has(LoggerInterface::class)) {
-                return null;
-            }
-
-            $service = $container->get(LoggerInterface::class);
+        } catch (ContainerException $exception) {
+            throw $exception;
         } catch (\Throwable $throwable) {
             throw new ContainerException(
                 'kernel-config-dependency-not-found',
@@ -1273,6 +1253,30 @@ final class KernelServiceFactory
 
         if (!$service instanceof LoggerInterface) {
             throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return $service;
+    }
+
+    private static function modulePlanLogger(ContainerInterface $container): LoggerInterface
+    {
+        try {
+            if (!$container->has(LoggerInterface::class)) {
+                throw new ContainerException('kernel-module-plan-dependency-not-found');
+            }
+
+            $service = $container->get(LoggerInterface::class);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $throwable) {
+            throw new ContainerException(
+                'kernel-module-plan-dependency-not-found',
+                $throwable,
+            );
+        }
+
+        if (!$service instanceof LoggerInterface) {
+            throw new ContainerException('kernel-module-plan-dependency-invalid');
         }
 
         return $service;

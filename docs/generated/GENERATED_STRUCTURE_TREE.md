@@ -193,7 +193,8 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigValueSource.php
 │   │   │   │   │   │   └── MergeStrategyInterface.php
 │   │   │   │   │   ├── Context/
-│   │   │   │   │   │   └── ContextAccessorInterface.php
+│   │   │   │   │   │   ├── ContextAccessorInterface.php
+│   │   │   │   │   │   └── ContextKeys.php
 │   │   │   │   │   ├── Database/
 │   │   │   │   │   │   ├── ConnectionInterface.php
 │   │   │   │   │   │   ├── DatabaseDriverInterface.php
@@ -293,6 +294,7 @@ Coretsia/
 │   │   │   │   │   │   ├── ConfigValidationShapeContractTest.php
 │   │   │   │   │   │   ├── ConfigValueSourceShapeContractTest.php
 │   │   │   │   │   │   ├── ContextAccessorInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ContextKeysAreStableContractTest.php
 │   │   │   │   │   │   ├── ContractsDoNotDependOnPlatformTest.php
 │   │   │   │   │   │   ├── ContractsDoNotReferencePsr7ContractTest.php
 │   │   │   │   │   │   ├── CoreContractsDoNotTrimInputContractTest.php
@@ -387,7 +389,6 @@ Coretsia/
 │   │   │   │   │   │   │   ├── ContextInvalidKeyException.php
 │   │   │   │   │   │   │   └── ContextWriteForbiddenException.php
 │   │   │   │   │   │   ├── ContextBag.php
-│   │   │   │   │   │   ├── ContextKeys.php
 │   │   │   │   │   │   ├── ContextStore.php
 │   │   │   │   │   │   └── ContextStorePolicy.php
 │   │   │   │   │   ├── Discovery/
@@ -449,7 +450,6 @@ Coretsia/
 │   │   │   │   │   │   ├── ContainerDiagnosticsJsonIsDeterministicContractTest.php
 │   │   │   │   │   │   ├── ContextAccessorSignatureContractTest.php
 │   │   │   │   │   │   ├── ContextInvalidKeyDiagnosticsAreSafeContractTest.php
-│   │   │   │   │   │   ├── ContextKeysAreStableContractTest.php
 │   │   │   │   │   │   ├── ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
 │   │   │   │   │   │   ├── CorrelationIdFormatContractTest.php
@@ -473,6 +473,7 @@ Coretsia/
 │   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php

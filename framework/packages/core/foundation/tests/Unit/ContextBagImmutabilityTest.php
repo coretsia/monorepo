@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Tests\Unit;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextBag;
-use Coretsia\Foundation\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextStore;
 use PHPUnit\Framework\TestCase;
 

@@ -141,6 +141,15 @@ final class UnitOfWorkContextInvalidException extends \RuntimeException
         return $this->path;
     }
 
+    public function safePath(): ?string
+    {
+        if ($this->path === '') {
+            return null;
+        }
+
+        return $this->path;
+    }
+
     public function reason(): string
     {
         return $this->reason;

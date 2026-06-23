@@ -33,6 +33,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 final class ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest extends TestCase
 {
@@ -145,6 +146,7 @@ final class ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest extends TestCa
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: $meter,
             stopwatch: new Stopwatch(),
+            logger: new NullLogger(),
             modulesConfig: [
                 'discovery' => [
                     'source' => 'composer',
@@ -153,7 +155,6 @@ final class ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest extends TestCa
                     ],
                 ],
             ],
-            logger: null,
         );
     }
 

@@ -750,6 +750,13 @@ function coretsia_cross_cutting_contract_gate_type_is_resettable(
 }
 
 /**
+ * Finds Foundation-owned mutable context storage symbols and legacy
+ * Foundation ContextKeys symbols that remain forbidden outside owner
+ * boundaries.
+ *
+ * Public Coretsia\Contracts\Context\ContextKeys is intentionally not part of
+ * this forbidden symbol set.
+ *
  * @param array<string, array{kind:string, file:string, extends:list<string>, implements:list<string>}> $declaredTypes
  * @return array{ContextStore:array<string, string>, ContextKeys:array<string, string>}
  */
@@ -762,14 +769,12 @@ function coretsia_cross_cutting_contract_gate_find_context_symbols(array $declar
     $contextKeys = [];
 
     foreach ($declaredTypes as $symbol => $info) {
-        $basename = \basename(\str_replace('\\', '/', $symbol));
-
-        if ($basename === 'ContextStore') {
+        if ($symbol === 'Coretsia\\Foundation\\Context\\ContextStore') {
             $contextStore[$symbol] = $info['file'];
             continue;
         }
 
-        if ($basename === 'ContextKeys') {
+        if ($symbol === 'Coretsia\\Foundation\\Context\\ContextKeys') {
             $contextKeys[$symbol] = $info['file'];
         }
     }
@@ -1399,10 +1404,6 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     string $phpFile,
     array $contextSymbols,
 ): array {
-    if ($contextSymbols['ContextStore'] === [] && $contextSymbols['ContextKeys'] === []) {
-        return [];
-    }
-
     $source = coretsia_cross_cutting_contract_gate_read_file($phpFile);
 
     if (
@@ -1487,12 +1488,15 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
             continue;
         }
 
-        if (isset($contextSymbols['ContextKeys'][$resolved])) {
-            if (coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_context_owner($phpFile)) {
-                continue;
-            }
+        if ($resolved === 'Coretsia\\Contracts\\Context\\ContextKeys') {
+            // Public key vocabulary is allowed across runtime/platform packages.
+            continue;
+        }
 
+        if ($resolved === 'Coretsia\\Foundation\\Context\\ContextKeys') {
+            // Legacy Foundation-owned key registry must not be referenced.
             $violations['forbidden-context-keys-usage'] = true;
+            continue;
         }
     }
 
@@ -1500,15 +1504,6 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     \sort($result, \SORT_STRING);
 
     return $result;
-}
-
-function coretsia_cross_cutting_contract_gate_context_keys_usage_is_allowed_context_owner(string $phpFile): bool
-{
-    $path = \str_replace('\\', '/', $phpFile);
-
-    return \str_ends_with($path, '/packages/core/foundation/src/Context/ContextStorePolicy.php')
-        || \str_ends_with($path, '/packages/core/foundation/src/Observability/CorrelationIdProvider.php')
-        || \str_ends_with($path, '/packages/core/kernel/src/Runtime/KernelRuntime.php');
 }
 
 /**

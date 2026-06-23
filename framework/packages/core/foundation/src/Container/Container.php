@@ -35,11 +35,18 @@ use Psr\Container\NotFoundExceptionInterface;
  * - interfaces and abstract classes are never autowired;
  * - runtime reset execution must not depend on autowire/reflection.
  *
+ * Explicit definitions are shared by default unless explicitly marked
+ * non-shared by container builder metadata.
+ *
  * Explicit definitions may be shared or non-shared:
  *
  * - shared definitions are cached after first resolution;
  * - non-shared definitions are resolved fresh on every get();
  * - concrete-class autowire resolutions remain cached.
+ *
+ * This default is intentional: Foundation container wiring favors stable
+ * runtime service identity. Services that require per-resolution instances
+ * must opt out explicitly.
  *
  * This container must not emit stdout/stderr and must not expose constructor
  * arguments, instances, raw config payloads, environment values, tokens, or
@@ -47,6 +54,8 @@ use Psr\Container\NotFoundExceptionInterface;
  */
 final class Container implements ContainerInterface
 {
+    private const bool DEFAULT_DEFINITION_SHARED = true;
+
     /**
      * @var array<string, mixed>
      */
@@ -110,7 +119,7 @@ final class Container implements ContainerInterface
         $this->definitionShared = [];
 
         foreach ($definitions as $id => $_definition) {
-            $this->definitionShared[$id] = $definitionShared[$id] ?? true;
+            $this->definitionShared[$id] = $definitionShared[$id] ?? self::DEFAULT_DEFINITION_SHARED;
         }
     }
 
@@ -132,7 +141,7 @@ final class Container implements ContainerInterface
             if (\array_key_exists($id, $this->definitions)) {
                 $resolved = $this->resolveDefinition($id, $this->definitions[$id]);
 
-                if ($this->definitionShared[$id] ?? true) {
+                if ($this->definitionShared[$id] ?? self::DEFAULT_DEFINITION_SHARED) {
                     $this->resolved[$id] = $resolved;
                 }
 

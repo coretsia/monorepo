@@ -2540,7 +2540,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 | default      | deterministic | Deterministic scan; on failure emits minimal stable diagnostics lines. |
 
 **Notes:**
-- Purpose: enforces cross-cutting Kernel/Foundation contract invariants once the required owner-package evidence exists.
+- Purpose: enforces cross-cutting Kernel/Foundation/Contracts boundary invariants once the required owner-package evidence exists.
 - Enforced baseline:
   - services tagged as `kernel.stateful` MUST implement `Coretsia\Contracts\Runtime\ResetInterface`
   - services tagged as `kernel.stateful` MUST also be discoverable through the effective Foundation reset discovery tag
@@ -2548,6 +2548,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - if `foundation.reset.tag` config evidence exists, that configured value is the effective Foundation reset discovery tag
   - the gate MUST NOT hardcode only `kernel.reset` when custom `foundation.reset.tag` evidence is present
   - if the required owner-package evidence is not present yet, the gate behaves as a deterministic no-op
+  - public `Coretsia\Contracts\Context\ContextKeys` evidence does not activate forbidden-usage reporting by itself
 - Foundation reset tag evidence:
   - canonical default: `kernel.reset`
   - optional config evidence path: `framework/packages/core/foundation/config/foundation.php`
@@ -2557,7 +2558,15 @@ Each new command is added as a separate section under `## Commands` (the format 
   - custom tag values MUST follow canonical reserved tag naming syntax:
     - `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`
 - Additional enforcement:
-  - once `ContextStore` / `ContextKeys` owner symbols exist, forbidden direct usage is reported deterministically
+  - direct `Coretsia\Foundation\Context\ContextStore` usage is forbidden outside explicit owner boundaries
+  - public `Coretsia\Contracts\Context\ContextKeys` usage is allowed across runtime/platform packages as stable key vocabulary
+  - legacy `Coretsia\Foundation\Context\ContextKeys` references are forbidden and reported deterministically
+- Context boundary enforcement:
+  - `Coretsia\Contracts\Context\ContextKeys` defines public context key identifiers only
+  - importing `Coretsia\Contracts\Context\ContextKeys` does not grant write ownership over context values
+  - mutable context storage ownership remains guarded through `Coretsia\Foundation\Context\ContextStore`
+  - Kernel-owned base UnitOfWork writes remain allowed through `KernelRuntime`
+  - Foundation provider/factory wiring remains allowed only where explicitly required for service construction
 - Output policy:
   - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
   - next lines are framework-root-relative paths plus fixed reason tokens sorted by byte-order `strcmp`
@@ -2570,6 +2579,10 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `kernel-stateful-service-not-resettable`
   - `forbidden-context-store-usage`
   - `forbidden-context-keys-usage`
+- Reason token notes:
+  - `forbidden-context-store-usage` applies to unauthorized direct `Coretsia\Foundation\Context\ContextStore` usage
+  - `forbidden-context-keys-usage` applies to legacy `Coretsia\Foundation\Context\ContextKeys` references
+  - `forbidden-context-keys-usage` MUST NOT be emitted for valid `Coretsia\Contracts\Context\ContextKeys` usage
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script cross-cutting-contract:gate --`
   - framework implementation detail: `@php tools/gates/cross_cutting_contract_gate.php`

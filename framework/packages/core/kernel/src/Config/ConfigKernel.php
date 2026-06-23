@@ -119,7 +119,7 @@ final readonly class ConfigKernel
         private MeterPortInterface $meter,
         private TracerPortInterface $tracer,
         private Stopwatch $stopwatch,
-        private ?LoggerInterface $logger = null,
+        private LoggerInterface $logger,
         private array $defaultExplicitEnvOverlayMappings = [],
     ) {
         self::assertExplicitEnvOverlayMappings($this->defaultExplicitEnvOverlayMappings);
@@ -1604,10 +1604,6 @@ final readonly class ConfigKernel
         int $durationMs,
         array $context = [],
     ): void {
-        if ($this->logger === null) {
-            return;
-        }
-
         $safeContext = [
             'duration_ms' => $durationMs,
             'event' => $event,

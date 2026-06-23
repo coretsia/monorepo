@@ -104,7 +104,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Serialization\StableJsonEncoder`   # for deterministic JSON bytes, float-forbidden
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
@@ -389,7 +389,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Serialization\StableJsonEncoder`   # only if JSON is ever emitted (prefer text/plain for /metrics)
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
@@ -3933,7 +3933,7 @@ ssot_refs:
     - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
     - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - Foundation stable APIs (if used):
-    - `Coretsia\Foundation\Context\ContextKeys`
+    - `Coretsia\Contracts\Context\ContextKeys`
 
 - Required platform capabilities:
   - `platform/database` provides deterministic DB access + migrations execution.
@@ -3969,7 +3969,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -6754,7 +6754,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -7009,7 +7009,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface` (optional)
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Time\Stopwatch`  # int-only (hrtime), no floats
 
 ### Entry points / integration points (MUST)
@@ -7277,7 +7277,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -7535,7 +7535,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -9113,7 +9113,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -9385,7 +9385,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -9644,7 +9644,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -10445,7 +10445,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -10753,7 +10753,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -11020,7 +11020,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -11286,7 +11286,7 @@ Forbidden:
   - `Coretsia\Contracts\Filesystem\DiskInterface` (optional)
 - Foundation stable APIs (if used):
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
 ### Entry points / integration points (MUST)
@@ -11589,7 +11589,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
 ### Entry points / integration points (MUST)
@@ -12703,7 +12703,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface` (optional)
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Time\Stopwatch`
   - PSR-18/PSR-7 factories:
     - `Psr\Http\Client\ClientInterface`
@@ -12742,7 +12742,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface` (optional)
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Time\Stopwatch`
 
 ### Entry points / integration points (MUST)
@@ -14778,7 +14778,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics (noop-safe)
   - `Psr\SimpleCache\CacheInterface` (optional) — cache
 - Foundation (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
   - `Coretsia\Foundation\Time\Stopwatch`
 
@@ -14807,7 +14807,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
   - `Coretsia\Foundation\Time\Stopwatch`
 
@@ -17151,7 +17151,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 

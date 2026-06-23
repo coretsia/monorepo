@@ -488,7 +488,7 @@ ssot_refs:
   - `Coretsia\Contracts\Runtime\ResetInterface` (only if any stateful CLI services are introduced)
 - Foundation context API (NOT contracts):
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Observability\CorrelationIdProvider`
 
 - Optional cross-package command discovery fixture:

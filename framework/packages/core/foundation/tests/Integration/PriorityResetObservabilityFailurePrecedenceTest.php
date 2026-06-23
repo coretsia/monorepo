@@ -30,6 +30,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
 {
@@ -38,7 +39,7 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
     private const string UNSAFE_RESET_FAILURE_MESSAGE = 'raw-reset-payload Authorization Bearer reset-token Cookie session_id=reset-cookie credential=reset-credential password=reset-password SELECT * FROM users /home/user/project/.env';
     private const string UNSAFE_OBSERVABILITY_FAILURE_MESSAGE = 'raw-observability-payload Authorization Bearer observability-token Cookie session_id=observability-cookie credential=observability-credential password=observability-password SELECT * FROM observability /tmp/coretsia-observability-secret';
 
-    public function testSpanEndFailureAfterSuccessfulResetSurfacesObservabilityFailed(): void
+    public function testSpanEndFailureAfterSuccessfulResetIsSwallowed(): void
     {
         $service = new PriorityResetObservabilityFailurePrecedenceSuccessfulService();
 
@@ -48,26 +49,18 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         $meter = new PriorityResetObservabilityFailurePrecedenceFakeMeter();
         $logger = new PriorityResetObservabilityFailurePrecedenceFakeLogger();
 
-        $exception = self::catchResetException(
-            self::orchestrator(
-                service: $service,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
+        self::orchestrator(
+            service: $service,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+        )->resetAll(self::EFFECTIVE_RESET_TAG);
 
         self::assertTrue($service->wasReset());
-        self::assertObservabilityFailedException($exception);
-
-        $previous = $exception->getPrevious();
-
-        self::assertInstanceOf(\RuntimeException::class, $previous);
-        self::assertSame(self::UNSAFE_OBSERVABILITY_FAILURE_MESSAGE, $previous->getMessage());
-        self::assertSafeExceptionMessage($exception);
 
         self::assertCount(1, $tracer->startedSpans());
         self::assertSame('foundation.reset', $tracer->startedSpans()[0]->name());
+        self::assertTrue($tracer->startedSpans()[0]->ended());
         self::assertSame(
             [
                 'services_count' => 1,
@@ -77,12 +70,41 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
             $tracer->startedSpans()[0]->attributes(),
         );
 
-        self::assertSame([], $meter->increments());
-        self::assertSame([], $meter->observations());
-        self::assertSame([], $logger->records());
+        self::assertSame(
+            [
+                [
+                    'name' => 'foundation.reset_total',
+                    'delta' => 1,
+                    'labels' => ['outcome' => 'ok'],
+                ],
+            ],
+            $meter->increments(),
+        );
+
+        self::assertCount(1, $meter->observations());
+        self::assertSame('foundation.reset_duration_ms', $meter->observations()[0]['name']);
+        self::assertSame(['outcome' => 'ok'], $meter->observations()[0]['labels']);
+
+        self::assertSame(
+            [
+                [
+                    'level' => 'info',
+                    'message' => 'foundation.reset',
+                    'context' => [
+                        'services_count' => 1,
+                        'groups_count' => 1,
+                        'outcome' => 'ok',
+                    ],
+                ],
+            ],
+            $logger->records(),
+        );
+
+        self::assertNoUnsafeDiagnosticsInMetricRecords($meter);
+        self::assertNoUnsafeDiagnosticsInLogRecords($logger);
     }
 
-    public function testMeterIncrementFailureAfterSuccessfulResetSurfacesObservabilityFailed(): void
+    public function testMeterIncrementFailureAfterSuccessfulResetIsSwallowed(): void
     {
         $service = new PriorityResetObservabilityFailurePrecedenceSuccessfulService();
 
@@ -92,23 +114,14 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         );
         $logger = new PriorityResetObservabilityFailurePrecedenceFakeLogger();
 
-        $exception = self::catchResetException(
-            self::orchestrator(
-                service: $service,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
+        self::orchestrator(
+            service: $service,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+        )->resetAll(self::EFFECTIVE_RESET_TAG);
 
         self::assertTrue($service->wasReset());
-        self::assertObservabilityFailedException($exception);
-        self::assertSafeExceptionMessage($exception);
-
-        $previous = $exception->getPrevious();
-
-        self::assertInstanceOf(\RuntimeException::class, $previous);
-        self::assertSame(self::UNSAFE_OBSERVABILITY_FAILURE_MESSAGE, $previous->getMessage());
 
         self::assertCount(1, $tracer->startedSpans());
         self::assertTrue($tracer->startedSpans()[0]->ended());
@@ -123,13 +136,29 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
             ],
             $meter->increments(),
         );
+
         self::assertSame([], $meter->observations());
-        self::assertSame([], $logger->records());
+
+        self::assertSame(
+            [
+                [
+                    'level' => 'info',
+                    'message' => 'foundation.reset',
+                    'context' => [
+                        'services_count' => 1,
+                        'groups_count' => 1,
+                        'outcome' => 'ok',
+                    ],
+                ],
+            ],
+            $logger->records(),
+        );
 
         self::assertNoUnsafeDiagnosticsInMetricRecords($meter);
+        self::assertNoUnsafeDiagnosticsInLogRecords($logger);
     }
 
-    public function testMeterObserveFailureAfterSuccessfulResetSurfacesObservabilityFailed(): void
+    public function testMeterObserveFailureAfterSuccessfulResetIsSwallowed(): void
     {
         $service = new PriorityResetObservabilityFailurePrecedenceSuccessfulService();
 
@@ -139,34 +168,43 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         );
         $logger = new PriorityResetObservabilityFailurePrecedenceFakeLogger();
 
-        $exception = self::catchResetException(
-            self::orchestrator(
-                service: $service,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
+        self::orchestrator(
+            service: $service,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+        )->resetAll(self::EFFECTIVE_RESET_TAG);
 
         self::assertTrue($service->wasReset());
-        self::assertObservabilityFailedException($exception);
-        self::assertSafeExceptionMessage($exception);
 
-        $previous = $exception->getPrevious();
-
-        self::assertInstanceOf(\RuntimeException::class, $previous);
-        self::assertSame(self::UNSAFE_OBSERVABILITY_FAILURE_MESSAGE, $previous->getMessage());
+        self::assertCount(1, $tracer->startedSpans());
+        self::assertTrue($tracer->startedSpans()[0]->ended());
 
         self::assertCount(1, $meter->increments());
         self::assertCount(1, $meter->observations());
         self::assertSame('foundation.reset_duration_ms', $meter->observations()[0]['name']);
         self::assertSame(['outcome' => 'ok'], $meter->observations()[0]['labels']);
-        self::assertSame([], $logger->records());
+
+        self::assertSame(
+            [
+                [
+                    'level' => 'info',
+                    'message' => 'foundation.reset',
+                    'context' => [
+                        'services_count' => 1,
+                        'groups_count' => 1,
+                        'outcome' => 'ok',
+                    ],
+                ],
+            ],
+            $logger->records(),
+        );
 
         self::assertNoUnsafeDiagnosticsInMetricRecords($meter);
+        self::assertNoUnsafeDiagnosticsInLogRecords($logger);
     }
 
-    public function testLoggerFailureAfterSuccessfulResetSurfacesObservabilityFailed(): void
+    public function testLoggerFailureAfterSuccessfulResetIsSwallowed(): void
     {
         $service = new PriorityResetObservabilityFailurePrecedenceSuccessfulService();
 
@@ -176,23 +214,17 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
             failureMessage: self::UNSAFE_OBSERVABILITY_FAILURE_MESSAGE,
         );
 
-        $exception = self::catchResetException(
-            self::orchestrator(
-                service: $service,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
+        self::orchestrator(
+            service: $service,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+        )->resetAll(self::EFFECTIVE_RESET_TAG);
 
         self::assertTrue($service->wasReset());
-        self::assertObservabilityFailedException($exception);
-        self::assertSafeExceptionMessage($exception);
 
-        $previous = $exception->getPrevious();
-
-        self::assertInstanceOf(\RuntimeException::class, $previous);
-        self::assertSame(self::UNSAFE_OBSERVABILITY_FAILURE_MESSAGE, $previous->getMessage());
+        self::assertCount(1, $tracer->startedSpans());
+        self::assertTrue($tracer->startedSpans()[0]->ended());
 
         self::assertCount(1, $meter->increments());
         self::assertCount(1, $meter->observations());
@@ -246,9 +278,7 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         self::assertSame('reset-service-failed', $recordedThrowable->getMessage());
         self::assertNull($recordedThrowable->getPrevious());
 
-        self::assertSame([], $meter->increments());
-        self::assertSame([], $meter->observations());
-        self::assertSame([], $logger->records());
+        self::assertFailedResetSummaryWasEmitted($meter, $logger);
     }
 
     public function testResetServiceFailureRemainsPrimaryWhenSpanEndThrows(): void
@@ -285,9 +315,7 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         self::assertSame('reset-service-failed', $recordedThrowable->getMessage());
         self::assertNull($recordedThrowable->getPrevious());
 
-        self::assertSame([], $meter->increments());
-        self::assertSame([], $meter->observations());
-        self::assertSame([], $logger->records());
+        self::assertFailedResetSummaryWasEmitted($meter, $logger);
     }
 
     public function testResetServiceFailureRemainsPrimaryWhenMeterEmissionThrows(): void
@@ -325,10 +353,26 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
             ],
             $meter->increments(),
         );
+
         self::assertSame([], $meter->observations());
-        self::assertSame([], $logger->records());
+
+        self::assertSame(
+            [
+                [
+                    'level' => 'info',
+                    'message' => 'foundation.reset',
+                    'context' => [
+                        'services_count' => 1,
+                        'groups_count' => 1,
+                        'outcome' => 'failed',
+                    ],
+                ],
+            ],
+            $logger->records(),
+        );
 
         self::assertNoUnsafeDiagnosticsInMetricRecords($meter);
+        self::assertNoUnsafeDiagnosticsInLogRecords($logger);
     }
 
     public function testResetServiceFailureRemainsPrimaryWhenLoggerEmissionThrows(): void
@@ -376,9 +420,9 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
 
     private static function orchestrator(
         ResetInterface $service,
-        ?TracerPortInterface $tracer = null,
-        ?MeterPortInterface $meter = null,
-        ?\Psr\Log\LoggerInterface $logger = null,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
     ): PriorityResetOrchestrator {
         $tagRegistry = new TagRegistry();
         $tagRegistry->add(self::EFFECTIVE_RESET_TAG, self::SERVICE_ID);
@@ -407,13 +451,42 @@ final class PriorityResetObservabilityFailurePrecedenceTest extends TestCase
         self::fail('Expected ResetException was not thrown.');
     }
 
-    private static function assertObservabilityFailedException(ResetException $exception): void
-    {
-        self::assertSame(ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED, $exception->code());
-        self::assertSame($exception->code(), $exception->errorCode());
-        self::assertSame('reset-observability-failed', $exception->reason());
-        self::assertSame('reset-observability-failed', $exception->getMessage());
-        self::assertSame(0, $exception->getCode());
+    private static function assertFailedResetSummaryWasEmitted(
+        PriorityResetObservabilityFailurePrecedenceFakeMeter $meter,
+        PriorityResetObservabilityFailurePrecedenceFakeLogger $logger,
+    ): void {
+        self::assertSame(
+            [
+                [
+                    'name' => 'foundation.reset_total',
+                    'delta' => 1,
+                    'labels' => ['outcome' => 'failed'],
+                ],
+            ],
+            $meter->increments(),
+        );
+
+        self::assertCount(1, $meter->observations());
+        self::assertSame('foundation.reset_duration_ms', $meter->observations()[0]['name']);
+        self::assertSame(['outcome' => 'failed'], $meter->observations()[0]['labels']);
+
+        self::assertSame(
+            [
+                [
+                    'level' => 'info',
+                    'message' => 'foundation.reset',
+                    'context' => [
+                        'services_count' => 1,
+                        'groups_count' => 1,
+                        'outcome' => 'failed',
+                    ],
+                ],
+            ],
+            $logger->records(),
+        );
+
+        self::assertNoUnsafeDiagnosticsInMetricRecords($meter);
+        self::assertNoUnsafeDiagnosticsInLogRecords($logger);
     }
 
     private static function assertServiceFailedException(ResetException $exception): void

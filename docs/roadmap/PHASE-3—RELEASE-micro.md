@@ -88,7 +88,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface` — reporting port (optional/noop-safe impl)
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` — normalized error payload
   - `Coretsia\Contracts\Context\ContextAccessorInterface` — optional context source for safe enrichment / correlation reads
-  - `Coretsia\Foundation\Context\ContextKeys` — reserved context keys (if context enrichment is used)
+  - `Coretsia\Contracts\Context\ContextKeys` — reserved context keys (if context enrichment is used)
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — optional tracing enrichment
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — optional metrics enrichment
   - `Psr\Log\LoggerInterface` — optional logging (redacted)
@@ -344,7 +344,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — optional enrichment only
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — optional enrichment only
   - `Coretsia\Contracts\Context\ContextAccessorInterface` — context source (stable API)
-  - `Coretsia\Foundation\Context\ContextKeys` — reserved keys
+  - `Coretsia\Contracts\Context\ContextKeys` — reserved keys
 
 - tighten to cemented APIs
   - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
@@ -377,7 +377,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -607,7 +607,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Tracing\SpanExporterInterface`
   - `Coretsia\Contracts\Observability\Tracing\SamplerInterface`
   - `Psr\Log\LoggerInterface` (optional warn-only)
-  - `Coretsia\Foundation\Context\ContextKeys` (optional; if used)
+  - `Coretsia\Contracts\Context\ContextKeys` (optional; if used)
 
 - tighten to cemented APIs
   - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
@@ -635,7 +635,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\SpanExporterInterface`
   - `Coretsia\Contracts\Observability\Tracing\SamplerInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys` (optional)
+  - `Coretsia\Contracts\Context\ContextKeys` (optional)
 
 ### Entry points / integration points (MUST)
 
@@ -869,7 +869,7 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
   - `Psr\Log\LoggerInterface` (optional warn-only)
-  - `Coretsia\Foundation\Context\ContextKeys` (optional; if used)
+  - `Coretsia\Contracts\Context\ContextKeys` (optional; if used)
 
 - tighten to cemented APIs
   - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
@@ -894,7 +894,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys` (optional)
+  - `Coretsia\Contracts\Context\ContextKeys` (optional)
 
 ### Entry points / integration points (MUST)
 
@@ -1444,7 +1444,7 @@ Forbidden:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Tag\TagRegistry`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
@@ -2112,7 +2112,7 @@ ssot_refs: []
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys` (reserved key `REQUEST_ID`)
+  - `Coretsia\Contracts\Context\ContextKeys` (reserved key `REQUEST_ID`)
   - `Coretsia\Foundation\Id\UlidGenerator` (or canonical id generator)
 
 - Generator single-choice (MUST)
@@ -2141,7 +2141,7 @@ Forbidden:
   - `Coretsia\Contracts\Runtime\ResetInterface` (not expected)
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Id\UlidGenerator`
 
 ### Entry points / integration points (MUST)
@@ -2341,7 +2341,7 @@ ssot_refs: []
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys` — required because redirect scheme resolution MAY read `ContextKeys::SCHEME`
+  - `Coretsia\Contracts\Context\ContextKeys` — required because redirect scheme resolution MAY read `ContextKeys::SCHEME`
 
 - tighten to cemented APIs
   - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
@@ -2373,7 +2373,7 @@ Forbidden:
 - Contracts:
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -3430,7 +3430,7 @@ Forbidden:
   - `Coretsia\Contracts\Module\ManifestReaderInterface`
   - `Coretsia\Contracts\Module\ModePresetLoaderInterface` (optional)
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -3727,7 +3727,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
 - Foundation stable APIs (if used):
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
   - `Coretsia\Foundation\Tag\TagRegistry`
 
@@ -5217,7 +5217,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -5461,7 +5461,7 @@ ssot_refs: []
   - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 - tighten to cemented APIs
   - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
@@ -5490,7 +5490,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 

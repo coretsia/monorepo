@@ -40,12 +40,19 @@ return [
     /*
      * PSR-11 container behavior.
      *
-     * These options control conservative reflection/autowire behavior for
-     * concrete classes. Interfaces are never autowired.
+     * Concrete-class autowiring is controlled by two independent gates:
      *
-     * `Container::canAutowire()` is intentionally strict: if the merged global
-     * configuration does not contain `foundation.container`, container code
-     * must fail deterministically instead of silently guessing defaults.
+     * - autowire_concrete decides whether the container may synthesize
+     *   concrete-class services without explicit definitions;
+     * - allow_reflection_for_concrete decides whether runtime reflection may be
+     *   used as the mechanism for concrete-class autowiring.
+     *
+     * Both flags MUST be true for Container::canAutowire() to allow concrete
+     * autowiring. Interfaces and abstract classes are never autowired.
+     *
+     * Container::canAutowire() is intentionally strict: if the merged global
+     * configuration does not contain foundation.container, container code must
+     * fail deterministically instead of silently guessing defaults.
      */
     'container' => [
         /*

@@ -6451,7 +6451,7 @@ Forbidden:
   - `Coretsia\Contracts\Runtime\ResetInterface`
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -6940,7 +6940,7 @@ ssot_refs: []
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` — error descriptor shape
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — spans (noop-safe)
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics (noop-safe)
-  - `Coretsia\Foundation\Context\ContextKeys` — context keys allowlist
+  - `Coretsia\Contracts\Context\ContextKeys` — context keys allowlist
 
 - Runtime expectation (policy, NOT deps):
   - When enabled in presets/bundles: `platform/logging|tracing|metrics` provide implementations/noop-safe
@@ -6980,7 +6980,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -7507,7 +7507,7 @@ ssot_refs: []
   - `Coretsia\Contracts\RateLimit\RateLimitState` — state shape
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — spans (noop-safe)
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics (noop-safe)
-  - `Coretsia\Foundation\Context\ContextKeys` — context keys allowlist
+  - `Coretsia\Contracts\Context\ContextKeys` — context keys allowlist
   - PSR-15 / PSR-7 interfaces used by middleware
 
 - Runtime expectation (policy, NOT deps):
@@ -7541,7 +7541,7 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 - Foundation stable APIs:
-  - `Coretsia\Foundation\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 

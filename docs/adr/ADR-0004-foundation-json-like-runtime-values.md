@@ -460,12 +460,12 @@ It must not store or return the normalized value produced by `JsonLikeNormalizer
 
 It must not reorder caller-owned arrays as a side effect.
 
-`ContextStorePolicy` owns context-specific policy:
+`ContextStorePolicy` owns context-specific write-validation policy:
 
-- context key allowlist enforcement;
+- context key allowlist enforcement against `Coretsia\Contracts\Context\ContextKeys`;
 - empty context key rejection;
 - reserved `@*` key rejection;
-- unknown `ContextKeys` rejection;
+- unknown context key rejection;
 - mapping baseline json-like failures to context write failures.
 
 The canonical mapping is:
@@ -480,6 +480,10 @@ json-like-type-forbidden              -> context-write-forbidden-type
 ```
 
 `ContextStorePolicy` must not own or duplicate the reusable baseline json-like runtime value model.
+
+`ContextKeys` defines context key vocabulary only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
 
 ## Decision 7: Kernel delegates baseline normalization to Foundation and keeps only UoW-specific policy
 

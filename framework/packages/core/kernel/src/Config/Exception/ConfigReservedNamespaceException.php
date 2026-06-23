@@ -168,6 +168,15 @@ final class ConfigReservedNamespaceException extends \RuntimeException
         return $this->path;
     }
 
+    public function safePath(): ?string
+    {
+        if ($this->path === '') {
+            return null;
+        }
+
+        return $this->path;
+    }
+
     public function reservedNamespace(): string
     {
         return $this->reservedNamespace;

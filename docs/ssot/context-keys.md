@@ -21,7 +21,7 @@ This document is the Single Source of Truth for Coretsia runtime context key nam
 This document governs the canonical key registry implemented by:
 
 ```text
-framework/packages/core/foundation/src/Context/ContextKeys.php
+framework/packages/core/contracts/src/Context/ContextKeys.php
 ```
 
 It complements:
@@ -37,7 +37,7 @@ docs/ssot/uow-and-reset-contracts.md
 
 The detailed per-middleware mapping from middleware FQCN to written/read context keys is intentionally out of scope for this document.
 
-That reference map is owned by a later HTTP owner epic and MUST live only in:
+That reference map is owned by:
 
 ```text
 docs/ssot/middleware-context-keys-map.md
@@ -61,19 +61,29 @@ The ContextKeys registry exists to prevent:
 
 ## Ownership
 
-The key registry is owned by package:
+The public context key identifier registry is owned by package:
 
 ```text
-core/foundation
+core/contracts
 ```
 
-The runtime implementation path is:
+The implementation path is:
 
 ```text
-framework/packages/core/foundation/src/Context/ContextKeys.php
+framework/packages/core/contracts/src/Context/ContextKeys.php
 ```
 
-`Coretsia\Foundation\Context\ContextKeys` is the only runtime source for canonical context key constants.
+The canonical code-level registry is:
+
+```text
+Coretsia\Contracts\Context\ContextKeys
+```
+
+`ContextKeys` defines stable key identifiers only.
+
+Importing `ContextKeys` does not grant write ownership over context values.
+
+Context storage, safe-write validation, lifecycle writes, reset behavior, propagation, logging, tracing, and export policy remain owned by their respective runtime packages.
 
 Any new key requires:
 
@@ -111,10 +121,14 @@ Runtime context keys MUST never collide with config directive syntax.
 `ContextStorePolicy` MUST allow writes only for keys declared in:
 
 ```text
-Coretsia\Foundation\Context\ContextKeys
+Coretsia\Contracts\Context\ContextKeys
 ```
 
 Any attempt to write a key not declared in `ContextKeys` MUST fail deterministically.
+
+This allowlist rule applies to writes only.
+
+Read-only consumers MAY import `Coretsia\Contracts\Context\ContextKeys` to avoid raw string key drift.
 
 Any attempt to write a key starting with `@` MUST fail deterministically.
 
@@ -283,7 +297,7 @@ The presence of a request metadata key in this registry does not allow raw heade
 
 ## Canonical active keys
 
-The following keys are active in the Phase 1 Foundation context baseline.
+The following keys are active in the canonical runtime context baseline.
 
 | Constant         | Key              | Meaning                                                                                | Writer category | Lifecycle                                                                            | Safe-value notes                                                                                                                                 |
 |------------------|------------------|----------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -300,7 +314,7 @@ The following keys are active in the Phase 1 Foundation context baseline.
 
 The following keys are reserved for future owner integration.
 
-They are part of the canonical registry to prevent name drift, but their concrete writers MAY be absent until later owner epics.
+They are part of the canonical registry to prevent name drift, but their concrete writers MAY be absent until the responsible owner package implements them.
 
 | Constant               | Key                    | Meaning                                                                                  | Future writer category | Lifecycle                                                                       | Safe-value notes                                                                                                                    |
 |------------------------|------------------------|------------------------------------------------------------------------------------------|------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
@@ -397,9 +411,9 @@ Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 
 ## Kernel lifecycle note
 
-Kernel runtime integration is owned by a later Phase 1 runtime epic.
+Kernel runtime owns base context key writes at begin-UoW.
 
-That later owner MUST set the base keys at begin-UoW:
+Kernel runtime MUST set:
 
 ```text
 correlation_id
@@ -407,7 +421,7 @@ uow_id
 uow_type
 ```
 
-That later owner MUST execute Foundation reset orchestration after the unit of work.
+Kernel runtime MUST execute Foundation reset orchestration after the unit of work.
 
 This document defines the key vocabulary and lifecycle policy only.
 
@@ -435,11 +449,15 @@ The canonical middleware catalog reference is:
 docs/ssot/http-middleware-catalog.md
 ```
 
-The detailed middleware-to-key map is not introduced by this epic.
+The detailed middleware-to-key map is governed by:
+
+```text
+docs/ssot/middleware-context-keys-map.md
+```
 
 ## Stability contract
 
-The canonical key list is contract-tested.
+The canonical key list is contract-tested in `core/contracts`.
 
 The following changes require an explicit SSoT and test update:
 
@@ -451,6 +469,12 @@ The following changes require an explicit SSoT and test update:
 - changing a lifecycle rule;
 - changing safe-value notes;
 - moving a reserved future key into active owner usage.
+
+The stable contract test is:
+
+```text
+framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
+```
 
 ## Non-goals
 

@@ -16,13 +16,19 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Foundation\Context;
+namespace Coretsia\Contracts\Context;
 
 /**
- * Canonical Foundation runtime context key registry.
+ * Canonical public context key identifiers.
  *
- * This class is the runtime implementation of docs/ssot/context-keys.md.
- * ContextStorePolicy must allow writes only for keys declared here.
+ * This contract-level registry defines stable context key names that may be
+ * shared across packages for context reads, validation, diagnostics, and
+ * deterministic cross-package coordination.
+ *
+ * It defines vocabulary only. Importing this class does not grant write
+ * ownership over context values. Context storage, safe-write validation,
+ * lifecycle writes, reset behavior, propagation, logging, tracing, and export
+ * policy remain owned by their respective runtime packages.
  */
 final class ContextKeys
 {
@@ -71,10 +77,9 @@ final class ContextKeys
     }
 
     /**
-     * Returns all canonical context keys.
+     * Returns all canonical public context key identifiers.
      *
-     * Ordering is stable and follows the canonical active-then-reserved
-     * registry order from the Context Keys SSoT.
+     * Ordering is stable and intentionally deterministic.
      *
      * @return list<non-empty-string>
      */

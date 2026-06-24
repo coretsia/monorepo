@@ -88,7 +88,7 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
     }
 
     #[DataProvider('invalidStartedAtValues')]
-    public function testAfterUnitOfWorkRejectsInvalidStartedAtAndResetsOnce(
+    public function testAfterUnitOfWorkRejectsNegativeStartedAtAndResetsOnce(
         int $startedAt,
     ): void {
         $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
@@ -323,7 +323,6 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
      */
     public static function invalidStartedAtValues(): iterable
     {
-        yield 'zero' => [0];
         yield 'negative' => [-1];
     }
 

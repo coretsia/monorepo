@@ -314,6 +314,8 @@ The sanitized copy preserves the reset code, error code, reason, and message, bu
 
 Reset observability MUST remain summary-only and MUST NOT expose raw service exceptions, previous throwable messages, stack traces, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
 
+`Stopwatch` failures during reset observability MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
+
 `core/kernel` MUST call only the reset orchestrator and MUST NOT enumerate tagged reset services directly.
 
 `ContextStore` is stateful and MUST be tagged with both:

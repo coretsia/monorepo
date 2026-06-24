@@ -529,15 +529,13 @@ Foundation reset orchestration MAY preserve the original previous throwable on t
 
 That previous throwable chain MUST NOT be emitted through reset span exception recording, reset logs, reset metrics, or exported reset diagnostics.
 
-If reset succeeds and reset observability emission fails, the surfaced reset failure reason is:
+Reset observability failures, including logger, tracer, meter, span finalization, span exception recording, and `Stopwatch` start/stop failures, MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
 
-```text
-reset-observability-failed
-```
+If reset execution succeeds and reset observability emission fails, reset remains successful and no `ResetException` is surfaced.
 
 If reset execution fails and reset observability emission also fails, the primary reset failure remains surfaced.
 
-Reset observability failure precedence MUST remain deterministic and MUST NOT replace a primary reset failure with a secondary observability failure.
+When reset duration cannot be measured, reset observability MUST use `0` as the duration value or omit the timing signal according to owner policy. The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
 
 ## Metrics renderer interface
 

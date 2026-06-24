@@ -858,7 +858,6 @@ The deterministic reset error codes are:
 CORETSIA_RESET_META_INVALID
 CORETSIA_RESET_SERVICE_NOT_RESETTABLE
 CORETSIA_RESET_SERVICE_FAILED
-CORETSIA_RESET_OBSERVABILITY_FAILED
 ```
 
 The deterministic mapping is:
@@ -868,7 +867,8 @@ The deterministic mapping is:
 | invalid reset tag meta                                 | `CORETSIA_RESET_META_INVALID`           | `reset-meta-invalid`         |
 | discovered service does not implement `ResetInterface` | `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` | `reset-not-resettable`       |
 | service resolution or reset execution throws           | `CORETSIA_RESET_SERVICE_FAILED`         | `reset-service-failed`       |
-| internal observability port failure                    | `CORETSIA_RESET_OBSERVABILITY_FAILED`   | `reset-observability-failed` |
+
+Reset observability failures are failure-silent and MUST NOT be used to signal reset failure.
 
 Exception messages MUST be fixed safe tokens.
 
@@ -1043,17 +1043,17 @@ Logs MUST NOT include per-service internals, service dumps, tag meta payloads, s
 
 ## Observability failure policy
 
-Internal observability port failures MUST remain safe.
+Internal observability port failures MUST remain failure-silent.
 
-If observability fails when no reset failure is already being surfaced, enhanced reset MAY surface:
+Reset observability failures, including logger, tracer, meter, span finalization, span exception recording, and `Stopwatch` start/stop failures, MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
 
-```text
-ResetException(code=CORETSIA_RESET_OBSERVABILITY_FAILED, message="reset-observability-failed")
-```
+If reset succeeds and observability emission fails, reset remains successful.
 
-If reset already failed, observability failure MUST NOT hide the reset failure.
+If reset fails and observability emission also fails, the primary reset failure remains surfaced.
 
-The primary reset failure remains the deterministic reset exception for the reset problem.
+When reset duration cannot be measured, the reset duration value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
+
+An unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
 
 ## Enforcement rails
 

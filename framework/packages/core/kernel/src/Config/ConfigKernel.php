@@ -213,7 +213,7 @@ final readonly class ConfigKernel
         array $explicitEnvOverlayMappings = [],
         bool $explain = false,
     ): array {
-        $startedAt = $this->stopwatch->start();
+        $startedAt = $this->safeStartTimer();
         $outcome = self::OUTCOME_SUCCESS;
         $mergeLogContext = [];
 
@@ -241,14 +241,6 @@ final readonly class ConfigKernel
                         explicitRuleSources: $explicitRuleSources,
                         explicitEnvOverlayMappings: $explicitEnvOverlayMappings,
                     );
-
-                    $this->setSafeSpanAttributes($span, [
-                        'env_overlay_mapping_count' => \count($compiled['envOverlayMappings']),
-                        'ruleset_count' => \count($compiled['rulesets']),
-                        'source_entry_count' => \count($compiled['mergeEntries']),
-                        'unvalidated_root_count' => \count($compiled['validationSubjects']['unvalidated']),
-                        'validated_root_count' => \count($compiled['validationSubjects']['validated']),
-                    ]);
 
                     return $compiled;
                 },
@@ -299,7 +291,7 @@ final readonly class ConfigKernel
 
             throw $exception;
         } finally {
-            $durationMs = $this->stopwatch->stop($startedAt);
+            $durationMs = $this->safeStopTimer($startedAt);
 
             $this->emitMergeMetrics($outcome, $durationMs);
             $this->logLifecycleEvent(
@@ -343,18 +335,13 @@ final readonly class ConfigKernel
         array $envOverlayMappings = [],
         array $owners = [],
     ): array {
-        $startedAt = $this->stopwatch->start();
+        $startedAt = $this->safeStartTimer();
         $outcome = self::OUTCOME_SUCCESS;
 
         try {
             return $this->withSpan(
                 name: self::SPAN_CONFIG_EXPLAIN,
-                attributes: [
-                    'source_entry_count' => \count($sources),
-                    'unvalidated_root_count' => \count($validationSubjects['unvalidated'] ?? []),
-                    'validated_root_count' => \count($validationSubjects['validated'] ?? []),
-                    'env_overlay_mapping_count' => \count($envOverlayMappings),
-                ],
+                attributes: [],
                 callback: fn (): array => $this->explainer->explain(
                     config: $config,
                     sources: self::sourceListToMap($sources),
@@ -369,7 +356,7 @@ final readonly class ConfigKernel
 
             throw $exception;
         } finally {
-            $durationMs = $this->stopwatch->stop($startedAt);
+            $durationMs = $this->safeStopTimer($startedAt);
 
             $this->emitExplainMetrics($outcome, $durationMs);
             $this->logLifecycleEvent(
@@ -521,6 +508,30 @@ final readonly class ConfigKernel
             'validation' => $validation,
             'validationSubjects' => $validationSubjects,
         ];
+    }
+
+    private function safeStartTimer(): mixed
+    {
+        try {
+            return $this->stopwatch->start();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function safeStopTimer(mixed $startedAt): int
+    {
+        if (!\is_int($startedAt)) {
+            return 0;
+        }
+
+        try {
+            $durationMs = $this->stopwatch->stop($startedAt);
+
+            return $durationMs >= 0 ? $durationMs : 0;
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     /**
@@ -1028,26 +1039,6 @@ final readonly class ConfigKernel
             redacted: $source->isRedacted(),
             meta: $source->meta(),
         );
-    }
-
-    /**
-     * @param array<string,mixed> $attributes
-     */
-    private function setSafeSpanAttributes(
-        ?SpanInterface $span,
-        array $attributes,
-    ): void {
-        if ($span === null) {
-            return;
-        }
-
-        try {
-            $span->setAttributes(self::safeSpanAttributes($attributes));
-        } catch (\Throwable) {
-            /*
-             * Observability must not change config pipeline behavior.
-             */
-        }
     }
 
     /**

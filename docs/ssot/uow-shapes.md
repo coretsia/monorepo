@@ -272,13 +272,13 @@ The exported array shape MUST remain stable and contract-tested.
 
 ### Field reference
 
-| field           | type                  | required | meaning                                                     |
-|-----------------|-----------------------|----------|-------------------------------------------------------------|
-| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.     |
-| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.            |
-| `startedAt`     | `int`                 | yes      | Wall-clock start timestamp in Unix epoch milliseconds.      |
-| `type`          | `string`              | yes      | UnitOfWork type token: `http`, `cli`, `queue`, `scheduler`. |
-| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.           |
+| field           | type                  | required | meaning                                                                      |
+|-----------------|-----------------------|----------|------------------------------------------------------------------------------|
+| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
+| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
+| `startedAt`     | `int`                 | yes      | Kernel-owned non-negative start timing marker. `0` means timing unavailable. |
+| `type`          | `string`              | yes      | UnitOfWork type token: `http`, `cli`, `queue`, `scheduler`.                  |
+| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
 
 ### `uowId`
 
@@ -332,21 +332,33 @@ scheduler
 
 ### `startedAt`
 
-`startedAt` is the wall-clock start timestamp.
+`startedAt` is the Kernel-owned UnitOfWork start timing marker.
 
-It MUST be an integer Unix epoch timestamp in milliseconds.
+It MUST be a non-negative integer.
 
-The timestamp MUST be UTC.
+A positive `startedAt` value is the timing token captured by the Kernel runtime for lifecycle duration measurement.
 
-`startedAt` SHOULD be captured from the canonical runtime clock:
+When the Kernel runtime cannot obtain a timing token, `startedAt` MUST be `0`.
+
+`0` is the canonical unavailable timer sentinel.
+
+Consumers MUST NOT treat `0` as a real wall-clock timestamp.
+
+`startedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
+
+`startedAt` MUST be captured from the canonical monotonic timing source when timing is available:
 
 ```text
-Psr\Clock\ClockInterface
+Coretsia\Foundation\Time\Stopwatch
 ```
 
-`startedAt` MUST NOT be used to calculate canonical duration.
+Specifically, positive `startedAt` values are `Stopwatch::start()` timing tokens.
 
-System wall time may move forward or backward.
+`startedAt` MUST NOT be captured from `Psr\Clock\ClockInterface`.
+
+`startedAt` MUST NOT be used as a wall-clock timestamp.
+
+`startedAt` MUST NOT be used to calculate canonical duration outside the Kernel-owned lifecycle policy.
 
 Duration measurement MUST use:
 
@@ -485,17 +497,17 @@ The exported array shape MUST remain stable and contract-tested.
 
 ### Field reference
 
-| field           | type                  | required | meaning                                                     |
-|-----------------|-----------------------|----------|-------------------------------------------------------------|
-| `correlationId` | `string`              | yes      | Safe correlation id copied from the context.                |
-| `durationMs`    | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.    |
-| `error`         | `array<string,mixed>` | no       | Normalized json-like exported error map.                    |
-| `extensions`    | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                     |
-| `finishedAt`    | `int`                 | yes      | Wall-clock completion timestamp in Unix epoch milliseconds. |
-| `outcome`       | `string`              | yes      | Outcome token: `success`, `handled_error`, `fatal_error`.   |
-| `startedAt`     | `int`                 | yes      | Wall-clock start timestamp copied from the context.         |
-| `type`          | `string`              | yes      | UnitOfWork type copied from the context.                    |
-| `uowId`         | `string`              | yes      | UnitOfWork id copied from the context.                      |
+| field           | type                  | required | meaning                                                                       |
+|-----------------|-----------------------|----------|-------------------------------------------------------------------------------|
+| `correlationId` | `string`              | yes      | Safe correlation id copied from the context.                                  |
+| `durationMs`    | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.                      |
+| `error`         | `array<string,mixed>` | no       | Normalized json-like exported error map.                                      |
+| `extensions`    | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                                       |
+| `finishedAt`    | `int`                 | yes      | Kernel-owned non-negative finish timing marker. `0` means timing unavailable. |
+| `outcome`       | `string`              | yes      | Outcome token: `success`, `handled_error`, `fatal_error`.                     |
+| `startedAt`     | `int`                 | yes      | Start timing marker copied from the context. `0` means timing unavailable.    |
+| `type`          | `string`              | yes      | UnitOfWork type copied from the context.                                      |
+| `uowId`         | `string`              | yes      | UnitOfWork id copied from the context.                                        |
 
 ### `uowId`
 
@@ -530,25 +542,39 @@ It MUST NOT be used as a metric label.
 
 `startedAt` MUST match the originating context `startedAt`.
 
-It is a wall-clock timestamp in Unix epoch milliseconds.
+It is the Kernel-owned start timing marker copied from the originating context.
+
+`0` means timing unavailable.
 
 It MUST NOT be used as the canonical duration source.
 
 ### `finishedAt`
 
-`finishedAt` is the wall-clock completion timestamp.
+`finishedAt` is the Kernel-owned UnitOfWork finish timing marker.
 
-It MUST be an integer Unix epoch timestamp in milliseconds.
+It MUST be a non-negative integer.
 
-The timestamp MUST be UTC.
+When the Kernel runtime cannot obtain a timing token, `finishedAt` MUST be `0`.
 
-`finishedAt` SHOULD be captured from the canonical runtime clock:
+`0` is the canonical unavailable timer sentinel.
+
+Consumers MUST NOT treat `0` as a real wall-clock timestamp.
+
+`finishedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
+
+`finishedAt` MUST be captured from the canonical monotonic timing source when timing is available:
 
 ```text
-Psr\Clock\ClockInterface
+Coretsia\Foundation\Time\Stopwatch
 ```
 
-Because wall-clock time is not monotonic, consumers MUST NOT rely on:
+Specifically, positive `finishedAt` values are `Stopwatch::start()` timing tokens.
+
+`finishedAt` MUST NOT be captured from `Psr\Clock\ClockInterface`.
+
+`finishedAt` MUST NOT be used as a wall-clock timestamp.
+
+Because timing markers are not wall-clock timestamps and `0` can represent unavailable timing, consumers MUST NOT rely on:
 
 ```text
 finishedAt >= startedAt
@@ -575,6 +601,12 @@ The canonical exported unit is milliseconds.
 ```text
 Coretsia\Foundation\Time\Stopwatch
 ```
+
+If the Kernel runtime cannot measure duration because the timing token is unavailable or `Stopwatch` start/stop fails, `durationMs` MUST be `0`.
+
+A `durationMs` value of `0` may mean either a sub-millisecond duration or unavailable timing.
+
+Unavailable timing MUST NOT change UnitOfWork lifecycle behavior, hook invocation, reset behavior, outcome selection, or lifecycle failure precedence.
 
 `durationMs` MUST NOT be calculated from wall-clock timestamps.
 

@@ -443,6 +443,10 @@ Metric labels MUST NOT contain:
 
 Metric backend failures MUST NOT affect module plan resolution and MUST NOT replace deterministic module resolution exceptions.
 
+`Stopwatch` start/stop failures used for module-plan duration metrics MUST NOT affect `ModulePlan` resolution and MUST NOT replace deterministic module resolution exceptions.
+
+When module-plan duration cannot be measured, the duration metric value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
+
 `ModulePlanResolver` MAY emit safe logs through:
 
 ```text

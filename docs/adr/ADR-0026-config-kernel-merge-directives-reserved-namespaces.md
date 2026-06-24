@@ -439,6 +439,12 @@ Rejected.
 
 Config merge and explain observability boundaries belong to `ConfigKernel`.
 
+`ConfigKernel` `Stopwatch` start/stop failures are part of the ConfigKernel observability boundary.
+
+They MUST NOT change config compilation, config explain behavior, validation results, returned config payloads, source provenance metadata, or surfaced config exceptions.
+
+When config merge or explain duration cannot be measured, the duration metric value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
+
 Loaders, `DirectiveProcessor`, `ConfigMerger`, `ConfigValidator`, and `ConfigExplainer` must remain focused and should not emit config merge/explain lifecycle metrics/spans.
 
 ## Invariants
@@ -591,9 +597,9 @@ framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
 framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
 ```
 
-## Follow-up work
+## Maintenance
 
-Required follow-up:
+Required maintenance:
 
 - update `docs/adr/INDEX.md`;
 - keep `docs/ssot/config-directives.md` aligned with directive examples;

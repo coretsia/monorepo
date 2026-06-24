@@ -268,6 +268,12 @@ Those internal objects are Kernel-owned and must not become part of the contract
 - preserving deterministic failure precedence;
 - emitting safe lifecycle summary observability.
 
+`KernelRuntime` `Stopwatch` failures MUST NOT change UnitOfWork lifecycle behavior, hook invocation policy, reset policy, outcome selection, or lifecycle failure precedence.
+
+When timing is unavailable, `KernelRuntime` MUST use `0` as the canonical unavailable timer sentinel for exported timing metadata.
+
+The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
 The Kernel-owned base context writes are:
 
 ```text

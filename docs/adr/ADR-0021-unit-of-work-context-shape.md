@@ -53,7 +53,7 @@ The context shape is needed before the UnitOfWork runtime executor is implemente
 
 - context identity fields;
 - UnitOfWork type vocabulary;
-- start timestamp representation;
+- start timing marker representation;
 - correlation id representation;
 - safe context attributes;
 - json-like value restrictions;
@@ -189,13 +189,13 @@ Runtime adapters may derive safe scalar or json-like metadata from transport inp
 
 The canonical `UnitOfWorkContext` fields are:
 
-| field           | type                  | required | meaning                                                 |
-|-----------------|-----------------------|----------|---------------------------------------------------------|
-| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.       |
-| `type`          | `string`              | yes      | UnitOfWork type token.                                  |
-| `startedAt`     | `int`                 | yes      | Wall-clock start timestamp in Unix epoch milliseconds.  |
-| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.        |
-| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context. |
+| field           | type                  | required | meaning                                                                      |
+|-----------------|-----------------------|----------|------------------------------------------------------------------------------|
+| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
+| `type`          | `string`              | yes      | UnitOfWork type token.                                                       |
+| `startedAt`     | `int`                 | yes      | Kernel-owned non-negative start timing marker. `0` means timing unavailable. |
+| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
+| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
 
 No additional top-level context fields are introduced by this epic.
 
@@ -259,25 +259,23 @@ Coretsia\Foundation\Id\IdGeneratorInterface
 
 `uowId` must not be used as a metric label.
 
-## Decision 6: `startedAt` is wall-clock milliseconds, not duration source
+## Decision 6: `startedAt` is a Kernel-owned timing marker
 
-`startedAt` is the wall-clock timestamp captured at UnitOfWork begin.
+`startedAt` is the Kernel-owned UnitOfWork start timing marker.
 
-It must be an integer Unix epoch timestamp in milliseconds.
+It MUST be a non-negative integer.
 
-It must represent UTC time.
+A positive `startedAt` value is the timing token captured by Kernel runtime for lifecycle duration measurement.
 
-The recommended clock source is:
+When Kernel runtime cannot obtain a timing token, `startedAt` MUST be `0`.
 
-```text
-Psr\Clock\ClockInterface
-```
+`0` is the canonical unavailable timer sentinel.
 
-`startedAt` must not be used to calculate canonical duration.
+Consumers MUST NOT treat `0` as a real wall-clock timestamp.
 
-System wall time may move forward or backward.
+`startedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
 
-Duration measurement belongs to `UnitOfWorkResult.durationMs` and must use the canonical monotonic timing source defined in:
+Duration measurement belongs to `UnitOfWorkResult.durationMs` and MUST use the canonical monotonic timing source defined in:
 
 ```text
 docs/ssot/time-ids-and-duration.md
@@ -853,7 +851,9 @@ Verification must prove:
 - context exported key order is stable;
 - `uowId` is represented as string;
 - `type` accepts only `http`, `cli`, `queue`, and `scheduler`;
-- `startedAt` is represented as integer Unix epoch milliseconds;
+- `startedAt` is represented as a non-negative integer timing marker;
+- `startedAt=0` is accepted as the canonical unavailable timer sentinel;
+- `startedAt=0` is not passed to `Stopwatch::stop()`;
 - `correlationId` is represented as string;
 - `attributes` root is a map;
 - attributes accept `null`, `bool`, `int`, `string`, lists, and string-keyed maps;

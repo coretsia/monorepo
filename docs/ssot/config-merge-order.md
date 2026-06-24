@@ -804,6 +804,10 @@ The active Phase B pipeline MUST be deterministic.
 
 The same inputs MUST produce the same final config and explain trace, excluding observability durations.
 
+`ConfigKernel` observability timing failures MUST NOT change final config, validation results, effective source traces, explain traces, safe provenance metadata, or exception precedence.
+
+When config merge or explain duration cannot be measured, duration observability may collapse to `0` or be omitted according to owner policy.
+
 Determinism requires:
 
 - deterministic source candidate lists;

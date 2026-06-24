@@ -76,7 +76,7 @@ final readonly class PriorityResetOrchestrator
      */
     public function resetAll(string $effectiveResetTag): void
     {
-        $startedAt = $this->stopwatch->start();
+        $startedAt = $this->safeStartTimer();
 
         $servicesCount = 0;
         $groupsCount = 0;
@@ -98,7 +98,7 @@ final readonly class PriorityResetOrchestrator
 
             throw $exception;
         } finally {
-            $durationMs = $this->stopwatch->stop($startedAt);
+            $durationMs = $this->safeStopTimer($startedAt);
             $outcome = $failure === null ? self::OUTCOME_OK : self::OUTCOME_FAILED;
 
             $this->emitObservabilitySummary(
@@ -216,6 +216,30 @@ final readonly class PriorityResetOrchestrator
         }
 
         return ResetGroup::fromString($rawGroup);
+    }
+
+    private function safeStartTimer(): mixed
+    {
+        try {
+            return $this->stopwatch->start();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function safeStopTimer(mixed $startedAt): int
+    {
+        if (!\is_int($startedAt)) {
+            return 0;
+        }
+
+        try {
+            $durationMs = $this->stopwatch->stop($startedAt);
+
+            return $durationMs >= 0 ? $durationMs : 0;
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function startSpan(int $servicesCount, int $groupsCount): ?SpanInterface

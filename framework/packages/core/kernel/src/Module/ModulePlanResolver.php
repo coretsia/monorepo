@@ -99,7 +99,7 @@ final readonly class ModulePlanResolver
 
     public function resolve(BootstrapConfig $bootstrapConfig): ModulePlan
     {
-        $startedAt = $this->stopwatch->start();
+        $startedAt = $this->safeStartTimer();
         $outcome = 'success';
 
         try {
@@ -145,7 +145,7 @@ final readonly class ModulePlanResolver
 
             throw $exception;
         } finally {
-            $durationMs = $this->stopwatch->stop($startedAt);
+            $durationMs = $this->safeStopTimer($startedAt);
 
             $this->emitResolutionSummary($outcome, $durationMs);
         }
@@ -161,6 +161,30 @@ final readonly class ModulePlanResolver
                 source: $this->discoverySource,
                 allowedSources: $this->allowedDiscoverySources,
             );
+        }
+    }
+
+    private function safeStartTimer(): mixed
+    {
+        try {
+            return $this->stopwatch->start();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function safeStopTimer(mixed $startedAt): int
+    {
+        if (!\is_int($startedAt)) {
+            return 0;
+        }
+
+        try {
+            $durationMs = $this->stopwatch->stop($startedAt);
+
+            return $durationMs >= 0 ? $durationMs : 0;
+        } catch (\Throwable) {
+            return 0;
         }
     }
 

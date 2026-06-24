@@ -626,6 +626,18 @@ because it returns a float.
 
 `Stopwatch` MUST NOT depend on wall-clock timezone.
 
+## Stopwatch consumer failure policy
+
+`Stopwatch` itself remains strict: `Stopwatch::stop(int $startedAt)` accepts only a positive token returned by `Stopwatch::start()`.
+
+Operation-boundary consumers MAY use `0` as their own unavailable timer sentinel only outside the `Stopwatch` API.
+
+The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
+When duration measurement is observability metadata rather than the primary operation behavior, `Stopwatch` start/stop failures MUST NOT change the owning operation behavior.
+
+Owner packages MAY collapse the exported duration value to `0` or omit the timing signal according to their local observability policy.
+
 ## Duration value model
 
 Canonical duration values are integer milliseconds.

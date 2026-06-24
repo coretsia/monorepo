@@ -33,7 +33,6 @@ final class ResetException extends \RuntimeException
     private const string REASON_META_INVALID = 'reset-meta-invalid';
     private const string REASON_SERVICE_NOT_RESETTABLE = 'reset-not-resettable';
     private const string REASON_SERVICE_FAILED = 'reset-service-failed';
-    private const string REASON_OBSERVABILITY_FAILED = 'reset-observability-failed';
 
     /**
      * @var array<string, string>
@@ -42,7 +41,6 @@ final class ResetException extends \RuntimeException
         ResetErrorCodes::CORETSIA_RESET_META_INVALID => self::REASON_META_INVALID,
         ResetErrorCodes::CORETSIA_RESET_SERVICE_NOT_RESETTABLE => self::REASON_SERVICE_NOT_RESETTABLE,
         ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED => self::REASON_SERVICE_FAILED,
-        ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED => self::REASON_OBSERVABILITY_FAILED,
     ];
 
     public function __construct(
@@ -92,15 +90,6 @@ final class ResetException extends \RuntimeException
         return new self(
             ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED,
             self::REASON_SERVICE_FAILED,
-            $previous,
-        );
-    }
-
-    public static function observabilityFailed(?\Throwable $previous = null): self
-    {
-        return new self(
-            ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED,
-            self::REASON_OBSERVABILITY_FAILED,
             $previous,
         );
     }

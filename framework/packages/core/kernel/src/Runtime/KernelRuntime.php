@@ -52,6 +52,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     private const string ERROR_DESCRIPTOR_CODE = 'coretsia.kernel.runtime.error';
     private const string ERROR_DESCRIPTOR_MESSAGE = 'kernel-runtime-error';
 
+    private const int TIMER_UNAVAILABLE = 0;
+
     public function __construct(
         private ContextStore $contextStore,
         private ResetOrchestrator $resetOrchestrator,
@@ -261,7 +263,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             return new UnitOfWorkContext(
                 uowId: $this->uowIds->generate(),
                 type: $type,
-                startedAt: $this->stopwatch->start(),
+                startedAt: $this->safeStartTimer(),
                 correlationId: $this->correlationId(),
                 attributes: $attributes,
             );
@@ -352,8 +354,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         try {
             return UnitOfWorkResult::fromContext(
                 context: $context,
-                finishedAt: $this->stopwatch->start(),
-                durationMs: $this->stopwatch->stop($context->startedAt()),
+                finishedAt: $this->safeStartTimer(),
+                durationMs: $this->safeStopTimer($context->startedAt()),
                 outcome: $outcome,
                 error: $this->errorDescriptor($error),
                 extensions: $extensions,
@@ -365,6 +367,30 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 KernelRuntimeException::REASON_INVALID_RESULT,
                 $throwable,
             );
+        }
+    }
+
+    private function safeStartTimer(): int
+    {
+        try {
+            return $this->stopwatch->start();
+        } catch (\Throwable) {
+            return self::TIMER_UNAVAILABLE;
+        }
+    }
+
+    private function safeStopTimer(int $startedAt): int
+    {
+        if ($startedAt <= self::TIMER_UNAVAILABLE) {
+            return 0;
+        }
+
+        try {
+            $durationMs = $this->stopwatch->stop($startedAt);
+
+            return $durationMs >= 0 ? $durationMs : 0;
+        } catch (\Throwable) {
+            return 0;
         }
     }
 
@@ -406,7 +432,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 );
             }
 
-            if ($context['startedAt'] <= 0) {
+            if ($context['startedAt'] < 0) {
                 throw KernelRuntimeException::withReason(
                     KernelRuntimeException::REASON_INVALID_CONTEXT,
                 );

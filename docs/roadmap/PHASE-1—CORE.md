@@ -6954,7 +6954,6 @@ Errors (deterministic, code-first):
     - [x] `CORETSIA_RESET_META_INVALID`
     - [x] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
     - [x] `CORETSIA_RESET_SERVICE_FAILED`
-    - [x] `CORETSIA_RESET_OBSERVABILITY_FAILED` (only for internal/noop-port failures; MUST remain safe)
 
 - [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
   - [x] MUST carry deterministic string code from `ResetErrorCodes`:
@@ -7255,7 +7254,6 @@ N/A
   - [x] invalid tag meta → `CORETSIA_RESET_META_INVALID`
   - [x] resolved service does NOT implement `ResetInterface` → `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
   - [x] first reset failure (service throws) → `CORETSIA_RESET_SERVICE_FAILED`
-  - [x] internal observability port failure (must remain safe) → `CORETSIA_RESET_OBSERVABILITY_FAILED`
 - [x] Exception messages MUST be stable + safe:
   - [x] MUST NOT contain absolute paths
   - [x] MUST NOT contain secrets/PII/payloads
@@ -9028,7 +9026,6 @@ Forbidden:
   - [x] Assert reset metrics/log summary remain policy-compliant and do not include service internals.
 
 - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
-  - [x] Assert tracer/span observability failure after successful reset surfaces `ResetException::observabilityFailed()`.
   - [x] Assert observability failure after successful reset is surfaced when span `end()` throws.
   - [x] Assert observability failure after successful reset is surfaced when meter emission throws.
   - [x] Assert observability failure after successful reset is surfaced when logger emission throws.
@@ -9200,7 +9197,6 @@ Forbidden:
     - [x] `metaInvalid()`
     - [x] `serviceNotResettable()`
     - [x] `serviceFailed()`
-    - [x] `observabilityFailed()`
   - [x] Constructor message policy MUST remain stable and safe.
   - [x] Exception messages MUST NOT include service ids, payloads, secrets, raw context values, absolute paths, headers, cookies, Authorization values, tokens, session ids, host-specific values, or environment-specific data.
 
@@ -9217,7 +9213,6 @@ Forbidden:
   - [x] Preserve existing log message:
     - [x] `foundation.reset`
   - [x] Preserve existing failure precedence:
-    - [x] reset succeeds + observability fails → surface `ResetException::observabilityFailed()`
     - [x] reset fails + observability also fails → preserve primary reset failure
   - [x] Observability summary MUST remain summary-only.
   - [x] Observability summary MUST NOT include raw service ids, tag metadata, service instances, raw previous exception messages, stack traces, payloads, secrets, headers, cookies, Authorization values, tokens, session ids, absolute paths, or raw context values.
@@ -9398,7 +9393,6 @@ N/A
 - [x] Mapping:
   - [x] No `error.mapper` integration is introduced.
   - [x] Reset failures continue to use existing `ResetErrorCodes`.
-  - [x] Observability failure continues to map to `CORETSIA_RESET_OBSERVABILITY_FAILED`.
   - [x] Service reset failure continues to map to `CORETSIA_RESET_SERVICE_FAILED`.
   - [x] Tagged non-resettable service continues to map to `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`.
   - [x] Context write forbidden failures continue to map to `CORETSIA_CONTEXT_WRITE_FORBIDDEN`.

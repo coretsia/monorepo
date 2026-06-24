@@ -554,6 +554,12 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
+`ConfigKernel` and `ModulePlanResolver` stopwatch failures MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
+
+`KernelRuntime` stopwatch failures MUST NOT change `UnitOfWork` lifecycle behavior, hook invocation policy, reset policy, or lifecycle failure precedence.
+
+When monotonic timing is unavailable, `KernelRuntime` MUST use `0` as the canonical unavailable timer sentinel for `startedAt`, `finishedAt`, and `durationMs`. The sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
 Compiled-container compile, factory, and public artifact-runtime boot failures use deterministic Kernel-owned exceptions and safe fixed messages.
 
 Compile-time failures use:

@@ -59,6 +59,12 @@ Services SHOULD NOT branch on observability availability.
 
 Observability failures MUST NOT change business behavior, runtime lifecycle failure precedence, reset semantics, artifact write behavior, fingerprint calculation behavior, container compile behavior, config compilation behavior, module plan resolution behavior, or cache verification semantics.
 
+For operation-boundary services, `Stopwatch` start/stop failures are observability failures when timing is used only for duration metrics, logs, spans, or exported lifecycle metadata.
+
+Such failures MUST be failure-silent and MUST NOT replace the primary operation result or exception.
+
+When timing is unavailable, owner packages MAY collapse duration values to `0` or omit the timing signal according to owner policy. The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
 Low-level helpers, pure value objects, normalizers, builders, and deterministic serialization utilities SHOULD NOT emit observability directly.
 
 Observability SHOULD live at operation-boundary services.

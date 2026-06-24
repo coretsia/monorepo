@@ -31,7 +31,6 @@ final class ResetErrorCodes
     public const string CORETSIA_RESET_META_INVALID = 'CORETSIA_RESET_META_INVALID';
     public const string CORETSIA_RESET_SERVICE_NOT_RESETTABLE = 'CORETSIA_RESET_SERVICE_NOT_RESETTABLE';
     public const string CORETSIA_RESET_SERVICE_FAILED = 'CORETSIA_RESET_SERVICE_FAILED';
-    public const string CORETSIA_RESET_OBSERVABILITY_FAILED = 'CORETSIA_RESET_OBSERVABILITY_FAILED';
 
     /**
      * @var list<string>
@@ -40,7 +39,6 @@ final class ResetErrorCodes
         self::CORETSIA_RESET_META_INVALID,
         self::CORETSIA_RESET_SERVICE_NOT_RESETTABLE,
         self::CORETSIA_RESET_SERVICE_FAILED,
-        self::CORETSIA_RESET_OBSERVABILITY_FAILED,
     ];
 
     /**

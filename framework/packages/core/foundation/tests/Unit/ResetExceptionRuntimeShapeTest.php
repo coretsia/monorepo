@@ -47,12 +47,6 @@ final class ResetExceptionRuntimeShapeTest extends TestCase
             ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED,
             'reset-service-failed',
         ];
-
-        yield 'observability failed' => [
-            'observabilityFailed',
-            ResetErrorCodes::CORETSIA_RESET_OBSERVABILITY_FAILED,
-            'reset-observability-failed',
-        ];
     }
 
     #[DataProvider('resetExceptionFactoryProvider')]
@@ -136,7 +130,6 @@ final class ResetExceptionRuntimeShapeTest extends TestCase
             'metaInvalid' => ResetException::metaInvalid($previous),
             'serviceNotResettable' => ResetException::serviceNotResettable($previous),
             'serviceFailed' => ResetException::serviceFailed($previous),
-            'observabilityFailed' => ResetException::observabilityFailed($previous),
             default => throw new \InvalidArgumentException('unknown-reset-exception-factory'),
         };
     }

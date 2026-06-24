@@ -18,48 +18,6 @@
 
 Accepted.
 
-## Runtime failure safety hardening follow-up note
-
-Epic `1.277.0` hardens the Foundation reset failure and observability boundary.
-
-The canonical live reset failure policy is now:
-
-```text
-docs/ssot/uow-and-reset-contracts.md
-docs/ssot/observability-and-errors.md
-```
-
-`ResetException` remains the canonical typed Foundation reset failure.
-
-It now exposes stable runtime-style diagnostics through:
-
-```text
-code()
-errorCode()
-reason()
-withoutPrevious()
-```
-
-`code()` and `errorCode()` return the same stable reset error code.
-
-`reason()` returns the stable safe reset reason token.
-
-A surfaced reset failure MAY preserve the original previous throwable for in-process programmatic chaining.
-
-Reset span exception recording MUST NOT receive that raw previous throwable chain.
-
-When a reset failure is recorded into a span, Foundation reset orchestration MUST record a sanitized `ResetException` copy produced by:
-
-```text
-ResetException::withoutPrevious()
-```
-
-The sanitized copy preserves the reset code, error code, reason, and message, but does not preserve the previous throwable.
-
-Reset logs, metrics, spans, and span exception recording remain summary-only and MUST NOT leak raw previous throwable messages, stack traces, service ids, service instances, tag metadata values, raw context values, credentials, tokens, cookies, authorization values, session ids, raw SQL, object dumps, local absolute paths, or environment-specific bytes.
-
-Historical wording in this ADR that only says observability is summary-only should now be read together with the 1.277.0 sanitized reset exception recording policy.
-
 ## Context
 
 Coretsia runtimes need deterministic reset behavior for long-running PHP processes.
@@ -279,7 +237,7 @@ It MUST NOT validate tag meta.
 
 Invalid reset tag meta MUST NOT fail reset in disabled mode.
 
-This preserves 1.200.0 behavior.
+Base mode is defined strictly as the exact `TagRegistry::all($effectiveResetTag)` output order.
 
 Because `TagRegistry::all()` already sorts discovery lists as:
 
@@ -599,13 +557,37 @@ Coretsia\Foundation\Runtime\Reset\ResetException
 code(): string
 ```
 
+`ResetException` exposes stable runtime-style diagnostics through:
+
+```text
+code()
+errorCode()
+reason()
+withoutPrevious()
+```
+
+`code()` and `errorCode()` return the same stable reset error code.
+
+`reason()` returns the stable safe reason token.
+
+A surfaced reset failure MAY preserve the original previous throwable for in-process programmatic chaining.
+
+Reset span exception recording MUST NOT receive the raw previous throwable chain.
+
+When a reset failure is recorded into a span, Foundation reset orchestration MUST record a sanitized `ResetException` copy produced by:
+
+```text
+ResetException::withoutPrevious()
+```
+
+The sanitized copy preserves the reset code, error code, reason, and message, but does not preserve the previous throwable.
+
 The deterministic reset error codes are:
 
 ```text
 CORETSIA_RESET_META_INVALID
 CORETSIA_RESET_SERVICE_NOT_RESETTABLE
 CORETSIA_RESET_SERVICE_FAILED
-CORETSIA_RESET_OBSERVABILITY_FAILED
 ```
 
 The deterministic mapping is:
@@ -615,7 +597,6 @@ The deterministic mapping is:
 | invalid reset tag meta                                 | `CORETSIA_RESET_META_INVALID`           | `reset-meta-invalid`         |
 | discovered service does not implement `ResetInterface` | `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` | `reset-not-resettable`       |
 | service resolution or reset execution throws           | `CORETSIA_RESET_SERVICE_FAILED`         | `reset-service-failed`       |
-| internal observability port failure                    | `CORETSIA_RESET_OBSERVABILITY_FAILED`   | `reset-observability-failed` |
 
 Exception messages MUST be fixed safe tokens.
 
@@ -764,19 +745,19 @@ outcome
 
 Logs MUST NOT include per-service internals, service dumps, tag meta payloads, stack traces, raw config, raw context, or raw unit-of-work payloads by default.
 
-## Decision 14: Observability failures are safe
+## Decision 14: Observability failures are failure-silent
 
-Internal observability port failures MUST remain safe.
+Internal observability port failures MUST remain failure-silent.
 
-If observability fails when no reset failure is already being surfaced, enhanced reset MAY surface:
+Reset observability failures, including logger, tracer, meter, span finalization, span exception recording, and `Stopwatch` start/stop failures, MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
 
-```text
-ResetException(code=CORETSIA_RESET_OBSERVABILITY_FAILED, message="reset-observability-failed")
-```
+If reset execution succeeds and reset observability emission fails, reset remains successful.
 
-If reset already failed, observability failure MUST NOT hide the reset failure.
+If reset execution fails and reset observability emission also fails, the primary reset failure remains surfaced.
 
-The primary reset failure remains the deterministic reset exception for the reset problem.
+When reset duration cannot be measured, reset observability MAY collapse duration to `0` or omit the timing signal according to owner policy.
+
+The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
 
 ## Decision 15: Config defaults and rules are Foundation-owned
 

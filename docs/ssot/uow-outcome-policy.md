@@ -588,6 +588,10 @@ fatal_error
 Coretsia\Foundation\Time\Stopwatch
 ```
 
+If monotonic timing is unavailable or `Stopwatch` start/stop fails, `UnitOfWorkResult.durationMs` MUST be `0`.
+
+Unavailable timing MUST NOT affect outcome selection, error mapping, hook failure policy, reset policy, or lifecycle failure precedence.
+
 `UnitOfWorkResult.durationMs` MUST NOT be calculated from:
 
 ```text

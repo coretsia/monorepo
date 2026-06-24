@@ -459,6 +459,7 @@ Coretsia/
 │   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
 │   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php
+│   │   │   │   │   │   ├── PriorityResetStopwatchFailurePolicyContractTest.php
 │   │   │   │   │   │   ├── StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsFloatValuesContractTest.php
 │   │   │   │   │   │   ├── StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php
@@ -678,6 +679,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php
 │   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php
 │   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+│   │   │       │   │   ├── KernelConfigModuleStopwatchFailurePolicyContractTest.php
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEmitRoutesArtifactContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEnumerateResetDiscoveryTagTest.php
@@ -689,6 +691,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelRuntimeDriverConfigRulesContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverNoForbiddenDepsContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverPublicApiContractTest.php
+│   │   │       │   │   ├── KernelRuntimeStopwatchFailurePolicyContractTest.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php
@@ -757,6 +760,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
 │   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
+│   │   │       │   │   ├── KernelRuntimeAcceptsTimerUnavailableExportedContextTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 │   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php

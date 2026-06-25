@@ -1463,11 +1463,17 @@ Coretsia/
 │   │   ├── backups/
 │   │   │   ├── release-line/
 │   │   │   │   ├── framework__composer.json.bak
+│   │   │   │   ├── framework__composer.json.bak.1
 │   │   │   │   ├── framework__packages__core__foundation__composer.json.bak
+│   │   │   │   ├── framework__packages__core__foundation__composer.json.bak.1
+│   │   │   │   ├── framework__packages__core__kernel__composer.json.bak
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.1
+│   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.2
 │   │   │   │   ├── framework__packages__platform__cli__composer.json.bak
-│   │   │   │   └── framework__packages__platform__cli__composer.json.bak.1
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.1
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.2
+│   │   │   │   └── framework__packages__platform__worker__composer.json.bak
 │   │   │   ├── workspace/
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak.1
@@ -1475,12 +1481,15 @@ Coretsia/
 │   │   │   │   ├── framework__composer.json.bak.1
 │   │   │   │   ├── framework__composer.json.bak.2
 │   │   │   │   ├── framework__composer.json.bak.3
+│   │   │   │   ├── framework__composer.json.bak.4
 │   │   │   │   ├── monorepo__composer.json.bak
 │   │   │   │   ├── monorepo__composer.json.bak.1
+│   │   │   │   ├── monorepo__composer.json.bak.2
 │   │   │   │   ├── skeleton__composer.json.bak
 │   │   │   │   ├── skeleton__composer.json.bak.1
 │   │   │   │   ├── skeleton__composer.json.bak.2
-│   │   │   │   └── skeleton__composer.json.bak.3
+│   │   │   │   ├── skeleton__composer.json.bak.3
+│   │   │   │   └── skeleton__composer.json.bak.4
 │   │   │   └── .gitignore
 │   │   └── .gitignore
 │   ├── composer.json

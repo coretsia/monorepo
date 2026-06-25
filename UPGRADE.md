@@ -101,6 +101,39 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.4.0 to v0.5.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+
+#### Notes
+
+- Review `CHANGELOG.md` for the `v0.5.0` Core Kernel package publication details.
+- This release introduces publish-ready `coretsia/core-kernel` split package coverage.
+- Public `ContextKeys` moved to `core/contracts` as the canonical contract-level context key vocabulary.
+- Foundation remains responsible for context storage, write validation, reset behavior, and default observability bindings.
+- Kernel remains responsible for base UnitOfWork context writes and operation-boundary observability.
+- The framework default `express` preset now treats `platform.http` as a required module.
+- Until `platform.http` is available in the installed module manifest, resolving or booting the Express fixture is expected to fail deterministically with `CORETSIA_MODULE_REQUIRED_MISSING`.
+- Use `micro` for the current Phase 1 kernel boot smoke path when HTTP platform support is not installed.
+
+#### Migration steps
+
+1. Review `CHANGELOG.md`.
+2. If your workspace consumes split packages, refresh dependency locks intentionally.
+3. If your application, tests, or integration code imports Foundation-owned context key identifiers, update them to the contract-level `ContextKeys` symbol from `core/contracts`.
+4. Do not replace Foundation context storage or reset behavior with contract-level code; only the public key vocabulary moved.
+5. If your application or test fixture selects the `express` preset, either:
+   - ensure `platform.http` is available in the installed module manifest; or
+   - use `micro` until HTTP platform support is available.
+6. Run:
+
+```bash
+composer setup
+composer ci
+```
+
 ### From v0.2.0 to v0.3.0
 
 #### Compatibility

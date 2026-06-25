@@ -725,6 +725,8 @@ Coretsia/
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
+│   │   │       │   │   ├── BootExpressPresetTest.php
+│   │   │       │   │   ├── BootMicroPresetTest.php
 │   │   │       │   │   ├── BootstrapDoesNotScanSkeletonAppsTest.php
 │   │   │       │   │   ├── BootstrapDotenvRespectedUnderStrictPolicyTest.php
 │   │   │       │   │   ├── BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
@@ -784,6 +786,7 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverEmitsPolicyCompliantMetricsTest.php
 │   │   │       │   │   ├── ModulePlanResolverFailurePrecedenceTest.php
 │   │   │       │   │   ├── ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest.php
+│   │   │       │   │   ├── ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php
 │   │   │       │   │   ├── ModulePlanResolverLogsDoNotLeakPathsTest.php
 │   │   │       │   │   ├── ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php
 │   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
@@ -793,6 +796,8 @@ Coretsia/
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
+│   │   │       │   ├── Support/
+│   │   │       │   │   └── AppBuilder.php
 │   │   │       │   └── Unit/
 │   │   │       │       ├── Config/
 │   │   │       │       │   ├── ConfigRulesLoaderRejectsCallableRulesTest.php
@@ -987,6 +992,7 @@ Coretsia/
 │   │           │       └── ApplicationWorker.php
 │   │           ├── tests/
 │   │           │   ├── Contract/
+│   │           │   │   ├── ApplicationWorkerStopwatchFailurePolicyContractTest.php
 │   │           │   │   ├── CoretsiaWorkerChildLauncherContractTest.php
 │   │           │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │           │   │   ├── ProcWorkerManagerDriverSafetyContractTest.php
@@ -1457,11 +1463,17 @@ Coretsia/
 │   │   ├── backups/
 │   │   │   ├── release-line/
 │   │   │   │   ├── framework__composer.json.bak
+│   │   │   │   ├── framework__composer.json.bak.1
 │   │   │   │   ├── framework__packages__core__foundation__composer.json.bak
+│   │   │   │   ├── framework__packages__core__foundation__composer.json.bak.1
+│   │   │   │   ├── framework__packages__core__kernel__composer.json.bak
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.1
+│   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.2
 │   │   │   │   ├── framework__packages__platform__cli__composer.json.bak
-│   │   │   │   └── framework__packages__platform__cli__composer.json.bak.1
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.1
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.2
+│   │   │   │   └── framework__packages__platform__worker__composer.json.bak
 │   │   │   ├── workspace/
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak.1
@@ -1469,12 +1481,15 @@ Coretsia/
 │   │   │   │   ├── framework__composer.json.bak.1
 │   │   │   │   ├── framework__composer.json.bak.2
 │   │   │   │   ├── framework__composer.json.bak.3
+│   │   │   │   ├── framework__composer.json.bak.4
 │   │   │   │   ├── monorepo__composer.json.bak
 │   │   │   │   ├── monorepo__composer.json.bak.1
+│   │   │   │   ├── monorepo__composer.json.bak.2
 │   │   │   │   ├── skeleton__composer.json.bak
 │   │   │   │   ├── skeleton__composer.json.bak.1
 │   │   │   │   ├── skeleton__composer.json.bak.2
-│   │   │   │   └── skeleton__composer.json.bak.3
+│   │   │   │   ├── skeleton__composer.json.bak.3
+│   │   │   │   └── skeleton__composer.json.bak.4
 │   │   │   └── .gitignore
 │   │   └── .gitignore
 │   ├── composer.json

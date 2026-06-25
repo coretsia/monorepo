@@ -117,13 +117,13 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                 'core.foundation',
                 'core.kernel',
                 'platform.cli',
+                'platform.http',
             ],
             self::moduleIdValues($preset->required()),
         );
 
         self::assertSame(
             [
-                'platform.http',
                 'platform.logging',
                 'platform.metrics',
                 'platform.tracing',
@@ -164,9 +164,9 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                     'core.foundation',
                     'core.kernel',
                     'platform.cli',
+                    'platform.http',
                 ],
                 'optional' => [
-                    'platform.http',
                     'platform.logging',
                     'platform.metrics',
                     'platform.tracing',

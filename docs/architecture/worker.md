@@ -16,8 +16,7 @@
 
 ## Purpose
 
-This document is the architecture overview for the `platform/worker` long-running
-runtime package.
+This document is the architecture overview for the `platform/worker` long-running runtime package.
 
 It explains:
 
@@ -60,9 +59,7 @@ Worker runtime architecture is decided by:
 docs/adr/ADR-0017-worker-manager-application-worker.md
 ```
 
-ADR-0017 records that `platform/worker` owns long-running worker runtime
-orchestration while Kernel and Foundation retain UnitOfWork, hook, and reset
-semantics.
+ADR-0017 records that `platform/worker` owns long-running worker runtime orchestration while Kernel and Foundation retain UnitOfWork, hook, and reset semantics.
 
 If this document conflicts with any of the following, the SSoT or ADR wins:
 
@@ -129,13 +126,9 @@ platform/http
 integrations/*
 ```
 
-The worker package may contribute CLI command services, but CLI discovery,
-catalog construction, binary dispatch, and command UX remain owned by
-`platform/cli`.
+The worker package may contribute CLI command services, but CLI discovery, catalog construction, binary dispatch, and command UX remain owned by `platform/cli`.
 
-The worker package may preflight HTTP task mode through
-`Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request
-production remain owned by later platform/runtime adapter epics.
+The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain owned by later platform/runtime adapter epics.
 
 ## Public architecture components
 
@@ -169,8 +162,7 @@ Coretsia\Platform\Worker\Internal\WorkerManagerDriverInterface
 Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
 
-They are not public framework extension points and must not be moved to
-`core/contracts`.
+They are not public framework extension points and must not be moved to `core/contracts`.
 
 ## Process model
 
@@ -234,16 +226,13 @@ proc otherwise
 
 The `pcntl` driver is Unix-like and fork-based.
 
-The `proc` driver is the cross-platform fallback and starts child workers through
-`proc_open()`.
+The `proc` driver is the cross-platform fallback and starts child workers through `proc_open()`.
 
 `WorkerManager` does not perform runtime capability discovery itself.
 
-It receives an already-built `WorkerPoolSpec` and selects a driver by the
-resolved driver id.
+It receives an already-built `WorkerPoolSpec` and selects a driver by the resolved driver id.
 
-If no matching supported driver exists, lifecycle execution fails with a safe
-deterministic worker start failure.
+If no matching supported driver exists, lifecycle execution fails with a safe deterministic worker start failure.
 
 ## Control transport selection
 
@@ -275,11 +264,9 @@ The `unix` transport uses a skeleton-root-relative socket path.
 
 The `tcp` transport uses configured TCP host and port.
 
-TCP port `0` is forbidden because it would make endpoint identity and persisted
-worker state non-deterministic across runs.
+TCP port `0` is forbidden because it would make endpoint identity and persisted worker state non-deterministic across runs.
 
-Raw socket paths, raw TCP hosts, and raw TCP ports must not appear in public
-diagnostics, logs, metrics, or public command output.
+Raw socket paths, raw TCP hosts, and raw TCP ports must not appear in public diagnostics, logs, metrics, or public command output.
 
 Endpoint identity may be represented publicly only through a deterministic hash.
 
@@ -313,19 +300,16 @@ with the caller-provided `ModulePlan`.
 
 The worker package must not duplicate runtime-driver matrix logic.
 
-The worker package must not translate runtime-driver guard failures into
-worker-specific driver failures.
+The worker package must not translate runtime-driver guard failures into worker-specific driver failures.
 
-The runtime-driver guard remains the source of deterministic matrix errors such
-as:
+The runtime-driver guard remains the source of deterministic matrix errors such as:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 ```
 
-Missing `platform.http` for HTTP worker mode must fail through
-`RuntimeDriverGuard` before request-handler resolution.
+Missing `platform.http` for HTTP worker mode must fail through `RuntimeDriverGuard` before request-handler resolution.
 
 ## Worker manager boundary
 
@@ -356,24 +340,19 @@ It delegates process-specific behavior to package-internal process drivers.
 - call `ResetOrchestrator::resetAll()`;
 - write stdout or stderr directly.
 
-`WorkerManager` may emit safe lifecycle observability summaries through injected
-ports.
+`WorkerManager` may emit safe lifecycle observability summaries through injected ports.
 
-Observability failures must not alter lifecycle semantics or primary failure
-precedence.
+Observability failures must not alter lifecycle semantics or primary failure precedence.
 
 ## Process driver boundary
 
 Process drivers own concrete process lifecycle behavior.
 
-The `pcntl` driver owns fork-based process startup and graceful shutdown when
-selected.
+The `pcntl` driver owns fork-based process startup and graceful shutdown when selected.
 
-The `proc` driver owns `proc_open()` process startup and graceful shutdown when
-selected.
+The `proc` driver owns `proc_open()` process startup and graceful shutdown when selected.
 
-Process drivers may write stop flags, communicate over the control channel, and
-persist worker state through `WorkerStateStore`.
+Process drivers may write stop flags, communicate over the control channel, and persist worker state through `WorkerStateStore`.
 
 Process drivers must not:
 
@@ -413,8 +392,7 @@ while processed < worker.max_requests:
 
 The stop flag is checked only between tasks.
 
-The worker must not interrupt an in-flight task unless future cancellation
-semantics are explicitly introduced.
+The worker must not interrupt an in-flight task unless future cancellation semantics are explicitly introduced.
 
 Each task is executed by:
 
@@ -424,8 +402,7 @@ Coretsia\Contracts\Runtime\KernelRuntimeInterface::runUnitOfWork(...)
 
 The resolved worker task type is passed as the UnitOfWork type.
 
-The safe task operation id used for observability is produced by package-local
-task work and is restricted to low-cardinality values such as:
+The safe task operation id used for observability is produced by package-local task work and is restricted to low-cardinality values such as:
 
 ```text
 queue
@@ -489,8 +466,7 @@ operation_id
 run
 ```
 
-`operation_id` must be deterministic, low-cardinality, and safe for the
-observability metric label `operation`.
+`operation_id` must be deterministic, low-cardinality, and safe for the observability metric label `operation`.
 
 `QueueTaskFactory` handles:
 
@@ -528,20 +504,17 @@ The worker runtime has the following safety controls.
 
 Worker runtime is opt-in.
 
-Installing `platform/worker` must not implicitly activate the long-running
-runtime.
+Installing `platform/worker` must not implicitly activate the long-running runtime.
 
 ### `worker.workers`
 
-Controls the number of worker child processes started by the selected process
-driver.
+Controls the number of worker child processes started by the selected process driver.
 
 The value must be a positive integer.
 
 ### `worker.max_requests`
 
-Controls the maximum number of tasks handled by one child worker process before
-the loop stops or the process is recycled by its supervisor/manager flow.
+Controls the maximum number of tasks handled by one child worker process before the loop stops or the process is recycled by its supervisor/manager flow.
 
 The value must be a positive integer.
 
@@ -620,8 +593,7 @@ The state file must not contain:
 - tokens;
 - raw endpoint identifiers.
 
-`WorkerStateStore` is the only worker runtime class allowed to write
-`worker.state.json`.
+`WorkerStateStore` is the only worker runtime class allowed to write `worker.state.json`.
 
 Process drivers must persist state only through `WorkerStateStore`.
 
@@ -640,9 +612,7 @@ Invalid state includes:
 - invalid value types;
 - invalid value domains.
 
-Public state-related failures must not expose raw state paths, absolute paths,
-endpoint identifiers, OS error text, decoded payloads, or previous throwable
-messages.
+Public state-related failures must not expose raw state paths, absolute paths, endpoint identifiers, OS error text, decoded payloads, or previous throwable messages.
 
 ## Control channel
 
@@ -707,9 +677,7 @@ endpoint_hash
 
 Failure output must use deterministic error codes and reason tokens.
 
-Failure output must not include raw config values, raw endpoints, absolute
-paths, environment values, payloads, headers, tokens, stack traces, or throwable
-messages.
+Failure output must not include raw config values, raw endpoints, absolute paths, environment values, payloads, headers, tokens, stack traces, or throwable messages.
 
 ## Observability
 
@@ -768,8 +736,7 @@ Logger, tracer, meter, stopwatch, and context dependencies are injected.
 
 Worker runtime classes must not instantiate observability adapters directly.
 
-Observability adapter failures must be caught and must not change worker control
-flow, task control flow, reset semantics, or selected public failure.
+Observability adapter failures must be caught and must not change worker control flow, task control flow, reset semantics, or selected public failure.
 
 ## Redaction rules
 
@@ -818,8 +785,7 @@ The worker state file is runtime state, not a generated architecture artifact.
 
 It is stored under the skeleton runtime tree by default.
 
-Operators may inspect it locally for debugging, but runtime public output must
-remain redacted.
+Operators may inspect it locally for debugging, but runtime public output must remain redacted.
 
 ### Pid handling
 
@@ -827,8 +793,7 @@ The worker runtime does not introduce a separate pid file.
 
 The safe master pid value is part of `worker.state.json`.
 
-The pid may appear in allowed safe summaries and span/log attributes only where
-the observability policy allows it.
+The pid may appear in allowed safe summaries and span/log attributes only where the observability policy allows it.
 
 The pid must not be used as a metric label.
 
@@ -846,8 +811,7 @@ Raw transport endpoint values are considered sensitive.
 
 ### Graceful shutdown
 
-Graceful shutdown is requested through worker-owned lifecycle mechanisms such as
-the stop flag and the control channel.
+Graceful shutdown is requested through worker-owned lifecycle mechanisms such as the stop flag and the control channel.
 
 `ApplicationWorker` observes the stop flag only between task iterations.
 
@@ -863,8 +827,7 @@ Windows resolves `worker.driver=auto` to `proc`.
 
 Unix-domain sockets are not assumed to exist on every PHP runtime.
 
-When Unix-domain sockets are unavailable, `worker.control.transport=auto`
-resolves to `tcp`.
+When Unix-domain sockets are unavailable, `worker.control.transport=auto` resolves to `tcp`.
 
 ## Non-goals
 
@@ -894,25 +857,21 @@ This architecture document does not define:
 
 ## Required update path
 
-Changing worker process ownership, manager/application-worker boundaries, state
-schema, task factory visibility, or process driver extension policy requires
-updating:
+Changing worker process ownership, manager/application-worker boundaries, state schema, task factory visibility, or process driver extension policy requires updating:
 
 ```text
 docs/adr/ADR-0017-worker-manager-application-worker.md
 docs/architecture/worker.md
 ```
 
-Changing runtime-driver ids, activation rules, compatibility rules, or
-runtime-driver matrix failure semantics requires updating:
+Changing runtime-driver ids, activation rules, compatibility rules, or runtime-driver matrix failure semantics requires updating:
 
 ```text
 docs/ssot/runtime-drivers.md
 docs/architecture/runtime-driver-guard.md
 ```
 
-Changing the `worker` config root ownership or defaults/rules authority requires
-updating:
+Changing the `worker` config root ownership or defaults/rules authority requires updating:
 
 ```text
 docs/ssot/config-roots.md

@@ -28,9 +28,9 @@ framework/packages/core/contracts/src/Module/
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
-## Canonical mode names
+## Canonical mode and preset names
 
-Coretsia defines these canonical mode names:
+Coretsia defines these framework canonical mode and preset names:
 
 ```text
 micro
@@ -39,11 +39,17 @@ hybrid
 enterprise
 ```
 
-Mode names are lowercase ASCII strings.
+These names are reserved for framework-owned canonical presets.
 
-Mode names MUST be compared byte-for-byte.
+Owner-defined custom preset names are non-canonical names.
 
-Mode name handling MUST NOT depend on:
+Owner-defined custom preset names MUST NOT use framework canonical preset names.
+
+Mode and preset names are lowercase ASCII strings.
+
+Mode and preset names MUST be compared byte-for-byte.
+
+Mode and preset name handling MUST NOT depend on:
 
 - locale
 - `setlocale`
@@ -51,7 +57,7 @@ Mode name handling MUST NOT depend on:
 - filesystem casing
 - translated display labels
 
-Display labels MAY use uppercase or title case in documentation or UI, but contract-level mode names remain lowercase.
+Display labels MAY use uppercase or title case in documentation or UI, but contract-level mode and preset names remain lowercase.
 
 ## Mode meaning
 
@@ -78,6 +84,20 @@ It emphasizes:
 - validation
 - persistence-oriented workflows
 - typical web application concerns
+
+The framework-owned `express` preset is the conventional HTTP/web application mode.
+
+The framework-owned `express` preset requires:
+
+```text
+platform.http
+```
+
+Until `platform.http` exists in the installed module manifest, Express boot MUST fail deterministically with:
+
+```text
+CORETSIA_MODULE_REQUIRED_MISSING
+```
 
 ### `hybrid`
 
@@ -107,7 +127,9 @@ It emphasizes:
 
 A mode preset is a deterministic module-selection profile.
 
-A mode preset MUST have a canonical preset name.
+A framework-owned mode preset MUST use a framework canonical preset name.
+
+An owner-defined custom preset MUST use a non-canonical safe preset name.
 
 A mode preset MAY contain:
 
@@ -321,9 +343,21 @@ enterprise
 
 Owner-defined custom preset names MAY exist.
 
-Owner-defined custom preset names MUST NOT redefine framework canonical preset names.
+Owner-defined custom preset names are non-canonical names.
 
-However, skeleton override files MAY override framework canonical presets using the same canonical name through the standard skeleton override mechanism.
+Owner-defined custom preset names MUST NOT use framework canonical preset names.
+
+Skeleton override files MAY override framework canonical presets using the same canonical name through the standard skeleton override mechanism:
+
+```text
+skeleton/config/modes/<canonical>.php
+```
+
+Skeleton preset loading is single-choice.
+
+When both a skeleton override preset and a framework default preset exist for the same canonical name, the skeleton override wins.
+
+Skeleton and framework presets MUST NOT be merged.
 
 Preset names MUST be safe lowercase ASCII identifiers.
 

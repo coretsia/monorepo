@@ -11,6 +11,9 @@
       "package_id": "core/foundation"
     },
     {
+      "package_id": "core/kernel"
+    },
+    {
       "package_id": "devtools/internal-toolkit"
     }
   ]

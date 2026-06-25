@@ -29,8 +29,8 @@
     "php": "^8.4",
     "ext-ctype": "*",
     "composer-runtime-api": "^2.2",
-    "coretsia/core-contracts": "^0.4.0",
-    "coretsia/core-foundation": "^0.4.0",
+    "coretsia/core-contracts": "^0.5.0",
+    "coretsia/core-foundation": "^0.5.0",
     "psr/container": "^2.0",
     "psr/log": "^3.0"
   },

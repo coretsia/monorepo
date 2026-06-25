@@ -24,9 +24,9 @@ return [
         'core.foundation',
         'core.kernel',
         'platform.cli',
+        'platform.http',
     ],
     'optional' => [
-        'platform.http',
         'platform.logging',
         'platform.metrics',
         'platform.tracing',

@@ -20,8 +20,7 @@ Accepted.
 
 ## Context
 
-Coretsia needs a long-running runtime package that can process many units of
-work without restarting PHP for each task.
+Coretsia needs a long-running runtime package that can process many units of work without restarting PHP for each task.
 
 The worker runtime must support:
 
@@ -70,8 +69,7 @@ platform/http
 integrations/*
 ```
 
-Long-running task execution must reuse Kernel-owned lifecycle semantics instead
-of defining a parallel lifecycle inside `platform/worker`.
+Long-running task execution must reuse Kernel-owned lifecycle semantics instead of defining a parallel lifecycle inside `platform/worker`.
 
 The canonical runtime entrypoint for executing a task as a unit of work is:
 
@@ -88,9 +86,7 @@ Kernel owns:
 - after-unit-of-work hook invocation;
 - reset orchestration.
 
-`platform/worker` owns only worker-pool orchestration, process lifecycle,
-control-channel behavior, worker state storage, and package-local task source
-preflight.
+`platform/worker` owns only worker-pool orchestration, process lifecycle, control-channel behavior, worker state storage, and package-local task source preflight.
 
 Runtime-driver composition must be checked before worker pool startup.
 
@@ -104,8 +100,7 @@ The worker package must not duplicate runtime-driver matrix policy.
 
 ## Decision
 
-Coretsia will introduce `platform/worker` as the package that owns the
-long-running worker runtime.
+Coretsia will introduce `platform/worker` as the package that owns the long-running worker runtime.
 
 The package will provide:
 
@@ -130,8 +125,7 @@ WorkerStopCommand
 WorkerStatusCommand
 ```
 
-The package will keep worker orchestration deterministic, side-effect boundaries
-explicit, and diagnostics safe.
+The package will keep worker orchestration deterministic, side-effect boundaries explicit, and diagnostics safe.
 
 ## Package ownership decision
 
@@ -186,8 +180,7 @@ It must not return a wrapper array such as:
 
 The worker config root contains worker-pool configuration only.
 
-The worker package may read worker config values through
-`ConfigRepositoryInterface`.
+The worker package may read worker config values through `ConfigRepositoryInterface`.
 
 It must not read environment variables for defaults.
 
@@ -195,8 +188,7 @@ It must not invent missing defaults outside the package-owned defaults file.
 
 ## Runtime-driver guard decision
 
-`WorkerStartCommand` must call `RuntimeDriverGuard` before starting the worker
-pool.
+`WorkerStartCommand` must call `RuntimeDriverGuard` before starting the worker pool.
 
 The command must call:
 
@@ -214,11 +206,9 @@ RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)
 
 with the caller-provided `ModulePlan`.
 
-Runtime-driver guard failures must be surfaced using the guard's deterministic
-error codes and reason tokens.
+Runtime-driver guard failures must be surfaced using the guard's deterministic error codes and reason tokens.
 
-The worker package must not translate guard failures into worker-specific driver
-conflict errors.
+The worker package must not translate guard failures into worker-specific driver conflict errors.
 
 The canonical guard errors remain:
 
@@ -227,8 +217,7 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 ```
 
-Missing `platform.http` for `worker.task_type=http` must fail through the
-runtime-driver guard before `RequestHandlerInterface` resolution.
+Missing `platform.http` for `worker.task_type=http` must fail through the runtime-driver guard before `RequestHandlerInterface` resolution.
 
 ## CLI command decision
 
@@ -254,17 +243,13 @@ They must not depend on `platform/cli`.
 
 They must not require full binary or catalog dispatch.
 
-They may be tested through direct command invocation or a package-local command
-harness.
+They may be tested through direct command invocation or a package-local command harness.
 
-Full end-to-end `coretsia worker:*` dispatch through container-backed CLI tag
-discovery belongs to a later `platform/cli` epic.
+Full end-to-end `coretsia worker:*` dispatch through container-backed CLI tag discovery belongs to a later `platform/cli` epic.
 
-When `platform/worker` contributes commands through the `cli.command` tag, it
-uses the existing reserved tag owned by `platform/cli`.
+When `platform/worker` contributes commands through the `cli.command` tag, it uses the existing reserved tag owned by `platform/cli`.
 
-This contribution does not make `platform/worker` an owner of CLI discovery,
-catalog construction, dispatch semantics, or command rendering.
+This contribution does not make `platform/worker` an owner of CLI discovery, catalog construction, dispatch semantics, or command rendering.
 
 ## Worker manager decision
 
@@ -278,8 +263,7 @@ status
 
 `WorkerManager` accepts an already-built `WorkerPoolSpec`.
 
-It delegates process-specific behavior to package-internal
-`WorkerManagerDriverInterface` implementations.
+It delegates process-specific behavior to package-internal `WorkerManagerDriverInterface` implementations.
 
 `WorkerManager` must not:
 
@@ -320,8 +304,7 @@ It must not be moved to `core/contracts`.
 
 It must not be documented as a public extension point.
 
-The interface defines only the package-local process-driver seam between
-`WorkerManager`, concrete drivers, and tests.
+The interface defines only the package-local process-driver seam between `WorkerManager`, concrete drivers, and tests.
 
 It exposes:
 
@@ -340,15 +323,13 @@ pcntl
 proc
 ```
 
-The `pcntl` driver is selected only when the resolved driver is `pcntl`,
-`pcntl_fork` is available, and the current platform is not Windows.
+The `pcntl` driver is selected only when the resolved driver is `pcntl`, `pcntl_fork` is available, and the current platform is not Windows.
 
 The `proc` driver is the cross-platform fallback.
 
 Driver auto-resolution must be deterministic.
 
-Driver support checks must not depend on hidden global state beyond explicit
-capability inputs used to build `WorkerPoolSpec`.
+Driver support checks must not depend on hidden global state beyond explicit capability inputs used to build `WorkerPoolSpec`.
 
 ## Application worker decision
 
@@ -378,8 +359,7 @@ Each task is a separate UnitOfWork.
 
 The resolved worker task type is passed to KernelRuntime as the UnitOfWork type.
 
-The task operation id used for worker task observability comes from
-package-internal task work, not from untrusted payloads or raw runtime data.
+The task operation id used for worker task observability comes from package-internal task work, not from untrusted payloads or raw runtime data.
 
 ## Task factory decision
 
@@ -409,8 +389,7 @@ queue
 http
 ```
 
-The `run` value is a closure executed inside the KernelRuntime UnitOfWork
-boundary.
+The `run` value is a closure executed inside the KernelRuntime UnitOfWork boundary.
 
 `QueueTaskFactory` handles:
 
@@ -420,8 +399,7 @@ worker.task_type=queue
 
 It does not implement a real external queue adapter.
 
-External queue sources, acknowledgement semantics, retry semantics, and
-integration-specific adapters are owned by later integration epics.
+External queue sources, acknowledgement semantics, retry semantics, and integration-specific adapters are owned by later integration epics.
 
 `HttpTaskFactory` handles:
 
@@ -433,11 +411,9 @@ It does not implement a real HTTP request source.
 
 It must not depend on `platform/http`.
 
-It may validate that `Psr\Http\Server\RequestHandlerInterface` is
-resolvable.
+It may validate that `Psr\Http\Server\RequestHandlerInterface` is resolvable.
 
-Request-handler preflight must happen only after RuntimeDriverGuard/module
-compatibility has passed.
+Request-handler preflight must happen only after RuntimeDriverGuard/module compatibility has passed.
 
 Request handler preflight failures use deterministic worker start failures:
 
@@ -449,8 +425,7 @@ request_handler_invalid
 
 ## Worker state decision
 
-`WorkerPoolState` is the deterministic runtime state model for a running worker
-pool.
+`WorkerPoolState` is the deterministic runtime state model for a running worker pool.
 
 It records only safe state fields required by start, stop, and status flows.
 
@@ -462,13 +437,9 @@ Process drivers must not write state JSON directly.
 
 Missing state marker means the worker pool is not currently running.
 
-Existing invalid state markers, unreadable state markers, non-file state paths,
-invalid JSON, schema drift, and invalid values are invalid state failures, not
-not-running failures.
+Existing invalid state markers, unreadable state markers, non-file state paths, invalid JSON, schema drift, and invalid values are invalid state failures, not not-running failures.
 
-Public diagnostics must not expose raw state paths, raw socket paths, TCP
-endpoints, absolute paths, payloads, headers, tokens, environment values, or raw
-JSON bytes.
+Public diagnostics must not expose raw state paths, raw socket paths, TCP endpoints, absolute paths, payloads, headers, tokens, environment values, or raw JSON bytes.
 
 ## Control channel decision
 
@@ -496,12 +467,9 @@ status
 health
 ```
 
-Control communication failures must map to deterministic worker communication
-failures.
+Control communication failures must map to deterministic worker communication failures.
 
-Public communication failure diagnostics must not expose raw socket paths, raw
-TCP endpoints, hostnames, ports, payloads, headers, tokens, or throwable
-messages.
+Public communication failure diagnostics must not expose raw socket paths, raw TCP endpoints, hostnames, ports, payloads, headers, tokens, or throwable messages.
 
 ## Error decision
 
@@ -530,13 +498,11 @@ errorCode()
 reason()
 ```
 
-Worker exceptions must not expose previous throwable messages in public
-messages.
+Worker exceptions must not expose previous throwable messages in public messages.
 
 Unknown internal failures must be mapped to safe deterministic worker failures.
 
-Runtime-driver matrix failures remain Kernel runtime-driver guard failures and
-must not be reclassified as worker failures.
+Runtime-driver matrix failures remain Kernel runtime-driver guard failures and must not be reclassified as worker failures.
 
 ## Observability decision
 
@@ -587,8 +553,9 @@ error_reason
 
 Logs and spans must be summary-only.
 
-Observability failures must not alter worker lifecycle semantics, task execution
-semantics, reset semantics, or primary failure precedence.
+Observability failures must not alter worker lifecycle semantics, task execution semantics, reset semantics, or primary failure precedence.
+
+ApplicationWorker stopwatch start/stop failures are task observability failures. They must not alter task execution, KernelRuntime delegation, task outcome selection, or primary failure precedence. When task timing is unavailable, worker task duration metadata must collapse to `0`.
 
 Worker runtime classes must not instantiate observability adapters directly.
 
@@ -641,20 +608,17 @@ Worker lifecycle orchestration has a single package owner.
 
 Process-driver behavior is isolated behind a package-internal seam.
 
-The worker package can run on platforms without `pcntl` through the `proc`
-fallback.
+The worker package can run on platforms without `pcntl` through the `proc` fallback.
 
 Worker tasks reuse the canonical Kernel UnitOfWork lifecycle.
 
-Reset discipline remains Kernel/Foundation-owned rather than duplicated by
-`platform/worker`.
+Reset discipline remains Kernel/Foundation-owned rather than duplicated by `platform/worker`.
 
 Runtime-driver compatibility remains centralized in `core/kernel`.
 
 Worker commands can exist without coupling `platform/worker` to `platform/cli`.
 
-HTTP task mode can verify the presence of a request handler without importing
-`platform/http`.
+HTTP task mode can verify the presence of a request handler without importing `platform/http`.
 
 Worker state and control-channel behavior have explicit redaction boundaries.
 
@@ -662,25 +626,19 @@ Observability names and labels are registered and low-cardinality.
 
 ### Trade-offs
 
-The first worker implementation intentionally uses placeholder task factories
-instead of real queue or HTTP transport integrations.
+The first worker implementation intentionally uses placeholder task factories instead of real queue or HTTP transport integrations.
 
 Real queue sources are deferred to later integration epics.
 
-Real HTTP request production is deferred to later platform/runtime adapter
-epics.
+Real HTTP request production is deferred to later platform/runtime adapter epics.
 
-`WorkerManagerDriverInterface` and `TaskFactoryInternalInterface` are internal
-seams, so third-party task-source extension is not introduced by this ADR.
+`WorkerManagerDriverInterface` and `TaskFactoryInternalInterface` are internal seams, so third-party task-source extension is not introduced by this ADR.
 
-`proc` fallback requires deterministic command construction and stricter command
-argument validation.
+`proc` fallback requires deterministic command construction and stricter command argument validation.
 
-Safe public diagnostics provide less ad hoc debugging context than raw process,
-socket, path, or payload output.
+Safe public diagnostics provide less ad hoc debugging context than raw process, socket, path, or payload output.
 
-Full `coretsia worker:*` binary dispatch is deferred until the container-backed
-`platform/cli` command catalog exists.
+Full `coretsia worker:*` binary dispatch is deferred until the container-backed `platform/cli` command catalog exists.
 
 ## Rejected alternatives
 
@@ -688,13 +646,11 @@ Full `coretsia worker:*` binary dispatch is deferred until the container-backed
 
 Rejected.
 
-The process manager and task factory seams are package-local implementation
-details.
+The process manager and task factory seams are package-local implementation details.
 
 They are not cross-framework contracts.
 
-Moving them to `core/contracts` would freeze an extension surface before real
-queue, scheduler, HTTP, and external worker integration requirements are known.
+Moving them to `core/contracts` would freeze an extension surface before real queue, scheduler, HTTP, and external worker integration requirements are known.
 
 ### Let `WorkerManager` enforce runtime-driver compatibility
 
@@ -702,39 +658,31 @@ Rejected.
 
 Runtime-driver composition is Kernel-owned policy.
 
-`WorkerManager` receives an already-built `WorkerPoolSpec` and delegates process
-lifecycle behavior.
+`WorkerManager` receives an already-built `WorkerPoolSpec` and delegates process lifecycle behavior.
 
-`WorkerStartCommand` is the correct boundary for enforcing runtime-driver guard
-policy before pool startup.
+`WorkerStartCommand` is the correct boundary for enforcing runtime-driver guard policy before pool startup.
 
 ### Let `ApplicationWorker` invoke hooks and reset directly
 
 Rejected.
 
-Hook discovery, hook ordering, context lifecycle, and reset orchestration are
-Kernel/Foundation-owned semantics.
+Hook discovery, hook ordering, context lifecycle, and reset orchestration are Kernel/Foundation-owned semantics.
 
-The worker runtime must enter the canonical UnitOfWork boundary through
-`KernelRuntimeInterface`.
+The worker runtime must enter the canonical UnitOfWork boundary through `KernelRuntimeInterface`.
 
 ### Depend on `platform/cli` for worker commands
 
 Rejected.
 
-`platform/worker` may contribute command services using the existing
-`cli.command` tag, but command catalog construction and binary dispatch are
-owned by `platform/cli`.
+`platform/worker` may contribute command services using the existing `cli.command` tag, but command catalog construction and binary dispatch are owned by `platform/cli`.
 
-The worker package must be testable through direct command invocation without
-requiring `platform/cli`.
+The worker package must be testable through direct command invocation without requiring `platform/cli`.
 
 ### Depend on `platform/http` for HTTP task mode
 
 Rejected.
 
-HTTP task mode needs a request handler preflight, not a compile-time dependency
-on a concrete platform HTTP package.
+HTTP task mode needs a request handler preflight, not a compile-time dependency on a concrete platform HTTP package.
 
 Future presets or packages may provide the handler binding.
 
@@ -746,11 +694,9 @@ Rejected.
 
 The worker control channel is lifecycle-only.
 
-Task payload transport belongs to future queue, HTTP, scheduler, or integration
-adapters.
+Task payload transport belongs to future queue, HTTP, scheduler, or integration adapters.
 
-The control protocol remains payload-free to keep diagnostics safe and
-low-cardinality.
+The control protocol remains payload-free to keep diagnostics safe and low-cardinality.
 
 ## Non-goals
 
@@ -788,6 +734,7 @@ Expected verification includes:
 framework/packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php
 framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php
 framework/packages/platform/worker/tests/Unit/WorkerPoolStateTest.php
+framework/packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php
 framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php
@@ -824,6 +771,8 @@ These tests are expected to verify:
 - worker exception public messages do not expose previous throwable messages;
 - control protocol frames are payload-free;
 - ApplicationWorker executes tasks through KernelRuntimeInterface;
+- ApplicationWorker accesses Stopwatch only through safe timing wrappers;
+- ApplicationWorker stopwatch failures do not alter worker task execution semantics;
 - max_requests stops or recycles the worker loop deterministically;
 - worker observability uses registered names and allowlisted labels only.
 

@@ -725,6 +725,8 @@ Coretsia/
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
+│   │   │       │   │   ├── BootExpressPresetTest.php
+│   │   │       │   │   ├── BootMicroPresetTest.php
 │   │   │       │   │   ├── BootstrapDoesNotScanSkeletonAppsTest.php
 │   │   │       │   │   ├── BootstrapDotenvRespectedUnderStrictPolicyTest.php
 │   │   │       │   │   ├── BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
@@ -784,6 +786,7 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverEmitsPolicyCompliantMetricsTest.php
 │   │   │       │   │   ├── ModulePlanResolverFailurePrecedenceTest.php
 │   │   │       │   │   ├── ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest.php
+│   │   │       │   │   ├── ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php
 │   │   │       │   │   ├── ModulePlanResolverLogsDoNotLeakPathsTest.php
 │   │   │       │   │   ├── ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php
 │   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
@@ -793,6 +796,8 @@ Coretsia/
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
+│   │   │       │   ├── Support/
+│   │   │       │   │   └── AppBuilder.php
 │   │   │       │   └── Unit/
 │   │   │       │       ├── Config/
 │   │   │       │       │   ├── ConfigRulesLoaderRejectsCallableRulesTest.php
@@ -987,6 +992,7 @@ Coretsia/
 │   │           │       └── ApplicationWorker.php
 │   │           ├── tests/
 │   │           │   ├── Contract/
+│   │           │   │   ├── ApplicationWorkerStopwatchFailurePolicyContractTest.php
 │   │           │   │   ├── CoretsiaWorkerChildLauncherContractTest.php
 │   │           │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │           │   │   ├── ProcWorkerManagerDriverSafetyContractTest.php

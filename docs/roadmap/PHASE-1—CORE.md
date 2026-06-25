@@ -17926,117 +17926,120 @@ N/A (tests/tooling)
 
 #### Creates
 
-- [ ] `framework/packages/core/kernel/tests/Support/AppBuilder.php` — helper to boot fixture apps deterministically
-  - [ ] MUST support two explicit flows:
-    - [ ] `bootMicro()` / equivalent success path
-    - [ ] `bootExpressExpectingRequiredMissing()` / equivalent failure path
-  - [ ] Micro success path MUST:
-    - [ ] load framework default `micro` preset from `framework/packages/core/kernel/resources/modes/micro.php`
-    - [ ] resolve `ModulePlan` from deterministic fixture manifest
-    - [ ] compile all runtime artifacts before boot:
-      - [ ] `module-manifest.php`
-      - [ ] `config.php`
-      - [ ] `container.php`
-    - [ ] boot only through artifact-only runtime path after `1.340.0`
-    - [ ] MUST NOT bypass `CompiledContainerFactory`
-  - [ ] Express failure path MUST:
-    - [ ] load framework default `express` preset from `framework/packages/core/kernel/resources/modes/express.php`
-    - [ ] use deterministic fixture manifest where `platform.http` is absent
-    - [ ] fail with `CORETSIA_MODULE_REQUIRED_MISSING`
-    - [ ] assert deterministic error code, not full exception message
-    - [ ] MUST NOT require compiled artifacts to exist after expected pre-boot failure
-  - [ ] MUST NOT require `skeleton/config/modes/*.php`
-  - [ ] MUST NOT use skeleton mode overrides
-  - [ ] MUST NOT print stdout/stderr
-  - [ ] MUST NOT assert absolute paths
+- [x] `framework/packages/core/kernel/tests/Support/AppBuilder.php` — helper to boot fixture apps deterministically
+  - [x] MUST support two explicit flows:
+    - [x] `bootMicro()` / equivalent success path
+    - [x] `bootExpressExpectingRequiredMissing()` / equivalent failure path
+  - [x] Micro success path MUST:
+    - [x] load framework default `micro` preset from `framework/packages/core/kernel/resources/modes/micro.php`
+    - [x] resolve `ModulePlan` from deterministic fixture manifest
+    - [x] compile all runtime artifacts before boot:
+      - [x] `module-manifest.php`
+      - [x] `config.php`
+      - [x] `container.php`
+    - [x] boot only through artifact-only runtime path after `1.340.0`
+    - [x] MUST NOT bypass `CompiledContainerFactory`
+  - [x] Express failure path MUST:
+    - [x] load framework default `express` preset from `framework/packages/core/kernel/resources/modes/express.php`
+    - [x] use deterministic fixture manifest where `platform.http` is absent
+    - [x] fail with `CORETSIA_MODULE_REQUIRED_MISSING`
+    - [x] assert deterministic error code, not full exception message
+    - [x] MUST NOT require compiled artifacts to exist after expected pre-boot failure
+  - [x] Micro/Express boot flows MUST NOT require `skeleton/config/modes/*.php`
+  - [x] Micro/Express boot flows MUST NOT use skeleton mode overrides
+  - [x] `AppBuilder` additionally provides `resolveSkeletonOnlyPreset()` for the separate custom preset test
+  - [x] MUST NOT print stdout/stderr
+  - [x] MUST NOT assert absolute paths
 
-- [ ] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [ ] uses `AppBuilder`
-  - [ ] MUST use framework default `micro` preset
-  - [ ] MUST NOT create `skeleton/config/modes/micro.php`
-  - [ ] MUST compile:
-    - [ ] `module-manifest.php`
-    - [ ] `config.php`
-    - [ ] `container.php`
-  - [ ] MUST boot through compiled artifacts only
-  - [ ] MUST assert no deterministic failure code is thrown
-  - [ ] MUST NOT assert stdout/stderr
-  - [ ] MUST NOT assert absolute paths
+- [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] uses `AppBuilder`
+  - [x] MUST use framework default `micro` preset
+  - [x] MUST NOT create `skeleton/config/modes/micro.php`
+  - [x] MUST compile:
+    - [x] `module-manifest.php`
+    - [x] `config.php`
+    - [x] `container.php`
+  - [x] MUST boot through compiled artifacts only
+  - [x] MUST assert no deterministic failure code is thrown
+  - [x] MUST NOT assert stdout/stderr
+  - [x] MUST NOT assert absolute paths
 
-- [ ] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
-  - [ ] uses `AppBuilder`
-  - [ ] MUST use framework default `express` preset
-  - [ ] MUST NOT create `skeleton/config/modes/express.php`
-  - [ ] MUST use fixture manifest without `platform.http`
-  - [ ] MUST assert exact error code:
-    - [ ] `CORETSIA_MODULE_REQUIRED_MISSING`
-  - [ ] MUST assert only fixed reason token if reason is asserted
-  - [ ] MUST NOT assert full exception message
-  - [ ] MUST NOT assert stdout/stderr
-  - [ ] MUST NOT assert absolute paths
-  - [ ] MUST NOT require `container.php` to exist after expected pre-boot failure
+- [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] uses `AppBuilder`
+  - [x] MUST use framework default `express` preset
+  - [x] MUST NOT create `skeleton/config/modes/express.php`
+  - [x] MUST use fixture manifest without `platform.http`
+  - [x] MUST assert exact error code:
+    - [x] `CORETSIA_MODULE_REQUIRED_MISSING`
+  - [x] MUST assert only fixed reason token if reason is asserted
+  - [x] MUST NOT assert full exception message
+  - [x] MUST NOT assert stdout/stderr
+  - [x] MUST NOT assert absolute paths
+  - [x] MUST NOT require `container.php` to exist after expected pre-boot failure
 
-- [ ] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php`
-  - [ ] proves owner-defined custom preset names are supported through skeleton mode files
-  - [ ] MUST create a fixture preset:
-    - [ ] `skeleton/config/modes/worker-only.php`
-  - [ ] MUST NOT create:
-    - [ ] `framework/packages/core/kernel/resources/modes/worker-only.php`
-  - [ ] MUST select preset through `BootstrapConfig::preset()` or bootstrap override:
-    - [ ] `worker-only`
-  - [ ] MUST resolve `ModulePlan` successfully from the skeleton-only preset
-  - [ ] MUST use normal `required|optional|disabled` rules
-  - [ ] MUST NOT require `skeleton/config/modules.php`
-  - [ ] MUST NOT use app-local module selection
-  - [ ] MUST NOT expose skeleton paths in diagnostics
-  - [ ] MUST assert deterministic enabled module list
+- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php`
+  - [x] proves owner-defined custom preset names are supported through skeleton mode files
+  - [x] MUST create a fixture preset:
+    - [x] `skeleton/config/modes/worker-only.php`
+  - [x] MUST NOT create:
+    - [x] `framework/packages/core/kernel/resources/modes/worker-only.php`
+  - [x] MUST select preset through `BootstrapConfig::preset()` or bootstrap override:
+    - [x] `worker-only`
+  - [x] MUST resolve `ModulePlan` successfully from the skeleton-only preset
+  - [x] MUST use normal `required|optional|disabled` rules
+  - [x] MUST NOT require `skeleton/config/modules.php`
+  - [x] MUST NOT use app-local module selection
+    - [x] scenario does not create or require app-local module selection
+    - [x] ignore-if-present behavior is already locked by `ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php`
+  - [x] MUST NOT expose skeleton paths in diagnostics
+  - [x] MUST assert deterministic enabled module list
 
 #### Modifies
 
-- [ ] `docs/ssot/modes.md`
-  - [ ] clarify terminology:
-    - [ ] framework canonical presets are `micro|express|hybrid|enterprise`
-    - [ ] owner-defined custom preset names are non-canonical names
-    - [ ] owner-defined custom preset names MUST NOT use canonical names
-    - [ ] skeleton overrides MAY override framework canonical preset names through `skeleton/config/modes/<canonical>.php`
-  - [ ] clarify Express Phase 1/Phase 2 cutline:
-    - [ ] `express` is the conventional HTTP/web application mode
-    - [ ] framework-owned `express` preset requires `platform.http`
-    - [ ] until `platform.http` exists in the installed manifest, Express boot MUST fail deterministically with `CORETSIA_MODULE_REQUIRED_MISSING`
+- [x] `docs/ssot/modes.md`
+  - [x] clarify terminology:
+    - [x] framework canonical presets are `micro|express|hybrid|enterprise`
+    - [x] owner-defined custom preset names are non-canonical names
+    - [x] owner-defined custom preset names MUST NOT use canonical names
+    - [x] skeleton overrides MAY override framework canonical preset names through `skeleton/config/modes/<canonical>.php`
+  - [x] clarify Express Phase 1/Phase 2 cutline:
+    - [x] `express` is the conventional HTTP/web application mode
+    - [x] framework-owned `express` preset requires `platform.http`
+    - [x] until `platform.http` exists in the installed manifest, Express boot MUST fail deterministically with `CORETSIA_MODULE_REQUIRED_MISSING`
 
-- [ ] `framework/tools/testing/phpunit.xml` or package test discovery config
-  - [ ] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
-  - [ ] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
-  - [ ] If `integration-fast` is a named CI job/script, update the exact owner config/script for that job.
+- [x] `framework/tools/testing/phpunit.xml` or package test discovery config
+  - [x] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
+  - [x] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
+  - [x] If `integration-fast` is a named CI job/script, update the exact owner config/script for that job.
 
-- [ ] `framework/packages/core/kernel/resources/modes/express.php`
-  - [ ] move `platform.http` from `optional` to `required`
-  - [ ] required MUST become:
-    - [ ] `core.foundation`
-    - [ ] `core.kernel`
-    - [ ] `platform.cli`
-    - [ ] `platform.http`
-  - [ ] optional MUST become:
-    - [ ] `platform.logging`
-    - [ ] `platform.metrics`
-    - [ ] `platform.tracing`
+- [x] `framework/packages/core/kernel/resources/modes/express.php`
+  - [x] move `platform.http` from `optional` to `required`
+  - [x] required MUST become:
+    - [x] `core.foundation`
+    - [x] `core.kernel`
+    - [x] `platform.cli`
+    - [x] `platform.http`
+  - [x] optional MUST become:
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
 
-- [ ] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
-  - [ ] update Express canonical rules expectation:
-    - [ ] `platform.http` MUST be in `required`
-    - [ ] `platform.http` MUST NOT be in `optional`
-  - [ ] Express `moduleIds()` MUST still include:
-    - [ ] `platform.http`
-    - [ ] `platform.logging`
-    - [ ] `platform.metrics`
-    - [ ] `platform.tracing`
-  - [ ] Express `toArray()` MUST reflect `platform.http` under `required`, not `optional`
+- [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [x] update Express canonical rules expectation:
+    - [x] `platform.http` MUST be in `required`
+    - [x] `platform.http` MUST NOT be in `optional`
+  - [x] Express `moduleIds()` MUST still include:
+    - [x] `platform.http`
+    - [x] `platform.logging`
+    - [x] `platform.metrics`
+    - [x] `platform.tracing`
+  - [x] Express `toArray()` MUST reflect `platform.http` under `required`, not `optional`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Security / Redaction
 
-- [ ] Tests MUST NOT print secrets; use deterministic error codes only.
+- [x] Tests MUST NOT print secrets; use deterministic error codes only.
 
 ### Phase 0 parity: deterministic boot smoke locks (MUST)
 
@@ -18065,41 +18068,41 @@ Assertions MUST базуватись на deterministic error codes (не на s
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] Smoke suite:
-  - [ ] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+- [x] Smoke suite:
+  - [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
 
 ### Tests (MUST)
 
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
 
 ### DoD (MUST)
 
-- [ ] Micro boot test green
-- [ ] Express boot asserts deterministic failure code until Phase 2 cutline
-- [ ] Smoke harness remains valid after artifact-only boot policy:
-  - [ ] fixture app is compiled first
-  - [ ] boot then uses compiled artifacts instead of bypassing the real runtime path
-- [ ] Дає тестовий harness для boot сценаріїв (micro/express) без вимоги існування `skeleton/config/modes/*.php`.
-- [ ] Цементує очікування: micro boot OK, express boot може deterministic fail до Phase 2 cutline.
-- [ ] Non-goals / out of scope
-  - [ ] Не реалізує HTTP runtime; лише boot.
-- [ ] Є 2 smoke тести, що доводять: micro boot стабільно працює, express — стабільно падає з очікуваним кодом (до Phase 2).
-- [ ] When booting Express fixture in Phase 0, then it fails with `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
-- [ ] Micro boot success means:
-  - [ ] fixture app compiles `module-manifest.php`, `config.php`, and `container.php`
-  - [ ] runtime boot uses `CompiledContainerFactory`
-  - [ ] runtime boot reads compiled `container.php`
-  - [ ] runtime boot uses compiled `config.php` payload
-  - [ ] runtime boot does not read source config files as fallback
-  - [ ] runtime boot does not run provider discovery as fallback
-  - [ ] runtime boot does not require HTTP runtime
-- [ ] Owner-defined custom preset support is locked:
-  - [ ] skeleton-only preset name such as `worker-only` can be selected
-  - [ ] `skeleton/config/modes/worker-only.php` is loaded without a framework default file
-  - [ ] normal `required|optional|disabled` rules apply
+- [x] Micro boot test green
+- [x] Express boot asserts deterministic failure code until Phase 2 cutline
+- [x] Smoke harness remains valid after artifact-only boot policy:
+  - [x] fixture app is compiled first
+  - [x] boot then uses compiled artifacts instead of bypassing the real runtime path
+- [x] Дає тестовий harness для boot сценаріїв (micro/express) без вимоги існування `skeleton/config/modes/*.php`.
+- [x] Цементує очікування: micro boot OK, express boot може deterministic fail до Phase 2 cutline.
+- [x] Non-goals / out of scope
+  - [x] Не реалізує HTTP runtime; лише boot.
+- [x] Є 2 smoke тести, що доводять: micro boot стабільно працює, express — стабільно падає з очікуваним кодом (до Phase 2).
+- [x] When booting Express fixture in Phase 0, then it fails with `CORETSIA_MODULE_REQUIRED_MISSING` deterministically.
+- [x] Micro boot success means:
+  - [x] fixture app compiles `module-manifest.php`, `config.php`, and `container.php`
+  - [x] runtime boot uses `CompiledContainerFactory`
+  - [x] runtime boot reads compiled `container.php`
+  - [x] runtime boot uses compiled `config.php` payload
+  - [x] runtime boot does not read source config files as fallback
+  - [x] runtime boot does not run provider discovery as fallback
+  - [x] runtime boot does not require HTTP runtime
+- [x] Owner-defined custom preset support is locked:
+  - [x] skeleton-only preset name such as `worker-only` can be selected
+  - [x] `skeleton/config/modes/worker-only.php` is loaded without a framework default file
+  - [x] normal `required|optional|disabled` rules apply
 
 ---
 

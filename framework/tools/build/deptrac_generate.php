@@ -24,6 +24,7 @@ final class DeptracGenerateTool
     private const string CODE_MISSING_SSOT_RULESET = 'CORETSIA_DEPTRAC_SSOT_RULESET_MISSING';
     private const string CODE_CYCLE_DETECTED = 'CORETSIA_DEPTRAC_CYCLE_DETECTED';
     private const string CODE_ALLOWLIST_INVALID = 'CORETSIA_DEPTRAC_ALLOWLIST_INVALID';
+    private const string CODE_COMPOSER_EDGE_NOT_IN_SSOT = 'CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT';
 
     private const string DEPENDENCY_TABLE_PATH = 'docs/roadmap/phase0/00_2-dependency-table.md';
 
@@ -63,9 +64,17 @@ final class DeptracGenerateTool
         self::assertNoPackageCycles($ssotRuleset);
 
         $packageIndex = self::scanPackages($repoRoot);
-        self::assertAllDiscoveredPackagesHaveSsotRows($packageIndex, $ssotRuleset);
+        $packageIndexContext = self::buildPackageIndexContext($repoRoot, $packageIndex);
 
-        $model = self::buildDeptracModel($repoRoot, $outPath, $packageIndex, $ssotRuleset, $excludeFiles);
+        self::assertAllDiscoveredPackagesHaveSsotRows($packageIndexContext['packages'], $ssotRuleset);
+
+        self::assertComposerEdgesMatchSsot(
+            $packageIndexContext['packages'],
+            $ssotRuleset,
+            $packageIndexContext['composerNameToPackageId'],
+        );
+
+        $model = self::buildDeptracModel($repoRoot, $outPath, $packageIndexContext, $ssotRuleset, $excludeFiles);
 
         $yaml = self::renderDeptracYaml($model);
         $changed = self::isDifferentFile($outPath, $yaml);
@@ -87,7 +96,6 @@ final class DeptracGenerateTool
                 return 1;
             }
 
-            fwrite(STDOUT, "OK\n");
             return 0;
         }
 
@@ -119,11 +127,14 @@ final class DeptracGenerateTool
     {
         $message = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
 
-        foreach ([
-                     self::CODE_MISSING_SSOT_RULESET,
-                     self::CODE_CYCLE_DETECTED,
-                     self::CODE_ALLOWLIST_INVALID,
-                 ] as $code) {
+        foreach (
+            [
+                self::CODE_MISSING_SSOT_RULESET,
+                self::CODE_CYCLE_DETECTED,
+                self::CODE_ALLOWLIST_INVALID,
+                self::CODE_COMPOSER_EDGE_NOT_IN_SSOT,
+            ] as $code
+        ) {
             if ($message === $code || str_starts_with($message, $code . ':')) {
                 return $message;
             }
@@ -371,6 +382,134 @@ final class DeptracGenerateTool
      *     psr4:string,
      *     requireNames:list<string>
      * }> $packageIndex
+     * @return array{
+     *     packages:list<array{
+     *         id:string,
+     *         packageId:string,
+     *         layer:string,
+     *         slug:string,
+     *         composerName:string,
+     *         path:string,
+     *         srcPath:string,
+     *         psr4:string,
+     *         requireNames:list<string>
+     *     }>,
+     *     activePackages:list<array{
+     *         id:string,
+     *         packageId:string,
+     *         layer:string,
+     *         slug:string,
+     *         composerName:string,
+     *         path:string,
+     *         srcPath:string,
+     *         psr4:string,
+     *         requireNames:list<string>
+     *     }>,
+     *     activePackageIds:array<string, true>,
+     *     composerNameToPackageId:array<string, string>
+     * }
+     */
+    private static function buildPackageIndexContext(string $repoRoot, array $packageIndex): array
+    {
+        /** @var array<string, string> $composerNameToPackageId */
+        $composerNameToPackageId = [];
+
+        /** @var list<array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>}> $activePackages */
+        $activePackages = [];
+
+        /** @var array<string, true> $activePackageIds */
+        $activePackageIds = [];
+
+        foreach ($packageIndex as $package) {
+            $composerNameToPackageId[$package['composerName']] = $package['packageId'];
+
+            if (is_dir($repoRoot . '/' . $package['srcPath'])) {
+                $activePackages[] = $package;
+                $activePackageIds[$package['packageId']] = true;
+            }
+        }
+
+        ksort($composerNameToPackageId, SORT_STRING);
+        ksort($activePackageIds, SORT_STRING);
+
+        usort(
+            $activePackages,
+            static fn (array $a, array $b): int => strcmp((string)$a['id'], (string)$b['id']),
+        );
+
+        return [
+            'packages' => $packageIndex,
+            'activePackages' => $activePackages,
+            'activePackageIds' => $activePackageIds,
+            'composerNameToPackageId' => $composerNameToPackageId,
+        ];
+    }
+
+    /**
+     * @param list<array{
+     *     id:string,
+     *     packageId:string,
+     *     composerName:string,
+     *     requireNames:list<string>
+     * }> $packageIndex
+     * @param array<string, list<string>> $ssotRuleset
+     * @param array<string, string> $composerNameToPackageId
+     */
+    private static function assertComposerEdgesMatchSsot(
+        array $packageIndex,
+        array $ssotRuleset,
+        array $composerNameToPackageId,
+    ): void {
+        /** @var list<string> $diagnostics */
+        $diagnostics = [];
+
+        foreach ($packageIndex as $package) {
+            $sourcePackageId = $package['packageId'];
+
+            if (!isset($ssotRuleset[$sourcePackageId])) {
+                continue; // already handled by assertAllDiscoveredPackagesHaveSsotRows()
+            }
+
+            $allowedSet = array_flip($ssotRuleset[$sourcePackageId]);
+
+            foreach ($package['requireNames'] as $composerName) {
+                if (!isset($composerNameToPackageId[$composerName])) {
+                    $diagnostics[] = 'source=' . $sourcePackageId
+                        . ' target=unknown'
+                        . ' reason=composer-edge-not-in-ssot';
+
+                    continue;
+                }
+
+                $targetPackageId = $composerNameToPackageId[$composerName];
+
+                if (!isset($allowedSet[$targetPackageId])) {
+                    $diagnostics[] = 'source=' . $sourcePackageId
+                        . ' target=' . $targetPackageId
+                        . ' reason=composer-edge-not-in-ssot';
+                }
+            }
+        }
+
+        $diagnostics = array_values(array_unique($diagnostics));
+        sort($diagnostics, SORT_STRING);
+
+        if ($diagnostics === []) {
+            return;
+        }
+
+        throw new RuntimeException(
+            self::CODE_COMPOSER_EDGE_NOT_IN_SSOT
+            . ': composer-edge-not-in-ssot'
+            . "\n"
+            . implode("\n", $diagnostics),
+        );
+    }
+
+    /**
+     * @param string $repoRoot
+     * @param string $outPath
+     * @param array $packageIndexContext
      * @param array<string, list<string>> $ssotRuleset
      * @param list<string> $excludeFiles
      * @return array{
@@ -379,35 +518,18 @@ final class DeptracGenerateTool
      *     ruleset:array<string, list<string>>,
      *     excludeFiles:list<string>,
      *     nodes:list<string>,
-     *     edges:list<array{from:string,to:string}>
-     * }
+     *     edges:list<array{from:string,to:string}> }
      */
     private static function buildDeptracModel(
         string $repoRoot,
         string $outPath,
-        array  $packageIndex,
-        array  $ssotRuleset,
-        array  $excludeFiles,
+        array $packageIndexContext,
+        array $ssotRuleset,
+        array $excludeFiles,
     ): array {
-        /** @var list<array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>}> $activePackages */
-        $activePackages = [];
-
-        foreach ($packageIndex as $package) {
-            if (is_dir($repoRoot . '/' . $package['srcPath'])) {
-                $activePackages[] = $package;
-            }
-        }
-
-        /** @var array<string, string> $composerNameToPackageId */
-        $composerNameToPackageId = [];
-
-        /** @var array<string, true> $activePackageIds */
-        $activePackageIds = [];
-
-        foreach ($activePackages as $package) {
-            $composerNameToPackageId[$package['composerName']] = $package['packageId'];
-            $activePackageIds[$package['packageId']] = true;
-        }
+        $activePackages = $packageIndexContext['activePackages'];
+        $composerNameToPackageId = $packageIndexContext['composerNameToPackageId'];
+        $activePackageIds = $packageIndexContext['activePackageIds'];
 
         /** @var list<string> $paths */
         $paths = [];
@@ -584,7 +706,10 @@ final class DeptracGenerateTool
         }
 
         $closure = self::ssotTransitiveClosure($allowedPackageIds, $ssotRuleset);
-        $composerPackageIds = self::composerRequireNamesToPackageIds($package['requireNames'], $composerNameToPackageId);
+        $composerPackageIds = self::composerRequireNamesToPackageIds(
+            $package['requireNames'],
+            $composerNameToPackageId
+        );
 
         foreach ($composerPackageIds as $composerPackageId) {
             if (isset($closure[$composerPackageId])) {
@@ -876,10 +1001,10 @@ final class DeptracGenerateTool
      */
     private static function visitCycleNode(
         string $node,
-        array  $ruleset,
-        array  &$visiting,
-        array  &$visited,
-        array  $stack,
+        array $ruleset,
+        array &$visiting,
+        array &$visited,
+        array $stack,
         string $kind,
     ): void {
         if (isset($visited[$node])) {
@@ -1017,7 +1142,9 @@ final class DeptracGenerateTool
             $y += $lineHeight;
         }
 
-        $lines[] = '<text x="' . $headingX . '" y="' . $edgesHeadingY . '">Allowed edges (' . count($edges) . ')</text>';
+        $lines[] = '<text x="' . $headingX . '" y="' . $edgesHeadingY . '">Allowed edges (' . count(
+            $edges
+        ) . ')</text>';
 
         $y = $edgesHeadingY + $afterEdgesHeadingGap;
         foreach ($edges as $edge) {
@@ -1281,7 +1408,9 @@ final class DeptracGenerateTool
             $candidate = rtrim(str_replace('\\', '/', $real), '/');
         }
 
-        if (!is_dir($candidate . '/framework') || !is_dir($candidate . '/docs') || !is_file($candidate . '/composer.json')) {
+        if (!is_dir($candidate . '/framework') || !is_dir($candidate . '/docs') || !is_file(
+            $candidate . '/composer.json'
+        )) {
             throw new RuntimeException('Invalid --repo-root: missing framework/docs/composer.json markers');
         }
 

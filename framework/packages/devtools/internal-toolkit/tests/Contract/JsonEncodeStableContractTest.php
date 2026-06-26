@@ -93,4 +93,17 @@ final class JsonEncodeStableContractTest extends TestCase
         // Not a list (keys are not 0..n-1), therefore treated as map; non-string key is forbidden by policy.
         Json::encodeStable([1 => 'x']);
     }
+
+    /**
+     * @throws \JsonException
+     */
+    public function testEncodeStableRejectsObjectsDeterministically(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('CORETSIA_INTERNAL_TOOLKIT_JSON_UNSUPPORTED_TYPE:payload');
+
+        Json::encodeStable([
+            'payload' => new \stdClass(),
+        ]);
+    }
 }

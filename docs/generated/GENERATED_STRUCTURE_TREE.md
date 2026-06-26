@@ -893,6 +893,7 @@ Coretsia/
 │   │   │       │   │   └── JsonEncodeStableContractTest.php
 │   │   │       │   └── Unit/
 │   │   │       │       ├── PathNormalizeRelativeGoldenVectorsTest.php
+│   │   │       │       ├── SlugToSnakeGoldenVectorsTest.php
 │   │   │       │       └── SlugToStudlyGoldenVectorsTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -1274,9 +1275,6 @@ Coretsia/
 │   │   │   ├── README.md
 │   │   │   └── phpunit.spikes.xml
 │   │   ├── testing/
-│   │   │   ├── tests/
-│   │   │   │   └── Smoke/
-│   │   │   │       └── MonorepoSmokeTest.php
 │   │   │   ├── bootstrap.php
 │   │   │   ├── deptrac.allowlist.yaml
 │   │   │   ├── deptrac.yaml
@@ -1432,33 +1430,36 @@ Coretsia/
 │   │       │                   ├── README.md
 │   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
-│   │       └── Integration/
-│   │           ├── Runtime/
-│   │           │   ├── Support/
-│   │           │   │   └── RuntimeDriverMatrixConfigRepository.php
-│   │           │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
-│   │           │   └── RuntimeDriverMatrixTestSupport.php
-│   │           ├── CrossCuttingContractGateTest.php
-│   │           ├── DtoGateAggregateRunnerTest.php
-│   │           ├── DtoMarkerConsistencyGateTest.php
-│   │           ├── DtoNoLogicGateTest.php
-│   │           ├── DtoShapeGateTest.php
-│   │           ├── ManagedComposerRepositoriesGuardTest.php
-│   │           ├── NoRuntimeToolingArtifactsGateTest.php
-│   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php
-│   │           ├── PackageComplianceGateRejectsBadFixtureTest.php
-│   │           ├── ReservedTagsRegistryGateTest.php
-│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php
-│   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php
+│   │       ├── Integration/
+│   │       │   ├── Runtime/
+│   │       │   │   ├── Support/
+│   │       │   │   │   └── RuntimeDriverMatrixConfigRepository.php
+│   │       │   │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
+│   │       │   │   └── RuntimeDriverMatrixTestSupport.php
+│   │       │   ├── CrossCuttingContractGateTest.php
+│   │       │   ├── DeptracGenerateComposerEdgesMatchSsotTest.php
+│   │       │   ├── DtoGateAggregateRunnerTest.php
+│   │       │   ├── DtoMarkerConsistencyGateTest.php
+│   │       │   ├── DtoNoLogicGateTest.php
+│   │       │   ├── DtoShapeGateTest.php
+│   │       │   ├── ManagedComposerRepositoriesGuardTest.php
+│   │       │   ├── NoRuntimeToolingArtifactsGateTest.php
+│   │       │   ├── PackageComplianceGateAcceptsGoodFixtureTest.php
+│   │       │   ├── PackageComplianceGateRejectsBadFixtureTest.php
+│   │       │   ├── ReservedTagsRegistryGateTest.php
+│   │       │   ├── SyncPackageScaffoldCheckRejectsDriftTest.php
+│   │       │   └── SyncPackageScaffoldCreatesMissingFilesTest.php
+│   │       └── Smoke/
+│   │           └── MonorepoSmokeTest.php
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/

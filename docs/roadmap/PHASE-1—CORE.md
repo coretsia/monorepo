@@ -18182,9 +18182,9 @@ Forbidden:
 
 #### Explicit non-goals / duplicate-gate guard (MUST)
 
-- [ ] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
-- [ ] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
-- [ ] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
+- [x] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
+- [x] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
+- [x] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
 
 #### Internal Composer dependency consistency (MUST)
 
@@ -18197,41 +18197,41 @@ The policy “core packages do not depend on forbidden platform/integrations/dev
 
 Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
 
-- [ ] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
-  - [ ] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
-  - [ ] map internal Composer names to package ids
-  - [ ] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] dependencies not present in SSoT MUST fail deterministically
-  - [ ] diagnostics MUST include:
-    - [ ] source package id
-    - [ ] target package id
-    - [ ] reason token `composer-edge-not-in-ssot`
-  - [ ] diagnostics MUST NOT include absolute paths or raw composer file dumps
+- [x] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
+  - [x] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
+  - [x] map internal Composer names to package ids
+  - [x] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [x] dependencies not present in SSoT MUST fail deterministically
+  - [x] diagnostics MUST include:
+    - [x] source package id
+    - [x] target package id
+    - [x] reason token `composer-edge-not-in-ssot`
+  - [x] diagnostics MUST NOT include absolute paths or raw composer file dumps
 
 This check closes forbidden dependency drift without introducing a second architecture policy gate.
 
 #### Modifies
 
-- [ ] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
-  - [ ] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] internal package self-requires are forbidden
-  - [ ] unknown internal package names MUST fail deterministically
-  - [ ] diagnostics MUST use package ids, not absolute paths
-  - [ ] failure MUST use a deterministic code:
-    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-  - [ ] this check MUST NOT inspect or enforce external vendor packages
-  - [ ] this check MUST NOT create a second architecture ruleset
+- [x] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
+  - [x] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [x] internal package self-requires are forbidden
+  - [x] unknown internal package names MUST fail deterministically
+  - [x] diagnostics MUST use package ids, not absolute paths
+  - [x] failure MUST use a deterministic code:
+    - [x] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [x] this check MUST NOT inspect or enforce external vendor packages
+  - [x] this check MUST NOT create a second architecture ruleset
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
 
-- [ ] update command in `docs/guides/commands.md` if necessary:
-  - [ ] `composer arch`
-  - [ ] `arch:package-index:check`
-  - [ ] `arch:deptrac:check`
-  - [ ] `arch:deptrac:analyze`
+- [x] update command in `docs/guides/commands.md` if necessary:
+  - [x] `composer arch`
+  - [x] `arch:package-index:check`
+  - [x] `arch:deptrac:check`
+  - [x] `arch:deptrac:analyze`
 
-- [ ] Composer package name → package id mapping MUST reuse the existing canonical package metadata / package-index logic already used by the deptrac generation rail.
-- [ ] This epic MUST NOT introduce a second Composer-name-to-package-id mapping source.
+- [x] Composer package name → package id mapping MUST reuse the existing canonical package metadata / package-index logic already used by the deptrac generation rail.
+- [x] This epic MUST NOT introduce a second Composer-name-to-package-id mapping source.
 
 ### Cross-cutting
 
@@ -18241,13 +18241,13 @@ This check closes forbidden dependency drift without introducing a second archit
 
 #### Errors
 
-- [ ] Deterministic codes.
+- [x] Deterministic codes.
 
 #### Security / Redaction
 
-- [ ] Output MUST NOT contain absolute paths, raw composer JSON, source code, or filesystem layout.
-- [ ] Output contains only deterministic package ids, reason tokens, and error codes.
-- [ ] Diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
+- [x] Output MUST NOT contain absolute paths, raw composer JSON, source code, or filesystem layout.
+- [x] Output contains only deterministic package ids, reason tokens, and error codes.
+- [x] Diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
 
 ### Verification
 
@@ -18255,38 +18255,38 @@ This check closes forbidden dependency drift without introducing a second archit
 
 ### Tests (MUST)
 
-- [ ] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
-  - [ ] creates synthetic package composer metadata with internal `coretsia/*` require edge
-  - [ ] asserts edge missing from SSoT `depends_on` fails with:
-    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-  - [ ] asserts diagnostics include source package id, target package id, reason token
-  - [ ] asserts diagnostics do not include absolute paths or raw composer JSON dumps
+- [x] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
+  - [x] creates synthetic package composer metadata with internal `coretsia/*` require edge
+  - [x] asserts edge missing from SSoT `depends_on` fails with:
+    - [x] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [x] asserts diagnostics include source package id, target package id, reason token
+  - [x] asserts diagnostics do not include absolute paths or raw composer JSON dumps
 
 ### DoD
 
-- [ ] `deptrac_generate.php --check` validates internal Composer require edges against the SSoT dependency table.
-- [ ] No new Composer script is introduced.
-- [ ] Existing `arch` script remains the architecture rail.
-- [ ] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
-- [ ] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
-- [ ] No new `architecture:gate` Composer script is introduced.
-- [ ] No new `framework/tools/gates/architecture_gate.php` file is introduced.
-- [ ] Output semantics MUST remain compatible with existing tooling checks:
-  - [ ] pass: no output, exit `0`
-  - [ ] failure: deterministic code + deterministic diagnostics, exit `1`
-- [ ] New diagnostics for Composer-edge drift MUST include only:
-  - [ ] source package id
-  - [ ] target package id
-  - [ ] reason token
-  - [ ] deterministic error code
-- [ ] New diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
-- [ ] New diagnostics MUST NOT include:
-  - [ ] absolute paths
-  - [ ] raw composer JSON
-  - [ ] source code
-  - [ ] filesystem layout
-  - [ ] exception messages
-  - [ ] stack traces
+- [x] `deptrac_generate.php --check` validates internal Composer require edges against the SSoT dependency table.
+- [x] No new Composer script is introduced.
+- [x] Existing `arch` script remains the architecture rail.
+- [x] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
+- [x] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
+- [x] No new `architecture:gate` Composer script is introduced.
+- [x] No new `framework/tools/gates/architecture_gate.php` file is introduced.
+- [x] Output semantics MUST remain compatible with existing tooling checks:
+  - [x] pass: no output, exit `0`
+  - [x] failure: deterministic code + deterministic diagnostics, exit `1`
+- [x] New diagnostics for Composer-edge drift MUST include only:
+  - [x] source package id
+  - [x] target package id
+  - [x] reason token
+  - [x] deterministic error code
+- [x] New diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
+- [x] New diagnostics MUST NOT include:
+  - [x] absolute paths
+  - [x] raw composer JSON
+  - [x] source code
+  - [x] filesystem layout
+  - [x] exception messages
+  - [x] stack traces
 
 ---
 

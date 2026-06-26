@@ -265,6 +265,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   1) `composer arch:package-index:check`
   2) `composer arch:deptrac:check`
   3) `composer arch:deptrac:analyze`
+- Through `composer arch:deptrac:check`, this aggregate also validates that internal Composer `require` edges for `coretsia/*` packages are present in the direct `depends_on` cells of `docs/roadmap/phase0/00_2-dependency-table.md`.
 - This command is a check/analyze aggregate. It does **not** run `composer arch:package-index:generate` or `composer arch:deptrac:generate`.
 - CI may run `composer arch:deptrac:generate` separately to materialize Deptrac graph artifacts for upload, but that is not part of the `composer arch` aggregate.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
@@ -2739,22 +2740,25 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### Deptrac config check
+### Deptrac config and Composer-edge consistency check
 
 **Id:** `tool.arch_deptrac_check`
 **Entrypoint:** `composer arch:deptrac:check`
 **Category:** architecture / guard / CI rail
 **Outputs:**
-- none (exits non-zero if generated Deptrac config drift is detected)
+- none on success
+- deterministic error code and diagnostics on failure
+- MUST NOT update tracked generated files
+- MUST NOT materialize graph artifacts; graph generation is owned by `composer arch:deptrac:generate`
 
 **Determinism:**
 
-| Mode / flags                    | Determinism   | Notes                                                   |
-|---------------------------------|---------------|---------------------------------------------------------|
-| `composer arch:deptrac:check`   | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
+| Mode / flags                  | Determinism   | Notes                                                   |
+|-------------------------------|---------------|---------------------------------------------------------|
+| `composer arch:deptrac:check` | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
 
 **Notes:**
-- Purpose: checks that canonical Deptrac generated files are up to date.
+- Purpose: checks that canonical Deptrac generated files are up to date and validates internal Composer require edges against the canonical SSoT dependency table.
 - Checked tracked outputs:
   - `framework/tools/testing/deptrac.yaml`
   - `framework/tools/testing/deptrac.allowlist.yaml`
@@ -2762,6 +2766,14 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `docs/roadmap/phase0/00_2-dependency-table.md`
 - Scans framework packages from:
   - `framework/packages/*/*/composer.json`
+- Internal Composer dependency policy:
+  - only runtime `require` entries whose package names start with `coretsia/` are considered
+  - external vendor packages are out of scope
+  - every mapped internal Composer dependency MUST appear in the source package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - internal package self-requires are forbidden
+  - unknown internal `coretsia/*` package names fail deterministically
+  - diagnostics use package ids, deterministic reason tokens, and deterministic error codes
+  - diagnostics MUST NOT include absolute paths, raw Composer JSON, source code, filesystem layout, exception messages, or stack traces
 - Generated config analyzes package `src/` roots only.
 - Allowlist policy:
   - may exclude tests, fixtures, vendor, or tooling-only paths
@@ -2776,6 +2788,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - missing dependency policy: line 1 starts with stable code `CORETSIA_DEPTRAC_SSOT_RULESET_MISSING`
   - cycle detected: line 1 starts with stable code `CORETSIA_DEPTRAC_CYCLE_DETECTED`
   - invalid allowlist: line 1 starts with stable code `CORETSIA_DEPTRAC_ALLOWLIST_INVALID`
+  - Composer edge missing from SSoT: line 1 starts with stable code `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
   - unexpected failure: line 1 starts with stable code `CORETSIA_DEPTRAC_GENERATE_FAILED`
 - Direct call `php framework/tools/build/deptrac_generate.php --check` is **NOT** a canonical entrypoint (implementation detail only).
 
@@ -2854,6 +2867,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - `framework/tools/testing/deptrac.yaml`
 - This command is part of the `composer arch` aggregate rail.
 - This command depends on generated Deptrac config being up to date; CI SHOULD run `composer arch:deptrac:check` before this command.
+- Composer-edge SSoT consistency is validated before this step by `composer arch:deptrac:check`; this command only runs native Deptrac analysis against the generated config.
 - This is a third-party architecture analysis command, not a Coretsia policy gate.
   - It does **NOT** follow the Phase 0 gate output contract.
   - It does **NOT** guarantee line 1 is a `CORETSIA_*` code.

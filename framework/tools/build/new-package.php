@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 final class NewPackage
 {
     public const string CODE_FAILED = 'CORETSIA_NEW_PACKAGE_FAILED';
@@ -77,8 +82,8 @@ final class NewPackage
 
         self::runPackageScaffoldSync($repoRoot, $packageDir);
 
-        \fwrite(STDOUT, "OK\n");
-        \fwrite(STDOUT, "framework/packages/$layer/$slug\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("framework/packages/$layer/$slug", false);
 
         return 0;
     }
@@ -452,11 +457,7 @@ final class NewPackage
     {
         $content = self::normalizeToLfFinalNewline($content);
 
-        $result = \file_put_contents($path, $content, LOCK_EX);
-
-        if ($result === false) {
-            throw new \RuntimeException('Cannot write file: ' . $path);
-        }
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
     }
 
     private static function mkdir(string $path): void
@@ -600,6 +601,6 @@ try {
     exit(NewPackage::main($argv));
 } catch (Throwable $e) {
     $msg = \str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \fwrite(STDERR, NewPackage::CODE_FAILED . ": {$msg}\n");
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(NewPackage::CODE_FAILED . ": {$msg}");
     exit(1);
 }

@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 final class DeptracGenerateTool
 {
     private const string CODE_OUT_OF_DATE = 'CORETSIA_DEPTRAC_OUT_OF_DATE';
@@ -81,17 +86,22 @@ final class DeptracGenerateTool
 
         if ($check) {
             if ($changed || $allowlistMissing) {
-                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
+                $diagnostics = [];
 
                 if ($changed) {
-                    fwrite(STDERR, self::rel($repoRoot, $outPath) . "\n");
+                    $diagnostics[] = self::rel($repoRoot, $outPath);
                 }
 
                 if ($allowlistMissing) {
-                    fwrite(STDERR, self::rel($repoRoot, $allowlistPath) . "\n");
+                    $diagnostics[] = self::rel($repoRoot, $allowlistPath);
                 }
 
-                fwrite(STDERR, "Run: php framework/tools/build/deptrac_generate.php --apply\n");
+                $diagnostics[] = 'Run: php framework/tools/build/deptrac_generate.php --apply';
+
+                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                    self::CODE_OUT_OF_DATE,
+                    $diagnostics,
+                );
 
                 return 1;
             }
@@ -108,17 +118,17 @@ final class DeptracGenerateTool
             self::writeGraphArtifacts($artifactsDir, $model['nodes'], $model['edges']);
         }
 
-        fwrite(STDOUT, "OK\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
 
         if ($allowlistMissing) {
-            fwrite(STDOUT, self::rel($repoRoot, $allowlistPath) . "\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $allowlistPath), false);
         }
 
         if ($changed) {
-            fwrite(STDOUT, self::rel($repoRoot, $outPath) . "\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
         }
 
-        fwrite(STDOUT, self::rel($repoRoot, $artifactsDir) . "\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $artifactsDir), false);
 
         return 0;
     }
@@ -141,6 +151,30 @@ final class DeptracGenerateTool
         }
 
         return self::CODE_GENERATE_FAILED . ': ' . $message;
+    }
+
+    public static function emitFailure(Throwable $e): void
+    {
+        $lines = explode("\n", self::formatFailure($e));
+
+        $code = array_shift($lines);
+        if (!is_string($code) || $code === '') {
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::CODE_GENERATE_FAILED);
+
+            return;
+        }
+
+        /** @var list<string> $diagnostics */
+        $diagnostics = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $diagnostics[] = $line;
+            }
+        }
+
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics($code, $diagnostics);
     }
 
     /**
@@ -474,9 +508,9 @@ final class DeptracGenerateTool
 
             foreach ($package['requireNames'] as $composerName) {
                 if (!isset($composerNameToPackageId[$composerName])) {
-                    $diagnostics[] = 'source=' . $sourcePackageId
-                        . ' target=unknown'
-                        . ' reason=composer-edge-not-in-ssot';
+                    $diagnostics[] = 'source:' . $sourcePackageId
+                        . ' target:unknown'
+                        . ' reason:composer-edge-not-in-ssot';
 
                     continue;
                 }
@@ -484,9 +518,9 @@ final class DeptracGenerateTool
                 $targetPackageId = $composerNameToPackageId[$composerName];
 
                 if (!isset($allowedSet[$targetPackageId])) {
-                    $diagnostics[] = 'source=' . $sourcePackageId
-                        . ' target=' . $targetPackageId
-                        . ' reason=composer-edge-not-in-ssot';
+                    $diagnostics[] = 'source:' . $sourcePackageId
+                        . ' target:' . $targetPackageId
+                        . ' reason:composer-edge-not-in-ssot';
                 }
             }
         }
@@ -1231,7 +1265,7 @@ final class DeptracGenerateTool
             $content .= "\n";
         }
 
-        file_put_contents($path, $content, LOCK_EX);
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
     }
 
     /**
@@ -1493,6 +1527,6 @@ final class DeptracGenerateTool
 try {
     exit(DeptracGenerateTool::main($argv));
 } catch (Throwable $e) {
-    fwrite(STDERR, DeptracGenerateTool::formatFailure($e) . "\n");
+    DeptracGenerateTool::emitFailure($e);
     exit(1);
 }

@@ -117,7 +117,7 @@ MD,
         self::assertSame(
             [
                 'CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT: composer-edge-not-in-ssot',
-                'source=core/source target=core/target reason=composer-edge-not-in-ssot',
+                'source:core/source target:core/target reason:composer-edge-not-in-ssot',
             ],
             $lines,
         );

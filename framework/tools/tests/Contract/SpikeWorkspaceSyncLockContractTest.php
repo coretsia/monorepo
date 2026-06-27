@@ -36,7 +36,7 @@ final class SpikeWorkspaceSyncLockContractTest extends ToolContractTestCase
 
         [$checkCode, $checkOutput] = $this->runWorkspaceSync($sandbox, ['--check']);
         self::assertSame(0, $checkCode, "Expected canonical workspace fixture to pass --check.\nOutput:\n" . $checkOutput);
-        self::assertSame("OK\n", $this->normalizeEol($checkOutput));
+        self::assertSame('', $this->normalizeEol($checkOutput));
 
         [$applyCode, $applyOutput] = $this->runWorkspaceSync($sandbox, []);
         self::assertSame(0, $applyCode, "Expected canonical workspace apply to pass.\nOutput:\n" . $applyOutput);
@@ -56,6 +56,6 @@ final class SpikeWorkspaceSyncLockContractTest extends ToolContractTestCase
 
         [$checkAgainCode, $checkAgainOutput] = $this->runWorkspaceSync($sandbox, ['--check']);
         self::assertSame(0, $checkAgainCode, "Expected post-apply --check to pass.\nOutput:\n" . $checkAgainOutput);
-        self::assertSame("OK\n", $this->normalizeEol($checkAgainOutput));
+        self::assertSame('', $this->normalizeEol($checkAgainOutput));
     }
 }

@@ -20,25 +20,37 @@ declare(strict_types=1);
     $frameworkRoot = dirname(__DIR__, 2);
     $frameworkRoot = rtrim(str_replace('\\', '/', $frameworkRoot), '/');
 
+    require_once $frameworkRoot . '/tools/spikes/_support/ConsoleOutput.php';
+    require_once $frameworkRoot . '/tools/spikes/_support/ErrorCodes.php';
+    require_once $frameworkRoot . '/tools/spikes/_support/DeterministicException.php';
+    require_once $frameworkRoot . '/tools/spikes/_support/DeterministicFile.php';
+
     $phpunitBin = $frameworkRoot . '/vendor/bin/phpunit';
     if (!is_file($phpunitBin)) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: missing framework/vendor/bin/phpunit\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: missing framework/vendor/bin/phpunit'
+        );
         exit(1);
     }
 
     $baseConfigAbs = $frameworkRoot . '/tools/testing/phpunit.xml';
     if (!is_file($baseConfigAbs)) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/phpunit.xml\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/phpunit.xml'
+        );
         exit(1);
     }
 
     $bootstrap = $frameworkRoot . '/tools/testing/bootstrap.php';
     if (!is_file($bootstrap)) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/bootstrap.php\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/bootstrap.php'
+        );
         exit(1);
     }
 
     $strict = false;
+    $listPackages = false;
 
     /** @var list<string> $forwardArgs */
     $forwardArgs = [];
@@ -60,6 +72,11 @@ declare(strict_types=1);
 
         if (!$stopParsingFlags && $a === '--strict') {
             $strict = true;
+            continue;
+        }
+
+        if (!$stopParsingFlags && $a === '--list-packages') {
+            $listPackages = true;
             continue;
         }
 
@@ -107,8 +124,10 @@ declare(strict_types=1);
         static fn (array $a, array $b): int => strcmp($a['pkg'], $b['pkg'])
     );
 
-    foreach ($pkgEntries as $e) {
-        fwrite(STDOUT, "==> package: {$e['pkg']}/tests\n");
+    if ($listPackages) {
+        foreach ($pkgEntries as $e) {
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("package: {$e['pkg']}/tests", false);
+        }
     }
 
     $genDir = $frameworkRoot . '/var/phpunit';
@@ -118,7 +137,9 @@ declare(strict_types=1);
         @mkdir($genDir, 0777, true);
     }
     if (!is_dir($genDir)) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: cannot create framework/var/phpunit\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: cannot create framework/var/phpunit'
+        );
         exit(1);
     }
 
@@ -132,13 +153,18 @@ declare(strict_types=1);
             $testsDirsRel,
         );
     } catch (Throwable) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: cannot render generated phpunit config\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: cannot render generated phpunit config'
+        );
         exit(1);
     }
 
-    $ok = @file_put_contents($generatedConfigAbs, $xml);
-    if (!is_int($ok) || $ok <= 0) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: cannot write var/phpunit/phpunit.discovered.xml\n");
+    try {
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($generatedConfigAbs, $xml);
+    } catch (Throwable) {
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: cannot write var/phpunit/phpunit.discovered.xml'
+        );
         exit(1);
     }
 
@@ -162,13 +188,17 @@ declare(strict_types=1);
     $proc = proc_open($cmd, $descriptors, $pipes, $frameworkRoot);
 
     if (!is_resource($proc)) {
-        fwrite(STDERR, "CORETSIA_TEST_RUNNER_FAILED: cannot start phpunit process\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            'CORETSIA_TEST_RUNNER_FAILED: cannot start phpunit process'
+        );
         exit(1);
     }
 
     $code = proc_close($proc);
     exit($code);
-})($argv);
+})(
+    $argv
+);
 
 /** exists AND has any meaningful contents (any .php file OR any non-dot directory). */
 function self_hasNonEmptyTestsTree(string $testsDir): bool
@@ -228,7 +258,7 @@ function self_renderGeneratedPhpunitXmlFromBase(
     string $baseConfigAbs,
     string $generatedConfigAbs,
     string $frameworkRoot,
-    array  $discoveredTestsDirsRel
+    array $discoveredTestsDirsRel
 ): string {
     $baseDir = rtrim(str_replace('\\', '/', dirname($baseConfigAbs)), '/');
     $generatedDir = rtrim(str_replace('\\', '/', dirname($generatedConfigAbs)), '/');
@@ -310,10 +340,14 @@ function self_renderGeneratedPhpunitXmlFromBase(
             throw new RuntimeException('discovered-tests-marker-missing');
         }
 
-        $discoveredTestsDirsRel = array_values(array_unique(array_map(
-            static fn (string $p): string => trim(str_replace('\\', '/', $p), '/'),
-            $discoveredTestsDirsRel
-        )));
+        $discoveredTestsDirsRel = array_values(
+            array_unique(
+                array_map(
+                    static fn (string $p): string => trim(str_replace('\\', '/', $p), '/'),
+                    $discoveredTestsDirsRel
+                )
+            )
+        );
         sort($discoveredTestsDirsRel, SORT_STRING);
 
         foreach ($discoveredTestsDirsRel as $rel) {

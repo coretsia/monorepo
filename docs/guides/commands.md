@@ -44,6 +44,17 @@ This document fixes the **canonical** commands/entrypoints that actually exist i
   - which entrypoint is **canonical**, and which one is **alias/compat**, and **MUST** guarantee behavior equivalence (semantics/outputs) in deterministic mode.
 - When an entrypoint is **migrated** (the canonical one changes), the previous canonical entrypoint **SHOULD** remain as a **compat alias** for at least 1 epic/phase (or until the next cutline), and **MUST** be marked as `DEPRECATED` with a “remove-after” milestone.
 
+### Tooling output policy
+
+- This policy applies to tool-owned output, not to Composer's own script prelude lines such as `> @php ...`.
+- Gates MUST emit no output on success.
+- Gates MUST emit a stable error code on line 1 on failure.
+- Check commands SHOULD emit no output on success, especially when used in aggregate CI rails.
+- Check commands MUST emit deterministic failure output when drift or policy violations are detected.
+- Generate/sync commands MAY emit a short deterministic success summary, such as `OK` and repo-relative changed paths.
+- External tools MAY keep their native output.
+- Default test runners SHOULD avoid discovery banners unless explicitly requested by a verbose/list flag.
+
 ---
 
 ## Entry format (how to extend this file)
@@ -64,9 +75,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Project structure generator
 
-**Id:** `tool.generate_structure`
-**Entrypoint:** `composer docs:structure`
-**Category:** documentation generator
+**Id:** `tool.generate_structure` \
+**Entrypoint:** `composer docs:structure` \
+**Category:** documentation generator \
 **Outputs:**
 - `docs/generated/GENERATED_STRUCTURE.md` (full structure, includes PHP symbols)
 - `docs/generated/GENERATED_STRUCTURE_TREE.md` (tree-only, no PHP symbols)
@@ -104,9 +115,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Monorepo workspace setup
 
-**Id:** `project.setup`  
-**Entrypoint:** `composer setup`  
-**Category:** workspace bootstrap  
+**Id:** `project.setup` \
+**Entrypoint:** `composer setup` \
+**Category:** workspace bootstrap \
 **Outputs:**
 - (local) Git config: enables hooks via `core.hooksPath=.githooks`
 - Potential updates to `composer.json`, `framework/composer.json`, `skeleton/composer.json` managed repositories blocks
@@ -144,9 +155,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### CI rails (project-wide)
 
-**Id:** `project.ci`  
-**Entrypoint:** `composer ci`  
-**Category:** CI / verification  
+**Id:** `project.ci` \
+**Entrypoint:** `composer ci` \
+**Category:** CI / verification \
 **Outputs:**
 - No tracked outputs on success (MUST be rerun-no-diff w.r.t. tracked files)
 - Installs vendors (untracked) and runs validations + gates + DTO rail + arch + quality + tests
@@ -190,11 +201,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package index (arch) check
 
-**Id:** `tool.arch_package_index_check`  
-**Entrypoint:** `composer arch:package-index:check`  
-**Category:** architecture / guard  
+**Id:** `tool.arch_package_index_check` \
+**Entrypoint:** `composer arch:package-index:check` \
+**Category:** architecture / guard \
 **Outputs:**
-- none (exits non-zero if package index drift is detected)
+- none on success
+- exits non-zero if package index drift is detected
+- exits non-zero on unexpected failure
 
 **Determinism:**
 
@@ -207,6 +220,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script arch:package-index:check --`
 - Framework implementation detail: `@php tools/build/package_index.php --check` (framework workspace).
+- Success output policy:
+  - emits no output when `framework/tools/testing/package-index.php` is already up to date.
 - Failure output policy:
   - drift: line 1 is stable code `CORETSIA_PACKAGE_INDEX_OUT_OF_DATE`
   - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_INDEX_FAILED`
@@ -218,9 +233,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package index (arch) generate
 
-**Id:** `tool.arch_package_index_generate`  
-**Entrypoint:** `composer arch:package-index:generate`  
-**Category:** architecture / generator  
+**Id:** `tool.arch_package_index_generate` \
+**Entrypoint:** `composer arch:package-index:generate` \
+**Category:** architecture / generator \
 **Outputs:**
 - Updates generated package index artifact: `framework/tools/testing/package-index.php`
 
@@ -245,9 +260,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Architecture aggregate rail
 
-**Id:** `tool.arch`
-**Entrypoint:** `composer arch`
-**Category:** architecture / CI rail
+**Id:** `tool.arch` \
+**Entrypoint:** `composer arch` \
+**Category:** architecture / CI rail \
 **Outputs:**
 - none on success
 - MUST NOT update tracked generated files
@@ -279,18 +294,19 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Test suite (project-wide)
 
-**Id:** `project.test`  
-**Entrypoint:** `composer test`  
-**Category:** testing  
+**Id:** `project.test` \
+**Entrypoint:** `composer test` \
+**Category:** testing \
 **Outputs:**
 - No tracked outputs on success
 - `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
 
 **Determinism:**
 
-| Mode / flags | Determinism   | Notes                                 |
-|--------------|---------------|---------------------------------------|
-| default      | deterministic | Delegates to `framework` test runner. |
+| Mode / flags                       | Determinism   | Notes                                                       |
+|------------------------------------|---------------|-------------------------------------------------------------|
+| default                            | deterministic | Delegates to `framework` test runner; no discovery banners. |
+| `composer test -- --list-packages` | deterministic | Prints discovered package test directories before PHPUnit.  |
 
 **Notes:**
 - `composer test` is the canonical repo-root entrypoint for framework/packages tests.
@@ -298,7 +314,8 @@ Each new command is added as a separate section under `## Commands` (the format 
   1) `composer package:phpunit:gate`
   2) framework package-discovery PHPUnit runner
 - Runner semantics (deterministic):
-  - prints a prelude list of discovered packages as `==> package: ...`
+  - default success output does not include package discovery banners
+  - `--list-packages` prints discovered package test directories as `package: <framework-relative-tests-dir>`
   - generates `framework/var/phpunit/phpunit.discovered.xml` *(gitignored runtime artifact)*
   - runs PHPUnit **once** (single process) using the generated config
 - Policy:
@@ -309,6 +326,7 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer test`
+- `composer test -- --list-packages`
 - `composer test -- --filter <pattern>`
 - `composer test -- --testsuite all`
 - `composer test -- --group contract`
@@ -317,9 +335,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Test suite (fast)
 
-**Id:** `project.test_fast`  
-**Entrypoint:** `composer test-fast`  
-**Category:** testing  
+**Id:** `project.test_fast` \
+**Entrypoint:** `composer test-fast` \
+**Category:** testing \
 **Outputs:**
 - No tracked outputs on success
 - `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
@@ -337,9 +355,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Test suite (slow)
 
-**Id:** `project.test_slow`  
-**Entrypoint:** `composer test-slow`  
-**Category:** testing  
+**Id:** `project.test_slow` \
+**Entrypoint:** `composer test-slow` \
+**Category:** testing \
 **Outputs:**
 - No tracked outputs on success
 - `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
@@ -357,9 +375,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Managed composer repositories (apply)
 
-**Id:** `tool.sync_repos_apply`  
-**Entrypoint:** `composer sync:repos`  
-**Category:** build tooling / workspace policy  
+**Id:** `tool.sync_repos_apply` \
+**Entrypoint:** `composer sync:repos` \
+**Category:** build tooling / workspace policy \
 **Outputs:**
 - Potential updates to `composer.json`, `framework/composer.json`, `skeleton/composer.json` *(only repositories block; canonicalized)*
 - (optional) `framework/var/backups/workspace/**` *(gitignored, may include timestamped names)*
@@ -392,11 +410,12 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Managed composer repositories (check)
 
-**Id:** `tool.sync_repos_check`  
-**Entrypoint:** `composer sync:check`  
-**Category:** build tooling / guard  
+**Id:** `tool.sync_repos_check` \
+**Entrypoint:** `composer sync:check` \
+**Category:** build tooling / guard \
 **Outputs:**
-- none (exits non-zero on drift)
+- none on success
+- exits non-zero on invalid managed block, repository drift, or unexpected failure
 
 **Determinism:**
 
@@ -413,6 +432,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script sync:check --`
 - Framework implementation detail: `@php tools/build/sync_composer_repositories.php --check` (framework workspace).
+- Success output policy:
+  - emits no output when repositories are already in canonical state.
 - Failure output policy:
   - invalid managed block: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID`
   - managed repository drift: line 1 is stable code `CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC`
@@ -425,9 +446,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Release-line workspace constraints sync
 
-**Id:** `tool.release_line_workspace_sync`
-**Entrypoint:** `composer release-line:workspace:sync`
-**Category:** build tooling / release-line workspace policy
+**Id:** `tool.release_line_workspace_sync` \
+**Entrypoint:** `composer release-line:workspace:sync` \
+**Category:** build tooling / release-line workspace policy \
 **Outputs:**
 - Potential update to `framework/composer.json` `require-dev`
 - (optional, only if drift is applied) `framework/var/backups/release-line/**` *(gitignored)*
@@ -468,12 +489,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Release-line workspace constraints check
 
-**Id:** `tool.release_line_workspace_check`
-**Entrypoint:** `composer release-line:workspace:check`
-**Category:** build tooling / guard
+**Id:** `tool.release_line_workspace_check` \
+**Entrypoint:** `composer release-line:workspace:check` \
+**Category:** build tooling / guard \
 **Outputs:**
-- none; read-only check
+- none on success; read-only check
 - exits non-zero if `framework/composer.json` internal `coretsia/*` `require-dev` constraints drift from release-line `devVersion`
+- exits non-zero on unexpected failure
 
 **Determinism:**
 
@@ -487,6 +509,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - The command MUST NOT create backups and MUST NOT rewrite composer files.
 - CI policy:
   - `composer ci` runs this command after `composer sync:check` and before `composer install:all`.
+- Success output policy:
+  - emits no output when workspace constraints are already aligned with release-line `devVersion`.
 - Failure output policy:
   - drift: line 1 is stable code `CORETSIA_RELEASE_LINE_WORKSPACE_OUT_OF_SYNC`
   - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_WORKSPACE_SYNC_FAILED`
@@ -499,9 +523,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Release-line package public constraints sync
 
-**Id:** `tool.release_line_public_constraints_sync`
-**Entrypoint:** `composer release-line:public-constraints:sync`
-**Category:** build tooling / release-line package policy
+**Id:** `tool.release_line_public_constraints_sync` \
+**Entrypoint:** `composer release-line:public-constraints:sync` \
+**Category:** build tooling / release-line package policy \
 **Outputs:**
 - Potential updates to package `composer.json` files under `framework/packages/*/*`
 - (optional, only if drift is applied) `framework/var/backups/release-line/**` *(gitignored)*
@@ -542,12 +566,13 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Release-line package public constraints check
 
-**Id:** `tool.release_line_public_constraints_check`
-**Entrypoint:** `composer release-line:public-constraints:check`
-**Category:** build tooling / guard
+**Id:** `tool.release_line_public_constraints_check` \
+**Entrypoint:** `composer release-line:public-constraints:check` \
+**Category:** build tooling / guard \
 **Outputs:**
-- none; read-only check
+- none on success; read-only check
 - exits non-zero if any package `composer.json` internal `coretsia/*` dependency constraint drifts from release-line `publicConstraint`
+- exits non-zero on unexpected failure
 
 **Determinism:**
 
@@ -561,6 +586,8 @@ Each new command is added as a separate section under `## Commands` (the format 
 - The command MUST NOT create backups and MUST NOT rewrite composer files.
 - CI policy:
   - `composer ci` runs this command after `composer release-line:workspace:check` and before `composer install:all`.
+- Success output policy:
+  - emits no output when package public constraints are already aligned with release-line `publicConstraint`.
 - Failure output policy:
   - drift: line 1 is stable code `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_OUT_OF_SYNC`
   - unexpected failure: line 1 starts with stable code `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_SYNC_FAILED`
@@ -573,9 +600,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Lock drift guard
 
-**Id:** `tool.lock_check`  
-**Entrypoint:** `composer lock:check`  
-**Category:** CI guard  
+**Id:** `tool.lock_check` \
+**Entrypoint:** `composer lock:check` \
+**Category:** CI guard \
 **Outputs:**
 - none (exits non-zero if lockfiles changed)
 
@@ -598,9 +625,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Composer roots validation (strict)
 
-**Id:** `tool.validate_all`  
-**Entrypoint:** `composer validate:all`  
-**Category:** CI / verification  
+**Id:** `tool.validate_all` \
+**Entrypoint:** `composer validate:all` \
+**Category:** CI / verification \
 **Outputs:**
 - none (exits non-zero on validation errors)
 
@@ -625,9 +652,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### New package generator (framework workspace)
 
-**Id:** `tool.new_package`
-**Entrypoint:** `composer package:new`
-**Category:** build tooling / scaffolding
+**Id:** `tool.new_package` \
+**Entrypoint:** `composer package:new` \
+**Category:** build tooling / scaffolding \
 **Outputs:**
 - `framework/packages/<layer>/<slug>/**` (scaffolded package tree; exact contents defined by the generator and packaging law)
 
@@ -658,9 +685,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package scaffold sync
 
-**Id:** `tool.package_scaffold_sync`
-**Entrypoint:** `composer package-scaffold:sync`
-**Category:** build tooling / scaffolding
+**Id:** `tool.package_scaffold_sync` \
+**Entrypoint:** `composer package-scaffold:sync` \
+**Category:** build tooling / scaffolding \
 **Outputs:**
 - Creates or updates package scaffold artifacts under `framework/packages/*/*/**` or under the package path passed as an argument.
 - Exact-canonical sync is allowed only for:
@@ -702,9 +729,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package scaffold check
 
-**Id:** `tool.package_scaffold_check`
-**Entrypoint:** `composer package-scaffold:check`
-**Category:** build tooling / guard
+**Id:** `tool.package_scaffold_check` \
+**Entrypoint:** `composer package-scaffold:check` \
+**Category:** build tooling / guard \
 **Outputs:**
 - none; read-only check
 - exits non-zero if scaffold drift is detected
@@ -738,9 +765,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package compliance gate
 
-**Id:** `tool.package_compliance_gate`
-**Entrypoint:** `composer package-compliance:gate`
-**Category:** repo policy / guard
+**Id:** `tool.package_compliance_gate` \
+**Entrypoint:** `composer package-compliance:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none; read-only gate
 - exits non-zero on package compliance violations
@@ -767,7 +794,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   - README minimum sections
   - runtime config shape
 - Allowlist policy:
-  - `framework/tools/gates/package_compliance_allowlist.php` is the only grandfathering mechanism.
+  - `framework/tools/config/package_compliance_allowlist.php` is the only grandfathering mechanism.
   - allowlist entries are deterministic package ids: `<layer>/<slug>`.
   - allowlist content MUST be sorted by `strcmp`.
 - Output policy:
@@ -790,9 +817,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package publish safety gate
 
-**Id:** `tool.package_publish_safety_gate`
-**Entrypoint:** `composer package-publish-safety:gate`
-**Category:** repo policy / Packagist publish guard
+**Id:** `tool.package_publish_safety_gate` \
+**Entrypoint:** `composer package-publish-safety:gate` \
+**Category:** repo policy / Packagist publish guard \
 **Outputs:**
 - none; read-only gate
 - exits non-zero on Packagist publish-safety violations
@@ -839,11 +866,54 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
+### Atomic write gate
+
+**Id:** `tool.atomic_write_gate` \
+**Entrypoint:** `composer atomic-write:gate` \
+**Category:** tooling / safety / CI rail \
+**Outputs:**
+- none on success
+- deterministic error code and diagnostics on failure
+
+**Determinism:**
+
+| Mode / flags                                                                      | Determinism   | Notes                                                                                            |
+|-----------------------------------------------------------------------------------|---------------|--------------------------------------------------------------------------------------------------|
+| `composer atomic-write:gate`                                                      | deterministic | Pure scanner; MUST be rerun-no-diff w.r.t. tracked files.                                        |
+| `composer atomic-write:gate -- --path=<fixture-root> --allowlist=<allowlist.php>` | deterministic | Test/fixture override; diagnostics are scan-root-relative when the path is outside `framework/`. |
+
+**Notes:**
+- Purpose: scans production tooling PHP files under `framework/tools/**/*.php` for unsafe raw write sinks.
+- Persistent tools-side writes MUST go through `Coretsia\Tools\Spikes\_support\DeterministicFile`.
+- Excludes tests, fixtures, and the canonical deterministic file helper.
+- Uses exact allowlist entries from:
+  - `framework/tools/config/atomic_write_allowlist.php`
+- Forbidden raw write sinks outside allowlisted files:
+  - `file_put_contents`
+  - `fwrite`
+  - custom `rename`
+  - `copy`
+  - writable `fopen` modes
+  - writable `SplFileObject` modes
+- Failure output policy:
+  - violation: line 1 is stable code `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - scanner/tooling failure: line 1 is stable code `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+- Diagnostics include only:
+  - framework-relative file path and line number in production scan mode;
+  - scan-root-relative file path and line number when `--path` points outside `framework/`.
+- Direct call `php framework/tools/gates/atomic_write_gate.php` is **NOT** a canonical entrypoint.
+
+**Usage (repo root):**
+- `composer atomic-write:gate`
+- `composer atomic-write:gate -- --path=<fixture-root> --allowlist=<allowlist.php>`
+
+---
+
 ### Git hooks install (workspace)
 
-**Id:** `tool.hooks_install`  
-**Entrypoint:** `composer hooks:install`  
-**Category:** workspace bootstrap  
+**Id:** `tool.hooks_install` \
+**Entrypoint:** `composer hooks:install` \
+**Category:** workspace bootstrap \
 **Outputs:**
 - (local) Git config: enables hooks via `core.hooksPath=.githooks`
 
@@ -860,9 +930,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Dependencies install (Composer, all roots)
 
-**Id:** `tool.install_all`  
-**Entrypoint:** `composer install:all`  
-**Category:** dependencies / workspace bootstrap  
+**Id:** `tool.install_all` \
+**Entrypoint:** `composer install:all` \
+**Category:** dependencies / workspace bootstrap \
 **Outputs:**
 - `vendor/**` (root) *(untracked)*
 - `framework/vendor/**` *(untracked)*
@@ -889,9 +959,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Framework test runner (via repo root)
 
-**Id:** `framework.test`  
-**Entrypoint:** `composer framework:test`  
-**Category:** testing  
+**Id:** `framework.test` \
+**Entrypoint:** `composer framework:test` \
+**Category:** testing \
 **Outputs:**
 - No tracked outputs on success
 - `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
@@ -919,9 +989,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes boundary enforcement gate
 
-**Id:** `tool.spike_boundary_gate`  
-**Entrypoint:** `composer spike:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.spike_boundary_gate` \
+**Entrypoint:** `composer spike:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on boundary violations)
 
@@ -947,9 +1017,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes I/O policy gate
 
-**Id:** `tool.spike_io_policy_gate`  
-**Entrypoint:** `composer spike:io:policy`  
-**Category:** repo policy / guard  
+**Id:** `tool.spike_io_policy_gate` \
+**Entrypoint:** `composer spike:io:policy` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on policy violations; emits deterministic diagnostics)
 
@@ -980,9 +1050,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes canonical paths gate
 
-**Id:** `tool.spike_canonical_paths_gate`  
-**Entrypoint:** `composer spike:canonical:paths`  
-**Category:** repo policy / guard  
+**Id:** `tool.spike_canonical_paths_gate` \
+**Entrypoint:** `composer spike:canonical:paths` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on canonical path policy violations; emits deterministic diagnostics)
 
@@ -1022,9 +1092,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes output bypass gate
 
-**Id:** `tool.spike_output_gate`  
-**Entrypoint:** `composer spike:output:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.spike_output_gate` \
+**Entrypoint:** `composer spike:output:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero if bypass is detected)
 
@@ -1047,9 +1117,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes test suite
 
-**Id:** `tool.spike_test`  
-**Entrypoint:** `composer spike:test`  
-**Category:** testing  
+**Id:** `tool.spike_test` \
+**Entrypoint:** `composer spike:test` \
+**Category:** testing \
 **Outputs:**
 - No tracked outputs on success
 
@@ -1089,9 +1159,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Spikes determinism runner
 
-**Id:** `tool.spike_test_determinism`  
-**Entrypoint:** `composer spike:test:determinism`  
-**Category:** determinism / verification  
+**Id:** `tool.spike_test_determinism` \
+**Entrypoint:** `composer spike:test:determinism` \
+**Category:** determinism / verification \
 **Outputs:**
 - No tracked outputs on success *(may create temporary files under OS temp or gitignored paths)*
 
@@ -1113,9 +1183,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Repo text normalization gate
 
-**Id:** `tool.repo_text_normalization_gate`
-**Entrypoint:** `composer repo:text:gate`
-**Category:** repo policy / guard
+**Id:** `tool.repo_text_normalization_gate` \
+**Entrypoint:** `composer repo:text:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -1143,9 +1213,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Package-local PHPUnit config gate
 
-**Id:** `tool.package_phpunit_gate`
-**Entrypoint:** `composer package:phpunit:gate`
-**Category:** repo policy / guard
+**Id:** `tool.package_phpunit_gate` \
+**Entrypoint:** `composer package:phpunit:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations)
 
@@ -1179,9 +1249,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Outdated dependencies report (Composer, all roots)
 
-**Id:** `tool.outdated_all`  
-**Entrypoint:** `composer outdated:all`  
-**Category:** dependencies / inspection  
+**Id:** `tool.outdated_all` \
+**Entrypoint:** `composer outdated:all` \
+**Category:** dependencies / inspection \
 **Outputs:**
 - none (prints report to console; MUST NOT modify tracked files)
 
@@ -1206,9 +1276,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Autoloader dump (Composer, all roots)
 
-**Id:** `tool.dump_autoload_all`  
-**Entrypoint:** `composer dump-autoload:all`  
-**Category:** dependencies / tooling  
+**Id:** `tool.dump_autoload_all` \
+**Entrypoint:** `composer dump-autoload:all` \
+**Category:** dependencies / tooling \
 **Outputs:**
 - `vendor/**` (root) *(untracked)*
 - `framework/vendor/**` *(untracked)*
@@ -1234,9 +1304,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Dependencies update (Composer, all roots)
 
-**Id:** `tool.update_all`  
-**Entrypoint:** `composer update:all`  
-**Category:** dependencies / maintenance  
+**Id:** `tool.update_all` \
+**Entrypoint:** `composer update:all` \
+**Category:** dependencies / maintenance \
 **Outputs:**
 - Updates lockfiles (tracked):
   - `composer.lock`
@@ -1268,9 +1338,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Internal toolkit anti-duplication gate
 
-**Id:** `tool.toolkit_gate`  
-**Entrypoint:** `composer toolkit:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.toolkit_gate` \
+**Entrypoint:** `composer toolkit:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic code + minimal diagnostics)
 
@@ -1305,9 +1375,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Tools InvalidArgumentException policy gate
 
-**Id:** `tool.tools_invalid_argument_exception_gate`  
-**Entrypoint:** `composer tools:ia`  
-**Category:** repo policy / guard  
+**Id:** `tool.tools_invalid_argument_exception_gate` \
+**Entrypoint:** `composer tools:ia` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -1340,9 +1410,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI help (Phase 0)
 
-**Id:** `cli.help`
-**Entrypoint:** `php coretsia help`
-**Category:** CLI / built-in (Phase 0)
+**Id:** `cli.help` \
+**Entrypoint:** `php coretsia help` \
+**Category:** CLI / built-in (Phase 0) \
 **Outputs:**
 - none (prints deterministic help text to console)
 
@@ -1373,9 +1443,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI list (Phase 0)
 
-**Id:** `cli.list`
-**Entrypoint:** `php coretsia list`
-**Category:** CLI / built-in (Phase 0)
+**Id:** `cli.list` \
+**Entrypoint:** `php coretsia list` \
+**Category:** CLI / built-in (Phase 0) \
 **Outputs:**
 - none (prints deterministic list of available commands)
 
@@ -1400,9 +1470,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI doctor (Phase 0)
 
-**Id:** `cli.doctor`
-**Entrypoint:** `php coretsia doctor`
-**Category:** CLI / devtools / diagnostics (Phase 0)
+**Id:** `cli.doctor` \
+**Entrypoint:** `php coretsia doctor` \
+**Category:** CLI / devtools / diagnostics (Phase 0) \
 **Outputs:**
 - none (prints deterministic JSON payload to console)
 
@@ -1435,9 +1505,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI spike fingerprint (Phase 0)
 
-**Id:** `cli.spike_fingerprint`
-**Entrypoint:** `php coretsia spike:fingerprint`
-**Category:** CLI / devtools / diagnostics (Phase 0)
+**Id:** `cli.spike_fingerprint` \
+**Entrypoint:** `php coretsia spike:fingerprint` \
+**Category:** CLI / devtools / diagnostics (Phase 0) \
 **Outputs:**
 - none (prints deterministic JSON payload to console)
 
@@ -1475,9 +1545,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI spike config debug (Phase 0)
 
-**Id:** `cli.spike_config_debug`
-**Entrypoint:** `php coretsia spike:config:debug`
-**Category:** CLI / devtools / config diagnostics (Phase 0)
+**Id:** `cli.spike_config_debug` \
+**Entrypoint:** `php coretsia spike:config:debug` \
+**Category:** CLI / devtools / config diagnostics (Phase 0) \
 **Outputs:**
 - none (prints deterministic JSON payload to console)
 
@@ -1527,9 +1597,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI deptrac graph (Phase 0)
 
-**Id:** `cli.deptrac_graph`
-**Entrypoint:** `php coretsia deptrac:graph`
-**Category:** CLI / devtools / artifact generator (Phase 0)
+**Id:** `cli.deptrac_graph` \
+**Entrypoint:** `php coretsia deptrac:graph` \
+**Category:** CLI / devtools / artifact generator (Phase 0) \
 **Outputs:**
 - default output directory: `framework/tools/spikes/_artifacts/deptrac_graph`
 - generated files in that directory:
@@ -1585,9 +1655,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI workspace sync dry-run (Phase 0)
 
-**Id:** `cli.workspace_sync_dry_run`
-**Entrypoint:** `php coretsia workspace:sync --dry-run`
-**Category:** CLI / devtools / workspace tooling (Phase 0)
+**Id:** `cli.workspace_sync_dry_run` \
+**Entrypoint:** `php coretsia workspace:sync --dry-run` \
+**Category:** CLI / devtools / workspace tooling (Phase 0) \
 **Outputs:**
 - none in dry-run mode (prints deterministic JSON or text payload to console)
 
@@ -1640,9 +1710,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Coretsia CLI workspace sync apply (Phase 0)
 
-**Id:** `cli.workspace_sync_apply`
-**Entrypoint:** `php coretsia workspace:sync --apply`
-**Category:** CLI / devtools / workspace tooling (Phase 0)
+**Id:** `cli.workspace_sync_apply` \
+**Entrypoint:** `php coretsia workspace:sync --apply` \
+**Category:** CLI / devtools / workspace tooling (Phase 0) \
 **Outputs:**
 - workspace-managed files as determined by the tools-side workflow
 - structured JSON payload describing applied result
@@ -1679,9 +1749,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Site icons builder
 
-**Id:** `tool.build_icons`
-**Entrypoint:** `composer build:icons`
-**Category:** documentation / branding / asset generator
+**Id:** `tool.build_icons` \
+**Entrypoint:** `composer build:icons` \
+**Category:** documentation / branding / asset generator \
 **Outputs:**
 - `docs/assets/branding/favicon/favicon-16x16.png`
 - `docs/assets/branding/favicon/favicon-32x32.png`
@@ -1726,9 +1796,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Tooling gates rail
 
-**Id:** `tool.gates`
-**Entrypoint:** `composer gates`
-**Category:** CI / repo policy / guard rail
+**Id:** `tool.gates` \
+**Entrypoint:** `composer gates` \
+**Category:** CI / repo policy / guard rail \
 **Outputs:**
 - none (exits non-zero if any configured gate fails)
 
@@ -1759,6 +1829,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   13) `composer no-runtime-tooling-artifacts:gate`
   14) `composer package-compliance:gate`
   15) `composer package-publish-safety:gate`
+  16) `composer atomic-write:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`
@@ -1779,9 +1850,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### DTO aggregate gate rail
 
-**Id:** `tool.dto_gate`
-**Entrypoint:** `composer dto:gate`
-**Category:** CI / repo policy / DTO guard rail
+**Id:** `tool.dto_gate` \
+**Entrypoint:** `composer dto:gate` \
+**Category:** CI / repo policy / DTO guard rail \
 **Outputs:**
 - none on success
 - exits non-zero if a materialized specialized DTO gate fails
@@ -1843,9 +1914,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### DTO marker consistency gate
 
-**Id:** `tool.dto_marker_consistency_gate`
-**Entrypoint:** `composer dto-marker-consistency:gate`
-**Category:** repo policy / DTO guard
+**Id:** `tool.dto_marker_consistency_gate` \
+**Entrypoint:** `composer dto-marker-consistency:gate` \
+**Category:** repo policy / DTO guard \
 **Outputs:**
 - none on success
 - exits non-zero on DTO marker policy violations
@@ -1911,9 +1982,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### DTO no-logic gate
 
-**Id:** `tool.dto_no_logic_gate`
-**Entrypoint:** `composer dto-no-logic:gate`
-**Category:** repo policy / DTO guard
+**Id:** `tool.dto_no_logic_gate` \
+**Entrypoint:** `composer dto-no-logic:gate` \
+**Category:** repo policy / DTO guard \
 **Outputs:**
 - none on success
 - exits non-zero on DTO no-logic policy violations
@@ -1987,9 +2058,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### DTO shape gate
 
-**Id:** `tool.dto_shape_gate`
-**Entrypoint:** `composer dto-shape:gate`
-**Category:** repo policy / DTO guard
+**Id:** `tool.dto_shape_gate` \
+**Entrypoint:** `composer dto-shape:gate` \
+**Category:** repo policy / DTO guard \
 **Outputs:**
 - none on success
 - exits non-zero on DTO shape policy violations
@@ -2062,9 +2133,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### No skeleton HTTP default gate
 
-**Id:** `tool.no_skeleton_http_default_gate`
-**Entrypoint:** `composer no-skeleton-http-default:gate`
-**Category:** repo policy / guard
+**Id:** `tool.no_skeleton_http_default_gate` \
+**Entrypoint:** `composer no-skeleton-http-default:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -2098,9 +2169,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### No skeleton bundles default gate
 
-**Id:** `tool.no_skeleton_bundles_default_gate`
-**Entrypoint:** `composer no-skeleton-bundles-default:gate`
-**Category:** repo policy / guard
+**Id:** `tool.no_skeleton_bundles_default_gate` \
+**Entrypoint:** `composer no-skeleton-bundles-default:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -2134,9 +2205,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### No skeleton mode presets default gate
 
-**Id:** `tool.no_skeleton_mode_presets_default_gate`
-**Entrypoint:** `composer no-skeleton-mode-presets-default:gate`
-**Category:** repo policy / guard
+**Id:** `tool.no_skeleton_mode_presets_default_gate` \
+**Entrypoint:** `composer no-skeleton-mode-presets-default:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -2170,9 +2241,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### No skeleton modules default gate
 
-**Id:** `tool.no_skeleton_modules_default_gate`
-**Entrypoint:** `composer no-skeleton-modules-default:gate`
-**Category:** repo policy / guard
+**Id:** `tool.no_skeleton_modules_default_gate` \
+**Entrypoint:** `composer no-skeleton-modules-default:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -2208,9 +2279,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Contracts-only ports gate
 
-**Id:** `tool.contracts_only_ports_gate`
-**Entrypoint:** `composer contracts-only-ports:gate`
-**Category:** repo policy / guard
+**Id:** `tool.contracts_only_ports_gate` \
+**Entrypoint:** `composer contracts-only-ports:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on violations; emits deterministic diagnostics)
 
@@ -2252,9 +2323,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Reserved tags gate
 
-**Id:** `tool.reserved_tags_registry_gate`
-**Entrypoint:** `composer reserved-tags:gate`
-**Category:** repo policy / guard
+**Id:** `tool.reserved_tags_registry_gate` \
+**Entrypoint:** `composer reserved-tags:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none on success
 - deterministic diagnostics on reserved DI tag registry drift
@@ -2301,9 +2372,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Observability naming gate
 
-**Id:** `tool.observability_naming_gate`  
-**Entrypoint:** `composer observability-naming:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.observability_naming_gate` \
+**Entrypoint:** `composer observability-naming:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on observability naming / label policy violations)
 
@@ -2354,9 +2425,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Observability span naming gate
 
-**Id:** `tool.observability_span_naming_gate`
-**Entrypoint:** `composer observability-span-naming:gate`
-**Category:** repo policy / guard
+**Id:** `tool.observability_span_naming_gate` \
+**Entrypoint:** `composer observability-span-naming:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none on success
 - exits non-zero on span naming policy violations
@@ -2420,9 +2491,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Observability metric catalog gate
 
-**Id:** `tool.observability_metric_catalog_gate`
-**Entrypoint:** `composer observability-metric-catalog:gate`
-**Category:** repo policy / guard
+**Id:** `tool.observability_metric_catalog_gate` \
+**Entrypoint:** `composer observability-metric-catalog:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none on success
 - exits non-zero on canonical metrics catalog drift or runtime metric emission policy violations
@@ -2487,9 +2558,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Artifact header/schema gate
 
-**Id:** `tool.artifact_header_schema_gate`  
-**Entrypoint:** `composer artifact-header-schema:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.artifact_header_schema_gate` \
+**Entrypoint:** `composer artifact-header-schema:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on artifact envelope/header/schema violations; emits deterministic diagnostics)
 
@@ -2527,9 +2598,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Cross-cutting contract gate
 
-**Id:** `tool.cross_cutting_contract_gate`  
-**Entrypoint:** `composer cross-cutting-contract:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.cross_cutting_contract_gate` \
+**Entrypoint:** `composer cross-cutting-contract:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none on success
 - deterministic diagnostics on cross-cutting contract policy violations
@@ -2597,9 +2668,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Kernel public API gate
 
-**Id:** `tool.kernel_public_api_gate`  
-**Entrypoint:** `composer kernel-public-api:gate`  
-**Category:** repo policy / guard  
+**Id:** `tool.kernel_public_api_gate` \
+**Entrypoint:** `composer kernel-public-api:gate` \
+**Category:** repo policy / guard \
 **Outputs:**
 - none (exits non-zero on kernel public API surface violations; emits deterministic diagnostics)
 
@@ -2660,9 +2731,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### No runtime tooling artifacts gate
 
-**Id:** `tool.no_runtime_tooling_artifacts_gate`
-**Entrypoint:** `composer no-runtime-tooling-artifacts:gate`
-**Category:** repo policy / runtime purity guard
+**Id:** `tool.no_runtime_tooling_artifacts_gate` \
+**Entrypoint:** `composer no-runtime-tooling-artifacts:gate` \
+**Category:** repo policy / runtime purity guard \
 **Outputs:**
 - none on success
 - exits non-zero on runtime tooling artifact violations
@@ -2742,9 +2813,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Deptrac config and Composer-edge consistency check
 
-**Id:** `tool.arch_deptrac_check`
-**Entrypoint:** `composer arch:deptrac:check`
-**Category:** architecture / guard / CI rail
+**Id:** `tool.arch_deptrac_check` \
+**Entrypoint:** `composer arch:deptrac:check` \
+**Category:** architecture / guard / CI rail \
 **Outputs:**
 - none on success
 - deterministic error code and diagnostics on failure
@@ -2799,9 +2870,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Deptrac config and graph generator
 
-**Id:** `tool.arch_deptrac_generate`
-**Entrypoint:** `composer arch:deptrac:generate`
-**Category:** architecture / generator / CI artifact materialization
+**Id:** `tool.arch_deptrac_generate` \
+**Entrypoint:** `composer arch:deptrac:generate` \
+**Category:** architecture / generator / CI artifact materialization \
 **Outputs:**
 - `framework/tools/testing/deptrac.yaml`
 - `framework/tools/testing/deptrac.allowlist.yaml` *(created if missing)*
@@ -2849,9 +2920,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Deptrac architecture analysis
 
-**Id:** `tool.arch_deptrac_analyze`
-**Entrypoint:** `composer arch:deptrac:analyze`
-**Category:** architecture / dependency analysis / CI rail
+**Id:** `tool.arch_deptrac_analyze` \
+**Entrypoint:** `composer arch:deptrac:analyze` \
+**Category:** architecture / dependency analysis / CI rail \
 **Outputs:**
 - none on success
 - native Deptrac diagnostics on violations/failure
@@ -2885,9 +2956,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Quality aggregate rail
 
-**Id:** `tool.quality`
-**Entrypoint:** `composer quality`
-**Category:** quality / aggregate rail
+**Id:** `tool.quality` \
+**Entrypoint:** `composer quality` \
+**Category:** quality / aggregate rail \
 **Outputs:**
 - none directly
 - delegates to quality tools, which may produce native diagnostics
@@ -2933,9 +3004,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Code style check
 
-**Id:** `tool.cs_check`
-**Entrypoint:** `composer cs:check`
-**Category:** quality / code style
+**Id:** `tool.cs_check` \
+**Entrypoint:** `composer cs:check` \
+**Category:** quality / code style \
 **Outputs:**
 - none on success
 - tool diagnostics on failure
@@ -2976,9 +3047,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Code style fixer
 
-**Id:** `tool.cs_fix`
-**Entrypoint:** `composer cs:fix`
-**Category:** quality / code style / mutating fixer
+**Id:** `tool.cs_fix` \
+**Entrypoint:** `composer cs:fix` \
+**Category:** quality / code style / mutating fixer \
 **Outputs:**
 - may rewrite PHP source files in the configured ECS scan scope
 
@@ -3014,9 +3085,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ### Static analysis baseline
 
-**Id:** `tool.phpstan`
-**Entrypoint:** `composer phpstan`
-**Category:** quality / static analysis
+**Id:** `tool.phpstan` \
+**Entrypoint:** `composer phpstan` \
+**Category:** quality / static analysis \
 **Outputs:**
 - none on success
 - native PHPStan diagnostics on failure

@@ -195,8 +195,19 @@ final class DeterministicFile
 
     private static function writeBytesInternal(string $path, string $bytes): void
     {
+        $tmpPath = self::atomicTempPath($path);
+
+        if ($tmpPath === $path) {
+            throw new DeterministicException(
+                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                self::MSG_WRITE_FAILED,
+            );
+        }
+
+        self::tryUnlink($tmpPath);
+
         $fp = self::guardWrite(
-            static fn () => fopen($path, 'wb'),
+            static fn () => fopen($tmpPath, 'xb'),
         );
 
         if ($fp === false) {
@@ -206,38 +217,141 @@ final class DeterministicFile
             );
         }
 
+        $closed = false;
+        $committed = false;
+
         try {
-            $len = strlen($bytes);
-            $written = 0;
+            self::writeBytesToOpenStream($fp, $bytes);
+            self::flushOpenStream($fp);
+            self::closeOpenStream($fp);
 
-            while ($written < $len) {
-                $chunk = substr($bytes, $written);
+            $closed = true;
 
-                $n = self::guardWrite(
-                    static fn () => fwrite($fp, $chunk),
-                );
-
-                if ($n === false || $n === 0) {
-                    throw new DeterministicException(
-                        ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
-                        self::MSG_WRITE_FAILED,
-                    );
-                }
-
-                $written += $n;
-            }
-        } finally {
-            // Must not emit warnings/notices; must not leak OS messages.
-            $closed = self::guardWrite(
-                static fn (): bool => fclose($fp),
+            $renamed = self::guardWrite(
+                static fn (): bool => rename($tmpPath, $path),
             );
 
-            if ($closed === false) {
+            if ($renamed !== true) {
                 throw new DeterministicException(
                     ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
                     self::MSG_WRITE_FAILED,
                 );
             }
+
+            $committed = true;
+        } finally {
+            if (!$closed && \is_resource($fp)) {
+                try {
+                    self::closeOpenStream($fp);
+                } catch (\Throwable) {
+                    // Cleanup path only; never leak OS-specific close errors.
+                }
+            }
+
+            if (!$committed) {
+                self::tryUnlink($tmpPath);
+            }
+        }
+    }
+
+    /**
+     * Same-directory temp path so final rename stays on the same filesystem.
+     */
+    private static function atomicTempPath(string $path): string
+    {
+        $dir = dirname($path);
+        $base = basename($path);
+
+        if ($base === '' || $base === '.' || $base === '..') {
+            throw new DeterministicException(
+                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                self::MSG_WRITE_FAILED,
+            );
+        }
+
+        $tmpBase = '.' . $base . '.coretsia-tmp';
+
+        if ($dir === '' || $dir === '.' || $dir === DIRECTORY_SEPARATOR) {
+            return $tmpBase;
+        }
+
+        return rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $tmpBase;
+    }
+
+    /**
+     * @param resource $fp
+     */
+    private static function writeBytesToOpenStream($fp, string $bytes): void
+    {
+        $len = strlen($bytes);
+        $written = 0;
+
+        while ($written < $len) {
+            $chunk = substr($bytes, $written);
+
+            $n = self::guardWrite(
+                static fn () => fwrite($fp, $chunk),
+            );
+
+            if ($n === false || $n === 0) {
+                throw new DeterministicException(
+                    ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                    self::MSG_WRITE_FAILED,
+                );
+            }
+
+            $written += $n;
+        }
+    }
+
+    /**
+     * @param resource $fp
+     */
+    private static function flushOpenStream($fp): void
+    {
+        $flushed = self::guardWrite(
+            static fn (): bool => fflush($fp),
+        );
+
+        if ($flushed !== true) {
+            throw new DeterministicException(
+                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                self::MSG_WRITE_FAILED,
+            );
+        }
+    }
+
+    /**
+     * @param resource $fp
+     */
+    private static function closeOpenStream($fp): void
+    {
+        $closed = self::guardWrite(
+            static fn (): bool => fclose($fp),
+        );
+
+        if ($closed !== true) {
+            throw new DeterministicException(
+                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                self::MSG_WRITE_FAILED,
+            );
+        }
+    }
+
+    private static function tryUnlink(string $path): void
+    {
+        try {
+            self::guardWrite(
+                static function () use ($path): bool {
+                    if (!is_file($path) && !is_link($path)) {
+                        return true;
+                    }
+
+                    return unlink($path);
+                },
+            );
+        } catch (\Throwable) {
+            // Best-effort cleanup only; never leak paths or OS messages.
         }
     }
 

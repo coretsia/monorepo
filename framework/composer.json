@@ -101,7 +101,8 @@
       "@kernel-public-api:gate",
       "@no-runtime-tooling-artifacts:gate",
       "@package-compliance:gate",
-      "@package-publish-safety:gate"
+      "@package-publish-safety:gate",
+      "@atomic-write:gate"
     ],
     "dto:gate": "@php tools/gates/dto_gate.php",
     "dto-marker-consistency:gate": "@php tools/gates/dto_marker_consistency_gate.php",
@@ -124,6 +125,7 @@
     "release-line:public-constraints:sync": "@php tools/release/sync_package_public_constraints.php",
     "release-line:public-constraints:check": "@php tools/release/sync_package_public_constraints.php --check",
     "package-publish-safety:gate": "@php tools/gates/package_publish_safety_gate.php",
+    "atomic-write:gate": "@php tools/gates/atomic_write_gate.php",
     "spike:gate": "@php tools/gates/spikes_boundary_gate.php",
     "toolkit:gate": "@php tools/gates/internal_toolkit_no_dup_gate.php",
     "tools:ia": "@php tools/gates/tools_invalid_argument_exception_gate.php",

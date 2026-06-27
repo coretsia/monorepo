@@ -747,10 +747,25 @@ final class NewPackageWorkflow
      */
     private static function renameOrFail(string $from, string $to): void
     {
-        $ok = self::guardWrite(static fn (): bool => \rename($from, $to));
-        if ($ok !== true) {
+        if (!\file_exists($from) || \file_exists($to)) {
             self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
         }
+
+        if (\is_dir($from)) {
+            self::copyTreeDeterministic($from, $to);
+            self::removeTreeOrFail($from);
+
+            return;
+        }
+
+        if (\is_file($from)) {
+            self::copyFileExact($from, $to);
+            self::unlinkOrFail($from);
+
+            return;
+        }
+
+        self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
     }
 
     private static function removeFileBestEffort(string $path): void

@@ -1043,17 +1043,21 @@ Coretsia/
 │   ├── tools/
 │   │   ├── build/
 │   │   │   ├── build_icons.php (BuildIconsTool - main()/renderSvgToPngBytes()/renderViaImagick()/renderViaRsvgConvert()/buildIcoFromPngBytes()/detectPngDimensions()/isDifferentBinaryFile()/writeBytes()/findExecutable()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
-│   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/assertAllDiscoveredPackagesHaveSsotRows()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildPackageIndexContext()/assertComposerEdgesMatchSsot()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
+│   │   │   ├── deptrac_generate.php (DeptracGenerateTool - main()/formatFailure()/emitFailure()/assertAllDiscoveredPackagesHaveSsotRows()/readSsotDependencyTable()/normalizeMarkdownCell()/isPackageId()/scanPackages()/buildPackageIndexContext()/assertComposerEdgesMatchSsot()/buildDeptracModel()/buildRuleset()/applyTemporalMissingDependencyCompat()/ssotTransitiveClosure()/composerRequireNamesToPackageIds()/renderDeptracYaml()/renderDefaultAllowlistYaml()/classLikePatternForPsr4()/readAllowlistAsExcludeFiles()/normalizeAllowlistPattern()/assertAllowlistPolicy()/assertNoPackageCycles()/assertNoLayerCycles()/assertNoCycles()/visitCycleNode()/writeGraphArtifacts()/renderDot()/renderSvg()/renderHtml()/dotEscape()/xmlEscape()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/extractComposerRequireNames()/licenseHeaderYaml()/yamlSingleQuoted()/packageIdToLayerId()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/resolveRepoRoot()/repoRootUnsafe()/pathRelativeToConfigDir()/relPath()/rel()/relFrom())
 │   │   │   ├── generate_structure.php
 │   │   │   ├── new-package.php (NewPackage - main()/parseArgs()/need()/packageRootNamespace()/composerJson()/runPackageScaffoldSync()/firstNonEmptyLine()/encodeComposerJsonCanonical()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/normalizeEol()/normalizeToLfFinalNewline()/writeTextLf()/mkdir()/studly()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/repoRootUnsafe())
 │   │   │   ├── package_index.php (PackageIndexTool - main()/buildIndex()/renderPhpReturnFile()/renderPhpValue()/renderPhpArray()/renderPhpArrayKey()/normalizePayload()/isDifferentFile()/writeFile()/readJson()/extractPsr4()/normalizeEol()/argFlag()/argValue()/absFromRepo()/isAbsolutePath()/rel()/relFrom()/resolveRepoRoot()/repoRootUnsafe())
 │   │   │   ├── structure.ignore.php
 │   │   │   ├── sync_composer_repositories.php (SyncComposerRepositories - main()/syncOne()/desiredManagedReposForRoot()/loadReleaseLine()/discoverWorkspacePackageVersions()/readJsonObject()/desiredManagedReposForFramework()/desiredManagedReposForSkeleton()/managedPathRepo()/isManaged()/canonicalizeManaged()/encodeComposerJsonCanonical()/encodeJsonPretty()/encodeJsonValue()/escapeJsonString()/reindentLeadingSpaces()/writeBackupIfNeeded()/normalizeEol()/normalizeToLfFinalNewline()/argFlag()/argRepoRoot()/resolveRepoRoot()/isAbsolutePath()/rel()/relFrom()/repoRootUnsafe())
 │   │   │   └── sync_package_scaffold.php
+│   │   ├── config/
+│   │   │   ├── atomic_write_allowlist.php
+│   │   │   └── package_compliance_allowlist.php
 │   │   ├── cs/
 │   │   │   └── ecs.php
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
+│   │   │   ├── atomic_write_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
@@ -1070,7 +1074,6 @@ Coretsia/
 │   │   │   ├── observability_metric_catalog_gate.php
 │   │   │   ├── observability_naming_gate.php
 │   │   │   ├── observability_span_naming_gate.php
-│   │   │   ├── package_compliance_allowlist.php
 │   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── package_publish_safety_gate.php
@@ -1090,7 +1093,7 @@ Coretsia/
 │   │   │   │   ├── ConsoleOutput.php (ConsoleOutput - line()/lines()/codeWithDiagnostics()/stdoutStream()/stderrStream()/openStream()/write()/sanitizeLine()/withSuppressedErrors())
 │   │   │   │   ├── DeterminismRunner.php (DeterminismRunner - setProcessRunner()/main()/runner()/run()/emitFailure()/frameworkRoot()/repoRoot()/assertGitAvailable()/assertWorktreeClean()/runComposerSpikeTest()/classifyComposerFailure()/extractCoretsiaCodes()/createFreshTmpRootOutsideRepo()/chooseTempBaseNative()/removeDirRecursive()/tryRemoveDirRecursive()/runCommand()/canonicalize()/isInside()/dedupPreserveOrder())
 │   │   │   │   ├── DeterministicException.php (DeterministicException - code()/assertSafeMessage())
-│   │   │   │   ├── DeterministicFile.php (DeterministicFile - readBytesExact()/readTextNormalizedEol()/hashSha256NormalizedEol()/writeTextLf()/writeBytesExact()/normalizeEolToLf()/readBytes()/ensureParentDirectory()/writeBytesInternal()/guardRead()/guardWrite()/guard())
+│   │   │   │   ├── DeterministicFile.php (DeterministicFile - readBytesExact()/readTextNormalizedEol()/hashSha256NormalizedEol()/writeTextLf()/writeBytesExact()/normalizeEolToLf()/readBytes()/ensureParentDirectory()/writeBytesInternal()/atomicTempPath()/writeBytesToOpenStream()/flushOpenStream()/closeOpenStream()/tryUnlink()/guardRead()/guardWrite()/guard())
 │   │   │   │   ├── ErrorCodes.php (ErrorCodes - has()/all()/initialize())
 │   │   │   │   ├── FixtureRoot.php (FixtureRoot - rootDir()/path()/assertSafeRelative()/throwInvalid())
 │   │   │   │   ├── NativeProcessRunner.php (NativeProcessRunner - run()/runSilenced()/commandCandidates()/preferBashOnWindows()/bashCandidate()/cmdCandidate()/procOptions()/nullDevice()/firstTokenLower()/splitBySpaces()/exeBase()/shouldFallback()/shouldFallbackByOutput()/shouldFallbackByEmptyOutput()/describeCandidate()/resolveGitExe()/resolveBashExe())
@@ -1445,6 +1448,7 @@ Coretsia/
 │   │       │   │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php (RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest - testSwooleHttpPlusWorkerHttpFixtureMatchesRuntimeDriverGuard())
 │   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php (RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest - testWorkerHttpWithoutPlatformHttpModuleFixtureMatchesRuntimeDriverGuard())
 │   │       │   │   └── RuntimeDriverMatrixTestSupport.php (RuntimeDriverMatrixTestSupport - runtimeDriverMatrixFixtureNames()/assertRuntimeDriverMatrixFixtureMatchesGuard()/loadRuntimeDriverMatrixFixture()/runRuntimeDriverMatrix()/runtimeDriverMatrixFixtureRoot()/runtimeDriverMatrixFixturePath()/runtimeDriverMatrixFixtureRelativePath()/loadRuntimeDriverMatrixArrayFixture()/validateRuntimeDriverMatrixConfig()/validateRuntimeDriverMatrixModules()/validateRuntimeDriverMatrixExpected()/assertAllowedExpectedShape()/assertConflictExpectedShape()/assertInvalidConfigExpectedShape()/buildRuntimeDriverMatrixModulePlan()/composerNameForModuleId()/normalizeFixtureName()/normalizePathForMessage()/assertNullableString()/assertCanonicalDriverIdList()/assertRequiredModuleIdList()/assertSortedStringList()/assertPlainRuntimeDriverMatrixValue())
+│   │       │   ├── AtomicWriteGateTest.php (AtomicWriteGateTest - testUnsafeFilePutContentsFailsDeterministically()/testReadOnlyFopenPasses()/testWritableFopenFailsDeterministically()/testInvalidAllowlistFailsWithGateFailedCode()/testMissingScanRootFailsWithGateFailedCode()/runGate()/stderrLines()/frameworkRoot()/makeTempDir()/writeFile()/assertOutputIsRedacted())
 │   │       │   ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/testFoundationContextOwnerUsageAndEffectiveResetTagVariablePass()/testEffectiveResetTagVariableMustComeFromFoundationServiceFactory()/testUnrelatedNonResettableClassNearStatefulTagDoesNotFailWhenTaggedServiceIsResettable()/testDirectContextStoreUsageOutsideFoundationProviderFails()/testContractsContextKeysUsageFromPlatformConsumerPasses()/testLegacyFoundationContextKeysUsageFails()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeReservedTags()/writeFoundationConfig()/writeStatefulService())
 │   │       │   ├── DeptracGenerateComposerEdgesMatchSsotTest.php (DeptracGenerateComposerEdgesMatchSsotTest - tearDown()/testSyntheticComposerEdgeMissingFromSsotFailsDeterministically()/runDeptracGenerateCheck()/createSyntheticRepoRoot()/writeFile()/makeDir()/removeTree()/normalizeEol()/writeComposerJson())
 │   │       │   ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())
@@ -1458,8 +1462,10 @@ Coretsia/
 │   │       │   ├── ReservedTagsRegistryGateTest.php (ReservedTagsRegistryGateTest - tearDown()/testPassesWhenDocsRegistryAndReservedTagsMatch()/testFailsWhenReservedTagsMissesTagFromDocs()/testFailsWhenReservedTagsConstValueDiffers()/testFailsWhenAnyPackageHasProviderTagsFile()/testFailsWhenAnotherPackageDefinesReservedTagLiteralConstant()/testFailsWhenAnotherPackageDefinesReservedTagsAliasConstant()/testFailureOutputIsDeterministicRepoRelativeSortedAndDoesNotContainAbsolutePaths()/assertGateFailure()/createFixtureRoot()/writeReservedTags())
 │   │       │   ├── SyncPackageScaffoldCheckRejectsDriftTest.php (SyncPackageScaffoldCheckRejectsDriftTest - testCheckModeRejectsMissingAndDriftedCanonicalPackageFilesWithoutWrites()/runSyncPackageScaffoldCheck()/prepareTempRoot()/createCompleteLibraryPackage()/createCompleteRuntimePackage()/composerJson()/readme()/noopContractTest()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/assertDiagnosticsAreRelativeAndSorted()/repoRoot()/ensureDir()/removePath())
 │   │       │   └── SyncPackageScaffoldCreatesMissingFilesTest.php (SyncPackageScaffoldCreatesMissingFilesTest - testApplyModeCreatesMissingScaffoldWithoutRewritingUserOwnedContent()/runSyncPackageScaffold()/prepareTempRoot()/createLibraryPackageSkeleton()/createRuntimePackageSkeleton()/composerJson()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/repoRoot()/ensureDir()/removePath())
-│   │       └── Smoke/
-│   │           └── MonorepoSmokeTest.php (MonorepoSmokeTest - testHarnessBootsAndCanonicalEntryFilesExist()/frameworkRoot()/repoRoot())
+│   │       ├── Smoke/
+│   │       │   └── MonorepoSmokeTest.php (MonorepoSmokeTest - testHarnessBootsAndCanonicalEntryFilesExist()/frameworkRoot()/repoRoot())
+│   │       └── Unit/
+│   │           └── DeterministicFileAtomicWriteTest.php (DeterministicFileAtomicWriteTest - testWriteTextLfUsesAtomicTempAndCleansItUp()/testWriteBytesExactPreservesEmptyPayloadExactly()/makeTempDir())
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/

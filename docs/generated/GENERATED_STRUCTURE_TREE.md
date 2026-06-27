@@ -1050,10 +1050,14 @@ Coretsia/
 │   │   │   ├── structure.ignore.php
 │   │   │   ├── sync_composer_repositories.php
 │   │   │   └── sync_package_scaffold.php
+│   │   ├── config/
+│   │   │   ├── atomic_write_allowlist.php
+│   │   │   └── package_compliance_allowlist.php
 │   │   ├── cs/
 │   │   │   └── ecs.php
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
+│   │   │   ├── atomic_write_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
@@ -1070,7 +1074,6 @@ Coretsia/
 │   │   │   ├── observability_metric_catalog_gate.php
 │   │   │   ├── observability_naming_gate.php
 │   │   │   ├── observability_span_naming_gate.php
-│   │   │   ├── package_compliance_allowlist.php
 │   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── package_publish_safety_gate.php
@@ -1445,6 +1448,7 @@ Coretsia/
 │   │       │   │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
 │   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
 │   │       │   │   └── RuntimeDriverMatrixTestSupport.php
+│   │       │   ├── AtomicWriteGateTest.php
 │   │       │   ├── CrossCuttingContractGateTest.php
 │   │       │   ├── DeptracGenerateComposerEdgesMatchSsotTest.php
 │   │       │   ├── DtoGateAggregateRunnerTest.php
@@ -1458,8 +1462,10 @@ Coretsia/
 │   │       │   ├── ReservedTagsRegistryGateTest.php
 │   │       │   ├── SyncPackageScaffoldCheckRejectsDriftTest.php
 │   │       │   └── SyncPackageScaffoldCreatesMissingFilesTest.php
-│   │       └── Smoke/
-│   │           └── MonorepoSmokeTest.php
+│   │       ├── Smoke/
+│   │       │   └── MonorepoSmokeTest.php
+│   │       └── Unit/
+│   │           └── DeterministicFileAtomicWriteTest.php
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/

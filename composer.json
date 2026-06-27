@@ -187,6 +187,7 @@
     "release-line:public-constraints:sync": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:sync --",
     "release-line:public-constraints:check": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:check --",
     "package-publish-safety:gate": "@composer --no-interaction --working-dir=framework run-script package-publish-safety:gate --",
+    "atomic-write:gate": "@composer --no-interaction --working-dir=framework run-script atomic-write:gate --",
     "hooks:install": "git config core.hooksPath .githooks",
     "lock:check": "git diff --exit-code -- composer.lock framework/composer.lock skeleton/composer.lock",
     "docs:structure": "@composer --no-interaction --working-dir=framework run-script docs:structure --",

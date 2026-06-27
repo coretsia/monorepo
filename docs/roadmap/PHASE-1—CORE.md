@@ -18339,102 +18339,94 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
-  - [ ] Each entry MUST include a fixed reason token.
-  - [ ] Wildcard patterns are forbidden in Phase 1.
-  - [ ] Absolute paths are forbidden.
-  - [ ] Allowlist entries MUST use exact shape:
-    - [ ] `path` — framework-relative path string, relative to `framework/`
-    - [ ] `reason` — fixed lowercase reason token
-  - [ ] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
-  - [ ] Unknown allowlist keys MUST fail deterministically.
+- [x] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
+  - [x] Each entry MUST include a fixed reason token.
+  - [x] Wildcard patterns are forbidden in Phase 1.
+  - [x] Absolute paths are forbidden.
+  - [x] Allowlist entries MUST use exact shape:
+    - [x] `path` — framework-relative path string, relative to `framework/`
+    - [x] `reason` — fixed lowercase reason token
+  - [x] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
+  - [x] Unknown allowlist keys MUST fail deterministically.
 
-```php
-return [
-    [
-        'path' => 'tools/example.php',
-        'reason' => 'legacy-writer-migrated-later',
-    ],
-];
-```
-
-- [ ] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
-  - [ ] scans production tooling PHP files under `framework/tools/**/*.php`
-  - [ ] excludes:
-    - [ ] `framework/tools/tests/**`
-    - [ ] `framework/tools/**/fixtures/**`
-    - [ ] `framework/tools/spikes/fixtures/**`
-    - [ ] `framework/tools/spikes/_support/DeterministicFile.php`
-  - [ ] Phase 1 single-choice policy:
-    - [ ] persistent tools-side writes MUST go through `DeterministicFile`
-  - [ ] forbidden raw write sinks outside allowlisted files:
-    - [ ] `file_put_contents`
-    - [ ] `fwrite`
-    - [ ] `rename` used as custom atomic-write implementation outside `DeterministicFile`
-    - [ ] `copy` used as write/update sink
-  - [ ] `fopen` in read-only modes (`r`, `rb`) is allowed.
-  - [ ] `fopen` with write/append/create modes (`w`, `wb`, `a`, `ab`, `c`, `cb`, `x`, `xb`, and `+` variants) is forbidden outside allowlisted files.
-  - [ ] `SplFileObject` / `FilesystemIterator` read-only usage is allowed.
-  - [ ] `SplFileObject` with write/append/create modes is forbidden outside allowlisted files.
-  - [ ] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION`
-  - [ ] On scanner/tooling failure, prints:
-    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
-  - [ ] diagnostics include framework-relative file path and line number only
-  - [ ] diagnostics MUST NOT include source code snippets
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override for test fixture roots
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+- [x] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
+  - [x] scans production tooling PHP files under `framework/tools/**/*.php`
+  - [x] excludes:
+    - [x] `framework/tools/tests/**`
+    - [x] `framework/tools/**/fixtures/**`
+    - [x] `framework/tools/spikes/fixtures/**`
+    - [x] `framework/tools/spikes/_support/DeterministicFile.php`
+  - [x] Phase 1 single-choice policy:
+    - [x] persistent tools-side writes MUST go through `DeterministicFile`
+  - [x] forbidden raw write sinks outside allowlisted files:
+    - [x] `file_put_contents`
+    - [x] `fwrite`
+    - [x] `rename` used as custom atomic-write implementation outside `DeterministicFile`
+    - [x] `copy` used as write/update sink
+  - [x] `fopen` in read-only modes (`r`, `rb`, `rt`) is allowed.
+  - [x] `fopen` with write/append/create modes (`w`, `wb`, `a`, `ab`, `c`, `cb`, `x`, `xb`, and `+` variants) is forbidden outside allowlisted files.
+  - [x] `SplFileObject` / `FilesystemIterator` read-only usage is allowed.
+  - [x] `SplFileObject` with write/append/create modes is forbidden outside allowlisted files.
+  - [x] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] On scanner/tooling failure, prints:
+    - [x] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+  - [x] diagnostics include framework-relative file path and line number only in production scan mode
+  - [x] diagnostics include scan-root-relative file path and line number only when `--path` points outside `framework/`
+  - [x] diagnostics MUST NOT include source code snippets
+  - [x] uses `ConsoleOutput`
+  - [x] supports `--path` override for test fixture roots
+  - [x] Unknown allowlist keys MUST fail deterministically.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when ConsoleOutput is available
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
-  - [ ] add to `gates`
+- [x] `framework/composer.json` — add gate script
+  - [x] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
+  - [x] add to `gates`
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_ATOMIC_WRITE_VIOLATION`
-  - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
-- [ ] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
-  - [ ] `framework/tools/gates/package_compliance_allowlist.php`
-    → `framework/tools/config/package_compliance_allowlist.php`
-  - [ ] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
-  - [ ] this move MUST NOT change package compliance semantics
+- [x] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
+  - [x] `framework/tools/gates/package_compliance_allowlist.php` → `framework/tools/config/package_compliance_allowlist.php`
+  - [x] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
+  - [x] this move MUST NOT change package compliance semantics
 
-- [ ] add command `atomic-write:gate` in `docs/guides/commands.md`
-- [ ] update command `composer gates` in `docs/guides/commands.md`
+- [x] add command `atomic-write:gate` in `docs/guides/commands.md`
+- [x] update command `composer gates` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18444,25 +18436,28 @@ return [
 
 #### Errors
 
-- [ ] Deterministic error codes.
+- [x] Deterministic error codes.
 
 #### Security / Redaction
 
-- [ ] No file contents; only paths.
+- [x] No file contents; only paths.
 
 ### Verification
 
-- [ ] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
+- [x] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
-  - [ ] scanner failure / unreadable root / invalid allowlist fails with:
-    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+- [x] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
+  - [x] unsafe `file_put_contents` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] read-only `fopen(..., 'rb')` passes with no output
+  - [x] writable `fopen(..., 'wb')` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] invalid allowlist fails with `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+  - [x] unreadable/missing scan root fails with `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
 ### DoD
 
-- [ ] Gate implemented, CI integrated, error code registered.
+- [x] Gate implemented, CI integrated, error code registered.
 
 ---
 

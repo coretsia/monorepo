@@ -241,6 +241,60 @@ jobs:
         shell: bash
         run: composer --no-interaction --no-progress install:framework
 
+      - name: "Debug: Composer audit subprocess on Windows"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "composer from bash:"
+          command -v composer || true
+          composer --version
+
+          echo "direct composer audit from bash:"
+          (
+            cd framework
+            composer audit --format=json --abandoned=ignore || true
+          )
+
+          echo "composer audit through PHP proc_open:"
+          cat > .tmp_composer_audit_probe.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          $cmd = 'composer audit --format=json --abandoned=ignore';
+
+          $descriptors = [
+              1 => ['pipe', 'w'],
+              2 => ['pipe', 'w'],
+          ];
+
+          $process = proc_open($cmd, $descriptors, $pipes, __DIR__ . '/framework');
+
+          if (!is_resource($process)) {
+              fwrite(STDERR, "proc_open failed\n");
+              exit(1);
+          }
+
+          $stdout = stream_get_contents($pipes[1]);
+          $stderr = stream_get_contents($pipes[2]);
+
+          fclose($pipes[1]);
+          fclose($pipes[2]);
+
+          $exit = proc_close($process);
+
+          echo "exit={$exit}\n";
+          echo "stdout:\n";
+          echo $stdout;
+          echo "\nstderr:\n";
+          echo $stderr;
+          echo "\n";
+          PHP
+
+          php .tmp_composer_audit_probe.php
+          rm -f .tmp_composer_audit_probe.php
+
       - name: "Security: Composer audit gate (security)"
         shell: bash
         run: composer --no-interaction security

@@ -1478,11 +1478,30 @@ final class DeptracGenerateTool
 
     private static function pathRelativeToConfigDir(string $repoRoot, string $outPath, string $repoRelPath): string
     {
-        $repoRoot = rtrim(str_replace('\\', '/', $repoRoot), '/');
-        $configDir = rtrim(str_replace('\\', '/', dirname($outPath)), '/');
-        $abs = $repoRoot . '/' . ltrim(str_replace('\\', '/', $repoRelPath), '/');
+        $repoRoot = self::canonicalExistingPath($repoRoot);
+        $configDir = self::canonicalExistingPath(\dirname($outPath));
+        $abs = self::canonicalExistingPath(
+            $repoRoot . '/' . \ltrim(\str_replace('\\', '/', $repoRelPath), '/'),
+        );
 
         return self::relPath($configDir, $abs);
+    }
+
+    private static function canonicalExistingPath(string $path): string
+    {
+        $normalized = \rtrim(\str_replace('\\', '/', $path), '/');
+
+        if ($normalized === '') {
+            return '';
+        }
+
+        $real = \realpath($normalized);
+
+        if (\is_string($real)) {
+            return \rtrim(\str_replace('\\', '/', $real), '/');
+        }
+
+        return $normalized;
     }
 
     private static function relPath(string $fromDirAbs, string $toAbs): string

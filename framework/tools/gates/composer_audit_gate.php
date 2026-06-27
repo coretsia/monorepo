@@ -357,107 +357,120 @@ function coretsia_composer_audit_gate_lock_has_packages(string $composerLock): b
  */
 function coretsia_composer_audit_gate_run_composer_audit(array $composerCommand, string $cwd): array
 {
-    $cmd = coretsia_composer_audit_gate_shell_command(
-        \array_merge($composerCommand, ['audit', '--format=json', '--abandoned=ignore']),
-    );
-
     $descriptors = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
 
-    \set_error_handler(static function (): bool {
-        return true;
-    });
+    foreach (coretsia_composer_audit_gate_command_candidates($composerCommand) as $cmd) {
+        $pipes = [];
 
-    try {
-        $process = \proc_open($cmd, $descriptors, $pipes, $cwd);
-    } finally {
-        \restore_error_handler();
-    }
+        \set_error_handler(static function (): bool {
+            return true;
+        });
 
-    if (!\is_resource($process)) {
-        throw new \RuntimeException('composer-process-start-failed');
-    }
-
-    \fclose($pipes[0]);
-
-    \stream_set_blocking($pipes[1], false);
-    \stream_set_blocking($pipes[2], false);
-
-    $stdout = '';
-    $stderr = '';
-    $deadline = \microtime(true) + 60.0;
-
-    while (!\feof($pipes[1]) || !\feof($pipes[2])) {
-        $read = [];
-
-        if (!\feof($pipes[1])) {
-            $read[] = $pipes[1];
+        try {
+            $process = \proc_open(
+                $cmd,
+                $descriptors,
+                $pipes,
+                $cwd,
+                null,
+                coretsia_composer_audit_gate_proc_options($cmd),
+            );
+        } finally {
+            \restore_error_handler();
         }
 
-        if (!\feof($pipes[2])) {
-            $read[] = $pipes[2];
+        if (!\is_resource($process)) {
+            continue;
         }
 
-        if ($read !== []) {
-            $write = null;
-            $except = null;
+        \fclose($pipes[0]);
 
-            \set_error_handler(static function (): bool {
-                return true;
-            });
+        \stream_set_blocking($pipes[1], false);
+        \stream_set_blocking($pipes[2], false);
 
-            try {
-                $ready = \stream_select($read, $write, $except, 0, 10_000);
-            } finally {
-                \restore_error_handler();
+        $stdout = '';
+        $stderr = '';
+        $deadline = \microtime(true) + 60.0;
+
+        while (!\feof($pipes[1]) || !\feof($pipes[2])) {
+            $read = [];
+
+            if (!\feof($pipes[1])) {
+                $read[] = $pipes[1];
             }
 
-            if ($ready === false) {
-                throw new \RuntimeException('composer-stream-select-failed');
+            if (!\feof($pipes[2])) {
+                $read[] = $pipes[2];
             }
 
-            foreach ($read as $stream) {
-                if ($stream === $pipes[1]) {
-                    $stdout .= (string)\stream_get_contents($pipes[1]);
-                    continue;
+            if ($read !== []) {
+                $write = null;
+                $except = null;
+
+                \set_error_handler(static function (): bool {
+                    return true;
+                });
+
+                try {
+                    $ready = \stream_select($read, $write, $except, 0, 10_000);
+                } finally {
+                    \restore_error_handler();
                 }
 
-                if ($stream === $pipes[2]) {
-                    $stderr .= (string)\stream_get_contents($pipes[2]);
+                if ($ready === false) {
+                    throw new \RuntimeException('composer-stream-select-failed');
                 }
+
+                foreach ($read as $stream) {
+                    if ($stream === $pipes[1]) {
+                        $stdout .= (string)\stream_get_contents($pipes[1]);
+                        continue;
+                    }
+
+                    if ($stream === $pipes[2]) {
+                        $stderr .= (string)\stream_get_contents($pipes[2]);
+                    }
+                }
+            }
+
+            if (\strlen($stdout) + \strlen($stderr) > 2_000_000) {
+                \proc_terminate($process);
+                throw new \RuntimeException('composer-output-too-large');
+            }
+
+            if (\microtime(true) > $deadline) {
+                \proc_terminate($process);
+                throw new \RuntimeException('composer-process-timeout');
             }
         }
 
-        if (\strlen($stdout) + \strlen($stderr) > 2_000_000) {
-            \proc_terminate($process);
-            throw new \RuntimeException('composer-output-too-large');
+        $stdout .= (string)\stream_get_contents($pipes[1]);
+        $stderr .= (string)\stream_get_contents($pipes[2]);
+
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+
+        $closeExit = \proc_close($process);
+        $exitKnown = $closeExit >= 0;
+        $exit = $exitKnown ? $closeExit : 1;
+
+        if (coretsia_composer_audit_gate_should_try_next_command($cmd, $exit, $stdout, $stderr)) {
+            continue;
         }
 
-        if (\microtime(true) > $deadline) {
-            \proc_terminate($process);
-            throw new \RuntimeException('composer-process-timeout');
-        }
+        return [
+            'exit' => $exit,
+            'exitKnown' => $exitKnown,
+            'stdout' => $stdout,
+            'stderr' => $stderr,
+        ];
     }
 
-    $stdout .= (string)\stream_get_contents($pipes[1]);
-    $stderr .= (string)\stream_get_contents($pipes[2]);
-
-    \fclose($pipes[1]);
-    \fclose($pipes[2]);
-
-    $closeExit = \proc_close($process);
-    $exitKnown = $closeExit >= 0;
-    $exit = $exitKnown ? $closeExit : 1;
-
-    return [
-        'exit' => $exit,
-        'exitKnown' => $exitKnown,
-        'stdout' => $stdout,
-        'stderr' => $stderr,
-    ];
+    throw new \RuntimeException('composer-process-start-failed');
 }
 
 /**
@@ -476,6 +489,223 @@ function coretsia_composer_audit_gate_shell_command(array $argv): string
     }
 
     return \implode(' ', $parts);
+}
+
+/**
+ * @param non-empty-list<string> $composerCommand
+ * @return list<string|array<int,string>>
+ */
+function coretsia_composer_audit_gate_command_candidates(array $composerCommand): array
+{
+    if (\count($composerCommand) === 1 && $composerCommand[0] === 'composer') {
+        $command = 'composer audit --format=json --abandoned=ignore';
+
+        if (\PHP_OS_FAMILY !== 'Windows') {
+            return [$command];
+        }
+
+        if (coretsia_composer_audit_gate_prefer_bash_on_windows()) {
+            return [
+                coretsia_composer_audit_gate_bash_candidate($command),
+                coretsia_composer_audit_gate_cmd_candidate($command),
+                $command,
+            ];
+        }
+
+        return [
+            coretsia_composer_audit_gate_cmd_candidate($command),
+            coretsia_composer_audit_gate_bash_candidate($command),
+            $command,
+        ];
+    }
+
+    $argv = \array_merge($composerCommand, ['audit', '--format=json', '--abandoned=ignore']);
+
+    if (\PHP_OS_FAMILY === 'Windows') {
+        return [
+            $argv,
+            coretsia_composer_audit_gate_shell_command($argv),
+        ];
+    }
+
+    return [
+        coretsia_composer_audit_gate_shell_command($argv),
+    ];
+}
+
+/**
+ * @param string|array<int,string> $cmd
+ * @return array<string,mixed>
+ */
+function coretsia_composer_audit_gate_proc_options(string|array $cmd): array
+{
+    if (\PHP_OS_FAMILY === 'Windows' && \is_array($cmd)) {
+        return ['bypass_shell' => true];
+    }
+
+    return [];
+}
+
+function coretsia_composer_audit_gate_prefer_bash_on_windows(): bool
+{
+    if (\PHP_OS_FAMILY !== 'Windows') {
+        return false;
+    }
+
+    $msystem = \getenv('MSYSTEM');
+    if (\is_string($msystem) && $msystem !== '') {
+        return true;
+    }
+
+    $msys = \getenv('MSYS');
+    if (\is_string($msys) && $msys !== '') {
+        return true;
+    }
+
+    $shell = \getenv('SHELL');
+    if (\is_string($shell) && $shell !== '' && \stripos($shell, 'bash') !== false) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @return array<int,string>
+ */
+function coretsia_composer_audit_gate_bash_candidate(string $command): array
+{
+    $exe = 'bash';
+
+    if (\PHP_OS_FAMILY === 'Windows') {
+        $resolved = coretsia_composer_audit_gate_resolve_bash_exe();
+        if ($resolved !== null) {
+            $exe = $resolved;
+        }
+    }
+
+    return [$exe, '--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', $command];
+}
+
+/**
+ * @return array<int,string>
+ */
+function coretsia_composer_audit_gate_cmd_candidate(string $command): array
+{
+    return ['cmd.exe', '/d', '/s', '/c', $command];
+}
+
+function coretsia_composer_audit_gate_resolve_bash_exe(): ?string
+{
+    static $resolved = false;
+    static $bashExe = null;
+
+    if ($resolved) {
+        return \is_string($bashExe) ? $bashExe : null;
+    }
+
+    $resolved = true;
+
+    if (\PHP_OS_FAMILY !== 'Windows') {
+        $bashExe = null;
+        return null;
+    }
+
+    /** @var list<string> $candidates */
+    $candidates = [];
+
+    $programFiles = \getenv('ProgramFiles');
+    if (\is_string($programFiles) && $programFiles !== '') {
+        $candidates[] = $programFiles . '\\Git\\bin\\bash.exe';
+        $candidates[] = $programFiles . '\\Git\\usr\\bin\\bash.exe';
+    }
+
+    $programFilesX86 = \getenv('ProgramFiles(x86)');
+    if (\is_string($programFilesX86) && $programFilesX86 !== '') {
+        $candidates[] = $programFilesX86 . '\\Git\\bin\\bash.exe';
+        $candidates[] = $programFilesX86 . '\\Git\\usr\\bin\\bash.exe';
+    }
+
+    foreach ($candidates as $candidate) {
+        if (\is_file($candidate) && \is_readable($candidate)) {
+            $bashExe = $candidate;
+            return $bashExe;
+        }
+    }
+
+    $bashExe = null;
+    return null;
+}
+
+/**
+ * @param string|array<int,string> $cmd
+ */
+function coretsia_composer_audit_gate_should_try_next_command(
+    string|array $cmd,
+    int $exitCode,
+    string $stdout,
+    string $stderr,
+): bool {
+    if (\PHP_OS_FAMILY !== 'Windows') {
+        return false;
+    }
+
+    if ($exitCode === 0) {
+        return false;
+    }
+
+    if (!\is_array($cmd) || $cmd === []) {
+        return false;
+    }
+
+    $base = coretsia_composer_audit_gate_exe_base($cmd);
+
+    if (($base === 'bash' || $base === 'bash.exe') && $exitCode === 127) {
+        return true;
+    }
+
+    if (($base === 'cmd' || $base === 'cmd.exe') && $exitCode === 9009) {
+        return true;
+    }
+
+    $payload = \strtolower($stdout . "\n" . $stderr);
+
+    if ($payload !== '') {
+        if ($base === 'cmd' || $base === 'cmd.exe') {
+            return \str_contains($payload, 'is not recognized as an internal or external command')
+                || \str_contains($payload, 'the system cannot find the path specified')
+                || \str_contains($payload, 'the system cannot find the file specified');
+        }
+
+        if ($base === 'bash' || $base === 'bash.exe') {
+            return \str_contains($payload, 'command not found')
+                || \str_contains($payload, 'no such file or directory')
+                || \str_contains($payload, 'windows subsystem for linux has no installed distributions');
+        }
+
+        return false;
+    }
+
+    if ($base === 'bash' || $base === 'bash.exe') {
+        return \trim($stdout . $stderr) === '';
+    }
+
+    return false;
+}
+
+/**
+ * @param array<int,string> $cmd
+ */
+function coretsia_composer_audit_gate_exe_base(array $cmd): string
+{
+    $exe = \strtolower((string)($cmd[0] ?? ''));
+    if ($exe === '') {
+        return '';
+    }
+
+    $exe = \str_replace('\\', '/', $exe);
+
+    return \strtolower(\basename($exe));
 }
 
 /**

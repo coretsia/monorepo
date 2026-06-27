@@ -1058,6 +1058,7 @@ Coretsia/
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
 │   │   │   ├── atomic_write_gate.php
+│   │   │   ├── composer_audit_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
@@ -1298,6 +1299,10 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php (SpikeWorkspacePackageIndexMatchesFixtureContractTest - testWorkspacePackageIndexMatchesPromotedSpikeFixture()/buildWorkspacePackageIndex()/childDirectories()/stringField()/psr4()/coretsiaKind()/coretsiaModuleClass()/coretsiaExtra())
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php (SpikeWorkspaceSyncLockContractTest - testWorkspaceMinFixtureIsCanonicalAndApplyIsRerunNoDiff())
 │   │       ├── Fixtures/
+│   │       │   ├── ComposerAudit/
+│   │       │   │   ├── audit_clean.json
+│   │       │   │   ├── audit_scan_failed.json
+│   │       │   │   └── audit_with_advisories.json
 │   │       │   ├── RuntimeDriverMatrix/
 │   │       │   │   ├── ClassicHttpApp/
 │   │       │   │   │   ├── config.php
@@ -1449,6 +1454,7 @@ Coretsia/
 │   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php (RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest - testWorkerHttpWithoutPlatformHttpModuleFixtureMatchesRuntimeDriverGuard())
 │   │       │   │   └── RuntimeDriverMatrixTestSupport.php (RuntimeDriverMatrixTestSupport - runtimeDriverMatrixFixtureNames()/assertRuntimeDriverMatrixFixtureMatchesGuard()/loadRuntimeDriverMatrixFixture()/runRuntimeDriverMatrix()/runtimeDriverMatrixFixtureRoot()/runtimeDriverMatrixFixturePath()/runtimeDriverMatrixFixtureRelativePath()/loadRuntimeDriverMatrixArrayFixture()/validateRuntimeDriverMatrixConfig()/validateRuntimeDriverMatrixModules()/validateRuntimeDriverMatrixExpected()/assertAllowedExpectedShape()/assertConflictExpectedShape()/assertInvalidConfigExpectedShape()/buildRuntimeDriverMatrixModulePlan()/composerNameForModuleId()/normalizeFixtureName()/normalizePathForMessage()/assertNullableString()/assertCanonicalDriverIdList()/assertRequiredModuleIdList()/assertSortedStringList()/assertPlainRuntimeDriverMatrixValue())
 │   │       │   ├── AtomicWriteGateTest.php (AtomicWriteGateTest - testUnsafeFilePutContentsFailsDeterministically()/testReadOnlyFopenPasses()/testWritableFopenFailsDeterministically()/testInvalidAllowlistFailsWithGateFailedCode()/testMissingScanRootFailsWithGateFailedCode()/runGate()/stderrLines()/frameworkRoot()/makeTempDir()/writeFile()/assertOutputIsRedacted())
+│   │       │   ├── ComposerAuditGateTest.php (ComposerAuditGateTest - testCleanAuditPassesWithoutOutput()/testAdvisoryFoundFailsDeterministically()/testScanFailureFailsWithScanFailedCode()/testComposerAuditNonZeroWithValidAdvisoriesIsFindingNotScanFailure()/testComposerExecutableCannotBeRunFailsWithScanFailedCode()/testInvalidAuditJsonFailsWithScanFailedCode()/testComposerNonZeroWithCleanAuditJsonFailsWithScanFailedCode()/testEmptyComposerLocksAreTreatedAsCleanNoOp()/runGate()/writeFakeComposer())
 │   │       │   ├── CrossCuttingContractGateTest.php (CrossCuttingContractGateTest - testStatefulServiceWithoutResetInterfaceFailsDeterministically()/testStatefulServiceWithoutEffectiveResetTagFailsDeterministically()/testDefaultKernelResetTagIsUsedWhenFoundationConfigDoesNotOverride()/testCustomFoundationResetTagIsRespectedWhenConfigEvidenceExists()/testDefaultKernelResetTagDoesNotSatisfyCustomFoundationResetTag()/testGateIsDeterministicNoopWhenFoundationEvidenceIsAbsent()/testInvalidFoundationResetTagFailsWithoutLeakingRawConfigPayload()/testFoundationContextOwnerUsageAndEffectiveResetTagVariablePass()/testEffectiveResetTagVariableMustComeFromFoundationServiceFactory()/testUnrelatedNonResettableClassNearStatefulTagDoesNotFailWhenTaggedServiceIsResettable()/testDirectContextStoreUsageOutsideFoundationProviderFails()/testContractsContextKeysUsageFromPlatformConsumerPasses()/testLegacyFoundationContextKeysUsageFails()/createCrossCuttingGateSandbox()/runCrossCuttingGate()/writeResetInterface()/writeReservedTags()/writeFoundationConfig()/writeStatefulService())
 │   │       │   ├── DeptracGenerateComposerEdgesMatchSsotTest.php (DeptracGenerateComposerEdgesMatchSsotTest - tearDown()/testSyntheticComposerEdgeMissingFromSsotFailsDeterministically()/runDeptracGenerateCheck()/createSyntheticRepoRoot()/writeFile()/makeDir()/removeTree()/normalizeEol()/writeComposerJson())
 │   │       │   ├── DtoGateAggregateRunnerTest.php (DtoGateAggregateRunnerTest - testAggregateRunnerInvokesRequiredSubGatesInDeterministicOrder()/testAggregateRunnerStopsOnFirstFailureAndPassesOutputThroughUnchanged()/testAggregateRunnerFailsWhenListedSpecializedGateIsMissing()/testAggregateRunnerSuccessExitsZeroAndPrintsNothing()/runDtoGate()/withTemporaryDtoSubGates()/passingSubGate()/failingSubGate()/subGateScript())

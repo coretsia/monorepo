@@ -1794,6 +1794,93 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
+### Security aggregate
+
+**Id:** `project.security` \
+**Entrypoint:** `composer security` \
+**Category:** security / CI rail \
+**Outputs:**
+- none on success
+- deterministic error code and diagnostics on failure from owned security gates
+
+**Determinism:**
+
+| Mode / flags        | Determinism   | Notes                                                             |
+|---------------------|---------------|-------------------------------------------------------------------|
+| `composer security` | deterministic | Delegates to dedicated security rails; advisory data is external. |
+
+**Notes:**
+- `composer security` is the canonical aggregate for security-specific rails.
+- Execution order is cemented:
+  1) `composer composer-audit:gate`
+- This aggregate is intentionally separate from `composer gates`.
+- CI should run this aggregate in a dedicated security lane/job, not inside architecture/deptrac jobs.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --no-interaction --working-dir=framework run-script security --`
+- Framework implementation detail: aggregate `security` script in `framework/composer.json`.
+
+**Usage (repo root):**
+- `composer security`
+
+---
+
+### Composer audit gate
+
+**Id:** `tool.composer_audit_gate` \
+**Entrypoint:** `composer composer-audit:gate` \
+**Category:** security / guard \
+**Outputs:**
+- none on success
+- deterministic error code and diagnostics on vulnerability finding
+- deterministic error code on scan/tooling failure
+
+**Determinism:**
+
+| Mode / flags                   | Determinism   | Notes                                                                                  |
+|--------------------------------|---------------|----------------------------------------------------------------------------------------|
+| `composer composer-audit:gate` | deterministic | Deterministic diagnostics for captured Composer audit JSON; advisory data is external. |
+
+**Notes:**
+- Purpose: runs Composer audit for audit-capable install roots only:
+  - repo root
+  - `framework/`
+  - `skeleton/`
+- Audit-capable install root means:
+  - has readable `composer.json`
+  - has readable `composer.lock`
+  - `composer.lock` contains at least one entry in `packages` or `packages-dev`
+- Empty lock files are treated as clean no-op audit roots.
+- Package manifests under `framework/packages/**` are **not** audited directly by this gate.
+- The gate runs Composer as:
+  - `composer audit --format=json --abandoned=ignore`
+- `--abandoned=ignore` is intentional:
+  - this gate classifies Composer security advisories only
+  - abandoned-package policy is not part of this gate
+- The gate captures stdout/stderr and MUST NOT stream raw Composer output.
+- The gate parses JSON output from stdout/stderr when available, even if Composer exits non-zero.
+- Valid audit JSON containing advisories is classified as `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failure.
+- Valid audit JSON without advisories is treated as clean only when Composer exits successfully.
+- Composer non-zero exit without usable advisory findings is classified as scan/tooling failure.
+- Diagnostics include only:
+  - audit root label: `root`, `framework`, or `skeleton`
+  - Composer package name
+  - advisory id
+- Diagnostics MUST NOT include URLs, advisory titles, raw Composer payloads, absolute paths, stack traces, secrets, tokens, or credentials.
+- Failure output policy:
+  - vulnerability finding: line 1 is stable code `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - vulnerability diagnostics, when present, are sorted and sanitized
+  - scan/tooling failure: line 1 is stable code `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+- This command is intentionally **not** part of `composer gates`.
+- CI should run this command in a dedicated security lane/job.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
+- Framework implementation detail: `@php tools/gates/composer_audit_gate.php`.
+
+**Usage (repo root):**
+- `composer composer-audit:gate`
+
+---
+
 ### Tooling gates rail
 
 **Id:** `tool.gates` \

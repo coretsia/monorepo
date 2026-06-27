@@ -18514,86 +18514,87 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/tools/gates/composer_audit_gate.php` — deterministic gate:
-  - [ ] locates audit-capable install roots only:
-    - [ ] repo root
-    - [ ] `framework/`
-    - [ ] `skeleton/`
-  - [ ] package manifests under `framework/packages/**` MUST NOT be audited directly by this gate
-  - [ ] for each, runs `composer audit --format=json` in the corresponding directory
-  - [ ] parses JSON output, checks for `advisories` count > 0
-  - [ ] if any advisories, prints `CORETSIA_COMPOSER_AUDIT_FAILED` + list of affected packages and advisories (sanitized)
-  - [ ] uses `ConsoleOutput` for output
-  - [ ] if `composer` command fails (not found), prints `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
-  - [ ] supports `--path` override for testing
-  - [ ] MUST parse JSON stdout/stderr when available even if `composer audit` exits non-zero.
-  - [ ] If valid audit JSON contains advisories, classify as:
-    - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] Classify as `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED` only when:
-    - [ ] composer executable cannot be run
-    - [ ] process times out
-    - [ ] output is not valid JSON
-    - [ ] expected audit fields are absent or unusable
-  - [ ] MUST resolve repository root from the framework workspace:
-    - [ ] default repo root is parent directory of `framework/`
-  - [ ] MUST audit install roots relative to repo root:
-    - [ ] `<repo-root>/composer.json`
-    - [ ] `<repo-root>/framework/composer.json`
-    - [ ] `<repo-root>/skeleton/composer.json`
-  - [ ] `--path` override MUST be treated as fixture repo root in tests.
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
-  - [ ] MUST run Composer audit with captured stdout/stderr.
-  - [ ] MUST NOT stream raw Composer audit output directly to stdout/stderr.
-  - [ ] MUST parse JSON output from captured stdout/stderr only.
-  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
+- [x] `framework/tools/gates/composer_audit_gate.php` — deterministic gate:
+  - [x] locates audit-capable install roots only:
+    - [x] repo root
+    - [x] `framework/`
+    - [x] `skeleton/`
+  - [x] package manifests under `framework/packages/**` MUST NOT be audited directly by this gate
+  - [x] for each audit-capable root, runs `composer audit --format=json --abandoned=ignore` in the corresponding directory
+  - [x] parses JSON output and derives sanitized advisory diagnostics from `advisories`
+  - [x] if any advisories, prints `CORETSIA_COMPOSER_AUDIT_FAILED` + list of affected packages and advisories (sanitized)
+  - [x] uses `ConsoleOutput` for output
+  - [x] if `composer` command fails (not found), prints `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+  - [x] supports `--path` override for testing
+  - [x] MUST parse JSON stdout/stderr when available even if `composer audit` exits non-zero.
+  - [x] If valid audit JSON contains advisories, classify as:
+    - [x] `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] Classify as `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED` only when:
+    - [x] composer executable cannot be run
+    - [x] process times out
+    - [x] output is not valid JSON
+    - [x] expected audit fields are absent or unusable
+    - [x] composer exits non-zero without usable advisory findings
+  - [x] MUST resolve repository root from the framework workspace:
+    - [x] default repo root is parent directory of `framework/`
+  - [x] MUST audit install roots relative to repo root:
+    - [x] `<repo-root>/composer.json`
+    - [x] `<repo-root>/framework/composer.json`
+    - [x] `<repo-root>/skeleton/composer.json`
+  - [x] `--path` override MUST be treated as fixture repo root in tests.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when fallback output writer is available
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [x] MUST run Composer audit with captured stdout/stderr.
+  - [x] MUST NOT stream raw Composer audit output directly to stdout/stderr.
+  - [x] MUST parse JSON output from captured stdout/stderr only.
+  - [x] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts:
-  - [ ] `composer-audit:gate` → `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
-  - [ ] `security` → `@composer --no-interaction --working-dir=framework run-script security --`
+- [x] `composer.json` — add mirror scripts:
+  - [x] `composer-audit:gate` → `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
+  - [x] `security` → `@composer --no-interaction --working-dir=framework run-script security --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `composer-audit:gate` → `@php tools/gates/composer_audit_gate.php`
-  - [ ] MUST NOT add `composer-audit:gate` to the generic `gates` aggregate.
-  - [ ] MUST add or update dedicated security aggregate:
-    - [ ] `security` MUST include `@composer-audit:gate`
+- [x] `framework/composer.json` — add gate script
+  - [x] `composer-audit:gate` → `@php tools/gates/composer_audit_gate.php`
+  - [x] MUST NOT add `composer-audit:gate` to the generic `gates` aggregate.
+  - [x] MUST add or update dedicated security aggregate:
+    - [x] `security` MUST include `@composer-audit:gate`
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
 
-- [ ] add command `composer-audit:gate` in `docs/guides/commands.md`
-- [ ] add command `composer security` in `docs/guides/commands.md`
+- [x] add command `composer-audit:gate` in `docs/guides/commands.md`
+- [x] add command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18603,32 +18604,32 @@ Forbidden:
 
 #### Errors
 
-- [ ] Deterministic codes for vulnerability found and scan failure.
+- [x] Deterministic codes for vulnerability found and scan failure.
 
 #### Security / Redaction
 
-- [ ] `composer audit` output may contain URLs; we strip to only advisory IDs and package names.
+- [x] `composer audit` output may contain URLs; we strip to only advisory IDs and package names.
 
 ### Verification
 
-- [ ] Integration test MUST NOT call live Packagist or live advisory services.
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
-- [ ] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
-  - [ ] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
-  - [ ] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
+- [x] Integration test MUST NOT call live Packagist or live advisory services.
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
+- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
+  - [x] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+  - [x] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
+- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
 
 ### DoD
 
-- [ ] Gate implemented and integrated
-- [ ] Error codes registered
-- [ ] Verification test exists (even if mocked)
+- [x] Gate implemented and integrated
+- [x] Error codes registered
+- [x] Verification test exists (even if mocked)
 
 ---
 

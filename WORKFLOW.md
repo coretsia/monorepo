@@ -145,6 +145,7 @@ Run before staging the final diff for a commit:
 ```bash
 rm -rf framework/var/phpstan               # clear phpstan cache before static analysis
 composer validate:all                      # validate all composer manifests
+composer security                          # run dedicated security rail / Composer audit gate
 composer gates                             # run main tooling gates
 composer dto:gate                          # run DTO policy rail
 composer arch                              # check package index, deptrac config, and deptrac analyze
@@ -209,6 +210,7 @@ Run after each commit and before push:
 
 ```bash
 composer spike:test:determinism            # run determinism check on committed state
+composer security                          # run dedicated security rail / Composer audit gate
 composer ci                                # run full local CI entrypoint
 ```
 
@@ -219,6 +221,7 @@ git status --short --untracked-files=all   # inspect changes after checks
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the last commit without changing its message
 composer spike:test:determinism            # rerun determinism check
+composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 ```
 
@@ -330,6 +333,7 @@ Single-commit cleanup flow:
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
 composer spike:test:determinism            # rerun determinism
+composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely replace remote branch history
 ```
@@ -416,6 +420,7 @@ composer package-publish-safety:gate               # verify split/Packagist allo
 
 rm -rf framework/var/phpstan               # clear phpstan cache
 composer validate:all                      # validate all composer manifests
+composer security                          # run dedicated security rail / Composer audit gate
 composer gates                             # run main tooling gates
 composer dto:gate                          # run DTO policy rail
 composer arch                              # run arch rails
@@ -437,6 +442,7 @@ composer lock:check                        # final lock drift check
 git commit -m "Your commit message"        # create local commit
 
 composer spike:test:determinism            # run determinism check
+composer security                          # run dedicated security rail / Composer audit gate
 composer ci                                # run full local CI entrypoint
 ```
 
@@ -447,6 +453,7 @@ git status --short --untracked-files=all   # inspect changes
 git add "explicit-paths"                   # stage fixes
 git commit --amend --no-edit               # update latest commit
 composer spike:test:determinism            # rerun determinism
+composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 ```
 
@@ -498,6 +505,7 @@ Fix failed determinism or failed CI on a working branch:
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
 composer spike:test:determinism            # rerun determinism
+composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely update remote working branch
 ```

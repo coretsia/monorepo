@@ -1496,7 +1496,7 @@ final class DeptracGenerateTool
         $i = 0;
         $max = min(count($fromParts), count($toParts));
 
-        while ($i < $max && $fromParts[$i] === $toParts[$i]) {
+        while ($i < $max && self::samePathSegment($fromParts[$i], $toParts[$i])) {
             $i++;
         }
 
@@ -1505,6 +1505,15 @@ final class DeptracGenerateTool
         $rel = array_merge($up, $down);
 
         return $rel === [] ? '.' : implode('/', $rel);
+    }
+
+    private static function samePathSegment(string $left, string $right): bool
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return strcasecmp($left, $right) === 0;
+        }
+
+        return strcmp($left, $right) === 0;
     }
 
     private static function rel(string $repoRoot, string $abs): string

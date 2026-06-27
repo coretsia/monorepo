@@ -84,8 +84,6 @@
       "@package:phpunit:gate",
       "@php tools/testing/run_packages_phpunit.php --strict"
     ],
-    "test-fast": "@test",
-    "test-slow": "@test",
     "gates": [
       "@no-skeleton-http-default:gate",
       "@no-skeleton-bundles-default:gate",

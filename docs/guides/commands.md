@@ -333,46 +333,6 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
-### Test suite (fast)
-
-**Id:** `project.test_fast` \
-**Entrypoint:** `composer test-fast` \
-**Category:** testing \
-**Outputs:**
-- No tracked outputs on success
-- `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
-
-**Determinism:**
-
-| Mode / flags | Determinism   | Notes                                                |
-|--------------|---------------|------------------------------------------------------|
-| default      | deterministic | Alias of framework tests (currently same as `test`). |
-
-**Usage (repo root):**
-- `composer test-fast`
-
----
-
-### Test suite (slow)
-
-**Id:** `project.test_slow` \
-**Entrypoint:** `composer test-slow` \
-**Category:** testing \
-**Outputs:**
-- No tracked outputs on success
-- `framework/var/phpunit/phpunit.discovered.xml` *(gitignored; generated runtime artifact)*
-
-**Determinism:**
-
-| Mode / flags | Determinism   | Notes                                                |
-|--------------|---------------|------------------------------------------------------|
-| default      | deterministic | Alias of framework tests (currently same as `test`). |
-
-**Usage (repo root):**
-- `composer test-slow`
-
----
-
 ### Managed composer repositories (apply)
 
 **Id:** `tool.sync_repos_apply` \
@@ -976,13 +936,9 @@ Each new command is added as a separate section under `## Commands` (the format 
 - Repo-root wrapper delegates to framework workspace scripts and **MUST** support args-forwarding (pass-through) via `--`.
 - Under the hood (implementation detail):
   - `composer --working-dir=framework run-script test --`
-  - `composer --working-dir=framework run-script test-fast --`
-  - `composer --working-dir=framework run-script test-slow --`
 
 **Usage (repo root):**
 - `composer framework:test`
-- `composer framework:test-fast`
-- `composer framework:test-slow`
 - `composer framework:test -- --filter <pattern>`
 
 ---

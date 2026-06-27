@@ -80,12 +80,6 @@
     "test": [
       "@framework:test"
     ],
-    "test-fast": [
-      "@framework:test-fast"
-    ],
-    "test-slow": [
-      "@framework:test-slow"
-    ],
     "ci": [
       "@sync:check",
       "@release-line:workspace:check",
@@ -116,8 +110,6 @@
     "repo:text:gate": "@composer --no-interaction --working-dir=framework run-script repo:text:gate --",
     "spike:output:gate": "@composer --no-interaction --working-dir=framework run-script spike:output:gate --",
     "framework:test": "@composer --no-interaction --working-dir=framework run-script test --",
-    "framework:test-fast": "@composer --no-interaction --working-dir=framework run-script test-fast --",
-    "framework:test-slow": "@composer --no-interaction --working-dir=framework run-script test-slow --",
     "security": "@composer --no-interaction --working-dir=framework run-script security --",
     "composer-audit:gate": "@composer --no-interaction --working-dir=framework run-script composer-audit:gate --",
     "gates": "@composer --no-interaction --working-dir=framework run-script gates --",

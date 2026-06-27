@@ -928,8 +928,6 @@ Tooling baseline configs
   - [x] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
   - [x] `test` (Linux): `composer -d framework install` → `composer -d framework test`
   - [x] `unit+contract` (Linux): runs unit/contract suites when they exist
-  - [x] `integration-fast` (Linux): fast integration suites when they exist
-  - [x] `integration-slow` (Linux): slow integration suites when they exist
   - [x] `spikes` (Linux): keep Phase 0 spike rails if still applicable
   - [x] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
   - [x] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
@@ -9868,9 +9866,6 @@ Architecture Generator Idempotence Evidence
     - [x] `arch`
     - [x] `arch-windows`
     - [x] `test`
-    - [x] `unit-contract`
-    - [x] `integration-fast`
-    - [x] `integration-slow`
     - [x] `quality`
   - [x] Remove these jobs:
     - [x] `spikes`
@@ -10024,9 +10019,6 @@ N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/archit
   - [x] `arch`
   - [x] `arch-windows`
   - [x] `test`
-  - [x] `unit-contract`
-  - [x] `integration-fast`
-  - [x] `integration-slow`
   - [x] `quality`
 - [x] `.github/workflows/ci.yml` no longer contains:
   - [x] `spikes`
@@ -10048,7 +10040,6 @@ N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/archit
 - [x] Evidence job writes pass/fail and duration evidence to GitHub Actions summary.
 - [x] Evidence job does not run:
   - [x] Windows.
-  - [x] `test-fast`.
   - [x] `spike:test`.
   - [x] `spike:test:determinism`.
   - [x] `arch:deptrac:generate`.
@@ -17865,7 +17856,6 @@ goal: "Є 2 smoke тести: micro boot стабільно працює, expres
 provides:
 - "Test harness для boot сценаріїв (micro/express) без вимоги skeleton/config/modes/*.php"
 - "Locks очікувань Phase 0: micro OK; express deterministic fail (required missing)"
-- "CI proof: integration-fast executes these invariants"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -17920,7 +17910,7 @@ N/A (tests/tooling)
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `composer test` / CI `integration-fast` executes these tests
+  - `composer test` executes these tests
 
 ### Deliverables (MUST)
 
@@ -18010,7 +18000,6 @@ N/A (tests/tooling)
 - [x] `framework/tools/testing/phpunit.xml` or package test discovery config
   - [x] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
   - [x] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
-  - [x] If `integration-fast` is a named CI job/script, update the exact owner config/script for that job.
 
 - [x] `framework/packages/core/kernel/resources/modes/express.php`
   - [x] move `platform.http` from `optional` to `required`

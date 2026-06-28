@@ -112,6 +112,7 @@
     "framework:test": "@composer --no-interaction --working-dir=framework run-script test --",
     "security": "@composer --no-interaction --working-dir=framework run-script security --",
     "composer-audit:gate": "@composer --no-interaction --working-dir=framework run-script composer-audit:gate --",
+    "secret-leakage:gate": "@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --",
     "gates": "@composer --no-interaction --working-dir=framework run-script gates --",
     "dto:gate": "@composer --no-interaction --working-dir=framework run-script dto:gate --",
     "dto-marker-consistency:gate": "@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --",

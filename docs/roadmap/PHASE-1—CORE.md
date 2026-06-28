@@ -18669,75 +18669,80 @@ N/A (external tool)
 
 #### Creates
 
-- [ ] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
-- [ ] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
-  - [ ] MUST resolve repository root from the framework workspace:
-    - [ ] default repo root is parent directory of `framework/`
-  - [ ] MUST run scanner against repo root, not only `framework/`
-  - [ ] MUST use repo-root `.gitleaks.toml`
-  - [ ] default command shape:
-    - [ ] `gitleaks detect --source=<repo-root> --config=<repo-root>/.gitleaks.toml --no-git --report-format=json --redact`
-  - [ ] MUST NOT print raw matches
-  - [ ] parses JSON output; if any leak, prints `CORETSIA_SECRET_LEAK_DETECTED` + list of files and findings (sanitized)
-  - [ ] if gitleaks not available, prints `CORETSIA_SECRET_GATE_SCAN_FAILED`
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override for test fixture repo roots.
-  - [ ] when `--path` is provided, both source root and config path are resolved relative to that fixture root unless explicitly overridden by test-only flags.
-  - [ ] MUST invoke Gitleaks in JSON report mode only.
-  - [ ] MUST NOT parse human-readable Gitleaks output.
-  - [ ] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
-  - [ ] MUST run Gitleaks with captured stdout/stderr.
-  - [ ] MUST NOT stream raw Gitleaks output directly to stdout/stderr.
-  - [ ] MUST parse JSON report output from captured stdout/stderr only.
-  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
+- [x] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
+- [x] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
+  - [x] MUST resolve repository root from the framework workspace:
+    - [x] default repo root is parent directory of `framework/`
+  - [x] MUST run scanner against repo root, not only `framework/`
+  - [x] MUST use repo-root `.gitleaks.toml`
+  - [x] default command shape:
+    - [x] `gitleaks dir <repo-root> --config=<repo-root>/.gitleaks.toml --report-format=json --report-path=<temp-report-json> --redact --no-banner --no-color`
+    - [x] MUST use Gitleaks directory scanning mode for the repository working tree.
+    - [x] MUST NOT use deprecated/hidden `gitleaks detect` / `gitleaks protect` command names.
+  - [x] MUST NOT print raw matches
+  - [x] parses the JSON report file; if any leak, prints `CORETSIA_SECRET_LEAK_DETECTED` + list of files and findings (sanitized)
+  - [x] if gitleaks not available, prints `CORETSIA_SECRET_GATE_SCAN_FAILED`
+  - [x] uses `ConsoleOutput`
+  - [x] supports `--path` override for test fixture repo roots.
+  - [x] when `--path` is provided, both source root and config path are resolved relative to that fixture root unless explicitly overridden by test-only flags.
+  - [x] MUST invoke Gitleaks in JSON report mode only.
+  - [x] MUST NOT parse human-readable Gitleaks output.
+  - [x] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [x] MUST run Gitleaks with captured stdout/stderr.
+  - [x] MUST NOT stream raw Gitleaks output directly to stdout/stderr.
+  - [x] MUST write JSON report to an explicit temporary --report-path.
+  - [x] MUST parse only the JSON report file.
+  - [x] MUST NOT parse human-readable Gitleaks output.
+  - [x] MUST delete the temporary report file before exit.
+  - [x] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `secret-leakage:gate` → `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `secret-leakage:gate` → `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `secret-leakage:gate` → `@php tools/gates/secret_leakage_gate.php`
-  - [ ] MUST NOT add `secret-leakage:gate` to the generic `gates` aggregate.
-  - [ ] MUST add it to the dedicated security aggregate:
-    - [ ] `security` → [`@secret-leakage:gate`]
+- [x] `framework/composer.json` — add gate script
+  - [x] `secret-leakage:gate` → `@php tools/gates/secret_leakage_gate.php`
+  - [x] MUST NOT add `secret-leakage:gate` to the generic `gates` aggregate.
+  - [x] MUST add it to the dedicated security aggregate:
+    - [x] `security` → [`@secret-leakage:gate`]
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_SECRET_LEAK_DETECTED`
-  - [ ] `CORETSIA_SECRET_GATE_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_SECRET_LEAK_DETECTED`
+  - [x] `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
-- [ ] add command `secret-leakage:gate` in `docs/guides/commands.md`
-- [ ] update command `composer security` in `docs/guides/commands.md`
+- [x] add command `secret-leakage:gate` in `docs/guides/commands.md`
+- [x] update command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18747,28 +18752,28 @@ N/A (external tool)
 
 #### Errors
 
-- [ ] Deterministic codes.
+- [x] Deterministic codes.
 
 #### Security / Redaction
 
-- [ ] The gate must redact secrets from output; Gitleaks output already redacts, but we also ensure we don't print raw matches.
+- [x] The gate must redact secrets from output; Gitleaks output already redacts, but we also ensure we don't print raw matches.
 
 ### Verification
 
-- [ ] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
-- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
-  - [ ] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
-  - [ ] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
+- [x] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
+- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
+  - [x] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
+  - [x] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
-  - [ ] tests MUST use mocked Gitleaks JSON output fixtures
-  - [ ] tests MUST NOT commit realistic live credentials
+- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
+  - [x] tests MUST use mocked Gitleaks JSON output fixtures
+  - [x] tests MUST NOT commit realistic live credentials
 
 ### DoD
 
-- [ ] Gate implemented, config created, CI integrated.
+- [x] Gate implemented, config created, CI integrated.

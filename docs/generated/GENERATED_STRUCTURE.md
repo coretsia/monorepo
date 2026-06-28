@@ -1080,6 +1080,7 @@ Coretsia/
 │   │   │   ├── package_publish_safety_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── reserved_tags_registry_gate.php
+│   │   │   ├── secret_leakage_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
 │   │   │   ├── spikes_io_policy_gate.php
@@ -1303,6 +1304,10 @@ Coretsia/
 │   │       │   │   ├── audit_clean.json
 │   │       │   │   ├── audit_scan_failed.json
 │   │       │   │   └── audit_with_advisories.json
+│   │       │   ├── Gitleaks/
+│   │       │   │   ├── gitleaks_clean.json
+│   │       │   │   ├── gitleaks_scan_failed.json
+│   │       │   │   └── gitleaks_with_findings.json
 │   │       │   ├── RuntimeDriverMatrix/
 │   │       │   │   ├── ClassicHttpApp/
 │   │       │   │   │   ├── config.php
@@ -1466,6 +1471,7 @@ Coretsia/
 │   │       │   ├── PackageComplianceGateAcceptsGoodFixtureTest.php (PackageComplianceGateAcceptsGoodFixtureTest - testGoodFixturePasses()/runPackageComplianceGate()/fixtureRoot())
 │   │       │   ├── PackageComplianceGateRejectsBadFixtureTest.php (PackageComplianceGateRejectsBadFixtureTest - testBadFixtureFailsWithDeterministicDiagnostics()/testAllowlistIsLoadedDeterministicallyAndSuppressesAllowlistedPackage()/runPackageComplianceGate()/fixtureRoot()/assertDiagnosticsAreRelativeAndSorted()/writeTemporaryAllowlist()/renderAllowlistEntries())
 │   │       │   ├── ReservedTagsRegistryGateTest.php (ReservedTagsRegistryGateTest - tearDown()/testPassesWhenDocsRegistryAndReservedTagsMatch()/testFailsWhenReservedTagsMissesTagFromDocs()/testFailsWhenReservedTagsConstValueDiffers()/testFailsWhenAnyPackageHasProviderTagsFile()/testFailsWhenAnotherPackageDefinesReservedTagLiteralConstant()/testFailsWhenAnotherPackageDefinesReservedTagsAliasConstant()/testFailureOutputIsDeterministicRepoRelativeSortedAndDoesNotContainAbsolutePaths()/assertGateFailure()/createFixtureRoot()/writeReservedTags())
+│   │       │   ├── SecretLeakageGateTest.php (SecretLeakageGateTest - testCleanFixturePassesWithoutOutput()/testFindingFixtureFailsWithSanitizedDiagnostics()/testInvalidJsonFixtureFailsAsScanFailed()/runGateWithFixture()/makeFixtureScanRoot()/runPhp()/normalizeOutput()/frameworkRoot()/removeTree())
 │   │       │   ├── SyncPackageScaffoldCheckRejectsDriftTest.php (SyncPackageScaffoldCheckRejectsDriftTest - testCheckModeRejectsMissingAndDriftedCanonicalPackageFilesWithoutWrites()/runSyncPackageScaffoldCheck()/prepareTempRoot()/createCompleteLibraryPackage()/createCompleteRuntimePackage()/composerJson()/readme()/noopContractTest()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/assertDiagnosticsAreRelativeAndSorted()/repoRoot()/ensureDir()/removePath())
 │   │       │   └── SyncPackageScaffoldCreatesMissingFilesTest.php (SyncPackageScaffoldCreatesMissingFilesTest - testApplyModeCreatesMissingScaffoldWithoutRewritingUserOwnedContent()/runSyncPackageScaffold()/prepareTempRoot()/createLibraryPackageSkeleton()/createRuntimePackageSkeleton()/composerJson()/namespaceRoot()/studly()/phpClassFile()/phpConfigFile()/repoRoot()/ensureDir()/removePath())
 │   │       ├── Smoke/
@@ -1537,6 +1543,7 @@ Coretsia/
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore
+├── .gitleaks.toml
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── LICENSE

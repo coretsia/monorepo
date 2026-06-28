@@ -18,7 +18,7 @@
 
 - [x] PRELUDE — Repo bootstrap
 - [x] PHASE 0 — SPIKES (Prototype найризиковіших частин)
-- [ ] PHASE 1 — CORE (повний core/*: contracts + foundation + kernel)
+- [x] PHASE 1 — CORE (повний core/*: contracts + foundation + kernel)
 - [ ] PHASE 2 — Mode Infrastructure & CLI
 - [ ] PHASE 3 — RELEASE: micro (перший релізний режим)
 - [ ] PHASE 4 — RELEASE: express

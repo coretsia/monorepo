@@ -141,3 +141,9 @@ indent_style = unset
 indent_size = unset
 trim_trailing_whitespace = true
 insert_final_newline = true
+
+# TOML config files
+[*.toml]
+indent_style = space
+indent_size = 4
+max_line_length = off

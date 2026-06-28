@@ -1761,14 +1761,15 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Determinism:**
 
-| Mode / flags        | Determinism   | Notes                                                             |
-|---------------------|---------------|-------------------------------------------------------------------|
-| `composer security` | deterministic | Delegates to dedicated security rails; advisory data is external. |
+| Mode / flags        | Determinism   | Notes                                                                      |
+|---------------------|---------------|----------------------------------------------------------------------------|
+| `composer security` | deterministic | Delegates to dedicated security rails; external security data/tools apply. |
 
 **Notes:**
 - `composer security` is the canonical aggregate for security-specific rails.
 - Execution order is cemented:
   1) `composer composer-audit:gate`
+  2) `composer secret-leakage:gate`
 - This aggregate is intentionally separate from `composer gates`.
 - CI should run this aggregate in a dedicated security lane/job, not inside architecture/deptrac jobs.
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
@@ -1834,6 +1835,55 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 **Usage (repo root):**
 - `composer composer-audit:gate`
+
+---
+
+### Secret leakage gate
+
+**Id:** `tool.secret_leakage_gate` \
+**Entrypoint:** `composer secret-leakage:gate` \
+**Category:** security / guard \
+**Outputs:**
+- none on success
+- deterministic error code and sanitized diagnostics on secret-like finding
+- deterministic error code on scan/tooling failure
+
+**Determinism:**
+
+| Mode / flags                                 | Determinism   | Notes                                                                    |
+|----------------------------------------------|---------------|--------------------------------------------------------------------------|
+| `composer secret-leakage:gate`               | deterministic | Writes a Gitleaks JSON report file and emits only sanitized diagnostics. |
+| `composer secret-leakage:gate -- --path=...` | deterministic | Test/fixture scan-root override; config defaults to that scan root.      |
+
+**Notes:**
+- Purpose: prevents accidental commits of secret-like material by scanning the repository working tree with Gitleaks.
+- Default scan root: repo root.
+- Default config path: repo-root `.gitleaks.toml`.
+- The gate runs Gitleaks in directory scanning mode:
+  - `gitleaks dir <repo-root> --config=<repo-root>/.gitleaks.toml --report-format=json --report-path=<temp-report> --redact --no-banner --no-color --max-archive-depth=0 --max-decode-depth=0`
+- The gate MUST NOT use deprecated/hidden `gitleaks detect` / `gitleaks protect` command names.
+- The gate captures stdout/stderr and MUST NOT stream raw Gitleaks output.
+- The gate writes JSON to an explicit temporary `--report-path` file and parses only that JSON report file.
+- The gate deletes the temporary report file before exit.
+- The gate MUST NOT parse human-readable Gitleaks output.
+- The gate MUST NOT print raw matches, source snippets, secrets, tokens, credentials, absolute paths, stack traces, or exception messages.
+- Finding diagnostics include only:
+  - normalized scan-root-relative path;
+  - optional start line;
+  - sanitized Gitleaks rule id.
+- Failure output policy:
+  - secret finding: line 1 is stable code `CORETSIA_SECRET_LEAK_DETECTED`
+  - finding diagnostics, when present, are deduplicated and sorted by `strcmp`
+  - scan/tooling failure: line 1 is stable code `CORETSIA_SECRET_GATE_SCAN_FAILED`
+- This command is intentionally **not** part of `composer gates`.
+- CI should run this command through the dedicated `composer security` aggregate.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
+- Framework implementation detail: `@php tools/gates/secret_leakage_gate.php`.
+
+**Usage (repo root):**
+- `composer secret-leakage:gate`
+- `composer secret-leakage:gate -- --path=framework/tools/tests/Fixtures/Gitleaks`
 
 ---
 

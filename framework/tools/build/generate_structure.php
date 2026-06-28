@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 const CORETSIA_STRUCTURE_GENERATE_FAILED = 'CORETSIA_STRUCTURE_GENERATE_FAILED';
 
 /**
@@ -415,16 +420,7 @@ function writeFileAtomic(string $filePath, string $content): void
         }
     }
 
-    $tmp = $filePath . '.tmp';
-    $bytes = file_put_contents($tmp, $content, LOCK_EX);
-    if ($bytes === false) {
-        throw new RuntimeException('Failed to write temp file: ' . $tmp);
-    }
-
-    // rename() is atomic on most filesystems when target is on the same volume.
-    if (!rename($tmp, $filePath)) {
-        throw new RuntimeException('Failed to move temp file into place: ' . $filePath);
-    }
+    \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($filePath, $content);
 }
 
 /**
@@ -551,12 +547,12 @@ try {
         throw new RuntimeException('Nothing to write (invalid mode).');
     }
 
-    fwrite(STDOUT, "Project structure generated:\n");
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('Project structure generated:', false);
     foreach ($written as $p) {
-        fwrite(STDOUT, "- " . $p . "\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('- ' . $p, false);
     }
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, CORETSIA_STRUCTURE_GENERATE_FAILED . ": {$msg}\n");
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(CORETSIA_STRUCTURE_GENERATE_FAILED . ": {$msg}");
     exit(1);
 }

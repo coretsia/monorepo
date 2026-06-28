@@ -59,15 +59,24 @@ jobs:
             "framework/tools/testing/deptrac.allowlist.yaml"
           )
 
-          echo "## Architecture Generator Idempotence Evidence" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Architecture Generator Idempotence Evidence — Ubuntu" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Repeated architecture generator checks must not modify tracked generated files." >> "$GITHUB_STEP_SUMMARY"
+          echo "Repeated architecture generator checks must not modify tracked generated files on Ubuntu." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check | Iteration | Duration ms | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---:|---:|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| OS | Check | Iteration | Duration ms | Command result | Git diff |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---:|---:|---|---|" >> "$GITHUB_STEP_SUMMARY"
 
           assert_clean_tracked_files() {
             git diff --exit-code -- "${tracked_files[@]}"
+          }
+
+          emit_dirty_files() {
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
           }
 
           measure() {
@@ -77,22 +86,33 @@ jobs:
             local started
             local finished
             local duration_ms
+            local command_result
+            local drift_result
 
             started="$(php -r 'echo hrtime(true);')"
 
             if "$@"; then
-              finished="$(php -r 'echo hrtime(true);')"
-              duration_ms="$(( (finished - started) / 1000000 ))"
-
-              echo "| \`${name}\` | ${iteration} | ${duration_ms} | pass |" >> "$GITHUB_STEP_SUMMARY"
-              return 0
+              command_result="pass"
+            else
+              command_result="fail"
+              failed=1
             fi
 
             finished="$(php -r 'echo hrtime(true);')"
             duration_ms="$(( (finished - started) / 1000000 ))"
 
-            echo "| \`${name}\` | ${iteration} | ${duration_ms} | fail |" >> "$GITHUB_STEP_SUMMARY"
-            failed=1
+            if assert_clean_tracked_files; then
+              drift_result="clean"
+            else
+              drift_result="dirty"
+              failed=1
+            fi
+
+            echo "| ubuntu | \`${name}\` | ${iteration} | ${duration_ms} | ${command_result} | ${drift_result} |" >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "${drift_result}" = "dirty" ]; then
+              emit_dirty_files
+            fi
 
             return 0
           }
@@ -100,31 +120,173 @@ jobs:
           if ! assert_clean_tracked_files; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "Initial tracked generated files were dirty before the evidence run." >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```text' >> "$GITHUB_STEP_SUMMARY"
-            git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            emit_dirty_files
             exit 1
           fi
 
           for iteration in $(seq 1 "$repetitions"); do
             measure "arch:package-index:check" composer --no-interaction arch:package-index:check
             measure "arch:deptrac:check" composer --no-interaction arch:deptrac:check
+          done
 
-            if ! assert_clean_tracked_files; then
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "Generated architecture files drifted after iteration ${iteration}." >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '```text' >> "$GITHUB_STEP_SUMMARY"
-              git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit "$failed"
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  architecture-generator-idempotence-windows:
+    name: "architecture-generator-idempotence / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Evidence: architecture generator idempotence on Windows"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repetitions=3
+          failed=0
+
+          tracked_files=(
+            "framework/tools/testing/package-index.php"
+            "framework/tools/testing/deptrac.yaml"
+            "framework/tools/testing/deptrac.allowlist.yaml"
+          )
+
+          echo "## Architecture Generator Idempotence Evidence — Windows" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Repeated architecture generator checks must not modify tracked generated files on Windows." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| OS | Check | Iteration | Duration ms | Command result | Git diff |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---:|---:|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          assert_clean_tracked_files() {
+            git diff --exit-code -- "${tracked_files[@]}"
+          }
+
+          emit_dirty_files() {
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            git diff --name-status -- "${tracked_files[@]}" >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          measure() {
+            local name="$1"
+            shift
+
+            local started
+            local finished
+            local duration_ms
+            local command_result
+            local drift_result
+
+            started="$(php -r 'echo hrtime(true);')"
+
+            if "$@"; then
+              command_result="pass"
+            else
+              command_result="fail"
               failed=1
-              break
             fi
+
+            finished="$(php -r 'echo hrtime(true);')"
+            duration_ms="$(( (finished - started) / 1000000 ))"
+
+            if assert_clean_tracked_files; then
+              drift_result="clean"
+            else
+              drift_result="dirty"
+              failed=1
+            fi
+
+            echo "| windows | \`${name}\` | ${iteration} | ${duration_ms} | ${command_result} | ${drift_result} |" >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "${drift_result}" = "dirty" ]; then
+              emit_dirty_files
+            fi
+
+            return 0
+          }
+
+          if ! assert_clean_tracked_files; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Initial tracked generated files were dirty before the Windows evidence run." >> "$GITHUB_STEP_SUMMARY"
+            emit_dirty_files
+            exit 1
+          fi
+
+          for iteration in $(seq 1 "$repetitions"); do
+            measure "arch:package-index:check" composer --no-interaction arch:package-index:check
+            measure "arch:deptrac:check" composer --no-interaction arch:deptrac:check
           done
 
           exit "$failed"

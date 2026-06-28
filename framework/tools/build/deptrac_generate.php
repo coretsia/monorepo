@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 final class DeptracGenerateTool
 {
     private const string CODE_OUT_OF_DATE = 'CORETSIA_DEPTRAC_OUT_OF_DATE';
@@ -24,6 +29,7 @@ final class DeptracGenerateTool
     private const string CODE_MISSING_SSOT_RULESET = 'CORETSIA_DEPTRAC_SSOT_RULESET_MISSING';
     private const string CODE_CYCLE_DETECTED = 'CORETSIA_DEPTRAC_CYCLE_DETECTED';
     private const string CODE_ALLOWLIST_INVALID = 'CORETSIA_DEPTRAC_ALLOWLIST_INVALID';
+    private const string CODE_COMPOSER_EDGE_NOT_IN_SSOT = 'CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT';
 
     private const string DEPENDENCY_TABLE_PATH = 'docs/roadmap/phase0/00_2-dependency-table.md';
 
@@ -63,31 +69,43 @@ final class DeptracGenerateTool
         self::assertNoPackageCycles($ssotRuleset);
 
         $packageIndex = self::scanPackages($repoRoot);
-        self::assertAllDiscoveredPackagesHaveSsotRows($packageIndex, $ssotRuleset);
+        $packageIndexContext = self::buildPackageIndexContext($repoRoot, $packageIndex);
 
-        $model = self::buildDeptracModel($repoRoot, $outPath, $packageIndex, $ssotRuleset, $excludeFiles);
+        self::assertAllDiscoveredPackagesHaveSsotRows($packageIndexContext['packages'], $ssotRuleset);
+
+        self::assertComposerEdgesMatchSsot(
+            $packageIndexContext['packages'],
+            $ssotRuleset,
+            $packageIndexContext['composerNameToPackageId'],
+        );
+
+        $model = self::buildDeptracModel($repoRoot, $outPath, $packageIndexContext, $ssotRuleset, $excludeFiles);
 
         $yaml = self::renderDeptracYaml($model);
         $changed = self::isDifferentFile($outPath, $yaml);
 
         if ($check) {
             if ($changed || $allowlistMissing) {
-                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
+                $diagnostics = [];
 
                 if ($changed) {
-                    fwrite(STDERR, self::rel($repoRoot, $outPath) . "\n");
+                    $diagnostics[] = self::rel($repoRoot, $outPath);
                 }
 
                 if ($allowlistMissing) {
-                    fwrite(STDERR, self::rel($repoRoot, $allowlistPath) . "\n");
+                    $diagnostics[] = self::rel($repoRoot, $allowlistPath);
                 }
 
-                fwrite(STDERR, "Run: php framework/tools/build/deptrac_generate.php --apply\n");
+                $diagnostics[] = 'Run: php framework/tools/build/deptrac_generate.php --apply';
+
+                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                    self::CODE_OUT_OF_DATE,
+                    $diagnostics,
+                );
 
                 return 1;
             }
 
-            fwrite(STDOUT, "OK\n");
             return 0;
         }
 
@@ -100,17 +118,17 @@ final class DeptracGenerateTool
             self::writeGraphArtifacts($artifactsDir, $model['nodes'], $model['edges']);
         }
 
-        fwrite(STDOUT, "OK\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
 
         if ($allowlistMissing) {
-            fwrite(STDOUT, self::rel($repoRoot, $allowlistPath) . "\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $allowlistPath), false);
         }
 
         if ($changed) {
-            fwrite(STDOUT, self::rel($repoRoot, $outPath) . "\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
         }
 
-        fwrite(STDOUT, self::rel($repoRoot, $artifactsDir) . "\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $artifactsDir), false);
 
         return 0;
     }
@@ -119,17 +137,44 @@ final class DeptracGenerateTool
     {
         $message = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
 
-        foreach ([
-                     self::CODE_MISSING_SSOT_RULESET,
-                     self::CODE_CYCLE_DETECTED,
-                     self::CODE_ALLOWLIST_INVALID,
-                 ] as $code) {
+        foreach (
+            [
+                self::CODE_MISSING_SSOT_RULESET,
+                self::CODE_CYCLE_DETECTED,
+                self::CODE_ALLOWLIST_INVALID,
+                self::CODE_COMPOSER_EDGE_NOT_IN_SSOT,
+            ] as $code
+        ) {
             if ($message === $code || str_starts_with($message, $code . ':')) {
                 return $message;
             }
         }
 
         return self::CODE_GENERATE_FAILED . ': ' . $message;
+    }
+
+    public static function emitFailure(Throwable $e): void
+    {
+        $lines = explode("\n", self::formatFailure($e));
+
+        $code = array_shift($lines);
+        if (!is_string($code) || $code === '') {
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::CODE_GENERATE_FAILED);
+
+            return;
+        }
+
+        /** @var list<string> $diagnostics */
+        $diagnostics = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $diagnostics[] = $line;
+            }
+        }
+
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics($code, $diagnostics);
     }
 
     /**
@@ -371,6 +416,134 @@ final class DeptracGenerateTool
      *     psr4:string,
      *     requireNames:list<string>
      * }> $packageIndex
+     * @return array{
+     *     packages:list<array{
+     *         id:string,
+     *         packageId:string,
+     *         layer:string,
+     *         slug:string,
+     *         composerName:string,
+     *         path:string,
+     *         srcPath:string,
+     *         psr4:string,
+     *         requireNames:list<string>
+     *     }>,
+     *     activePackages:list<array{
+     *         id:string,
+     *         packageId:string,
+     *         layer:string,
+     *         slug:string,
+     *         composerName:string,
+     *         path:string,
+     *         srcPath:string,
+     *         psr4:string,
+     *         requireNames:list<string>
+     *     }>,
+     *     activePackageIds:array<string, true>,
+     *     composerNameToPackageId:array<string, string>
+     * }
+     */
+    private static function buildPackageIndexContext(string $repoRoot, array $packageIndex): array
+    {
+        /** @var array<string, string> $composerNameToPackageId */
+        $composerNameToPackageId = [];
+
+        /** @var list<array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>}> $activePackages */
+        $activePackages = [];
+
+        /** @var array<string, true> $activePackageIds */
+        $activePackageIds = [];
+
+        foreach ($packageIndex as $package) {
+            $composerNameToPackageId[$package['composerName']] = $package['packageId'];
+
+            if (is_dir($repoRoot . '/' . $package['srcPath'])) {
+                $activePackages[] = $package;
+                $activePackageIds[$package['packageId']] = true;
+            }
+        }
+
+        ksort($composerNameToPackageId, SORT_STRING);
+        ksort($activePackageIds, SORT_STRING);
+
+        usort(
+            $activePackages,
+            static fn (array $a, array $b): int => strcmp((string)$a['id'], (string)$b['id']),
+        );
+
+        return [
+            'packages' => $packageIndex,
+            'activePackages' => $activePackages,
+            'activePackageIds' => $activePackageIds,
+            'composerNameToPackageId' => $composerNameToPackageId,
+        ];
+    }
+
+    /**
+     * @param list<array{
+     *     id:string,
+     *     packageId:string,
+     *     composerName:string,
+     *     requireNames:list<string>
+     * }> $packageIndex
+     * @param array<string, list<string>> $ssotRuleset
+     * @param array<string, string> $composerNameToPackageId
+     */
+    private static function assertComposerEdgesMatchSsot(
+        array $packageIndex,
+        array $ssotRuleset,
+        array $composerNameToPackageId,
+    ): void {
+        /** @var list<string> $diagnostics */
+        $diagnostics = [];
+
+        foreach ($packageIndex as $package) {
+            $sourcePackageId = $package['packageId'];
+
+            if (!isset($ssotRuleset[$sourcePackageId])) {
+                continue; // already handled by assertAllDiscoveredPackagesHaveSsotRows()
+            }
+
+            $allowedSet = array_flip($ssotRuleset[$sourcePackageId]);
+
+            foreach ($package['requireNames'] as $composerName) {
+                if (!isset($composerNameToPackageId[$composerName])) {
+                    $diagnostics[] = 'source:' . $sourcePackageId
+                        . ' target:unknown'
+                        . ' reason:composer-edge-not-in-ssot';
+
+                    continue;
+                }
+
+                $targetPackageId = $composerNameToPackageId[$composerName];
+
+                if (!isset($allowedSet[$targetPackageId])) {
+                    $diagnostics[] = 'source:' . $sourcePackageId
+                        . ' target:' . $targetPackageId
+                        . ' reason:composer-edge-not-in-ssot';
+                }
+            }
+        }
+
+        $diagnostics = array_values(array_unique($diagnostics));
+        sort($diagnostics, SORT_STRING);
+
+        if ($diagnostics === []) {
+            return;
+        }
+
+        throw new RuntimeException(
+            self::CODE_COMPOSER_EDGE_NOT_IN_SSOT
+            . ': composer-edge-not-in-ssot'
+            . "\n"
+            . implode("\n", $diagnostics),
+        );
+    }
+
+    /**
+     * @param string $repoRoot
+     * @param string $outPath
+     * @param array $packageIndexContext
      * @param array<string, list<string>> $ssotRuleset
      * @param list<string> $excludeFiles
      * @return array{
@@ -379,35 +552,18 @@ final class DeptracGenerateTool
      *     ruleset:array<string, list<string>>,
      *     excludeFiles:list<string>,
      *     nodes:list<string>,
-     *     edges:list<array{from:string,to:string}>
-     * }
+     *     edges:list<array{from:string,to:string}> }
      */
     private static function buildDeptracModel(
         string $repoRoot,
         string $outPath,
-        array  $packageIndex,
-        array  $ssotRuleset,
-        array  $excludeFiles,
+        array $packageIndexContext,
+        array $ssotRuleset,
+        array $excludeFiles,
     ): array {
-        /** @var list<array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>}> $activePackages */
-        $activePackages = [];
-
-        foreach ($packageIndex as $package) {
-            if (is_dir($repoRoot . '/' . $package['srcPath'])) {
-                $activePackages[] = $package;
-            }
-        }
-
-        /** @var array<string, string> $composerNameToPackageId */
-        $composerNameToPackageId = [];
-
-        /** @var array<string, true> $activePackageIds */
-        $activePackageIds = [];
-
-        foreach ($activePackages as $package) {
-            $composerNameToPackageId[$package['composerName']] = $package['packageId'];
-            $activePackageIds[$package['packageId']] = true;
-        }
+        $activePackages = $packageIndexContext['activePackages'];
+        $composerNameToPackageId = $packageIndexContext['composerNameToPackageId'];
+        $activePackageIds = $packageIndexContext['activePackageIds'];
 
         /** @var list<string> $paths */
         $paths = [];
@@ -584,7 +740,10 @@ final class DeptracGenerateTool
         }
 
         $closure = self::ssotTransitiveClosure($allowedPackageIds, $ssotRuleset);
-        $composerPackageIds = self::composerRequireNamesToPackageIds($package['requireNames'], $composerNameToPackageId);
+        $composerPackageIds = self::composerRequireNamesToPackageIds(
+            $package['requireNames'],
+            $composerNameToPackageId
+        );
 
         foreach ($composerPackageIds as $composerPackageId) {
             if (isset($closure[$composerPackageId])) {
@@ -876,10 +1035,10 @@ final class DeptracGenerateTool
      */
     private static function visitCycleNode(
         string $node,
-        array  $ruleset,
-        array  &$visiting,
-        array  &$visited,
-        array  $stack,
+        array $ruleset,
+        array &$visiting,
+        array &$visited,
+        array $stack,
         string $kind,
     ): void {
         if (isset($visited[$node])) {
@@ -1017,7 +1176,9 @@ final class DeptracGenerateTool
             $y += $lineHeight;
         }
 
-        $lines[] = '<text x="' . $headingX . '" y="' . $edgesHeadingY . '">Allowed edges (' . count($edges) . ')</text>';
+        $lines[] = '<text x="' . $headingX . '" y="' . $edgesHeadingY . '">Allowed edges (' . count(
+            $edges
+        ) . ')</text>';
 
         $y = $edgesHeadingY + $afterEdgesHeadingGap;
         foreach ($edges as $edge) {
@@ -1104,7 +1265,7 @@ final class DeptracGenerateTool
             $content .= "\n";
         }
 
-        file_put_contents($path, $content, LOCK_EX);
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
     }
 
     /**
@@ -1281,7 +1442,9 @@ final class DeptracGenerateTool
             $candidate = rtrim(str_replace('\\', '/', $real), '/');
         }
 
-        if (!is_dir($candidate . '/framework') || !is_dir($candidate . '/docs') || !is_file($candidate . '/composer.json')) {
+        if (!is_dir($candidate . '/framework') || !is_dir($candidate . '/docs') || !is_file(
+            $candidate . '/composer.json'
+        )) {
             throw new RuntimeException('Invalid --repo-root: missing framework/docs/composer.json markers');
         }
 
@@ -1315,11 +1478,30 @@ final class DeptracGenerateTool
 
     private static function pathRelativeToConfigDir(string $repoRoot, string $outPath, string $repoRelPath): string
     {
-        $repoRoot = rtrim(str_replace('\\', '/', $repoRoot), '/');
-        $configDir = rtrim(str_replace('\\', '/', dirname($outPath)), '/');
-        $abs = $repoRoot . '/' . ltrim(str_replace('\\', '/', $repoRelPath), '/');
+        $repoRoot = self::canonicalExistingPath($repoRoot);
+        $configDir = self::canonicalExistingPath(\dirname($outPath));
+        $abs = self::canonicalExistingPath(
+            $repoRoot . '/' . \ltrim(\str_replace('\\', '/', $repoRelPath), '/'),
+        );
 
         return self::relPath($configDir, $abs);
+    }
+
+    private static function canonicalExistingPath(string $path): string
+    {
+        $normalized = \rtrim(\str_replace('\\', '/', $path), '/');
+
+        if ($normalized === '') {
+            return '';
+        }
+
+        $real = \realpath($normalized);
+
+        if (\is_string($real)) {
+            return \rtrim(\str_replace('\\', '/', $real), '/');
+        }
+
+        return $normalized;
     }
 
     private static function relPath(string $fromDirAbs, string $toAbs): string
@@ -1333,7 +1515,7 @@ final class DeptracGenerateTool
         $i = 0;
         $max = min(count($fromParts), count($toParts));
 
-        while ($i < $max && $fromParts[$i] === $toParts[$i]) {
+        while ($i < $max && self::samePathSegment($fromParts[$i], $toParts[$i])) {
             $i++;
         }
 
@@ -1342,6 +1524,15 @@ final class DeptracGenerateTool
         $rel = array_merge($up, $down);
 
         return $rel === [] ? '.' : implode('/', $rel);
+    }
+
+    private static function samePathSegment(string $left, string $right): bool
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return strcasecmp($left, $right) === 0;
+        }
+
+        return strcmp($left, $right) === 0;
     }
 
     private static function rel(string $repoRoot, string $abs): string
@@ -1364,6 +1555,6 @@ final class DeptracGenerateTool
 try {
     exit(DeptracGenerateTool::main($argv));
 } catch (Throwable $e) {
-    fwrite(STDERR, DeptracGenerateTool::formatFailure($e) . "\n");
+    DeptracGenerateTool::emitFailure($e);
     exit(1);
 }

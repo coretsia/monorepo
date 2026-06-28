@@ -30,7 +30,6 @@
 
     Contract:
     - This file is the ONLY canonical PHPUnit config for:
-      - tools/testing/tests/**
       - tools/tests/**
       - packages/*/*/tests/**
     - Package-local phpunit.xml/phpunit.dist.xml are forbidden by policy.
@@ -43,7 +42,6 @@
 
   <testsuites>
     <testsuite name="all">
-      <directory>tests</directory>
       <directory>../tests</directory>
       <!-- CORETSIA_DISCOVERED_TEST_DIRECTORIES -->
     </testsuite>

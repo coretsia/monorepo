@@ -139,6 +139,166 @@ jobs:
         shell: bash
         run: composer --no-interaction lock:check
 
+  security:
+    name: "security / ubuntu / PHP 8.4"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Setup: Gitleaks"
+        shell: bash
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          set -euo pipefail
+
+          install_dir="${RUNNER_TEMP}/gitleaks/bin"
+          mkdir -p "${install_dir}"
+
+          archive="${RUNNER_TEMP}/gitleaks.tar.gz"
+
+          curl -fsSL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o "${archive}"
+
+          tar -xzf "${archive}" -C "${install_dir}" gitleaks
+          chmod +x "${install_dir}/gitleaks"
+
+          echo "${install_dir}" >> "$GITHUB_PATH"
+          "${install_dir}/gitleaks" version
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Security: security aggregate (security)"
+        shell: bash
+        run: composer --no-interaction security
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  security-windows:
+    name: "security / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Setup: Gitleaks"
+        shell: bash
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          set -euo pipefail
+
+          install_dir="${PWD}/.tmp/gitleaks/bin"
+          archive="${PWD}/.tmp/gitleaks/gitleaks.zip"
+
+          rm -rf "${PWD}/.tmp/gitleaks"
+          mkdir -p "${install_dir}"
+
+          curl -fsSL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_windows_x64.zip" \
+            -o "${archive}"
+
+          install_dir_win="$(cygpath -w "${install_dir}")"
+          archive_win="$(cygpath -w "${archive}")"
+
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+            "Expand-Archive -LiteralPath '${archive_win}' -DestinationPath '${install_dir_win}' -Force"
+
+          test -f "${install_dir}/gitleaks.exe"
+
+          echo "${install_dir_win}" >> "$GITHUB_PATH"
+          "${install_dir}/gitleaks.exe" version
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Security: security aggregate (security)"
+        shell: bash
+        run: composer --no-interaction security
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
   arch:
     name: "arch / ubuntu / PHP 8.4"
     runs-on: ubuntu-latest
@@ -280,6 +440,10 @@ jobs:
         shell: bash
         run: composer --no-interaction arch:deptrac:check
 
+      - name: "Arch: deptrac analyze (arch:deptrac:analyze)"
+        shell: bash
+        run: composer --no-interaction arch:deptrac:analyze
+
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
         run: composer --no-interaction lock:check
@@ -323,16 +487,45 @@ jobs:
         shell: bash
         run: composer --no-interaction lock:check
 
-  unit-contract:
-    name: "unit+contract / ubuntu / PHP 8.4"
-    runs-on: ubuntu-latest
+  test-windows:
+    name: "test / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
     needs:
-      - gates
-      - arch
+      - gates-windows
+      - arch-windows
+
+    env:
+      MSYS: winsymlinks:nativestrict
 
     steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
       - name: "Checkout: repository"
         uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
 
       - name: "Setup: PHP + Composer"
         uses: shivammathur/setup-php@v2
@@ -342,6 +535,23 @@ jobs:
           coverage: none
           extensions: imagick
 
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
         run: composer --no-interaction sync:check
@@ -350,113 +560,13 @@ jobs:
         shell: bash
         run: composer --no-interaction --no-progress install:framework
 
-      - name: "Test: unit+contract suites"
+      - name: "Validate: composer (framework) (validate:framework)"
+        shell: bash
+        run: composer --no-interaction validate:framework
+
+      - name: "Test: framework package/unit/contract suite"
         shell: bash
         run: composer --no-interaction --working-dir=framework run-script test --
-
-      - name: "Guard: lock drift (lock:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction lock:check
-
-  integration-fast:
-    name: "integration-fast / ubuntu / PHP 8.4"
-    runs-on: ubuntu-latest
-    needs:
-      - gates
-      - arch
-
-    steps:
-      - name: "Checkout: repository"
-        uses: actions/checkout@v6
-
-      - name: "Setup: PHP + Composer"
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          tools: composer:v2
-          coverage: none
-          extensions: imagick
-
-      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction sync:check
-
-      - name: "Install: composer (framework) (install:framework)"
-        shell: bash
-        run: composer --no-interaction --no-progress install:framework
-
-      - name: "Test: integration-fast suites if materialized"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["integration-fast"]) ? 0 : 1);'; then
-            composer --no-interaction --working-dir=framework run-script integration-fast --
-            exit 0
-          fi
-
-          if find framework -type f \( \
-              -path '*/tests/Integration/Fast/*Test.php' -o \
-              -path '*/tests/IntegrationFast/*Test.php' -o \
-              -path '*/tests/integration-fast/*Test.php' \
-            \) | grep -q .; then
-            printf '%s\n' "integration-fast tests exist, but framework/composer.json has no integration-fast script." >&2
-            exit 1
-          fi
-
-          printf '%s\n' "No integration-fast suites detected; rail is a deterministic no-op."
-
-      - name: "Guard: lock drift (lock:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction lock:check
-
-  integration-slow:
-    name: "integration-slow / ubuntu / PHP 8.4"
-    runs-on: ubuntu-latest
-    needs:
-      - gates
-      - arch
-
-    steps:
-      - name: "Checkout: repository"
-        uses: actions/checkout@v6
-
-      - name: "Setup: PHP + Composer"
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          tools: composer:v2
-          coverage: none
-          extensions: imagick
-
-      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
-        shell: bash
-        run: composer --no-interaction sync:check
-
-      - name: "Install: composer (framework) (install:framework)"
-        shell: bash
-        run: composer --no-interaction --no-progress install:framework
-
-      - name: "Test: integration-slow suites if materialized"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if php -r '$p="framework/composer.json"; $j=is_file($p) ? file_get_contents($p) : false; $c=is_string($j) ? json_decode($j, true) : null; exit(is_array($c) && isset($c["scripts"]["integration-slow"]) ? 0 : 1);'; then
-            composer --no-interaction --working-dir=framework run-script integration-slow --
-            exit 0
-          fi
-
-          if find framework -type f \( \
-              -path '*/tests/Integration/Slow/*Test.php' -o \
-              -path '*/tests/IntegrationSlow/*Test.php' -o \
-              -path '*/tests/integration-slow/*Test.php' \
-            \) | grep -q .; then
-            printf '%s\n' "integration-slow tests exist, but framework/composer.json has no integration-slow script." >&2
-            exit 1
-          fi
-
-          printf '%s\n' "No integration-slow suites detected; rail is a deterministic no-op."
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
@@ -477,6 +587,88 @@ jobs:
           tools: composer:v2
           coverage: none
           extensions: imagick
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Quality: code style baseline (cs:check)"
+        shell: bash
+        run: composer --no-interaction cs:check
+
+      - name: "Quality: static analysis baseline (phpstan)"
+        shell: bash
+        run: composer --no-interaction phpstan
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  quality-windows:
+    name: "quality / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
 
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash

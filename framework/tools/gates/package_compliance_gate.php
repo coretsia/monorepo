@@ -117,7 +117,7 @@ declare(strict_types=1);
         $scanRoot = coretsia_package_compliance_gate_resolve_scan_root($argv, $defaultScanRoot, $repoRoot);
         $allowlistPath = coretsia_package_compliance_gate_resolve_allowlist_path(
             $argv,
-            $toolsRootRuntime . '/gates/package_compliance_allowlist.php',
+            $toolsRootRuntime . '/config/package_compliance_allowlist.php'
         );
 
         $allowlist = coretsia_package_compliance_gate_load_allowlist($allowlistPath);

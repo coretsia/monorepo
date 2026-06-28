@@ -80,12 +80,6 @@
     "test": [
       "@framework:test"
     ],
-    "test-fast": [
-      "@framework:test-fast"
-    ],
-    "test-slow": [
-      "@framework:test-slow"
-    ],
     "ci": [
       "@sync:check",
       "@release-line:workspace:check",
@@ -116,8 +110,9 @@
     "repo:text:gate": "@composer --no-interaction --working-dir=framework run-script repo:text:gate --",
     "spike:output:gate": "@composer --no-interaction --working-dir=framework run-script spike:output:gate --",
     "framework:test": "@composer --no-interaction --working-dir=framework run-script test --",
-    "framework:test-fast": "@composer --no-interaction --working-dir=framework run-script test-fast --",
-    "framework:test-slow": "@composer --no-interaction --working-dir=framework run-script test-slow --",
+    "security": "@composer --no-interaction --working-dir=framework run-script security --",
+    "composer-audit:gate": "@composer --no-interaction --working-dir=framework run-script composer-audit:gate --",
+    "secret-leakage:gate": "@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --",
     "gates": "@composer --no-interaction --working-dir=framework run-script gates --",
     "dto:gate": "@composer --no-interaction --working-dir=framework run-script dto:gate --",
     "dto-marker-consistency:gate": "@composer --no-interaction --working-dir=framework run-script dto-marker-consistency:gate --",
@@ -187,6 +182,7 @@
     "release-line:public-constraints:sync": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:sync --",
     "release-line:public-constraints:check": "@composer --no-interaction --working-dir=framework run-script release-line:public-constraints:check --",
     "package-publish-safety:gate": "@composer --no-interaction --working-dir=framework run-script package-publish-safety:gate --",
+    "atomic-write:gate": "@composer --no-interaction --working-dir=framework run-script atomic-write:gate --",
     "hooks:install": "git config core.hooksPath .githooks",
     "lock:check": "git diff --exit-code -- composer.lock framework/composer.lock skeleton/composer.lock",
     "docs:structure": "@composer --no-interaction --working-dir=framework run-script docs:structure --",

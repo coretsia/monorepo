@@ -24,14 +24,14 @@
 
 ## Status
 
-Coretsia Framework is in **active development**.
+Coretsia Framework is in **active development** and remains **pre-release**.
 
 Roadmap status:
 
 - **Prelude**: implemented
 - **Phase 0 — Spikes and prototypes**: implemented
-- **Phase 1 — Core**: active development
-- **Phase 2 — Mode Infrastructure & CLI**: planned
+- **Phase 1 — Core**: implemented
+- **Phase 2 — Mode Infrastructure & CLI**: active development
 - **Phase 3 — RELEASE: micro**: planned
 - **Phase 4 — RELEASE: express**: planned
 - **Phase 5 — RELEASE: hybrid**: planned
@@ -40,16 +40,21 @@ Roadmap status:
 
 Current public implementation baseline:
 
-- deterministic tooling and gates
+- deterministic tooling, gates, and CI verification rails
 - managed Composer workspace/repository synchronization
-- publishing rails policy
-- public split-package publishing baseline
-- canonical CLI ports
-- prod-safe CLI base
+- publishing rails and public split-package publishing baseline
+- canonical CLI ports and prod-safe CLI base
 - Phase 0 devtools command pack
-- Phase 1 contracts baseline
-- DTO policy and package compliance rails
-- architecture and quality verification rails
+- Phase 1 `core/*` baseline:
+  - contracts baseline
+  - foundation baseline
+  - kernel baseline
+- deterministic module planning, config kernel, artifact generation, fingerprinting, cache verification, and container compilation
+- Kernel runtime baseline with format-neutral UnitOfWork shapes and lifecycle policy
+- runtime driver selection and compatibility guard
+- DTO policy, package compliance rails, and package publish safety rails
+- Composer audit and secret leakage security gates
+- architecture, quality, test, and spike verification rails
 
 Authoritative planning and invariants:
 
@@ -57,7 +62,7 @@ Authoritative planning and invariants:
 - [Single Source of Truth (invariants/shapes/policies)](docs/ssot/INDEX.md)
 - [Security policy](SECURITY.md)
 
-Coretsia also tracks early architecture generator idempotence evidence in CI. See [Architecture Generator Idempotence Evidence](docs/ops/architecture-generator-evidence.md).
+Coretsia also tracks architecture generator idempotence evidence in CI. See [Architecture Generator Idempotence Evidence](docs/ops/architecture-generator-evidence.md).
 
 ## Repository layout (canonical)
 

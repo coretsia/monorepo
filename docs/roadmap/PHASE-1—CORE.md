@@ -928,8 +928,6 @@ Tooling baseline configs
   - [x] `arch` (Linux): deptrac generate (rerun-no-diff) + deptrac analyze + artifact upload
   - [x] `test` (Linux): `composer -d framework install` → `composer -d framework test`
   - [x] `unit+contract` (Linux): runs unit/contract suites when they exist
-  - [x] `integration-fast` (Linux): fast integration suites when they exist
-  - [x] `integration-slow` (Linux): slow integration suites when they exist
   - [x] `spikes` (Linux): keep Phase 0 spike rails if still applicable
   - [x] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
   - [x] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
@@ -9868,9 +9866,6 @@ Architecture Generator Idempotence Evidence
     - [x] `arch`
     - [x] `arch-windows`
     - [x] `test`
-    - [x] `unit-contract`
-    - [x] `integration-fast`
-    - [x] `integration-slow`
     - [x] `quality`
   - [x] Remove these jobs:
     - [x] `spikes`
@@ -10024,9 +10019,6 @@ N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/archit
   - [x] `arch`
   - [x] `arch-windows`
   - [x] `test`
-  - [x] `unit-contract`
-  - [x] `integration-fast`
-  - [x] `integration-slow`
   - [x] `quality`
 - [x] `.github/workflows/ci.yml` no longer contains:
   - [x] `spikes`
@@ -10048,7 +10040,6 @@ N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/archit
 - [x] Evidence job writes pass/fail and duration evidence to GitHub Actions summary.
 - [x] Evidence job does not run:
   - [x] Windows.
-  - [x] `test-fast`.
   - [x] `spike:test`.
   - [x] `spike:test:determinism`.
   - [x] `arch:deptrac:generate`.
@@ -17865,7 +17856,6 @@ goal: "Є 2 smoke тести: micro boot стабільно працює, expres
 provides:
 - "Test harness для boot сценаріїв (micro/express) без вимоги skeleton/config/modes/*.php"
 - "Locks очікувань Phase 0: micro OK; express deterministic fail (required missing)"
-- "CI proof: integration-fast executes these invariants"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -17920,7 +17910,7 @@ N/A (tests/tooling)
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `composer test` / CI `integration-fast` executes these tests
+  - `composer test` executes these tests
 
 ### Deliverables (MUST)
 
@@ -18010,7 +18000,6 @@ N/A (tests/tooling)
 - [x] `framework/tools/testing/phpunit.xml` or package test discovery config
   - [x] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
   - [x] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
-  - [x] If `integration-fast` is a named CI job/script, update the exact owner config/script for that job.
 
 - [x] `framework/packages/core/kernel/resources/modes/express.php`
   - [x] move `platform.http` from `optional` to `required`
@@ -18182,9 +18171,9 @@ Forbidden:
 
 #### Explicit non-goals / duplicate-gate guard (MUST)
 
-- [ ] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
-- [ ] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
-- [ ] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
+- [x] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
+- [x] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
+- [x] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
 
 #### Internal Composer dependency consistency (MUST)
 
@@ -18197,41 +18186,41 @@ The policy “core packages do not depend on forbidden platform/integrations/dev
 
 Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
 
-- [ ] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
-  - [ ] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
-  - [ ] map internal Composer names to package ids
-  - [ ] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] dependencies not present in SSoT MUST fail deterministically
-  - [ ] diagnostics MUST include:
-    - [ ] source package id
-    - [ ] target package id
-    - [ ] reason token `composer-edge-not-in-ssot`
-  - [ ] diagnostics MUST NOT include absolute paths or raw composer file dumps
+- [x] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
+  - [x] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
+  - [x] map internal Composer names to package ids
+  - [x] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [x] dependencies not present in SSoT MUST fail deterministically
+  - [x] diagnostics MUST include:
+    - [x] source package id
+    - [x] target package id
+    - [x] reason token `composer-edge-not-in-ssot`
+  - [x] diagnostics MUST NOT include absolute paths or raw composer file dumps
 
 This check closes forbidden dependency drift without introducing a second architecture policy gate.
 
 #### Modifies
 
-- [ ] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
-  - [ ] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
-  - [ ] internal package self-requires are forbidden
-  - [ ] unknown internal package names MUST fail deterministically
-  - [ ] diagnostics MUST use package ids, not absolute paths
-  - [ ] failure MUST use a deterministic code:
-    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-  - [ ] this check MUST NOT inspect or enforce external vendor packages
-  - [ ] this check MUST NOT create a second architecture ruleset
+- [x] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
+  - [x] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
+  - [x] internal package self-requires are forbidden
+  - [x] unknown internal package names MUST fail deterministically
+  - [x] diagnostics MUST use package ids, not absolute paths
+  - [x] failure MUST use a deterministic code:
+    - [x] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [x] this check MUST NOT inspect or enforce external vendor packages
+  - [x] this check MUST NOT create a second architecture ruleset
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
 
-- [ ] update command in `docs/guides/commands.md` if necessary:
-  - [ ] `composer arch`
-  - [ ] `arch:package-index:check`
-  - [ ] `arch:deptrac:check`
-  - [ ] `arch:deptrac:analyze`
+- [x] update command in `docs/guides/commands.md` if necessary:
+  - [x] `composer arch`
+  - [x] `arch:package-index:check`
+  - [x] `arch:deptrac:check`
+  - [x] `arch:deptrac:analyze`
 
-- [ ] Composer package name → package id mapping MUST reuse the existing canonical package metadata / package-index logic already used by the deptrac generation rail.
-- [ ] This epic MUST NOT introduce a second Composer-name-to-package-id mapping source.
+- [x] Composer package name → package id mapping MUST reuse the existing canonical package metadata / package-index logic already used by the deptrac generation rail.
+- [x] This epic MUST NOT introduce a second Composer-name-to-package-id mapping source.
 
 ### Cross-cutting
 
@@ -18241,13 +18230,13 @@ This check closes forbidden dependency drift without introducing a second archit
 
 #### Errors
 
-- [ ] Deterministic codes.
+- [x] Deterministic codes.
 
 #### Security / Redaction
 
-- [ ] Output MUST NOT contain absolute paths, raw composer JSON, source code, or filesystem layout.
-- [ ] Output contains only deterministic package ids, reason tokens, and error codes.
-- [ ] Diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
+- [x] Output MUST NOT contain absolute paths, raw composer JSON, source code, or filesystem layout.
+- [x] Output contains only deterministic package ids, reason tokens, and error codes.
+- [x] Diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
 
 ### Verification
 
@@ -18255,38 +18244,38 @@ This check closes forbidden dependency drift without introducing a second archit
 
 ### Tests (MUST)
 
-- [ ] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
-  - [ ] creates synthetic package composer metadata with internal `coretsia/*` require edge
-  - [ ] asserts edge missing from SSoT `depends_on` fails with:
-    - [ ] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
-  - [ ] asserts diagnostics include source package id, target package id, reason token
-  - [ ] asserts diagnostics do not include absolute paths or raw composer JSON dumps
+- [x] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
+  - [x] creates synthetic package composer metadata with internal `coretsia/*` require edge
+  - [x] asserts edge missing from SSoT `depends_on` fails with:
+    - [x] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+  - [x] asserts diagnostics include source package id, target package id, reason token
+  - [x] asserts diagnostics do not include absolute paths or raw composer JSON dumps
 
 ### DoD
 
-- [ ] `deptrac_generate.php --check` validates internal Composer require edges against the SSoT dependency table.
-- [ ] No new Composer script is introduced.
-- [ ] Existing `arch` script remains the architecture rail.
-- [ ] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
-- [ ] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
-- [ ] No new `architecture:gate` Composer script is introduced.
-- [ ] No new `framework/tools/gates/architecture_gate.php` file is introduced.
-- [ ] Output semantics MUST remain compatible with existing tooling checks:
-  - [ ] pass: no output, exit `0`
-  - [ ] failure: deterministic code + deterministic diagnostics, exit `1`
-- [ ] New diagnostics for Composer-edge drift MUST include only:
-  - [ ] source package id
-  - [ ] target package id
-  - [ ] reason token
-  - [ ] deterministic error code
-- [ ] New diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
-- [ ] New diagnostics MUST NOT include:
-  - [ ] absolute paths
-  - [ ] raw composer JSON
-  - [ ] source code
-  - [ ] filesystem layout
-  - [ ] exception messages
-  - [ ] stack traces
+- [x] `deptrac_generate.php --check` validates internal Composer require edges against the SSoT dependency table.
+- [x] No new Composer script is introduced.
+- [x] Existing `arch` script remains the architecture rail.
+- [x] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
+- [x] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
+- [x] No new `architecture:gate` Composer script is introduced.
+- [x] No new `framework/tools/gates/architecture_gate.php` file is introduced.
+- [x] Output semantics MUST remain compatible with existing tooling checks:
+  - [x] pass: no output, exit `0`
+  - [x] failure: deterministic code + deterministic diagnostics, exit `1`
+- [x] New diagnostics for Composer-edge drift MUST include only:
+  - [x] source package id
+  - [x] target package id
+  - [x] reason token
+  - [x] deterministic error code
+- [x] New diagnostics MUST be deduplicated and sorted by byte-order `strcmp`.
+- [x] New diagnostics MUST NOT include:
+  - [x] absolute paths
+  - [x] raw composer JSON
+  - [x] source code
+  - [x] filesystem layout
+  - [x] exception messages
+  - [x] stack traces
 
 ---
 
@@ -18339,102 +18328,94 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
-  - [ ] Each entry MUST include a fixed reason token.
-  - [ ] Wildcard patterns are forbidden in Phase 1.
-  - [ ] Absolute paths are forbidden.
-  - [ ] Allowlist entries MUST use exact shape:
-    - [ ] `path` — framework-relative path string, relative to `framework/`
-    - [ ] `reason` — fixed lowercase reason token
-  - [ ] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
-  - [ ] Unknown allowlist keys MUST fail deterministically.
+- [x] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
+  - [x] Each entry MUST include a fixed reason token.
+  - [x] Wildcard patterns are forbidden in Phase 1.
+  - [x] Absolute paths are forbidden.
+  - [x] Allowlist entries MUST use exact shape:
+    - [x] `path` — framework-relative path string, relative to `framework/`
+    - [x] `reason` — fixed lowercase reason token
+  - [x] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
+  - [x] Unknown allowlist keys MUST fail deterministically.
 
-```php
-return [
-    [
-        'path' => 'tools/example.php',
-        'reason' => 'legacy-writer-migrated-later',
-    ],
-];
-```
-
-- [ ] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
-  - [ ] scans production tooling PHP files under `framework/tools/**/*.php`
-  - [ ] excludes:
-    - [ ] `framework/tools/tests/**`
-    - [ ] `framework/tools/**/fixtures/**`
-    - [ ] `framework/tools/spikes/fixtures/**`
-    - [ ] `framework/tools/spikes/_support/DeterministicFile.php`
-  - [ ] Phase 1 single-choice policy:
-    - [ ] persistent tools-side writes MUST go through `DeterministicFile`
-  - [ ] forbidden raw write sinks outside allowlisted files:
-    - [ ] `file_put_contents`
-    - [ ] `fwrite`
-    - [ ] `rename` used as custom atomic-write implementation outside `DeterministicFile`
-    - [ ] `copy` used as write/update sink
-  - [ ] `fopen` in read-only modes (`r`, `rb`) is allowed.
-  - [ ] `fopen` with write/append/create modes (`w`, `wb`, `a`, `ab`, `c`, `cb`, `x`, `xb`, and `+` variants) is forbidden outside allowlisted files.
-  - [ ] `SplFileObject` / `FilesystemIterator` read-only usage is allowed.
-  - [ ] `SplFileObject` with write/append/create modes is forbidden outside allowlisted files.
-  - [ ] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION`
-  - [ ] On scanner/tooling failure, prints:
-    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
-  - [ ] diagnostics include framework-relative file path and line number only
-  - [ ] diagnostics MUST NOT include source code snippets
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override for test fixture roots
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+- [x] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
+  - [x] scans production tooling PHP files under `framework/tools/**/*.php`
+  - [x] excludes:
+    - [x] `framework/tools/tests/**`
+    - [x] `framework/tools/**/fixtures/**`
+    - [x] `framework/tools/spikes/fixtures/**`
+    - [x] `framework/tools/spikes/_support/DeterministicFile.php`
+  - [x] Phase 1 single-choice policy:
+    - [x] persistent tools-side writes MUST go through `DeterministicFile`
+  - [x] forbidden raw write sinks outside allowlisted files:
+    - [x] `file_put_contents`
+    - [x] `fwrite`
+    - [x] `rename` used as custom atomic-write implementation outside `DeterministicFile`
+    - [x] `copy` used as write/update sink
+  - [x] `fopen` in read-only modes (`r`, `rb`, `rt`) is allowed.
+  - [x] `fopen` with write/append/create modes (`w`, `wb`, `a`, `ab`, `c`, `cb`, `x`, `xb`, and `+` variants) is forbidden outside allowlisted files.
+  - [x] `SplFileObject` / `FilesystemIterator` read-only usage is allowed.
+  - [x] `SplFileObject` with write/append/create modes is forbidden outside allowlisted files.
+  - [x] if unsafe write found, prints `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] On scanner/tooling failure, prints:
+    - [x] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+  - [x] diagnostics include framework-relative file path and line number only in production scan mode
+  - [x] diagnostics include scan-root-relative file path and line number only when `--path` points outside `framework/`
+  - [x] diagnostics MUST NOT include source code snippets
+  - [x] uses `ConsoleOutput`
+  - [x] supports `--path` override for test fixture roots
+  - [x] Unknown allowlist keys MUST fail deterministically.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when ConsoleOutput is available
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `atomic-write:gate` → `@composer --no-interaction --working-dir=framework run-script atomic-write:gate --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
-  - [ ] add to `gates`
+- [x] `framework/composer.json` — add gate script
+  - [x] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
+  - [x] add to `gates`
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_ATOMIC_WRITE_VIOLATION`
-  - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
-- [ ] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
-  - [ ] `framework/tools/gates/package_compliance_allowlist.php`
-    → `framework/tools/config/package_compliance_allowlist.php`
-  - [ ] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
-  - [ ] this move MUST NOT change package compliance semantics
+- [x] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
+  - [x] `framework/tools/gates/package_compliance_allowlist.php` → `framework/tools/config/package_compliance_allowlist.php`
+  - [x] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
+  - [x] this move MUST NOT change package compliance semantics
 
-- [ ] add command `atomic-write:gate` in `docs/guides/commands.md`
-- [ ] update command `composer gates` in `docs/guides/commands.md`
+- [x] add command `atomic-write:gate` in `docs/guides/commands.md`
+- [x] update command `composer gates` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18444,25 +18425,28 @@ return [
 
 #### Errors
 
-- [ ] Deterministic error codes.
+- [x] Deterministic error codes.
 
 #### Security / Redaction
 
-- [ ] No file contents; only paths.
+- [x] No file contents; only paths.
 
 ### Verification
 
-- [ ] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
+- [x] Integration test: create a PHP file with unsafe `file_put_contents`, run gate with `--path`, assert failure.
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
-  - [ ] scanner failure / unreadable root / invalid allowlist fails with:
-    - [ ] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+- [x] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
+  - [x] unsafe `file_put_contents` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] read-only `fopen(..., 'rb')` passes with no output
+  - [x] writable `fopen(..., 'wb')` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
+  - [x] invalid allowlist fails with `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
+  - [x] unreadable/missing scan root fails with `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
 ### DoD
 
-- [ ] Gate implemented, CI integrated, error code registered.
+- [x] Gate implemented, CI integrated, error code registered.
 
 ---
 
@@ -18519,86 +18503,87 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/tools/gates/composer_audit_gate.php` — deterministic gate:
-  - [ ] locates audit-capable install roots only:
-    - [ ] repo root
-    - [ ] `framework/`
-    - [ ] `skeleton/`
-  - [ ] package manifests under `framework/packages/**` MUST NOT be audited directly by this gate
-  - [ ] for each, runs `composer audit --format=json` in the corresponding directory
-  - [ ] parses JSON output, checks for `advisories` count > 0
-  - [ ] if any advisories, prints `CORETSIA_COMPOSER_AUDIT_FAILED` + list of affected packages and advisories (sanitized)
-  - [ ] uses `ConsoleOutput` for output
-  - [ ] if `composer` command fails (not found), prints `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
-  - [ ] supports `--path` override for testing
-  - [ ] MUST parse JSON stdout/stderr when available even if `composer audit` exits non-zero.
-  - [ ] If valid audit JSON contains advisories, classify as:
-    - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] Classify as `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED` only when:
-    - [ ] composer executable cannot be run
-    - [ ] process times out
-    - [ ] output is not valid JSON
-    - [ ] expected audit fields are absent or unusable
-  - [ ] MUST resolve repository root from the framework workspace:
-    - [ ] default repo root is parent directory of `framework/`
-  - [ ] MUST audit install roots relative to repo root:
-    - [ ] `<repo-root>/composer.json`
-    - [ ] `<repo-root>/framework/composer.json`
-    - [ ] `<repo-root>/skeleton/composer.json`
-  - [ ] `--path` override MUST be treated as fixture repo root in tests.
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
-  - [ ] MUST run Composer audit with captured stdout/stderr.
-  - [ ] MUST NOT stream raw Composer audit output directly to stdout/stderr.
-  - [ ] MUST parse JSON output from captured stdout/stderr only.
-  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
+- [x] `framework/tools/gates/composer_audit_gate.php` — deterministic gate:
+  - [x] locates audit-capable install roots only:
+    - [x] repo root
+    - [x] `framework/`
+    - [x] `skeleton/`
+  - [x] package manifests under `framework/packages/**` MUST NOT be audited directly by this gate
+  - [x] for each audit-capable root, runs `composer audit --format=json --abandoned=ignore` in the corresponding directory
+  - [x] parses JSON output and derives sanitized advisory diagnostics from `advisories`
+  - [x] if any advisories, prints `CORETSIA_COMPOSER_AUDIT_FAILED` + list of affected packages and advisories (sanitized)
+  - [x] uses `ConsoleOutput` for output
+  - [x] if `composer` command fails (not found), prints `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+  - [x] supports `--path` override for testing
+  - [x] MUST parse JSON stdout/stderr when available even if `composer audit` exits non-zero.
+  - [x] If valid audit JSON contains advisories, classify as:
+    - [x] `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] Classify as `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED` only when:
+    - [x] composer executable cannot be run
+    - [x] process times out
+    - [x] output is not valid JSON
+    - [x] expected audit fields are absent or unusable
+    - [x] composer exits non-zero without usable advisory findings
+  - [x] MUST resolve repository root from the framework workspace:
+    - [x] default repo root is parent directory of `framework/`
+  - [x] MUST audit install roots relative to repo root:
+    - [x] `<repo-root>/composer.json`
+    - [x] `<repo-root>/framework/composer.json`
+    - [x] `<repo-root>/skeleton/composer.json`
+  - [x] `--path` override MUST be treated as fixture repo root in tests.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when fallback output writer is available
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [x] MUST run Composer audit with captured stdout/stderr.
+  - [x] MUST NOT stream raw Composer audit output directly to stdout/stderr.
+  - [x] MUST parse JSON output from captured stdout/stderr only.
+  - [x] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts:
-  - [ ] `composer-audit:gate` → `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
-  - [ ] `security` → `@composer --no-interaction --working-dir=framework run-script security --`
+- [x] `composer.json` — add mirror scripts:
+  - [x] `composer-audit:gate` → `@composer --no-interaction --working-dir=framework run-script composer-audit:gate --`
+  - [x] `security` → `@composer --no-interaction --working-dir=framework run-script security --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `composer-audit:gate` → `@php tools/gates/composer_audit_gate.php`
-  - [ ] MUST NOT add `composer-audit:gate` to the generic `gates` aggregate.
-  - [ ] MUST add or update dedicated security aggregate:
-    - [ ] `security` MUST include `@composer-audit:gate`
+- [x] `framework/composer.json` — add gate script
+  - [x] `composer-audit:gate` → `@php tools/gates/composer_audit_gate.php`
+  - [x] MUST NOT add `composer-audit:gate` to the generic `gates` aggregate.
+  - [x] MUST add or update dedicated security aggregate:
+    - [x] `security` MUST include `@composer-audit:gate`
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
 
-- [ ] add command `composer-audit:gate` in `docs/guides/commands.md`
-- [ ] add command `composer security` in `docs/guides/commands.md`
+- [x] add command `composer-audit:gate` in `docs/guides/commands.md`
+- [x] add command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18608,32 +18593,32 @@ Forbidden:
 
 #### Errors
 
-- [ ] Deterministic codes for vulnerability found and scan failure.
+- [x] Deterministic codes for vulnerability found and scan failure.
 
 #### Security / Redaction
 
-- [ ] `composer audit` output may contain URLs; we strip to only advisory IDs and package names.
+- [x] `composer audit` output may contain URLs; we strip to only advisory IDs and package names.
 
 ### Verification
 
-- [ ] Integration test MUST NOT call live Packagist or live advisory services.
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
-- [ ] `framework/tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
-- [ ] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
-  - [ ] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
-  - [ ] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
-  - [ ] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
+- [x] Integration test MUST NOT call live Packagist or live advisory services.
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
+- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
+- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
+  - [x] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
+  - [x] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
+  - [x] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
+- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
 
 ### DoD
 
-- [ ] Gate implemented and integrated
-- [ ] Error codes registered
-- [ ] Verification test exists (even if mocked)
+- [x] Gate implemented and integrated
+- [x] Error codes registered
+- [x] Verification test exists (even if mocked)
 
 ---
 
@@ -18684,75 +18669,80 @@ N/A (external tool)
 
 #### Creates
 
-- [ ] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
-- [ ] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
-  - [ ] MUST resolve repository root from the framework workspace:
-    - [ ] default repo root is parent directory of `framework/`
-  - [ ] MUST run scanner against repo root, not only `framework/`
-  - [ ] MUST use repo-root `.gitleaks.toml`
-  - [ ] default command shape:
-    - [ ] `gitleaks detect --source=<repo-root> --config=<repo-root>/.gitleaks.toml --no-git --report-format=json --redact`
-  - [ ] MUST NOT print raw matches
-  - [ ] parses JSON output; if any leak, prints `CORETSIA_SECRET_LEAK_DETECTED` + list of files and findings (sanitized)
-  - [ ] if gitleaks not available, prints `CORETSIA_SECRET_GATE_SCAN_FAILED`
-  - [ ] uses `ConsoleOutput`
-  - [ ] supports `--path` override for test fixture repo roots.
-  - [ ] when `--path` is provided, both source root and config path are resolved relative to that fixture root unless explicitly overridden by test-only flags.
-  - [ ] MUST invoke Gitleaks in JSON report mode only.
-  - [ ] MUST NOT parse human-readable Gitleaks output.
-  - [ ] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
-  - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
-  - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
-    - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
-  - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
-  - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
-  - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
-  - [ ] MUST use two code classes when applicable:
-    - [ ] violation/finding code
-    - [ ] scan-failed/tooling-failed code
-  - [ ] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
-  - [ ] MUST wrap scanning/parsing logic in `try/catch`.
-  - [ ] On unexpected throwable:
-    - [ ] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
-    - [ ] MUST exit with code `1`
-  - [ ] On pass:
-    - [ ] MUST emit no output
-    - [ ] MUST exit with code `0`
-  - [ ] On violation/finding:
-    - [ ] MUST emit only the deterministic violation/finding code and sorted diagnostics
-    - [ ] MUST exit with code `1`
-  - [ ] Diagnostics MUST be:
-    - [ ] deduplicated
-    - [ ] sorted by byte-order `strcmp`
-    - [ ] stable across OS/filesystem order/locale
-    - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
-  - [ ] MUST run Gitleaks with captured stdout/stderr.
-  - [ ] MUST NOT stream raw Gitleaks output directly to stdout/stderr.
-  - [ ] MUST parse JSON report output from captured stdout/stderr only.
-  - [ ] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
+- [x] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
+- [x] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
+  - [x] MUST resolve repository root from the framework workspace:
+    - [x] default repo root is parent directory of `framework/`
+  - [x] MUST run scanner against repo root, not only `framework/`
+  - [x] MUST use repo-root `.gitleaks.toml`
+  - [x] default command shape:
+    - [x] `gitleaks dir <repo-root> --config=<repo-root>/.gitleaks.toml --report-format=json --report-path=<temp-report-json> --redact --no-banner --no-color`
+    - [x] MUST use Gitleaks directory scanning mode for the repository working tree.
+    - [x] MUST NOT use deprecated/hidden `gitleaks detect` / `gitleaks protect` command names.
+  - [x] MUST NOT print raw matches
+  - [x] parses the JSON report file; if any leak, prints `CORETSIA_SECRET_LEAK_DETECTED` + list of files and findings (sanitized)
+  - [x] if gitleaks not available, prints `CORETSIA_SECRET_GATE_SCAN_FAILED`
+  - [x] uses `ConsoleOutput`
+  - [x] supports `--path` override for test fixture repo roots.
+  - [x] when `--path` is provided, both source root and config path are resolved relative to that fixture root unless explicitly overridden by test-only flags.
+  - [x] MUST invoke Gitleaks in JSON report mode only.
+  - [x] MUST NOT parse human-readable Gitleaks output.
+  - [x] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
+  - [x] MUST resolve the tools root deterministically from the executing gate file.
+  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] If bootstrap is missing or unreadable:
+    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
+  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST resolve error code constants from `ErrorCodes` when defined.
+  - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
+  - [x] MUST use two code classes when applicable:
+    - [x] violation/finding code
+    - [x] scan-failed/tooling-failed code
+  - [x] MUST suppress warnings/notices around filesystem probing where existing gates do so, to avoid output pollution.
+  - [x] MUST wrap scanning/parsing logic in `try/catch`.
+  - [x] On unexpected throwable:
+    - [x] MUST emit the scan-failed code through `ConsoleOutput::codeWithDiagnostics($code, [])`
+    - [x] MUST exit with code `1`
+  - [x] On pass:
+    - [x] MUST emit no output
+    - [x] MUST exit with code `0`
+  - [x] On violation/finding:
+    - [x] MUST emit only the deterministic violation/finding code and sorted diagnostics
+    - [x] MUST exit with code `1`
+  - [x] Diagnostics MUST be:
+    - [x] deduplicated
+    - [x] sorted by byte-order `strcmp`
+    - [x] stable across OS/filesystem order/locale
+    - [x] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
+  - [x] MUST run Gitleaks with captured stdout/stderr.
+  - [x] MUST NOT stream raw Gitleaks output directly to stdout/stderr.
+  - [x] MUST write JSON report to an explicit temporary --report-path.
+  - [x] MUST parse only the JSON report file.
+  - [x] MUST NOT parse human-readable Gitleaks output.
+  - [x] MUST delete the temporary report file before exit.
+  - [x] MUST normalize parsed diagnostics through `ConsoleOutput::codeWithDiagnostics()`.
 
 #### Modifies
 
-- [ ] `composer.json` — add mirror scripts (delegates to framework):
-  - [ ] `secret-leakage:gate` → `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
+- [x] `composer.json` — add mirror scripts (delegates to framework):
+  - [x] `secret-leakage:gate` → `@composer --no-interaction --working-dir=framework run-script secret-leakage:gate --`
 
-- [ ] `framework/composer.json` — add gate script
-  - [ ] `secret-leakage:gate` → `@php tools/gates/secret_leakage_gate.php`
-  - [ ] MUST NOT add `secret-leakage:gate` to the generic `gates` aggregate.
-  - [ ] MUST add it to the dedicated security aggregate:
-    - [ ] `security` → [`@secret-leakage:gate`]
+- [x] `framework/composer.json` — add gate script
+  - [x] `secret-leakage:gate` → `@php tools/gates/secret_leakage_gate.php`
+  - [x] MUST NOT add `secret-leakage:gate` to the generic `gates` aggregate.
+  - [x] MUST add it to the dedicated security aggregate:
+    - [x] `security` → [`@secret-leakage:gate`]
 
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_SECRET_LEAK_DETECTED`
-  - [ ] `CORETSIA_SECRET_GATE_SCAN_FAILED`
+- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+  - [x] `CORETSIA_SECRET_LEAK_DETECTED`
+  - [x] `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
-- [ ] add command `secret-leakage:gate` in `docs/guides/commands.md`
-- [ ] update command `composer security` in `docs/guides/commands.md`
+- [x] add command `secret-leakage:gate` in `docs/guides/commands.md`
+- [x] update command `composer security` in `docs/guides/commands.md`
 
 ### Cross-cutting
 
@@ -18762,28 +18752,28 @@ N/A (external tool)
 
 #### Errors
 
-- [ ] Deterministic codes.
+- [x] Deterministic codes.
 
 #### Security / Redaction
 
-- [ ] The gate must redact secrets from output; Gitleaks output already redacts, but we also ensure we don't print raw matches.
+- [x] The gate must redact secrets from output; Gitleaks output already redacts, but we also ensure we don't print raw matches.
 
 ### Verification
 
-- [ ] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
-- [ ] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
-- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
-  - [ ] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
-  - [ ] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
+- [x] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
+- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
+- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
+  - [x] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
+  - [x] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
-  - [ ] tests MUST use mocked Gitleaks JSON output fixtures
-  - [ ] tests MUST NOT commit realistic live credentials
+- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
+  - [x] tests MUST use mocked Gitleaks JSON output fixtures
+  - [x] tests MUST NOT commit realistic live credentials
 
 ### DoD
 
-- [ ] Gate implemented, config created, CI integrated.
+- [x] Gate implemented, config created, CI integrated.

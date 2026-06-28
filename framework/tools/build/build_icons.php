@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 final class BuildIconsTool
 {
     public const string CODE_FAILED = 'CORETSIA_BUILD_ICONS_FAILED';
@@ -128,14 +133,14 @@ final class BuildIconsTool
 
         if ($check) {
             if ($changedFiles !== []) {
-                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
-                foreach ($changedFiles as $path) {
-                    fwrite(STDERR, $path . "\n");
-                }
+                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                    self::CODE_OUT_OF_DATE,
+                    $changedFiles,
+                );
                 return 1;
             }
 
-            fwrite(STDOUT, "OK\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
             return 0;
         }
 
@@ -147,10 +152,8 @@ final class BuildIconsTool
             }
         }
 
-        fwrite(STDOUT, "OK\n");
-        foreach ($changedFiles as $path) {
-            fwrite(STDOUT, $path . "\n");
-        }
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::lines($changedFiles, false);
 
         return 0;
     }
@@ -344,10 +347,7 @@ final class BuildIconsTool
             throw new RuntimeException('Cannot create directory: ' . $dir);
         }
 
-        $written = file_put_contents($path, $bytes, LOCK_EX);
-        if ($written === false) {
-            throw new RuntimeException('Cannot write file: ' . $path);
-        }
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeBytesExact($path, $bytes);
     }
 
     private static function findExecutable(string $name): ?string
@@ -513,6 +513,6 @@ try {
     exit(BuildIconsTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, BuildIconsTool::CODE_FAILED . ": {$msg}\n");
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(BuildIconsTool::CODE_FAILED . ": {$msg}");
     exit(1);
 }

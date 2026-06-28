@@ -893,6 +893,7 @@ Coretsia/
 │   │   │       │   │   └── JsonEncodeStableContractTest.php
 │   │   │       │   └── Unit/
 │   │   │       │       ├── PathNormalizeRelativeGoldenVectorsTest.php
+│   │   │       │       ├── SlugToSnakeGoldenVectorsTest.php
 │   │   │       │       └── SlugToStudlyGoldenVectorsTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -1049,10 +1050,15 @@ Coretsia/
 │   │   │   ├── structure.ignore.php
 │   │   │   ├── sync_composer_repositories.php
 │   │   │   └── sync_package_scaffold.php
+│   │   ├── config/
+│   │   │   ├── atomic_write_allowlist.php
+│   │   │   └── package_compliance_allowlist.php
 │   │   ├── cs/
 │   │   │   └── ecs.php
 │   │   ├── gates/
 │   │   │   ├── artifact_header_schema_gate.php
+│   │   │   ├── atomic_write_gate.php
+│   │   │   ├── composer_audit_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
 │   │   │   ├── dto_gate.php
@@ -1069,12 +1075,12 @@ Coretsia/
 │   │   │   ├── observability_metric_catalog_gate.php
 │   │   │   ├── observability_naming_gate.php
 │   │   │   ├── observability_span_naming_gate.php
-│   │   │   ├── package_compliance_allowlist.php
 │   │   │   ├── package_compliance_gate.php
 │   │   │   ├── package_phpunit_config_gate.php
 │   │   │   ├── package_publish_safety_gate.php
 │   │   │   ├── repo_text_normalization_gate.php
 │   │   │   ├── reserved_tags_registry_gate.php
+│   │   │   ├── secret_leakage_gate.php
 │   │   │   ├── spikes_boundary_gate.php
 │   │   │   ├── spikes_canonical_paths_gate.php
 │   │   │   ├── spikes_io_policy_gate.php
@@ -1274,9 +1280,6 @@ Coretsia/
 │   │   │   ├── README.md
 │   │   │   └── phpunit.spikes.xml
 │   │   ├── testing/
-│   │   │   ├── tests/
-│   │   │   │   └── Smoke/
-│   │   │   │       └── MonorepoSmokeTest.php
 │   │   │   ├── bootstrap.php
 │   │   │   ├── deptrac.allowlist.yaml
 │   │   │   ├── deptrac.yaml
@@ -1297,6 +1300,14 @@ Coretsia/
 │   │       │   ├── SpikeWorkspacePackageIndexMatchesFixtureContractTest.php
 │   │       │   └── SpikeWorkspaceSyncLockContractTest.php
 │   │       ├── Fixtures/
+│   │       │   ├── ComposerAudit/
+│   │       │   │   ├── audit_clean.json
+│   │       │   │   ├── audit_scan_failed.json
+│   │       │   │   └── audit_with_advisories.json
+│   │       │   ├── Gitleaks/
+│   │       │   │   ├── gitleaks_clean.json
+│   │       │   │   ├── gitleaks_scan_failed.json
+│   │       │   │   └── gitleaks_with_findings.json
 │   │       │   ├── RuntimeDriverMatrix/
 │   │       │   │   ├── ClassicHttpApp/
 │   │       │   │   │   ├── config.php
@@ -1432,33 +1443,41 @@ Coretsia/
 │   │       │                   ├── README.md
 │   │       │                   ├── SECURITY.md
 │   │       │                   └── composer.json
-│   │       └── Integration/
-│   │           ├── Runtime/
-│   │           │   ├── Support/
-│   │           │   │   └── RuntimeDriverMatrixConfigRepository.php
-│   │           │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php
-│   │           │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
-│   │           │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
-│   │           │   └── RuntimeDriverMatrixTestSupport.php
-│   │           ├── CrossCuttingContractGateTest.php
-│   │           ├── DtoGateAggregateRunnerTest.php
-│   │           ├── DtoMarkerConsistencyGateTest.php
-│   │           ├── DtoNoLogicGateTest.php
-│   │           ├── DtoShapeGateTest.php
-│   │           ├── ManagedComposerRepositoriesGuardTest.php
-│   │           ├── NoRuntimeToolingArtifactsGateTest.php
-│   │           ├── PackageComplianceGateAcceptsGoodFixtureTest.php
-│   │           ├── PackageComplianceGateRejectsBadFixtureTest.php
-│   │           ├── ReservedTagsRegistryGateTest.php
-│   │           ├── SyncPackageScaffoldCheckRejectsDriftTest.php
-│   │           └── SyncPackageScaffoldCreatesMissingFilesTest.php
+│   │       ├── Integration/
+│   │       │   ├── Runtime/
+│   │       │   │   ├── Support/
+│   │       │   │   │   └── RuntimeDriverMatrixConfigRepository.php
+│   │       │   │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
+│   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
+│   │       │   │   └── RuntimeDriverMatrixTestSupport.php
+│   │       │   ├── AtomicWriteGateTest.php
+│   │       │   ├── ComposerAuditGateTest.php
+│   │       │   ├── CrossCuttingContractGateTest.php
+│   │       │   ├── DeptracGenerateComposerEdgesMatchSsotTest.php
+│   │       │   ├── DtoGateAggregateRunnerTest.php
+│   │       │   ├── DtoMarkerConsistencyGateTest.php
+│   │       │   ├── DtoNoLogicGateTest.php
+│   │       │   ├── DtoShapeGateTest.php
+│   │       │   ├── ManagedComposerRepositoriesGuardTest.php
+│   │       │   ├── NoRuntimeToolingArtifactsGateTest.php
+│   │       │   ├── PackageComplianceGateAcceptsGoodFixtureTest.php
+│   │       │   ├── PackageComplianceGateRejectsBadFixtureTest.php
+│   │       │   ├── ReservedTagsRegistryGateTest.php
+│   │       │   ├── SecretLeakageGateTest.php
+│   │       │   ├── SyncPackageScaffoldCheckRejectsDriftTest.php
+│   │       │   └── SyncPackageScaffoldCreatesMissingFilesTest.php
+│   │       ├── Smoke/
+│   │       │   └── MonorepoSmokeTest.php
+│   │       └── Unit/
+│   │           └── DeterministicFileAtomicWriteTest.php
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/
@@ -1524,6 +1543,7 @@ Coretsia/
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore
+├── .gitleaks.toml
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── LICENSE

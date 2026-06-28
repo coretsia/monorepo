@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Testing\Tests\Smoke;
+namespace Coretsia\Tools\Tests\Smoke;
 
 use PHPUnit\Framework\TestCase;
 
@@ -36,8 +36,8 @@ final class MonorepoSmokeTest extends TestCase
 
     private function frameworkRoot(): string
     {
-        // framework/tools/testing/tests/Smoke -> framework (levels: Smoke -> tests -> testing -> tools)
-        $frameworkRoot = dirname(__DIR__, 4);
+        // framework/tools/tests/Smoke -> framework (levels: Smoke -> tests -> tools)
+        $frameworkRoot = dirname(__DIR__, 3);
 
         return rtrim(str_replace('\\', '/', $frameworkRoot), '/');
     }

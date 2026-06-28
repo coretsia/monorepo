@@ -1,0 +1,24 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Generic API Key",
+    "File": "config/app.php",
+    "StartLine": 12,
+    "EndLine": 12,
+    "StartColumn": 5,
+    "EndColumn": 20,
+    "Match": "REDACTED",
+    "Secret": "REDACTED"
+  },
+  {
+    "RuleID": "private-key",
+    "Description": "Private Key",
+    "File": "docs/example.txt",
+    "StartLine": 3,
+    "EndLine": 3,
+    "StartColumn": 1,
+    "EndColumn": 10,
+    "Match": "REDACTED",
+    "Secret": "REDACTED"
+  }
+]

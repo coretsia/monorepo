@@ -240,7 +240,7 @@ final readonly class ArtifactWriter
             );
         }
 
-        if (self::normalizeDirectory(\dirname($temporaryPath)) !== self::normalizeDirectory($targetDirectory)) {
+        if (!self::sameDirectory(\dirname($temporaryPath), $targetDirectory)) {
             self::cleanupTemporaryFile($temporaryPath);
 
             throw ArtifactWriteFailedException::withReason(
@@ -492,6 +492,26 @@ final readonly class ArtifactWriter
     private static function normalizeDirectory(string $directory): string
     {
         return \rtrim(\str_replace('\\', '/', $directory), '/');
+    }
+
+    private static function sameDirectory(string $left, string $right): bool
+    {
+        $leftReal = @\realpath($left);
+        $rightReal = @\realpath($right);
+
+        $leftNormalized = self::normalizeDirectory(
+            \is_string($leftReal) ? $leftReal : $left,
+        );
+        $rightNormalized = self::normalizeDirectory(
+            \is_string($rightReal) ? $rightReal : $right,
+        );
+
+        if (\PHP_OS_FAMILY === 'Windows') {
+            $leftNormalized = \strtolower($leftNormalized);
+            $rightNormalized = \strtolower($rightNormalized);
+        }
+
+        return $leftNormalized === $rightNormalized;
     }
 
     private static function cleanupTemporaryFile(string $temporaryPath): void

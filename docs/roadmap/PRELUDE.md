@@ -349,7 +349,7 @@ N/A
 - Canonical entrypoint (repo root, single-choice):
   - `composer setup`
   - `composer ci`
-  - `composer test` (`composer test-fast|test-slow` optional later)
+  - `composer test`
 
 - Tooling (repo root, explicit calls when needed):
   - `php framework/tools/build/sync_composer_repositories.php`
@@ -468,12 +468,8 @@ N/A
     - [x] `composer -d framework install`
     - [x] `composer -d skeleton install`
   - [x] `test` = `composer -d framework test`
-  - [x] `test-fast` = `composer -d framework test-fast` (if defined; otherwise maps to `test`)
-  - [x] `test-slow` = `composer -d framework test-slow` (if defined; otherwise N/A)
-  - [x] `ci` = `composer validate` + `composer test` (+ optional `composer test-fast`)
 - [x] `framework/composer.json`:
   - [x] `test` = `vendor/bin/phpunit -c tools/testing/phpunit.xml`
-  - [x] `test-fast` / `test-slow` = conventions (groups/testsuites), may be introduced progressively
 
 #### Artifacts / outputs (if applicable)
 
@@ -803,8 +799,6 @@ N/A
 
 - Project-wide tests (canonical):
   - `composer test` (repo root) — runs the full monorepo suite
-  - `composer test-fast` (repo root) — fast subset (if defined)
-  - `composer test-slow` (repo root) — slow subset (if defined)
 
 ### Deliverables (MUST)
 

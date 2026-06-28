@@ -17,6 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
+require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
+require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+
 final class PackageIndexTool
 {
     public const string CODE_FAILED = 'CORETSIA_PACKAGE_INDEX_FAILED';
@@ -47,12 +52,13 @@ final class PackageIndexTool
 
         if ($check) {
             if ($changed) {
-                fwrite(STDERR, self::CODE_OUT_OF_DATE . "\n");
-                fwrite(STDERR, self::rel($repoRoot, $outPath) . "\n");
+                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                    self::CODE_OUT_OF_DATE,
+                    [self::rel($repoRoot, $outPath)],
+                );
                 return 1;
             }
 
-            fwrite(STDOUT, "OK\n");
             return 0;
         }
 
@@ -60,9 +66,9 @@ final class PackageIndexTool
             self::writeFile($outPath, $php);
         }
 
-        fwrite(STDOUT, "OK\n");
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
         if ($changed) {
-            fwrite(STDOUT, self::rel($repoRoot, $outPath) . "\n");
+            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
         }
 
         return 0;
@@ -305,7 +311,7 @@ final class PackageIndexTool
             $content .= "\n";
         }
 
-        file_put_contents($path, $content, LOCK_EX);
+        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
     }
 
     /**
@@ -468,6 +474,6 @@ try {
     exit(PackageIndexTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    fwrite(STDERR, PackageIndexTool::CODE_FAILED . ": {$msg}\n");
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(PackageIndexTool::CODE_FAILED . ": {$msg}");
     exit(1);
 }

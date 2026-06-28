@@ -25,7 +25,7 @@ The dedicated `architecture-evidence` workflow runs an evidence-lite CI step tha
 - `arch:package-index:check`
 - `arch:deptrac:check`
 
-After each iteration, CI verifies that tracked generated architecture files do not drift.
+After each repeated architecture generator command, CI verifies that tracked generated architecture files do not drift.
 
 ## Generated files
 
@@ -37,12 +37,13 @@ The current drift check covers:
 
 ## Metrics
 
-| Metric      | Meaning                      |
-|-------------|------------------------------|
-| iteration   | Repeated execution number    |
-| duration_ms | Wall-clock command duration  |
-| result      | Command result               |
-| git diff    | Generated source drift check |
+| Metric         | Meaning                      |
+|----------------|------------------------------|
+| OS             | Runner operating system      |
+| iteration      | Repeated execution number    |
+| duration_ms    | Wall-clock command duration  |
+| command result | Command result               |
+| git diff       | Generated source drift check |
 
 ## Current target
 
@@ -57,9 +58,10 @@ The current target is intentionally small:
 The current evidence is collected by the dedicated GitHub Actions workflow:
 
 - `architecture-evidence`
-- job: `architecture-generator-idempotence / ubuntu / PHP 8.4`
+- `architecture-generator-idempotence / ubuntu / PHP 8.4`
+- `architecture-generator-idempotence / windows / PHP 8.4`
 
-The workflow summary contains the per-iteration command result and `duration_ms` for each repeated architecture generator check.
+The workflow summary contains the runner OS, per-iteration command result, `duration_ms`, and generated-file drift status for each repeated architecture generator command.
 
 Workflow runs: [architecture-evidence](https://github.com/coretsia/monorepo/actions/workflows/architecture-evidence.yml)
 
@@ -72,7 +74,7 @@ This evidence does not yet measure:
 - runtime HTTP behavior;
 - application-level performance;
 - flaky test rate;
-- Windows parity;
+- broad Windows parity claims outside the measured architecture generator checks;
 - comparison with other frameworks;
 - production runtime determinism claims.
 

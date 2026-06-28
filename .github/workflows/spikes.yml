@@ -53,6 +53,84 @@ jobs:
         shell: bash
         run: composer --no-interaction lock:check
 
+  spikes-windows:
+    name: "spikes / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: imagick
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: composer (framework) (install:framework)"
+        shell: bash
+        run: composer --no-interaction --no-progress install:framework
+
+      - name: "Test: spikes rails (spike:test)"
+        shell: bash
+        run: composer --no-interaction spike:test
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
   spikes-determinism:
     name: "spikes-determinism / ${{ matrix.os_name }} / PHP ${{ matrix.php }}"
     runs-on: ${{ matrix.os }}

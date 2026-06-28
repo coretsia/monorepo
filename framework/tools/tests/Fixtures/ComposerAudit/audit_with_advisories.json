@@ -1,0 +1,14 @@
+{
+  "advisories": {
+    "vendor/package": [
+      {
+        "advisoryId": "PKSA-abcd-efgh-ijkl",
+        "packageName": "vendor/package",
+        "affectedVersions": "<1.2.3",
+        "title": "Fixture advisory title must not be emitted",
+        "cve": "CVE-2026-12345",
+        "link": "https://example.invalid/advisory"
+      }
+    ]
+  }
+}

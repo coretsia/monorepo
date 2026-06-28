@@ -172,6 +172,8 @@ final class KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest extends
             logger: new NullLogger(),
             tracer: new NoopTracer(),
             meter: new NoopMeter(),
+            attributesMaxDepth: 10,
+            attributesMaxKeys: 200,
         );
     }
 

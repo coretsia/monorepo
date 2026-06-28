@@ -692,6 +692,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelRuntimeDriverNoForbiddenDepsContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverPublicApiContractTest.php
 │   │   │       │   │   ├── KernelRuntimeStopwatchFailurePolicyContractTest.php
+│   │   │       │   │   ├── KernelServiceFactoryUnitOfWorkAttributeLimitsContractTest.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php

@@ -37,6 +37,7 @@ use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
 use Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -55,15 +56,18 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertTrue($container->has(KernelRuntime::class));
         self::assertTrue($container->has(HookInvoker::class));
         self::assertTrue($container->has(KernelRuntimeInterface::class));
+        self::assertTrue($container->has(RuntimeEntrypointGuard::class));
 
         $runtime = $container->get(KernelRuntime::class);
         $hooks = $container->get(HookInvoker::class);
         $runtimePort = $container->get(KernelRuntimeInterface::class);
+        $entrypointGuard = $container->get(RuntimeEntrypointGuard::class);
 
         self::assertInstanceOf(KernelRuntime::class, $runtime);
         self::assertInstanceOf(HookInvoker::class, $hooks);
         self::assertInstanceOf(KernelRuntime::class, $runtimePort);
         self::assertInstanceOf(KernelRuntimeInterface::class, $runtimePort);
+        self::assertInstanceOf(RuntimeEntrypointGuard::class, $entrypointGuard);
     }
 
     public function testKernelRuntimeReceivesRequiredDependenciesThroughDi(): void

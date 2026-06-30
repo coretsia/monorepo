@@ -76,15 +76,17 @@ This package provides the Kernel baseline runtime layer:
 - Contracts-level runtime port binding:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - bound by DI to `Coretsia\Kernel\Runtime\KernelRuntime`
-- Canonical runtime driver selection and matrix guarding:
+- Canonical runtime driver ids and value objects:
   - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
   - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
   - `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
+- Public runtime entrypoint compatibility boundary:
+  - `Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard`
+- Internal runtime-driver matrix implementation:
   - `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard`
-- Runtime driver compatibility checks:
-  - `RuntimeDriverGuard::detect(...)`
-  - `RuntimeDriverGuard::assertCompatible(...)`
-  - `RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)`
+  - internal implementation detail
+  - not a public runtime-adapter API
+  - not registered as a DI service
 - Deterministic runtime-driver matrix failures:
   - `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
   - `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
@@ -494,6 +496,12 @@ container.php
 
 `ArtifactRuntimeBooter` reads and validates `config@1`, extracts the validated config payload, and delegates runtime container construction to Kernel-owned compiled-container internals.
 
+`ArtifactRuntimeBooter` currently performs artifact-only container boot from `config.php` and `container.php`.
+
+It does not currently run an absolute pre-container-build runtime entrypoint guard because `ModulePlan` is not available as a dedicated artifact in this boot path yet.
+
+The future `module-plan.php` artifact and pre-container entrypoint guard path are tracked only as a cleanup candidate and are not accepted runtime policy until promoted into a numbered epic, ADR, or SSoT update.
+
 External packages MUST use:
 
 ```text
@@ -696,7 +704,7 @@ Diagnostics expose only stable reason tokens and safe deterministic context.
 
 Diagnostics MUST NOT expose paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, or previous throwable messages.
 
-## Runtime driver guard
+## Runtime driver and entrypoint guard
 
 `core/kernel` owns the canonical runtime-driver selection model and compatibility guard.
 
@@ -706,10 +714,20 @@ The public Kernel API is:
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
+
+`RuntimeDriverGuard` is a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
+
+Runtime adapters and production boot paths MUST use:
+
+```text
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+```
+
+They MUST NOT call `RuntimeDriverGuard` directly.
 
 Canonical HTTP driver ids are:
 
@@ -727,7 +745,9 @@ The canonical background driver id is:
 bg.worker_queue
 ```
 
-`RuntimeDriverGuard` derives active drivers only from declared config inputs:
+`RuntimeEntrypointGuard` is the public runtime-adapter boundary.
+
+Internally, it delegates to the Kernel-owned runtime-driver matrix implementation. Active drivers are derived only from declared config inputs:
 
 ```text
 kernel.runtime.frankenphp.enabled
@@ -743,13 +763,53 @@ worker.task_type
 
 Kernel does not own the `worker` config root, does not define `worker.*` defaults, and does not validate the full `worker` subtree.
 
-If these inputs are absent from the merged configuration, `worker.enabled` is treated as `false`, and no worker-derived runtime driver is activated.
+These keys are required in the merged runtime config snapshot consumed by the runtime entrypoint guard.
 
-`RuntimeDriverGuard::detect()` returns `RuntimeDrivers` only for a valid single-HTTP-driver selection.
+Missing required runtime-driver config keys are invalid and fail with:
 
-`RuntimeDriverGuard::assertCompatible()` is config-only and MUST NOT inspect `ModulePlan`.
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+config-key-missing
+```
 
-`RuntimeDriverGuard::assertHttpDriverCompatibleWithModules()` is the only method that validates the module requirement for non-classic HTTP drivers. It requires `platform.http` for:
+Non-boolean required runtime-driver flag values are invalid and fail with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+config-key-invalid
+```
+
+`worker.task_type` is read only when `worker.enabled === true`.
+
+If `worker.enabled === false`, `worker.task_type` is not required.
+
+If `worker.enabled === true` and `worker.task_type` is missing, the guard fails with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+worker-task-type-missing
+```
+
+If `worker.enabled === true` and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+worker-task-type-invalid
+```
+
+The public entrypoint method is:
+
+```text
+RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+```
+
+It receives a resolved `ConfigRepositoryInterface` and caller-provided `ModulePlan`.
+
+The guard MUST be invoked after config and `ModulePlan` are resolved and before runtime execution starts.
+
+The internal matrix implementation returns `RuntimeDrivers` only for a valid single-HTTP-driver selection.
+
+The internal module compatibility rule requires `platform.http` for:
 
 ```text
 http.frankenphp
@@ -764,6 +824,12 @@ It does not require `platform.http` for:
 http.classic
 bg.worker_queue
 ```
+
+Runtime adapters MUST NOT partially duplicate this policy.
+
+They MUST NOT decide independently that `platform.http` is required only for `worker.task_type=http`.
+
+The compatibility check is based on the complete runtime-driver matrix, not only on the worker task type.
 
 Runtime-driver failures are deterministic and safe:
 
@@ -1036,6 +1102,17 @@ Canonical Kernel config keys:
 | `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/cache", "var/maintenance"]`                         |
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
+
+The runtime-driver entrypoint guard also reads selected external runtime-owner keys:
+
+```text
+worker.enabled
+worker.task_type
+```
+
+These keys are not owned by `core/kernel`.
+
+They must be present in the merged runtime config snapshot when required by the runtime-driver matrix, but their defaults and full subtree validation are owned by the package that owns the `worker` root.
 
 `kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
 
@@ -1780,16 +1857,18 @@ Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException
 
 `ArtifactRuntimeBooter` is not a Bootstrap Phase A resolver and does not own bootstrap input resolution. It is a production runtime artifact boot facade for already generated Kernel-owned artifacts.
 
-Runtime driver public API symbols are:
+Runtime driver and entrypoint public API symbols are:
 
 ```text
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
+
+`Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` is internal implementation detail and MUST NOT be listed as Kernel public API.
 
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 

@@ -15384,7 +15384,7 @@ Guard:
   - [x] If `worker.enabled === true` and `worker.task_type === 'queue'`, activate `bg.worker_queue`
   - [x] If `worker.enabled === true` and `worker.task_type` is present but not `http` or `queue`, fail with:
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
-    - [x] reason `worker_task_type_invalid`
+    - [x] reason `worker-task-type-invalid`
   - [x] generic worker root shape / unknown-key validation remains owned by future `platform/worker` config rules
   - [x] core/kernel MUST NOT define `worker.*` defaults or rules in this epic
 
@@ -15402,8 +15402,8 @@ Errors:
     - [x] `multipleHttpDrivers(list<string> $activeDriverIds, list<string> $conflictingDriverIds): self`
     - [x] `workerHttpConflictsWithHttpDriver(list<string> $activeDriverIds, list<string> $conflictingDriverIds): self`
   - [x] Conflict reasons:
-    - [x] `multiple_http_drivers`
-    - [x] `worker_http_conflicts_with_http_driver`
+    - [x] `multiple-http-drivers`
+    - [x] `worker-http-conflicts-with-http-driver`
   - [x] driver id lists MUST be sorted by byte-order `strcmp`
   - [x] driver id lists MUST contain canonical ids only
   - [x] MUST NOT expose config paths, config values, env values, adapter internals, stack traces, previous throwable messages, or payload dumps
@@ -15421,8 +15421,8 @@ Errors:
     - [x] `requiresPlatformHttpModule(list<string> $activeDriverIds): self`
     - [x] `workerTaskTypeInvalid(list<string> $activeDriverIds = []): self`
   - [x] Invalid-config reasons:
-    - [x] `requires_platform_http_module`
-    - [x] `worker_task_type_invalid`
+    - [x] `requires-platform-http-module`
+    - [x] `worker-task-type-invalid`
   - [x] required module ids MUST be sorted by byte-order `strcmp`
   - [x] active driver ids MUST be sorted by byte-order `strcmp`
   - [x] config shape / unknown-key enforcement is owned by config rules validation, NOT by `RuntimeDriverGuard`
@@ -15839,7 +15839,7 @@ Tooling:
 - [x] Concrete lock example:
   - [x] when `kernel.runtime.roadrunner.enabled=true` and `worker.enabled=true && worker.task_type=http`, then:
     - [x] `RuntimeDriverGuard` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
-    - [x] reason is `worker_http_conflicts_with_http_driver`
+    - [x] reason is `worker-http-conflicts-with-http-driver`
     - [x] E2E matrix test asserts the same deterministic code/reason
 - [x] Determinism:
   - [x] no generated outputs; rerun-no-diff applies only to fixtures/docs/source stability
@@ -16639,11 +16639,11 @@ Error:
 - [x] `framework/packages/platform/worker/src/Exception/WorkerStartFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_START_FAILED`
   - [x] reasons:
-    - [x] `start_failed`
-    - [x] `invalid_state`
-    - [x] `request_handler_missing`
-    - [x] `request_handler_unresolvable`
-    - [x] `request_handler_invalid`
+    - [x] `worker-start-failed`
+    - [x] `worker-invalid-state`
+    - [x] `worker-request-handler-missing`
+    - [x] `worker-request-handler-unresolvable`
+    - [x] `worker-request-handler-invalid`
   - [x] named constructors:
     - [x] `startFailed(): self`
     - [x] `invalidState(): self`
@@ -16654,21 +16654,21 @@ Error:
 - [x] `framework/packages/platform/worker/src/Exception/WorkerForkFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_FORK_FAILED`
   - [x] reasons:
-    - [x] `fork_failed`
+    - [x] `worker-fork-failed`
   - [x] named constructors:
     - [x] `forkFailed(): self`
 
 - [x] `framework/packages/platform/worker/src/Exception/WorkerCommunicationFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_COMMUNICATION_FAILED`
   - [x] reasons:
-    - [x] `communication_failed`
+    - [x] `worker-communication-failed`
   - [x] named constructors:
     - [x] `communicationFailed(): self`
 
 - [x] `framework/packages/platform/worker/src/Exception/WorkerNotRunningException.php`
   - [x] errorCode: `CORETSIA_WORKER_NOT_RUNNING`
   - [x] reasons:
-    - [x] `not_running`
+    - [x] `worker-not-running`
   - [x] named constructors:
     - [x] `notRunning(): self`
   - [x] MUST be used for stop/status operations when worker state marker is missing
@@ -16692,7 +16692,7 @@ Tests:
 - [x] `framework/packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php`
   - [x] `WorkerStateStore::read(...)` throws `WorkerNotRunningException::notRunning()` when worker state marker is missing
   - [x] missing worker state marker returns error code `CORETSIA_WORKER_NOT_RUNNING`
-  - [x] missing worker state marker returns reason `not_running`
+  - [x] missing worker state marker returns reason `worker-not-running`
   - [x] existing but unreadable worker state does not map to `WorkerNotRunningException`
   - [x] existing non-file state path does not map to `WorkerNotRunningException`
   - [x] invalid JSON state does not map to `WorkerNotRunningException`
@@ -16738,7 +16738,7 @@ Tests:
     - [x] headers
     - [x] tokens
   - [x] not-running case returns `CORETSIA_WORKER_NOT_RUNNING`
-  - [x] not-running case returns `not_running`
+  - [x] not-running case returns `worker-not-running`
   - [x] communication failure returns original `WorkerCommunicationFailedException::ERROR_CODE`
   - [x] communication failure returns original `reason()`
   - [x] worker start/state failure returns `CORETSIA_WORKER_STATUS_FAILED`
@@ -16771,7 +16771,7 @@ Tests:
   - [x] unsupported options fail safely
   - [x] command does not call `InputInterface::tokens()`
   - [x] not-running case returns `CORETSIA_WORKER_NOT_RUNNING`
-  - [x] not-running case returns `not_running`
+  - [x] not-running case returns `worker-not-running`
   - [x] invalid worker state does not get translated to `CORETSIA_WORKER_NOT_RUNNING`
 
 - [x] `framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php`
@@ -17328,7 +17328,7 @@ Add config contract tests (policy rails):
   - [x] RequestHandlerInterface is missing/unresolvable
   - [x] failure is deterministic:
     - [x] `CORETSIA_WORKER_START_FAILED`
-    - [x] `request_handler_missing` або `request_handler_unresolvable`, залежно від поточної реалізації
+    - [x] `worker-request-handler-missing` або `worker-request-handler-unresolvable`, залежно від поточної реалізації
 
 #### Modifies
 

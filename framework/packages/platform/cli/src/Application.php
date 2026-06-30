@@ -341,7 +341,7 @@ final class Application
      * - If a command returns exitCode != 0 but never emitted OutputInterface::error(code, reason),
      *   Application MUST print one deterministic fallback error-record:
      *     code: CORETSIA_CLI_COMMAND_FAILED
-     *     reason: command-failed
+     *     reason: cli-command-failed
      */
     private function dispatch(
         InputInterface  $input,

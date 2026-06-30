@@ -50,6 +50,7 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\ConfigMerger;
 use Coretsia\Kernel\Config\ConfigRulesLoader;
@@ -67,9 +68,10 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Psr\Container\ContainerInterface;
@@ -821,7 +823,8 @@ final class KernelServiceFactory
      * The caller MUST provide:
      *
      * - the resolved container.php artifact path;
-     * - an already-read and already-validated config@1 payload.
+     * - an already-read and already-validated config@1 payload;
+     * - the resolved ModulePlan for the same runtime config snapshot.
      *
      * This method intentionally does not read source config files, run source
      * config discovery, run module discovery, register runtime providers as a
@@ -838,6 +841,7 @@ final class KernelServiceFactory
      *
      * @param non-empty-string $containerArtifactPath
      * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
+     * @param ModulePlan $modulePlan Already-resolved ModulePlan for this runtime boot.
      *
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
@@ -846,7 +850,16 @@ final class KernelServiceFactory
         ContainerInterface $container,
         string $containerArtifactPath,
         array $configPayload,
+        ModulePlan $modulePlan,
     ): FoundationContainer {
+        $config = self::runtimeConfigFromConfigPayload($configPayload);
+
+        self::assertRuntimeEntrypointCompatible(
+            container: $container,
+            config: $config,
+            modulePlan: $modulePlan,
+        );
+
         $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
 
         if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
@@ -1032,15 +1045,37 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the canonical runtime driver matrix guard.
+     * Creates the Kernel-owned runtime entrypoint guard.
      *
      * This factory performs construction only. It does not read config values,
-     * does not resolve ModulePlan, does not detect active drivers, does not cache
-     * guard results, and keeps no mutable runtime state.
+     * does not resolve ModulePlan, does not detect active drivers, does not start
+     * runtime execution, and keeps no mutable runtime state.
      */
-    public static function runtimeDriverGuard(): RuntimeDriverGuard
+    public static function runtimeEntrypointGuard(): RuntimeEntrypointGuard
     {
-        return new RuntimeDriverGuard();
+        return new RuntimeEntrypointGuard();
+    }
+
+    /**
+     * Asserts that a production runtime entrypoint may start.
+     *
+     * @param array<string, mixed> $config Already-read/validated merged config tree.
+     */
+    public static function assertRuntimeEntrypointCompatible(
+        ContainerInterface $container,
+        array $config,
+        ModulePlan $modulePlan,
+    ): void {
+        $guard = self::service($container, RuntimeEntrypointGuard::class);
+
+        if (!$guard instanceof RuntimeEntrypointGuard) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        $guard->assertEntrypointAllowed(
+            config: new ArrayConfigRepository($config),
+            modulePlan: $modulePlan,
+        );
     }
 
     /**
@@ -1599,5 +1634,26 @@ final class KernelServiceFactory
     private static function isMapArray(array $value): bool
     {
         return $value === [] || !\array_is_list($value);
+    }
+
+    /**
+     * @param array<string, mixed> $configPayload
+     *
+     * @return array<string, mixed>
+     */
+    private static function runtimeConfigFromConfigPayload(array $configPayload): array
+    {
+        if (!\array_key_exists('config', $configPayload)) {
+            throw new ContainerException('kernel-runtime-config-payload-invalid');
+        }
+
+        $config = $configPayload['config'];
+
+        if (!\is_array($config) || \array_is_list($config)) {
+            throw new ContainerException('kernel-runtime-config-payload-invalid');
+        }
+
+        /** @var array<string, mixed> $config */
+        return $config;
     }
 }

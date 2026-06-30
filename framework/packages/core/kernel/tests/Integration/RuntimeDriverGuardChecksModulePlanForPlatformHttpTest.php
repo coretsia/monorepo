@@ -18,16 +18,14 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCase
 {
@@ -235,51 +233,26 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     /**
      * @param array<string,mixed> $values
      */
-    private static function config(array $values): ConfigRepositoryInterface
+    private static function config(array $values): ArrayConfigRepository
     {
-        return new class($values) implements ConfigRepositoryInterface {
-            /**
-             * @param array<string,mixed> $values
-             */
-            public function __construct(
-                private readonly array $values,
-            ) {
-            }
-
-            public function has(string $keyPath): bool
-            {
-                return \array_key_exists($keyPath, $this->values);
-            }
-
-            public function get(string $keyPath, mixed $default = null): mixed
-            {
-                if (!\array_key_exists($keyPath, $this->values)) {
-                    return $default;
-                }
-
-                return $this->values[$keyPath];
-            }
-
-            /**
-             * @return array<string,mixed>
-             */
-            public function all(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-module-plan-test-config-all-forbidden');
-            }
-
-            public function sourceOf(string $keyPath): ?ConfigValueSource
-            {
-                throw new RuntimeException('runtime-driver-guard-module-plan-test-config-source-of-forbidden');
-            }
-
-            /**
-             * @return list<ConfigValueSource>
-             */
-            public function explain(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-module-plan-test-config-explain-forbidden');
-            }
-        };
+        return new ArrayConfigRepository([
+            'kernel' => [
+                'runtime' => [
+                    'frankenphp' => [
+                        'enabled' => $values['kernel.runtime.frankenphp.enabled'],
+                    ],
+                    'swoole' => [
+                        'enabled' => $values['kernel.runtime.swoole.enabled'],
+                    ],
+                    'roadrunner' => [
+                        'enabled' => $values['kernel.runtime.roadrunner.enabled'],
+                    ],
+                ],
+            ],
+            'worker' => [
+                'enabled' => $values['worker.enabled'],
+                'task_type' => $values['worker.task_type'],
+            ],
+        ]);
     }
 }

@@ -19,7 +19,7 @@ declare(strict_types=1);
 return [
     'outcome' => 'conflict',
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT',
-    'reason' => 'multiple_http_drivers',
+    'reason' => 'multiple-http-drivers',
     'activeDriverIds' => [
         'http.frankenphp',
         'http.swoole',

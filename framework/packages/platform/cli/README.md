@@ -159,7 +159,7 @@ If a configured command returns a reserved name:
 
 - CLI MUST fail deterministically with:
   - code: `CORETSIA_CLI_COMMAND_INVALID`
-  - reason token: `reserved-command-name`
+  - reason token: `cli-reserved-command-name`
 
 ### Instantiation policy (Phase 0)
 

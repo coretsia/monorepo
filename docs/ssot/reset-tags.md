@@ -1051,6 +1051,12 @@ If reset succeeds and observability emission fails, reset remains successful.
 
 If reset fails and observability emission also fails, the primary reset failure remains surfaced.
 
+If reset orchestration fails with an unexpected non-`ResetException` throwable, reset observability MUST emit outcome `failed` and MUST rethrow the original throwable unchanged.
+
+Unexpected non-`ResetException` throwables MUST NOT be wrapped only to repair telemetry state.
+
+Unexpected non-`ResetException` throwables MUST NOT be recorded as raw span exceptions, log context, metric labels, or exported reset diagnostics.
+
 When reset duration cannot be measured, the reset duration value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
 
 An unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.

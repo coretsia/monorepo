@@ -19,7 +19,7 @@ declare(strict_types=1);
 return [
     'outcome' => 'invalid_config',
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG',
-    'reason' => 'requires_platform_http_module',
+    'reason' => 'requires-platform-http-module',
     'activeDriverIds' => [
         'http.worker',
     ],

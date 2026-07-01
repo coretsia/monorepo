@@ -298,3 +298,348 @@ Potential deliverables:
 - record the decision in an ADR if the runtime surface changes.
 
 ---
+
+## ModulePlan artifact for pre-container runtime entrypoint guard
+
+- Status: candidate
+- Source epic: `1.350.0 Core Kernel: Runtime Drivers / Runtime Entrypoint Guard`
+- Owner area: `core/kernel`, `platform/worker`
+- Priority: later cleanup
+- Type: artifact runtime boot / module-plan artifact / runtime entrypoint boundary
+
+### Goal
+
+Move runtime entrypoint compatibility validation in artifact-only production boot to happen before compiled container construction.
+
+The current practical worker child boundary is:
+
+```text
+ArtifactRuntimeBooter::boot()
+    builds runtime container from config.php + container.php artifacts
+
+bin/coretsia-worker
+    resolves RuntimeEntrypointGuard, ConfigRepositoryInterface, and ModulePlan
+    from the built runtime container
+
+RuntimeEntrypointGuard
+    runs before WorkerPoolSpec, ApplicationWorker, KernelRuntime, and task execution
+```
+
+This is acceptable for the current worker-local executable boundary because runtime execution is still blocked before worker spec resolution and task execution.
+
+However, it is not an absolute pre-container-build guard.
+
+A future cleanup may introduce a dedicated `module-plan.php` artifact so that `ArtifactRuntimeBooter` can run `RuntimeEntrypointGuard` before calling `CompiledContainerFactory::build()`.
+
+### Candidate policy
+
+An absolute pre-container runtime entrypoint guard requires both:
+
+```text
+config.php artifact
+module-plan.php artifact
+```
+
+before:
+
+```text
+container.php artifact
+```
+
+The future artifact-only boot sequence should be:
+
+```text
+ArtifactRuntimeBooter
+    reads config.php
+    reads module-plan.php
+    hydrates ModulePlan
+    runs RuntimeEntrypointGuard
+    only then builds container.php
+```
+
+The target API shape may become:
+
+```php
+public function boot(
+    string $configArtifactPath,
+    string $modulePlanArtifactPath,
+    string $containerArtifactPath,
+): ContainerInterface
+```
+
+This is preferred over:
+
+```php
+public function boot(
+    string $configArtifactPath,
+    string $containerArtifactPath,
+    ModulePlan $modulePlan,
+): ContainerInterface
+```
+
+because `ArtifactRuntimeBooter` should remain an artifact-only production runtime boot facade. Callers should provide artifact paths, not prehydrated runtime objects.
+
+### Candidate artifact shape
+
+`ModulePlan` already exposes a stable exported scalar shape through `ModulePlan::toArray()`.
+
+A future module-plan artifact should preserve the canonical top-level shape:
+
+```text
+app
+disabled
+enabled
+modules
+optionalMissing
+preset
+schemaVersion
+topologicalOrder
+warnings
+```
+
+The accepted artifact envelope name, schema version, payload validation rules, and hydration behavior must be defined by a numbered epic, ADR, or SSoT update before implementation.
+
+The module-plan artifact MUST NOT contain:
+
+- source config payloads;
+- runtime services;
+- service instances;
+- closures;
+- resources;
+- filesystem handles;
+- raw Composer payloads;
+- raw preset payloads;
+- provider class dumps;
+- environment-specific values;
+- absolute local paths;
+- nondeterministic ordering.
+
+### Candidate implementation shape
+
+A future implementation would likely require one of:
+
+```text
+ModulePlan::fromArray()
+```
+
+or a dedicated hydrator such as:
+
+```text
+ModulePlanHydrator
+ModulePlanArtifactReader
+```
+
+The artifact boot path should not run source module discovery as a fallback.
+
+A conceptual future implementation shape:
+
+```php
+public function boot(
+    string $configArtifactPath,
+    string $modulePlanArtifactPath,
+    string $containerArtifactPath,
+): ContainerInterface {
+    $reader = new PhpArtifactReader();
+    $validator = new ArtifactSchemaValidator();
+
+    $configPayload = self::readConfigPayload(
+        reader: $reader,
+        validator: $validator,
+        configArtifactPath: $configArtifactPath,
+    );
+
+    $modulePlan = self::readModulePlan(
+        reader: $reader,
+        validator: $validator,
+        modulePlanArtifactPath: $modulePlanArtifactPath,
+    );
+
+    self::assertRuntimeEntrypointAllowed(
+        configPayload: $configPayload,
+        modulePlan: $modulePlan,
+    );
+
+    return new CompiledContainerFactory(
+        artifactReader: $reader,
+        schemaValidator: $validator,
+    )->build(
+        containerArtifactPath: $containerArtifactPath,
+        configPayload: $configPayload,
+    );
+}
+```
+
+### Worker child process shape
+
+The worker child executable should receive a module-plan artifact path, not a serialized ModulePlan payload.
+
+Future worker child arguments may become:
+
+```text
+--coretsia-worker-config=var/cache/worker/config.php
+--coretsia-worker-module-plan=var/cache/worker/module-plan.php
+--coretsia-worker-container=var/cache/worker/container.php
+```
+
+Do not pass ModulePlan data through argv as JSON, base64, serialized PHP, or any other raw payload encoding.
+
+Command-line payload transfer is not acceptable because:
+
+- command lines may be visible in process lists;
+- command lines may be captured by logs or diagnostics;
+- it duplicates artifact-layer responsibility;
+- it bypasses the deterministic artifact boundary;
+- it increases leakage risk for runtime payload data.
+
+### Candidate files
+
+```text
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+framework/packages/core/kernel/src/Module/ModulePlan.php
+framework/packages/core/kernel/src/Module/ModulePlanEntry.php
+framework/packages/core/kernel/src/Runtime/Entrypoint/RuntimeEntrypointGuard.php
+framework/packages/core/kernel/src/Config/ArrayConfigRepository.php
+framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php
+framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+
+framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php
+framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
+framework/packages/platform/worker/bin/coretsia-worker
+```
+
+Potential future files, depending on the accepted design:
+
+```text
+framework/packages/core/kernel/src/Artifacts/Builders/ModulePlanBuilder.php
+framework/packages/core/kernel/src/Artifacts/Runtime/ModulePlanArtifactReader.php
+framework/packages/core/kernel/src/Module/ModulePlanHydrator.php
+framework/packages/core/kernel/src/Module/Exception/ModulePlanHydrationException.php
+```
+
+If worker process-driver wiring owns the child command vector at that time, likely candidate files may also include:
+
+```text
+framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php
+```
+
+### Candidate tests
+
+A future implementation would need a test matrix covering at least:
+
+```text
+ArtifactRuntimeBooter rejects non-classic HTTP driver without platform.http before container.php is read
+ArtifactRuntimeBooter allows non-classic HTTP driver when platform.http is present in module-plan artifact
+ArtifactRuntimeBooter allows classic HTTP without platform.http
+ArtifactRuntimeBooter rejects missing module-plan artifact deterministically
+ArtifactRuntimeBooter rejects invalid module-plan artifact deterministically
+ArtifactRuntimeBooter rejects module-plan schema version drift deterministically
+ArtifactRuntimeBooter does not run source module discovery
+ArtifactRuntimeBooter does not resolve ModulePlan from runtime container
+ArtifactRuntimeBooter does not build container.php before runtime entrypoint guard passes
+worker child passes module-plan artifact path, not serialized ModulePlan payload
+worker child rejects missing --coretsia-worker-module-plan argument
+worker child diagnostics do not expose raw paths, payloads, argv dumps, or artifact contents
+```
+
+Candidate test files may include:
+
+```text
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRunsEntrypointGuardBeforeContainerBuildTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsMissingModulePlanArtifactTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsInvalidModulePlanArtifactTest.php
+framework/packages/core/kernel/tests/Contract/ModulePlanArtifactShapeContractTest.php
+framework/packages/core/kernel/tests/Contract/ModulePlanHydratorContractTest.php
+
+framework/packages/platform/worker/tests/Contract/WorkerChildRequiresModulePlanArtifactArgumentTest.php
+framework/packages/platform/worker/tests/Integration/WorkerChildBootRunsEntrypointGuardBeforeWorkerSpecTest.php
+```
+
+### Why not now
+
+The current cleanup strengthened runtime entrypoint validation without expanding the artifact model.
+
+Implementing absolute pre-container validation now would require:
+
+- defining a module-plan artifact envelope;
+- defining schema versioning for the module-plan artifact;
+- adding a canonical ModulePlan hydration path;
+- validating ModulePlan artifact payloads;
+- deciding artifact naming and cache paths;
+- updating artifact compiler output;
+- updating cache verification;
+- updating worker child argv shape;
+- updating proc worker command construction;
+- updating artifact boot tests;
+- updating diagnostics taxonomy;
+- updating docs, ADR, or SSoT policy.
+
+That is larger than the current runtime-boundary cleanup.
+
+The current worker child guard remains acceptable because it blocks execution before:
+
+```text
+WorkerPoolSpec
+ApplicationWorker
+KernelRuntime
+task execution
+```
+
+The normal parent `worker:start` path already runs `RuntimeEntrypointGuard` before worker pool start.
+
+### Current accepted behavior
+
+For now, keep the practical worker child boundary:
+
+```text
+ArtifactRuntimeBooter::boot()
+    builds runtime container
+
+bin/coretsia-worker
+    resolves RuntimeEntrypointGuard, ConfigRepositoryInterface, ModulePlan
+    runs RuntimeEntrypointGuard
+    resolves WorkerPoolSpec
+    resolves ApplicationWorker
+    runs worker
+```
+
+Do not introduce a partial solution by passing `ModulePlan` object directly into `ArtifactRuntimeBooter::boot()`.
+
+Do not serialize ModulePlan through argv.
+
+### Promotion condition
+
+Promote only through a numbered epic, ADR, or SSoT update.
+
+Promotion is appropriate when one of the following happens:
+
+- Coretsia introduces a dedicated module-plan artifact;
+- artifact-only production boot must validate runtime entrypoint compatibility before compiled container construction;
+- long-running runtime modes require stricter artifact/runtime separation;
+- worker child boot must be fully artifact-path-only before container build;
+- package compliance needs to verify that artifact runtime boot does not resolve ModulePlan from runtime container;
+- cache verification needs to include module-plan artifact drift;
+- runtime adapters need a uniform artifact-only pre-container guard.
+
+### Possible future epic shape
+
+```text
+1.xxx.0 Kernel: ModulePlan Artifact for Pre-Container Runtime Entrypoint Guard
+```
+
+Potential deliverables:
+
+- define the canonical module-plan artifact envelope and schema version;
+- introduce `ModulePlanBuilder` or equivalent artifact builder;
+- introduce `ModulePlanHydrator` or `ModulePlan::fromArray()`;
+- introduce `ModulePlanArtifactReader` if artifact reading should stay separate;
+- update `ArtifactRuntimeBooter::boot()` to accept `modulePlanArtifactPath`;
+- run `RuntimeEntrypointGuard` before `CompiledContainerFactory::build()`;
+- update worker child argv shape to include `--coretsia-worker-module-plan`;
+- update proc worker command construction;
+- update artifact compiler and cache verifier;
+- ensure diagnostics never expose raw paths, argv dumps, artifact payloads, or module-plan payload dumps;
+- add tests proving container.php is not read before entrypoint guard passes;
+- update relevant ADR and SSoT documents.
+
+---

@@ -20,30 +20,30 @@ namespace Coretsia\Kernel\Tests\Contract;
 
 use PHPUnit\Framework\TestCase;
 
-final class KernelRuntimeDriverPublicApiContractTest extends TestCase
+final class KernelRuntimeDriverAndEntrypointPublicApiContractTest extends TestCase
 {
     /**
      * @var list<non-empty-string>
      */
-    private const array RUNTIME_DRIVER_PUBLIC_SYMBOLS = [
+    private const array RUNTIME_DRIVER_AND_ENTRYPOINT_PUBLIC_SYMBOLS = [
         'Coretsia\\Kernel\\Runtime\\Driver\\BackgroundDriver',
         'Coretsia\\Kernel\\Runtime\\Driver\\HttpDriver',
-        'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDriverGuard',
         'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDrivers',
+        'Coretsia\\Kernel\\Runtime\\Entrypoint\\RuntimeEntrypointGuard',
         'Coretsia\\Kernel\\Runtime\\Exception\\RuntimeDriverConflictException',
         'Coretsia\\Kernel\\Runtime\\Exception\\RuntimeDriverInvalidConfigException',
     ];
 
-    public function testRuntimeDriverPublicApiSymbolsAreListedInPublicApiManifest(): void
+    public function testRuntimeDriverAndEntrypointPublicApiSymbolsAreListedInPublicApiManifest(): void
     {
         $publicSymbols = self::publicApiSymbols();
 
-        foreach (self::RUNTIME_DRIVER_PUBLIC_SYMBOLS as $symbol) {
+        foreach (self::RUNTIME_DRIVER_AND_ENTRYPOINT_PUBLIC_SYMBOLS as $symbol) {
             self::assertContains(
                 $symbol,
                 $publicSymbols,
                 \sprintf(
-                    'Runtime driver public API symbol "%s" must be listed in PUBLIC_API.md.',
+                    'Runtime driver/entrypoint public API symbol "%s" must be listed in PUBLIC_API.md.',
                     $symbol,
                 ),
             );

@@ -90,13 +90,15 @@ Kernel owns:
 
 Runtime-driver composition must be checked before worker pool startup.
 
-The canonical runtime-driver matrix guard is:
+The canonical public runtime entrypoint compatibility boundary is:
 
 ```text
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
 The worker package must not duplicate runtime-driver matrix policy.
+
+It must not call the Kernel-internal `RuntimeDriverGuard` directly.
 
 ## Decision
 
@@ -186,27 +188,21 @@ It must not read environment variables for defaults.
 
 It must not invent missing defaults outside the package-owned defaults file.
 
-## Runtime-driver guard decision
+## Runtime entrypoint guard decision
 
-`WorkerStartCommand` must call `RuntimeDriverGuard` before starting the worker pool.
+`WorkerStartCommand` must call `RuntimeEntrypointGuard` before creating `WorkerPoolSpec`, resolving `WorkerManager`, or starting the worker pool.
 
 The command must call:
 
 ```text
-RuntimeDriverGuard::assertCompatible(...)
+RuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
-before creating or starting the worker manager.
+with the resolved runtime config snapshot and caller-provided `ModulePlan`.
 
-When `worker.task_type=http`, the command must also call:
+The worker package must not call the Kernel-internal `RuntimeDriverGuard` directly.
 
-```text
-RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)
-```
-
-with the caller-provided `ModulePlan`.
-
-Runtime-driver guard failures must be surfaced using the guard's deterministic error codes and reason tokens.
+Runtime-driver matrix failures must be surfaced using the Kernel runtime-driver matrix deterministic error codes and reason tokens.
 
 The worker package must not translate guard failures into worker-specific driver conflict errors.
 
@@ -217,7 +213,11 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 ```
 
-Missing `platform.http` for `worker.task_type=http` must fail through the runtime-driver guard before `RequestHandlerInterface` resolution.
+The compatibility check is based on the complete runtime-driver matrix, not only on `worker.task_type`.
+
+In particular, the worker package MUST NOT decide independently that `platform.http` is required only for `worker.task_type=http`.
+
+Missing `platform.http` for any selected non-classic HTTP driver must fail through `RuntimeEntrypointGuard` before `RequestHandlerInterface` resolution.
 
 ## CLI command decision
 
@@ -274,6 +274,7 @@ It delegates process-specific behavior to package-internal `WorkerManagerDriverI
 - write stop files directly;
 - write socket files directly;
 - call `RuntimeDriverGuard`;
+- call `RuntimeEntrypointGuard`;
 - call `KernelRuntimeInterface` for individual task execution;
 - enumerate reset tags;
 - enumerate before/after UnitOfWork hook tags;
@@ -413,14 +414,14 @@ It must not depend on `platform/http`.
 
 It may validate that `Psr\Http\Server\RequestHandlerInterface` is resolvable.
 
-Request-handler preflight must happen only after RuntimeDriverGuard/module compatibility has passed.
+Request-handler preflight must happen only after RuntimeEntrypointGuard compatibility has passed.
 
 Request handler preflight failures use deterministic worker start failures:
 
 ```text
-request_handler_missing
-request_handler_unresolvable
-request_handler_invalid
+worker-request-handler-missing
+worker-request-handler-unresolvable
+worker-request-handler-invalid
 ```
 
 ## Worker state decision
@@ -763,8 +764,8 @@ These tests are expected to verify:
 - process drivers do not execute task logic directly;
 - process drivers do not call KernelRuntime directly;
 - WorkerManager does not enforce runtime-driver guard policy;
-- WorkerStartCommand invokes RuntimeDriverGuard before pool startup;
-- HTTP task mode checks module compatibility before request handler resolution;
+- WorkerStartCommand invokes RuntimeEntrypointGuard before WorkerPoolSpec creation and pool startup;
+- HTTP task factory checks RuntimeEntrypointGuard compatibility before request handler resolution;
 - worker command classes use contracts-level CLI ports only;
 - worker runtime code does not write stdout or stderr directly;
 - worker exceptions expose stable error codes and reason tokens;

@@ -65,7 +65,20 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         private LoggerInterface $logger,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
+        private int $attributesMaxDepth,
+        private int $attributesMaxKeys,
     ) {
+        if ($attributesMaxDepth < 1) {
+            throw KernelRuntimeException::withReason(
+                KernelRuntimeException::REASON_UOW_ATTRIBUTES_MAX_DEPTH_INVALID,
+            );
+        }
+
+        if ($attributesMaxKeys < 1) {
+            throw KernelRuntimeException::withReason(
+                KernelRuntimeException::REASON_UOW_ATTRIBUTES_MAX_KEYS_INVALID,
+            );
+        }
     }
 
     /**
@@ -266,6 +279,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 startedAt: $this->safeStartTimer(),
                 correlationId: $this->correlationId(),
                 attributes: $attributes,
+                attributesMaxDepth: $this->attributesMaxDepth,
+                attributesMaxKeys: $this->attributesMaxKeys,
             );
         } catch (KernelRuntimeException $exception) {
             throw $exception;
@@ -444,6 +459,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 startedAt: $context['startedAt'],
                 correlationId: $context['correlationId'],
                 attributes: $context['attributes'],
+                attributesMaxDepth: $this->attributesMaxDepth,
+                attributesMaxKeys: $this->attributesMaxKeys,
             );
         } catch (KernelRuntimeException $exception) {
             throw $exception;

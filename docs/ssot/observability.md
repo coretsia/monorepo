@@ -210,6 +210,54 @@ docs/ssot/observability-and-errors.md
 
 This cross-reference MUST NOT introduce additional reset metric names, reset metric labels, reset span names, or reset logging payload fields.
 
+### Kernel ModulePlan resolution observability policy
+
+Kernel ModulePlan resolution observability is owned by `core/kernel`.
+
+The canonical metrics are:
+
+```text
+kernel.modules_resolve_total
+kernel.modules_resolve_duration_ms
+```
+
+These metric families MUST use only the following labels:
+
+```text
+operation
+outcome
+```
+
+The only allowed `operation` value is:
+
+```text
+resolve
+```
+
+Allowed `outcome` values are:
+
+```text
+success
+preset_not_found
+preset_invalid
+manifest_invalid
+discovery_source_unsupported
+conflict
+required_missing
+cycle
+unexpected_failure
+```
+
+`success` MUST be emitted only after full successful `ModulePlan` resolution.
+
+Known deterministic `ModuleResolutionException` failures MUST emit their mapped outcome token.
+
+Unexpected non-`ModuleResolutionException` throwables MUST emit `unexpected_failure` and MUST be rethrown unchanged.
+
+ModulePlan resolution observability MUST NOT expose module ids, preset names, app targets, filesystem paths, raw Composer metadata, raw preset payloads, raw exception messages, previous throwable messages, stack traces, secrets, or PII.
+
+ModulePlan resolution observability failures and stopwatch failures MUST NOT change `ModulePlan` resolution behavior or failure precedence.
+
 ### Kernel config metrics label policy
 
 Kernel config metrics are operation-specific by metric name.

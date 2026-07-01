@@ -61,7 +61,7 @@ final class PriorityResetStopwatchFailurePolicyContractTest extends TestCase
         $resetAll = self::methodBody($source, 'resetAll');
 
         self::assertStringContainsString('$startedAt = $this->safeStartTimer();', $resetAll);
-        self::assertStringContainsString('$durationMs = $this->safeStopTimer($startedAt);', $resetAll);
+        self::assertStringContainsString('$this->emitObservabilitySummaryForStartedAt(', $resetAll);
 
         self::assertStringNotContainsString(
             '->stopwatch->start(',
@@ -73,6 +73,76 @@ final class PriorityResetStopwatchFailurePolicyContractTest extends TestCase
             '->stopwatch->stop(',
             $resetAll,
             'resetAll() must not call Stopwatch::stop() directly.',
+        );
+    }
+
+    public function testSummaryHelperUsesSafeStopwatchWrapper(): void
+    {
+        $source = self::stripPhpComments(
+            self::sourceFile('src/Runtime/Reset/PriorityResetOrchestrator.php'),
+        );
+
+        $summaryHelper = self::methodBody($source, 'emitObservabilitySummaryForStartedAt');
+
+        self::assertStringContainsString(
+            '$durationMs = $this->safeStopTimer($startedAt);',
+            $summaryHelper,
+        );
+
+        self::assertStringContainsString(
+            '$this->emitObservabilitySummary(',
+            $summaryHelper,
+        );
+
+        self::assertStringNotContainsString(
+            '->stopwatch->start(',
+            $summaryHelper,
+            'Summary helper must not call Stopwatch::start() directly.',
+        );
+
+        self::assertStringNotContainsString(
+            '->stopwatch->stop(',
+            $summaryHelper,
+            'Summary helper must not call Stopwatch::stop() directly.',
+        );
+    }
+
+    public function testResetAllMarksUnexpectedThrowableAsFailedWithoutWrappingIt(): void
+    {
+        $source = self::stripPhpComments(
+            self::sourceFile('src/Runtime/Reset/PriorityResetOrchestrator.php'),
+        );
+
+        $resetAll = self::methodBody($source, 'resetAll');
+
+        self::assertStringContainsString(
+            '} catch (\Throwable $exception) {',
+            $resetAll,
+            'resetAll() must catch unexpected throwables before summary telemetry is emitted.',
+        );
+
+        self::assertStringContainsString(
+            'outcome: self::OUTCOME_FAILED,',
+            $resetAll,
+            'Unexpected reset throwables must emit failed summary telemetry.',
+        );
+
+        self::assertStringContainsString(
+            'failure: null,',
+            $resetAll,
+            'Unexpected reset throwables must not be recorded as raw arbitrary Throwable diagnostics.',
+        );
+
+        self::assertStringContainsString(
+            'throw $exception;',
+            $resetAll,
+            'Unexpected reset throwables must be rethrown without wrapping.',
+        );
+
+        self::assertStringNotContainsString(
+            'ResetException::serviceFailed($exception)',
+            $resetAll,
+            'resetAll() must not wrap unexpected throwables only to fix telemetry state.',
         );
     }
 

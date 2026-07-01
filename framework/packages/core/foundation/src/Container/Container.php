@@ -160,6 +160,24 @@ final class Container implements ContainerInterface
         throw new NotFoundException($id);
     }
 
+    /**
+     * Returns whether the container can resolve the id under Coretsia's strict
+     * resolution policy.
+     *
+     * Invalid ids, unknown ids, and unbound interfaces/abstract classes return
+     * false.
+     *
+     * Explicit definitions and already-registered instances return true.
+     *
+     * For unregistered existing concrete class ids, this method evaluates the same
+     * strict concrete-class autowire policy as canAutowire(). Missing or invalid
+     * foundation.container config therefore fails deterministically with
+     * ContainerException instead of silently guessing autowire defaults.
+     *
+     * @throws ContainerExceptionInterface when strict concrete-class autowire
+     *     policy cannot be evaluated because Foundation container config is
+     *     missing or invalid.
+     */
     public function has(string $id): bool
     {
         if (!self::isValidServiceId($id)) {

@@ -76,7 +76,7 @@ final class ContainerCanAutowireIsStrictOnMissingConfigTest extends TestCase
         );
     }
 
-    public function testHasUsesTheSameStrictAutowireConfigPathForConcreteClasses(): void
+    public function testHasFailsDeterministicallyForConcreteClassesWhenAutowireConfigIsMissing(): void
     {
         $container = new Container(config: []);
 

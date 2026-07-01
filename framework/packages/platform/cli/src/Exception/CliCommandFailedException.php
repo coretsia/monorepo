@@ -29,7 +29,7 @@ use Coretsia\Platform\Cli\Error\ErrorCodes;
  */
 final class CliCommandFailedException extends CliException
 {
-    public const string REASON_COMMAND_FAILED = 'command-failed';
+    public const string REASON_COMMAND_FAILED = 'cli-command-failed';
 
     /** @var list<string> */
     private const array ALLOWED_REASONS = [

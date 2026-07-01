@@ -73,7 +73,7 @@ final class CliRejectsMissingCommandClassDeterministicallyTest extends TestCase
 
             self::assertCount(2, $lines, 'CLI deterministic failure MUST emit exactly 2 stderr lines.');
             self::assertSame('CORETSIA_CLI_COMMAND_CLASS_MISSING', $lines[0]);
-            self::assertSame('class-not-found', $lines[1]);
+            self::assertSame('cli-class-not-found', $lines[1]);
 
             self::assertStringNotContainsString('C:\\', $stderr);
             self::assertStringNotContainsString('\\\\', $stderr);

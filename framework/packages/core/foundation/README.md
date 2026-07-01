@@ -233,6 +233,26 @@ Autowiring is strict:
 - Missing `config['foundation']` MUST fail deterministically.
 - Missing `config['foundation']['container']` MUST fail deterministically.
 
+`Container::has($id)` is intentionally not a pure metadata-only check for unregistered concrete class ids.
+
+Its behavior is:
+
+```text
+invalid id                  → false
+known definition/instance   → true
+unknown non-class id        → false
+unbound interface/abstract  → false
+unregistered concrete class → strict concrete-class autowire check
+```
+
+For unregistered existing concrete class ids, `Container::has($id)` evaluates the same strict policy as `Container::canAutowire($id)`.
+
+If `foundation.container` is missing or invalid, `Container::has(SomeConcrete::class)` MAY throw `Coretsia\Foundation\Container\Exception\ContainerException` instead of returning `false`.
+
+This is Coretsia-specific strict behavior. Integration code that needs an exception-free PSR-11 presence probe SHOULD catch `Psr\Container\ContainerExceptionInterface` around `has()` and apply its own fallback policy.
+
+Foundation MUST NOT introduce hidden container defaults inside `has()` to make malformed configuration appear valid.
+
 Baseline Foundation services are registered explicitly by the provider and MUST remain resolvable without relying on concrete-class autowiring.
 
 ## Tags and deterministic discovery

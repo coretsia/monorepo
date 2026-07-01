@@ -38,6 +38,8 @@ final class KernelRuntimeException extends \RuntimeException
     public const string REASON_INVALID_OUTCOME = 'kernel-runtime-invalid-outcome';
     public const string REASON_INVALID_CONTEXT = 'kernel-runtime-invalid-context';
     public const string REASON_INVALID_RESULT = 'kernel-runtime-invalid-result';
+    public const string REASON_UOW_ATTRIBUTES_MAX_DEPTH_INVALID = 'kernel-runtime-uow-attributes-max-depth-invalid';
+    public const string REASON_UOW_ATTRIBUTES_MAX_KEYS_INVALID = 'kernel-runtime-uow-attributes-max-keys-invalid';
     public const string REASON_HOOK_SERVICE_NOT_FOUND = 'kernel-runtime-hook-service-not-found';
     public const string REASON_HOOK_SERVICE_INVALID = 'kernel-runtime-hook-service-invalid';
     public const string REASON_HOOK_PAYLOAD_INVALID = 'kernel-runtime-hook-payload-invalid';
@@ -51,6 +53,8 @@ final class KernelRuntimeException extends \RuntimeException
         self::REASON_INVALID_OUTCOME => true,
         self::REASON_INVALID_CONTEXT => true,
         self::REASON_INVALID_RESULT => true,
+        self::REASON_UOW_ATTRIBUTES_MAX_DEPTH_INVALID => true,
+        self::REASON_UOW_ATTRIBUTES_MAX_KEYS_INVALID => true,
         self::REASON_HOOK_SERVICE_NOT_FOUND => true,
         self::REASON_HOOK_SERVICE_INVALID => true,
         self::REASON_HOOK_PAYLOAD_INVALID => true,

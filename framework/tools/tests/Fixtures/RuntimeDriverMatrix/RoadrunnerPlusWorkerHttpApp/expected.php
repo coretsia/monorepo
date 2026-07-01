@@ -19,7 +19,7 @@ declare(strict_types=1);
 return [
     'outcome' => 'conflict',
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT',
-    'reason' => 'worker_http_conflicts_with_http_driver',
+    'reason' => 'worker-http-conflicts-with-http-driver',
     'activeDriverIds' => [
         'http.roadrunner',
         'http.worker',

@@ -119,14 +119,25 @@ return [
     /*
      * Runtime driver defaults.
      *
-     * Non-classic HTTP runtime drivers are opt-in. With these defaults and no
-     * worker runtime enabled, RuntimeDriverGuard resolves the safe classic HTTP
-     * driver.
+     * Non-classic HTTP runtime drivers are opt-in.
+     *
+     * `core/kernel` owns only `kernel.runtime.*` default flags.
      *
      * Worker runtime inputs are intentionally not defined here. The `worker.*`
-     * config root is introduced by the future platform/worker owner epic. Before
-     * that root exists, missing `worker.enabled` is treated as false and missing
-     * `worker.task_type` must not activate any runtime driver.
+     * config root, its defaults, and its full subtree validation are owned by the
+     * package that owns the worker runtime.
+     *
+     * The runtime-driver entrypoint guard consumes the merged runtime config
+     * snapshot. That snapshot must contain the required runtime-driver input keys
+     * before the guard runs.
+     *
+     * `worker.enabled` is an external runtime-owner input. When it is `false`,
+     * `worker.task_type` is not required. When it is `true`, `worker.task_type`
+     * must be present and must select a supported worker task type.
+     *
+     * With these Kernel defaults and an external runtime-owner default of
+     * `worker.enabled = false`, the runtime-driver matrix resolves the safe
+     * classic HTTP driver.
      */
     'runtime' => [
         'frankenphp' => [

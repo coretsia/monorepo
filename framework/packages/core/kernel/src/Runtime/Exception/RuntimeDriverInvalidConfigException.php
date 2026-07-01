@@ -40,8 +40,11 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
 {
     public const string ERROR_CODE = 'CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG';
 
-    public const string REASON_REQUIRES_PLATFORM_HTTP_MODULE = 'requires_platform_http_module';
-    public const string REASON_WORKER_TASK_TYPE_INVALID = 'worker_task_type_invalid';
+    public const string REASON_REQUIRES_PLATFORM_HTTP_MODULE = 'requires-platform-http-module';
+    public const string REASON_CONFIG_KEY_MISSING = 'config-key-missing';
+    public const string REASON_CONFIG_KEY_INVALID = 'config-key-invalid';
+    public const string REASON_WORKER_TASK_TYPE_MISSING = 'worker-task-type-missing';
+    public const string REASON_WORKER_TASK_TYPE_INVALID = 'worker-task-type-invalid';
 
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
 
@@ -50,6 +53,9 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
      */
     private const array REASONS = [
         self::REASON_REQUIRES_PLATFORM_HTTP_MODULE => true,
+        self::REASON_CONFIG_KEY_MISSING => true,
+        self::REASON_CONFIG_KEY_INVALID => true,
+        self::REASON_WORKER_TASK_TYPE_MISSING => true,
         self::REASON_WORKER_TASK_TYPE_INVALID => true,
     ];
 
@@ -107,6 +113,36 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
             self::REASON_REQUIRES_PLATFORM_HTTP_MODULE,
             $activeDriverIds,
             [self::MODULE_PLATFORM_HTTP],
+        );
+    }
+
+    public static function configKeyMissing(): self
+    {
+        return new self(
+            self::REASON_CONFIG_KEY_MISSING,
+            [],
+            [],
+        );
+    }
+
+    public static function configKeyInvalid(): self
+    {
+        return new self(
+            self::REASON_CONFIG_KEY_INVALID,
+            [],
+            [],
+        );
+    }
+
+    /**
+     * @param list<string> $activeDriverIds
+     */
+    public static function workerTaskTypeMissing(array $activeDriverIds = []): self
+    {
+        return new self(
+            self::REASON_WORKER_TASK_TYPE_MISSING,
+            $activeDriverIds,
+            [],
         );
     }
 

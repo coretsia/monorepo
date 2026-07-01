@@ -192,6 +192,10 @@ Disabled modules MAY appear in the exported `ModulePlan::disabled()` list.
 
 The disabled list MUST be sorted by module id using byte-order `strcmp`.
 
+A disabled module MUST NOT appear in `ModulePlan::optionalMissing()`.
+
+If a module is explicitly disabled by preset policy, it is disabled, not optional-missing.
+
 If a preset-required module is also disabled, resolution MUST hard fail as a conflict:
 
 ```text
@@ -388,6 +392,16 @@ When graph resolution succeeds, the resulting `ModulePlan` MUST contain:
 - topological order preserving dependency order;
 - module entries keyed by module id and sorted by byte-order `strcmp`;
 - warning list sorted by canonical warning key.
+
+The resulting `ModulePlan` module id sets MUST be pairwise disjoint:
+
+```text
+enabled ∩ disabled = ∅
+enabled ∩ optionalMissing = ∅
+disabled ∩ optionalMissing = ∅
+```
+
+Graph resolution MUST NOT produce a `ModulePlan` where the same module id is exported in more than one of `enabled`, `disabled`, or `optionalMissing`.
 
 `topologicalOrder` MUST contain all enabled modules exactly once.
 

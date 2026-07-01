@@ -215,6 +215,28 @@ A present but unreadable or invalid preset file is a deterministic hard failure:
 CORETSIA_MODE_PRESET_INVALID
 ```
 
+Kernel-owned loaded preset construction MUST NOT be weaker than Kernel-owned preset schema validation.
+
+`Coretsia\Kernel\Module\ModePreset` is an internal loaded-preset value object, but direct construction MUST still enforce the same stored-value safety policy as the validated loader path.
+
+Direct construction MUST reject values that would be rejected by `ModePresetSchemaValidator`, including:
+
+```text
+preset names longer than 64 bytes
+unsafe preset name characters
+unsafe preset name start characters
+path-like descriptions
+featureBundles / metadata depth overflow
+featureBundles / metadata map key overflow
+featureBundles / metadata string length overflow
+path-like featureBundles / metadata keys
+path-like featureBundles / metadata string values
+floats, objects, closures, resources
+overlapping required / optional / disabled module sets
+```
+
+This prevents tests, internal helpers, and future construction paths from creating a `ModePreset` state that could not have been loaded through the canonical schema-validating loader path.
+
 Resolved filesystem paths MUST NOT be exported in diagnostics, logs, warnings, or `ModulePlan`.
 
 ## Forbidden parallel module-selection paths
@@ -341,6 +363,20 @@ requires
 ```
 
 `enabled`, `disabled`, and `optionalMissing` are module id lists sorted by byte-order `strcmp`.
+
+`enabled`, `disabled`, and `optionalMissing` MUST be pairwise disjoint.
+
+The following intersections MUST be empty:
+
+```text
+enabled ∩ disabled
+enabled ∩ optionalMissing
+disabled ∩ optionalMissing
+```
+
+A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
+
+`ModulePlan` construction MUST reject contradictory module set state before the plan is used as artifact-ready output.
 
 `topologicalOrder` preserves dependency order and must be deterministic.
 

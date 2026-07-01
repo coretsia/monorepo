@@ -301,6 +301,39 @@ The `shared` flag applies only to container definitions. It MUST NOT alter `TagR
 
 Alias-like definitions that delegate to another service SHOULD be non-shared wrappers unless the alias owner intentionally wants the alias itself to cache the resolved target. Compiled-container runtime aliases MUST be non-shared delegation wrappers so that aliases do not accidentally turn non-shared target services into shared services.
 
+## Foundation container strict presence policy
+
+Foundation container presence checks are deterministic and config-strict.
+
+`Container::has($id)` MUST return `false` for invalid service ids.
+
+`Container::has($id)` MUST return `true` for already registered definitions and already registered instances.
+
+`Container::has($id)` MUST return `false` for unknown non-class ids.
+
+`Container::has($id)` MUST return `false` for unbound interfaces and abstract classes.
+
+For unregistered existing concrete class ids, `Container::has($id)` MUST evaluate the same strict concrete-class autowire policy as `Container::canAutowire($id)`.
+
+The strict concrete-class autowire policy requires the merged runtime config to contain:
+
+```text
+foundation.container.autowire_concrete
+foundation.container.allow_reflection_for_concrete
+```
+
+with boolean values.
+
+If `foundation.container` is missing or invalid, `Container::has(SomeConcrete::class)` MAY throw the Foundation container exception instead of returning `false`.
+
+This is intentional Coretsia-specific strict behavior.
+
+Foundation MUST NOT silently guess autowire defaults inside `Container::has()`.
+
+Foundation MUST NOT introduce a second soft-resolution path that makes `has()` and `get()` disagree about whether malformed container config is acceptable.
+
+Integration code that requires exception-free PSR-11 probing SHOULD catch `Psr\Container\ContainerExceptionInterface` around `has()` and apply integration-owned fallback behavior.
+
 ## HTTP middleware slot references
 
 The canonical HTTP middleware slot taxonomy is owned by:

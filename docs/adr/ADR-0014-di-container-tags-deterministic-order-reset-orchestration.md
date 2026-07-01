@@ -439,6 +439,24 @@ The container may use reflection only for allowed concrete-class resolution duri
 
 Autowiring must not silently guess defaults when the Foundation container config is missing.
 
+`Container::has($id)` participates in the same strict autowire policy for unregistered existing concrete class ids.
+
+`Container::has($id)` behavior is:
+
+```text
+invalid id                  → false
+known definition/instance   → true
+unknown non-class id        → false
+unbound interface/abstract  → false
+unregistered concrete class → strict concrete-class autowire check
+```
+
+Therefore, `Container::has(SomeConcrete::class)` MAY throw `Coretsia\Foundation\Container\Exception\ContainerException` when `foundation.container` is missing or invalid.
+
+This is intentional Coretsia-specific strict behavior.
+
+The container MUST NOT introduce hidden autowire defaults inside `has()` only to make presence checks exception-free.
+
 ## Config decision
 
 `core/foundation` owns the reserved config root:
@@ -1393,6 +1411,7 @@ Required test areas include:
 
 - interfaces are not autowired;
 - `Container::canAutowire()` is strict on missing Foundation config;
+- `Container::has()` is strict on missing Foundation config when checking unregistered existing concrete class ids;
 - provider order is preserved exactly;
 - later container bindings override earlier bindings;
 - `ContainerBuilder::factory(..., shared: false)` returns a fresh value on repeated `Container::get($id)` calls;

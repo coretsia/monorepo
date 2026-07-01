@@ -39,8 +39,10 @@ use Coretsia\Contracts\Module\ModuleId;
  */
 final readonly class ModePreset implements ModePresetInterface
 {
+    private const int MAX_PRESET_NAME_BYTES = 64;
     private const int MAX_JSON_DEPTH = 16;
     private const int MAX_JSON_MAP_KEYS = 256;
+    private const int MAX_JSON_STRING_BYTES = 1024;
     private const int MAX_SAFE_DESCRIPTION_BYTES = 512;
 
     private const string SAFE_PRESET_NAME_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789-';
@@ -322,7 +324,12 @@ final readonly class ModePreset implements ModePresetInterface
         $normalized = [];
 
         foreach ($value as $key => $item) {
-            if (!\is_string($key) || $key === '') {
+            if (
+                !\is_string($key)
+                || $key === ''
+                || !self::hasNoControlCharacters($key)
+                || self::isPathLikeString($key)
+            ) {
                 throw new \InvalidArgumentException('mode-preset-' . $field . '-map-key-invalid');
             }
 
@@ -361,7 +368,15 @@ final readonly class ModePreset implements ModePresetInterface
             return false;
         }
 
+        if (\strlen($name) > self::MAX_PRESET_NAME_BYTES) {
+            return false;
+        }
+
         if (!self::isAsciiLowerAlpha($name[0])) {
+            return false;
+        }
+
+        if (\str_contains($name, '..')) {
             return false;
         }
 
@@ -378,12 +393,24 @@ final readonly class ModePreset implements ModePresetInterface
             return false;
         }
 
-        return self::hasNoControlCharacters($description);
+        if (!self::hasNoControlCharacters($description)) {
+            return false;
+        }
+
+        return !self::isPathLikeString($description);
     }
 
     private static function isSafeJsonLikeString(string $value): bool
     {
-        return self::hasNoControlCharacters($value);
+        if (!self::hasNoControlCharacters($value)) {
+            return false;
+        }
+
+        if (\strlen($value) > self::MAX_JSON_STRING_BYTES) {
+            return false;
+        }
+
+        return !self::isPathLikeString($value);
     }
 
     private static function hasNoControlCharacters(string $value): bool
@@ -401,8 +428,58 @@ final readonly class ModePreset implements ModePresetInterface
         return true;
     }
 
+    private static function isPathLikeString(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        if (\str_contains($value, "\0")) {
+            return true;
+        }
+
+        if ($value[0] === '/' || $value[0] === '\\') {
+            return true;
+        }
+
+        if (\str_contains($value, '\\')) {
+            return true;
+        }
+
+        if (\str_contains($value, '://')) {
+            return true;
+        }
+
+        if (\strlen($value) >= 2 && $value[1] === ':' && self::isAsciiAlpha($value[0])) {
+            return true;
+        }
+
+        if (
+            $value === '.'
+            || $value === '..'
+            || \str_starts_with($value, './')
+            || \str_starts_with($value, '../')
+            || \str_ends_with($value, '/.')
+            || \str_ends_with($value, '/..')
+        ) {
+            return true;
+        }
+
+        if (\str_contains($value, '/./') || \str_contains($value, '/../')) {
+            return true;
+        }
+
+        return false;
+    }
+
     private static function isAsciiLowerAlpha(string $char): bool
     {
         return $char >= 'a' && $char <= 'z';
+    }
+
+    private static function isAsciiAlpha(string $char): bool
+    {
+        return ($char >= 'a' && $char <= 'z')
+            || ($char >= 'A' && $char <= 'Z');
     }
 }

@@ -211,6 +211,39 @@ Runtime dependency metadata MUST NOT expose:
 - environment-specific values;
 - secrets or PII.
 
+## Kernel ModulePlan output invariants
+
+Kernel-owned `ModulePlan` output is artifact-ready resolved module graph state.
+
+The resolved module id sets:
+
+```text
+enabled
+disabled
+optionalMissing
+```
+
+MUST be pairwise disjoint.
+
+The following intersections MUST be empty:
+
+```text
+enabled ∩ disabled
+enabled ∩ optionalMissing
+disabled ∩ optionalMissing
+```
+
+A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
+
+`topologicalOrder` and `modules` are derived from enabled modules only. They MUST NOT contain disabled modules or optional-missing modules.
+
+Detailed graph-resolution ordering, conflict classification, optional-missing behavior, and ModulePlan construction policy are owned by:
+
+```text
+docs/adr/ADR-0024-kernel-module-plan-resolution.md
+docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+```
+
 ## Package-index lock-source alignment
 
 The Phase 0 workspace package-index prototype cemented this metadata shape:

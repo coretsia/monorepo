@@ -631,6 +631,10 @@ The first existing preset file wins.
 
 Skeleton mode preset overrides replace framework defaults. They are not merged.
 
+Kernel-owned loaded mode preset construction is not weaker than preset schema validation.
+
+`Coretsia\Kernel\Module\ModePreset` is internal, but direct construction still rejects values that would be rejected by `ModePresetSchemaValidator`, including unsafe preset names, path-like descriptions, unsafe feature bundle / metadata strings or keys, excessive JSON-like depth/key/string limits, and overlapping required / optional / disabled module sets.
+
 Module discovery is metadata-only. Runtime module discovery uses Composer installed metadata and Coretsia module metadata under:
 
 ```text
@@ -656,6 +660,18 @@ extra.coretsia.conflicts
 Composer package-level `require` and `conflict` are not Coretsia runtime module graph edges unless explicitly represented in `extra.coretsia.requires` or `extra.coretsia.conflicts`.
 
 ModulePlan output is deterministic and artifact-ready.
+
+`ModulePlan` is an immutable artifact-ready value object and rejects contradictory module set state.
+
+The following intersections MUST be empty:
+
+```text
+enabled ∩ disabled
+enabled ∩ optionalMissing
+disabled ∩ optionalMissing
+```
+
+A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
 
 ModulePlan resolution itself does not write artifacts. Kernel artifact production may materialize the ModulePlan-derived `module-manifest.php` artifact through `ArtifactCompiler` and `ModuleManifestBuilder`.
 

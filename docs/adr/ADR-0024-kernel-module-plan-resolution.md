@@ -421,7 +421,22 @@ discovery_source_unsupported
 conflict
 required_missing
 cycle
+unexpected_failure
 ```
+
+`success` MUST be emitted only after full successful `ModulePlan` resolution.
+
+Known `ModuleResolutionException` failures MUST emit the mapped deterministic outcome token.
+
+Unexpected non-`ModuleResolutionException` throwables MUST emit:
+
+```text
+unexpected_failure
+```
+
+and MUST be rethrown unchanged.
+
+Unexpected throwables MUST NOT be logged through the deterministic module-resolution failure logger because that logger owns only safe `ModuleResolutionException` diagnostics.
 
 Metric labels for module-plan resolution are summary-only and fixed to:
 

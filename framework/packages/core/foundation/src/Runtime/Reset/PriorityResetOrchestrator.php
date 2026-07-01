@@ -81,7 +81,6 @@ final readonly class PriorityResetOrchestrator
         $servicesCount = 0;
         $groupsCount = 0;
         $span = null;
-        $failure = null;
 
         try {
             $taggedServices = $this->tagRegistry->all($effectiveResetTag);
@@ -93,22 +92,37 @@ final readonly class PriorityResetOrchestrator
             $groupsCount = self::groupsCount($plan);
 
             $this->executePlan($plan);
-        } catch (ResetException $exception) {
-            $failure = $exception;
 
-            throw $exception;
-        } finally {
-            $durationMs = $this->safeStopTimer($startedAt);
-            $outcome = $failure === null ? self::OUTCOME_OK : self::OUTCOME_FAILED;
-
-            $this->emitObservabilitySummary(
+            $this->emitObservabilitySummaryForStartedAt(
+                startedAt: $startedAt,
                 span: $span,
                 servicesCount: $servicesCount,
                 groupsCount: $groupsCount,
-                outcome: $outcome,
-                durationMs: $durationMs,
-                failure: $failure,
+                outcome: self::OUTCOME_OK,
+                failure: null,
             );
+        } catch (ResetException $exception) {
+            $this->emitObservabilitySummaryForStartedAt(
+                startedAt: $startedAt,
+                span: $span,
+                servicesCount: $servicesCount,
+                groupsCount: $groupsCount,
+                outcome: self::OUTCOME_FAILED,
+                failure: $exception,
+            );
+
+            throw $exception;
+        } catch (\Throwable $exception) {
+            $this->emitObservabilitySummaryForStartedAt(
+                startedAt: $startedAt,
+                span: $span,
+                servicesCount: $servicesCount,
+                groupsCount: $groupsCount,
+                outcome: self::OUTCOME_FAILED,
+                failure: null,
+            );
+
+            throw $exception;
         }
     }
 
@@ -240,6 +254,26 @@ final readonly class PriorityResetOrchestrator
         } catch (\Throwable) {
             return 0;
         }
+    }
+
+    private function emitObservabilitySummaryForStartedAt(
+        mixed $startedAt,
+        ?SpanInterface $span,
+        int $servicesCount,
+        int $groupsCount,
+        string $outcome,
+        ?ResetException $failure,
+    ): void {
+        $durationMs = $this->safeStopTimer($startedAt);
+
+        $this->emitObservabilitySummary(
+            span: $span,
+            servicesCount: $servicesCount,
+            groupsCount: $groupsCount,
+            outcome: $outcome,
+            durationMs: $durationMs,
+            failure: $failure,
+        );
     }
 
     private function startSpan(int $servicesCount, int $groupsCount): ?SpanInterface

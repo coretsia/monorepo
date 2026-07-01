@@ -664,10 +664,31 @@ ModulePlan resolution emits safe observability:
 ```text
 metric: kernel.modules_resolve_total
 metric: kernel.modules_resolve_duration_ms
-label: outcome
+labels: operation, outcome
+operation: resolve
 ```
 
-Diagnostics MUST NOT expose filesystem paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, or previous throwable messages.
+Allowed `outcome` values are:
+
+```text
+success
+preset_not_found
+preset_invalid
+manifest_invalid
+discovery_source_unsupported
+conflict
+required_missing
+cycle
+unexpected_failure
+```
+
+`success` is emitted only after full successful `ModulePlan` resolution.
+
+Known `ModuleResolutionException` failures emit their mapped deterministic outcome.
+
+Unexpected non-`ModuleResolutionException` throwables emit `unexpected_failure` and are rethrown unchanged.
+
+Diagnostics MUST NOT expose filesystem paths, raw Composer metadata, raw preset payloads, secrets, PII, stack traces, exception messages, or previous throwable messages.
 
 Related documents:
 

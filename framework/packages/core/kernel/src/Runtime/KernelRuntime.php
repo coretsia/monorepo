@@ -98,10 +98,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         $afterPhaseRequired = false;
 
         try {
-            $context = $this->createUnitOfWorkContext($type, $attributes);
+            $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
             $resetRequired = true;
-
-            $this->writeBaseContextKeys($context);
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
             $afterPhaseRequired = true;
@@ -149,10 +147,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         $resetRequired = false;
 
         try {
-            $context = $this->createUnitOfWorkContext($type, $attributes);
+            $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
             $resetRequired = true;
-
-            $this->writeBaseContextKeys($context);
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
 
@@ -231,6 +227,24 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         } catch (\Throwable $throwable) {
             return $throwable;
         }
+    }
+
+    /**
+     * Creates the UnitOfWork context and writes the base ContextStore keys.
+     *
+     * Reset responsibility starts only after this method returns successfully.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function createUnitOfWorkContextAndWriteBaseKeys(
+        string $type,
+        array $attributes,
+    ): UnitOfWorkContext {
+        $context = $this->createUnitOfWorkContext($type, $attributes);
+
+        $this->writeBaseContextKeys($context);
+
+        return $context;
     }
 
     /**

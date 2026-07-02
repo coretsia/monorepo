@@ -624,6 +624,22 @@ The typo `ResetOrcestrator` is invalid and must not be introduced in docs, code,
 
 Kernel owns the UnitOfWork lifecycle trigger point.
 
+Kernel reset responsibility starts only after the UnitOfWork context exists and the base `ContextStore` keys have been written successfully.
+
+The base context keys are:
+
+```text
+correlation_id
+uow_id
+uow_type
+```
+
+If UnitOfWork context creation fails before those keys are written, reset MUST NOT run.
+
+If base `ContextStore` key writing fails, reset MUST NOT run.
+
+A before-uow hook failure happens after the reset-responsibility boundary and therefore MUST NOT skip reset.
+
 The canonical reset position is:
 
 ```text

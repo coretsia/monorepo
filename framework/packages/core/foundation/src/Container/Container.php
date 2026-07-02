@@ -42,11 +42,13 @@ use Psr\Container\NotFoundExceptionInterface;
  *
  * - shared definitions are cached after first resolution;
  * - non-shared definitions are resolved fresh on every get();
- * - concrete-class autowire resolutions remain cached.
+ * - unregistered concrete-class autowire resolutions are not cached.
  *
  * This default is intentional: Foundation container wiring favors stable
- * runtime service identity. Services that require per-resolution instances
- * must opt out explicitly.
+ * runtime service identity only for explicit container ownership. Services
+ * that require per-resolution instances must opt out explicitly. Unregistered
+ * concrete-class autowire is a fallback resolution path and must not grow the
+ * resolved service cache in long-running runtimes.
  *
  * This container must not emit stdout/stderr and must not expose constructor
  * arguments, instances, raw config payloads, environment values, tokens, or
@@ -149,9 +151,7 @@ final class Container implements ContainerInterface
             }
 
             if (\class_exists($id) && $this->canAutowire($id)) {
-                $this->resolved[$id] = $this->autowire($id);
-
-                return $this->resolved[$id];
+                return $this->instantiateAutowired($id);
             }
         } finally {
             unset($this->resolving[$id]);
@@ -294,6 +294,18 @@ final class Container implements ContainerInterface
             throw new ContainerException('container-autowire-forbidden');
         }
 
+        return $this->instantiateAutowired($className);
+    }
+
+    /**
+     * @param class-string $className
+     * @return object
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     * @throws \ReflectionException
+     */
+    private function instantiateAutowired(string $className): object
+    {
         $reflection = new \ReflectionClass($className);
 
         $constructor = $reflection->getConstructor();

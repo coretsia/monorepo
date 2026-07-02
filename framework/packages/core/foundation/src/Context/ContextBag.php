@@ -39,7 +39,7 @@ final class ContextBag implements ContextAccessorInterface
      */
     public function __construct(array $values = [])
     {
-        $this->values = self::copyMap($values);
+        $this->values = ContextValues::validatedCopyMap($values);
     }
 
     public function has(string $key): bool
@@ -53,7 +53,7 @@ final class ContextBag implements ContextAccessorInterface
             return null;
         }
 
-        return self::copyValue($this->values[$key]);
+        return ContextValues::copyValue($this->values[$key]);
     }
 
     /**
@@ -61,37 +61,6 @@ final class ContextBag implements ContextAccessorInterface
      */
     public function all(): array
     {
-        return self::copyMap($this->values);
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     *
-     * @return array<string,mixed>
-     */
-    private static function copyMap(array $values): array
-    {
-        $copy = [];
-
-        foreach ($values as $key => $value) {
-            $copy[$key] = self::copyValue($value);
-        }
-
-        return $copy;
-    }
-
-    private static function copyValue(mixed $value): mixed
-    {
-        if (!\is_array($value)) {
-            return $value;
-        }
-
-        $copy = [];
-
-        foreach ($value as $key => $item) {
-            $copy[$key] = self::copyValue($item);
-        }
-
-        return $copy;
+        return ContextValues::copyMap($this->values);
     }
 }

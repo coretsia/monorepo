@@ -50,14 +50,14 @@ final class ContextStore implements ContextAccessorInterface, ResetInterface
             return null;
         }
 
-        return self::copyValue($this->values[$key]);
+        return ContextValues::copyValue($this->values[$key]);
     }
 
     public function set(string $key, mixed $value): void
     {
         $this->policy->assertCanWrite($key, $value);
 
-        $this->values[$key] = self::copyValue($value);
+        $this->values[$key] = ContextValues::copyValue($value);
     }
 
     public function remove(string $key): void
@@ -82,42 +82,11 @@ final class ContextStore implements ContextAccessorInterface, ResetInterface
      */
     public function all(): array
     {
-        return self::copyMap($this->values);
+        return ContextValues::copyMap($this->values);
     }
 
     public function reset(): void
     {
         $this->clear();
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     *
-     * @return array<string,mixed>
-     */
-    private static function copyMap(array $values): array
-    {
-        $copy = [];
-
-        foreach ($values as $key => $value) {
-            $copy[$key] = self::copyValue($value);
-        }
-
-        return $copy;
-    }
-
-    private static function copyValue(mixed $value): mixed
-    {
-        if (!\is_array($value)) {
-            return $value;
-        }
-
-        $copy = [];
-
-        foreach ($value as $key => $item) {
-            $copy[$key] = self::copyValue($item);
-        }
-
-        return $copy;
     }
 }

@@ -969,6 +969,10 @@ Coretsia\Contracts\Context\ContextKeys::UOW_ID
 Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 ```
 
+Reset responsibility starts only after the base `ContextStore` keys have been written successfully.
+
+If UnitOfWork context creation or base context key writing fails before that boundary, `KernelRuntime` MUST surface the primary failure without invoking reset orchestration.
+
 Before hooks receive the normalized exported UnitOfWork context array.
 
 After hooks receive the normalized exported UnitOfWork context array and normalized exported UnitOfWork result array.

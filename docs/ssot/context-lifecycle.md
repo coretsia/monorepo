@@ -144,6 +144,10 @@ These keys are unit-of-work-local.
 
 They MUST be cleared by `ContextStore::reset()` after the unit of work.
 
+For the canonical Kernel runtime, reset responsibility starts only after these base context keys have been written successfully.
+
+If Kernel runtime fails before these keys are written, Foundation reset orchestration MUST NOT be invoked for that failed begin attempt.
+
 `correlation_id` is correlation-safe but remains subject to observability export policy.
 
 `uow_id` is a safe opaque unit-of-work id.
@@ -401,7 +405,11 @@ Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 
 ### Who triggers reset?
 
-Reset is triggered by Kernel runtime exactly once per unit of work.
+Reset is triggered by Kernel runtime exactly once per UnitOfWork that crossed the reset-responsibility boundary.
+
+The reset-responsibility boundary is crossed only after Kernel runtime has written the base `ContextStore` keys successfully.
+
+A failed begin attempt before base context keys are written MUST NOT trigger reset.
 
 The expected lifecycle is:
 
@@ -428,7 +436,9 @@ Kernel runtime MUST NOT use `kernel.stateful` as an execution mechanism.
 The lifecycle formula is:
 
 ```text
-KernelRuntime afterUoW phase
+KernelRuntime writes base ContextStore keys successfully
+→ before/around/body/after UnitOfWork lifecycle
+→ KernelRuntime afterUoW phase
 → ResetOrchestrator::resetAll()
 → effective reset discovery tag from foundation.reset.tag
 → reserved default value: kernel.reset (`ReservedTags::KERNEL_RESET`)

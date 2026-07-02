@@ -156,6 +156,16 @@ A shared definition is resolved once per container instance and then cached.
 
 A non-shared definition is resolved on every `Container::get($id)` call and MUST NOT be stored in the resolved-instance cache.
 
+Unregistered concrete-class autowire is not a container definition lifecycle mode.
+
+When `Container::get($id)` resolves an unregistered existing concrete class through the concrete-class autowire fallback, the resulting object MUST NOT be stored in the resolved-instance cache.
+
+Repeated `Container::get(SomeConcrete::class)` calls for an unregistered concrete class MAY return different instances.
+
+Resolving an unregistered concrete class MUST NOT add that class id to the container's known service id list.
+
+Explicit class-string definitions remain governed by definition lifecycle metadata. A shared explicit class-string definition is still cached by its service id after first successful resolution.
+
 This lifecycle flag applies to container definitions registered through:
 
 ```text
@@ -438,6 +448,19 @@ Runtime reset execution must never rely on reflection or autowire.
 The container may use reflection only for allowed concrete-class resolution during normal service resolution.
 
 Autowiring must not silently guess defaults when the Foundation container config is missing.
+
+Concrete-class autowire has two different ownership modes:
+
+```text
+explicit class-string definition     → definition-owned lifecycle
+unregistered concrete-class fallback → transient fallback resolution
+```
+
+For an explicit class-string definition, the container MUST apply the definition's `shared` lifecycle metadata.
+
+For an unregistered concrete-class fallback, the container MUST instantiate the object without storing it in the resolved-instance cache.
+
+This prevents arbitrary concrete FQCN lookups from growing the container's retained service cache in long-running runtimes.
 
 `Container::has($id)` participates in the same strict autowire policy for unregistered existing concrete class ids.
 
@@ -1416,6 +1439,8 @@ Required test areas include:
 - later container bindings override earlier bindings;
 - `ContainerBuilder::factory(..., shared: false)` returns a fresh value on repeated `Container::get($id)` calls;
 - `ContainerBuilder::factory(..., shared: true)` returns the same cached value on repeated `Container::get($id)` calls;
+- unregistered concrete-class autowire returns fresh instances and does not grow the known service id list;
+- explicit class-string definitions remain shared by service id by default;
 - `DeterministicOrder` implements `priority DESC, id ASC`;
 - ordering uses `strcmp` and is locale-independent;
 - `TagRegistry->all($tag)` returns canonical order;

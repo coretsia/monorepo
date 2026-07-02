@@ -263,6 +263,18 @@ The context MUST NOT expose transport objects.
 
 The context MUST NOT expose secrets, PII, raw payloads, raw SQL, authorization data, cookies, session ids, or stack traces.
 
+For the canonical Kernel implementation, begin is not complete until the base `ContextStore` keys have been written successfully.
+
+The base `ContextStore` keys are:
+
+```text
+correlation_id
+uow_id
+uow_type
+```
+
+Reset responsibility MUST NOT start before this base context boundary is crossed.
+
 ## Before-hook invariant
 
 Before hooks run after the UnitOfWork context exists and before the external runtime work is executed.
@@ -347,6 +359,21 @@ This policy cements only the Kernel lifecycle invariant:
 after hooks → ResetOrchestrator.resetAll() → endUoW
 ```
 
+This reset invariant applies only after the reset-responsibility boundary has been crossed.
+
+The reset-responsibility boundary is crossed when:
+
+```text
+UnitOfWorkContext exists
+base ContextStore keys are written successfully
+```
+
+If UnitOfWork context creation fails before that boundary, `ResetOrchestrator.resetAll()` MUST NOT run.
+
+If base `ContextStore` key writing fails before that boundary, `ResetOrchestrator.resetAll()` MUST NOT run.
+
+If before-uow hooks fail after that boundary, reset MUST still run according to the exactly-once rule.
+
 Once the after-phase is entered, `ResetOrchestrator.resetAll()` MUST run exactly once before `endUoW()`.
 
 This exactly-once reset requirement applies even if an after-uow hook throws.
@@ -400,13 +427,15 @@ The runtime owner MAY perform implementation-owned cleanup after `endUoW()` only
 
 ## Exactly-once rule
 
-For each UnitOfWork whose after-phase is entered:
+For each UnitOfWork that crossed the reset-responsibility boundary and entered after-phase handling:
 
 ```text
 ResetOrchestrator.resetAll()
 ```
 
 MUST be called exactly once.
+
+For a UnitOfWork that fails before the reset-responsibility boundary, `ResetOrchestrator.resetAll()` MUST NOT be called.
 
 Invalid behavior:
 
@@ -1025,6 +1054,20 @@ The next UnitOfWork MUST start clean.
 
 Failure reporting or propagation is runtime-owned.
 
+### No reset before base context keys are written
+
+Given UnitOfWork context creation fails before base `ContextStore` keys are written.
+
+Then `ResetOrchestrator.resetAll()` MUST NOT run.
+
+And the context creation failure remains the surfaced failure.
+
+Given base `ContextStore` key writing fails.
+
+Then `ResetOrchestrator.resetAll()` MUST NOT run.
+
+And the base context key writing failure remains the surfaced failure.
+
 ## Contract enforcement evidence
 
 Expected Kernel contract enforcement includes:
@@ -1053,6 +1096,14 @@ framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 ```
+
+Kernel reset-responsibility boundary enforcement is owned by:
+
+```text
+framework/packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
+```
+
+This test verifies that `KernelRuntime` sets reset responsibility only after the helper that creates the UnitOfWork context and writes base `ContextStore` keys returns successfully.
 
 Those tests are governed by:
 

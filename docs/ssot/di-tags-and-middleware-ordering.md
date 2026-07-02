@@ -284,6 +284,16 @@ shared = false
 
 A non-shared definition MUST be resolved on every `Container::get($id)` call. The resolved value MUST NOT be stored in the container resolved-instance cache.
 
+Unregistered concrete-class autowire is not a container definition.
+
+When `Container::get($id)` resolves an unregistered existing concrete class through the concrete-class autowire fallback, the resulting object MUST NOT be stored in the container resolved-instance cache.
+
+Repeated lookups of the same unregistered concrete class MAY return different object instances.
+
+Unregistered concrete-class autowire MUST NOT grow the known service id list exposed by `Container::serviceIds()`.
+
+Explicit class-string definitions remain definitions. If an explicit class-string definition is shared, it MUST be cached by the definition service id after first successful resolution.
+
 `ContainerBuilder::instance(...)` always registers an already-created shared runtime instance. Instances are not non-shared definitions.
 
 Definition lifecycle does not alter provider ordering or collision rules.
@@ -314,6 +324,10 @@ Foundation container presence checks are deterministic and config-strict.
 `Container::has($id)` MUST return `false` for unbound interfaces and abstract classes.
 
 For unregistered existing concrete class ids, `Container::has($id)` MUST evaluate the same strict concrete-class autowire policy as `Container::canAutowire($id)`.
+
+`Container::has($id)` MUST NOT cache or instantiate unregistered concrete classes.
+
+A successful `Container::has(SomeConcrete::class)` result means only that the strict concrete-class autowire policy allows resolution. It does not make `SomeConcrete::class` a known service id and does not create a retained resolved instance.
 
 The strict concrete-class autowire policy requires the merged runtime config to contain:
 

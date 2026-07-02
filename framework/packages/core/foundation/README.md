@@ -221,11 +221,13 @@ A shared definition is resolved once per container instance and cached for subse
 
 A non-shared definition must be marked explicitly by container builder metadata.
 
-Concrete-class autowire resolutions are also cached.
+Unregistered concrete-class autowire resolutions are not cached.
 
-This default is intentional: Foundation container wiring favors stable runtime service identity.
+This default is intentional: Foundation container wiring favors stable runtime service identity only for explicit container ownership.
 
 Services that require a fresh instance per resolution must opt out explicitly.
+
+Unregistered concrete-class autowire is a fallback resolution path and MUST NOT grow the resolved service cache in long-running runtimes.
 
 Autowiring is strict:
 
@@ -416,6 +418,14 @@ Coretsia\Foundation\Context\ContextBag
 `ContextBag` is a point-in-time immutable snapshot. It MUST NOT observe later mutations to `ContextStore`.
 
 `ContextBag::all()` and `ContextStore::all()` return copies and MUST NOT expose mutable internal arrays.
+
+`ContextBag` accepts the same safe context value model as `ContextStore`.
+
+Direct `ContextBag` construction MUST reject values that cannot be written through `ContextStorePolicy`, including objects, closures, resources, floats, unsupported types, and invalid map keys.
+
+Snapshot immutability is achieved by accepting only object-free json-like context values and by copying arrays on ingress and read APIs.
+
+`ContextBag` MUST NOT clone PHP objects to simulate immutability.
 
 ## Context accessor binding
 

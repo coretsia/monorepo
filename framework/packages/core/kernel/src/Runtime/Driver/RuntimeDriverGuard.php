@@ -39,6 +39,9 @@ use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
  * Generic config shape and unknown-key validation is owned by config rules.
  * This guard owns only runtime-driver matrix selection and the explicit
  * ModulePlan compatibility rule required by the runtime drivers SSoT.
+ *
+ * @internal Kernel runtime entrypoint implementation detail. Runtime adapters
+ * should depend on RuntimeEntrypointGuard instead.
  */
 final class RuntimeDriverGuard
 {
@@ -133,27 +136,35 @@ final class RuntimeDriverGuard
         $httpDrivers = [];
         $backgroundDrivers = [];
 
-        if ($cfg->get(self::CONFIG_FRANKENPHP_ENABLED, false) === true) {
+        if (self::requiredBoolean($cfg, self::CONFIG_FRANKENPHP_ENABLED)) {
             $httpDrivers[] = HttpDriver::FRANKENPHP;
         }
 
-        if ($cfg->get(self::CONFIG_SWOOLE_ENABLED, false) === true) {
+        if (self::requiredBoolean($cfg, self::CONFIG_SWOOLE_ENABLED)) {
             $httpDrivers[] = HttpDriver::SWOOLE;
         }
 
-        if ($cfg->get(self::CONFIG_ROADRUNNER_ENABLED, false) === true) {
+        if (self::requiredBoolean($cfg, self::CONFIG_ROADRUNNER_ENABLED)) {
             $httpDrivers[] = HttpDriver::ROADRUNNER;
         }
 
-        if ($cfg->get(self::CONFIG_WORKER_ENABLED, false) !== true) {
+        if (!self::requiredBoolean($cfg, self::CONFIG_WORKER_ENABLED)) {
             return [$httpDrivers, $backgroundDrivers];
         }
 
         if (!$cfg->has(self::CONFIG_WORKER_TASK_TYPE)) {
-            return [$httpDrivers, $backgroundDrivers];
+            throw RuntimeDriverInvalidConfigException::workerTaskTypeMissing(
+                self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
+            );
         }
 
         $workerTaskType = $cfg->get(self::CONFIG_WORKER_TASK_TYPE);
+
+        if (!\is_string($workerTaskType)) {
+            throw RuntimeDriverInvalidConfigException::workerTaskTypeInvalid(
+                self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
+            );
+        }
 
         if ($workerTaskType === self::WORKER_TASK_TYPE_HTTP) {
             $httpDrivers[] = HttpDriver::WORKER;
@@ -170,6 +181,23 @@ final class RuntimeDriverGuard
         throw RuntimeDriverInvalidConfigException::workerTaskTypeInvalid(
             self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
         );
+    }
+
+    private static function requiredBoolean(
+        ConfigRepositoryInterface $cfg,
+        string $keyPath,
+    ): bool {
+        if (!$cfg->has($keyPath)) {
+            throw RuntimeDriverInvalidConfigException::configKeyMissing();
+        }
+
+        $value = $cfg->get($keyPath);
+
+        if (!\is_bool($value)) {
+            throw RuntimeDriverInvalidConfigException::configKeyInvalid();
+        }
+
+        return $value;
     }
 
     /**

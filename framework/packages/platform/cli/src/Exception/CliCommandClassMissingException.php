@@ -25,7 +25,7 @@ use Coretsia\Platform\Cli\Error\ErrorCodes;
  */
 final class CliCommandClassMissingException extends CliException
 {
-    public const string REASON_CLASS_NOT_FOUND = 'class-not-found';
+    public const string REASON_CLASS_NOT_FOUND = 'cli-class-not-found';
 
     /** @var list<string> */
     private const array ALLOWED_REASONS = [

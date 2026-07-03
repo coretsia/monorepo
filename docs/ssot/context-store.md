@@ -416,6 +416,10 @@ Such keys MUST fail deterministically before any value is stored.
 
 `ContextStore` MUST accept only values accepted by the baseline json-like runtime value model.
 
+`ContextBag` MUST accept the same value model.
+
+Direct `ContextBag` construction MUST NOT accept any value that cannot be written through `ContextStorePolicy`.
+
 The baseline model is owned by:
 
 ```text
@@ -500,6 +504,28 @@ At the ContextStore boundary, an empty array MAY be stored as an empty PHP array
 
 Consumers MUST NOT rely on empty array list-vs-map distinction unless a future typed model explicitly introduces that distinction.
 
+## Context value copy boundary
+
+Context value copying is Foundation-owned context implementation policy.
+
+`ContextStore` and `ContextBag` MUST NOT maintain separate recursive copy implementations.
+
+The canonical implementation boundary is:
+
+```text
+Coretsia\Foundation\Context\ContextValues
+```
+
+`ContextValues` MUST copy accepted scalar values by value and arrays recursively.
+
+`ContextValues` MUST reject non-json-like values at copy time if such values somehow reach the copy boundary.
+
+`ContextValues` MUST NOT clone PHP objects.
+
+`ContextBag` construction MUST validate and copy the supplied map through the same context value policy used by `ContextStore`.
+
+`ContextStore::get()`, `ContextStore::all()`, `ContextBag::get()`, and `ContextBag::all()` MUST return copied json-like values and MUST NOT expose mutable internal arrays.
+
 ## Forbidden values
 
 The baseline forbidden value policy is owned by:
@@ -533,6 +559,14 @@ Resources are forbidden.
 Streams and filesystem handles are forbidden.
 
 Service instances and runtime wiring objects are forbidden.
+
+Forbidden values MUST be rejected both at the mutable store write boundary and at the immutable snapshot construction boundary.
+
+`ContextBag` MUST reject direct construction with forbidden values instead of storing references to them.
+
+`ContextBag` MUST NOT clone PHP objects to simulate immutable snapshots.
+
+Objects, closures, resources, floats, unsupported value types, and non-string map keys MUST NOT enter `ContextBag` through direct construction.
 
 Floating-point values are forbidden even when finite.
 
@@ -834,6 +868,10 @@ correlation_id
 uow_id
 uow_type
 ```
+
+For the canonical Kernel runtime, reset responsibility starts only after those base keys have been written successfully.
+
+If Kernel runtime fails before writing those keys, `ContextStore::reset()` MUST NOT be triggered by that failed begin attempt.
 
 At or after the end of a unit of work, reset orchestration MUST clear ContextStore before the next unit of work can observe stale context.
 
@@ -1154,6 +1192,8 @@ Deterministic requirements:
 - stable safe error messages;
 - stable reset behavior;
 - stable snapshot immutability;
+- stable context value copy behavior through one shared copy boundary;
+- object-free snapshot construction;
 - stable absence/null distinction through `has()`.
 
 Runtime behavior MUST NOT depend on:
@@ -1198,6 +1238,10 @@ These tests are expected to verify:
 - key list stability;
 - `get(string $key): mixed` signature stability;
 - snapshot immutability;
+- direct `ContextBag` construction rejects top-level object values;
+- direct `ContextBag` construction rejects nested object values;
+- `ContextBag` read APIs return copies;
+- `ContextStore` snapshot values do not observe later store mutations;
 - reset clears context;
 - unknown keys are rejected;
 - `@*` keys are rejected;

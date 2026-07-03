@@ -19,7 +19,7 @@ declare(strict_types=1);
 return [
     'outcome' => 'invalid_config',
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG',
-    'reason' => 'worker_task_type_invalid',
+    'reason' => 'worker-task-type-invalid',
     'activeDriverIds' => [],
     'conflictingDriverIds' => [],
     'requiredModuleIds' => [],

@@ -221,17 +221,49 @@ A shared definition is resolved once per container instance and cached for subse
 
 A non-shared definition must be marked explicitly by container builder metadata.
 
-Concrete-class autowire resolutions are also cached.
+Unregistered concrete-class autowire resolutions are not cached.
 
-This default is intentional: Foundation container wiring favors stable runtime service identity.
+This default is intentional: Foundation container wiring favors stable runtime service identity only for explicit container ownership.
 
 Services that require a fresh instance per resolution must opt out explicitly.
+
+Unregistered concrete-class autowire is a fallback resolution path and MUST NOT grow the resolved service cache in long-running runtimes.
+
+Concrete-class autowire policy and reflection-based instantiation are implemented by:
+
+```text
+Coretsia\Foundation\Container\ConcreteClassAutowireResolver
+```
+
+`Container` remains the PSR-11 orchestration boundary only. It owns service id validation, explicit definition lifecycle, resolved-instance cache ownership, and circular-reference tracking.
+
+`ConcreteClassAutowireResolver` is an internal Foundation implementation detail. It MUST NOT become a public container extension API.
 
 Autowiring is strict:
 
 - Interfaces MUST NOT be autowired.
 - Missing `config['foundation']` MUST fail deterministically.
 - Missing `config['foundation']['container']` MUST fail deterministically.
+
+`Container::has($id)` is intentionally not a pure metadata-only check for unregistered concrete class ids.
+
+Its behavior is:
+
+```text
+invalid id                  → false
+known definition/instance   → true
+unknown non-class id        → false
+unbound interface/abstract  → false
+unregistered concrete class → strict concrete-class autowire check
+```
+
+For unregistered existing concrete class ids, `Container::has($id)` evaluates the same strict policy as `Container::canAutowire($id)`.
+
+If `foundation.container` is missing or invalid, `Container::has(SomeConcrete::class)` MAY throw `Coretsia\Foundation\Container\Exception\ContainerException` instead of returning `false`.
+
+This is Coretsia-specific strict behavior. Integration code that needs an exception-free PSR-11 presence probe SHOULD catch `Psr\Container\ContainerExceptionInterface` around `has()` and apply its own fallback policy.
+
+Foundation MUST NOT introduce hidden container defaults inside `has()` to make malformed configuration appear valid.
 
 Baseline Foundation services are registered explicitly by the provider and MUST remain resolvable without relying on concrete-class autowiring.
 
@@ -396,6 +428,14 @@ Coretsia\Foundation\Context\ContextBag
 `ContextBag` is a point-in-time immutable snapshot. It MUST NOT observe later mutations to `ContextStore`.
 
 `ContextBag::all()` and `ContextStore::all()` return copies and MUST NOT expose mutable internal arrays.
+
+`ContextBag` accepts the same safe context value model as `ContextStore`.
+
+Direct `ContextBag` construction MUST reject values that cannot be written through `ContextStorePolicy`, including objects, closures, resources, floats, unsupported types, and invalid map keys.
+
+Snapshot immutability is achieved by accepting only object-free json-like context values and by copying arrays on ingress and read APIs.
+
+`ContextBag` MUST NOT clone PHP objects to simulate immutability.
 
 ## Context accessor binding
 

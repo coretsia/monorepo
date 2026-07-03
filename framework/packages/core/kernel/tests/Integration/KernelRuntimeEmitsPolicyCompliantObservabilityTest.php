@@ -280,6 +280,8 @@ final class KernelRuntimeEmitsPolicyCompliantObservabilityTest extends TestCase
             logger: $logger,
             tracer: $tracer,
             meter: $meter,
+            attributesMaxDepth: 10,
+            attributesMaxKeys: 200,
         );
     }
 

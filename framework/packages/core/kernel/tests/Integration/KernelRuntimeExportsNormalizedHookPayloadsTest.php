@@ -357,6 +357,8 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
             logger: new NullLogger(),
             tracer: new NoopTracer(),
             meter: new NoopMeter(),
+            attributesMaxDepth: 10,
+            attributesMaxKeys: 200,
         );
     }
 

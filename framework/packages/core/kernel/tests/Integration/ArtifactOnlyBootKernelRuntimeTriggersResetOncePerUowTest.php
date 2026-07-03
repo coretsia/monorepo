@@ -131,6 +131,16 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
                 'value' => ReservedTags::KERNEL_RESET,
             ],
             [
+                'kind' => 'parameter',
+                'name' => 'kernel.uow.attributes.max_depth',
+                'value' => 10,
+            ],
+            [
+                'kind' => 'parameter',
+                'name' => 'kernel.uow.attributes.max_keys',
+                'value' => 200,
+            ],
+            [
                 'kind' => 'service.class',
                 'id' => ContextStore::class,
                 'class' => ContextStore::class,
@@ -299,6 +309,14 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
                     [
                         'id' => MeterPortInterface::class,
                         'type' => 'service',
+                    ],
+                    [
+                        'name' => 'kernel.uow.attributes.max_depth',
+                        'type' => 'parameter',
+                    ],
+                    [
+                        'name' => 'kernel.uow.attributes.max_keys',
+                        'type' => 'parameter',
                     ],
                 ],
             ],

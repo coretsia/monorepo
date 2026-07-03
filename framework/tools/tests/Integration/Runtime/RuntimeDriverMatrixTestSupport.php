@@ -82,16 +82,16 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      * @var array<string, true>
      */
     private const array CONFLICT_REASONS = [
-        'multiple_http_drivers' => true,
-        'worker_http_conflicts_with_http_driver' => true,
+        'multiple-http-drivers' => true,
+        'worker-http-conflicts-with-http-driver' => true,
     ];
 
     /**
      * @var array<string, true>
      */
     private const array INVALID_CONFIG_REASONS = [
-        'requires_platform_http_module' => true,
-        'worker_task_type_invalid' => true,
+        'requires-platform-http-module' => true,
+        'worker-task-type-invalid' => true,
     ];
 
     /**

@@ -127,6 +127,12 @@ final readonly class ModulePlan
         $moduleMap = self::normalizeModuleEntries($modules);
         $warningList = self::normalizeWarnings($warnings);
 
+        self::assertModuleIdSetsArePairwiseDisjoint(
+            enabled: $enabledSet,
+            disabled: $disabledSet,
+            optionalMissing: $optionalMissingSet,
+        );
+
         self::assertTopologicalOrderReferencesEnabledModules($topologicalOrderList, $enabledSet);
         self::assertTopologicalOrderContainsAllEnabledModules($topologicalOrderList, $enabledSet);
         self::assertEnabledModulesHaveEntries($enabledSet, $moduleMap);
@@ -396,6 +402,53 @@ final readonly class ModulePlan
         \ksort($map, \SORT_STRING);
 
         return \array_values($map);
+    }
+
+    /**
+     * @param list<ModuleId> $enabled
+     * @param list<ModuleId> $disabled
+     * @param list<ModuleId> $optionalMissing
+     */
+    private static function assertModuleIdSetsArePairwiseDisjoint(
+        array $enabled,
+        array $disabled,
+        array $optionalMissing,
+    ): void {
+        self::assertModuleIdSetsDoNotOverlap(
+            left: $enabled,
+            right: $disabled,
+            reason: 'module-plan-enabled-disabled-overlap',
+        );
+
+        self::assertModuleIdSetsDoNotOverlap(
+            left: $enabled,
+            right: $optionalMissing,
+            reason: 'module-plan-enabled-optional-missing-overlap',
+        );
+
+        self::assertModuleIdSetsDoNotOverlap(
+            left: $disabled,
+            right: $optionalMissing,
+            reason: 'module-plan-disabled-optional-missing-overlap',
+        );
+    }
+
+    /**
+     * @param list<ModuleId> $left
+     * @param list<ModuleId> $right
+     */
+    private static function assertModuleIdSetsDoNotOverlap(
+        array $left,
+        array $right,
+        string $reason,
+    ): void {
+        $leftMap = self::moduleIdPresenceMap($left);
+
+        foreach ($right as $moduleId) {
+            if (isset($leftMap[$moduleId->value()])) {
+                throw new \InvalidArgumentException($reason);
+            }
+        }
     }
 
     /**

@@ -42,9 +42,6 @@ use Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer;
  */
 final readonly class UnitOfWorkContext
 {
-    private const int DEFAULT_ATTRIBUTES_MAX_DEPTH = 10;
-    private const int DEFAULT_ATTRIBUTES_MAX_KEYS = 200;
-
     private string $uowId;
     private string $type;
     private int $startedAt;
@@ -65,9 +62,9 @@ final readonly class UnitOfWorkContext
         string $type,
         int $startedAt,
         string $correlationId,
-        array $attributes = [],
-        int $attributesMaxDepth = self::DEFAULT_ATTRIBUTES_MAX_DEPTH,
-        int $attributesMaxKeys = self::DEFAULT_ATTRIBUTES_MAX_KEYS,
+        array $attributes,
+        int $attributesMaxDepth,
+        int $attributesMaxKeys,
     ) {
         self::assertNonEmptySafeId(
             $uowId,

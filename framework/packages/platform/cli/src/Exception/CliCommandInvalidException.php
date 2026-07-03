@@ -25,10 +25,10 @@ use Coretsia\Platform\Cli\Error\ErrorCodes;
  */
 final class CliCommandInvalidException extends CliException
 {
-    public const string REASON_RESERVED_COMMAND_NAME = 'reserved-command-name';
-    public const string REASON_CLASS_NOT_A_COMMAND = 'not-a-command';
-    public const string REASON_NON_PUBLIC_CONSTRUCTOR = 'non-public-constructor';
-    public const string REASON_NON_ZERO_ARG_CONSTRUCTOR = 'non-zero-arg-constructor';
+    public const string REASON_RESERVED_COMMAND_NAME = 'cli-reserved-command-name';
+    public const string REASON_CLASS_NOT_A_COMMAND = 'cli-not-a-command';
+    public const string REASON_NON_PUBLIC_CONSTRUCTOR = 'cli-non-public-constructor';
+    public const string REASON_NON_ZERO_ARG_CONSTRUCTOR = 'cli-non-zero-arg-constructor';
 
     /** @var list<string> */
     private const array ALLOWED_REASONS = [

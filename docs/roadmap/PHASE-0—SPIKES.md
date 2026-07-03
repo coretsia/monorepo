@@ -2921,7 +2921,7 @@ Core implementation:
     - [x] The names `help` and `list` are reserved for built-in commands.
     - [x] If a configured command returns `name()` equal to `help` or `list`,
       CLI MUST fail deterministically with `CORETSIA_CLI_COMMAND_INVALID` and a short reason token:
-      `reserved-command-name`.
+      `cli-reserved-command-name`.
     - [x] Rationale: avoids ambiguous UX and prevents config from shadowing built-ins in a non-obvious way.
   - [x] Command instantiation policy is single-choice (cemented for Phase 0; no DI):
     - [x] For each FQCN in `cli.commands`, CLI MUST instantiate via `new $fqcn()` (zero-arg constructor).

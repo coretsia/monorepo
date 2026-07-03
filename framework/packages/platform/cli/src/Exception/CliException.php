@@ -27,7 +27,7 @@ namespace Coretsia\Platform\Cli\Exception;
  */
 abstract class CliException extends \RuntimeException implements CliExceptionInterface
 {
-    public const string REASON_INVALID_REASON_TOKEN = 'invalid-reason-token';
+    public const string REASON_INVALID_REASON_TOKEN = 'cli-invalid-reason-token';
 
     private readonly string $cliCode;
     private readonly string $cliReason;

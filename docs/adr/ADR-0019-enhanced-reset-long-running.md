@@ -755,6 +755,12 @@ If reset execution succeeds and reset observability emission fails, reset remain
 
 If reset execution fails and reset observability emission also fails, the primary reset failure remains surfaced.
 
+If reset orchestration fails with an unexpected non-`ResetException` throwable, reset observability MUST emit outcome `failed` and MUST rethrow the original throwable unchanged.
+
+Unexpected non-`ResetException` throwables MUST NOT be wrapped only to repair telemetry state.
+
+Unexpected non-`ResetException` throwables MUST NOT be recorded as raw span exceptions, log context, metric labels, or exported reset diagnostics.
+
 When reset duration cannot be measured, reset observability MAY collapse duration to `0` or omit the timing signal according to owner policy.
 
 The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
@@ -1259,7 +1265,9 @@ Verification MUST prove:
 - `ResetException::withoutPrevious()` strips previous throwable chains;
 - span exception recording receives only sanitized reset failure copies;
 - observability failure does not replace a primary reset failure;
-- reset observability does not leak raw previous throwable messages or stack traces.
+- reset observability does not leak raw previous throwable messages or stack traces;
+- unexpected non-`ResetException` reset failures emit outcome `failed` and are rethrown unchanged;
+- unexpected non-`ResetException` reset failures are not recorded as raw reset diagnostics.
 
 ## Related SSoT
 

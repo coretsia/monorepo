@@ -227,6 +227,60 @@ A preset implementation MUST NOT silently resolve conflicts between these three 
 
 Conflict resolution between a framework preset and application/user override is future owner policy and is outside `core/contracts`.
 
+A loaded mode preset implementation MUST NOT be weaker than the schema validation policy that accepted its source payload.
+
+Kernel-owned `ModePreset` construction MUST reject direct construction with values that would be rejected by the Kernel-owned mode preset schema validator.
+
+This applies even when the concrete value object is constructed directly by tests, internal helpers, or future Kernel-owned loading paths.
+
+The loaded preset value object MUST enforce:
+
+```text
+preset name safety
+description safety
+required / optional / disabled disjointness
+featureBundles JSON-like safety
+metadata JSON-like safety
+```
+
+Preset name safety requires:
+
+```text
+non-empty
+max 64 bytes
+lowercase ASCII first character
+only lowercase ASCII letters, digits, and hyphen
+no traversal marker
+```
+
+Description safety requires:
+
+```text
+null or non-empty string
+max 512 bytes
+no control characters
+not path-like
+```
+
+`featureBundles` and `metadata` MUST be JSON-like maps.
+
+Their recursive values MUST obey:
+
+```text
+max depth: 16
+max map keys per map: 256
+max string length: 1024 bytes
+no control characters in strings
+no path-like strings
+no path-like map keys
+no floats
+no PHP objects
+no closures
+no resources
+```
+
+Direct construction MUST fail instead of accepting a weaker in-memory state and relying on the loader path to have validated it earlier.
+
 `moduleIds()` is a compatibility projection of enabled preset module ids.
 
 It SHOULD be derived from:

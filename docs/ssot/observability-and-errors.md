@@ -501,7 +501,13 @@ Allowed reset observability diagnostics are limited to:
 - reset outcome;
 - reset duration in milliseconds.
 
-When reset execution fails, span exception recording MAY record only a sanitized `ResetException` copy without previous throwables.
+When reset execution fails with a `ResetException`, span exception recording MAY record only a sanitized `ResetException` copy without previous throwables.
+
+When reset orchestration fails with an unexpected non-`ResetException` throwable, reset observability MUST emit outcome `failed` and MUST rethrow the original throwable unchanged.
+
+Unexpected non-`ResetException` throwables MUST NOT be recorded as raw span exceptions, log context, metric labels, or exported reset diagnostics.
+
+Unexpected non-`ResetException` throwables MUST NOT be wrapped only to repair telemetry state.
 
 Span exception recording for reset failures MUST NOT record a reset exception that preserves a raw previous throwable chain.
 

@@ -21,6 +21,7 @@ namespace Coretsia\Foundation\Tests\Unit;
 use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\ContextBag;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
 use PHPUnit\Framework\TestCase;
 
 final class ContextBagImmutabilityTest extends TestCase
@@ -57,6 +58,44 @@ final class ContextBagImmutabilityTest extends TestCase
             ],
             $bag->get(ContextKeys::UOW_ID),
         );
+    }
+
+    public function testContextBagRejectsTopLevelObjectValues(): void
+    {
+        try {
+            new ContextBag([
+                ContextKeys::USER_AGENT => new \stdClass(),
+            ]);
+
+            self::fail('Expected ContextBag object value rejection.');
+        } catch (ContextWriteForbiddenException $exception) {
+            self::assertSame(ContextWriteForbiddenException::ERROR_CODE, $exception->errorCode());
+            self::assertSame('context-write-forbidden-object', $exception->reason());
+            self::assertSame(
+                'context-write-forbidden-object: value at user_agent',
+                $exception->getMessage(),
+            );
+        }
+    }
+
+    public function testContextBagRejectsNestedObjectValues(): void
+    {
+        try {
+            new ContextBag([
+                ContextKeys::PATH_TEMPLATE => [
+                    'compiled' => new \stdClass(),
+                ],
+            ]);
+
+            self::fail('Expected ContextBag nested object value rejection.');
+        } catch (ContextWriteForbiddenException $exception) {
+            self::assertSame(ContextWriteForbiddenException::ERROR_CODE, $exception->errorCode());
+            self::assertSame('context-write-forbidden-object', $exception->reason());
+            self::assertSame(
+                'context-write-forbidden-object: value at path_template.compiled',
+                $exception->getMessage(),
+            );
+        }
     }
 
     public function testContextStoreSnapshotDoesNotObserveLaterStoreMutations(): void

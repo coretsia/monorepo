@@ -284,6 +284,16 @@ shared = false
 
 A non-shared definition MUST be resolved on every `Container::get($id)` call. The resolved value MUST NOT be stored in the container resolved-instance cache.
 
+Unregistered concrete-class autowire is not a container definition.
+
+When `Container::get($id)` resolves an unregistered existing concrete class through the concrete-class autowire fallback, the resulting object MUST NOT be stored in the container resolved-instance cache.
+
+Repeated lookups of the same unregistered concrete class MAY return different object instances.
+
+Unregistered concrete-class autowire MUST NOT grow the known service id list exposed by `Container::serviceIds()`.
+
+Explicit class-string definitions remain definitions. If an explicit class-string definition is shared, it MUST be cached by the definition service id after first successful resolution.
+
 `ContainerBuilder::instance(...)` always registers an already-created shared runtime instance. Instances are not non-shared definitions.
 
 Definition lifecycle does not alter provider ordering or collision rules.
@@ -300,6 +310,43 @@ Tag registration lifecycle is independent from container definition lifecycle.
 The `shared` flag applies only to container definitions. It MUST NOT alter `TagRegistry` dedupe behavior, tag priority ordering, or discovery-list semantics.
 
 Alias-like definitions that delegate to another service SHOULD be non-shared wrappers unless the alias owner intentionally wants the alias itself to cache the resolved target. Compiled-container runtime aliases MUST be non-shared delegation wrappers so that aliases do not accidentally turn non-shared target services into shared services.
+
+## Foundation container strict presence policy
+
+Foundation container presence checks are deterministic and config-strict.
+
+`Container::has($id)` MUST return `false` for invalid service ids.
+
+`Container::has($id)` MUST return `true` for already registered definitions and already registered instances.
+
+`Container::has($id)` MUST return `false` for unknown non-class ids.
+
+`Container::has($id)` MUST return `false` for unbound interfaces and abstract classes.
+
+For unregistered existing concrete class ids, `Container::has($id)` MUST evaluate the same strict concrete-class autowire policy as `Container::canAutowire($id)`.
+
+`Container::has($id)` MUST NOT cache or instantiate unregistered concrete classes.
+
+A successful `Container::has(SomeConcrete::class)` result means only that the strict concrete-class autowire policy allows resolution. It does not make `SomeConcrete::class` a known service id and does not create a retained resolved instance.
+
+The strict concrete-class autowire policy requires the merged runtime config to contain:
+
+```text
+foundation.container.autowire_concrete
+foundation.container.allow_reflection_for_concrete
+```
+
+with boolean values.
+
+If `foundation.container` is missing or invalid, `Container::has(SomeConcrete::class)` MAY throw the Foundation container exception instead of returning `false`.
+
+This is intentional Coretsia-specific strict behavior.
+
+Foundation MUST NOT silently guess autowire defaults inside `Container::has()`.
+
+Foundation MUST NOT introduce a second soft-resolution path that makes `has()` and `get()` disagree about whether malformed container config is acceptable.
+
+Integration code that requires exception-free PSR-11 probing SHOULD catch `Psr\Container\ContainerExceptionInterface` around `has()` and apply integration-owned fallback behavior.
 
 ## HTTP middleware slot references
 

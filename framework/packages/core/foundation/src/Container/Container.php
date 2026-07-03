@@ -42,11 +42,18 @@ use Psr\Container\NotFoundExceptionInterface;
  *
  * - shared definitions are cached after first resolution;
  * - non-shared definitions are resolved fresh on every get();
- * - concrete-class autowire resolutions remain cached.
+ * - unregistered concrete-class autowire resolutions are not cached.
  *
  * This default is intentional: Foundation container wiring favors stable
- * runtime service identity. Services that require per-resolution instances
- * must opt out explicitly.
+ * runtime service identity only for explicit container ownership. Services
+ * that require per-resolution instances must opt out explicitly. Unregistered
+ * concrete-class autowire is a fallback resolution path and must not grow the
+ * resolved service cache in long-running runtimes.
+ *
+ * Concrete-class autowire policy and reflection-based instantiation are owned
+ * by ConcreteClassAutowireResolver. Container owns PSR-11 orchestration,
+ * service-id validation, definition lifecycle, caching, and circular-reference
+ * tracking only.
  *
  * This container must not emit stdout/stderr and must not expose constructor
  * arguments, instances, raw config payloads, environment values, tokens, or
@@ -75,6 +82,8 @@ final class Container implements ContainerInterface
      * @var array<string, bool>
      */
     private array $definitionShared;
+
+    private ConcreteClassAutowireResolver $autowireResolver;
 
     /**
      * @var array<string, true>
@@ -117,6 +126,7 @@ final class Container implements ContainerInterface
         $this->resolved = $instances;
         $this->config = $config;
         $this->definitionShared = [];
+        $this->autowireResolver = new ConcreteClassAutowireResolver($config);
 
         foreach ($definitions as $id => $_definition) {
             $this->definitionShared[$id] = $definitionShared[$id] ?? self::DEFAULT_DEFINITION_SHARED;
@@ -148,10 +158,12 @@ final class Container implements ContainerInterface
                 return $resolved;
             }
 
-            if (\class_exists($id) && $this->canAutowire($id)) {
-                $this->resolved[$id] = $this->autowire($id);
+            if (\class_exists($id)) {
+                $resolved = $this->autowireResolver->instantiateIfAllowed($id, $this);
 
-                return $this->resolved[$id];
+                if ($resolved !== null) {
+                    return $resolved;
+                }
             }
         } finally {
             unset($this->resolving[$id]);
@@ -160,6 +172,24 @@ final class Container implements ContainerInterface
         throw new NotFoundException($id);
     }
 
+    /**
+     * Returns whether the container can resolve the id under Coretsia's strict
+     * resolution policy.
+     *
+     * Invalid ids, unknown ids, and unbound interfaces/abstract classes return
+     * false.
+     *
+     * Explicit definitions and already-registered instances return true.
+     *
+     * For unregistered existing concrete class ids, this method evaluates the same
+     * strict concrete-class autowire policy as canAutowire(). Missing or invalid
+     * foundation.container config therefore fails deterministically with
+     * ContainerException instead of silently guessing autowire defaults.
+     *
+     * @throws ContainerExceptionInterface when strict concrete-class autowire
+     *     policy cannot be evaluated because Foundation container config is
+     *     missing or invalid.
+     */
     public function has(string $id): bool
     {
         if (!self::isValidServiceId($id)) {
@@ -188,26 +218,7 @@ final class Container implements ContainerInterface
     {
         self::assertServiceId($id);
 
-        $containerConfig = $this->containerConfig();
-
-        $autowireConcrete = $containerConfig['autowire_concrete'] ?? null;
-        $allowReflection = $containerConfig['allow_reflection_for_concrete'] ?? null;
-
-        if (!\is_bool($autowireConcrete) || !\is_bool($allowReflection)) {
-            throw new ContainerException('container-config-foundation-container-invalid');
-        }
-
-        if (!$autowireConcrete || !$allowReflection) {
-            return false;
-        }
-
-        if (!\class_exists($id)) {
-            return false;
-        }
-
-        $reflection = new \ReflectionClass($id);
-
-        return $reflection->isInstantiable();
+        return $this->autowireResolver->canAutowire($id);
     }
 
     /**
@@ -272,75 +283,7 @@ final class Container implements ContainerInterface
      */
     private function autowire(string $className): object
     {
-        if (!$this->canAutowire($className)) {
-            throw new ContainerException('container-autowire-forbidden');
-        }
-
-        $reflection = new \ReflectionClass($className);
-
-        $constructor = $reflection->getConstructor();
-
-        if ($constructor === null) {
-            try {
-                return $reflection->newInstance();
-            } catch (\Throwable $e) {
-                throw new ContainerException('container-autowire-instantiation-failed', $e);
-            }
-        }
-
-        $arguments = [];
-
-        foreach ($constructor->getParameters() as $parameter) {
-            $type = $parameter->getType();
-
-            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
-                $dependencyId = $type->getName();
-
-                if ($this->has($dependencyId)) {
-                    $arguments[] = $this->get($dependencyId);
-                    continue;
-                }
-            }
-
-            if ($parameter->isDefaultValueAvailable()) {
-                $arguments[] = $parameter->getDefaultValue();
-                continue;
-            }
-
-            if ($parameter->allowsNull()) {
-                $arguments[] = null;
-                continue;
-            }
-
-            throw new ContainerException('container-autowire-unresolvable');
-        }
-
-        try {
-            return $reflection->newInstanceArgs($arguments);
-        } catch (\Throwable $e) {
-            throw new ContainerException('container-autowire-instantiation-failed', $e);
-        }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function containerConfig(): array
-    {
-        $foundation = $this->config['foundation'] ?? null;
-
-        if (!\is_array($foundation)) {
-            throw new ContainerException('container-config-foundation-missing');
-        }
-
-        $container = $foundation['container'] ?? null;
-
-        if (!\is_array($container)) {
-            throw new ContainerException('container-config-foundation-container-missing');
-        }
-
-        /** @var array<string, mixed> $container */
-        return $container;
+        return $this->autowireResolver->instantiate($className, $this);
     }
 
     private static function assertServiceId(string $id): void

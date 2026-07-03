@@ -47,6 +47,17 @@ namespace Coretsia\Contracts\Runtime;
  * exist for adapters that must integrate around an existing framework
  * lifecycle or event loop and therefore cannot delegate the whole body
  * execution to KernelRuntime directly.
+ *
+ * Low-level lifecycle methods are a sharp-edge adapter API. Adapters MUST
+ * prefer {@see runUnitOfWork()} unless they need direct access to exported
+ * context/result arrays or must integrate with an existing external lifecycle.
+ *
+ * If {@see beginUnitOfWork()} returns successfully, the adapter owns completion
+ * responsibility and MUST attempt exactly one {@see afterUnitOfWork()} call
+ * before the next unit of work can start on the same runtime boundary.
+ *
+ * Low-level adapters MUST wrap external body execution so that
+ * {@see afterUnitOfWork()} is attempted on both success and failure paths.
  */
 interface KernelRuntimeInterface
 {
@@ -88,6 +99,10 @@ interface KernelRuntimeInterface
      * Low-level adapters MUST execute the external body only after successful
      * completion of this method.
      *
+     * If this method returns successfully, the caller MUST treat the returned
+     * context as an open lifecycle token and MUST attempt exactly one matching
+     * {@see afterUnitOfWork()} call.
+     *
      * @param array<string, mixed> $attributes Format-neutral adapter-provided
      *                                         attributes for the unit of work.
      *
@@ -108,6 +123,9 @@ interface KernelRuntimeInterface
      *
      * Implementations MUST invoke after-unit-of-work hooks and reset
      * orchestration according to runtime lifecycle policy.
+     *
+     * Low-level adapters SHOULD call this method from a finally-equivalent
+     * completion path after successful {@see beginUnitOfWork()}.
      *
      * @param array<string, mixed> $context Normalized exported context array
      *                                      previously returned by

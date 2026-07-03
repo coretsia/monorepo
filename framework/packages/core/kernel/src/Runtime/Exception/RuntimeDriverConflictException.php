@@ -38,8 +38,8 @@ final class RuntimeDriverConflictException extends \RuntimeException
 {
     public const string ERROR_CODE = 'CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT';
 
-    public const string REASON_MULTIPLE_HTTP_DRIVERS = 'multiple_http_drivers';
-    public const string REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER = 'worker_http_conflicts_with_http_driver';
+    public const string REASON_MULTIPLE_HTTP_DRIVERS = 'multiple-http-drivers';
+    public const string REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER = 'worker-http-conflicts-with-http-driver';
 
     /**
      * @var array<string, true>

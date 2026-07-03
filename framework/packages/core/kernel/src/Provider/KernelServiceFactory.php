@@ -50,6 +50,7 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\ConfigMerger;
 use Coretsia\Kernel\Config\ConfigRulesLoader;
@@ -67,9 +68,10 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Psr\Container\ContainerInterface;
@@ -101,9 +103,6 @@ use Psr\Log\LoggerInterface;
  */
 final class KernelServiceFactory
 {
-    private const int DEFAULT_UOW_ATTRIBUTES_MAX_DEPTH = 10;
-    private const int DEFAULT_UOW_ATTRIBUTES_MAX_KEYS = 200;
-
     private function __construct()
     {
     }
@@ -824,7 +823,8 @@ final class KernelServiceFactory
      * The caller MUST provide:
      *
      * - the resolved container.php artifact path;
-     * - an already-read and already-validated config@1 payload.
+     * - an already-read and already-validated config@1 payload;
+     * - the resolved ModulePlan for the same runtime config snapshot.
      *
      * This method intentionally does not read source config files, run source
      * config discovery, run module discovery, register runtime providers as a
@@ -841,6 +841,7 @@ final class KernelServiceFactory
      *
      * @param non-empty-string $containerArtifactPath
      * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
+     * @param ModulePlan $modulePlan Already-resolved ModulePlan for this runtime boot.
      *
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
@@ -849,7 +850,16 @@ final class KernelServiceFactory
         ContainerInterface $container,
         string $containerArtifactPath,
         array $configPayload,
+        ModulePlan $modulePlan,
     ): FoundationContainer {
+        $config = self::runtimeConfigFromConfigPayload($configPayload);
+
+        self::assertRuntimeEntrypointCompatible(
+            container: $container,
+            config: $config,
+            modulePlan: $modulePlan,
+        );
+
         $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
 
         if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
@@ -1035,15 +1045,37 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the canonical runtime driver matrix guard.
+     * Creates the Kernel-owned runtime entrypoint guard.
      *
      * This factory performs construction only. It does not read config values,
-     * does not resolve ModulePlan, does not detect active drivers, does not cache
-     * guard results, and keeps no mutable runtime state.
+     * does not resolve ModulePlan, does not detect active drivers, does not start
+     * runtime execution, and keeps no mutable runtime state.
      */
-    public static function runtimeDriverGuard(): RuntimeDriverGuard
+    public static function runtimeEntrypointGuard(): RuntimeEntrypointGuard
     {
-        return new RuntimeDriverGuard();
+        return new RuntimeEntrypointGuard();
+    }
+
+    /**
+     * Asserts that a production runtime entrypoint may start.
+     *
+     * @param array<string, mixed> $config Already-read/validated merged config tree.
+     */
+    public static function assertRuntimeEntrypointCompatible(
+        ContainerInterface $container,
+        array $config,
+        ModulePlan $modulePlan,
+    ): void {
+        $guard = self::service($container, RuntimeEntrypointGuard::class);
+
+        if (!$guard instanceof RuntimeEntrypointGuard) {
+            throw new ContainerException('kernel-runtime-dependency-invalid');
+        }
+
+        $guard->assertEntrypointAllowed(
+            config: new ArrayConfigRepository($config),
+            modulePlan: $modulePlan,
+        );
     }
 
     /**
@@ -1065,11 +1097,14 @@ final class KernelServiceFactory
     /**
      * Creates the KernelRuntime orchestrator from already-registered services.
      *
-     * This method performs wiring only. It does not read runtime config, does
-     * not enumerate hooks, does not trigger reset, and does not start a UoW.
+     * This method reads only the already-built Kernel config snapshot needed for
+     * UnitOfWork attribute defensive limits. It does not enumerate hooks, does
+     * not trigger reset, and does not start a UoW.
      */
     public static function kernelRuntime(ContainerInterface $container): KernelRuntime
     {
+        $attributeLimits = self::unitOfWorkAttributeLimits(self::kernelConfig($container));
+
         return new KernelRuntime(
             contextStore: self::contextStore($container),
             resetOrchestrator: self::resetOrchestrator($container),
@@ -1081,6 +1116,8 @@ final class KernelServiceFactory
             logger: self::logger($container),
             tracer: self::tracer($container),
             meter: self::meter($container),
+            attributesMaxDepth: $attributeLimits['maxDepth'],
+            attributesMaxKeys: $attributeLimits['maxKeys'],
         );
     }
 
@@ -1092,7 +1129,8 @@ final class KernelServiceFactory
      *     kernel.uow.attributes.max_depth
      *     kernel.uow.attributes.max_keys
      *
-     * If the keys are absent, the defaults are used.
+     * Missing keys are invalid: this factory must not silently fall back to
+     * hardcoded defensive limits.
      *
      * @param array<string, mixed> $kernelConfig
      *
@@ -1117,7 +1155,11 @@ final class KernelServiceFactory
     {
         $attributesConfig = self::uowAttributesConfig($kernelConfig);
 
-        $maxDepth = $attributesConfig['max_depth'] ?? self::DEFAULT_UOW_ATTRIBUTES_MAX_DEPTH;
+        if (!\array_key_exists('max_depth', $attributesConfig)) {
+            throw new ContainerException('kernel-uow-attributes-max-depth-missing');
+        }
+
+        $maxDepth = $attributesConfig['max_depth'];
 
         if (!\is_int($maxDepth) || $maxDepth < 1) {
             throw new ContainerException('kernel-uow-attributes-max-depth-invalid');
@@ -1137,7 +1179,11 @@ final class KernelServiceFactory
     {
         $attributesConfig = self::uowAttributesConfig($kernelConfig);
 
-        $maxKeys = $attributesConfig['max_keys'] ?? self::DEFAULT_UOW_ATTRIBUTES_MAX_KEYS;
+        if (!\array_key_exists('max_keys', $attributesConfig)) {
+            throw new ContainerException('kernel-uow-attributes-max-keys-missing');
+        }
+
+        $maxKeys = $attributesConfig['max_keys'];
 
         if (!\is_int($maxKeys) || $maxKeys < 1) {
             throw new ContainerException('kernel-uow-attributes-max-keys-invalid');
@@ -1421,14 +1467,12 @@ final class KernelServiceFactory
         }
 
         $config = $container->config();
-        $kernelConfig = $config['kernel'] ?? null;
 
-        if (!\is_array($kernelConfig) || \array_is_list($kernelConfig)) {
-            throw new ContainerException('kernel-config-root-missing');
-        }
-
-        /** @var array<string, mixed> $kernelConfig */
-        return $kernelConfig;
+        return self::requiredMapConfig(
+            config: $config,
+            key: 'kernel',
+            reason: 'kernel-config-root-missing',
+        );
     }
 
     /**
@@ -1438,13 +1482,11 @@ final class KernelServiceFactory
      */
     private static function modulesConfig(array $kernelConfig): array
     {
-        $modulesConfig = $kernelConfig['modules'] ?? [];
-
-        if (!\is_array($modulesConfig) || \array_is_list($modulesConfig)) {
-            throw new ContainerException('kernel-modules-config-invalid');
-        }
-
-        return $modulesConfig;
+        return self::optionalMapConfig(
+            config: $kernelConfig,
+            key: 'modules',
+            reason: 'kernel-modules-config-invalid',
+        );
     }
 
     /**
@@ -1454,13 +1496,11 @@ final class KernelServiceFactory
      */
     private static function modesConfig(array $kernelConfig): array
     {
-        $modesConfig = $kernelConfig['modes'] ?? [];
-
-        if (!\is_array($modesConfig) || \array_is_list($modesConfig)) {
-            throw new ContainerException('kernel-modes-config-invalid');
-        }
-
-        return $modesConfig;
+        return self::optionalMapConfig(
+            config: $kernelConfig,
+            key: 'modes',
+            reason: 'kernel-modes-config-invalid',
+        );
     }
 
     /**
@@ -1470,13 +1510,11 @@ final class KernelServiceFactory
      */
     private static function kernelConfigConfig(array $kernelConfig): array
     {
-        $configConfig = $kernelConfig['config'] ?? null;
-
-        if (!\is_array($configConfig) || \array_is_list($configConfig)) {
-            throw new ContainerException('kernel-config-config-invalid');
-        }
-
-        return $configConfig;
+        return self::requiredMapConfig(
+            config: $kernelConfig,
+            key: 'config',
+            reason: 'kernel-config-config-invalid',
+        );
     }
 
     /**
@@ -1529,18 +1567,93 @@ final class KernelServiceFactory
      */
     private static function uowAttributesConfig(array $kernelConfig): array
     {
-        $uowConfig = $kernelConfig['uow'] ?? [];
+        $uowConfig = self::requiredMapConfig(
+            config: $kernelConfig,
+            key: 'uow',
+            reason: 'kernel-uow-config-invalid',
+        );
 
-        if (!\is_array($uowConfig)) {
-            throw new ContainerException('kernel-uow-config-invalid');
+        return self::requiredMapConfig(
+            config: $uowConfig,
+            key: 'attributes',
+            reason: 'kernel-uow-attributes-config-invalid',
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    private static function requiredMapConfig(
+        array $config,
+        string $key,
+        string $reason,
+    ): array {
+        if (!\array_key_exists($key, $config)) {
+            throw new ContainerException($reason);
         }
 
-        $attributesConfig = $uowConfig['attributes'] ?? [];
+        $value = $config[$key];
 
-        if (!\is_array($attributesConfig)) {
-            throw new ContainerException('kernel-uow-attributes-config-invalid');
+        if (!\is_array($value) || !self::isMapArray($value)) {
+            throw new ContainerException($reason);
         }
 
-        return $attributesConfig;
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    private static function optionalMapConfig(
+        array $config,
+        string $key,
+        string $reason,
+    ): array {
+        if (!\array_key_exists($key, $config)) {
+            return [];
+        }
+
+        $value = $config[$key];
+
+        if (!\is_array($value) || !self::isMapArray($value)) {
+            throw new ContainerException($reason);
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $value
+     */
+    private static function isMapArray(array $value): bool
+    {
+        return $value === [] || !\array_is_list($value);
+    }
+
+    /**
+     * @param array<string, mixed> $configPayload
+     *
+     * @return array<string, mixed>
+     */
+    private static function runtimeConfigFromConfigPayload(array $configPayload): array
+    {
+        if (!\array_key_exists('config', $configPayload)) {
+            throw new ContainerException('kernel-runtime-config-payload-invalid');
+        }
+
+        $config = $configPayload['config'];
+
+        if (!\is_array($config) || \array_is_list($config)) {
+            throw new ContainerException('kernel-runtime-config-payload-invalid');
+        }
+
+        /** @var array<string, mixed> $config */
+        return $config;
     }
 }

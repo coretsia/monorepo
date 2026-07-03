@@ -91,6 +91,8 @@ Mode presets are represented by stable contracts only.
 
 `ModePresetInterface` exposes schema version, preset name, description, required module ids, optional module ids, explicitly disabled module ids, a compatibility module id projection, feature bundle policy knobs, metadata, and a deterministic exported scalar/json-like shape.
 
+Concrete owner packages remain responsible for enforcing loaded-preset construction invariants that are at least as strict as their accepted preset source schema.
+
 `ModePresetLoaderInterface` lists available preset names, checks preset availability, loads presets by name, and provides a nullable `tryLoad()` convenience method.
 
 The mode preset contracts do not expose their storage format.

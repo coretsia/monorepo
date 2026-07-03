@@ -134,6 +134,49 @@ final class ModulePlanResolverEmitsPolicyCompliantMetricsTest extends TestCase
         }
     }
 
+    public function testEmitsUnexpectedFailureMetricsWhenUnexpectedThrowableEscapes(): void
+    {
+        $packageRoot = $this->tempRoot . '/package';
+        $skeletonRoot = $this->tempRoot . '/skeleton';
+        $meter = self::recordingMeter();
+        $unexpected = new \LogicException('unsafe unexpected module resolution failure');
+
+        self::writePresetFile(
+            directory: $packageRoot . '/resources/modes',
+            name: 'micro',
+            payload: self::presetPayload(
+                name: 'micro',
+                required: [
+                    'core.kernel',
+                ],
+            ),
+        );
+
+        $resolver = self::resolver(
+            packageRoot: $packageRoot,
+            manifestReader: self::manifestReader($unexpected),
+            meter: $meter,
+        );
+
+        try {
+            $resolver->resolve(
+                self::bootstrapConfig(
+                    skeletonRoot: $skeletonRoot,
+                    preset: 'micro',
+                ),
+            );
+
+            self::fail('Expected unexpected module resolution throwable.');
+        } catch (\LogicException $exception) {
+            self::assertSame($unexpected, $exception);
+
+            self::assertMetricsShape(
+                meter: $meter,
+                expectedOutcome: 'unexpected_failure',
+            );
+        }
+    }
+
     private static function assertMetricsShape(object $meter, string $expectedOutcome): void
     {
         self::assertSame(
@@ -174,6 +217,7 @@ final class ModulePlanResolverEmitsPolicyCompliantMetricsTest extends TestCase
                 'conflict',
                 'required_missing',
                 'cycle',
+                'unexpected_failure',
             ]);
         }
     }
@@ -244,17 +288,21 @@ final class ModulePlanResolverEmitsPolicyCompliantMetricsTest extends TestCase
         );
     }
 
-    private static function manifestReader(ModuleManifest $manifest): ManifestReaderInterface
+    private static function manifestReader(ModuleManifest|\Throwable $result): ManifestReaderInterface
     {
-        return new class($manifest) implements ManifestReaderInterface {
+        return new class($result) implements ManifestReaderInterface {
             public function __construct(
-                private ModuleManifest $manifest,
+                private ModuleManifest|\Throwable $result,
             ) {
             }
 
             public function read(): ModuleManifest
             {
-                return $this->manifest;
+                if ($this->result instanceof \Throwable) {
+                    throw $this->result;
+                }
+
+                return $this->result;
             }
         };
     }

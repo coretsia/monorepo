@@ -37,8 +37,12 @@ use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
+use Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\UnitOfWorkType;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -47,26 +51,29 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
     public function testProviderRegistersKernelRuntimeServicesAndInterfaceBinding(): void
     {
         $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-        $container = self::container($resetSpy);
+        $container = self::container($resetSpy, self::validConfig());
 
         self::assertTrue($container->has(KernelRuntime::class));
         self::assertTrue($container->has(HookInvoker::class));
         self::assertTrue($container->has(KernelRuntimeInterface::class));
+        self::assertTrue($container->has(RuntimeEntrypointGuard::class));
 
         $runtime = $container->get(KernelRuntime::class);
         $hooks = $container->get(HookInvoker::class);
         $runtimePort = $container->get(KernelRuntimeInterface::class);
+        $entrypointGuard = $container->get(RuntimeEntrypointGuard::class);
 
         self::assertInstanceOf(KernelRuntime::class, $runtime);
         self::assertInstanceOf(HookInvoker::class, $hooks);
         self::assertInstanceOf(KernelRuntime::class, $runtimePort);
         self::assertInstanceOf(KernelRuntimeInterface::class, $runtimePort);
+        self::assertInstanceOf(RuntimeEntrypointGuard::class, $entrypointGuard);
     }
 
     public function testKernelRuntimeReceivesRequiredDependenciesThroughDi(): void
     {
         $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-        $container = self::container($resetSpy);
+        $container = self::container($resetSpy, self::validConfig());
 
         $runtime = $container->get(KernelRuntime::class);
 
@@ -127,7 +134,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
     public function testFoundationNoopObservabilityBindingsAreResolvableForKernelRuntime(): void
     {
         $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-        $container = self::container($resetSpy);
+        $container = self::container($resetSpy, self::validConfig());
 
         self::assertInstanceOf(NoopLogger::class, $container->get(LoggerInterface::class));
         self::assertInstanceOf(NoopTracer::class, $container->get(TracerPortInterface::class));
@@ -139,7 +146,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
     public function testProviderDoesNotStartUnitOfWorkOrTriggerResetDuringRegistrationBuildOrResolution(): void
     {
         $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-        $builder = self::builder($resetSpy);
+        $builder = self::builder($resetSpy, self::validConfig());
 
         new FoundationServiceProvider()->register($builder);
 
@@ -175,9 +182,107 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertBaseContextKeysAreAbsent($contextStore);
     }
 
-    private static function container(KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy): Container
+    public function testKernelRuntimeUsesConfiguredUnitOfWorkAttributeMaxDepthThroughDi(): void
     {
-        $builder = self::builder($resetSpy);
+        $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
+
+        $config = self::validConfig();
+        $config['kernel']['uow']['attributes']['max_depth'] = 1;
+        $config['kernel']['uow']['attributes']['max_keys'] = 200;
+
+        $container = self::container($resetSpy, $config);
+
+        $runtime = $container->get(KernelRuntime::class);
+
+        self::assertInstanceOf(KernelRuntime::class, $runtime);
+
+        self::assertSame(1, self::privateProperty($runtime, 'attributesMaxDepth'));
+        self::assertSame(200, self::privateProperty($runtime, 'attributesMaxKeys'));
+
+        try {
+            $runtime->runUnitOfWork(
+                type: UnitOfWorkType::HTTP,
+                body: static fn (): string => 'unreachable',
+                attributes: [
+                    'outer' => [
+                        'inner' => true,
+                    ],
+                ],
+            );
+
+            self::fail('Expected KernelRuntimeException was not thrown.');
+        } catch (KernelRuntimeException $exception) {
+            self::assertSame(
+                KernelRuntimeException::REASON_INVALID_CONTEXT,
+                $exception->reason(),
+            );
+
+            self::assertInstanceOf(
+                UnitOfWorkContextInvalidException::class,
+                $exception->getPrevious(),
+            );
+
+            self::assertSame(
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_DEPTH_EXCEEDED,
+                $exception->getPrevious()->reason(),
+            );
+        }
+    }
+
+    public function testKernelRuntimeUsesConfiguredUnitOfWorkAttributeMaxKeysThroughDi(): void
+    {
+        $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
+
+        $config = self::validConfig();
+        $config['kernel']['uow']['attributes']['max_depth'] = 10;
+        $config['kernel']['uow']['attributes']['max_keys'] = 1;
+
+        $container = self::container($resetSpy, $config);
+
+        $runtime = $container->get(KernelRuntime::class);
+
+        self::assertInstanceOf(KernelRuntime::class, $runtime);
+
+        self::assertSame(10, self::privateProperty($runtime, 'attributesMaxDepth'));
+        self::assertSame(1, self::privateProperty($runtime, 'attributesMaxKeys'));
+
+        try {
+            $runtime->runUnitOfWork(
+                type: UnitOfWorkType::HTTP,
+                body: static fn (): string => 'unreachable',
+                attributes: [
+                    'first' => 1,
+                    'second' => 2,
+                ],
+            );
+
+            self::fail('Expected KernelRuntimeException was not thrown.');
+        } catch (KernelRuntimeException $exception) {
+            self::assertSame(
+                KernelRuntimeException::REASON_INVALID_CONTEXT,
+                $exception->reason(),
+            );
+
+            self::assertInstanceOf(
+                UnitOfWorkContextInvalidException::class,
+                $exception->getPrevious(),
+            );
+
+            self::assertSame(
+                UnitOfWorkContextInvalidException::REASON_ATTRIBUTES_MAX_KEYS_EXCEEDED,
+                $exception->getPrevious()->reason(),
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function container(
+        KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy,
+        array $config,
+    ): Container {
+        $builder = self::builder($resetSpy, $config);
 
         new FoundationServiceProvider()->register($builder);
 
@@ -195,9 +300,14 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         return $builder->build();
     }
 
-    private static function builder(KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy): ContainerBuilder
-    {
-        return new ContainerBuilder(config: self::validConfig());
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function builder(
+        KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy,
+        array $config,
+    ): ContainerBuilder {
+        return new ContainerBuilder(config: $config);
     }
 
     /**

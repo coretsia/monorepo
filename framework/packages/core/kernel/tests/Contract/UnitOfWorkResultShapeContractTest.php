@@ -294,6 +294,8 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
             attributes: [
                 'operation' => 'consume',
             ],
+            attributesMaxDepth: 10,
+            attributesMaxKeys: 200,
         );
 
         $result = UnitOfWorkResult::fromContext(

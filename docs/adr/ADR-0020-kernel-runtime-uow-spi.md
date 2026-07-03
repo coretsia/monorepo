@@ -286,6 +286,14 @@ Importing `ContextKeys` provides stable key vocabulary only.
 
 Write ownership remains Kernel-owned for these base UnitOfWork keys.
 
+Reset responsibility starts only after Kernel-owned UnitOfWork context creation and base `ContextStore` key writing both complete successfully.
+
+If UnitOfWork context creation fails, `KernelRuntime` MUST surface that primary failure without invoking reset orchestration.
+
+If base `ContextStore` key writing fails, `KernelRuntime` MUST surface that primary failure without invoking reset orchestration.
+
+Before-uow hook execution happens after this reset-responsibility boundary. Therefore, if a before-uow hook fails, reset orchestration still runs according to Kernel failure-precedence policy.
+
 ## Hook payload production decision
 
 `core/kernel` owns normalized hook payload production.
@@ -424,6 +432,19 @@ The canonical code-level identifier for this framework-reserved DI tag is:
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 ```
+
+Kernel runtime MUST invoke `ResetOrchestrator::resetAll()` only for UnitOfWork executions that crossed the reset-responsibility boundary.
+
+The reset-responsibility boundary is crossed only after:
+
+```text id="q8g7y9"
+UnitOfWorkContext created
+base ContextStore keys written successfully
+```
+
+Failures before this boundary MUST NOT trigger reset orchestration.
+
+Failures after this boundary, including before-uow hook failures, body failures, after-uow failures, and result construction failures, MUST preserve Kernel failure precedence and run reset according to the accepted lifecycle policy.
 
 ## Observability decision
 

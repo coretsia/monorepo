@@ -317,6 +317,10 @@ Enum objects MUST be rejected.
 
 `Closure` MUST be rejected before generic object rejection so closure diagnostics remain stable.
 
+Runtime context snapshots consume this object-free value model.
+
+`ContextBag` immutability MUST be achieved by rejecting objects before snapshot storage, not by cloning PHP objects.
+
 Resources MUST be rejected.
 
 Streams and filesystem handles are forbidden.

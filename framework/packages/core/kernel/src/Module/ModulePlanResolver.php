@@ -73,6 +73,8 @@ final readonly class ModulePlanResolver
 {
     private const string DISCOVERY_SOURCE_COMPOSER = 'composer';
     private const string INVALID_SOURCE_PLACEHOLDER = 'invalid';
+    private const string OUTCOME_SUCCESS = 'success';
+    private const string OUTCOME_UNEXPECTED_FAILURE = 'unexpected_failure';
 
     private string $discoverySource;
 
@@ -100,7 +102,6 @@ final readonly class ModulePlanResolver
     public function resolve(BootstrapConfig $bootstrapConfig): ModulePlan
     {
         $startedAt = $this->safeStartTimer();
-        $outcome = 'success';
 
         try {
             /*
@@ -138,16 +139,30 @@ final readonly class ModulePlanResolver
 
             $this->logOptionalMissingWarnings($plan);
 
+            $this->emitResolutionSummaryForStartedAt(
+                startedAt: $startedAt,
+                outcome: self::OUTCOME_SUCCESS,
+            );
+
             return $plan;
         } catch (ModuleResolutionException $exception) {
             $outcome = self::outcomeForException($exception);
+
             $this->logResolutionFailure($exception, $bootstrapConfig);
 
-            throw $exception;
-        } finally {
-            $durationMs = $this->safeStopTimer($startedAt);
+            $this->emitResolutionSummaryForStartedAt(
+                startedAt: $startedAt,
+                outcome: $outcome,
+            );
 
-            $this->emitResolutionSummary($outcome, $durationMs);
+            throw $exception;
+        } catch (\Throwable $exception) {
+            $this->emitResolutionSummaryForStartedAt(
+                startedAt: $startedAt,
+                outcome: self::OUTCOME_UNEXPECTED_FAILURE,
+            );
+
+            throw $exception;
         }
     }
 
@@ -186,6 +201,13 @@ final readonly class ModulePlanResolver
         } catch (\Throwable) {
             return 0;
         }
+    }
+
+    private function emitResolutionSummaryForStartedAt(mixed $startedAt, string $outcome): void
+    {
+        $durationMs = $this->safeStopTimer($startedAt);
+
+        $this->emitResolutionSummary($outcome, $durationMs);
     }
 
     /**

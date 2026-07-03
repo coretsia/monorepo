@@ -380,6 +380,7 @@ Coretsia/
 │   │   │   │   │   │   ├── Exception/
 │   │   │   │   │   │   │   ├── ContainerException.php
 │   │   │   │   │   │   │   └── NotFoundException.php
+│   │   │   │   │   │   ├── ConcreteClassAutowireResolver.php
 │   │   │   │   │   │   ├── Container.php
 │   │   │   │   │   │   ├── ContainerBuilder.php
 │   │   │   │   │   │   ├── ContainerDiagnostics.php
@@ -390,7 +391,8 @@ Coretsia/
 │   │   │   │   │   │   │   └── ContextWriteForbiddenException.php
 │   │   │   │   │   │   ├── ContextBag.php
 │   │   │   │   │   │   ├── ContextStore.php
-│   │   │   │   │   │   └── ContextStorePolicy.php
+│   │   │   │   │   │   ├── ContextStorePolicy.php
+│   │   │   │   │   │   └── ContextValues.php
 │   │   │   │   │   ├── Discovery/
 │   │   │   │   │   │   └── DeterministicOrder.php
 │   │   │   │   │   ├── Id/
@@ -597,6 +599,7 @@ Coretsia/
 │   │   │       │   │   │   └── SkeletonConfigLoader.php
 │   │   │       │   │   ├── Validation/
 │   │   │       │   │   │   └── ConfigNamespaceGuard.php
+│   │   │       │   │   ├── ArrayConfigRepository.php
 │   │   │       │   │   ├── ConfigKernel.php
 │   │   │       │   │   ├── ConfigMerger.php
 │   │   │       │   │   ├── ConfigRulesLoader.php
@@ -647,6 +650,8 @@ Coretsia/
 │   │   │       │       │   ├── HttpDriver.php
 │   │   │       │       │   ├── RuntimeDriverGuard.php
 │   │   │       │       │   └── RuntimeDrivers.php
+│   │   │       │       ├── Entrypoint/
+│   │   │       │       │   └── RuntimeEntrypointGuard.php
 │   │   │       │       ├── Exception/
 │   │   │       │       │   ├── KernelRuntimeException.php
 │   │   │       │       │   ├── RuntimeDriverConflictException.php
@@ -665,6 +670,7 @@ Coretsia/
 │   │   │       │       └── UnitOfWorkType.php
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
+│   │   │       │   │   ├── ArrayConfigRepositoryContractTest.php
 │   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
 │   │   │       │   │   ├── CompiledContainerIsDeterministicTest.php
 │   │   │       │   │   ├── ContainerArtifactHeaderShapeContractTest.php
@@ -687,14 +693,18 @@ Coretsia/
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
 │   │   │       │   │   ├── KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
+│   │   │       │   │   ├── KernelRuntimeDriverAndEntrypointPublicApiContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverConfigDefaultsContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverConfigRulesContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverNoForbiddenDepsContractTest.php
-│   │   │       │   │   ├── KernelRuntimeDriverPublicApiContractTest.php
+│   │   │       │   │   ├── KernelRuntimeResetResponsibilityContractTest.php
 │   │   │       │   │   ├── KernelRuntimeStopwatchFailurePolicyContractTest.php
+│   │   │       │   │   ├── KernelServiceFactoryUnitOfWorkAttributeLimitsContractTest.php
+│   │   │       │   │   ├── ModePresetConstructorPolicyContractTest.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php
+│   │   │       │   │   ├── ModulePlanSetInvariantsContractTest.php
 │   │   │       │   │   ├── ModulePlanShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanWarningShapeContractTest.php
 │   │   │       │   │   ├── ModulePlanWarningsAreDeterministicallySortedContractTest.php
@@ -795,6 +805,7 @@ Coretsia/
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
+│   │   │       │   │   ├── RuntimeEntrypointGuardPreventsRuntimeStartTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
 │   │   │       │   ├── Support/
 │   │   │       │   │   └── AppBuilder.php
@@ -825,11 +836,11 @@ Coretsia/
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
+│   │   │       │       ├── RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsMultipleHttpDriversTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php
-│   │   │       │       ├── RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE

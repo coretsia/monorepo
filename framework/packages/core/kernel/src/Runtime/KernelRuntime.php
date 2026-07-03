@@ -65,7 +65,20 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         private LoggerInterface $logger,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
+        private int $attributesMaxDepth,
+        private int $attributesMaxKeys,
     ) {
+        if ($attributesMaxDepth < 1) {
+            throw KernelRuntimeException::withReason(
+                KernelRuntimeException::REASON_UOW_ATTRIBUTES_MAX_DEPTH_INVALID,
+            );
+        }
+
+        if ($attributesMaxKeys < 1) {
+            throw KernelRuntimeException::withReason(
+                KernelRuntimeException::REASON_UOW_ATTRIBUTES_MAX_KEYS_INVALID,
+            );
+        }
     }
 
     /**
@@ -85,10 +98,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         $afterPhaseRequired = false;
 
         try {
-            $context = $this->createUnitOfWorkContext($type, $attributes);
+            $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
             $resetRequired = true;
-
-            $this->writeBaseContextKeys($context);
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
             $afterPhaseRequired = true;
@@ -136,10 +147,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         $resetRequired = false;
 
         try {
-            $context = $this->createUnitOfWorkContext($type, $attributes);
+            $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
             $resetRequired = true;
-
-            $this->writeBaseContextKeys($context);
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
 
@@ -221,6 +230,24 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     }
 
     /**
+     * Creates the UnitOfWork context and writes the base ContextStore keys.
+     *
+     * Reset responsibility starts only after this method returns successfully.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function createUnitOfWorkContextAndWriteBaseKeys(
+        string $type,
+        array $attributes,
+    ): UnitOfWorkContext {
+        $context = $this->createUnitOfWorkContext($type, $attributes);
+
+        $this->writeBaseContextKeys($context);
+
+        return $context;
+    }
+
+    /**
      * Runs the after phase and preserves Kernel failure precedence.
      *
      * If a primary failure already exists, an after-phase failure is suppressed
@@ -266,6 +293,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 startedAt: $this->safeStartTimer(),
                 correlationId: $this->correlationId(),
                 attributes: $attributes,
+                attributesMaxDepth: $this->attributesMaxDepth,
+                attributesMaxKeys: $this->attributesMaxKeys,
             );
         } catch (KernelRuntimeException $exception) {
             throw $exception;
@@ -444,6 +473,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 startedAt: $context['startedAt'],
                 correlationId: $context['correlationId'],
                 attributes: $context['attributes'],
+                attributesMaxDepth: $this->attributesMaxDepth,
+                attributesMaxKeys: $this->attributesMaxKeys,
             );
         } catch (KernelRuntimeException $exception) {
             throw $exception;

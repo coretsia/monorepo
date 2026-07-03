@@ -258,6 +258,16 @@ If `ContextBag` implements `ContextAccessorInterface`, it MUST use the same `get
 
 `ContextBag::all()` MUST return a copy of snapshot data.
 
+`ContextBag` construction MUST use the same safe context value model as `ContextStore` writes.
+
+Direct `ContextBag` construction MUST reject values that cannot be written through `ContextStorePolicy`, including objects, closures, resources, floats, unsupported value types, and non-string map keys.
+
+Snapshot immutability is achieved by accepting only object-free json-like context values and by copying arrays on ingress and read APIs.
+
+`ContextBag` MUST NOT clone PHP objects to simulate immutability.
+
+`ContextStore` and `ContextBag` MUST NOT maintain separate recursive copy implementations. Context value copying MUST be centralized in a Foundation-owned context implementation helper.
+
 ## Decision 4: ContextStorePolicy is the always-on safe-write guard
 
 `Coretsia\Foundation\Context\ContextStorePolicy` validates all writes.
@@ -276,9 +286,9 @@ No `foundation.context.*` config keys are introduced.
 
 No `foundation.correlation.*` config keys are introduced.
 
-## Decision 5: ContextStore accepts only JSON-safe deterministic values
+## Decision 5: Context values are JSON-safe deterministic values
 
-`ContextStore` accepts only:
+`ContextStore` and `ContextBag` accept only:
 
 ```text
 null
@@ -733,6 +743,10 @@ Verification MUST prove:
 - `ContextKeys` list matches SSoT;
 - `ContextAccessorInterface::get(string $key): mixed` remains unchanged;
 - `ContextBag` snapshots are immutable;
+- direct `ContextBag` construction rejects object values;
+- direct `ContextBag` construction rejects nested object values;
+- `ContextStore` and `ContextBag` share one context value copy boundary;
+- `ContextBag` immutability does not rely on PHP object cloning;
 - `ContextStore::reset()` clears context;
 - unknown keys are rejected;
 - `@*` keys are rejected;

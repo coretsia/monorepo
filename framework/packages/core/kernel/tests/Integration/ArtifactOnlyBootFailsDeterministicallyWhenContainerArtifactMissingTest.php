@@ -43,6 +43,7 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTe
                 configPayload: [
                     'config' => self::runtimeConfigSnapshot(),
                 ],
+                modulePlan: ArtifactPipelineTestSupport::modulePlan(),
             );
 
             self::fail('Expected missing compiled container artifact failure.');
@@ -109,12 +110,26 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTe
                 ],
             ],
             'kernel' => [
+                'runtime' => [
+                    'frankenphp' => [
+                        'enabled' => false,
+                    ],
+                    'swoole' => [
+                        'enabled' => false,
+                    ],
+                    'roadrunner' => [
+                        'enabled' => false,
+                    ],
+                ],
                 'uow' => [
                     'attributes' => [
                         'max_depth' => 10,
                         'max_keys' => 200,
                     ],
                 ],
+            ],
+            'worker' => [
+                'enabled' => false,
             ],
         ];
     }

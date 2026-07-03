@@ -28,13 +28,13 @@ background drivers may run alongside compatible HTTP drivers
 conflicts fail deterministically before runtime entrypoint execution
 ```
 
-This document is the normative input for the future implementation epic:
+This document is the normative source for the implemented Kernel runtime-driver matrix and runtime entrypoint compatibility boundary:
 
 ```text
-1.350.0 RuntimeDriverGuard
+1.350.0 Runtime Drivers / Runtime Entrypoint Guard
 ```
 
-The guard MUST treat this document as the canonical compatibility matrix.
+`RuntimeEntrypointGuard` and its internal runtime-driver matrix implementation MUST treat this document as the canonical compatibility matrix.
 
 ## Source-of-truth boundaries
 
@@ -46,15 +46,22 @@ This document owns:
 - allowed HTTP/background driver composition;
 - deterministic runtime-driver matrix failure semantics;
 - canonical runtime-driver matrix error code names;
-- missing `worker.*` key policy before `1.360.0`.
+- required runtime-driver input key policy;
+- external runtime-owner input handling for `worker.enabled` and `worker.task_type`;
+- canonical reason tokens for runtime-driver matrix failures.
 
-This document does not own concrete guard implementation details.
+This document does not own concrete guard implementation mechanics.
 
-Concrete guard implementation details are owned by the future implementation epic:
+Concrete implementation mechanics are owned by `core/kernel` source and tests:
 
 ```text
-1.350.0 RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
 ```
+
+`RuntimeEntrypointGuard` is the public runtime-adapter boundary.
+
+`RuntimeDriverGuard` is the internal Kernel implementation detail.
 
 This document does not own runtime adapter implementation details.
 
@@ -66,13 +73,15 @@ Runtime adapters are owned by later integration epics:
 
 This document does not introduce `worker.*` runtime implementation.
 
-Worker runtime implementation and `worker.*` root ownership are introduced later by:
+Worker runtime implementation and `worker.*` root ownership are owned by:
 
 ```text
-1.360.0 platform/worker
+platform/worker
 ```
 
-In this document, `worker.*` keys are normative future guard inputs, not a prerequisite that the `worker` config root already exists at `1.260.0` time.
+In this document, `worker.enabled` and `worker.task_type` are external runtime-owner inputs consumed by the Kernel-owned runtime-driver matrix.
+
+They are not a `core/kernel` config root ownership claim.
 
 This document does not own UoW/reset implementation details. Long-running runtime state and reset discipline are governed by:
 
@@ -420,7 +429,7 @@ bg.worker_queue
 
 ## Default safety policy
 
-The canonical safe defaults are:
+The canonical effective safe defaults, after package-owned defaults are merged, are:
 
 ```text
 kernel.runtime.frankenphp.enabled = false
@@ -429,6 +438,12 @@ kernel.runtime.roadrunner.enabled = false
 worker.enabled = false
 worker.task_type = "queue"
 ```
+
+`kernel.runtime.*.enabled` defaults are owned by `core/kernel`.
+
+`worker.enabled` and `worker.task_type` defaults are owned by the package that owns the `worker` config root.
+
+The runtime-driver matrix consumes the merged runtime config snapshot and does not invent these defaults locally.
 
 `worker.task_type = "queue"` is safe only because `worker.enabled = false` by default.
 
@@ -450,17 +465,58 @@ http.worker
 bg.worker_queue
 ```
 
-## Missing-key policy before `1.360.0`
+## Runtime-driver input presence policy
 
-Before `1.360.0` introduces the `worker` config root:
+The runtime-driver matrix consumes a merged runtime config snapshot.
 
-- absence of `worker.enabled` MUST be treated as `false`;
-- absence of `worker.task_type` MUST NOT activate any runtime driver;
-- missing `worker.*` root by itself MUST NOT be treated as invalid config.
+The following required boolean input keys MUST be present in that snapshot:
 
-This missing-key policy exists only to keep the doc-only `1.260.0` matrix usable before worker runtime implementation exists.
+```text
+kernel.runtime.frankenphp.enabled
+kernel.runtime.swoole.enabled
+kernel.runtime.roadrunner.enabled
+worker.enabled
+```
 
-After `1.360.0`, worker config validation MAY require explicit shape rules, but those rules MUST preserve this matrix unless this SSoT is updated.
+Missing required runtime-driver config keys MUST fail deterministically with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+config-key-missing
+```
+
+Non-boolean required runtime-driver flag values MUST fail deterministically with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+config-key-invalid
+```
+
+`worker.task_type` MUST be read only when:
+
+```text
+worker.enabled = true
+```
+
+When `worker.enabled = false`, `worker.task_type` is not required and MUST NOT activate any worker-derived runtime driver.
+
+When `worker.enabled = true` and `worker.task_type` is missing, the matrix MUST fail deterministically with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+worker-task-type-missing
+```
+
+When `worker.enabled = true` and `worker.task_type` is present but invalid, the matrix MUST fail deterministically with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+worker-task-type-invalid
+```
+
+The `worker` root defaults and full subtree validation remain owned by the package that owns the `worker` config root.
+
+The Kernel runtime-driver matrix MUST NOT validate unknown `worker.*` keys and MUST NOT invent `worker.*` defaults locally.
 
 ## Active driver resolution contract
 
@@ -836,6 +892,41 @@ adapter internals
 module plan dumps
 ```
 
+## Canonical reason tokens
+
+Runtime driver matrix conflict reason tokens are:
+
+```text
+multiple-http-drivers
+worker-http-conflicts-with-http-driver
+```
+
+Runtime driver matrix invalid-config reason tokens are:
+
+```text
+requires-platform-http-module
+config-key-missing
+config-key-invalid
+worker-task-type-missing
+worker-task-type-invalid
+```
+
+Reason tokens MUST use kebab-case.
+
+Reason tokens MUST NOT use snake_case.
+
+Config paths remain dot-paths and may contain snake_case config key segments, for example:
+
+```text
+worker.task_type
+```
+
+Driver ids remain canonical runtime ids and may contain dots or underscores, for example:
+
+```text
+bg.worker_queue
+```
+
 ## Entry points and integration points
 
 The following future entrypoints MUST treat this document as normative:
@@ -929,14 +1020,14 @@ docs/ssot/modules-and-manifests.md
 
 ## Enforcement rails
 
-This document is doc-only.
+This document is policy.
 
-It defines policy that MUST be enforced by the future guard implementation, guard tests, integration tests, and entrypoint tests.
+It defines policy enforced by the current Kernel runtime-driver implementation, runtime entrypoint guard, guard tests, integration tests, and runtime-adapter tests.
 
 Expected enforcement owner:
 
 ```text
-1.350.0 RuntimeDriverGuard
+1.350.0 Runtime Drivers / Runtime Entrypoint Guard
 ```
 
 Expected future CLI owner:
@@ -962,14 +1053,17 @@ These paths are referenced now as normative future evidence paths.
 
 The doc-only `1.260.0` epic does not create those tests.
 
-## Verification contract for future guard tests
+## Verification contract
 
-Future guard tests MUST prove at minimum:
+Guard and runtime entrypoint tests MUST prove at minimum:
 
-- default config activates `http.classic`;
-- missing `worker.*` root before `1.360.0` does not fail config by itself;
-- missing `worker.enabled` is treated as `false`;
-- missing `worker.task_type` does not activate any runtime driver;
+- effective default merged config activates `http.classic`;
+- missing required runtime-driver config keys fail with `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`;
+- missing required runtime-driver config keys use reason `config-key-missing`;
+- non-boolean required runtime-driver flag values fail with reason `config-key-invalid`;
+- missing `worker.task_type` while `worker.enabled = true` fails with reason `worker-task-type-missing`;
+- invalid `worker.task_type` while `worker.enabled = true` fails with reason `worker-task-type-invalid`;
+- missing `worker.task_type` while `worker.enabled = false` does not fail;
 - `http.roadrunner` + `bg.worker_queue` is allowed;
 - `http.swoole` + `bg.worker_queue` is allowed;
 - `http.frankenphp` + `bg.worker_queue` is allowed;

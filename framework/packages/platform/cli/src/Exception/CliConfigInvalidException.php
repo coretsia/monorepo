@@ -34,7 +34,7 @@ final class CliConfigInvalidException extends CliException
      * - CLI is scoped to monorepo layout (framework/ + skeleton/ siblings).
      * - Root resolution is derived from launcher path and MUST NOT probe.
      */
-    public const string REASON_LAYOUT_INVALID = 'layout-invalid';
+    public const string REASON_LAYOUT_INVALID = 'cli-layout-invalid';
 
     /** @var list<string> */
     private const array ALLOWED_REASONS = [

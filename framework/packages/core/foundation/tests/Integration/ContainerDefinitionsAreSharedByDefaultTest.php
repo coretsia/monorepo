@@ -56,6 +56,74 @@ final class ContainerDefinitionsAreSharedByDefaultTest extends TestCase
         self::assertNotSame($first, $second);
     }
 
+    public function testUnregisteredConcreteAutowireIsNotCachedAsResolvedService(): void
+    {
+        $container = new Container(
+            config: self::foundationConfig(),
+        );
+
+        $first = $container->get(ContainerAutowireTransientSubject::class);
+        $second = $container->get(ContainerAutowireTransientSubject::class);
+
+        self::assertInstanceOf(ContainerAutowireTransientSubject::class, $first);
+        self::assertInstanceOf(ContainerAutowireTransientSubject::class, $second);
+        self::assertNotSame(
+            $first,
+            $second,
+            'Unregistered concrete-class autowire must not be cached as a resolved service.',
+        );
+
+        self::assertNotContains(
+            ContainerAutowireTransientSubject::class,
+            $container->serviceIds(),
+            'Unregistered concrete-class autowire must not grow the known service id list.',
+        );
+    }
+
+    public function testUnregisteredConcreteAutowireResolvesConstructorDependenciesThroughContainer(): void
+    {
+        $container = new Container(
+            config: self::foundationConfig(),
+        );
+
+        $subject = $container->get(ContainerAutowireSubjectWithDependency::class);
+
+        self::assertInstanceOf(ContainerAutowireSubjectWithDependency::class, $subject);
+        self::assertInstanceOf(ContainerAutowireDependency::class, $subject->dependency);
+        self::assertNotContains(
+            ContainerAutowireSubjectWithDependency::class,
+            $container->serviceIds(),
+            'Unregistered constructor-autowired subjects must not grow the known service id list.',
+        );
+        self::assertNotContains(
+            ContainerAutowireDependency::class,
+            $container->serviceIds(),
+            'Unregistered constructor-autowired dependencies must not grow the known service id list.',
+        );
+    }
+
+    public function testExplicitClassStringDefinitionsRemainSharedByDefault(): void
+    {
+        $container = new Container(
+            definitions: [
+                'service' => ContainerAutowireTransientSubject::class,
+            ],
+            config: self::foundationConfig(),
+        );
+
+        $first = $container->get('service');
+        $second = $container->get('service');
+
+        self::assertInstanceOf(ContainerAutowireTransientSubject::class, $first);
+        self::assertSame(
+            $first,
+            $second,
+            'Explicit class-string definitions remain shared by service id by default.',
+        );
+
+        self::assertContains('service', $container->serviceIds());
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -69,5 +137,21 @@ final class ContainerDefinitionsAreSharedByDefaultTest extends TestCase
                 ],
             ],
         ];
+    }
+}
+
+final class ContainerAutowireTransientSubject
+{
+}
+
+final class ContainerAutowireDependency
+{
+}
+
+final class ContainerAutowireSubjectWithDependency
+{
+    public function __construct(
+        public readonly ContainerAutowireDependency $dependency,
+    ) {
     }
 }

@@ -229,6 +229,16 @@ Services that require a fresh instance per resolution must opt out explicitly.
 
 Unregistered concrete-class autowire is a fallback resolution path and MUST NOT grow the resolved service cache in long-running runtimes.
 
+Concrete-class autowire policy and reflection-based instantiation are implemented by:
+
+```text
+Coretsia\Foundation\Container\ConcreteClassAutowireResolver
+```
+
+`Container` remains the PSR-11 orchestration boundary only. It owns service id validation, explicit definition lifecycle, resolved-instance cache ownership, and circular-reference tracking.
+
+`ConcreteClassAutowireResolver` is an internal Foundation implementation detail. It MUST NOT become a public container extension API.
+
 Autowiring is strict:
 
 - Interfaces MUST NOT be autowired.

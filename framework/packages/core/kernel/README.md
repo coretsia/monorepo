@@ -940,6 +940,16 @@ Low-level adapters MUST execute their external body only after successful `begin
 
 Low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
 
+Low-level lifecycle methods are a sharp-edge adapter API.
+
+Adapters SHOULD prefer `runUnitOfWork()` whenever the external runtime body can be delegated to KernelRuntime.
+
+If `beginUnitOfWork()` returns successfully, the adapter owns completion responsibility and MUST attempt exactly one matching `afterUnitOfWork()` call.
+
+Low-level adapters MUST structure external body execution with a `finally`-equivalent completion path so that `afterUnitOfWork()` is attempted on both success and failure paths.
+
+A low-level adapter MUST NOT start another UnitOfWork on the same runtime boundary before the previous successful `beginUnitOfWork()` has been completed with `afterUnitOfWork()`.
+
 ## KernelRuntime lifecycle
 
 The canonical high-level lifecycle is:

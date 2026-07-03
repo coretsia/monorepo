@@ -380,6 +380,7 @@ Coretsia/
 │   │   │   │   │   │   ├── Exception/
 │   │   │   │   │   │   │   ├── ContainerException.php
 │   │   │   │   │   │   │   └── NotFoundException.php
+│   │   │   │   │   │   ├── ConcreteClassAutowireResolver.php
 │   │   │   │   │   │   ├── Container.php
 │   │   │   │   │   │   ├── ContainerBuilder.php
 │   │   │   │   │   │   ├── ContainerDiagnostics.php

@@ -80,6 +80,28 @@ final class ContainerDefinitionsAreSharedByDefaultTest extends TestCase
         );
     }
 
+    public function testUnregisteredConcreteAutowireResolvesConstructorDependenciesThroughContainer(): void
+    {
+        $container = new Container(
+            config: self::foundationConfig(),
+        );
+
+        $subject = $container->get(ContainerAutowireSubjectWithDependency::class);
+
+        self::assertInstanceOf(ContainerAutowireSubjectWithDependency::class, $subject);
+        self::assertInstanceOf(ContainerAutowireDependency::class, $subject->dependency);
+        self::assertNotContains(
+            ContainerAutowireSubjectWithDependency::class,
+            $container->serviceIds(),
+            'Unregistered constructor-autowired subjects must not grow the known service id list.',
+        );
+        self::assertNotContains(
+            ContainerAutowireDependency::class,
+            $container->serviceIds(),
+            'Unregistered constructor-autowired dependencies must not grow the known service id list.',
+        );
+    }
+
     public function testExplicitClassStringDefinitionsRemainSharedByDefault(): void
     {
         $container = new Container(
@@ -120,4 +142,16 @@ final class ContainerDefinitionsAreSharedByDefaultTest extends TestCase
 
 final class ContainerAutowireTransientSubject
 {
+}
+
+final class ContainerAutowireDependency
+{
+}
+
+final class ContainerAutowireSubjectWithDependency
+{
+    public function __construct(
+        public readonly ContainerAutowireDependency $dependency,
+    ) {
+    }
 }

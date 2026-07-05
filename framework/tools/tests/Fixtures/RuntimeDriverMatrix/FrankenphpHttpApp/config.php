@@ -20,6 +20,5 @@ return [
     'kernel.runtime.frankenphp.enabled' => true,
     'kernel.runtime.swoole.enabled' => false,
     'kernel.runtime.roadrunner.enabled' => false,
-    'worker.enabled' => false,
     'worker.task_type' => 'queue',
 ];

@@ -640,7 +640,11 @@ If base `ContextStore` key writing fails, reset MUST NOT run.
 
 A before-uow hook failure happens after the reset-responsibility boundary and therefore MUST NOT skip reset.
 
-The canonical reset position is:
+A before-uow hook failure does not create a completed UnitOfWork result and does not enter after-phase handling.
+
+Therefore, a before-uow hook failure MUST NOT invoke after-uow hooks.
+
+For executions that enter after-phase handling, the canonical reset position is:
 
 ```text
 after hooks → ResetOrchestrator.resetAll() → endUoW
@@ -1023,6 +1027,20 @@ Rejected.
 The reset guarantee is required to prevent state leakage into the next UnitOfWork.
 
 Once the after-phase is entered, reset must run exactly once even if an after hook throws.
+
+### Run after hooks when before hooks fail
+
+Rejected.
+
+A before-uow hook failure means the UnitOfWork has crossed the reset-responsibility boundary, but it has not reached after-phase eligibility.
+
+Running after-uow hooks in that state would expose a result for a UnitOfWork whose before phase never completed successfully.
+
+The accepted behavior is:
+
+```text
+before hook throws → ResetOrchestrator.resetAll() → surface before failure
+```
 
 ### Introduce reset DI tag identifiers in Kernel
 

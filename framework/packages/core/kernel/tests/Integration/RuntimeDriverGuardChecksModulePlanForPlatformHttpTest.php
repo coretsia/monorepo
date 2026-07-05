@@ -77,14 +77,13 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         self::assertTrue(true);
     }
 
-    public function testClassicHttpDoesNotRequirePlatformHttpModule(): void
+    public function testWorkerTaskTypeIsOutOfScopeWhenPlatformWorkerModuleIsNotEnabled(): void
     {
         $cfg = self::config([
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => false,
-            'worker.task_type' => 'queue',
+            'worker.task_type' => 'http',
         ]);
 
         new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
@@ -92,10 +91,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             plan: self::modulePlan([]),
         );
 
-        self::assertSame(
-            ['http.classic'],
-            new RuntimeDriverGuard()->detect($cfg)->driverIds(),
-        );
+        self::assertTrue(true);
     }
 
     public function testWorkerQueueBackgroundDriverDoesNotRequirePlatformHttpModule(): void
@@ -104,13 +100,12 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
             'worker.task_type' => 'queue',
         ]);
 
         new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: $cfg,
-            plan: self::modulePlan([]),
+            plan: self::modulePlan(['platform.worker']),
         );
 
         self::assertSame(
@@ -120,6 +115,53 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             ],
             new RuntimeDriverGuard()->detect($cfg)->driverIds(),
         );
+    }
+
+    public function testWorkerHttpRequiresPlatformHttpWhenPlatformWorkerIsEnabled(): void
+    {
+        $cfg = self::config([
+            'kernel.runtime.frankenphp.enabled' => false,
+            'kernel.runtime.swoole.enabled' => false,
+            'kernel.runtime.roadrunner.enabled' => false,
+            'worker.task_type' => 'http',
+        ]);
+
+        try {
+            new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+                cfg: $cfg,
+                plan: self::modulePlan(['platform.worker']),
+            );
+        } catch (RuntimeDriverInvalidConfigException $exception) {
+            self::assertSame(
+                RuntimeDriverInvalidConfigException::REASON_REQUIRES_PLATFORM_HTTP_MODULE,
+                $exception->reason(),
+            );
+            self::assertSame(['platform.http'], $exception->requiredModuleIds());
+
+            return;
+        }
+
+        self::fail('http.worker must require platform.http after platform.worker is present.');
+    }
+
+    public function testWorkerHttpIsAllowedWhenPlatformWorkerAndPlatformHttpAreEnabled(): void
+    {
+        $cfg = self::config([
+            'kernel.runtime.frankenphp.enabled' => false,
+            'kernel.runtime.swoole.enabled' => false,
+            'kernel.runtime.roadrunner.enabled' => false,
+            'worker.task_type' => 'http',
+        ]);
+
+        new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+            cfg: $cfg,
+            plan: self::modulePlan([
+                'platform.http',
+                'platform.worker',
+            ]),
+        );
+
+        self::assertTrue(true);
     }
 
     /**
@@ -132,7 +174,6 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
                 'kernel.runtime.frankenphp.enabled' => true,
                 'kernel.runtime.swoole.enabled' => false,
                 'kernel.runtime.roadrunner.enabled' => false,
-                'worker.enabled' => false,
                 'worker.task_type' => 'queue',
             ],
             [
@@ -145,7 +186,6 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
                 'kernel.runtime.frankenphp.enabled' => false,
                 'kernel.runtime.swoole.enabled' => false,
                 'kernel.runtime.roadrunner.enabled' => true,
-                'worker.enabled' => false,
                 'worker.task_type' => 'queue',
             ],
             [
@@ -158,24 +198,10 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
                 'kernel.runtime.frankenphp.enabled' => false,
                 'kernel.runtime.swoole.enabled' => true,
                 'kernel.runtime.roadrunner.enabled' => false,
-                'worker.enabled' => false,
                 'worker.task_type' => 'queue',
             ],
             [
                 'http.swoole',
-            ],
-        ];
-
-        yield 'worker http requires platform.http' => [
-            [
-                'kernel.runtime.frankenphp.enabled' => false,
-                'kernel.runtime.swoole.enabled' => false,
-                'kernel.runtime.roadrunner.enabled' => false,
-                'worker.enabled' => true,
-                'worker.task_type' => 'http',
-            ],
-            [
-                'http.worker',
             ],
         ];
     }
@@ -250,7 +276,6 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
                 ],
             ],
             'worker' => [
-                'enabled' => $values['worker.enabled'],
                 'task_type' => $values['worker.task_type'],
             ],
         ]);

@@ -500,11 +500,17 @@ The worker package must not import `Coretsia\Platform\Http\*`.
 
 The worker runtime has the following safety controls.
 
-### `worker.enabled`
+### Module participation and process startup
 
-Worker runtime is opt-in.
+`platform.worker` module participation is controlled by mode preset resolution and the resolved `ModulePlan`.
 
-Installing `platform/worker` must not implicitly activate the long-running runtime.
+Installing `platform/worker` must not start worker processes by itself.
+
+Starting the worker pool is an explicit runtime command action:
+
+```text
+worker:start
+```
 
 ### `worker.workers`
 

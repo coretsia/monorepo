@@ -98,7 +98,6 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest e
                 'kernel.runtime.frankenphp.enabled' => true,
                 'kernel.runtime.swoole.enabled' => false,
                 'kernel.runtime.roadrunner.enabled' => false,
-                'worker.enabled' => true,
                 'worker.task_type' => 'http',
             ],
             [
@@ -112,7 +111,6 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest e
                 'kernel.runtime.frankenphp.enabled' => false,
                 'kernel.runtime.swoole.enabled' => false,
                 'kernel.runtime.roadrunner.enabled' => true,
-                'worker.enabled' => true,
                 'worker.task_type' => 'http',
             ],
             [
@@ -126,7 +124,6 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest e
                 'kernel.runtime.frankenphp.enabled' => false,
                 'kernel.runtime.swoole.enabled' => true,
                 'kernel.runtime.roadrunner.enabled' => false,
-                'worker.enabled' => true,
                 'worker.task_type' => 'http',
             ],
             [

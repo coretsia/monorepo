@@ -26,7 +26,8 @@ use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 /**
  * Canonical runtime driver matrix guard.
  *
- * This guard derives active runtime drivers from canonical config inputs only.
+ * This guard derives active runtime drivers from Kernel-owned config inputs and,
+ * for owner-scoped runtime inputs, the caller-provided ModulePlan.
  *
  * It is intentionally stateless and deterministic. It must not inspect
  * environment variables, loaded PHP extensions, process names, CLI argv, ports,
@@ -49,13 +50,13 @@ final class RuntimeDriverGuard
     private const string CONFIG_SWOOLE_ENABLED = 'kernel.runtime.swoole.enabled';
     private const string CONFIG_ROADRUNNER_ENABLED = 'kernel.runtime.roadrunner.enabled';
 
-    private const string CONFIG_WORKER_ENABLED = 'worker.enabled';
     private const string CONFIG_WORKER_TASK_TYPE = 'worker.task_type';
 
     private const string WORKER_TASK_TYPE_HTTP = 'http';
     private const string WORKER_TASK_TYPE_QUEUE = 'queue';
 
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
+    private const string MODULE_PLATFORM_WORKER = 'platform.worker';
 
     /**
      * Derives the active runtime driver set from canonical config inputs.
@@ -97,8 +98,9 @@ final class RuntimeDriverGuard
     /**
      * Asserts runtime driver compatibility against the caller-provided ModulePlan.
      *
-     * This is the only guard method that validates the `platform.http`
-     * ModulePlan requirement for selected non-classic HTTP drivers.
+     * This is the only guard method that applies ModulePlan-aware runtime
+     * entrypoint validation, including Worker owner-scope and `platform.http`
+     * requirements for selected non-classic HTTP drivers.
      *
      * The ModulePlan is caller-provided. This method must not resolve it
      * internally and must not inspect Composer metadata, providers, package
@@ -112,14 +114,14 @@ final class RuntimeDriverGuard
         ConfigRepositoryInterface $cfg,
         ModulePlan $plan,
     ): void {
-        $drivers = $this->detect($cfg);
+        $drivers = $this->detectForModulePlan($cfg, $plan);
         $httpDriver = $drivers->httpDriver();
 
         if (!self::httpDriverRequiresPlatformHttp($httpDriver)) {
             return;
         }
 
-        if (self::modulePlanHasEnabledModule($plan, self::MODULE_PLATFORM_HTTP)) {
+        if ($plan->hasEnabledModule(self::MODULE_PLATFORM_HTTP)) {
             return;
         }
 
@@ -131,8 +133,10 @@ final class RuntimeDriverGuard
     /**
      * @return array{0: list<HttpDriver>, 1: list<BackgroundDriver>}
      */
-    private static function activeDrivers(ConfigRepositoryInterface $cfg): array
-    {
+    private static function activeDrivers(
+        ConfigRepositoryInterface $cfg,
+        bool $workerInputsInScope = true,
+    ): array {
         $httpDrivers = [];
         $backgroundDrivers = [];
 
@@ -148,7 +152,7 @@ final class RuntimeDriverGuard
             $httpDrivers[] = HttpDriver::ROADRUNNER;
         }
 
-        if (!self::requiredBoolean($cfg, self::CONFIG_WORKER_ENABLED)) {
+        if (!$workerInputsInScope) {
             return [$httpDrivers, $backgroundDrivers];
         }
 
@@ -224,6 +228,29 @@ final class RuntimeDriverGuard
         );
     }
 
+    private function detectForModulePlan(
+        ConfigRepositoryInterface $cfg,
+        ModulePlan $plan,
+    ): RuntimeDrivers {
+        [$httpDrivers, $backgroundDrivers] = self::activeDrivers(
+            cfg: $cfg,
+            workerInputsInScope: $plan->hasEnabledModule(self::MODULE_PLATFORM_WORKER),
+        );
+
+        if (\count($httpDrivers) > 1) {
+            self::throwHttpDriverConflict($httpDrivers, $backgroundDrivers);
+        }
+
+        if ($httpDrivers === []) {
+            $httpDrivers[] = HttpDriver::CLASSIC;
+        }
+
+        return new RuntimeDrivers(
+            $httpDrivers[0],
+            ...$backgroundDrivers,
+        );
+    }
+
     private static function httpDriverRequiresPlatformHttp(HttpDriver $httpDriver): bool
     {
         return match ($httpDriver) {
@@ -233,17 +260,6 @@ final class RuntimeDriverGuard
             HttpDriver::WORKER => true,
             HttpDriver::CLASSIC => false,
         };
-    }
-
-    private static function modulePlanHasEnabledModule(ModulePlan $plan, string $moduleId): bool
-    {
-        foreach ($plan->enabled() as $enabledModuleId) {
-            if ($enabledModuleId->value() === $moduleId) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

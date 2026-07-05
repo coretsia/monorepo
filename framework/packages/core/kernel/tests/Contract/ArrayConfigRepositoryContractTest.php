@@ -34,14 +34,14 @@ final class ArrayConfigRepositoryContractTest extends TestCase
                 ],
             ],
             'worker' => [
-                'enabled' => false,
+                'task_type' => 'queue',
             ],
         ]);
 
         self::assertTrue($repository->has('kernel.runtime.roadrunner.enabled'));
         self::assertTrue($repository->get('kernel.runtime.roadrunner.enabled'));
-        self::assertTrue($repository->has('worker.enabled'));
-        self::assertFalse($repository->get('worker.enabled'));
+        self::assertTrue($repository->has('worker.task_type'));
+        self::assertSame('queue', $repository->get('worker.task_type'));
     }
 
     public function testRepositoryDoesNotInventMissingValues(): void

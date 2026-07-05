@@ -102,10 +102,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $resetRequired = true;
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
-            $afterPhaseRequired = true;
 
             $this->hooks->invokeBeforeHooks($contextPayload);
 
+            $afterPhaseRequired = true;
             $primaryFailure = $this->runBodyAndCaptureFailure($body, $bodyResult);
         } catch (\Throwable $throwable) {
             $primaryFailure = $throwable;

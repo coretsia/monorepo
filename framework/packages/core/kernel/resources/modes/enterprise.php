@@ -27,6 +27,7 @@ return [
     ],
     'optional' => [
         'platform.http',
+        'platform.worker',
         'platform.logging',
         'platform.metrics',
         'platform.tracing',

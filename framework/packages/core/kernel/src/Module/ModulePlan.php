@@ -187,6 +187,21 @@ final readonly class ModulePlan
         return $this->optionalMissing;
     }
 
+    public function hasEnabledModule(string|ModuleId $moduleId): bool
+    {
+        return self::moduleIdListContains($this->enabled, $moduleId);
+    }
+
+    public function hasDisabledModule(string|ModuleId $moduleId): bool
+    {
+        return self::moduleIdListContains($this->disabled, $moduleId);
+    }
+
+    public function hasOptionalMissingModule(string|ModuleId $moduleId): bool
+    {
+        return self::moduleIdListContains($this->optionalMissing, $moduleId);
+    }
+
     /**
      * @return list<ModuleId>
      */
@@ -590,5 +605,30 @@ final readonly class ModulePlan
     private static function isAsciiLowerAlpha(string $char): bool
     {
         return $char >= 'a' && $char <= 'z';
+    }
+
+    /**
+     * @param list<ModuleId> $moduleIds
+     */
+    private static function moduleIdListContains(array $moduleIds, string|ModuleId $needle): bool
+    {
+        $needleValue = self::moduleIdValue($needle);
+
+        foreach ($moduleIds as $moduleId) {
+            if ($moduleId->value() === $needleValue) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function moduleIdValue(string|ModuleId $moduleId): string
+    {
+        if ($moduleId instanceof ModuleId) {
+            return $moduleId->value();
+        }
+
+        return ModuleId::fromString($moduleId)->value();
     }
 }

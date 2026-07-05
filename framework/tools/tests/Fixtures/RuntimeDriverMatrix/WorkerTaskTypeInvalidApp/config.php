@@ -20,6 +20,5 @@ return [
     'kernel.runtime.frankenphp.enabled' => false,
     'kernel.runtime.swoole.enabled' => false,
     'kernel.runtime.roadrunner.enabled' => false,
-    'worker.enabled' => true,
     'worker.task_type' => 'scheduler',
 ];

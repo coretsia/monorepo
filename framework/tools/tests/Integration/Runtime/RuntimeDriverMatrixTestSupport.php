@@ -53,7 +53,6 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         'kernel.runtime.frankenphp.enabled' => true,
         'kernel.runtime.swoole.enabled' => true,
         'kernel.runtime.roadrunner.enabled' => true,
-        'worker.enabled' => true,
         'worker.task_type' => true,
     ];
 

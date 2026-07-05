@@ -47,7 +47,7 @@ This document owns:
 - deterministic runtime-driver matrix failure semantics;
 - canonical runtime-driver matrix error code names;
 - required runtime-driver input key policy;
-- external runtime-owner input handling for `worker.enabled` and `worker.task_type`;
+- external runtime-owner input handling for `worker.task_type` and `platform.worker` owner scope;
 - canonical reason tokens for runtime-driver matrix failures.
 
 This document does not own concrete guard implementation mechanics.
@@ -79,9 +79,11 @@ Worker runtime implementation and `worker.*` root ownership are owned by:
 platform/worker
 ```
 
-In this document, `worker.enabled` and `worker.task_type` are external runtime-owner inputs consumed by the Kernel-owned runtime-driver matrix.
+In this document, `worker.task_type` is a Worker-owned runtime-driver input consumed by the Kernel-owned runtime-driver matrix only when `platform.worker` is enabled in the resolved `ModulePlan`.
 
-They are not a `core/kernel` config root ownership claim.
+It is not a `core/kernel` config root ownership claim.
+
+`platform.worker` module participation is owned by mode preset resolution and `ModulePlan`.
 
 This document does not own UoW/reset implementation details. Long-running runtime state and reset discipline are governed by:
 
@@ -143,19 +145,36 @@ Reserved future ids are not part of the current Phase 1 guard inputs.
 
 They MUST NOT be activated by the Phase 1 guard unless a later owner epic updates this SSoT.
 
-## Canonical config inputs
+## Canonical matrix inputs
 
-The runtime driver matrix is decided from config keys only.
+The runtime-driver matrix is evaluated from a Phase-B merged and validated config snapshot together with the resolved `ModulePlan`.
 
-The canonical matrix input keys are:
+The Kernel-owned runtime-driver input keys are:
 
 ```text
 kernel.runtime.frankenphp.enabled
 kernel.runtime.swoole.enabled
 kernel.runtime.roadrunner.enabled
-worker.enabled
+```
+
+The Worker-owned runtime-driver input key is:
+
+```text
 worker.task_type
 ```
+
+`worker.task_type` is in scope only when `platform.worker` is enabled in the resolved `ModulePlan`.
+
+`worker.task_type` selects the Worker-owned runtime driver:
+
+```text
+queue → bg.worker_queue
+http  → http.worker
+```
+
+Worker package/module activation is owned by mode presets and `ModulePlan`.
+
+Worker process startup is an explicit runtime command action.
 
 The guard MUST NOT decide active drivers by environment probing.
 
@@ -171,7 +190,9 @@ The guard MUST NOT inspect:
 - generated artifact existence;
 - reflection.
 
-Generated artifacts and module plans MAY be validated after driver selection only where this SSoT explicitly requires it.
+Generated artifacts MUST NOT participate in runtime-driver selection.
+
+The resolved `ModulePlan` MAY be inspected only for module-owner scope and explicit module compatibility requirements defined by this SSoT.
 
 ## Driver ids and activation rules
 
@@ -185,7 +206,13 @@ It is active when all of the following are true:
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-NOT (worker.enabled = true && worker.task_type = "http")
+no scoped worker HTTP runtime driver is active
+```
+
+A scoped worker HTTP runtime driver is active only when `platform.worker` is enabled in `ModulePlan` and:
+
+```text
+worker.task_type = "http"
 ```
 
 Conflicts:
@@ -220,7 +247,7 @@ Conflicts:
 
 ```text
 any other http.* driver enabled at the same time
-worker.enabled = true && worker.task_type = "http"
+scoped http.worker
 ```
 
 May run alongside:
@@ -258,7 +285,7 @@ Conflicts:
 
 ```text
 any other http.* driver enabled at the same time
-worker.enabled = true && worker.task_type = "http"
+scoped http.worker
 ```
 
 May run alongside:
@@ -296,7 +323,7 @@ Conflicts:
 
 ```text
 any other http.* driver enabled at the same time
-worker.enabled = true && worker.task_type = "http"
+scoped http.worker
 ```
 
 May run alongside:
@@ -324,10 +351,9 @@ routes.php
 
 `http.worker` is an HTTP runtime mode executed through the worker command surface.
 
-It is active when:
+It is active when `platform.worker` is enabled in the resolved `ModulePlan` and:
 
 ```text
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -343,15 +369,16 @@ Notes:
 - `http.worker` is not a background driver.
 - `http.worker` participates in HTTP-driver mutual exclusion.
 - `http.worker` MUST NOT be treated as `bg.worker_queue`.
+- `http.worker` MUST require `platform.worker` because it is selected through Worker-owned runtime inputs.
+- `http.worker` also requires `platform.http` because it is an HTTP runtime driver.
 
 ### `bg.worker_queue`
 
 `bg.worker_queue` is a background worker queue runtime mode.
 
-It is active when:
+It is active when `platform.worker` is enabled in the resolved `ModulePlan` and:
 
 ```text
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -374,6 +401,8 @@ Notes:
 
 - `bg.worker_queue` is a background driver.
 - `bg.worker_queue` is not an HTTP driver.
+- `bg.worker_queue` MUST require `platform.worker` because it is selected through Worker-owned runtime inputs.
+- `bg.worker_queue` MUST NOT require `platform.http` because it is not an HTTP runtime driver.
 - With the current Phase 1 matrix inputs, `bg.worker_queue` and `http.worker` cannot both be active because `worker.task_type` is a single selected value.
 - This input-level exclusion is deterministic and MUST NOT be interpreted as an HTTP/background policy conflict.
 
@@ -429,33 +458,49 @@ bg.worker_queue
 
 ## Default safety policy
 
-The canonical effective safe defaults, after package-owned defaults are merged, are:
+The Kernel-owned safe defaults are:
 
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = false
-worker.task_type = "queue"
 ```
 
 `kernel.runtime.*.enabled` defaults are owned by `core/kernel`.
 
-`worker.enabled` and `worker.task_type` defaults are owned by the package that owns the `worker` config root.
+Worker-owned safe defaults are owned by the package that owns the `worker` config root and are present only when `platform.worker` participates in the resolved `ModulePlan` and its package defaults are loaded.
 
-The runtime-driver matrix consumes the merged runtime config snapshot and does not invent these defaults locally.
+The current Worker-owned safe default is:
 
-`worker.task_type = "queue"` is safe only because `worker.enabled = false` by default.
+```text
+worker.task_type = "queue"
+```
 
-The `worker.task_type` default MUST NOT implicitly enable an HTTP driver.
+The runtime-driver matrix consumes the Phase-B merged and validated runtime config snapshot and MUST NOT invent this default locally.
 
-With default config, active drivers are:
+When `platform.worker` is enabled in `ModulePlan`, the default Worker-owned runtime driver is:
+
+```text
+bg.worker_queue
+```
+
+This does not start a worker process.
+
+Worker process startup is an explicit runtime command action, for example:
+
+```text
+worker:start
+```
+
+When `platform.worker` is not enabled in `ModulePlan`, missing `worker.task_type` is not defaulted locally by Kernel; Worker-owned runtime-driver inputs are outside the active owner domain.
+
+With Kernel-owned defaults and no scoped worker runtime activation, active drivers are:
 
 ```text
 http.classic
 ```
 
-With default config, inactive drivers are:
+Inactive drivers are:
 
 ```text
 http.frankenphp
@@ -467,47 +512,66 @@ bg.worker_queue
 
 ## Runtime-driver input presence policy
 
-The runtime-driver matrix consumes a merged runtime config snapshot.
+The runtime-driver matrix consumes a Phase-B merged and validated config snapshot together with the resolved `ModulePlan`.
 
-The following required boolean input keys MUST be present in that snapshot:
+The following Kernel-owned boolean input keys MUST be present in every Phase-B runtime config snapshot:
 
 ```text
 kernel.runtime.frankenphp.enabled
 kernel.runtime.swoole.enabled
 kernel.runtime.roadrunner.enabled
-worker.enabled
 ```
 
-Missing required runtime-driver config keys MUST fail deterministically with:
+Missing Kernel-owned required runtime-driver config keys MUST fail deterministically with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 config-key-missing
 ```
 
-Non-boolean required runtime-driver flag values MUST fail deterministically with:
+Non-boolean Kernel-owned required runtime-driver flag values MUST fail deterministically with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 config-key-invalid
 ```
 
-`worker.task_type` MUST be read only when:
+`worker.task_type` is a Worker-owned runtime-driver input.
+
+It is in scope only when `platform.worker` is enabled in the resolved `ModulePlan`.
+
+When `platform.worker` is not enabled:
+
+- missing `worker.task_type` MUST NOT fail;
+- Kernel MUST NOT invent `worker.*` defaults;
+- worker-derived runtime drivers MUST NOT be selected.
+
+When `platform.worker` is enabled:
+
+- `worker.task_type` MUST be present;
+- `worker.task_type` MUST be a string;
+- `worker.task_type` MUST be either `http` or `queue`.
+
+When `platform.worker` is enabled and `worker.task_type = "queue"`, the selected worker-derived runtime driver is:
 
 ```text
-worker.enabled = true
+bg.worker_queue
 ```
 
-When `worker.enabled = false`, `worker.task_type` is not required and MUST NOT activate any worker-derived runtime driver.
+When `platform.worker` is enabled and `worker.task_type = "http"`, the selected worker-derived runtime driver is:
 
-When `worker.enabled = true` and `worker.task_type` is missing, the matrix MUST fail deterministically with:
+```text
+http.worker
+```
+
+When `platform.worker` is enabled and `worker.task_type` is missing, the matrix MUST fail deterministically with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 worker-task-type-missing
 ```
 
-When `worker.enabled = true` and `worker.task_type` is present but invalid, the matrix MUST fail deterministically with:
+When `platform.worker` is enabled and `worker.task_type` is present but invalid, the matrix MUST fail deterministically with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
@@ -518,9 +582,13 @@ The `worker` root defaults and full subtree validation remain owned by the packa
 
 The Kernel runtime-driver matrix MUST NOT validate unknown `worker.*` keys and MUST NOT invent `worker.*` defaults locally.
 
+Worker package/module activation is owned by mode presets and `ModulePlan`.
+
+Worker process startup is an explicit runtime command action.
+
 ## Active driver resolution contract
 
-The guard MUST derive the active driver set from canonical config inputs.
+The guard MUST derive the active driver set from canonical config inputs and the resolved `ModulePlan`.
 
 The active HTTP driver set is computed conceptually as:
 
@@ -528,14 +596,16 @@ The active HTTP driver set is computed conceptually as:
 http.frankenphp  if kernel.runtime.frankenphp.enabled = true
 http.swoole      if kernel.runtime.swoole.enabled = true
 http.roadrunner  if kernel.runtime.roadrunner.enabled = true
-http.worker      if worker.enabled = true && worker.task_type = "http"
+http.worker      if platform.worker is enabled in ModulePlan
+                    && worker.task_type = "http"
 http.classic     if none of the non-classic HTTP drivers above are active
 ```
 
 The active background driver set is computed conceptually as:
 
 ```text
-bg.worker_queue  if worker.enabled = true && worker.task_type = "queue"
+bg.worker_queue  if platform.worker is enabled in ModulePlan
+                    && worker.task_type = "queue"
 ```
 
 If more than one HTTP driver is active, the configuration is invalid.
@@ -555,7 +625,7 @@ Legend:
 ```
 
 | HTTP driver pair                      | Result | Reason                     |
-| ------------------------------------- | ------ | -------------------------- |
+|---------------------------------------|--------|----------------------------|
 | `http.classic` + `http.classic`       | —      | same driver                |
 | `http.classic` + `http.frankenphp`    | ❌      | exactly one HTTP driver    |
 | `http.classic` + `http.swoole`        | ❌      | exactly one HTTP driver    |
@@ -582,7 +652,7 @@ Legend:
 ```
 
 | HTTP driver       | `bg.worker_queue` | Reason                                                |
-| ----------------- | ----------------- | ----------------------------------------------------- |
+|-------------------|-------------------|-------------------------------------------------------|
 | `http.classic`    | ✅                 | background driver may run alongside classic HTTP      |
 | `http.frankenphp` | ✅                 | background driver may run alongside long-running HTTP |
 | `http.swoole`     | ✅                 | background driver may run alongside long-running HTTP |
@@ -591,13 +661,13 @@ Legend:
 
 The `http.worker` + `bg.worker_queue` row is not a general HTTP/background policy conflict.
 
-It is an activation-input impossibility because both drivers use:
+It is an activation-input impossibility because both drivers are selected through the same single-valued Worker-owned input:
 
 ```text
-worker.enabled = true
+worker.task_type
 ```
 
-with mutually exclusive `worker.task_type` values:
+with mutually exclusive values:
 
 ```text
 http
@@ -608,11 +678,19 @@ queue
 
 ### ✅ `http.roadrunner` + `bg.worker_queue`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = true
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -631,11 +709,19 @@ allowed
 
 ### ✅ `http.swoole` + `bg.worker_queue`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = true
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -654,11 +740,19 @@ allowed
 
 ### ✅ `http.frankenphp` + `bg.worker_queue`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = true
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -677,11 +771,18 @@ allowed
 
 ### ✅ `http.classic` + `bg.worker_queue`
 
+ModulePlan:
+
+```text
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -700,11 +801,19 @@ allowed
 
 ### ❌ `http.roadrunner` + `http.worker`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = true
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -729,11 +838,19 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 
 ### ❌ `http.frankenphp` + `http.worker`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = true
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -758,11 +875,19 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 
 ### ❌ `http.swoole` + `http.worker`
 
+ModulePlan:
+
+```text
+platform.http enabled
+platform.worker enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = true
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -787,7 +912,7 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
 
 ## Deterministic enforcement contract
 
-The guard MUST decide active drivers by evaluating config keys only.
+The guard MUST decide active drivers by evaluating Kernel-owned config keys and the resolved `ModulePlan` owner scope for Worker-owned runtime-driver inputs.
 
 The guard MUST NOT use environment probing to decide active drivers.
 
@@ -838,7 +963,25 @@ worker.task_type=http from /absolute/path/.env
 
 ## ModulePlan requirements
 
-The following non-classic HTTP drivers require `platform.http` to be enabled in `ModulePlan`:
+The following worker-derived drivers require `platform.worker` to be enabled in `ModulePlan`:
+
+```text
+http.worker
+bg.worker_queue
+```
+
+Missing `platform.worker` for a selected worker-derived runtime driver MUST fail with:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+requires-platform-worker-module
+```
+
+A selected worker-derived runtime driver without `platform.worker` enabled in `ModulePlan` is invalid.
+
+The guard MUST NOT select worker-derived runtime drivers when `platform.worker` is not enabled.
+
+After worker-owner scope is satisfied, the following non-classic HTTP drivers require `platform.http` to be enabled in `ModulePlan`:
 
 ```text
 http.frankenphp
@@ -905,6 +1048,7 @@ Runtime driver matrix invalid-config reason tokens are:
 
 ```text
 requires-platform-http-module
+requires-platform-worker-module
 config-key-missing
 config-key-invalid
 worker-task-type-missing
@@ -1058,12 +1202,13 @@ The doc-only `1.260.0` epic does not create those tests.
 Guard and runtime entrypoint tests MUST prove at minimum:
 
 - effective default merged config activates `http.classic`;
-- missing required runtime-driver config keys fail with `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`;
-- missing required runtime-driver config keys use reason `config-key-missing`;
-- non-boolean required runtime-driver flag values fail with reason `config-key-invalid`;
-- missing `worker.task_type` while `worker.enabled = true` fails with reason `worker-task-type-missing`;
-- invalid `worker.task_type` while `worker.enabled = true` fails with reason `worker-task-type-invalid`;
-- missing `worker.task_type` while `worker.enabled = false` does not fail;
+- missing required Kernel-owned runtime-driver config keys fail with `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`;
+- missing required Kernel-owned runtime-driver config keys use reason `config-key-missing`;
+- non-boolean required Kernel-owned runtime-driver flag values fail with reason `config-key-invalid`;
+- missing `worker.task_type` does not fail when `platform.worker` is not enabled in `ModulePlan`;
+- missing `worker.task_type` fails with reason `worker-task-type-missing` when `platform.worker` is enabled in `ModulePlan`;
+- invalid `worker.task_type` fails with reason `worker-task-type-invalid` when `platform.worker` is enabled in `ModulePlan`;
+- selected worker-derived runtime driver without `platform.worker` fails with reason `requires-platform-worker-module`;
 - `http.roadrunner` + `bg.worker_queue` is allowed;
 - `http.swoole` + `bg.worker_queue` is allowed;
 - `http.frankenphp` + `bg.worker_queue` is allowed;
@@ -1073,18 +1218,25 @@ Guard and runtime entrypoint tests MUST prove at minimum:
 - `http.swoole` + `http.worker` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`;
 - conflict diagnostics are sorted by driver id using byte-order `strcmp`;
 - selected non-classic HTTP driver without `platform.http` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`;
+- selected worker-derived runtime driver without `platform.worker` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`;
 - diagnostics contain driver ids only and do not expose secrets, raw config, environment values, paths, or adapter internals.
 
 ## Examples
 
-### Valid: default classic HTTP
+### Valid: default classic HTTP without `platform.worker`
+
+ModulePlan:
+
+```text
+platform.worker not enabled
+```
+
+Config:
 
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = false
-worker.task_type = "queue"
 ```
 
 Active drivers:
@@ -1095,13 +1247,14 @@ http.classic
 
 This is valid.
 
+Missing `worker.task_type` does not fail because Worker-owned runtime-driver inputs are outside the active owner domain.
+
 ### Valid: RoadRunner HTTP with queue worker
 
 ```text
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = true
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -1120,7 +1273,6 @@ This is valid.
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = true
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -1139,7 +1291,6 @@ This is valid.
 kernel.runtime.frankenphp.enabled = true
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "queue"
 ```
 
@@ -1158,7 +1309,6 @@ This is valid.
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = true
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -1190,7 +1340,6 @@ http.worker
 kernel.runtime.frankenphp.enabled = true
 kernel.runtime.swoole.enabled = false
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -1222,7 +1371,6 @@ http.worker
 kernel.runtime.frankenphp.enabled = false
 kernel.runtime.swoole.enabled = true
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = true
 worker.task_type = "http"
 ```
 
@@ -1250,11 +1398,18 @@ http.worker
 
 ### Invalid: multiple long-running HTTP drivers
 
+ModulePlan:
+
+```text
+platform.worker not enabled
+```
+
+Config:
+
 ```text
 kernel.runtime.frankenphp.enabled = true
 kernel.runtime.swoole.enabled = true
 kernel.runtime.roadrunner.enabled = false
-worker.enabled = false
 worker.task_type = "queue"
 ```
 

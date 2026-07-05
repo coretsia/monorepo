@@ -784,50 +784,49 @@ bg.worker_queue
 
 `RuntimeEntrypointGuard` is the public runtime-adapter boundary.
 
-Internally, it delegates to the Kernel-owned runtime-driver matrix implementation. Active drivers are derived only from declared config inputs:
+Internally, it delegates to the Kernel-owned runtime-driver matrix implementation.
+
+Active drivers are derived from Kernel-owned runtime config inputs and the resolved `ModulePlan` owner scope for Worker-owned runtime-driver inputs.
+
+Kernel-owned runtime-driver inputs are:
 
 ```text
 kernel.runtime.frankenphp.enabled
 kernel.runtime.swoole.enabled
 kernel.runtime.roadrunner.enabled
-worker.enabled
+```
+
+Worker-owned runtime-driver input is:
+
+```text
 worker.task_type
 ```
 
 `kernel.runtime.*.enabled` values activate non-classic HTTP drivers only when the value is strict boolean `true`.
 
-`worker.enabled` and `worker.task_type` are external runtime-owner inputs used only for the Kernel-owned runtime-driver matrix.
+`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
 
 Kernel does not own the `worker` config root, does not define `worker.*` defaults, and does not validate the full `worker` subtree.
 
-These keys are required in the merged runtime config snapshot consumed by the runtime entrypoint guard.
+Missing `worker.task_type` MUST NOT fail when `platform.worker` is not enabled in `ModulePlan`.
 
-Missing required runtime-driver config keys are invalid and fail with:
+When `platform.worker` is enabled in `ModulePlan`, `worker.task_type` is required and must be a string.
 
-```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-config-key-missing
-```
-
-Non-boolean required runtime-driver flag values are invalid and fail with:
+Accepted values are:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-config-key-invalid
+http
+queue
 ```
 
-`worker.task_type` is read only when `worker.enabled === true`.
-
-If `worker.enabled === false`, `worker.task_type` is not required.
-
-If `worker.enabled === true` and `worker.task_type` is missing, the guard fails with:
+If `platform.worker` is enabled and `worker.task_type` is missing, the guard fails with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 worker-task-type-missing
 ```
 
-If `worker.enabled === true` and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
+If `platform.worker` is enabled and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
@@ -938,6 +937,12 @@ afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array
 
 Low-level adapters MUST execute their external body only after successful `beginUnitOfWork()`.
 
+If `beginUnitOfWork()` throws, no open lifecycle token has been handed to the adapter.
+
+For a failed `beginUnitOfWork()` attempt, the adapter MUST NOT call `afterUnitOfWork()`.
+
+This includes failures raised while invoking before-uow hooks.
+
 Low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
 
 Low-level lifecycle methods are a sharp-edge adapter API.
@@ -965,6 +970,18 @@ ResetOrchestrator.resetAll()
 surface result or primary failure
 ```
 
+This linear sequence describes executions whose before-uow hooks complete successfully.
+
+If a before-uow hook throws after base `ContextStore` keys have been written, the UnitOfWork has crossed the reset-responsibility boundary but has not entered after-phase handling.
+
+In that case `KernelRuntime` MUST:
+
+- skip external runtime body execution;
+- skip `UnitOfWorkResult` construction;
+- skip after-uow hook invocation;
+- invoke `ResetOrchestrator::resetAll()` exactly once;
+- surface the before-uow hook failure as the primary failure, unless a stricter documented failure-precedence rule explicitly says otherwise.
+
 The conceptual shorthand is:
 
 ```text
@@ -982,6 +999,10 @@ Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 Reset responsibility starts only after the base `ContextStore` keys have been written successfully.
 
 If UnitOfWork context creation or base context key writing fails before that boundary, `KernelRuntime` MUST surface the primary failure without invoking reset orchestration.
+
+A before-uow hook failure happens after the reset-responsibility boundary and therefore MUST NOT skip reset.
+
+However, a before-uow hook failure happens before after-phase eligibility. It MUST NOT cause after-uow hooks to run.
 
 Before hooks receive the normalized exported UnitOfWork context array.
 
@@ -1154,16 +1175,15 @@ Canonical Kernel config keys:
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
 
-The runtime-driver entrypoint guard also reads selected external runtime-owner keys:
+The runtime-driver entrypoint guard also reads the selected external runtime-owner key:
 
 ```text
-worker.enabled
 worker.task_type
 ```
 
-These keys are not owned by `core/kernel`.
+This key is not owned by `core/kernel`.
 
-They must be present in the merged runtime config snapshot when required by the runtime-driver matrix, but their defaults and full subtree validation are owned by the package that owns the `worker` root.
+It must be present in the merged runtime config snapshot when `platform.worker` participates in the resolved `ModulePlan`; its default and full subtree validation are owned by the package that owns the `worker` root.
 
 `kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
 

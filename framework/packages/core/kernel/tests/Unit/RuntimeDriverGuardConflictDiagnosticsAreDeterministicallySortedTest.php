@@ -58,7 +58,6 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
             'kernel.runtime.frankenphp.enabled' => true,
             'kernel.runtime.swoole.enabled' => true,
             'kernel.runtime.roadrunner.enabled' => true,
-            'worker.enabled' => false,
             'worker.task_type' => 'queue',
         ]);
 
@@ -81,7 +80,6 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
             'kernel.runtime.frankenphp.enabled' => true,
             'kernel.runtime.swoole.enabled' => true,
             'kernel.runtime.roadrunner.enabled' => true,
-            'worker.enabled' => false,
             'worker.task_type' => 'queue',
         ]);
 
@@ -106,12 +104,12 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
             'kernel.runtime.frankenphp.enabled' => true,
             'kernel.runtime.swoole.enabled' => true,
             'kernel.runtime.roadrunner.enabled' => true,
-            'worker.enabled' => false,
             'worker.task_type' => 'queue',
         ]);
 
         self::assertSame(
             [
+                'bg.worker_queue',
                 'http.frankenphp',
                 'http.roadrunner',
                 'http.swoole',

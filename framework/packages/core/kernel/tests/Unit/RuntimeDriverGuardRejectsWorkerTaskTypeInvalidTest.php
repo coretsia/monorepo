@@ -33,7 +33,6 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
             'worker.task_type' => 'scheduler',
         ]);
 
@@ -65,7 +64,6 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
             'worker.task_type' => $rawWorkerTaskType,
             'APP_SECRET' => 'raw-env-secret-value',
         ]);
@@ -114,7 +112,6 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
             'worker.task_type' => 'scheduler',
         ]);
 

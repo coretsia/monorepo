@@ -33,7 +33,6 @@ final class RuntimeDriverGuardRejectsMultipleHttpDriversTest extends TestCase
             'kernel.runtime.frankenphp.enabled' => true,
             'kernel.runtime.swoole.enabled' => true,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => false,
             'worker.task_type' => 'queue',
         ]);
 
@@ -50,6 +49,7 @@ final class RuntimeDriverGuardRejectsMultipleHttpDriversTest extends TestCase
             );
             self::assertSame(
                 [
+                    'bg.worker_queue',
                     'http.frankenphp',
                     'http.swoole',
                 ],
@@ -75,7 +75,6 @@ final class RuntimeDriverGuardRejectsMultipleHttpDriversTest extends TestCase
             'kernel.runtime.frankenphp.enabled' => true,
             'kernel.runtime.swoole.enabled' => true,
             'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => false,
             'worker.task_type' => 'queue',
         ]);
 
@@ -92,6 +91,7 @@ final class RuntimeDriverGuardRejectsMultipleHttpDriversTest extends TestCase
             );
             self::assertSame(
                 [
+                    'bg.worker_queue',
                     'http.frankenphp',
                     'http.swoole',
                 ],

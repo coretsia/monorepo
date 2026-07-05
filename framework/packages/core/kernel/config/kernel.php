@@ -128,15 +128,13 @@ return [
      * package that owns the worker runtime.
      *
      * The runtime-driver entrypoint guard consumes the merged runtime config
-     * snapshot. That snapshot must contain the required runtime-driver input keys
-     * before the guard runs.
+     * snapshot. When `platform.worker` participates in the resolved ModulePlan,
+     * that snapshot must contain `worker.task_type`.
      *
-     * `worker.enabled` is an external runtime-owner input. When it is `false`,
-     * `worker.task_type` is not required. When it is `true`, `worker.task_type`
-     * must be present and must select a supported worker task type.
+     * Missing `worker.task_type` is allowed when `platform.worker` is not enabled
+     * in the caller-provided ModulePlan.
      *
-     * With these Kernel defaults and an external runtime-owner default of
-     * `worker.enabled = false`, the runtime-driver matrix resolves the safe
+     * With only these Kernel defaults, the runtime-driver matrix resolves the safe
      * classic HTTP driver.
      */
     'runtime' => [

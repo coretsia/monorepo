@@ -21,6 +21,7 @@ return [
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT',
     'reason' => 'multiple-http-drivers',
     'activeDriverIds' => [
+        'bg.worker_queue',
         'http.frankenphp',
         'http.swoole',
     ],

@@ -16,4 +16,6 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-return [];
+return [
+    'platform.worker',
+];

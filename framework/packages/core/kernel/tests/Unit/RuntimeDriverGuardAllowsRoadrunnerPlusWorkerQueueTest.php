@@ -34,7 +34,6 @@ final class RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest extends TestCa
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => true,
-            'worker.enabled' => true,
             'worker.task_type' => 'queue',
         ]);
 
@@ -59,7 +58,6 @@ final class RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest extends TestCa
             'kernel.runtime.frankenphp.enabled' => false,
             'kernel.runtime.swoole.enabled' => false,
             'kernel.runtime.roadrunner.enabled' => true,
-            'worker.enabled' => true,
             'worker.task_type' => 'queue',
         ]);
 

@@ -353,11 +353,13 @@ Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 
 The typo `ResetOrcestrator` is invalid and MUST NOT be introduced in docs, code, tests, or generated artifacts.
 
-This policy cements only the Kernel lifecycle invariant:
+This policy cements the Kernel after-phase lifecycle invariant:
 
 ```text
-after hooks → ResetOrchestrator.resetAll() → endUoW
+after-phase entered → after hooks → ResetOrchestrator.resetAll() → endUoW
 ```
+
+This invariant applies only after after-phase eligibility has been reached.
 
 This reset invariant applies only after the reset-responsibility boundary has been crossed.
 
@@ -373,6 +375,19 @@ If UnitOfWork context creation fails before that boundary, `ResetOrchestrator.re
 If base `ContextStore` key writing fails before that boundary, `ResetOrchestrator.resetAll()` MUST NOT run.
 
 If before-uow hooks fail after that boundary, reset MUST still run according to the exactly-once rule.
+
+A before-uow hook failure MUST NOT enter after-phase handling.
+
+For a before-uow hook failure:
+
+```text
+external runtime body MUST NOT run
+UnitOfWorkResult MUST NOT be built
+after-uow hooks MUST NOT run
+ResetOrchestrator.resetAll() MUST run exactly once
+```
+
+The before-uow hook failure remains the primary lifecycle failure.
 
 Once the after-phase is entered, `ResetOrchestrator.resetAll()` MUST run exactly once before `endUoW()`.
 
@@ -474,6 +489,10 @@ runtime reports/propagates failure according to owner policy
 The reporting or propagation of the after-hook failure is runtime-owned.
 
 The reset guarantee is not optional.
+
+For a UnitOfWork that crossed the reset-responsibility boundary but failed before after-phase eligibility, such as a before-uow hook failure, `ResetOrchestrator.resetAll()` MUST still be called exactly once.
+
+That case MUST NOT invoke after-uow hooks.
 
 ## Failure precedence
 
@@ -1067,6 +1086,24 @@ Given base `ContextStore` key writing fails.
 Then `ResetOrchestrator.resetAll()` MUST NOT run.
 
 And the base context key writing failure remains the surfaced failure.
+
+### Before hook failure skips after phase but still resets
+
+Given UnitOfWork context creation succeeds.
+
+And base `ContextStore` keys are written successfully.
+
+And a before-uow hook throws.
+
+Then the external runtime body MUST NOT run.
+
+Then `UnitOfWorkResult` MUST NOT be built.
+
+Then after-uow hooks MUST NOT run.
+
+Then `ResetOrchestrator.resetAll()` MUST run exactly once.
+
+Then the before-uow hook failure remains the surfaced primary failure.
 
 ## Contract enforcement evidence
 

@@ -22,11 +22,13 @@ use Coretsia\Contracts\Cli\Input\InputInterface;
 use Coretsia\Contracts\Cli\Output\OutputInterface;
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
@@ -53,7 +55,7 @@ final class WorkerStartCommandContractTest extends TestCase
 
         $command = new WorkerStartCommand(
             config: $config,
-            modulePlan: self::emptyModulePlan(),
+            modulePlan: self::workerModulePlan(),
             runtimeEntrypointGuard: new RuntimeEntrypointGuard(),
             factory: new WorkerServiceFactory(),
             managerFactory: static function () use (&$managerFactoryCalls, $driver): WorkerManager {
@@ -182,7 +184,7 @@ final class WorkerStartCommandContractTest extends TestCase
 
         $command = self::command(
             config: $config,
-            modulePlan: self::emptyModulePlan(),
+            modulePlan: self::workerModulePlan(),
             driver: $driver,
             managerFactoryCalls: $managerFactoryCalls,
         );
@@ -227,7 +229,7 @@ final class WorkerStartCommandContractTest extends TestCase
 
         $command = self::command(
             config: $config,
-            modulePlan: self::emptyModulePlan(),
+            modulePlan: self::workerModulePlan(),
             driver: $driver,
             managerFactoryCalls: $managerFactoryCalls,
         );
@@ -272,7 +274,7 @@ final class WorkerStartCommandContractTest extends TestCase
 
         $command = self::command(
             config: $config,
-            modulePlan: self::emptyModulePlan(),
+            modulePlan: self::workerModulePlan(),
             driver: $driver,
             managerFactoryCalls: $managerFactoryCalls,
         );
@@ -437,7 +439,7 @@ final class WorkerStartCommandContractTest extends TestCase
                     ],
                 ]),
             ),
-            modulePlan: self::emptyModulePlan(),
+            modulePlan: self::workerModulePlan(),
             driver: $driver,
             managerFactoryCalls: $managerFactoryCalls,
         );
@@ -511,6 +513,50 @@ final class WorkerStartCommandContractTest extends TestCase
         );
     }
 
+    private static function workerModulePlan(): ModulePlan
+    {
+        return self::modulePlan([
+            'platform.worker',
+        ]);
+    }
+
+    /**
+     * @param list<string> $enabledModuleIds
+     */
+    private static function modulePlan(array $enabledModuleIds): ModulePlan
+    {
+        $enabled = [];
+
+        foreach ($enabledModuleIds as $moduleId) {
+            $enabled[] = ModuleId::fromString($moduleId);
+        }
+
+        \usort(
+            $enabled,
+            static fn (ModuleId $left, ModuleId $right): int => \strcmp($left->value(), $right->value()),
+        );
+
+        $modules = [];
+
+        foreach ($enabled as $moduleId) {
+            $modules[] = new ModulePlanEntry(
+                moduleId: $moduleId,
+                composerName: 'coretsia/' . \str_replace('.', '-', $moduleId->value()),
+            );
+        }
+
+        return new ModulePlan(
+            app: 'worker',
+            preset: 'micro',
+            enabled: $enabled,
+            disabled: [],
+            optionalMissing: [],
+            topologicalOrder: $enabled,
+            modules: $modules,
+            warnings: [],
+        );
+    }
+
     private static function startedState(): WorkerPoolState
     {
         return new WorkerPoolState(
@@ -547,7 +593,6 @@ final class WorkerStartCommandContractTest extends TestCase
                     ],
                 ],
                 'worker' => [
-                    'enabled' => true,
                     'workers' => 2,
                     'max_requests' => 100,
                     'task_type' => 'queue',
@@ -616,7 +661,6 @@ final class WorkerStartCommandContractTest extends TestCase
                 'tcp://10.11.12.13:9751',
                 __DIR__,
                 \str_replace('/', '\\', __DIR__),
-                'worker.enabled',
                 'worker.socket_path',
                 'worker.tcp.host',
                 'worker.tcp.port',

@@ -136,6 +136,17 @@ It MUST NOT return the exported UnitOfWork result array.
 
 `afterUnitOfWork()` returns the normalized exported UnitOfWork result array.
 
+A successful `beginUnitOfWork()` return is the only signal that a low-level adapter has received an open lifecycle token.
+
+If `beginUnitOfWork()` throws, the adapter MUST NOT call `afterUnitOfWork()` for that failed begin attempt.
+
+Concrete before-hook failure handling is runtime-owned. The canonical Kernel implementation defines its behavior in:
+
+```text
+docs/adr/ADR-0020-kernel-runtime-uow-spi.md
+docs/ssot/uow-outcome-policy.md
+```
+
 Low-level adapters that need exported context/result arrays MUST use:
 
 ```text

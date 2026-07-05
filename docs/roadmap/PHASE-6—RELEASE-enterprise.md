@@ -7236,7 +7236,7 @@ ssot_refs:
   - none
 
 - Required config roots/keys:
-  - `worker.enabled` — MUST be `false` when `runtime_frankenphp.enabled=true` (policy carried from legacy epic)
+  - `platform.worker` — MUST be `disabled` when `runtime_frankenphp.enabled=true` (policy carried from legacy epic)
 
 - Required tags:
   - none
@@ -7442,7 +7442,7 @@ Forbidden:
 - [ ] Entrypoint invariant:
   - [ ] Entrypoint MUST call `RuntimeDriverGuard->assertCompatible()` before booting HttpKernel
 - [ ] Runtime expectation:
-  - [ ] Має бути вимкнено: `worker.enabled=false`, якщо `runtime_frankenphp` активний
+  - [ ] Має бути вимкнено: `platform.worker not enabled`, якщо `runtime_frankenphp` активний
 - [ ] Acceptance scenario:
   - [ ] When 100 sequential HTTP requests are handled, then memory harness shows no context leak and all responses are correct.
 - [ ] Usually present when enabled in presets/bundles:
@@ -7494,7 +7494,7 @@ ssot_refs:
   - none
 
 - Required config roots/keys:
-  - `worker.enabled` — MUST be `false` when `runtime_swoole.enabled=true` (policy carried from legacy epic)
+  - `platform.worker` — MUST be `disabled` when `runtime_swoole.enabled=true` (policy carried from legacy epic)
 
 - Required tags:
   - none
@@ -7707,7 +7707,7 @@ Forbidden:
 - [ ] Entrypoint invariant:
   - [ ] Entrypoint MUST call `RuntimeDriverGuard->assertCompatible()` before booting HttpKernel
 - [ ] Runtime expectation:
-  - [ ] Має бути вимкнено: `worker.enabled=false`, якщо `runtime_swoole` активний
+  - [ ] Має бути вимкнено: `platform.worker not enabled`, якщо `runtime_swoole` активний
 - [ ] Acceptance scenario:
   - [ ] When server receives SIGTERM, then it stops accepting new requests and finishes in-flight requests deterministically.
 - [ ] Usually present when enabled in presets/bundles:
@@ -7757,7 +7757,7 @@ ssot_refs:
   - **before** booting `platform/http` kernel.
 - Guard decision is **pure config-keys decision** (no probing). This epic MUST NOT add ad-hoc checks outside the guard.
 - This epic MUST explicitly document which keys are checked for incompatibilities, at minimum:
-  - `worker.enabled` conflicts with RoadRunner HTTP runtime,
+  - `platform.worker` conflicts with RoadRunner HTTP runtime,
   - any other mutually-exclusive `http.*` driver key(s) as defined by `docs/ssot/runtime-drivers.md`.
 
 ### Artifacts reads (clarification)
@@ -7777,7 +7777,7 @@ ssot_refs:
   - `framework/packages/core/kernel/` — наявна runtime guard policy (Entrypoint MUST call `RuntimeDriverGuard->assertCompatible()` before booting HttpKernel).
 
 - Required config roots/keys:
-  - `worker.enabled` — MUST be `false`, якщо `runtime_roadrunner.enabled=true` (worker-mode вимкнений для цього runtime).
+  - `platform.worker` — MUST be `disabled`, якщо `runtime_roadrunner.enabled=true` (worker-mode вимкнений для цього runtime).
   - `runtime_roadrunner.*` — корінь вводиться цим епіком; форма ключів фіксується `config/rules.php`.
 
 - Required tags:
@@ -7987,7 +7987,7 @@ N/A
   - [ ] Не реалізуємо “process manager” — RoadRunner цим займається сам.
   - [ ] Не логимо payload/headers/vars; не додаємо high-cardinality metric labels.
 - [ ] Entrypoint MUST call `RuntimeDriverGuard->assertCompatible()` before booting HttpKernel
-- [ ] Має бути вимкнено: worker.enabled=false, якщо runtime_roadrunner активний
+- [ ] Має бути вимкнено: `platform.worker not enabled`, якщо `runtime_roadrunner` активний
 - [ ] RoadRunner може обслуговувати багато запитів підряд, а кожен запит має свій UoW і не тече контекст/стан між запитами.
 - [ ] When 100 sequential HTTP requests are handled via RoadRunner adapter, then harness shows no context leak and all responses are correct.
 - [ ] Usually present when enabled in presets/bundles:

@@ -119,7 +119,6 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
                 'kernel.runtime.frankenphp.enabled',
                 'kernel.runtime.swoole.enabled',
                 'kernel.runtime.roadrunner.enabled',
-                'worker.enabled',
                 'worker.task_type',
             ],
             $config->guardReadKeys(),
@@ -212,7 +211,6 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
                 ],
             ],
             'worker' => [
-                'enabled' => true,
                 'workers' => 1,
                 'max_requests' => 1,
                 'task_type' => 'http',
@@ -492,11 +490,7 @@ final class ArrayConfigRepository implements ConfigRepositoryInterface
 
     private function recordGuardRead(string $keyPath): void
     {
-        if (
-            \str_starts_with($keyPath, 'kernel.runtime.')
-            || $keyPath === 'worker.enabled'
-            || $keyPath === 'worker.task_type'
-        ) {
+        if (\str_starts_with($keyPath, 'kernel.runtime.') || $keyPath === 'worker.task_type') {
             $this->guardReadKeys[] = $keyPath;
         }
     }

@@ -205,7 +205,6 @@ Baseline defaults include:
 
 ```php
 [
-    'enabled' => false,
     'workers' => 4,
     'max_requests' => 1000,
     'task_type' => 'queue',
@@ -232,7 +231,7 @@ Baseline defaults include:
 
 Important config rules:
 
-- `worker.enabled=false` by default.
+- `worker.task_type=queue` by default.
 - `worker.workers` must be a positive integer.
 - `worker.max_requests` must be a positive integer.
 - `worker.task_type` is `queue` or `http`.

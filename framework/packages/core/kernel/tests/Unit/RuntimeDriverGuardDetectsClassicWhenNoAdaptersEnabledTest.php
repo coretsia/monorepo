@@ -31,9 +31,7 @@ final class RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest extends Te
     public function testDetectsClassicHttpPlusWorkerQueueWhenNoNonClassicHttpDriversAreEnabled(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'queue',
         ]);
 
@@ -49,9 +47,7 @@ final class RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest extends Te
     public function testAssertCompatibleAllowsClassicHttpWhenNoNonClassicHttpDriversAreEnabled(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'queue',
         ]);
 

@@ -31,9 +31,7 @@ final class RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest extends TestCa
     public function testAllowsRoadrunnerHttpPlusWorkerQueueBackgroundDriver(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.roadrunner',
             'worker.task_type' => 'queue',
         ]);
 
@@ -55,9 +53,7 @@ final class RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest extends TestCa
     public function testAssertCompatibleAllowsRoadrunnerHttpPlusWorkerQueue(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.roadrunner',
             'worker.task_type' => 'queue',
         ]);
 

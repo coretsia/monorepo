@@ -111,15 +111,7 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTe
             ],
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
                 'uow' => [
                     'attributes' => [

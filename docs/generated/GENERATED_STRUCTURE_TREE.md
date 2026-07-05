@@ -836,8 +836,8 @@ Coretsia/
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
+│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsMultipleHttpDriversTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php
@@ -1337,10 +1337,6 @@ Coretsia/
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php
 │   │       │   │   ├── FrankenphpWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── MultipleConfiguredHttpDriversApp/
 │   │       │   │   │   ├── config.php
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php

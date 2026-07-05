@@ -788,13 +788,22 @@ Internally, it delegates to the Kernel-owned runtime-driver matrix implementatio
 
 Active drivers are derived from Kernel-owned runtime config inputs and the resolved `ModulePlan` owner scope for Worker-owned runtime-driver inputs.
 
-Kernel-owned runtime-driver inputs are:
+Kernel-owned runtime-driver input is:
 
 ```text
-kernel.runtime.frankenphp.enabled
-kernel.runtime.swoole.enabled
-kernel.runtime.roadrunner.enabled
+kernel.runtime.http_driver
 ```
+
+Allowed Kernel-selected HTTP runtime driver values are:
+
+```text
+http.classic
+http.frankenphp
+http.swoole
+http.roadrunner
+```
+
+`http.worker` is intentionally not accepted by `kernel.runtime.http_driver`.
 
 Worker-owned runtime-driver input is:
 
@@ -802,7 +811,9 @@ Worker-owned runtime-driver input is:
 worker.task_type
 ```
 
-`kernel.runtime.*.enabled` values activate non-classic HTTP drivers only when the value is strict boolean `true`.
+`kernel.runtime.http_driver` selects exactly one Kernel-owned HTTP runtime driver.
+
+`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
 
 `worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
 
@@ -1158,9 +1169,7 @@ Canonical Kernel config keys:
 | `kernel.boot.default_env`                     | `"local"`                                                  |
 | `kernel.boot.default_preset`                  | `"micro"`                                                  |
 | `kernel.boot.default_debug`                   | `false`                                                    |
-| `kernel.runtime.frankenphp.enabled`           | `false`                                                    |
-| `kernel.runtime.swoole.enabled`               | `false`                                                    |
-| `kernel.runtime.roadrunner.enabled`           | `false`                                                    |
+| `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
 | `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |

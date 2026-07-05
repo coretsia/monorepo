@@ -46,9 +46,7 @@ use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
  */
 final class RuntimeDriverGuard
 {
-    private const string CONFIG_FRANKENPHP_ENABLED = 'kernel.runtime.frankenphp.enabled';
-    private const string CONFIG_SWOOLE_ENABLED = 'kernel.runtime.swoole.enabled';
-    private const string CONFIG_ROADRUNNER_ENABLED = 'kernel.runtime.roadrunner.enabled';
+    private const string CONFIG_HTTP_DRIVER = 'kernel.runtime.http_driver';
 
     private const string CONFIG_WORKER_TASK_TYPE = 'worker.task_type';
 
@@ -137,20 +135,8 @@ final class RuntimeDriverGuard
         ConfigRepositoryInterface $cfg,
         bool $workerInputsInScope = true,
     ): array {
-        $httpDrivers = [];
+        $httpDrivers = self::configuredHttpDrivers($cfg);
         $backgroundDrivers = [];
-
-        if (self::requiredBoolean($cfg, self::CONFIG_FRANKENPHP_ENABLED)) {
-            $httpDrivers[] = HttpDriver::FRANKENPHP;
-        }
-
-        if (self::requiredBoolean($cfg, self::CONFIG_SWOOLE_ENABLED)) {
-            $httpDrivers[] = HttpDriver::SWOOLE;
-        }
-
-        if (self::requiredBoolean($cfg, self::CONFIG_ROADRUNNER_ENABLED)) {
-            $httpDrivers[] = HttpDriver::ROADRUNNER;
-        }
 
         if (!$workerInputsInScope) {
             return [$httpDrivers, $backgroundDrivers];
@@ -187,21 +173,28 @@ final class RuntimeDriverGuard
         );
     }
 
-    private static function requiredBoolean(
-        ConfigRepositoryInterface $cfg,
-        string $keyPath,
-    ): bool {
-        if (!$cfg->has($keyPath)) {
+    /**
+     * @return list<HttpDriver>
+     */
+    private static function configuredHttpDrivers(ConfigRepositoryInterface $cfg): array
+    {
+        if (!$cfg->has(self::CONFIG_HTTP_DRIVER)) {
             throw RuntimeDriverInvalidConfigException::configKeyMissing();
         }
 
-        $value = $cfg->get($keyPath);
+        $httpDriver = $cfg->get(self::CONFIG_HTTP_DRIVER);
 
-        if (!\is_bool($value)) {
+        if (!\is_string($httpDriver)) {
             throw RuntimeDriverInvalidConfigException::configKeyInvalid();
         }
 
-        return $value;
+        return match ($httpDriver) {
+            HttpDriver::CLASSIC->value => [],
+            HttpDriver::FRANKENPHP->value => [HttpDriver::FRANKENPHP],
+            HttpDriver::SWOOLE->value => [HttpDriver::SWOOLE],
+            HttpDriver::ROADRUNNER->value => [HttpDriver::ROADRUNNER],
+            default => throw RuntimeDriverInvalidConfigException::configKeyInvalid(),
+        };
     }
 
     /**

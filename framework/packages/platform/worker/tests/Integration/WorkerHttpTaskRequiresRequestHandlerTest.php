@@ -116,9 +116,7 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
 
         self::assertSame(
             [
-                'kernel.runtime.frankenphp.enabled',
-                'kernel.runtime.swoole.enabled',
-                'kernel.runtime.roadrunner.enabled',
+                'kernel.runtime.http_driver',
                 'worker.task_type',
             ],
             $config->guardReadKeys(),
@@ -199,15 +197,7 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
         return [
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
             ],
             'worker' => [

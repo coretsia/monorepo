@@ -53,9 +53,7 @@ Runtime driver activation is config-driven.
 The canonical matrix input keys are:
 
 ```text
-kernel.runtime.frankenphp.enabled
-kernel.runtime.swoole.enabled
-kernel.runtime.roadrunner.enabled
+kernel.runtime.http_driver
 worker.task_type
 ```
 
@@ -298,18 +296,20 @@ It must not inspect Composer metadata, providers, package paths, module manifest
 
 ## ModulePlan compatibility decision
 
-The following worker-derived runtime drivers require `platform.worker` to be enabled in the caller-provided `ModulePlan`:
+The following worker-derived runtime drivers are in the Worker owner scope:
 
 ```text
 http.worker
 bg.worker_queue
 ```
 
-Missing `platform.worker` for a selected worker-derived runtime driver must fail deterministically with `requires-platform-worker-module`.
+They are selected only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
 
-A selected worker-derived runtime driver without `platform.worker` enabled in the caller-provided `ModulePlan` is invalid.
+When `platform.worker` is not enabled, Worker-owned runtime-driver inputs are outside the active owner domain.
 
-The guard must not select worker-derived runtime drivers when `platform.worker` is not enabled.
+In that state, the guard must not select worker-derived runtime drivers and must not fail because `worker.task_type` is missing.
+
+Owner entrypoints such as `worker:start` may perform their own package/module precheck before invoking the runtime entrypoint guard.
 
 After Worker owner-scope is satisfied, the following non-classic HTTP drivers require `platform.http` to be enabled in the caller-provided `ModulePlan`:
 
@@ -362,9 +362,9 @@ The canonical message shape is:
 For example:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT: multiple-http-drivers
+CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT: worker-http-conflicts-with-http-driver
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: requires-platform-http-module
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: requires-platform-worker-module
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: worker-task-type-missing
 ```
 
 Diagnostics may expose only stable safe data:
@@ -433,10 +433,11 @@ Public error handling can rely on deterministic code-first exception semantics.
 
 Tests must verify:
 
-- config-only full-matrix detection and conflict behavior;
+- config-only full-matrix detection and selector validation behavior;
 - ModulePlan-aware Worker input scoping;
-- deterministic `requires-platform-worker-module` failures;
-- module-aware `platform.http` compatibility behavior.
+- deterministic `worker-task-type-missing` and `worker-task-type-invalid` failures;
+- module-aware `platform.http` compatibility behavior;
+- worker HTTP conflicts with Kernel-selected non-classic HTTP drivers.
 
 Changing driver ids, config keys, activation rules, or error code names requires updating:
 

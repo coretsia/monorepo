@@ -165,9 +165,7 @@ final class WorkerStartCommandContractTest extends TestCase
             self::workerConfig([
                 'kernel' => [
                     'runtime' => [
-                        'frankenphp' => [
-                            'enabled' => true,
-                        ],
+                        'http_driver' => 'http.frankenphp',
                     ],
                 ],
                 'worker' => [
@@ -429,9 +427,7 @@ final class WorkerStartCommandContractTest extends TestCase
                 self::workerConfig([
                     'kernel' => [
                         'runtime' => [
-                            'roadrunner' => [
-                                'enabled' => true,
-                            ],
+                            'http_driver' => 'http.roadrunner',
                         ],
                     ],
                     'worker' => [
@@ -581,15 +577,7 @@ final class WorkerStartCommandContractTest extends TestCase
             [
                 'kernel' => [
                     'runtime' => [
-                        'frankenphp' => [
-                            'enabled' => false,
-                        ],
-                        'swoole' => [
-                            'enabled' => false,
-                        ],
-                        'roadrunner' => [
-                            'enabled' => false,
-                        ],
+                        'http_driver' => 'http.classic',
                     ],
                 ],
                 'worker' => [

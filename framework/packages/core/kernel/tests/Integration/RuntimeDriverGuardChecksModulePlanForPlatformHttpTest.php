@@ -80,9 +80,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     public function testWorkerTaskTypeIsOutOfScopeWhenPlatformWorkerModuleIsNotEnabled(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'http',
         ]);
 
@@ -97,9 +95,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     public function testWorkerQueueBackgroundDriverDoesNotRequirePlatformHttpModule(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'queue',
         ]);
 
@@ -120,9 +116,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     public function testWorkerHttpRequiresPlatformHttpWhenPlatformWorkerIsEnabled(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'http',
         ]);
 
@@ -147,9 +141,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     public function testWorkerHttpIsAllowedWhenPlatformWorkerAndPlatformHttpAreEnabled(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'http',
         ]);
 
@@ -171,9 +163,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     {
         yield 'frankenphp requires platform.http' => [
             [
-                'kernel.runtime.frankenphp.enabled' => true,
-                'kernel.runtime.swoole.enabled' => false,
-                'kernel.runtime.roadrunner.enabled' => false,
+                'kernel.runtime.http_driver' => 'http.frankenphp',
                 'worker.task_type' => 'queue',
             ],
             [
@@ -183,9 +173,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
 
         yield 'roadrunner requires platform.http' => [
             [
-                'kernel.runtime.frankenphp.enabled' => false,
-                'kernel.runtime.swoole.enabled' => false,
-                'kernel.runtime.roadrunner.enabled' => true,
+                'kernel.runtime.http_driver' => 'http.roadrunner',
                 'worker.task_type' => 'queue',
             ],
             [
@@ -195,9 +183,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
 
         yield 'swoole requires platform.http' => [
             [
-                'kernel.runtime.frankenphp.enabled' => false,
-                'kernel.runtime.swoole.enabled' => true,
-                'kernel.runtime.roadrunner.enabled' => false,
+                'kernel.runtime.http_driver' => 'http.swoole',
                 'worker.task_type' => 'queue',
             ],
             [
@@ -264,15 +250,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         return new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => $values['kernel.runtime.frankenphp.enabled'],
-                    ],
-                    'swoole' => [
-                        'enabled' => $values['kernel.runtime.swoole.enabled'],
-                    ],
-                    'roadrunner' => [
-                        'enabled' => $values['kernel.runtime.roadrunner.enabled'],
-                    ],
+                    'http_driver' => $values['kernel.runtime.http_driver'],
                 ],
             ],
             'worker' => [

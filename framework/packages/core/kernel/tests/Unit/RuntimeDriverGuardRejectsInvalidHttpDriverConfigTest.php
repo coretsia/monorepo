@@ -21,94 +21,54 @@ namespace Coretsia\Kernel\Tests\Unit;
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
-use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
+use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-final class RuntimeDriverGuardRejectsMultipleHttpDriversTest extends TestCase
+final class RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest extends TestCase
 {
-    public function testDetectRejectsMultipleConfiguredHttpDrivers(): void
+    public function testDetectRejectsInvalidHttpDriverSelector(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => true,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => 'http.reactphp',
             'worker.task_type' => 'queue',
         ]);
 
         try {
             new RuntimeDriverGuard()->detect($cfg);
-        } catch (RuntimeDriverConflictException $exception) {
+        } catch (RuntimeDriverInvalidConfigException $exception) {
             self::assertSame(
-                RuntimeDriverConflictException::ERROR_CODE,
+                RuntimeDriverInvalidConfigException::ERROR_CODE,
                 $exception->errorCode(),
             );
             self::assertSame(
-                RuntimeDriverConflictException::REASON_MULTIPLE_HTTP_DRIVERS,
+                RuntimeDriverInvalidConfigException::REASON_CONFIG_KEY_INVALID,
                 $exception->reason(),
             );
-            self::assertSame(
-                [
-                    'bg.worker_queue',
-                    'http.frankenphp',
-                    'http.swoole',
-                ],
-                $exception->activeDriverIds(),
-            );
-            self::assertSame(
-                [
-                    'http.frankenphp',
-                    'http.swoole',
-                ],
-                $exception->conflictingDriverIds(),
-            );
+            self::assertSame([], $exception->activeDriverIds());
+            self::assertSame([], $exception->requiredModuleIds());
 
             return;
         }
 
-        self::fail('RuntimeDriverGuard must reject multiple configured HTTP drivers.');
+        self::fail('RuntimeDriverGuard must reject invalid kernel.runtime.http_driver values.');
     }
 
-    public function testAssertCompatibleRejectsMultipleConfiguredHttpDrivers(): void
+    public function testDetectRejectsNonStringHttpDriverSelector(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => true,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => false,
+            'kernel.runtime.http_driver' => true,
             'worker.task_type' => 'queue',
         ]);
 
-        try {
-            new RuntimeDriverGuard()->assertCompatible($cfg);
-        } catch (RuntimeDriverConflictException $exception) {
-            self::assertSame(
-                RuntimeDriverConflictException::ERROR_CODE,
-                $exception->errorCode(),
-            );
-            self::assertSame(
-                RuntimeDriverConflictException::REASON_MULTIPLE_HTTP_DRIVERS,
-                $exception->reason(),
-            );
-            self::assertSame(
-                [
-                    'bg.worker_queue',
-                    'http.frankenphp',
-                    'http.swoole',
-                ],
-                $exception->activeDriverIds(),
-            );
-            self::assertSame(
-                [
-                    'http.frankenphp',
-                    'http.swoole',
-                ],
-                $exception->conflictingDriverIds(),
-            );
+        $this->expectException(RuntimeDriverInvalidConfigException::class);
+        $this->expectExceptionMessage(
+            RuntimeDriverInvalidConfigException::ERROR_CODE
+            . ': '
+            . RuntimeDriverInvalidConfigException::REASON_CONFIG_KEY_INVALID,
+        );
 
-            return;
-        }
-
-        self::fail('RuntimeDriverGuard::assertCompatible() must reject multiple configured HTTP drivers.');
+        new RuntimeDriverGuard()->detect($cfg);
     }
 
     /**

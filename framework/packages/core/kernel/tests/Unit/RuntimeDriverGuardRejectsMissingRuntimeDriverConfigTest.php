@@ -31,15 +31,7 @@ final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends Test
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
             ],
         ]);
@@ -59,15 +51,7 @@ final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends Test
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
             ],
             'worker' => [

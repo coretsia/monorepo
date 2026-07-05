@@ -30,9 +30,7 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest extends TestCa
     public function testDetectRejectsWorkerHttpWithRoadrunnerHttpDriver(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.roadrunner',
             'worker.task_type' => 'http',
         ]);
 
@@ -71,9 +69,7 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest extends TestCa
     public function testAssertCompatibleRejectsWorkerHttpWithRoadrunnerHttpDriver(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.roadrunner',
             'worker.task_type' => 'http',
         ]);
 

@@ -55,10 +55,8 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
     public function testConflictDiagnosticsUseOnlyCanonicalDriverIds(): void
     {
         $exception = self::detectConflict([
-            'kernel.runtime.frankenphp.enabled' => true,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => true,
-            'worker.task_type' => 'queue',
+            'kernel.runtime.http_driver' => 'http.roadrunner',
+            'worker.task_type' => 'http',
         ]);
 
         self::assertSame(
@@ -66,7 +64,7 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
             $exception->errorCode(),
         );
         self::assertSame(
-            RuntimeDriverConflictException::REASON_MULTIPLE_HTTP_DRIVERS,
+            RuntimeDriverConflictException::REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER,
             $exception->reason(),
         );
 
@@ -77,10 +75,8 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
     public function testConflictDiagnosticsForbidShortenedAliases(): void
     {
         $exception = self::detectConflict([
-            'kernel.runtime.frankenphp.enabled' => true,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => true,
-            'worker.task_type' => 'queue',
+            'kernel.runtime.http_driver' => 'http.roadrunner',
+            'worker.task_type' => 'http',
         ]);
 
         foreach (self::SHORTENED_ALIASES as $alias) {
@@ -101,27 +97,22 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
     public function testConflictDiagnosticsAreSortedByCanonicalIdUsingByteOrderStrcmp(): void
     {
         $exception = self::detectConflict([
-            'kernel.runtime.frankenphp.enabled' => true,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => true,
-            'worker.task_type' => 'queue',
+            'kernel.runtime.http_driver' => 'http.roadrunner',
+            'worker.task_type' => 'http',
         ]);
 
         self::assertSame(
             [
-                'bg.worker_queue',
-                'http.frankenphp',
                 'http.roadrunner',
-                'http.swoole',
+                'http.worker',
             ],
             $exception->activeDriverIds(),
         );
 
         self::assertSame(
             [
-                'http.frankenphp',
                 'http.roadrunner',
-                'http.swoole',
+                'http.worker',
             ],
             $exception->conflictingDriverIds(),
         );

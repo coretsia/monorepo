@@ -32,9 +32,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
     {
         $started = false;
         $config = self::runtimeConfig(
-            frankenphp: false,
-            swoole: false,
-            roadrunner: true,
+            httpDriver: 'http.roadrunner',
             workerTaskType: null,
         );
 
@@ -63,9 +61,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
         self::guard()->assertEntrypointAllowed(
             config: new ArrayConfigRepository(
                 self::runtimeConfig(
-                    frankenphp: false,
-                    swoole: false,
-                    roadrunner: true,
+                    httpDriver: 'http.roadrunner',
                     workerTaskType: null,
                 )
             ),
@@ -80,9 +76,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
         self::guard()->assertEntrypointAllowed(
             config: new ArrayConfigRepository(
                 self::runtimeConfig(
-                    frankenphp: false,
-                    swoole: false,
-                    roadrunner: false,
+                    httpDriver: 'http.classic',
                     workerTaskType: null,
                 )
             ),
@@ -125,21 +119,12 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
     public function testClassicHttpWithoutWorkerRootIsAllowedWhenPlatformWorkerIsNotEnabled(): void
     {
         self::guard()->assertEntrypointAllowed(
-            config: new ArrayConfigRepository([
-                'kernel' => [
-                    'runtime' => [
-                        'frankenphp' => [
-                            'enabled' => false,
-                        ],
-                        'swoole' => [
-                            'enabled' => false,
-                        ],
-                        'roadrunner' => [
-                            'enabled' => false,
-                        ],
-                    ],
-                ],
-            ]),
+            config: new ArrayConfigRepository(
+                self::runtimeConfig(
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
+                )
+            ),
             modulePlan: self::modulePlan([]),
         );
 
@@ -152,21 +137,12 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
 
         try {
             self::guard()->assertEntrypointAllowed(
-                config: new ArrayConfigRepository([
-                    'kernel' => [
-                        'runtime' => [
-                            'frankenphp' => [
-                                'enabled' => false,
-                            ],
-                            'swoole' => [
-                                'enabled' => false,
-                            ],
-                            'roadrunner' => [
-                                'enabled' => false,
-                            ],
-                        ],
-                    ],
-                ]),
+                config: new ArrayConfigRepository(
+                    self::runtimeConfig(
+                        httpDriver: 'http.classic',
+                        workerTaskType: null,
+                    )
+                ),
                 modulePlan: self::modulePlan(['platform.worker']),
             );
 
@@ -192,23 +168,13 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
      * @return array<string, mixed>
      */
     private static function runtimeConfig(
-        bool $frankenphp,
-        bool $swoole,
-        bool $roadrunner,
+        string $httpDriver,
         ?string $workerTaskType = null,
     ): array {
         $config = [
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => $frankenphp,
-                    ],
-                    'swoole' => [
-                        'enabled' => $swoole,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => $roadrunner,
-                    ],
+                    'http_driver' => $httpDriver,
                 ],
             ],
         ];

@@ -54,11 +54,10 @@ declare(strict_types=1);
  *   bootstrap/config/env source metadata, not from a duplicate config allowlist;
  * - `kernel.uow.attributes.max_depth` must be an integer greater than zero;
  * - `kernel.uow.attributes.max_keys` must be an integer greater than zero;
- * - `kernel.runtime.frankenphp.enabled` must be a bool;
- * - `kernel.runtime.swoole.enabled` must be a bool;
- * - `kernel.runtime.roadrunner.enabled` must be a bool;
+ * - `kernel.runtime.http_driver` must be one of the canonical Kernel-owned HTTP
+ *    runtime driver ids;
  * - `kernel.runtime.*` owns only runtime-driver matrix input defaults for
- *   Kernel-owned non-classic HTTP runtime selection;
+ *    Kernel-owned HTTP runtime selection;
  * - unknown `kernel.runtime.*` keys are rejected by strict-shape rules;
  * - `worker.*` is not defined here because the `worker` root is introduced by
  *   the future platform/worker owner epic;
@@ -117,37 +116,14 @@ return [
             'type' => 'map',
             'additionalKeys' => false,
             'keys' => [
-                'frankenphp' => [
+                'http_driver' => [
                     'required' => true,
-                    'type' => 'map',
-                    'additionalKeys' => false,
-                    'keys' => [
-                        'enabled' => [
-                            'required' => true,
-                            'type' => 'bool',
-                        ],
-                    ],
-                ],
-                'swoole' => [
-                    'required' => true,
-                    'type' => 'map',
-                    'additionalKeys' => false,
-                    'keys' => [
-                        'enabled' => [
-                            'required' => true,
-                            'type' => 'bool',
-                        ],
-                    ],
-                ],
-                'roadrunner' => [
-                    'required' => true,
-                    'type' => 'map',
-                    'additionalKeys' => false,
-                    'keys' => [
-                        'enabled' => [
-                            'required' => true,
-                            'type' => 'bool',
-                        ],
+                    'type' => 'non-empty-string-no-ws',
+                    'allowedValues' => [
+                        'http.classic',
+                        'http.frankenphp',
+                        'http.swoole',
+                        'http.roadrunner',
                     ],
                 ],
             ],

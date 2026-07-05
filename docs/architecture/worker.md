@@ -274,29 +274,25 @@ Endpoint identity may be represented publicly only through a deterministic hash.
 
 Runtime-driver compatibility is Kernel-owned policy.
 
-The canonical guard is:
+The public runtime entrypoint guard is:
 
 ```text
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
-`WorkerStartCommand` must invoke the guard before starting the worker pool.
+`WorkerStartCommand` must invoke the runtime entrypoint guard before starting the worker pool.
 
 The command must call:
 
 ```text
-RuntimeDriverGuard::assertCompatible(...)
+RuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
 before `WorkerManager::start(...)`.
 
-When `worker.task_type=http`, the command must also call:
+The command must pass the resolved config repository and caller-provided `ModulePlan`.
 
-```text
-RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(...)
-```
-
-with the caller-provided `ModulePlan`.
+`RuntimeDriverGuard` remains a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
 
 The worker package must not duplicate runtime-driver matrix logic.
 

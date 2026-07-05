@@ -50,10 +50,18 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      * @var array<string, true>
      */
     private const array CONFIG_KEYS = [
-        'kernel.runtime.frankenphp.enabled' => true,
-        'kernel.runtime.swoole.enabled' => true,
-        'kernel.runtime.roadrunner.enabled' => true,
+        'kernel.runtime.http_driver' => true,
         'worker.task_type' => true,
+    ];
+
+    /**
+     * @var array<string, true>
+     */
+    private const array HTTP_DRIVER_IDS = [
+        'http.classic' => true,
+        'http.frankenphp' => true,
+        'http.roadrunner' => true,
+        'http.swoole' => true,
     ];
 
     /**
@@ -310,9 +318,17 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
                 continue;
             }
 
-            if (!is_bool($value)) {
-                throw new RuntimeException('Runtime driver matrix config flag must be bool: ' . $label);
+            if ($key === 'kernel.runtime.http_driver') {
+                if (!\is_string($value) || !isset(self::HTTP_DRIVER_IDS[$value])) {
+                    throw new RuntimeException(
+                        'Runtime driver matrix kernel.runtime.http_driver invalid: ' . $label
+                    );
+                }
+
+                continue;
             }
+
+            throw new RuntimeException('Runtime driver matrix config key validation incomplete: ' . $label);
         }
     }
 

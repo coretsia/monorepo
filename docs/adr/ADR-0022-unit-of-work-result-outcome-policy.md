@@ -116,8 +116,6 @@ The canonical logical result fields are:
 uowId
 type
 correlationId
-startedAt
-finishedAt
 durationMs
 outcome
 error
@@ -204,17 +202,15 @@ Runtime adapters may derive safe scalar or json-like metadata from transport com
 
 The canonical `UnitOfWorkResult` fields are:
 
-| field           | type                  | required | meaning                                                                       |
-|-----------------|-----------------------|----------|-------------------------------------------------------------------------------|
-| `uowId`         | `string`              | yes      | UnitOfWork id copied from the originating context.                            |
-| `type`          | `string`              | yes      | UnitOfWork type copied from the originating context.                          |
-| `correlationId` | `string`              | yes      | Safe correlation id copied from the originating context.                      |
-| `startedAt`     | `int`                 | yes      | Start timing marker copied from the context. `0` means timing unavailable.    |
-| `finishedAt`    | `int`                 | yes      | Kernel-owned non-negative finish timing marker. `0` means timing unavailable. |
-| `durationMs`    | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.                      |
-| `outcome`       | `string`              | yes      | Outcome token.                                                                |
-| `error`         | `array<string,mixed>` | no       | Normalized json-like exported error map.                                      |
-| `extensions`    | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                                       |
+| field            | type                  | required | meaning                                                                       |
+|------------------|-----------------------|----------|-------------------------------------------------------------------------------|
+| `uowId`          | `string`              | yes      | UnitOfWork id copied from the originating context.                            |
+| `type`           | `string`              | yes      | UnitOfWork type copied from the originating context.                          |
+| `correlationId`  | `string`              | yes      | Safe correlation id copied from the originating context.                      |
+| `durationMs`     | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.                      |
+| `outcome`        | `string`              | yes      | Outcome token.                                                                |
+| `error`          | `array<string,mixed>` | no       | Normalized json-like exported error map.                                      |
+| `extensions`     | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                                       |
 
 No additional top-level result fields are introduced by this epic.
 
@@ -226,35 +222,25 @@ Adding a future top-level field requires:
 - update to contract tests;
 - explicit owner review.
 
-## Decision 4: `startedAt` is copied from the originating context
+## Decision 4: `startedAtToken` is not exported by UnitOfWorkResult
 
-`startedAt` MUST be copied from the originating `UnitOfWorkContext`.
+`UnitOfWorkResult` MUST NOT copy `startedAtToken` from the originating `UnitOfWorkContext`.
 
-It MUST be a non-negative integer.
+`startedAtToken` is Kernel-internal lifecycle timing state.
 
-`0` means timing unavailable.
+It MAY be used by Kernel runtime to calculate `durationMs`, but it MUST NOT appear in the exported result shape.
 
-Consumers MUST NOT treat `0` as a real wall-clock timestamp.
+## Decision 5: `finishedAt` is not a UnitOfWorkResult field
 
-`startedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
+`UnitOfWorkResult` MUST NOT contain `finishedAt`.
 
-## Decision 5: `finishedAt` is a Kernel-owned timing marker
+Kernel runtime does not export finish timing tokens.
 
-`finishedAt` is the Kernel-owned UnitOfWork finish timing marker.
-
-It MUST be a non-negative integer.
-
-When Kernel runtime cannot obtain a timing token, `finishedAt` MUST be `0`.
-
-`0` is the canonical unavailable timer sentinel.
-
-Consumers MUST NOT treat `0` as a real wall-clock timestamp.
-
-`finishedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
+Consumers MUST NOT derive duration from exported start and finish timing markers because such markers do not exist in the result contract.
 
 ## Decision 6: `durationMs` is the canonical duration source
 
-`durationMs` is the only canonical duration field for a UnitOfWork result.
+`durationMs` is the only exported timing field for a UnitOfWork result.
 
 It must be an integer.
 
@@ -274,7 +260,7 @@ Coretsia\Foundation\Time\Stopwatch
 
 This keeps duration deterministic and avoids wall-clock drift.
 
-If Kernel runtime cannot measure duration because the timing token is unavailable or `Stopwatch` start/stop fails, `durationMs` MUST be `0`.
+If Kernel runtime cannot measure duration because the internal timing token is unavailable or `Stopwatch` start/stop fails, `durationMs` MUST be `0`.
 
 A `durationMs` value of `0` may mean either a sub-millisecond duration or unavailable timing.
 
@@ -822,8 +808,6 @@ The accepted result shape contains:
 uowId
 type
 correlationId
-startedAt
-finishedAt
 durationMs
 outcome
 error
@@ -1000,13 +984,13 @@ Finite floats, `NaN`, `INF`, and `-INF` are all forbidden.
 
 Use integer milliseconds, integer counts, or documented string decimal formats instead.
 
-### Use `finishedAt - startedAt` as duration
+### Export start and finish timing tokens and derive duration from them
 
 Rejected.
 
-Wall-clock time is not monotonic.
+Stopwatch tokens are opaque lifecycle state and must not become exported result fields.
 
-The accepted design uses `durationMs` measured from `Coretsia\Foundation\Time\Stopwatch`.
+The accepted design exports only `durationMs`, measured by Kernel runtime through `Coretsia\Foundation\Time\Stopwatch`.
 
 ### Run reset before after hooks
 
@@ -1132,14 +1116,13 @@ Verification must prove:
 - `uowId` is represented as string and matches context;
 - `type` accepts only `http`, `cli`, `queue`, and `scheduler`;
 - `correlationId` is represented as string and matches context;
-- `startedAt` is represented as a non-negative integer timing marker and matches context;
-- `finishedAt` is represented as a non-negative integer timing marker;
-- `startedAt=0`, `finishedAt=0`, and `durationMs=0` are accepted as unavailable timing metadata;
+- `startedAtToken` is not exported by `UnitOfWorkResult`;
+- `finishedAt` is not a `UnitOfWorkResult` field;
+- `durationMs=0` is accepted as unavailable or sub-millisecond timing metadata;
 - unavailable timing does not affect outcome selection, hook failure policy, reset policy, or lifecycle failure precedence;
-- consumers must not rely on `finishedAt >= startedAt`;
 - `durationMs` is represented as non-negative integer milliseconds;
-- `durationMs` is the canonical duration source;
-- `durationMs` is not derived from `finishedAt - startedAt`;
+- `durationMs` is the only exported timing output;
+- `durationMs` is not derived from exported start or finish timing fields;
 - outcome tokens are exactly `success`, `handled_error`, and `fatal_error`;
 - HTTP status `< 400` maps to `success`;
 - HTTP status `>= 400` maps to `handled_error`;

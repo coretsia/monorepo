@@ -137,8 +137,8 @@ The canonical method set is:
 
 ```text
 runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
-beginUnitOfWork(string $type, array $attributes = []): array
-afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+beginUnitOfWork(string $type, array $attributes = []): UnitOfWorkHandle
+afterUnitOfWork(UnitOfWorkHandle $handle, string $outcome, ?Throwable $error = null, array $extensions = []): array
 ```
 
 `runUnitOfWork()` is the preferred high-level adapter API.
@@ -149,9 +149,9 @@ It lets `KernelRuntime` own before-hook handling, external body execution, after
 
 Low-level adapters receive weaker lifecycle guarantees and must use `try/finally` around their external body execution.
 
-The `try/finally` completion responsibility starts only after `beginUnitOfWork()` returns successfully.
+The `try/finally` completion responsibility starts only after `beginUnitOfWork()` returns a `UnitOfWorkHandle` successfully.
 
-If `beginUnitOfWork()` throws, no open lifecycle token exists and the adapter MUST NOT call `afterUnitOfWork()` for that failed begin attempt.
+If `beginUnitOfWork()` throws, no open lifecycle handle exists and the adapter MUST NOT call `afterUnitOfWork()` for that failed begin attempt.
 
 Adapters that require Kernel-owned before-hook failure handling SHOULD use `runUnitOfWork()`.
 
@@ -161,7 +161,8 @@ The contracts port intentionally uses only:
 - callables;
 - arrays;
 - `Throwable`;
-- `mixed` return values.
+- `mixed` return values;
+- contracts-owned opaque lifecycle handles.
 
 It MUST NOT expose:
 
@@ -254,6 +255,16 @@ Coretsia\Kernel\Runtime\UnitOfWorkContext
 Coretsia\Kernel\Runtime\UnitOfWorkResult
 ```
 
+The contracts package may expose:
+
+```text
+Coretsia\Contracts\Runtime\UnitOfWorkHandle
+```
+
+This handle is an opaque lifecycle handle, not a Kernel runtime shape.
+
+It MUST expose only the normalized exported context array through `UnitOfWorkHandle::context()` and MUST NOT expose Stopwatch tokens.
+
 Those internal objects are Kernel-owned and must not become part of the contracts port.
 
 `KernelRuntime` is responsible for:
@@ -263,7 +274,7 @@ Those internal objects are Kernel-owned and must not become part of the contract
 - writing base context keys using `Coretsia\Contracts\Context\ContextKeys`;
 - invoking before-uow hooks;
 - executing the external body for the high-level API;
-- validating low-level exported context arrays;
+- validating low-level lifecycle handles and their normalized exported context payloads;
 - validating outcome tokens;
 - creating UnitOfWork result objects;
 - producing normalized exported context/result payloads;
@@ -274,9 +285,13 @@ Those internal objects are Kernel-owned and must not become part of the contract
 
 `KernelRuntime` `Stopwatch` failures MUST NOT change UnitOfWork lifecycle behavior, hook invocation policy, reset policy, outcome selection, or lifecycle failure precedence.
 
-When timing is unavailable, `KernelRuntime` MUST use `0` as the canonical unavailable timer sentinel for exported timing metadata.
+When timing is unavailable, `KernelRuntime` MAY use `0` only as an internal unavailable timer sentinel for private lifecycle timing state.
 
-The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+The internal timer sentinel MUST NOT be exported in context arrays, `UnitOfWorkHandle::context()`, result arrays, hook payloads, logs, metrics, traces, diagnostics, generated artifacts, or persistence payloads.
+
+The internal timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
+When duration cannot be measured, `UnitOfWorkResult.durationMs` MUST be `0`.
 
 The Kernel-owned base context writes are:
 
@@ -399,9 +414,15 @@ beginUnitOfWork()
 afterUnitOfWork()
 ```
 
-Low-level adapters must execute their external body only after successful `beginUnitOfWork()`.
+Low-level adapters must execute their external body only after successful `beginUnitOfWork()` returns a `UnitOfWorkHandle`.
 
-Low-level adapters that need the exported result payload must use `afterUnitOfWork()`.
+Low-level adapters that need the exported context payload may read it through:
+
+```php
+UnitOfWorkHandle::context()
+```
+
+Low-level adapters that need the exported result payload must pass the exact handle to `afterUnitOfWork()`.
 
 `runUnitOfWork()` returns the external body return value.
 

@@ -346,13 +346,12 @@ final class UnitOfWorkResultExtensionsAreJsonLikeContractTest extends TestCase
     private static function makeResult(array $extensions = []): UnitOfWorkResult
     {
         return new UnitOfWorkResult(
-            uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
+            uowId: 'uow-001',
             type: UnitOfWorkType::HTTP,
-            correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
-            startedAt: 1_710_000_000_123,
-            finishedAt: 1_710_000_000_456,
+            correlationId: 'corr-001',
             durationMs: 333,
             outcome: Outcome::SUCCESS,
+            error: null,
             extensions: $extensions,
         );
     }

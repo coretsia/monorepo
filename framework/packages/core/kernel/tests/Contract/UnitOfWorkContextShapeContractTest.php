@@ -62,7 +62,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
         $context = new UnitOfWorkContext(
             uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             type: UnitOfWorkType::HTTP,
-            startedAt: 1_710_000_000_123,
+            startedAtToken: 1_710_000_000_123,
             correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
             attributes: [
                 'zeta' => 2,
@@ -87,13 +87,16 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
             [
                 'attributes',
                 'correlationId',
-                'startedAt',
                 'type',
                 'uowId',
             ],
             \array_keys($shape),
             'UnitOfWorkContext exported top-level key order must stay canonical.',
         );
+
+        self::assertArrayNotHasKey('startedAt', $shape);
+        self::assertArrayNotHasKey('startedAtToken', $shape);
+        self::assertArrayNotHasKey('finishedAt', $shape);
 
         self::assertSame(
             [
@@ -114,7 +117,6 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
         );
 
         self::assertSame('01HV7N3ZJ5P8K7Y6T4R3Q2P1N1', $shape['correlationId']);
-        self::assertSame(1_710_000_000_123, $shape['startedAt']);
         self::assertSame(UnitOfWorkType::HTTP, $shape['type']);
         self::assertSame('01HV7N3ZJ5P8K7Y6T4R3Q2P1N0', $shape['uowId']);
     }
@@ -124,7 +126,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
         $context = new UnitOfWorkContext(
             uowId: 'uow-001',
             type: UnitOfWorkType::CLI,
-            startedAt: 1_710_000_000_456,
+            startedAtToken: 1_710_000_000_456,
             correlationId: 'corr-001',
             attributes: [
                 'operation' => 'command',
@@ -136,7 +138,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
 
         self::assertSame('uow-001', $context->uowId());
         self::assertSame(UnitOfWorkType::CLI, $context->type());
-        self::assertSame(1_710_000_000_456, $context->startedAt());
+        self::assertSame(1_710_000_000_456, $context->startedAtToken());
         self::assertSame('corr-001', $context->correlationId());
         self::assertSame(
             [
@@ -153,7 +155,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
             $context = new UnitOfWorkContext(
                 uowId: 'uow-' . $type,
                 type: $type,
-                startedAt: 1_710_000_000_789,
+                startedAtToken: 1_710_000_000_789,
                 correlationId: 'corr-' . $type,
                 attributes: [],
                 attributesMaxDepth: 10,
@@ -171,7 +173,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
             static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                 uowId: 'uow-001',
                 type: 'web',
-                startedAt: 1_710_000_000_000,
+                startedAtToken: 1_710_000_000_000,
                 correlationId: 'corr-001',
                 attributes: [],
                 attributesMaxDepth: 10,
@@ -189,7 +191,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: '',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -202,7 +204,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: ' uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -215,7 +217,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: "uow-001\n",
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -224,24 +226,24 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 'uowId',
                 'uow-context-uow-id-invalid',
             ],
-            'negative startedAt' => [
+            'negative startedAtToken' => [
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: -1,
+                    startedAtToken: -1,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,
                     attributesMaxKeys: 200,
                 ),
-                'startedAt',
-                'uow-context-started-at-invalid',
+                'startedAtToken',
+                'uow-context-started-at-token-invalid',
             ],
             'empty correlationId' => [
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: '',
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -254,7 +256,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: ' corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -267,7 +269,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: "corr-001\n",
                     attributes: [],
                     attributesMaxDepth: 10,
@@ -295,7 +297,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 0,
@@ -308,7 +310,7 @@ final class UnitOfWorkContextShapeContractTest extends TestCase
                 static fn (): UnitOfWorkContext => new UnitOfWorkContext(
                     uowId: 'uow-001',
                     type: UnitOfWorkType::HTTP,
-                    startedAt: 1_710_000_000_000,
+                    startedAtToken: 1_710_000_000_000,
                     correlationId: 'corr-001',
                     attributes: [],
                     attributesMaxDepth: 10,

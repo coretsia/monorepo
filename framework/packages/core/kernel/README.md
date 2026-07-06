@@ -76,6 +76,12 @@ This package provides the Kernel baseline runtime layer:
 - Contracts-level runtime port binding:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - bound by DI to `Coretsia\Kernel\Runtime\KernelRuntime`
+- Contracts-owned low-level lifecycle handle:
+  - `Coretsia\Contracts\Runtime\UnitOfWorkHandle`
+  - returned by `KernelRuntimeInterface::beginUnitOfWork()`
+  - passed back to `KernelRuntimeInterface::afterUnitOfWork()`
+  - exposes only the normalized exported context array through `UnitOfWorkHandle::context()`
+  - MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, or Kernel runtime internals
 - Canonical runtime driver ids and value objects:
   - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
   - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
@@ -171,10 +177,14 @@ This package provides the Kernel baseline runtime layer:
   - `success`
   - `handled_error`
   - `fatal_error`
-- Canonical UnitOfWork context shape:
+- Canonical internal UnitOfWork context shape:
   - `Coretsia\Kernel\Runtime\UnitOfWorkContext`
+  - contains internal `startedAtToken` lifecycle timing state
+  - exports only `attributes`, `correlationId`, `type`, and `uowId`
 - Canonical UnitOfWork result shape:
   - `Coretsia\Kernel\Runtime\UnitOfWorkResult`
+  - exports only `durationMs` as timing output
+  - MUST NOT export `startedAt`, `startedAtToken`, or `finishedAt`
 - Internal UoW-specific json-like shape wrapper through:
   - `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer`
 - Foundation-owned baseline json-like value validation and recursive deterministic normalization consumed through:
@@ -566,7 +576,27 @@ Artifact/fingerprint/container-compile/cache observability failures MUST NOT cha
 
 `KernelRuntime` stopwatch failures MUST NOT change `UnitOfWork` lifecycle behavior, hook invocation policy, reset policy, or lifecycle failure precedence.
 
-When monotonic timing is unavailable, `KernelRuntime` MUST use `0` as the canonical unavailable timer sentinel for `startedAt`, `finishedAt`, and `durationMs`. The sentinel MUST NOT be passed to `Stopwatch::stop()`.
+When monotonic timing is unavailable, `KernelRuntime` MAY use `0` only as an internal unavailable timer sentinel for private lifecycle timing state.
+
+The internal timer sentinel MUST NOT be exported in:
+
+```text
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+UnitOfWorkResult::toArray()
+before-uow hook payloads
+after-uow hook payloads
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+The internal timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
+When duration cannot be measured, `UnitOfWorkResult.durationMs` MUST be `0`.
 
 Compiled-container compile, factory, and public artifact-runtime boot failures use deterministic Kernel-owned exceptions and safe fixed messages.
 
@@ -939,28 +969,36 @@ runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
 
 It MUST NOT return the exported UnitOfWork result array.
 
-Low-level adapters that need exported context/result arrays MAY use:
+Low-level adapters that need exported context/result payloads MAY use:
 
 ```text
-beginUnitOfWork(string $type, array $attributes = []): array
-afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+beginUnitOfWork(string $type, array $attributes = []): UnitOfWorkHandle
+afterUnitOfWork(UnitOfWorkHandle $handle, string $outcome, ?Throwable $error = null, array $extensions = []): array
+```
+
+`beginUnitOfWork()` returns an opaque lifecycle handle.
+
+Low-level adapters MAY read the normalized exported context array through:
+
+```text
+UnitOfWorkHandle::context()
 ```
 
 Low-level adapters MUST execute their external body only after successful `beginUnitOfWork()`.
 
-If `beginUnitOfWork()` throws, no open lifecycle token has been handed to the adapter.
+If `beginUnitOfWork()` throws, no open lifecycle handle has been handed to the adapter.
 
 For a failed `beginUnitOfWork()` attempt, the adapter MUST NOT call `afterUnitOfWork()`.
 
 This includes failures raised while invoking before-uow hooks.
 
-Low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
+Low-level adapters that need the exported result array MUST pass the exact returned handle to `afterUnitOfWork()`.
 
 Low-level lifecycle methods are a sharp-edge adapter API.
 
 Adapters SHOULD prefer `runUnitOfWork()` whenever the external runtime body can be delegated to KernelRuntime.
 
-If `beginUnitOfWork()` returns successfully, the adapter owns completion responsibility and MUST attempt exactly one matching `afterUnitOfWork()` call.
+If `beginUnitOfWork()` returns successfully, the adapter owns completion responsibility and MUST attempt exactly one matching `afterUnitOfWork()` call with the exact returned handle.
 
 Low-level adapters MUST structure external body execution with a `finally`-equivalent completion path so that `afterUnitOfWork()` is attempted on both success and failure paths.
 
@@ -1398,14 +1436,41 @@ docs/ssot/uow-outcome-policy.md
 
 `Coretsia\Kernel\Runtime\UnitOfWorkContext` is the canonical Kernel runtime shape for the beginning of a UnitOfWork.
 
-Canonical fields:
+Canonical internal fields:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
+```
+
+`startedAtToken` is Kernel-internal lifecycle timing state.
+
+It MUST NOT be exported in:
+
+```text
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+before-uow hook payloads
+after-uow hook context payloads
+UnitOfWorkResult::toArray()
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+The exported context shape is:
+
+```text
+attributes
+correlationId
+type
+uowId
 ```
 
 `attributes` MUST be a json-like map.
@@ -1459,8 +1524,6 @@ Canonical fields:
 uowId
 type
 correlationId
-startedAt
-finishedAt
 durationMs
 outcome
 error
@@ -1469,7 +1532,30 @@ extensions
 
 `error` is optional.
 
-`durationMs` is the canonical duration field.
+The exported result shape with no error is:
+
+```text
+correlationId
+durationMs
+extensions
+outcome
+type
+uowId
+```
+
+The exported result shape with error is:
+
+```text
+correlationId
+durationMs
+error
+extensions
+outcome
+type
+uowId
+```
+
+`durationMs` is the only exported timing field.
 
 It MUST be:
 
@@ -1478,17 +1564,23 @@ int
 >= 0
 ```
 
-`durationMs` MUST be measured from the canonical monotonic timing source:
+`durationMs` MUST be measured by Kernel runtime from private lifecycle timing state using the canonical monotonic timing source:
 
 ```text
 Coretsia\Foundation\Time\Stopwatch
 ```
 
-`durationMs` MUST NOT be calculated from:
+`UnitOfWorkResult` MUST NOT export Stopwatch tokens.
+
+The following fields are not valid `UnitOfWorkResult` fields:
 
 ```text
-finishedAt - startedAt
+startedAt
+startedAtToken
+finishedAt
 ```
+
+Consumers MUST NOT calculate duration from exported start or finish timing fields. Such exported fields MUST NOT exist.
 
 `extensions` MUST be a json-like map.
 

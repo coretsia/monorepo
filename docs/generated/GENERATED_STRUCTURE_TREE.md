@@ -271,7 +271,8 @@ Coretsia/
 │   │   │   │   │   │   │   ├── AfterUowHookInterface.php
 │   │   │   │   │   │   │   └── BeforeUowHookInterface.php
 │   │   │   │   │   │   ├── KernelRuntimeInterface.php
-│   │   │   │   │   │   └── ResetInterface.php
+│   │   │   │   │   │   ├── ResetInterface.php
+│   │   │   │   │   │   └── UnitOfWorkHandle.php
 │   │   │   │   │   ├── Secrets/
 │   │   │   │   │   │   └── SecretsResolverInterface.php
 │   │   │   │   │   └── Validation/
@@ -345,6 +346,7 @@ Coretsia/
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SqlQueryShapeContractTest.php
 │   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── UnitOfWorkHandleContractTest.php
 │   │   │   │   │   │   ├── ValidationContractsTest.php
 │   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php
 │   │   │   │   │   │   └── ValidationViolationShapeIsSafeContractTest.php
@@ -772,12 +774,12 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
 │   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
-│   │   │       │   │   ├── KernelRuntimeAcceptsTimerUnavailableExportedContextTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 │   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php
+│   │   │       │   │   ├── KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 │   │   │       │   │   ├── KernelRuntimeInvokesHooksInDeterministicOrderTest.php
-│   │   │       │   │   ├── KernelRuntimeRejectsInvalidExportedContextTest.php
+│   │   │       │   │   ├── KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
 │   │   │       │   │   ├── KernelRuntimeResetHappensAfterAfterUowHooksTest.php
 │   │   │       │   │   ├── KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
 │   │   │       │   │   ├── KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php

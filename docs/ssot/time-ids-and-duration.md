@@ -560,7 +560,7 @@ It MUST NOT be represented by disabling `Stopwatch`.
 
 ## Stopwatch API
 
-`Stopwatch::start()` MUST return a monotonic timestamp token as an integer number of nanoseconds from:
+`Stopwatch::start()` MUST return an opaque monotonic Stopwatch token backed by:
 
 ```php
 hrtime(true)
@@ -572,19 +572,40 @@ Canonical shape:
 start(): int
 ```
 
-`Stopwatch::stop(int $startedAt)` MUST return duration in integer milliseconds.
+`Stopwatch::stop(int $startedAtToken)` MUST return duration in integer milliseconds.
 
 Canonical shape:
 
 ```text
-stop(int $startedAt): int
+stop(int $startedAtToken): int
 ```
 
-`$startedAt` MUST be a positive Stopwatch token returned by `start()`.
+`$startedAtToken` MUST be a positive Stopwatch token returned by `start()`.
 
 `Stopwatch` does not track issued token provenance.
 
 Runtime enforcement is limited to positive-token validation and elapsed-time calculation.
+
+Stopwatch tokens are opaque lifecycle tokens.
+
+They MUST NOT be exported in:
+
+```text
+UnitOfWorkContext exported arrays
+UnitOfWorkHandle::context()
+UnitOfWorkResult exported arrays
+hook payloads
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+Kernel runtime MAY keep a Stopwatch token only as private lifecycle state associated with an opaque `UnitOfWorkHandle`.
+
+Only `durationMs` or another owner-defined non-negative duration value may cross an export or observability boundary.
 
 Non-positive tokens MUST fail deterministically with:
 
@@ -597,7 +618,7 @@ The exception message MUST be stable and safe, and MUST NOT contain the raw toke
 Elapsed duration MUST be computed from:
 
 ```php
-hrtime(true) - $startedAt
+hrtime(true) - $startedAtToken
 ```
 
 If the elapsed duration is negative or zero, `stop()` MUST return:
@@ -628,7 +649,7 @@ because it returns a float.
 
 ## Stopwatch consumer failure policy
 
-`Stopwatch` itself remains strict: `Stopwatch::stop(int $startedAt)` accepts only a positive token returned by `Stopwatch::start()`.
+`Stopwatch` itself remains strict: `Stopwatch::stop(int $startedAtToken)` accepts only a positive token returned by `Stopwatch::start()`.
 
 Operation-boundary consumers MAY use `0` as their own unavailable timer sentinel only outside the `Stopwatch` API.
 

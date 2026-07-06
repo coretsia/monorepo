@@ -372,7 +372,7 @@ final class UnitOfWorkContextAttributesAreJsonLikeContractTest extends TestCase
         return new UnitOfWorkContext(
             uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             type: UnitOfWorkType::HTTP,
-            startedAt: 1_710_000_000_123,
+            startedAtToken: 1_710_000_000_123,
             correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
             attributes: $attributes,
             attributesMaxDepth: $attributesMaxDepth,

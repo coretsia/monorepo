@@ -107,11 +107,21 @@ Runtime contracts are format-neutral and transport-neutral.
 
 Examples include:
 
+- `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
+- `Coretsia\Contracts\Runtime\UnitOfWorkHandle`
 - `Coretsia\Contracts\Runtime\ResetInterface`
 - `Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface`
 - `Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface`
 
-The contracts package does not own DI tags, reset discovery, hook discovery, lifecycle execution, config defaults, config rules, or provider wiring.
+`UnitOfWorkHandle` is a contracts-owned opaque low-level lifecycle handle.
+
+It is not a Kernel context/result schema object.
+
+It may expose only the normalized safe context array through `UnitOfWorkHandle::context()`.
+
+It MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, mutable runtime state, or Kernel-owned runtime internals.
+
+The contracts package does not own DI tags, reset discovery, hook discovery, lifecycle execution, lifecycle timing state, config defaults, config rules, or provider wiring.
 
 Runtime discovery and execution are owned by runtime implementation packages.
 

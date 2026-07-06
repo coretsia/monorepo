@@ -25,9 +25,16 @@ Coretsia\Kernel\Runtime\UnitOfWorkContext
 Coretsia\Kernel\Runtime\UnitOfWorkResult
 ```
 
+It also defines the exported context shape exposed through the contracts-owned low-level lifecycle handle:
+
+```text
+Coretsia\Contracts\Runtime\UnitOfWorkHandle
+```
+
 The implementation paths are:
 
 ```text
+framework/packages/core/contracts/src/Runtime/UnitOfWorkHandle.php
 framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
 framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php
 framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php
@@ -238,15 +245,17 @@ It is format-neutral and MUST NOT contain transport objects.
 
 ### Canonical field set
 
-The canonical logical fields are:
+The canonical internal `UnitOfWorkContext` fields are:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
 ```
+
+`startedAtToken` is an internal Kernel lifecycle field. It MUST NOT be exported in context arrays.
 
 No additional canonical context fields exist in this epic.
 
@@ -261,7 +270,6 @@ When exported as a PHP array shape, `UnitOfWorkContext` MUST use this determinis
 ```text
 attributes
 correlationId
-startedAt
 type
 uowId
 ```
@@ -272,13 +280,13 @@ The exported array shape MUST remain stable and contract-tested.
 
 ### Field reference
 
-| field           | type                  | required | meaning                                                                      |
-|-----------------|-----------------------|----------|------------------------------------------------------------------------------|
-| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
-| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
-| `startedAt`     | `int`                 | yes      | Kernel-owned non-negative start timing marker. `0` means timing unavailable. |
-| `type`          | `string`              | yes      | UnitOfWork type token: `http`, `cli`, `queue`, `scheduler`.                  |
-| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
+| field            | type                  | required | meaning                                                                      |
+|------------------|-----------------------|----------|------------------------------------------------------------------------------|
+| `attributes`     | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
+| `correlationId`  | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
+| `startedAtToken` | `int`                 | yes      | Kernel-internal lifecycle timing token. It MUST NOT be exported.             |
+| `type`           | `string`              | yes      | UnitOfWork type token: `http`, `cli`, `queue`, `scheduler`.                  |
+| `uowId`          | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
 
 ### `uowId`
 
@@ -330,40 +338,46 @@ scheduler
 
 `type` MAY be used as a safe operation value for observability where the owning metric/span policy allows it.
 
-### `startedAt`
+### `startedAtToken`
 
-`startedAt` is the Kernel-owned UnitOfWork start timing marker.
+`startedAtToken` is a Kernel-internal lifecycle timing token.
 
 It MUST be a non-negative integer.
 
-A positive `startedAt` value is the timing token captured by the Kernel runtime for lifecycle duration measurement.
+A positive `startedAtToken` value is an opaque `Stopwatch::start()` token captured by Kernel runtime for lifecycle duration measurement.
 
-When the Kernel runtime cannot obtain a timing token, `startedAt` MUST be `0`.
+When Kernel runtime cannot obtain a timing token, `startedAtToken` MAY be `0` internally.
 
-`0` is the canonical unavailable timer sentinel.
+`0` is the Kernel-internal unavailable timer sentinel.
 
-Consumers MUST NOT treat `0` as a real wall-clock timestamp.
-
-`startedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
-
-`startedAt` MUST be captured from the canonical monotonic timing source when timing is available:
+`startedAtToken` MUST NOT be exported in:
 
 ```text
-Coretsia\Foundation\Time\Stopwatch
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+BeforeUowHookInterface::beforeUow(array $context)
+AfterUowHookInterface::afterUow(array $context, array $result)
+UnitOfWorkResult::toArray()
+generated artifacts
+logs
+metrics
+traces
+diagnostics
+persistence payloads
 ```
 
-Specifically, positive `startedAt` values are `Stopwatch::start()` timing tokens.
+`startedAtToken` MUST NOT be used as a wall-clock timestamp, business timestamp, cache key, ordering key, metric label, trace attribute, log field, diagnostic field, persistence value, or artifact payload.
 
-`startedAt` MUST NOT be captured from `Psr\Clock\ClockInterface`.
-
-`startedAt` MUST NOT be used as a wall-clock timestamp.
-
-`startedAt` MUST NOT be used to calculate canonical duration outside the Kernel-owned lifecycle policy.
-
-Duration measurement MUST use:
+Only Kernel runtime may pass `startedAtToken` back into:
 
 ```text
-Coretsia\Foundation\Time\Stopwatch
+Coretsia\Foundation\Time\Stopwatch::stop()
+```
+
+Canonical exported duration belongs to:
+
+```text
+UnitOfWorkResult.durationMs
 ```
 
 ### `correlationId`
@@ -446,8 +460,6 @@ The canonical logical fields are:
 uowId
 type
 correlationId
-startedAt
-finishedAt
 durationMs
 outcome
 error
@@ -471,9 +483,7 @@ correlationId
 durationMs
 error
 extensions
-finishedAt
 outcome
-startedAt
 type
 uowId
 ```
@@ -486,9 +496,7 @@ The remaining keys MUST keep deterministic byte-order `strcmp` order:
 correlationId
 durationMs
 extensions
-finishedAt
 outcome
-startedAt
 type
 uowId
 ```
@@ -497,17 +505,15 @@ The exported array shape MUST remain stable and contract-tested.
 
 ### Field reference
 
-| field           | type                  | required | meaning                                                                       |
-|-----------------|-----------------------|----------|-------------------------------------------------------------------------------|
-| `correlationId` | `string`              | yes      | Safe correlation id copied from the context.                                  |
-| `durationMs`    | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.                      |
-| `error`         | `array<string,mixed>` | no       | Normalized json-like exported error map.                                      |
-| `extensions`    | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                                       |
-| `finishedAt`    | `int`                 | yes      | Kernel-owned non-negative finish timing marker. `0` means timing unavailable. |
-| `outcome`       | `string`              | yes      | Outcome token: `success`, `handled_error`, `fatal_error`.                     |
-| `startedAt`     | `int`                 | yes      | Start timing marker copied from the context. `0` means timing unavailable.    |
-| `type`          | `string`              | yes      | UnitOfWork type copied from the context.                                      |
-| `uowId`         | `string`              | yes      | UnitOfWork id copied from the context.                                        |
+| field           | type                  | required | meaning                                                   |
+|-----------------|-----------------------|----------|-----------------------------------------------------------|
+| `correlationId` | `string`              | yes      | Safe correlation id copied from the context.              |
+| `durationMs`    | `int`                 | yes      | Canonical non-negative duration in integer milliseconds.  |
+| `error`         | `array<string,mixed>` | no       | Normalized json-like exported error map.                  |
+| `extensions`    | `array<string,mixed>` | yes      | Safe json-like completion metadata map.                   |
+| `outcome`       | `string`              | yes      | Outcome token: `success`, `handled_error`, `fatal_error`. |
+| `type`          | `string`              | yes      | UnitOfWork type copied from the context.                  |
+| `uowId`         | `string`              | yes      | UnitOfWork id copied from the context.                    |
 
 ### `uowId`
 
@@ -538,57 +544,27 @@ It MUST remain a safe non-empty string.
 
 It MUST NOT be used as a metric label.
 
-### `startedAt`
+### Stopwatch token exclusion
 
-`startedAt` MUST match the originating context `startedAt`.
+`UnitOfWorkResult` MUST NOT export Stopwatch tokens.
 
-It is the Kernel-owned start timing marker copied from the originating context.
-
-`0` means timing unavailable.
-
-It MUST NOT be used as the canonical duration source.
-
-### `finishedAt`
-
-`finishedAt` is the Kernel-owned UnitOfWork finish timing marker.
-
-It MUST be a non-negative integer.
-
-When the Kernel runtime cannot obtain a timing token, `finishedAt` MUST be `0`.
-
-`0` is the canonical unavailable timer sentinel.
-
-Consumers MUST NOT treat `0` as a real wall-clock timestamp.
-
-`finishedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
-
-`finishedAt` MUST be captured from the canonical monotonic timing source when timing is available:
+The following fields are not valid `UnitOfWorkResult` fields:
 
 ```text
-Coretsia\Foundation\Time\Stopwatch
+startedAt
+startedAtToken
+finishedAt
 ```
 
-Specifically, positive `finishedAt` values are `Stopwatch::start()` timing tokens.
+`UnitOfWorkResult` MUST expose only `durationMs` as timing output.
 
-`finishedAt` MUST NOT be captured from `Psr\Clock\ClockInterface`.
-
-`finishedAt` MUST NOT be used as a wall-clock timestamp.
-
-Because timing markers are not wall-clock timestamps and `0` can represent unavailable timing, consumers MUST NOT rely on:
-
-```text
-finishedAt >= startedAt
-```
-
-Consumers MUST NOT derive duration from:
-
-```text
-finishedAt - startedAt
-```
+Runtime code MAY use an internal `UnitOfWorkContext.startedAtToken` value to calculate `durationMs`, but that token MUST NOT cross the result export boundary.
 
 ### `durationMs`
 
 `durationMs` is the canonical duration field.
+
+It is the only exported timing value in `UnitOfWorkResult`.
 
 It MUST be an integer.
 
@@ -602,7 +578,9 @@ The canonical exported unit is milliseconds.
 Coretsia\Foundation\Time\Stopwatch
 ```
 
-If the Kernel runtime cannot measure duration because the timing token is unavailable or `Stopwatch` start/stop fails, `durationMs` MUST be `0`.
+If the Kernel runtime cannot measure duration because the internal timing token is unavailable or `Stopwatch` start/stop fails, `durationMs` MUST be `0`.
+
+`durationMs` MUST be calculated only by Kernel runtime using private lifecycle timing state.
 
 A `durationMs` value of `0` may mean either a sub-millisecond duration or unavailable timing.
 
@@ -1153,7 +1131,7 @@ json-like-type-forbidden              -> uow-result-type-forbidden
 uow-context-invalid
 uow-context-uow-id-invalid
 uow-context-type-invalid
-uow-context-started-at-invalid
+uow-context-started-at-token-invalid
 uow-context-correlation-id-invalid
 uow-context-attributes-root-map-required
 uow-context-attributes-max-depth-invalid
@@ -1180,8 +1158,6 @@ uow-result-invalid
 uow-result-uow-id-invalid
 uow-result-type-invalid
 uow-result-correlation-id-invalid
-uow-result-started-at-invalid
-uow-result-finished-at-invalid
 uow-result-duration-ms-invalid
 uow-result-outcome-invalid
 uow-result-extensions-root-map-required
@@ -1312,6 +1288,20 @@ Before hooks receive context data:
 UnitOfWorkContext -> normalized array $ctx
 ```
 
+Low-level adapters receive an opaque lifecycle handle:
+
+```text
+Coretsia\Contracts\Runtime\UnitOfWorkHandle
+```
+
+The handle exposes the same exported safe context shape through:
+
+```text
+UnitOfWorkHandle::context()
+```
+
+`UnitOfWorkHandle::context()` MUST NOT expose Stopwatch tokens.
+
 Before hooks, adapters, artifacts, or other export consumers receive result data:
 
 ```text
@@ -1336,6 +1326,10 @@ Forbidden boundary values include:
 - resource.
 
 The boundary representation MUST be json-like.
+
+`UnitOfWorkHandle` is allowed only as the contracts-owned low-level lifecycle handle returned by `KernelRuntimeInterface::beginUnitOfWork()`.
+
+It is not a hook payload, not a context/result schema object, and not a transport payload.
 
 ## ErrorDescriptor boundary
 
@@ -1480,7 +1474,6 @@ Baseline json-like runtime value policy is not configurable by Kernel.
         'routeName' => 'user.show',
     ],
     'correlationId' => '01HX7Y6V1A2B3C4D5E6F7G8H9J',
-    'startedAt' => 1760000000000,
     'type' => 'http',
     'uowId' => '01HX7Y6V1A2B3C4D5E6F7G8H8',
 ]
@@ -1495,9 +1488,7 @@ Baseline json-like runtime value policy is not configurable by Kernel.
     'extensions' => [
         'responseSizeBytes' => 512,
     ],
-    'finishedAt' => 1760000000012,
     'outcome' => 'success',
-    'startedAt' => 1760000000000,
     'type' => 'http',
     'uowId' => '01HX7Y6V1A2B3C4D5E6F7G8H8',
 ]
@@ -1521,9 +1512,7 @@ Baseline json-like runtime value policy is not configurable by Kernel.
         'severity' => 'warning',
     ],
     'extensions' => [],
-    'finishedAt' => 1760000000008,
     'outcome' => 'handled_error',
-    'startedAt' => 1760000000000,
     'type' => 'cli',
     'uowId' => '01HX7Y6V1A2B3C4D5E6F7G8H8',
 ]

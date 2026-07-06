@@ -50,7 +50,7 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
 
         $runtime = self::runtime($contextStore, $recorder);
 
-        $context = $runtime->beginUnitOfWork(
+        $handle = $runtime->beginUnitOfWork(
             UnitOfWorkType::HTTP,
             [
                 'zeta' => [
@@ -80,8 +80,10 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
             ],
         );
 
+        $context = $handle->context();
+
         $result = $runtime->afterUnitOfWork(
-            context: $context,
+            handle: $handle,
             outcome: Outcome::SUCCESS,
             extensions: [
                 'zeta' => [
@@ -117,13 +119,19 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
 
         self::assertSame($context, $beforeContext);
         self::assertSame($context, $afterContext);
+        self::assertArrayNotHasKey('startedAt', $beforeContext);
+        self::assertArrayNotHasKey('startedAtToken', $beforeContext);
+        self::assertArrayNotHasKey('finishedAt', $beforeContext);
+
+        self::assertArrayNotHasKey('startedAt', $afterContext);
+        self::assertArrayNotHasKey('startedAtToken', $afterContext);
+        self::assertArrayNotHasKey('finishedAt', $afterContext);
         self::assertSame($result, $afterResult);
 
         self::assertSame(
             [
                 'attributes',
                 'correlationId',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -180,7 +188,6 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
         );
 
         self::assertSame('01B7X3NDEKTSV4RRFFQ69G5FAV', $beforeContext['correlationId']);
-        self::assertIsInt($beforeContext['startedAt']);
         self::assertSame(UnitOfWorkType::HTTP, $beforeContext['type']);
         self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $beforeContext['uowId']);
 
@@ -192,9 +199,7 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
                 'correlationId',
                 'durationMs',
                 'extensions',
-                'finishedAt',
                 'outcome',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -204,9 +209,10 @@ final class KernelRuntimeExportsNormalizedHookPayloadsTest extends TestCase
         self::assertSame('01B7X3NDEKTSV4RRFFQ69G5FAV', $afterResult['correlationId']);
         self::assertIsInt($afterResult['durationMs']);
         self::assertGreaterThanOrEqual(0, $afterResult['durationMs']);
-        self::assertIsInt($afterResult['finishedAt']);
+        self::assertArrayNotHasKey('startedAt', $afterResult);
+        self::assertArrayNotHasKey('startedAtToken', $afterResult);
+        self::assertArrayNotHasKey('finishedAt', $afterResult);
         self::assertSame(Outcome::SUCCESS, $afterResult['outcome']);
-        self::assertSame($beforeContext['startedAt'], $afterResult['startedAt']);
         self::assertSame(UnitOfWorkType::HTTP, $afterResult['type']);
         self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $afterResult['uowId']);
 

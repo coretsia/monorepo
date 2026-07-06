@@ -241,15 +241,26 @@ Runtime implementations MUST NOT omit reset after after-phase entry.
 
 ## Begin invariant
 
-When a UnitOfWork is started, the runtime owner MUST create or derive a `UnitOfWorkContext` with:
+When a UnitOfWork is started, the runtime owner MUST create or derive an internal `UnitOfWorkContext` with:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
 ```
+
+The exported context payload MUST contain only:
+
+```text
+attributes
+correlationId
+type
+uowId
+```
+
+`startedAtToken` MUST remain internal lifecycle timing state.
 
 The shape, field meanings, json-like constraints, and export rules are governed by:
 
@@ -622,7 +633,7 @@ handled_error
 fatal_error
 ```
 
-`UnitOfWorkResult.startedAt` MUST match the originating context `startedAt`.
+`UnitOfWorkResult` MUST NOT export `startedAtToken`.
 
 `UnitOfWorkResult.uowId` MUST match the originating context `uowId`.
 
@@ -640,11 +651,9 @@ If monotonic timing is unavailable or `Stopwatch` start/stop fails, `UnitOfWorkR
 
 Unavailable timing MUST NOT affect outcome selection, error mapping, hook failure policy, reset policy, or lifecycle failure precedence.
 
-`UnitOfWorkResult.durationMs` MUST NOT be calculated from:
+`UnitOfWorkResult.durationMs` MUST NOT be calculated by consumers from exported start or finish timing fields.
 
-```text
-finishedAt - startedAt
-```
+Such exported timing fields MUST NOT exist.
 
 ## ErrorDescriptor policy
 

@@ -38,21 +38,36 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
 
-final class KernelRuntimeAcceptsTimerUnavailableExportedContextTest extends TestCase
+final class KernelRuntimeHandleDoesNotExportTimingTokensTest extends TestCase
 {
-    public function testAfterUnitOfWorkAcceptsTimerUnavailableStartedAt(): void
+    public function testBeginHandleContextAndAfterResultDoNotExportTimingTokens(): void
     {
         $recorder = new KernelRuntimeAcceptsTimerUnavailableExportedContextRecorder();
         $runtime = self::runtime($recorder);
 
-        $result = $runtime->afterUnitOfWork(
-            context: [
-                'attributes' => [],
-                'correlationId' => 'correlation-id',
-                'startedAt' => 0,
-                'type' => UnitOfWorkType::HTTP,
-                'uowId' => 'uow-id',
+        $handle = $runtime->beginUnitOfWork(
+            type: UnitOfWorkType::HTTP,
+            attributes: [],
+        );
+
+        $context = $handle->context();
+
+        self::assertSame(
+            [
+                'attributes',
+                'correlationId',
+                'type',
+                'uowId',
             ],
+            \array_keys($context),
+        );
+
+        self::assertArrayNotHasKey('startedAt', $context);
+        self::assertArrayNotHasKey('startedAtToken', $context);
+        self::assertArrayNotHasKey('finishedAt', $context);
+
+        $result = $runtime->afterUnitOfWork(
+            handle: $handle,
             outcome: Outcome::SUCCESS,
             extensions: [],
         );
@@ -60,19 +75,18 @@ final class KernelRuntimeAcceptsTimerUnavailableExportedContextTest extends Test
         self::assertSame(1, $recorder->resetCount);
 
         self::assertArrayNotHasKey('attributes', $result);
+        self::assertArrayNotHasKey('startedAt', $result);
+        self::assertArrayNotHasKey('startedAtToken', $result);
+        self::assertArrayNotHasKey('finishedAt', $result);
+
         self::assertSame([], $result['extensions']);
-
-        self::assertSame('correlation-id', $result['correlationId']);
-        self::assertSame(0, $result['startedAt']);
+        self::assertSame('01B7X3NDEKTSV4RRFFQ69G5FAV', $result['correlationId']);
         self::assertSame(UnitOfWorkType::HTTP, $result['type']);
-        self::assertSame('uow-id', $result['uowId']);
-
+        self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $result['uowId']);
         self::assertSame(Outcome::SUCCESS, $result['outcome']);
-        self::assertSame(0, $result['durationMs']);
 
-        self::assertArrayHasKey('finishedAt', $result);
-        self::assertIsInt($result['finishedAt']);
-        self::assertGreaterThanOrEqual(0, $result['finishedAt']);
+        self::assertIsInt($result['durationMs']);
+        self::assertGreaterThanOrEqual(0, $result['durationMs']);
     }
 
     private static function runtime(

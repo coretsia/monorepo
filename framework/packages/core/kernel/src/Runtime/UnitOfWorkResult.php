@@ -47,8 +47,6 @@ final readonly class UnitOfWorkResult
     private string $uowId;
     private string $type;
     private string $correlationId;
-    private int $startedAt;
-    private int $finishedAt;
     private int $durationMs;
     private string $outcome;
     private ?ErrorDescriptor $error;
@@ -65,8 +63,6 @@ final readonly class UnitOfWorkResult
         string $uowId,
         string $type,
         string $correlationId,
-        int $startedAt,
-        int $finishedAt,
         int $durationMs,
         string $outcome,
         ?ErrorDescriptor $error = null,
@@ -83,24 +79,12 @@ final readonly class UnitOfWorkResult
             'correlationId',
             UnitOfWorkResultInvalidException::REASON_CORRELATION_ID_INVALID,
         );
-        self::assertTimestamp(
-            $startedAt,
-            'startedAt',
-            UnitOfWorkResultInvalidException::REASON_STARTED_AT_INVALID,
-        );
-        self::assertTimestamp(
-            $finishedAt,
-            'finishedAt',
-            UnitOfWorkResultInvalidException::REASON_FINISHED_AT_INVALID,
-        );
         self::assertDuration($durationMs);
         self::assertOutcome($outcome);
 
         $this->uowId = $uowId;
         $this->type = $type;
         $this->correlationId = $correlationId;
-        $this->startedAt = $startedAt;
-        $this->finishedAt = $finishedAt;
         $this->durationMs = $durationMs;
         $this->outcome = $outcome;
         $this->error = $error;
@@ -115,13 +99,13 @@ final readonly class UnitOfWorkResult
      * - uowId
      * - type
      * - correlationId
-     * - startedAt
+     *
+     * Stopwatch tokens are intentionally not exported in UnitOfWorkResult.
      *
      * @param array<string, mixed> $extensions
      */
     public static function fromContext(
         UnitOfWorkContext $context,
-        int $finishedAt,
         int $durationMs,
         string $outcome,
         ?ErrorDescriptor $error = null,
@@ -131,8 +115,6 @@ final readonly class UnitOfWorkResult
             uowId: $context->uowId(),
             type: $context->type(),
             correlationId: $context->correlationId(),
-            startedAt: $context->startedAt(),
-            finishedAt: $finishedAt,
             durationMs: $durationMs,
             outcome: $outcome,
             error: $error,
@@ -153,16 +135,6 @@ final readonly class UnitOfWorkResult
     public function correlationId(): string
     {
         return $this->correlationId;
-    }
-
-    public function startedAt(): int
-    {
-        return $this->startedAt;
-    }
-
-    public function finishedAt(): int
-    {
-        return $this->finishedAt;
     }
 
     public function durationMs(): int
@@ -207,9 +179,7 @@ final readonly class UnitOfWorkResult
      * - durationMs
      * - error
      * - extensions
-     * - finishedAt
      * - outcome
-     * - startedAt
      * - type
      * - uowId
      *
@@ -232,9 +202,7 @@ final readonly class UnitOfWorkResult
         }
 
         $result['extensions'] = $this->extensions;
-        $result['finishedAt'] = $this->finishedAt;
         $result['outcome'] = $this->outcome;
-        $result['startedAt'] = $this->startedAt;
         $result['type'] = $this->type;
         $result['uowId'] = $this->uowId;
 
@@ -266,16 +234,6 @@ final readonly class UnitOfWorkResult
                 'type',
                 UnitOfWorkResultInvalidException::REASON_TYPE_INVALID,
             );
-        }
-    }
-
-    private static function assertTimestamp(
-        int $timestamp,
-        string $path,
-        string $reason,
-    ): void {
-        if ($timestamp < 0) {
-            throw self::invalid($path, $reason);
         }
     }
 

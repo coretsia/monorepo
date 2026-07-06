@@ -964,7 +964,7 @@ consumer does not call Stopwatch
 
 It MUST NOT be represented by disabling `Stopwatch`.
 
-`Stopwatch::start()` returns a monotonic timestamp token as integer nanoseconds from:
+`Stopwatch::start()` returns an opaque monotonic Stopwatch token backed by:
 
 ```php
 hrtime(true)
@@ -974,7 +974,28 @@ hrtime(true)
 
 `$startedAt` MUST be a positive Stopwatch token returned by `start()`.
 
+Consumers MUST NOT treat the token as a wall-clock timestamp, business timestamp, ordering key, cache key, metric label, trace attribute, log field, diagnostic field, persistence value, or artifact payload.
+
 `Stopwatch` does not track issued token provenance. Runtime enforcement is limited to positive-token validation and elapsed-time calculation.
+
+Kernel runtime MAY keep a Stopwatch token only as private lifecycle state associated with an opaque UnitOfWork handle.
+
+Stopwatch tokens MUST NOT be exported in:
+
+```text
+UnitOfWorkContext exported arrays
+UnitOfWorkHandle::context()
+UnitOfWorkResult exported arrays
+hook payloads
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+Only non-negative duration values such as `durationMs` may cross export or observability boundaries.
 
 Non-positive tokens fail deterministically with:
 

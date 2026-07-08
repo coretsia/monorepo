@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Tests\Contract;
 
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionIntersectionType;
@@ -116,7 +117,7 @@ final class KernelRuntimeInterfaceIsFormatNeutralContractTest extends TestCase
         self::assertTrue($parameters[1]->isDefaultValueAvailable());
         self::assertSame([], $parameters[1]->getDefaultValue());
 
-        $this->assertReturnType($method, 'array', false);
+        $this->assertReturnType($method, UnitOfWorkHandle::class, false);
         $this->assertMethodSignatureDoesNotReferenceForbiddenTypes($method);
     }
 
@@ -129,7 +130,7 @@ final class KernelRuntimeInterfaceIsFormatNeutralContractTest extends TestCase
 
         $parameters = $method->getParameters();
 
-        $this->assertParameter($parameters[0], 'context', 'array', false);
+        $this->assertParameter($parameters[0], 'handle', UnitOfWorkHandle::class, false);
         self::assertFalse($parameters[0]->isDefaultValueAvailable());
 
         $this->assertParameter($parameters[1], 'outcome', 'string', false);

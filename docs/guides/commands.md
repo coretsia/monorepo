@@ -869,6 +869,50 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ---
 
+### Documentation version drift gate
+
+**Id:** `tool.doc_version_drift_gate` \
+**Entrypoint:** `composer doc-version-drift:gate` \
+**Category:** documentation governance / SSoT-ADR drift guard \
+**Outputs:**
+- none on success
+- deterministic error code and diagnostics on failure
+
+**Determinism:**
+
+| Mode / flags                                               | Determinism   | Notes                                                                |
+|------------------------------------------------------------|---------------|----------------------------------------------------------------------|
+| `composer doc-version-drift:gate`                          | deterministic | Read-only; validates documentation version metadata against indexes. |
+| `composer doc-version-drift:gate -- --path=<fixture-root>` | deterministic | Test/fixture override; scans the provided fixture repo root.         |
+
+**Notes:**
+- Purpose: prevents version drift between documentation index entries and the fenced YAML metadata block in the linked documents.
+- The gate validates:
+  - `docs/ssot/INDEX.md` `ssotVersion` entries against linked SSoT document `ssotVersion`;
+  - `docs/adr/INDEX.md` `adrVersion` entries against linked ADR document `adrVersion`.
+- The gate reads only version metadata from the first fenced `yaml` block immediately after the document H1.
+- The gate does not compare `ssotVersion` and `adrVersion` to each other; they are separate version namespaces.
+- Cross-reference entries such as `../roadmap/ROADMAP.md` are navigation links and are not version-governed by this gate.
+- The gate is read-only and MUST NOT create, modify, or delete files.
+- Failure output policy:
+  - documentation version drift: line 1 is stable code `CORETSIA_DOC_VERSION_DRIFT`
+  - unexpected failure: line 1 is stable code `CORETSIA_DOC_VERSION_GATE_FAILED`
+- Diagnostics include only repo-relative paths and deterministic reason tokens.
+- Diagnostics are deduplicated and sorted by byte-order `strcmp`.
+- Diagnostics MUST NOT include absolute paths, raw document content, source snippets, stack traces, exception messages, secrets, tokens, credentials, or environment values.
+- Aggregate rail integration:
+  - `composer gates` includes this gate after `composer atomic-write:gate`.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script doc-version-drift:gate --`
+- Framework implementation detail: `@php tools/gates/doc_version_drift_gate.php`.
+- Direct call `php framework/tools/gates/doc_version_drift_gate.php` is **NOT** a canonical entrypoint.
+
+**Usage (repo root):**
+- `composer doc-version-drift:gate`
+- `composer doc-version-drift:gate -- --path=framework/tools/tests/Fixtures/DocVersion/Pass`
+
+---
+
 ### Git hooks install (workspace)
 
 **Id:** `tool.hooks_install` \
@@ -1923,6 +1967,7 @@ Each new command is added as a separate section under `## Commands` (the format 
   14) `composer package-compliance:gate`
   15) `composer package-publish-safety:gate`
   16) `composer atomic-write:gate`
+  17) `composer doc-version-drift:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`

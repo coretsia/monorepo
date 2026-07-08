@@ -24,6 +24,7 @@ use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
@@ -54,6 +55,11 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
 
     private const int TIMER_UNAVAILABLE = 0;
 
+    /**
+     * @var \WeakMap<UnitOfWorkHandle, int>
+     */
+    private \WeakMap $openUnitOfWorkStartTokens;
+
     public function __construct(
         private ContextStore $contextStore,
         private ResetOrchestrator $resetOrchestrator,
@@ -68,6 +74,8 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         private int $attributesMaxDepth,
         private int $attributesMaxKeys,
     ) {
+        $this->openUnitOfWorkStartTokens = new \WeakMap();
+
         if ($attributesMaxDepth < 1) {
             throw KernelRuntimeException::withReason(
                 KernelRuntimeException::REASON_UOW_ATTRIBUTES_MAX_DEPTH_INVALID,
@@ -102,10 +110,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $resetRequired = true;
 
             $contextPayload = HookContextNormalizer::normalizeContext($context);
-            $afterPhaseRequired = true;
 
             $this->hooks->invokeBeforeHooks($contextPayload);
 
+            $afterPhaseRequired = true;
             $primaryFailure = $this->runBodyAndCaptureFailure($body, $bodyResult);
         } catch (\Throwable $throwable) {
             $primaryFailure = $throwable;
@@ -133,16 +141,14 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     }
 
     /**
-     * Begins a UnitOfWork and returns the normalized exported context array.
+     * Begins a UnitOfWork and returns an opaque lifecycle handle.
      *
      * @param array<string, mixed> $attributes
-     *
-     * @return array<string, mixed>
      */
     public function beginUnitOfWork(
         string $type,
         array $attributes = [],
-    ): array {
+    ): UnitOfWorkHandle {
         $context = null;
         $resetRequired = false;
 
@@ -154,7 +160,11 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
 
             $this->hooks->invokeBeforeHooks($contextPayload);
 
-            return $contextPayload;
+            $handle = new UnitOfWorkHandle($contextPayload);
+
+            $this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();
+
+            return $handle;
         } catch (\Throwable $throwable) {
             if ($resetRequired) {
                 $failure = $this->resetAndSelectFailure($throwable);
@@ -171,22 +181,25 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     /**
      * Completes a previously begun UnitOfWork and returns exported result data.
      *
-     * @param array<string, mixed> $context
      * @param array<string, mixed> $extensions
      *
      * @return array<string, mixed>
      */
     public function afterUnitOfWork(
-        array $context,
+        UnitOfWorkHandle $handle,
         string $outcome,
         ?\Throwable $error = null,
         array $extensions = [],
     ): array {
         $primaryFailure = null;
         $resultPayload = null;
+        $resetRequired = false;
 
         try {
-            $unitOfWorkContext = $this->contextFromExport($context);
+            $startedAtToken = $this->startedAtTokenForHandle($handle);
+            $resetRequired = true;
+
+            $unitOfWorkContext = $this->contextFromHandle($handle, $startedAtToken);
 
             $resultPayload = $this->runAfterPhase(
                 context: $unitOfWorkContext,
@@ -198,7 +211,9 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $primaryFailure = $throwable;
         }
 
-        $failure = $this->resetAndSelectFailure($primaryFailure);
+        $failure = $resetRequired
+            ? $this->resetAndSelectFailure($primaryFailure)
+            : $primaryFailure;
 
         if ($failure !== null) {
             throw $failure;
@@ -290,7 +305,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             return new UnitOfWorkContext(
                 uowId: $this->uowIds->generate(),
                 type: $type,
-                startedAt: $this->safeStartTimer(),
+                startedAtToken: $this->safeStartTimer(),
                 correlationId: $this->correlationId(),
                 attributes: $attributes,
                 attributesMaxDepth: $this->attributesMaxDepth,
@@ -383,8 +398,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         try {
             return UnitOfWorkResult::fromContext(
                 context: $context,
-                finishedAt: $this->safeStartTimer(),
-                durationMs: $this->safeStopTimer($context->startedAt()),
+                durationMs: $this->safeStopTimer($context->startedAtToken()),
                 outcome: $outcome,
                 error: $this->errorDescriptor($error),
                 extensions: $extensions,
@@ -435,14 +449,41 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         );
     }
 
-    /**
-     * @param array<string, mixed> $context
-     */
-    private function contextFromExport(array $context): UnitOfWorkContext
+    private function startedAtTokenForHandle(UnitOfWorkHandle $handle): int
     {
+        if (!isset($this->openUnitOfWorkStartTokens[$handle])) {
+            throw KernelRuntimeException::withReason(
+                KernelRuntimeException::REASON_INVALID_CONTEXT,
+            );
+        }
+
+        $startedAtToken = $this->openUnitOfWorkStartTokens[$handle];
+
+        unset($this->openUnitOfWorkStartTokens[$handle]);
+
+        return $startedAtToken;
+    }
+
+    /**
+     * @param int<0, max> $startedAtToken
+     */
+    private function contextFromHandle(
+        UnitOfWorkHandle $handle,
+        int $startedAtToken,
+    ): UnitOfWorkContext {
         try {
-            foreach (['uowId', 'type', 'startedAt', 'correlationId', 'attributes'] as $requiredKey) {
+            $context = $handle->context();
+
+            foreach (['uowId', 'type', 'correlationId', 'attributes'] as $requiredKey) {
                 if (!\array_key_exists($requiredKey, $context)) {
+                    throw KernelRuntimeException::withReason(
+                        KernelRuntimeException::REASON_INVALID_CONTEXT,
+                    );
+                }
+            }
+
+            foreach (['startedAt', 'startedAtToken', 'finishedAt'] as $forbiddenKey) {
+                if (\array_key_exists($forbiddenKey, $context)) {
                     throw KernelRuntimeException::withReason(
                         KernelRuntimeException::REASON_INVALID_CONTEXT,
                     );
@@ -452,7 +493,6 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             if (
                 !\is_string($context['uowId'])
                 || !\is_string($context['type'])
-                || !\is_int($context['startedAt'])
                 || !\is_string($context['correlationId'])
                 || !\is_array($context['attributes'])
             ) {
@@ -461,7 +501,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 );
             }
 
-            if ($context['startedAt'] < 0) {
+            if ($startedAtToken < 0) {
                 throw KernelRuntimeException::withReason(
                     KernelRuntimeException::REASON_INVALID_CONTEXT,
                 );
@@ -470,7 +510,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             return new UnitOfWorkContext(
                 uowId: $context['uowId'],
                 type: $context['type'],
-                startedAt: $context['startedAt'],
+                startedAtToken: $startedAtToken,
                 correlationId: $context['correlationId'],
                 attributes: $context['attributes'],
                 attributesMaxDepth: $this->attributesMaxDepth,

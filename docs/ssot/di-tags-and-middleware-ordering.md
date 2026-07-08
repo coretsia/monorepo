@@ -14,6 +14,12 @@
 
 # DI Tags and Middleware Ordering SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia DI tag discovery consumption rules, canonical discovery ordering, tag registration dedupe behavior, and consumer obligations.

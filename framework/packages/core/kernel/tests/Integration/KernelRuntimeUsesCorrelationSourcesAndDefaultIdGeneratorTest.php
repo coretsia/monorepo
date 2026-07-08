@@ -53,7 +53,9 @@ final class KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest extends
             ),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $context = $handle->context();
 
         self::assertSame(
             '01B7X3NDEKTSV4RRFFQ69G5FAV',
@@ -86,7 +88,9 @@ final class KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest extends
             correlationIdProvider: new KernelRuntimeUsesCorrelationSourcesCorrelationIdProvider(null),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $context = $handle->context();
 
         self::assertIsString($context['correlationId']);
         self::assertMatchesRegularExpression(
@@ -132,7 +136,9 @@ final class KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest extends
             ),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $context = $handle->context();
 
         self::assertSame(
             '01ARZ3NDEKTSV4RRFFQ69G5FAV',

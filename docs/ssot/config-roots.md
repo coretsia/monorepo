@@ -14,6 +14,12 @@
 
 # Config Roots Registry (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: repo
+```
+
 This document is the canonical registry for reserved configuration roots.
 
 ## Goal

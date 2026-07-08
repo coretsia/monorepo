@@ -14,6 +14,12 @@
 
 # Stateful services SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Purpose
 
 This document is the Single Source of Truth for Coretsia stateful-service policy.

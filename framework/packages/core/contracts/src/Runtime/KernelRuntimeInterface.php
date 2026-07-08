@@ -24,11 +24,11 @@ namespace Coretsia\Contracts\Runtime;
  * This contract is consumed by platform/runtime adapters such as HTTP, CLI,
  * workers, schedulers, queue consumers, and custom runtime bridges.
  *
- * It intentionally uses only scalar values, callables, throwables, and
- * json-like arrays so adapters can integrate with KernelRuntime without
- * depending on the concrete core/kernel package, Foundation internals, PSR-7,
- * PSR-15, platform packages, integration packages, or transport-specific
- * request/response/message types.
+ * It intentionally uses only scalar values, callables, throwables, json-like
+ * arrays, and contracts-owned opaque lifecycle handles so adapters can integrate
+ * with KernelRuntime without depending on the concrete core/kernel package,
+ * Foundation internals, PSR-7, PSR-15, platform packages, integration packages,
+ * or transport-specific request/response/message types.
  *
  * KernelRuntime owns unit-of-work lifecycle orchestration:
  *
@@ -49,12 +49,13 @@ namespace Coretsia\Contracts\Runtime;
  * execution to KernelRuntime directly.
  *
  * Low-level lifecycle methods are a sharp-edge adapter API. Adapters MUST
- * prefer {@see runUnitOfWork()} unless they need direct access to exported
- * context/result arrays or must integrate with an existing external lifecycle.
+ * prefer runUnitOfWork() unless they need a begin/after lifecycle handle or must
+ * integrate with an existing external lifecycle.
  *
- * If {@see beginUnitOfWork()} returns successfully, the adapter owns completion
- * responsibility and MUST attempt exactly one {@see afterUnitOfWork()} call
- * before the next unit of work can start on the same runtime boundary.
+ * If beginUnitOfWork() returns successfully, the adapter owns completion
+ * responsibility and MUST pass the exact returned UnitOfWorkHandle to exactly one
+ * afterUnitOfWork() call before the next unit of work can start on the same
+ * runtime boundary.
  *
  * Low-level adapters MUST wrap external body execution so that
  * {@see afterUnitOfWork()} is attempted on both success and failure paths.
@@ -87,31 +88,29 @@ interface KernelRuntimeInterface
     ): mixed;
 
     /**
-     * Begins a unit of work and returns the normalized exported context array.
+     * Begins a unit of work and returns an opaque lifecycle handle.
      *
      * Implementations MUST create the unit-of-work context, write base context
-     * keys, invoke before-unit-of-work hooks, and return the normalized exported
-     * context array.
+     * keys, invoke before-unit-of-work hooks, and return a handle that exposes the
+     * normalized exported context through UnitOfWorkHandle::context().
      *
-     * If this method returns successfully, before-unit-of-work hooks have
-     * already completed successfully.
+     * If this method returns successfully, before-unit-of-work hooks have already
+     * completed successfully.
      *
      * Low-level adapters MUST execute the external body only after successful
      * completion of this method.
      *
      * If this method returns successfully, the caller MUST treat the returned
-     * context as an open lifecycle token and MUST attempt exactly one matching
-     * {@see afterUnitOfWork()} call.
+     * handle as an open lifecycle handle and MUST attempt exactly one matching
+     * afterUnitOfWork() call.
      *
      * @param array<string, mixed> $attributes Format-neutral adapter-provided
      *                                         attributes for the unit of work.
-     *
-     * @return array<string, mixed> Normalized exported unit-of-work context.
      */
     public function beginUnitOfWork(
         string $type,
         array $attributes = [],
-    ): array;
+    ): UnitOfWorkHandle;
 
     /**
      * Completes a previously begun unit of work and returns the normalized
@@ -127,16 +126,15 @@ interface KernelRuntimeInterface
      * Low-level adapters SHOULD call this method from a finally-equivalent
      * completion path after successful {@see beginUnitOfWork()}.
      *
-     * @param array<string, mixed> $context Normalized exported context array
-     *                                      previously returned by
-     *                                      {@see beginUnitOfWork()}.
+     * @param UnitOfWorkHandle $handle Lifecycle handle previously returned by
+     *                                 beginUnitOfWork().
      * @param array<string, mixed> $extensions Additional format-neutral result
      *                                         extensions.
      *
      * @return array<string, mixed> Normalized exported unit-of-work result.
      */
     public function afterUnitOfWork(
-        array $context,
+        UnitOfWorkHandle $handle,
         string $outcome,
         ?\Throwable $error = null,
         array $extensions = [],

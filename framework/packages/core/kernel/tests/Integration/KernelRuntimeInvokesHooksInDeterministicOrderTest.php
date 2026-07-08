@@ -176,7 +176,6 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
             [
                 'attributes',
                 'correlationId',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -200,8 +199,9 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
         self::assertSame('01B7X3NDEKTSV4RRFFQ69G5FAV', $firstBeforeContext['correlationId']);
         self::assertSame(UnitOfWorkType::HTTP, $firstBeforeContext['type']);
         self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $firstBeforeContext['uowId']);
-        self::assertIsInt($firstBeforeContext['startedAt']);
-        self::assertGreaterThan(0, $firstBeforeContext['startedAt']);
+        self::assertArrayNotHasKey('startedAt', $firstBeforeContext);
+        self::assertArrayNotHasKey('startedAtToken', $firstBeforeContext);
+        self::assertArrayNotHasKey('finishedAt', $firstBeforeContext);
 
         foreach ($recorder->beforeContexts as $context) {
             self::assertSame($firstBeforeContext, $context);
@@ -220,9 +220,7 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
                 'correlationId',
                 'durationMs',
                 'extensions',
-                'finishedAt',
                 'outcome',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -236,9 +234,9 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
         self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $firstAfterResult['uowId']);
         self::assertIsInt($firstAfterResult['durationMs']);
         self::assertGreaterThanOrEqual(0, $firstAfterResult['durationMs']);
-        self::assertIsInt($firstAfterResult['finishedAt']);
-        self::assertGreaterThan(0, $firstAfterResult['finishedAt']);
-        self::assertSame($firstBeforeContext['startedAt'], $firstAfterResult['startedAt']);
+        self::assertArrayNotHasKey('startedAt', $firstAfterResult);
+        self::assertArrayNotHasKey('startedAtToken', $firstAfterResult);
+        self::assertArrayNotHasKey('finishedAt', $firstAfterResult);
 
         foreach ($recorder->afterResults as $resultPayload) {
             self::assertSame($firstAfterResult, $resultPayload);
@@ -262,7 +260,9 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
             ),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $context = $handle->context();
 
         self::assertIsArray($context);
         self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $context['uowId']);
@@ -270,7 +270,7 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
         self::assertSame(UnitOfWorkType::HTTP, $context['type']);
 
         $result = $runtime->afterUnitOfWork(
-            context: $context,
+            handle: $handle,
             outcome: Outcome::SUCCESS,
             extensions: [
                 'adapter' => 'low-level',
@@ -286,6 +286,28 @@ final class KernelRuntimeInvokesHooksInDeterministicOrderTest extends TestCase
                 'adapter' => 'low-level',
             ],
             $result['extensions'],
+        );
+
+        self::assertSame(
+            [
+                'attributes',
+                'correlationId',
+                'type',
+                'uowId',
+            ],
+            \array_keys($context),
+        );
+
+        self::assertSame(
+            [
+                'correlationId',
+                'durationMs',
+                'extensions',
+                'outcome',
+                'type',
+                'uowId',
+            ],
+            \array_keys($result),
         );
 
         self::assertFalse($contextStore->has(ContextKeys::CORRELATION_ID));

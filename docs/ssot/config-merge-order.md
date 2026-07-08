@@ -14,6 +14,12 @@
 
 # Config Merge Order (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 ## Scope
 
 This document is the canonical narrative for the active Phase B config merge order.
@@ -806,7 +812,13 @@ The same inputs MUST produce the same final config and explain trace, excluding 
 
 `ConfigKernel` observability timing failures MUST NOT change final config, validation results, effective source traces, explain traces, safe provenance metadata, or exception precedence.
 
+This policy applies only to duration measurement and observability emission.
+
+Config loading, directive processing, merge, validation, explain construction, and source provenance failures remain primary ConfigKernel failures and MUST be surfaced according to ConfigKernel exception policy.
+
 When config merge or explain duration cannot be measured, duration observability may collapse to `0` or be omitted according to owner policy.
+
+Unavailable timing MUST NOT be described as a successful config operation.
 
 Determinism requires:
 

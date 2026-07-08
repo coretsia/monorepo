@@ -21,6 +21,7 @@ return [
     'code' => null,
     'reason' => null,
     'activeDriverIds' => [
+        'bg.worker_queue',
         'http.frankenphp',
     ],
     'conflictingDriverIds' => [],

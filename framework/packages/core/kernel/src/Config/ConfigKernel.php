@@ -515,6 +515,10 @@ final readonly class ConfigKernel
         try {
             return $this->stopwatch->start();
         } catch (\Throwable) {
+            /*
+             * Stopwatch is used only for ConfigKernel duration observability.
+             * Timing failure must not replace config merge/explain outcomes.
+             */
             return null;
         }
     }
@@ -530,6 +534,10 @@ final readonly class ConfigKernel
 
             return $durationMs >= 0 ? $durationMs : 0;
         } catch (\Throwable) {
+            /*
+             * Stopwatch is used only for ConfigKernel duration observability.
+             * Timing failure is represented as unavailable duration.
+             */
             return 0;
         }
     }

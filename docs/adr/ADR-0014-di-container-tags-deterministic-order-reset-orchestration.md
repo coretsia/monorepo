@@ -14,9 +14,11 @@
 
 # ADR-0014: DI container, tags, deterministic ordering, and reset orchestration
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/foundation
+```
 
 ## Supersession / follow-up note
 

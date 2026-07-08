@@ -381,9 +381,9 @@ final readonly class MailMessage
             throw new \InvalidArgumentException(\sprintf('Mail message %s must be non-empty.', $field));
         }
 
-        if ($value !== \trim($value)) {
+        if (\preg_match('/\A[ \t\n\r\f\v]|[ \t\n\r\f\v]\z/', $value) === 1) {
             throw new \InvalidArgumentException(
-                \sprintf('Mail message %s must not contain leading or trailing whitespace.', $field)
+                \sprintf('Mail message %s must not contain leading or trailing ASCII whitespace.', $field)
             );
         }
 

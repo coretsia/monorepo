@@ -31,7 +31,6 @@ final class RuntimeDriverMatrixAllFixturesMatchGuardTest extends RuntimeDriverMa
                 'FrankenphpPlusWorkerHttpApp',
                 'FrankenphpPlusWorkerQueueApp',
                 'FrankenphpWithoutPlatformHttpModuleApp',
-                'MultipleConfiguredHttpDriversApp',
                 'RoadrunnerHttpApp',
                 'RoadrunnerPlusWorkerHttpApp',
                 'RoadrunnerPlusWorkerQueueApp',

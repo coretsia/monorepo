@@ -14,6 +14,12 @@
 
 # Rate Limit Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia rate limit contracts, rate limit store port semantics, rate limit decision and state model semantics, key hashing policy, observability constraints, redaction rules, and runtime ownership boundaries.

@@ -14,6 +14,12 @@
 
 # Errors Boundary SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for the Coretsia error normalization responsibility boundary, forbidden dependency directions, runtime adapter ownership, mapper discovery policy, and canonical high-level error flow.

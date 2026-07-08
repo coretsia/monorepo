@@ -178,9 +178,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('micro', $kernelSubtree['boot']['default_preset'] ?? null);
         self::assertSame(false, $kernelSubtree['boot']['default_debug'] ?? null);
 
-        self::assertSame(false, $kernelSubtree['runtime']['frankenphp']['enabled'] ?? null);
-        self::assertSame(false, $kernelSubtree['runtime']['swoole']['enabled'] ?? null);
-        self::assertSame(false, $kernelSubtree['runtime']['roadrunner']['enabled'] ?? null);
+        self::assertSame('http.classic', $kernelSubtree['runtime']['http_driver'] ?? null);
 
         self::assertSame('strict_dotenv', $kernelSubtree['env']['source_policy']['default_local'] ?? null);
         self::assertSame('allow_system', $kernelSubtree['env']['source_policy']['default_production'] ?? null);
@@ -265,9 +263,20 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('non-empty-string', $rules['keys']['boot']['keys']['default_preset']['type'] ?? null);
         self::assertSame('bool', $rules['keys']['boot']['keys']['default_debug']['type'] ?? null);
 
-        self::assertSame('bool', $rules['keys']['runtime']['keys']['frankenphp']['keys']['enabled']['type'] ?? null);
-        self::assertSame('bool', $rules['keys']['runtime']['keys']['swoole']['keys']['enabled']['type'] ?? null);
-        self::assertSame('bool', $rules['keys']['runtime']['keys']['roadrunner']['keys']['enabled']['type'] ?? null);
+        self::assertSame(
+            'non-empty-string-no-ws',
+            $rules['keys']['runtime']['keys']['http_driver']['type'] ?? null,
+        );
+
+        self::assertSame(
+            [
+                'http.classic',
+                'http.frankenphp',
+                'http.swoole',
+                'http.roadrunner',
+            ],
+            $rules['keys']['runtime']['keys']['http_driver']['allowedValues'] ?? null,
+        );
 
         self::assertSame(
             [

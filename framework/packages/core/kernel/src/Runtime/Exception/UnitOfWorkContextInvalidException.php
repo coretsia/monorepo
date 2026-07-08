@@ -40,7 +40,7 @@ final class UnitOfWorkContextInvalidException extends \RuntimeException
     public const string REASON_INVALID = 'uow-context-invalid';
     public const string REASON_UOW_ID_INVALID = 'uow-context-uow-id-invalid';
     public const string REASON_TYPE_INVALID = 'uow-context-type-invalid';
-    public const string REASON_STARTED_AT_INVALID = 'uow-context-started-at-invalid';
+    public const string REASON_STARTED_AT_TOKEN_INVALID = 'uow-context-started-at-token-invalid';
     public const string REASON_CORRELATION_ID_INVALID = 'uow-context-correlation-id-invalid';
 
     public const string REASON_ATTRIBUTES_ROOT_MAP_REQUIRED = 'uow-context-attributes-root-map-required';
@@ -68,7 +68,7 @@ final class UnitOfWorkContextInvalidException extends \RuntimeException
         self::REASON_INVALID => true,
         self::REASON_UOW_ID_INVALID => true,
         self::REASON_TYPE_INVALID => true,
-        self::REASON_STARTED_AT_INVALID => true,
+        self::REASON_STARTED_AT_TOKEN_INVALID => true,
         self::REASON_CORRELATION_ID_INVALID => true,
 
         self::REASON_ATTRIBUTES_ROOT_MAP_REQUIRED => true,

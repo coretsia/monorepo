@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
+use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
@@ -35,91 +36,57 @@ use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\Outcome;
 use Coretsia\Kernel\Runtime\UnitOfWorkType;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
 
-final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
+final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 {
-    #[DataProvider('missingRequiredContextFields')]
-    public function testAfterUnitOfWorkRejectsMissingRequiredContextFieldsAndResetsOnce(
-        string $missingKey,
-    ): void {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
-        $runtime = self::runtime($recorder);
-
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
-        unset($context[$missingKey]);
-
-        $exception = self::assertKernelRuntimeFailure(
-            callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
-                outcome: Outcome::SUCCESS,
-            ),
-            expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
-        );
-
-        self::assertSame(1, $recorder->resetCount);
-        self::assertSafeValidationFailure($exception);
-    }
-
-    #[DataProvider('invalidContextFieldTypes')]
-    public function testAfterUnitOfWorkRejectsInvalidContextFieldTypesAndResetsOnce(
-        string $field,
-        mixed $value,
-    ): void {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
-        $runtime = self::runtime($recorder);
-
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
-        $context[$field] = $value;
-
-        $exception = self::assertKernelRuntimeFailure(
-            callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
-                outcome: Outcome::SUCCESS,
-            ),
-            expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
-        );
-
-        self::assertSame(1, $recorder->resetCount);
-        self::assertSafeValidationFailure($exception);
-    }
-
-    #[DataProvider('invalidStartedAtValues')]
-    public function testAfterUnitOfWorkRejectsNegativeStartedAtAndResetsOnce(
-        int $startedAt,
-    ): void {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
-        $runtime = self::runtime($recorder);
-
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
-        $context['startedAt'] = $startedAt;
-
-        $exception = self::assertKernelRuntimeFailure(
-            callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
-                outcome: Outcome::SUCCESS,
-            ),
-            expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
-        );
-
-        self::assertSame(1, $recorder->resetCount);
-        self::assertSafeValidationFailure($exception);
-    }
-
-    public function testAfterUnitOfWorkRejectsInvalidExportedContextTypeTokenAndResetsOnce(): void
+    public function testAfterUnitOfWorkRejectsForeignHandle(): void
     {
         $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
-        $runtime = self::runtime($recorder);
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
-        $context['type'] = 'invalid-uow-type Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret';
+        $runtime = self::runtime(
+            recorder: $recorder,
+        );
+
+        $foreignHandle = new UnitOfWorkHandle([
+            'attributes' => [],
+            'correlationId' => 'corr-001',
+            'type' => UnitOfWorkType::HTTP,
+            'uowId' => 'uow-001',
+        ]);
 
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
+                handle: $foreignHandle,
+                outcome: Outcome::SUCCESS,
+            ),
+            expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
+        );
+
+        self::assertSame(0, $recorder->resetCount);
+        self::assertSafeValidationFailure($exception);
+    }
+
+    public function testAfterUnitOfWorkRejectsAlreadyCompletedHandle(): void
+    {
+        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+
+        $runtime = self::runtime(
+            recorder: $recorder,
+        );
+
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $runtime->afterUnitOfWork(
+            handle: $handle,
+            outcome: Outcome::SUCCESS,
+        );
+
+        $exception = self::assertKernelRuntimeFailure(
+            callback: static fn (): array => $runtime->afterUnitOfWork(
+                handle: $handle,
                 outcome: Outcome::SUCCESS,
             ),
             expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
@@ -158,11 +125,11 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
         $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
         $runtime = self::runtime($recorder);
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
+                handle: $handle,
                 outcome: 'invalid-outcome Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
             ),
             expectedReason: KernelRuntimeException::REASON_INVALID_OUTCOME,
@@ -177,11 +144,11 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
         $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
         $runtime = self::runtime($recorder);
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
+                handle: $handle,
                 outcome: Outcome::SUCCESS,
                 extensions: [
                     'raw_extensions_marker' => 'Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
@@ -189,32 +156,6 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
                 ],
             ),
             expectedReason: KernelRuntimeException::REASON_INVALID_RESULT,
-        );
-
-        self::assertSame(1, $recorder->resetCount);
-        self::assertSafeValidationFailure($exception);
-    }
-
-    public function testInvalidContextFailureRemainsPrimaryWhenResetAlsoFails(): void
-    {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
-
-        $runtime = self::runtime(
-            recorder: $recorder,
-            resetFailure: new \RuntimeException(
-                'reset unsafe-token Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
-            ),
-        );
-
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
-        unset($context['uowId']);
-
-        $exception = self::assertKernelRuntimeFailure(
-            callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
-                outcome: Outcome::SUCCESS,
-            ),
-            expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
         );
 
         self::assertSame(1, $recorder->resetCount);
@@ -232,11 +173,11 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
             ),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
+                handle: $handle,
                 outcome: 'invalid-outcome Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
             ),
             expectedReason: KernelRuntimeException::REASON_INVALID_OUTCOME,
@@ -257,11 +198,11 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
             ),
         );
 
-        $context = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                context: $context,
+                handle: $handle,
                 outcome: Outcome::SUCCESS,
                 extensions: [
                     'raw_extensions_marker' => 'Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
@@ -273,57 +214,6 @@ final class KernelRuntimeRejectsInvalidExportedContextTest extends TestCase
 
         self::assertSame(1, $recorder->resetCount);
         self::assertSafeValidationFailure($exception);
-    }
-
-    /**
-     * @return iterable<string, array{0:string}>
-     */
-    public static function missingRequiredContextFields(): iterable
-    {
-        yield 'missing-uowId' => ['uowId'];
-        yield 'missing-type' => ['type'];
-        yield 'missing-startedAt' => ['startedAt'];
-        yield 'missing-correlationId' => ['correlationId'];
-        yield 'missing-attributes' => ['attributes'];
-    }
-
-    /**
-     * @return iterable<string, array{0:string,1:mixed}>
-     */
-    public static function invalidContextFieldTypes(): iterable
-    {
-        yield 'uowId-not-string' => [
-            'uowId',
-            123,
-        ];
-
-        yield 'type-not-string' => [
-            'type',
-            123,
-        ];
-
-        yield 'startedAt-not-int' => [
-            'startedAt',
-            'raw_context_marker Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
-        ];
-
-        yield 'correlationId-not-string' => [
-            'correlationId',
-            123,
-        ];
-
-        yield 'attributes-not-array' => [
-            'attributes',
-            'raw_context_marker Authorization Cookie session_id SELECT * FROM users /tmp/coretsia-secret',
-        ];
-    }
-
-    /**
-     * @return iterable<string, array{0:int}>
-     */
-    public static function invalidStartedAtValues(): iterable
-    {
-        yield 'negative' => [-1];
     }
 
     private static function runtime(

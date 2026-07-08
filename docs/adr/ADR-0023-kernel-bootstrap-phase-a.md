@@ -14,9 +14,11 @@
 
 # ADR-0023: Kernel Bootstrap Phase A
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

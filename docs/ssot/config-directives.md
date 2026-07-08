@@ -14,6 +14,12 @@
 
 # Config Directives Examples (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 ## Scope
 
 This document is the Single Source of Truth for examples of Coretsia config directives.

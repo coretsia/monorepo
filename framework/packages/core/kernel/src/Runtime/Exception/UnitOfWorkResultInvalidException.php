@@ -41,8 +41,6 @@ final class UnitOfWorkResultInvalidException extends \RuntimeException
     public const string REASON_UOW_ID_INVALID = 'uow-result-uow-id-invalid';
     public const string REASON_TYPE_INVALID = 'uow-result-type-invalid';
     public const string REASON_CORRELATION_ID_INVALID = 'uow-result-correlation-id-invalid';
-    public const string REASON_STARTED_AT_INVALID = 'uow-result-started-at-invalid';
-    public const string REASON_FINISHED_AT_INVALID = 'uow-result-finished-at-invalid';
     public const string REASON_DURATION_MS_INVALID = 'uow-result-duration-ms-invalid';
     public const string REASON_OUTCOME_INVALID = 'uow-result-outcome-invalid';
 
@@ -72,8 +70,6 @@ final class UnitOfWorkResultInvalidException extends \RuntimeException
         self::REASON_UOW_ID_INVALID => true,
         self::REASON_TYPE_INVALID => true,
         self::REASON_CORRELATION_ID_INVALID => true,
-        self::REASON_STARTED_AT_INVALID => true,
-        self::REASON_FINISHED_AT_INVALID => true,
         self::REASON_DURATION_MS_INVALID => true,
         self::REASON_OUTCOME_INVALID => true,
 

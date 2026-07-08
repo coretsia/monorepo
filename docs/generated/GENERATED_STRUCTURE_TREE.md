@@ -271,7 +271,8 @@ Coretsia/
 │   │   │   │   │   │   │   ├── AfterUowHookInterface.php
 │   │   │   │   │   │   │   └── BeforeUowHookInterface.php
 │   │   │   │   │   │   ├── KernelRuntimeInterface.php
-│   │   │   │   │   │   └── ResetInterface.php
+│   │   │   │   │   │   ├── ResetInterface.php
+│   │   │   │   │   │   └── UnitOfWorkHandle.php
 │   │   │   │   │   ├── Secrets/
 │   │   │   │   │   │   └── SecretsResolverInterface.php
 │   │   │   │   │   └── Validation/
@@ -345,6 +346,7 @@ Coretsia/
 │   │   │   │   │   │   ├── SpanInterfaceShapeContractTest.php
 │   │   │   │   │   │   ├── SqlQueryShapeContractTest.php
 │   │   │   │   │   │   ├── TracerPortInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── UnitOfWorkHandleContractTest.php
 │   │   │   │   │   │   ├── ValidationContractsTest.php
 │   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php
 │   │   │   │   │   │   └── ValidationViolationShapeIsSafeContractTest.php
@@ -772,12 +774,12 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
 │   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
-│   │   │       │   │   ├── KernelRuntimeAcceptsTimerUnavailableExportedContextTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 │   │   │       │   │   ├── KernelRuntimeExportsNormalizedHookPayloadsTest.php
+│   │   │       │   │   ├── KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 │   │   │       │   │   ├── KernelRuntimeInvokesHooksInDeterministicOrderTest.php
-│   │   │       │   │   ├── KernelRuntimeRejectsInvalidExportedContextTest.php
+│   │   │       │   │   ├── KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
 │   │   │       │   │   ├── KernelRuntimeResetHappensAfterAfterUowHooksTest.php
 │   │   │       │   │   ├── KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
 │   │   │       │   │   ├── KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
@@ -836,8 +838,8 @@ Coretsia/
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
+│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsMultipleHttpDriversTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php
@@ -1072,6 +1074,7 @@ Coretsia/
 │   │   │   ├── composer_audit_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
+│   │   │   ├── doc_version_drift_gate.php
 │   │   │   ├── dto_gate.php
 │   │   │   ├── dto_marker_consistency_gate.php
 │   │   │   ├── dto_no_logic_gate.php
@@ -1315,6 +1318,63 @@ Coretsia/
 │   │       │   │   ├── audit_clean.json
 │   │       │   │   ├── audit_scan_failed.json
 │   │       │   │   └── audit_with_advisories.json
+│   │       │   ├── DocVersion/
+│   │       │   │   ├── AdrVersionDrift/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── InvalidIndexEntry/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── valid.md
+│   │       │   │   ├── MissingDocument/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           └── INDEX.md
+│   │       │   │   ├── MissingMetadataBlock/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── Pass/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── SortedDiagnostics/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-a.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           ├── a.md
+│   │       │   │   │           └── b.md
+│   │       │   │   └── SsotVersionDrift/
+│   │       │   │       └── docs/
+│   │       │   │           ├── adr/
+│   │       │   │           │   ├── ADR-0001-example.md
+│   │       │   │           │   └── INDEX.md
+│   │       │   │           └── ssot/
+│   │       │   │               ├── INDEX.md
+│   │       │   │               └── example.md
 │   │       │   ├── Gitleaks/
 │   │       │   │   ├── gitleaks_clean.json
 │   │       │   │   ├── gitleaks_scan_failed.json
@@ -1337,10 +1397,6 @@ Coretsia/
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php
 │   │       │   │   ├── FrankenphpWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── MultipleConfiguredHttpDriversApp/
 │   │       │   │   │   ├── config.php
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php
@@ -1488,7 +1544,8 @@ Coretsia/
 │   │       ├── Smoke/
 │   │       │   └── MonorepoSmokeTest.php
 │   │       └── Unit/
-│   │           └── DeterministicFileAtomicWriteTest.php
+│   │           ├── DeterministicFileAtomicWriteTest.php
+│   │           └── DocVersionDriftGateTest.php
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/

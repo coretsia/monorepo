@@ -14,6 +14,12 @@
 
 # Compiled Container Payload and Artifact-Only Boot Semantics (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 This document is the canonical SSoT for the Kernel-owned REAL `container@1` compiled-container payload schema, compiled-container graph rules, service definition lifecycle semantics, compiled alias lifecycle semantics, and artifact-only runtime boot policy.
 
 It intentionally does not redefine the global artifact envelope, canonical artifact header fields, deterministic serialization law, or artifact registry rows. Those are owned by `docs/ssot/artifacts.md`.

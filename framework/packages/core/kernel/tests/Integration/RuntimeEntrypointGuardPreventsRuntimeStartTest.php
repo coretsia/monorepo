@@ -32,10 +32,8 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
     {
         $started = false;
         $config = self::runtimeConfig(
-            frankenphp: false,
-            swoole: false,
-            roadrunner: true,
-            workerEnabled: false,
+            httpDriver: 'http.roadrunner',
+            workerTaskType: null,
         );
 
         try {
@@ -63,10 +61,8 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
         self::guard()->assertEntrypointAllowed(
             config: new ArrayConfigRepository(
                 self::runtimeConfig(
-                    frankenphp: false,
-                    swoole: false,
-                    roadrunner: true,
-                    workerEnabled: false,
+                    httpDriver: 'http.roadrunner',
+                    workerTaskType: null,
                 )
             ),
             modulePlan: self::modulePlan(['platform.http']),
@@ -80,10 +76,8 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
         self::guard()->assertEntrypointAllowed(
             config: new ArrayConfigRepository(
                 self::runtimeConfig(
-                    frankenphp: false,
-                    swoole: false,
-                    roadrunner: false,
-                    workerEnabled: false,
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
                 )
             ),
             modulePlan: self::modulePlan([]),
@@ -106,9 +100,6 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
                             ],
                         ],
                     ],
-                    'worker' => [
-                        'enabled' => false,
-                    ],
                 ]),
                 modulePlan: self::modulePlan([]),
             );
@@ -125,6 +116,49 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
         }
     }
 
+    public function testClassicHttpWithoutWorkerRootIsAllowedWhenPlatformWorkerIsNotEnabled(): void
+    {
+        self::guard()->assertEntrypointAllowed(
+            config: new ArrayConfigRepository(
+                self::runtimeConfig(
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
+                )
+            ),
+            modulePlan: self::modulePlan([]),
+        );
+
+        self::assertTrue(true);
+    }
+
+    public function testMissingWorkerTaskTypeFailsWhenPlatformWorkerIsEnabled(): void
+    {
+        $started = false;
+
+        try {
+            self::guard()->assertEntrypointAllowed(
+                config: new ArrayConfigRepository(
+                    self::runtimeConfig(
+                        httpDriver: 'http.classic',
+                        workerTaskType: null,
+                    )
+                ),
+                modulePlan: self::modulePlan(['platform.worker']),
+            );
+
+            $started = true;
+
+            self::fail('Expected missing worker.task_type to fail when platform.worker is enabled.');
+        } catch (RuntimeDriverInvalidConfigException $exception) {
+            self::assertFalse($started);
+            self::assertSame(
+                RuntimeDriverInvalidConfigException::REASON_WORKER_TASK_TYPE_MISSING,
+                $exception->reason(),
+            );
+            self::assertSame([], $exception->requiredModuleIds());
+        }
+    }
+
     private static function guard(): RuntimeEntrypointGuard
     {
         return new RuntimeEntrypointGuard();
@@ -134,29 +168,24 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
      * @return array<string, mixed>
      */
     private static function runtimeConfig(
-        bool $frankenphp,
-        bool $swoole,
-        bool $roadrunner,
-        bool $workerEnabled,
+        string $httpDriver,
+        ?string $workerTaskType = null,
     ): array {
-        return [
+        $config = [
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => $frankenphp,
-                    ],
-                    'swoole' => [
-                        'enabled' => $swoole,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => $roadrunner,
-                    ],
+                    'http_driver' => $httpDriver,
                 ],
             ],
-            'worker' => [
-                'enabled' => $workerEnabled,
-            ],
         ];
+
+        if ($workerTaskType !== null) {
+            $config['worker'] = [
+                'task_type' => $workerTaskType,
+            ];
+        }
+
+        return $config;
     }
 
     /**

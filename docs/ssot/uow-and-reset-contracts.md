@@ -14,6 +14,12 @@
 
 # UoW and Reset Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia unit-of-work runtime contracts, reset contracts, before/after unit-of-work hook contracts, reset discipline, runtime ownership boundaries, exported hook payload policy, and DI tag usage policy.
@@ -122,8 +128,8 @@ The canonical method set is:
 
 ```text
 runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
-beginUnitOfWork(string $type, array $attributes = []): array
-afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+beginUnitOfWork(string $type, array $attributes = []): UnitOfWorkHandle
+afterUnitOfWork(UnitOfWorkHandle $handle, string $outcome, ?Throwable $error = null, array $extensions = []): array
 ```
 
 `runUnitOfWork()` is the preferred high-level adapter API.
@@ -132,9 +138,22 @@ It returns the external body return value.
 
 It MUST NOT return the exported UnitOfWork result array.
 
-`beginUnitOfWork()` returns the normalized exported UnitOfWork context array.
+`beginUnitOfWork()` returns an opaque `UnitOfWorkHandle`.
 
-`afterUnitOfWork()` returns the normalized exported UnitOfWork result array.
+`UnitOfWorkHandle::context()` returns the normalized exported UnitOfWork context array.
+
+`afterUnitOfWork()` accepts the exact `UnitOfWorkHandle` returned by `beginUnitOfWork()` and returns the normalized exported UnitOfWork result array.
+
+A successful `beginUnitOfWork()` return is the only signal that a low-level adapter has received an open lifecycle handle.
+
+If `beginUnitOfWork()` throws, the adapter MUST NOT call `afterUnitOfWork()` for that failed begin attempt.
+
+Concrete before-hook failure handling is runtime-owned. The canonical Kernel implementation defines its behavior in:
+
+```text
+docs/adr/ADR-0020-kernel-runtime-uow-spi.md
+docs/ssot/uow-outcome-policy.md
+```
 
 Low-level adapters that need exported context/result arrays MUST use:
 
@@ -143,7 +162,7 @@ beginUnitOfWork()
 afterUnitOfWork()
 ```
 
-The contracts runtime port exposes only scalar values, callables, throwables, `mixed`, and format-neutral arrays.
+The contracts runtime port exposes only scalar values, callables, throwables, `mixed`, format-neutral arrays, and contracts-owned opaque lifecycle handles.
 
 The contracts runtime port MUST NOT expose Kernel-owned runtime classes.
 
@@ -155,6 +174,14 @@ Coretsia\Kernel\Runtime\UnitOfWorkResult
 Coretsia\Kernel\Runtime\Outcome
 Coretsia\Kernel\Runtime\UnitOfWorkType
 ```
+
+The contracts-owned lifecycle handle is allowed:
+
+```text
+Coretsia\Contracts\Runtime\UnitOfWorkHandle
+```
+
+`UnitOfWorkHandle` is not a context/result schema object. It MUST expose only the exported safe context array and MUST NOT expose Stopwatch tokens.
 
 `core/contracts` owns the external port.
 
@@ -854,6 +881,7 @@ Contracts-level enforcement evidence for this epic includes:
 ```text
 framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php
 framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
+framework/packages/core/contracts/tests/Contract/UnitOfWorkHandleContractTest.php
 framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
 ```
 
@@ -861,6 +889,10 @@ These tests are expected to verify:
 
 - `ResetInterface` exists and exposes only `reset(): void`;
 - `KernelRuntimeInterface` exists and exposes `runUnitOfWork()`, `beginUnitOfWork()`, and `afterUnitOfWork()`;
+- `beginUnitOfWork()` returns `UnitOfWorkHandle`;
+- `afterUnitOfWork()` accepts `UnitOfWorkHandle`;
+- `UnitOfWorkHandle::context()` exposes only the normalized safe context array;
+- `UnitOfWorkHandle::context()` does not expose `startedAt`, `startedAtToken`, or `finishedAt`;
 - `KernelRuntimeInterface` does not depend on `core/kernel`;
 - `BeforeUowHookInterface` exists and exposes only `beforeUow(array $context): void`;
 - `AfterUowHookInterface` exists and exposes only `afterUow(array $context, array $result): void`;

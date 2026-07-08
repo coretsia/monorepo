@@ -28,20 +28,18 @@ final class ArrayConfigRepositoryContractTest extends TestCase
         $repository = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'roadrunner' => [
-                        'enabled' => true,
-                    ],
+                    'http_driver' => 'http.roadrunner',
                 ],
             ],
             'worker' => [
-                'enabled' => false,
+                'task_type' => 'queue',
             ],
         ]);
 
-        self::assertTrue($repository->has('kernel.runtime.roadrunner.enabled'));
-        self::assertTrue($repository->get('kernel.runtime.roadrunner.enabled'));
-        self::assertTrue($repository->has('worker.enabled'));
-        self::assertFalse($repository->get('worker.enabled'));
+        self::assertTrue($repository->has('kernel.runtime.http_driver'));
+        self::assertSame('http.roadrunner', $repository->get('kernel.runtime.http_driver'));
+        self::assertTrue($repository->has('worker.task_type'));
+        self::assertSame('queue', $repository->get('worker.task_type'));
     }
 
     public function testRepositoryDoesNotInventMissingValues(): void
@@ -50,8 +48,8 @@ final class ArrayConfigRepositoryContractTest extends TestCase
             'kernel' => [],
         ]);
 
-        self::assertFalse($repository->has('kernel.runtime.roadrunner.enabled'));
-        self::assertNull($repository->get('kernel.runtime.roadrunner.enabled'));
+        self::assertFalse($repository->has('kernel.runtime.http_driver'));
+        self::assertNull($repository->get('kernel.runtime.http_driver'));
     }
 
     public function testRepositoryRejectsInvalidKeyPathsDeterministically(): void
@@ -79,7 +77,7 @@ final class ArrayConfigRepositoryContractTest extends TestCase
         $repository = new ArrayConfigRepository($config);
 
         self::assertSame($config, $repository->all());
-        self::assertNull($repository->sourceOf('kernel.runtime.frankenphp.enabled'));
+        self::assertNull($repository->sourceOf('kernel.runtime.http_driver'));
         self::assertSame([], $repository->explain());
     }
 }

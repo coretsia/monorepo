@@ -17,9 +17,6 @@ declare(strict_types=1);
  */
 
 return [
-    'kernel.runtime.frankenphp.enabled' => true,
-    'kernel.runtime.swoole.enabled' => false,
-    'kernel.runtime.roadrunner.enabled' => false,
-    'worker.enabled' => false,
+    'kernel.runtime.http_driver' => 'http.frankenphp',
     'worker.task_type' => 'queue',
 ];

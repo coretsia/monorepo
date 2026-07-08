@@ -14,6 +14,12 @@
 
 # Validation Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia validation contracts, validation result shapes, violation descriptor shapes, validation exception semantics, deterministic validation error mapping policy, and validation redaction rules.

@@ -14,6 +14,12 @@
 
 # Observability Naming, Metrics Catalog, and Labels Allowlist (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: repo
+```
+
 This document is the canonical SSoT for observability naming, the canonical metrics catalog, metric label allowlist, and redaction invariants across logs, metrics, and spans.
 
 ## Goal
@@ -61,9 +67,13 @@ Observability failures MUST NOT change business behavior, runtime lifecycle fail
 
 For operation-boundary services, `Stopwatch` start/stop failures are observability failures when timing is used only for duration metrics, logs, spans, or exported lifecycle metadata.
 
-Such failures MUST be failure-silent and MUST NOT replace the primary operation result or exception.
+Such failures are `observability-isolated`: they MUST NOT replace the primary operation result or exception, and they MUST NOT be treated as proof that the primary operation succeeded or failed.
+
+Primary operation failures remain fail-fast and MUST be surfaced according to the owner package failure policy.
 
 When timing is unavailable, owner packages MAY collapse duration values to `0` or omit the timing signal according to owner policy. The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
+Owner packages MUST NOT attempt recursive self-reporting of observability dependency failures through the same failing observability boundary.
 
 Low-level helpers, pure value objects, normalizers, builders, and deterministic serialization utilities SHOULD NOT emit observability directly.
 
@@ -340,7 +350,7 @@ Lifecycle logs are emitted through `LoggerInterface`.
 
 The logger implementation MAY be real or Noop, but artifact/fingerprint/container-compile/cache services MUST NOT know which one they received.
 
-Logger calls MUST be failure-silent and MUST NOT change artifact/fingerprint/container-compile/cache behavior.
+Logger calls MUST be observability-isolated and MUST NOT change artifact/fingerprint/container-compile/cache behavior.
 
 Artifact/fingerprint/cache logs MAY include normalized relative paths, artifact basenames, safe bucket names, safe reason tokens, counts, durations, and bounded outcome tokens.
 
@@ -376,7 +386,7 @@ Worker services MAY use `Coretsia\Contracts\Observability\Tracing\SpanInterface`
 
 `SpanInterface` MUST NOT be injected as a worker service dependency.
 
-Worker services MUST end spans they create, and span finalization failures MUST be failure-silent when they would otherwise alter worker control-flow semantics.
+Worker services MUST end spans they create, and span finalization failures MUST be observability-isolated when they would otherwise alter worker control-flow semantics.
 
 Worker services MUST NOT instantiate Noop logger, tracer, meter, or observability adapter implementations directly.
 
@@ -390,7 +400,7 @@ Worker services MUST NOT construct logger, tracer, meter, stopwatch, span, or ad
 
 Worker observability failures MUST NOT change worker process, worker task, or worker control-flow semantics.
 
-Logger, tracer, meter, span, and stopwatch calls in worker services MUST be failure-silent where observability failure would otherwise alter worker lifecycle behavior.
+Logger, tracer, meter, span, and stopwatch calls in worker services MUST be observability-isolated where observability failure would otherwise alter worker lifecycle behavior.
 
 Worker process metrics MUST use only the metric-specific label already registered in this catalog:
 

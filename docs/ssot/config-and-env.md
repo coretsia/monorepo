@@ -14,6 +14,12 @@
 
 # Config and env SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia config/env contracts, env lookup semantics, config directive invariants, source tracking, safe explain traces, config validation result shapes, and declarative config ruleset policy.

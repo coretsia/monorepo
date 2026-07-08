@@ -179,21 +179,21 @@ This document intentionally does not restate the full matrix.
 
 ## Expected callers
 
-Future runtime entrypoints and runtime owners are expected to call `RuntimeDriverGuard` before starting runtime execution.
+Runtime entrypoints and runtime owners are expected to call `RuntimeEntrypointGuard` before starting runtime execution.
 
 Expected caller categories:
 
-- future worker command surfaces, such as `coretsia worker:start`;
-- future long-running HTTP runtime entrypoints, such as FrankenPHP, Swoole, and RoadRunner entrypoints;
+- worker command surfaces, such as `coretsia worker:start`;
+- long-running HTTP runtime entrypoints, such as FrankenPHP, Swoole, and RoadRunner entrypoints;
 - Kernel-owned boot or runtime paths that need to enforce runtime-driver matrix validity before entrypoint execution;
-- integration or platform packages that need Kernel-owned matrix validation without duplicating matrix rules.
+- integration or platform packages that need Kernel-owned entrypoint validation without duplicating matrix rules.
 
 Callers are responsible for supplying:
 
 - a merged `ConfigRepositoryInterface`;
 - a caller-resolved `ModulePlan` when module compatibility must be checked.
 
-Callers must not implement competing local runtime-driver matrices.
+Callers must not implement competing local runtime-driver matrices and must not call `RuntimeDriverGuard` directly unless they are Kernel-internal tests or implementation code.
 
 Callers must not silently ignore guard failures.
 

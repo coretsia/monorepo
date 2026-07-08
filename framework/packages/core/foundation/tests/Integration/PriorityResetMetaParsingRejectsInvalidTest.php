@@ -165,6 +165,22 @@ final class PriorityResetMetaParsingRejectsInvalidTest extends TestCase
         yield 'rejects-group-with-internal-ascii-whitespace-invalid-regex' => [
             ['group' => 'bad group'],
         ];
+
+        yield 'rejects-group-empty-string' => [
+            ['group' => ''],
+        ];
+
+        yield 'rejects-group-ascii-whitespace-only' => [
+            ['group' => " \t "],
+        ];
+
+        yield 'rejects-group-leading-ascii-whitespace' => [
+            ['group' => ' bad'],
+        ];
+
+        yield 'rejects-group-trailing-ascii-whitespace' => [
+            ['group' => 'bad '],
+        ];
     }
 
     private static function assertResetObservabilityFailureIsSummaryOnly(

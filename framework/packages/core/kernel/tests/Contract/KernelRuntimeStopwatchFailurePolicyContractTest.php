@@ -30,29 +30,35 @@ final class KernelRuntimeStopwatchFailurePolicyContractTest extends TestCase
         self::assertStringContainsString('private function safeStartTimer(): int', $source);
         self::assertStringContainsString('private function safeStopTimer(int $startedAt): int', $source);
 
-        self::assertStringContainsString('startedAt: $this->safeStartTimer(),', $source);
-        self::assertStringContainsString('finishedAt: $this->safeStartTimer(),', $source);
-        self::assertStringContainsString('durationMs: $this->safeStopTimer($context->startedAt()),', $source);
+        self::assertStringContainsString('startedAtToken: $this->safeStartTimer(),', $source);
+        self::assertStringContainsString('$this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();', $source);
+        self::assertStringContainsString('durationMs: $this->safeStopTimer($context->startedAtToken()),', $source);
+
+        self::assertStringNotContainsString('finishedAt: $this->safeStartTimer(),', $source);
     }
 
-    public function testKernelRuntimeAcceptsZeroStartedAtInExportedContextValidation(): void
+    public function testKernelRuntimeAssociatesStopwatchTokenWithOpaqueHandle(): void
     {
         $source = self::stripPhpComments(
             self::sourceFile('src/Runtime/KernelRuntime.php'),
         );
 
-        $contextFromExport = self::methodBody($source, 'contextFromExport');
+        $contextFromHandle = self::methodBody($source, 'contextFromHandle');
 
         self::assertStringContainsString(
-            '$context[\'startedAt\'] < 0',
-            $contextFromExport,
-            'Exported context validation must reject only negative startedAt values.',
+            '$this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'unset($this->openUnitOfWorkStartTokens[$handle]);',
+            $source,
         );
 
         self::assertStringNotContainsString(
-            '$context[\'startedAt\'] <= 0',
-            $contextFromExport,
-            'Exported context validation must accept startedAt=0 as unavailable timer sentinel.',
+            '$context[\'startedAtToken\']',
+            $contextFromHandle,
+            'KernelRuntime must not read Stopwatch tokens from exported context arrays.',
         );
     }
 

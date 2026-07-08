@@ -14,6 +14,12 @@
 
 # Secrets Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia secrets contracts, secret resolver port semantics, secret reference policy, secret value redaction rules, diagnostics safety, and runtime ownership boundaries.

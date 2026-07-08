@@ -14,9 +14,11 @@
 
 # ADR-0005: Routing and HttpApp ports
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

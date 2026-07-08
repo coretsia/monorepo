@@ -35,9 +35,17 @@ final class Stopwatch
     /**
      * Starts a duration measurement.
      *
-     * The returned token is an integer nanosecond timestamp from hrtime(true).
-     * Consumers MUST treat it as an opaque Stopwatch token and MUST NOT export
-     * it to logs, metrics, traces, diagnostics, or artifacts.
+     * The returned value is an opaque monotonic Stopwatch token backed by
+     * hrtime(true).
+     *
+     * Consumers MUST NOT treat the token as a wall-clock timestamp, business
+     * timestamp, ordering key, cache key, metric label, trace attribute, log field,
+     * diagnostic field, persistence value, or artifact payload.
+     *
+     * Kernel runtime may keep the token only as private lifecycle state associated
+     * with an opaque UnitOfWork handle. It MUST NOT place the token in exported
+     * context arrays, result arrays, logs, metrics, traces, diagnostics, or
+     * artifacts.
      */
     public function start(): int
     {

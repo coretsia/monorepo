@@ -41,18 +41,21 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
     public const string ERROR_CODE = 'CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG';
 
     public const string REASON_REQUIRES_PLATFORM_HTTP_MODULE = 'requires-platform-http-module';
+    public const string REASON_REQUIRES_PLATFORM_WORKER_MODULE = 'requires-platform-worker-module';
     public const string REASON_CONFIG_KEY_MISSING = 'config-key-missing';
     public const string REASON_CONFIG_KEY_INVALID = 'config-key-invalid';
     public const string REASON_WORKER_TASK_TYPE_MISSING = 'worker-task-type-missing';
     public const string REASON_WORKER_TASK_TYPE_INVALID = 'worker-task-type-invalid';
 
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
+    private const string MODULE_PLATFORM_WORKER = 'platform.worker';
 
     /**
      * @var array<string, true>
      */
     private const array REASONS = [
         self::REASON_REQUIRES_PLATFORM_HTTP_MODULE => true,
+        self::REASON_REQUIRES_PLATFORM_WORKER_MODULE => true,
         self::REASON_CONFIG_KEY_MISSING => true,
         self::REASON_CONFIG_KEY_INVALID => true,
         self::REASON_WORKER_TASK_TYPE_MISSING => true,
@@ -113,6 +116,18 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
             self::REASON_REQUIRES_PLATFORM_HTTP_MODULE,
             $activeDriverIds,
             [self::MODULE_PLATFORM_HTTP],
+        );
+    }
+
+    /**
+     * @param list<string> $activeDriverIds
+     */
+    public static function requiresPlatformWorkerModule(array $activeDriverIds = []): self
+    {
+        return new self(
+            self::REASON_REQUIRES_PLATFORM_WORKER_MODULE,
+            $activeDriverIds,
+            [self::MODULE_PLATFORM_WORKER],
         );
     }
 
@@ -244,7 +259,7 @@ final class RuntimeDriverInvalidConfigException extends \RuntimeException
         $set = [];
 
         foreach ($moduleIds as $moduleId) {
-            if ($moduleId !== self::MODULE_PLATFORM_HTTP) {
+            if ($moduleId !== self::MODULE_PLATFORM_HTTP && $moduleId !== self::MODULE_PLATFORM_WORKER) {
                 throw new \InvalidArgumentException('runtime-driver-invalid-config-required-module-id-invalid');
             }
 

@@ -14,6 +14,12 @@
 
 # ContextStore lifecycle SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Purpose
 
 This document is the Single Source of Truth for runtime `ContextStore` lifecycle usage across Coretsia runtime boundaries.

@@ -45,8 +45,8 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
 
         $parameters = $constructor->getParameters();
 
-        self::assertCount(9, $parameters);
-        self::assertSame(7, $constructor->getNumberOfRequiredParameters());
+        self::assertCount(7, $parameters);
+        self::assertSame(5, $constructor->getNumberOfRequiredParameters());
 
         self::assertSame('uowId', $parameters[0]->getName());
         self::assertParameterNamedType($parameters[0], 'string', false);
@@ -60,31 +60,23 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         self::assertParameterNamedType($parameters[2], 'string', false);
         self::assertFalse($parameters[2]->isDefaultValueAvailable());
 
-        self::assertSame('startedAt', $parameters[3]->getName());
+        self::assertSame('durationMs', $parameters[3]->getName());
         self::assertParameterNamedType($parameters[3], 'int', false);
         self::assertFalse($parameters[3]->isDefaultValueAvailable());
 
-        self::assertSame('finishedAt', $parameters[4]->getName());
-        self::assertParameterNamedType($parameters[4], 'int', false);
+        self::assertSame('outcome', $parameters[4]->getName());
+        self::assertParameterNamedType($parameters[4], 'string', false);
         self::assertFalse($parameters[4]->isDefaultValueAvailable());
 
-        self::assertSame('durationMs', $parameters[5]->getName());
-        self::assertParameterNamedType($parameters[5], 'int', false);
-        self::assertFalse($parameters[5]->isDefaultValueAvailable());
+        self::assertSame('error', $parameters[5]->getName());
+        self::assertParameterNamedType($parameters[5], ErrorDescriptor::class, true);
+        self::assertTrue($parameters[5]->isDefaultValueAvailable());
+        self::assertNull($parameters[5]->getDefaultValue());
 
-        self::assertSame('outcome', $parameters[6]->getName());
-        self::assertParameterNamedType($parameters[6], 'string', false);
-        self::assertFalse($parameters[6]->isDefaultValueAvailable());
-
-        self::assertSame('error', $parameters[7]->getName());
-        self::assertParameterNamedType($parameters[7], ErrorDescriptor::class, true);
-        self::assertTrue($parameters[7]->isDefaultValueAvailable());
-        self::assertNull($parameters[7]->getDefaultValue());
-
-        self::assertSame('extensions', $parameters[8]->getName());
-        self::assertParameterNamedType($parameters[8], 'array', false);
-        self::assertTrue($parameters[8]->isDefaultValueAvailable());
-        self::assertSame([], $parameters[8]->getDefaultValue());
+        self::assertSame('extensions', $parameters[6]->getName());
+        self::assertParameterNamedType($parameters[6], 'array', false);
+        self::assertTrue($parameters[6]->isDefaultValueAvailable());
+        self::assertSame([], $parameters[6]->getDefaultValue());
     }
 
     public function testGettersAndExportShapeWithoutErrorAreStable(): void
@@ -93,8 +85,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
             uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             type: UnitOfWorkType::CLI,
             correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
-            startedAt: 1_710_000_000_123,
-            finishedAt: 1_710_000_000_456,
             durationMs: 333,
             outcome: Outcome::SUCCESS,
             extensions: [
@@ -116,8 +106,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         self::assertSame('01HV7N3ZJ5P8K7Y6T4R3Q2P1N0', $result->uowId());
         self::assertSame(UnitOfWorkType::CLI, $result->type());
         self::assertSame('01HV7N3ZJ5P8K7Y6T4R3Q2P1N1', $result->correlationId());
-        self::assertSame(1_710_000_000_123, $result->startedAt());
-        self::assertSame(1_710_000_000_456, $result->finishedAt());
         self::assertSame(333, $result->durationMs());
         self::assertSame(Outcome::SUCCESS, $result->outcome());
         self::assertNull($result->error());
@@ -158,9 +146,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
                     ],
                     'zeta' => 'last',
                 ],
-                'finishedAt' => 1_710_000_000_456,
                 'outcome' => Outcome::SUCCESS,
-                'startedAt' => 1_710_000_000_123,
                 'type' => UnitOfWorkType::CLI,
                 'uowId' => '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             ],
@@ -172,9 +158,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
                 'correlationId',
                 'durationMs',
                 'extensions',
-                'finishedAt',
                 'outcome',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -205,8 +189,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
             uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             type: UnitOfWorkType::HTTP,
             correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
-            startedAt: 1_710_000_000_123,
-            finishedAt: 1_710_000_000_456,
             durationMs: 333,
             outcome: Outcome::HANDLED_ERROR,
             error: $error,
@@ -239,9 +221,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
                 'extensions' => [
                     'operation' => 'request',
                 ],
-                'finishedAt' => 1_710_000_000_456,
                 'outcome' => Outcome::HANDLED_ERROR,
-                'startedAt' => 1_710_000_000_123,
                 'type' => UnitOfWorkType::HTTP,
                 'uowId' => '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             ],
@@ -254,9 +234,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
                 'durationMs',
                 'error',
                 'extensions',
-                'finishedAt',
                 'outcome',
-                'startedAt',
                 'type',
                 'uowId',
             ],
@@ -289,7 +267,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         $context = new UnitOfWorkContext(
             uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             type: UnitOfWorkType::QUEUE,
-            startedAt: 1_710_000_000_123,
+            startedAtToken: 15,
             correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
             attributes: [
                 'operation' => 'consume',
@@ -300,7 +278,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
 
         $result = UnitOfWorkResult::fromContext(
             context: $context,
-            finishedAt: 1_710_000_000_789,
             durationMs: 666,
             outcome: Outcome::FATAL_ERROR,
             extensions: [
@@ -311,9 +288,7 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         self::assertSame($context->uowId(), $result->uowId());
         self::assertSame($context->type(), $result->type());
         self::assertSame($context->correlationId(), $result->correlationId());
-        self::assertSame($context->startedAt(), $result->startedAt());
 
-        self::assertSame(1_710_000_000_789, $result->finishedAt());
         self::assertSame(666, $result->durationMs());
         self::assertSame(Outcome::FATAL_ERROR, $result->outcome());
         self::assertSame(['worker' => 'primary'], $result->extensions());
@@ -325,31 +300,12 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
                 'extensions' => [
                     'worker' => 'primary',
                 ],
-                'finishedAt' => 1_710_000_000_789,
                 'outcome' => Outcome::FATAL_ERROR,
-                'startedAt' => 1_710_000_000_123,
                 'type' => UnitOfWorkType::QUEUE,
                 'uowId' => '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
             ],
             $result->toArray(),
         );
-    }
-
-    public function testFinishedAtMayBeLessThanStartedAtBecauseDurationIsCanonical(): void
-    {
-        $result = new UnitOfWorkResult(
-            uowId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
-            type: UnitOfWorkType::SCHEDULER,
-            correlationId: '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
-            startedAt: 1_710_000_000_456,
-            finishedAt: 1_710_000_000_123,
-            durationMs: 7,
-            outcome: Outcome::SUCCESS,
-        );
-
-        self::assertSame(1_710_000_000_456, $result->startedAt());
-        self::assertSame(1_710_000_000_123, $result->finishedAt());
-        self::assertSame(7, $result->durationMs());
     }
 
     public function testInvalidResultScalarFieldsFailWithResultSpecificException(): void
@@ -379,18 +335,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         );
 
         self::assertResultInvalid(
-            operation: static fn (): UnitOfWorkResult => self::makeResult(startedAt: -1),
-            expectedPath: 'startedAt',
-            expectedReason: 'uow-result-started-at-invalid',
-        );
-
-        self::assertResultInvalid(
-            operation: static fn (): UnitOfWorkResult => self::makeResult(finishedAt: -1),
-            expectedPath: 'finishedAt',
-            expectedReason: 'uow-result-finished-at-invalid',
-        );
-
-        self::assertResultInvalid(
             operation: static fn (): UnitOfWorkResult => self::makeResult(durationMs: -1),
             expectedPath: 'durationMs',
             expectedReason: 'uow-result-duration-ms-invalid',
@@ -410,8 +354,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
         string $uowId = '01HV7N3ZJ5P8K7Y6T4R3Q2P1N0',
         string $type = UnitOfWorkType::HTTP,
         string $correlationId = '01HV7N3ZJ5P8K7Y6T4R3Q2P1N1',
-        int $startedAt = 1_710_000_000_123,
-        int $finishedAt = 1_710_000_000_456,
         int $durationMs = 333,
         string $outcome = Outcome::SUCCESS,
         ?ErrorDescriptor $error = null,
@@ -421,8 +363,6 @@ final class UnitOfWorkResultShapeContractTest extends TestCase
             uowId: $uowId,
             type: $type,
             correlationId: $correlationId,
-            startedAt: $startedAt,
-            finishedAt: $finishedAt,
             durationMs: $durationMs,
             outcome: $outcome,
             error: $error,

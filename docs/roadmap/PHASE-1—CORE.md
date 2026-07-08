@@ -7362,8 +7362,9 @@ ssot_refs:
   - `kernel.runtime.frankenphp.enabled`
   - `kernel.runtime.swoole.enabled`
   - `kernel.runtime.roadrunner.enabled`
-  - `worker.enabled`
   - `worker.task_type`
+- ModulePlan:
+  - `platform.worker`
 
 - Note:
   - `worker.*` is introduced later by `1.360.0` (`platform/worker`).
@@ -7406,7 +7407,7 @@ Forbidden:
           - [x] `kernel.runtime.frankenphp.enabled=false`
           - [x] `kernel.runtime.swoole.enabled=false`
           - [x] `kernel.runtime.roadrunner.enabled=false`
-          - [x] NOT (`worker.enabled=true && worker.task_type='http'`)
+          - [x] NOT (`platform.worker is enabled && worker.task_type='http'`)
         - [x] Conflicts:
           - [x] none by itself
         - [x] May run alongside:
@@ -7416,7 +7417,7 @@ Forbidden:
           - [x] `kernel.runtime.frankenphp.enabled=true`
         - [x] Conflicts:
           - [x] any other `http.*` driver enabled at the same time
-          - [x] `worker.enabled=true && worker.task_type='http'`
+          - [x] `platform.worker is enabled && worker.task_type='http'`
         - [x] May run alongside:
           - [x] `bg.worker_queue`
         - [x] Notes:
@@ -7427,7 +7428,7 @@ Forbidden:
           - [x] `kernel.runtime.swoole.enabled=true`
         - [x] Conflicts:
           - [x] any other `http.*` driver enabled at the same time
-          - [x] `worker.enabled=true && worker.task_type='http'`
+          - [x] `platform.worker is enabled && worker.task_type='http'`
         - [x] May run alongside:
           - [x] `bg.worker_queue`
         - [x] Notes:
@@ -7438,7 +7439,7 @@ Forbidden:
           - [x] `kernel.runtime.roadrunner.enabled=true`
         - [x] Conflicts:
           - [x] any other `http.*` driver enabled at the same time
-          - [x] `worker.enabled=true && worker.task_type='http'`
+          - [x] `platform.worker is enabled && worker.task_type='http'`
         - [x] May run alongside:
           - [x] `bg.worker_queue`
         - [x] Notes:
@@ -7446,14 +7447,14 @@ Forbidden:
           - [x] long-running loop must not leak context/state across requests
       - [x] `http.worker`
         - [x] Enabled when:
-          - [x] `worker.enabled=true && worker.task_type='http'`
+          - [x] `platform.worker is enabled && worker.task_type='http'`
         - [x] Conflicts:
           - [x] any other `http.*` driver enabled at the same time
         - [x] Notes:
           - [x] this is an HTTP runtime mode, not a background driver
       - [x] `bg.worker_queue`
         - [x] Enabled when:
-          - [x] `worker.enabled=true && worker.task_type='queue'`
+          - [x] `platform.worker is enabled && worker.task_type='queue'`
         - [x] Conflicts:
           - [x] none at the matrix level
         - [x] May run alongside:
@@ -7472,10 +7473,8 @@ Forbidden:
     - [x] `http.worker` conflicts with any other `http.*` driver (mutual exclusion).
   - [x] Default safety policy (single-choice):
     - [x] `kernel.runtime.*.enabled` defaults to `false`
-    - [x] `worker.enabled` defaults to `false`
     - [x] `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
   - [x] Missing-key policy before `1.360.0` (single-choice):
-    - [x] absence of `worker.enabled` MUST be treated as `false`
     - [x] absence of `worker.task_type` MUST NOT activate any runtime driver
     - [x] missing `worker.*` root by itself MUST NOT be treated as invalid config
   - [x] Compatibility matrix:
@@ -15220,7 +15219,6 @@ ssot_refs:
   - `kernel` — existing config root owned by `core/kernel`
 
 - Forward-compatible optional inputs:
-  - `worker.enabled` — optional future-owned key; missing key MUST be treated as disabled before 1.360.0
   - `worker.task_type` — optional future-owned key; missing key MUST activate no worker-derived driver before 1.360.0
 
 - Required contracts / ports:
@@ -15374,15 +15372,13 @@ Guard:
     - [x] `kernel.runtime.frankenphp.enabled`
     - [x] `kernel.runtime.swoole.enabled`
     - [x] `kernel.runtime.roadrunner.enabled`
-    - [x] `worker.enabled`
+    - [x] `platform.worker` from ModulePlan
     - [x] `worker.task_type`
   - [x] For `kernel.runtime.*.enabled`, guard MUST treat only strict boolean `true` as active
-  - [x] For `worker.enabled`, missing key is treated as `false`
-  - [x] For `worker.enabled`, only strict boolean `true` activates worker-derived drivers
   - [x] For `worker.task_type`, missing key activates no worker-derived driver
-  - [x] If `worker.enabled === true` and `worker.task_type === 'http'`, activate `http.worker`
-  - [x] If `worker.enabled === true` and `worker.task_type === 'queue'`, activate `bg.worker_queue`
-  - [x] If `worker.enabled === true` and `worker.task_type` is present but not `http` or `queue`, fail with:
+  - [x] If `platform.worker is enabled` and `worker.task_type === 'http'`, activate `http.worker`
+  - [x] If `platform.worker is enabled` and `worker.task_type === 'queue'`, activate `bg.worker_queue`
+  - [x] If `platform.worker is enabled` and `worker.task_type` is present but not `http` or `queue`, fail with:
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
     - [x] reason `worker-task-type-invalid`
   - [x] generic worker root shape / unknown-key validation remains owned by future `platform/worker` config rules
@@ -15837,7 +15833,7 @@ Tooling:
   - [x] does not start long-running loops
   - [x] does not write/read Kernel artifacts
 - [x] Concrete lock example:
-  - [x] when `kernel.runtime.roadrunner.enabled=true` and `worker.enabled=true && worker.task_type=http`, then:
+  - [x] when `kernel.runtime.roadrunner.enabled=true` and `platform.worker is enabled && worker.task_type=http`, then:
     - [x] `RuntimeDriverGuard` fails with `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
     - [x] reason is `worker-http-conflicts-with-http-driver`
     - [x] E2E matrix test asserts the same deterministic code/reason
@@ -15908,7 +15904,7 @@ ssot_refs:
   - This failure MUST happen before `RequestHandlerInterface` resolution.
 
 - Isolation policy (single-choice; cemented):
-  - When `worker.enabled=true`, other long-running integrations/adapters MUST NOT become active implicitly.
+  - When `platform.worker is enabled`, other long-running integrations/adapters MUST NOT become active implicitly.
   - If `worker.task_type=http`, the application preset MUST provide an HTTP handling stack by registering a `Psr\Http\Server\RequestHandlerInterface` implementation in the container.
     - Typical future provider: `platform/http` (Phase 2+), but worker MUST NOT require it as a compile-time dependency.
 
@@ -16072,7 +16068,6 @@ Package skeleton:
 - [x] `framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
   - [x] MUST create `WorkerPoolSpec` from merged worker config after config validation pipeline
     - [x] MUST read all required worker config keys:
-      - [x] `worker.enabled`
       - [x] `worker.workers`
       - [x] `worker.max_requests`
       - [x] `worker.task_type`
@@ -16408,7 +16403,6 @@ Implementation:
   - [x] immutable normalized worker pool specification
   - [x] MUST represent validated `worker.*` config input
   - [x] MUST be built from the complete worker config key set:
-    - [x] `worker.enabled`
     - [x] `worker.workers`
     - [x] `worker.max_requests`
     - [x] `worker.task_type`
@@ -16993,7 +16987,6 @@ Tests:
   - [x] rejects missing `worker.control.transport`
   - [x] rejects missing `worker.tcp.host`
   - [x] rejects missing `worker.tcp.port`
-  - [x] rejects non-bool `worker.enabled`
   - [x] rejects non-int `worker.workers`
   - [x] rejects `worker.workers <= 0`
   - [x] rejects non-int `worker.max_requests`
@@ -17452,7 +17445,6 @@ Add config contract tests (policy rails):
 - [x] Files:
   - [x] `framework/packages/platform/worker/config/worker.php`
 - [x] Keys (dot):
-  - [x] `worker.enabled` = false
   - [x] `worker.workers` = 4
   - [x] `worker.max_requests` = 1000
   - [x] `worker.task_type` = "queue"  # allowed: "http" | "queue"
@@ -17478,7 +17470,6 @@ Add config contract tests (policy rails):
   - [x] No floats (cemented):
     - [x] numeric keys under `worker.*` MUST be `int` only (reject float/NaN/INF)
   - [x] Explicit enum / bounds rules (cemented):
-    - [x] `worker.enabled` MUST be `bool`
     - [x] `worker.workers` MUST be `int > 0`
     - [x] `worker.max_requests` MUST be `int > 0`
     - [x] `worker.task_type` MUST be exactly one of: `http|queue`

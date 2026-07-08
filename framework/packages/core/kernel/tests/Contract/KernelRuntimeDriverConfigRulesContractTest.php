@@ -30,27 +30,28 @@ final class KernelRuntimeDriverConfigRulesContractTest extends TestCase
     /**
      * @param non-empty-string $path
      */
-    #[DataProvider('nonBoolRuntimeDriverFlagProvider')]
-    public function testKernelRuntimeDriverEnabledFlagsRejectNonBoolValues(
-        string $path,
+    #[DataProvider('invalidHttpDriverValueProvider')]
+    public function testKernelRuntimeHttpDriverRejectsInvalidValues(
         mixed $value,
+        string $reason,
+        ?string $expected,
     ): void {
         $config = self::kernelGlobalConfig();
 
-        self::setNestedValue($config['kernel'], \explode('.', $path), $value);
+        $config['kernel']['runtime']['http_driver'] = $value;
 
         $result = self::validateKernelConfig($config);
 
         self::assertTrue(
             $result->isFailure(),
-            'Config validation must reject non-bool kernel runtime driver enabled values.',
+            'Config validation must reject invalid kernel.runtime.http_driver values.',
         );
 
         self::assertHasViolation(
             result: $result,
-            path: $path,
-            reason: 'type',
-            expected: 'bool',
+            path: 'runtime.http_driver',
+            reason: $reason,
+            expected: $expected,
         );
     }
 
@@ -58,9 +59,7 @@ final class KernelRuntimeDriverConfigRulesContractTest extends TestCase
     {
         $config = self::kernelGlobalConfig();
 
-        $config['kernel']['runtime']['reactphp'] = [
-            'enabled' => true,
-        ];
+        $config['kernel']['runtime']['reactphp'] = 'http.reactphp';
 
         $result = self::validateKernelConfig($config);
 
@@ -76,22 +75,24 @@ final class KernelRuntimeDriverConfigRulesContractTest extends TestCase
         );
     }
 
-    public function testKernelRuntimeRulesRejectUnknownNestedRuntimeDriverKeys(): void
+    public function testKernelRuntimeRulesRejectLegacyNestedRuntimeDriverMaps(): void
     {
         $config = self::kernelGlobalConfig();
 
-        $config['kernel']['runtime']['roadrunner']['adapter'] = 'psr15';
+        $config['kernel']['runtime']['roadrunner'] = [
+            'enabled' => true,
+        ];
 
         $result = self::validateKernelConfig($config);
 
         self::assertTrue(
             $result->isFailure(),
-            'Config validation must reject unknown nested kernel.runtime.<driver>.* keys.',
+            'Config validation must reject legacy nested kernel.runtime.<driver> maps.',
         );
 
         self::assertHasViolationWithPathPrefix(
             result: $result,
-            pathPrefix: 'runtime.roadrunner.',
+            pathPrefix: 'runtime.',
             reason: 'unknown-key',
         );
     }
@@ -133,37 +134,57 @@ final class KernelRuntimeDriverConfigRulesContractTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{0:non-empty-string,1:mixed}>
+     * @return iterable<string, array{0:mixed,1:string,2:?string}>
      */
-    public static function nonBoolRuntimeDriverFlagProvider(): iterable
+    public static function invalidHttpDriverValueProvider(): iterable
     {
-        foreach (
-            [
-                'kernel.runtime.frankenphp.enabled' => 'runtime.frankenphp.enabled',
-                'kernel.runtime.swoole.enabled' => 'runtime.swoole.enabled',
-                'kernel.runtime.roadrunner.enabled' => 'runtime.roadrunner.enabled',
-            ] as $case => $path
-        ) {
-            yield $case . ': string true' => [
-                $path,
-                'true',
-            ];
+        yield 'string short alias classic' => [
+            'classic',
+            'allowed-values',
+            'allowedValues',
+        ];
 
-            yield $case . ': int one' => [
-                $path,
-                1,
-            ];
+        yield 'string short alias frankenphp' => [
+            'frankenphp',
+            'allowed-values',
+            'allowedValues',
+        ];
 
-            yield $case . ': null' => [
-                $path,
-                null,
-            ];
+        yield 'worker driver is not kernel-selected' => [
+            'http.worker',
+            'allowed-values',
+            'allowedValues',
+        ];
 
-            yield $case . ': list' => [
-                $path,
-                [true],
-            ];
-        }
+        yield 'unknown canonical-looking driver' => [
+            'http.reactphp',
+            'allowed-values',
+            'allowedValues',
+        ];
+
+        yield 'bool false' => [
+            false,
+            'type',
+            'non-empty-string-no-ws',
+        ];
+
+        yield 'int one' => [
+            1,
+            'type',
+            'non-empty-string-no-ws',
+        ];
+
+        yield 'null' => [
+            null,
+            'type',
+            'non-empty-string-no-ws',
+        ];
+
+        yield 'list' => [
+            ['http.classic'],
+            'type',
+            'non-empty-string-no-ws',
+        ];
     }
 
     /**

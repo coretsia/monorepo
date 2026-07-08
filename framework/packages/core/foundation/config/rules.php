@@ -24,11 +24,14 @@ declare(strict_types=1);
  * - unknown keys are rejected at every declared map level;
  * - reserved `@*` keys are rejected by the same strict-shape policy;
  * - tag discovery and reset orchestration are not feature-flagged;
+ * - context safe-write validation is not feature-flagged;
+ * - `foundation.context.*` and `foundation.correlation.*` keys are intentionally
+ *   not declared;
  * - `foundation.reset.tag` is configurable but must be a non-empty string
  *   without whitespace;
  * - `foundation.reset.priority.enabled` controls only enhanced reset
  *   ordering/meta planning and does not disable reset orchestration;
- * - `foundation.reset.group.default` must use the same normalized group id
+ * - `foundation.reset.group.default` must use the same canonical reset group id
  *   shape as reset tag meta group;
  * - `foundation.ids.default` selects only the default generic runtime id
  *   generator and does not affect correlation id generation.

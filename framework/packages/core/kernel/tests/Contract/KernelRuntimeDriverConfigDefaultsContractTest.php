@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 final class KernelRuntimeDriverConfigDefaultsContractTest extends TestCase
 {
-    public function testKernelRuntimeDriverDefaultsAreAllDisabled(): void
+    public function testKernelRuntimeDriverDefaultSelectsClassicHttp(): void
     {
         $config = self::kernelConfig();
 
@@ -32,21 +32,9 @@ final class KernelRuntimeDriverConfigDefaultsContractTest extends TestCase
         );
 
         self::assertSame(
-            false,
-            $config['runtime']['frankenphp']['enabled'] ?? null,
-            'kernel.runtime.frankenphp.enabled default must be false.',
-        );
-
-        self::assertSame(
-            false,
-            $config['runtime']['swoole']['enabled'] ?? null,
-            'kernel.runtime.swoole.enabled default must be false.',
-        );
-
-        self::assertSame(
-            false,
-            $config['runtime']['roadrunner']['enabled'] ?? null,
-            'kernel.runtime.roadrunner.enabled default must be false.',
+            'http.classic',
+            $config['runtime']['http_driver'] ?? null,
+            'kernel.runtime.http_driver default must select the safe classic HTTP driver.',
         );
     }
 
@@ -56,30 +44,10 @@ final class KernelRuntimeDriverConfigDefaultsContractTest extends TestCase
 
         self::assertSame(
             [
-                'frankenphp',
-                'roadrunner',
-                'swoole',
+                'http_driver',
             ],
             self::sortedKeys($config['runtime'] ?? null),
-            'kernel.runtime defaults must contain only Kernel-owned runtime driver flags.',
-        );
-
-        self::assertSame(
-            ['enabled'],
-            self::sortedKeys($config['runtime']['frankenphp'] ?? null),
-            'kernel.runtime.frankenphp must contain only enabled.',
-        );
-
-        self::assertSame(
-            ['enabled'],
-            self::sortedKeys($config['runtime']['swoole'] ?? null),
-            'kernel.runtime.swoole must contain only enabled.',
-        );
-
-        self::assertSame(
-            ['enabled'],
-            self::sortedKeys($config['runtime']['roadrunner'] ?? null),
-            'kernel.runtime.roadrunner must contain only enabled.',
+            'kernel.runtime defaults must contain only the Kernel-owned HTTP driver selector.',
         );
     }
 

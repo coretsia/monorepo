@@ -14,9 +14,11 @@
 
 # ADR-0011: Rate limit ports
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

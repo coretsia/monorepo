@@ -14,9 +14,11 @@
 
 # ADR-0006: Reset interface and UoW hooks
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Reset failure diagnostics hardening follow-up note
 
@@ -265,9 +267,11 @@ This implementation policy is owned by ADR-0020 and the Kernel runtime SSoT.
 
 ## No contracts-owned UoW object decision
 
-Epic `1.120.0` introduced no contracts-owned UnitOfWork context object.
+Epic `1.120.0` introduced no contracts-owned UnitOfWork context or result object.
 
 ADR-0020 later defines normalized array payload hook signatures, but it keeps concrete UnitOfWork runtime shapes out of `core/contracts`.
+
+A later contracts-owned opaque lifecycle handle, `Coretsia\Contracts\Runtime\UnitOfWorkHandle`, is not a context/result schema object. It may expose only the normalized safe context array and must not expose Kernel-owned runtime objects or Stopwatch tokens.
 
 The contracts package must not expose:
 

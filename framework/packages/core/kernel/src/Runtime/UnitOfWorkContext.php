@@ -37,14 +37,15 @@ use Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer;
  * - no raw payloads, secrets, tokens, cookies, session ids, raw SQL, stack
  *   traces, or PII in attributes.
  *
- * Exported shapes are normalized arrays. No object instance may cross the
- * Kernel hook/export boundary.
+ * Exported context shapes are normalized arrays and MUST NOT contain Stopwatch
+ * tokens. The internal startedAtToken is a Kernel lifecycle implementation detail
+ * used only for duration measurement.
  */
 final readonly class UnitOfWorkContext
 {
     private string $uowId;
     private string $type;
-    private int $startedAt;
+    private int $startedAtToken;
     private string $correlationId;
 
     /**
@@ -60,7 +61,7 @@ final readonly class UnitOfWorkContext
     public function __construct(
         string $uowId,
         string $type,
-        int $startedAt,
+        int $startedAtToken,
         string $correlationId,
         array $attributes,
         int $attributesMaxDepth,
@@ -72,7 +73,7 @@ final readonly class UnitOfWorkContext
             UnitOfWorkContextInvalidException::REASON_UOW_ID_INVALID,
         );
         self::assertType($type);
-        self::assertStartedAt($startedAt);
+        self::assertStartedAtToken($startedAtToken);
         self::assertNonEmptySafeId(
             $correlationId,
             'correlationId',
@@ -91,7 +92,7 @@ final readonly class UnitOfWorkContext
 
         $this->uowId = $uowId;
         $this->type = $type;
-        $this->startedAt = $startedAt;
+        $this->startedAtToken = $startedAtToken;
         $this->correlationId = $correlationId;
         $this->attributes = JsonLikeShapeNormalizer::normalizeContextAttributes(
             attributes: $attributes,
@@ -110,9 +111,9 @@ final readonly class UnitOfWorkContext
         return $this->type;
     }
 
-    public function startedAt(): int
+    public function startedAtToken(): int
     {
-        return $this->startedAt;
+        return $this->startedAtToken;
     }
 
     public function correlationId(): string
@@ -137,14 +138,12 @@ final readonly class UnitOfWorkContext
      *
      * - attributes
      * - correlationId
-     * - startedAt
      * - type
      * - uowId
      *
      * @return array{
      *     attributes: array<string, mixed>,
      *     correlationId: string,
-     *     startedAt: int,
      *     type: string,
      *     uowId: string
      * }
@@ -154,7 +153,6 @@ final readonly class UnitOfWorkContext
         return [
             'attributes' => $this->attributes,
             'correlationId' => $this->correlationId,
-            'startedAt' => $this->startedAt,
             'type' => $this->type,
             'uowId' => $this->uowId,
         ];
@@ -188,12 +186,12 @@ final readonly class UnitOfWorkContext
         }
     }
 
-    private static function assertStartedAt(int $startedAt): void
+    private static function assertStartedAtToken(int $startedAtToken): void
     {
-        if ($startedAt < 0) {
+        if ($startedAtToken < 0) {
             throw UnitOfWorkContextInvalidException::atPath(
-                'startedAt',
-                UnitOfWorkContextInvalidException::REASON_STARTED_AT_INVALID,
+                'startedAtToken',
+                UnitOfWorkContextInvalidException::REASON_STARTED_AT_TOKEN_INVALID,
             );
         }
     }

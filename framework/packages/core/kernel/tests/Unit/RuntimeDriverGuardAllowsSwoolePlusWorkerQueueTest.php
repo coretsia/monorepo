@@ -31,10 +31,7 @@ final class RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest extends TestCase
     public function testAllowsSwooleHttpPlusWorkerQueueBackgroundDriver(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.swoole',
             'worker.task_type' => 'queue',
         ]);
 
@@ -56,10 +53,7 @@ final class RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest extends TestCase
     public function testAssertCompatibleAllowsSwooleHttpPlusWorkerQueue(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => true,
-            'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.swoole',
             'worker.task_type' => 'queue',
         ]);
 

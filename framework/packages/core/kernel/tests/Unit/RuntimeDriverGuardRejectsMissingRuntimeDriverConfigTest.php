@@ -26,52 +26,13 @@ use PHPUnit\Framework\TestCase;
 
 final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends TestCase
 {
-    public function testRejectsMissingWorkerEnabledConfigKey(): void
+    public function testRejectsMissingWorkerTaskTypeConfigKey(): void
     {
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
-            ],
-        ]);
-
-        $this->expectException(RuntimeDriverInvalidConfigException::class);
-        $this->expectExceptionMessage(
-            RuntimeDriverInvalidConfigException::ERROR_CODE
-            . ': '
-            . RuntimeDriverInvalidConfigException::REASON_CONFIG_KEY_MISSING,
-        );
-
-        new RuntimeDriverGuard()->detect($cfg);
-    }
-
-    public function testRejectsMissingWorkerTaskTypeWhenWorkerIsEnabled(): void
-    {
-        $cfg = new ArrayConfigRepository([
-            'kernel' => [
-                'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
-                ],
-            ],
-            'worker' => [
-                'enabled' => true,
             ],
         ]);
 
@@ -85,24 +46,16 @@ final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends Test
         new RuntimeDriverGuard()->detect($cfg);
     }
 
-    public function testDoesNotRequireWorkerTaskTypeWhenWorkerIsDisabled(): void
+    public function testDetectsClassicHttpPlusWorkerQueueWhenWorkerTaskTypeIsQueue(): void
     {
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'frankenphp' => [
-                        'enabled' => false,
-                    ],
-                    'swoole' => [
-                        'enabled' => false,
-                    ],
-                    'roadrunner' => [
-                        'enabled' => false,
-                    ],
+                    'http_driver' => 'http.classic',
                 ],
             ],
             'worker' => [
-                'enabled' => false,
+                'task_type' => 'queue',
             ],
         ]);
 
@@ -110,8 +63,7 @@ final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends Test
 
         self::assertSame(HttpDriver::CLASSIC, $drivers->httpDriver());
         self::assertSame('http.classic', $drivers->httpDriverId());
-        self::assertSame([], $drivers->backgroundDrivers());
-        self::assertSame([], $drivers->backgroundDriverIds());
-        self::assertSame(['http.classic'], $drivers->driverIds());
+        self::assertSame(['bg.worker_queue'], $drivers->backgroundDriverIds());
+        self::assertSame(['bg.worker_queue', 'http.classic'], $drivers->driverIds());
     }
 }

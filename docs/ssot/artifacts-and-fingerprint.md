@@ -14,6 +14,12 @@
 
 # Artifacts and Fingerprint Behavior (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 This document is the canonical SSoT for Kernel-owned artifact production behavior, deterministic fingerprint input behavior, fingerprint exclusions, and cache verification linkage.
 
 It intentionally does not redefine the global artifact envelope, artifact header fields, deterministic serialization law, or artifact registry rows. Those are owned by `docs/ssot/artifacts.md`.

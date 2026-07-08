@@ -14,9 +14,11 @@
 
 # ADR-0024: Kernel module plan resolution
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 
@@ -497,6 +499,10 @@ Metric backend failures MUST NOT affect module plan resolution and MUST NOT repl
 `Stopwatch` start/stop failures used for module-plan duration metrics MUST NOT affect `ModulePlan` resolution and MUST NOT replace deterministic module resolution exceptions.
 
 When module-plan duration cannot be measured, the duration metric value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
+
+This policy applies only to duration measurement and observability emission.
+
+Module discovery, preset loading, manifest reading, graph resolution, conflict detection, and required-module validation failures remain primary ModulePlan failures and MUST be surfaced according to ModulePlan exception policy.
 
 `ModulePlanResolver` MAY emit safe logs through:
 

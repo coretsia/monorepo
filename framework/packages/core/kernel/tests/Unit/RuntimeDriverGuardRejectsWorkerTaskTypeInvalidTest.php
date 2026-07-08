@@ -30,10 +30,7 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
     public function testRejectsInvalidWorkerTaskTypeWithDeterministicDiagnostics(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'scheduler',
         ]);
 
@@ -62,10 +59,7 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
         $rawWorkerTaskType = 'scheduler-with-raw-env-value-APP_SECRET_123';
 
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => $rawWorkerTaskType,
             'APP_SECRET' => 'raw-env-secret-value',
         ]);
@@ -111,10 +105,7 @@ final class RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest extends TestCase
     public function testAssertCompatibleRejectsInvalidWorkerTaskType(): void
     {
         $cfg = self::config([
-            'kernel.runtime.frankenphp.enabled' => false,
-            'kernel.runtime.swoole.enabled' => false,
-            'kernel.runtime.roadrunner.enabled' => false,
-            'worker.enabled' => true,
+            'kernel.runtime.http_driver' => 'http.classic',
             'worker.task_type' => 'scheduler',
         ]);
 

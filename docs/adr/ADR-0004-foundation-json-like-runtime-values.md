@@ -14,9 +14,11 @@
 
 # ADR-0004: Foundation json-like runtime values
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/foundation
+```
 
 ## Context
 

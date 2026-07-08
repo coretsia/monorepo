@@ -184,6 +184,10 @@ final readonly class ModulePlanResolver
         try {
             return $this->stopwatch->start();
         } catch (\Throwable) {
+            /*
+             * Stopwatch is used only for ModulePlan duration observability.
+             * Timing failure must not replace module resolution outcomes.
+             */
             return null;
         }
     }
@@ -199,6 +203,10 @@ final readonly class ModulePlanResolver
 
             return $durationMs >= 0 ? $durationMs : 0;
         } catch (\Throwable) {
+            /*
+             * Stopwatch is used only for ModulePlan duration observability.
+             * Timing failure is represented as unavailable duration.
+             */
             return 0;
         }
     }

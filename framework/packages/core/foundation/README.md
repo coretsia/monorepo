@@ -63,7 +63,7 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
 - Foundation runtime context storage through `ContextStore`.
 - Immutable context snapshots through `ContextBag`.
-- Context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
+- Fail-closed context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
 - Always-on context safe-write validation through `ContextStorePolicy`.
 - Canonical json-like runtime value normalization through `JsonLikeNormalizer`.
 - Path-aware safe json-like normalization failures through `JsonLikeNormalizationException`.
@@ -176,6 +176,12 @@ Tag discovery and reset orchestration MUST NOT be feature-disabled through confi
 Empty discovery lists are represented by empty-list semantics only.
 
 This package does not introduce context or correlation feature toggles.
+
+Context safe-write validation is baseline safety infrastructure.
+
+It MUST NOT be disabled through config, environment-derived runtime flags, emergency toggles, debug modes, performance modes, or alternate provider wiring.
+
+Optional context writers that cannot provide safe public-key json-like context values MUST omit the optional write rather than bypass validation.
 
 The following keys MUST NOT be introduced by this epic:
 
@@ -511,7 +517,11 @@ Reserved future keys MAY be present in `ContextKeys` to prevent name drift, even
 
 ## Context safe-write policy
 
-`Coretsia\Foundation\Context\ContextStorePolicy` is the always-on write guard for `ContextStore`.
+`Coretsia\Foundation\Context\ContextStorePolicy` is the fail-closed always-on write guard for `ContextStore`.
+
+It is not a debug, performance, emergency, or environment toggle.
+
+Validation failures reject the attempted write. They MUST NOT cause `ContextStore` to degrade into unsafe storage.
 
 `ContextStore` MUST call:
 
@@ -964,7 +974,7 @@ consumer does not call Stopwatch
 
 It MUST NOT be represented by disabling `Stopwatch`.
 
-`Stopwatch::start()` returns a monotonic timestamp token as integer nanoseconds from:
+`Stopwatch::start()` returns an opaque monotonic Stopwatch token backed by:
 
 ```php
 hrtime(true)
@@ -974,7 +984,28 @@ hrtime(true)
 
 `$startedAt` MUST be a positive Stopwatch token returned by `start()`.
 
+Consumers MUST NOT treat the token as a wall-clock timestamp, business timestamp, ordering key, cache key, metric label, trace attribute, log field, diagnostic field, persistence value, or artifact payload.
+
 `Stopwatch` does not track issued token provenance. Runtime enforcement is limited to positive-token validation and elapsed-time calculation.
+
+Kernel runtime MAY keep a Stopwatch token only as private lifecycle state associated with an opaque UnitOfWork handle.
+
+Stopwatch tokens MUST NOT be exported in:
+
+```text
+UnitOfWorkContext exported arrays
+UnitOfWorkHandle::context()
+UnitOfWorkResult exported arrays
+hook payloads
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+Only non-negative duration values such as `durationMs` may cross export or observability boundaries.
 
 Non-positive tokens fail deterministically with:
 

@@ -152,6 +152,48 @@ final class ModulePlanSetInvariantsContractTest extends TestCase
         );
     }
 
+    public function testModulePlanExposesDeterministicMembershipQueries(): void
+    {
+        $plan = new ModulePlan(
+            app: 'web',
+            preset: 'micro',
+            enabled: [
+                ModuleId::fromString('core.foundation'),
+                ModuleId::fromString('core.kernel'),
+            ],
+            disabled: [
+                ModuleId::fromString('platform.worker'),
+            ],
+            optionalMissing: [
+                ModuleId::fromString('platform.http'),
+            ],
+            topologicalOrder: [
+                ModuleId::fromString('core.foundation'),
+                ModuleId::fromString('core.kernel'),
+            ],
+            modules: [
+                new ModulePlanEntry(
+                    moduleId: ModuleId::fromString('core.foundation'),
+                    composerName: 'coretsia/core-foundation',
+                ),
+                new ModulePlanEntry(
+                    moduleId: ModuleId::fromString('core.kernel'),
+                    composerName: 'coretsia/core-kernel',
+                ),
+            ],
+            warnings: [],
+        );
+
+        self::assertTrue($plan->hasEnabledModule('core.kernel'));
+        self::assertFalse($plan->hasEnabledModule('platform.worker'));
+
+        self::assertTrue($plan->hasDisabledModule('platform.worker'));
+        self::assertFalse($plan->hasDisabledModule('core.kernel'));
+
+        self::assertTrue($plan->hasOptionalMissingModule('platform.http'));
+        self::assertFalse($plan->hasOptionalMissingModule('core.foundation'));
+    }
+
     private static function moduleId(string $value): ModuleId
     {
         return ModuleId::fromString($value);

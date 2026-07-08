@@ -41,7 +41,7 @@ declare(strict_types=1);
  * - `kernel.modules.*` owns module discovery source defaults;
  * - `kernel.modes.*` owns mode preset path/schema defaults;
  * - `kernel.artifacts.*` owns Kernel artifact output path defaults;
- * - `kernel.runtime.*` owns Kernel runtime driver default flags;
+ * - `kernel.runtime.http_driver` owns the Kernel-selected HTTP runtime driver default;
  * - `kernel.fingerprint.*` owns deterministic fingerprint exclusion defaults;
  * - `kernel.fingerprint.*` MUST NOT duplicate the canonical dotenv files list from
  *   `kernel.env.dotenv.files`;
@@ -119,36 +119,32 @@ return [
     /*
      * Runtime driver defaults.
      *
-     * Non-classic HTTP runtime drivers are opt-in.
+     * `core/kernel` owns only Kernel-selected HTTP runtime driver selection.
      *
-     * `core/kernel` owns only `kernel.runtime.*` default flags.
+     * `http.classic` is the safe default.
+     * Allowed:
+     *     `http.classic`
+     *     `http.frankenphp`
+     *     `http.swoole`
+     *     `http.roadrunner`
+     *
+     * `http.worker` is intentionally not configured here. It is selected only
+     * through the Worker-owned runtime input when `platform.worker` participates
+     * in the caller-provided ModulePlan.
      *
      * Worker runtime inputs are intentionally not defined here. The `worker.*`
      * config root, its defaults, and its full subtree validation are owned by the
      * package that owns the worker runtime.
      *
      * The runtime-driver entrypoint guard consumes the merged runtime config
-     * snapshot. That snapshot must contain the required runtime-driver input keys
-     * before the guard runs.
+     * snapshot. When `platform.worker` participates in the resolved ModulePlan,
+     * that snapshot must contain `worker.task_type`.
      *
-     * `worker.enabled` is an external runtime-owner input. When it is `false`,
-     * `worker.task_type` is not required. When it is `true`, `worker.task_type`
-     * must be present and must select a supported worker task type.
-     *
-     * With these Kernel defaults and an external runtime-owner default of
-     * `worker.enabled = false`, the runtime-driver matrix resolves the safe
-     * classic HTTP driver.
+     * Missing `worker.task_type` is allowed when `platform.worker` is not enabled
+     * in the caller-provided ModulePlan.
      */
     'runtime' => [
-        'frankenphp' => [
-            'enabled' => false,
-        ],
-        'swoole' => [
-            'enabled' => false,
-        ],
-        'roadrunner' => [
-            'enabled' => false,
-        ],
+        'http_driver' => 'http.classic',
     ],
 
     /*

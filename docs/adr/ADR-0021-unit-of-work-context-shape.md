@@ -14,9 +14,11 @@
 
 # ADR-0021: UnitOfWork context shape
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 
@@ -109,12 +111,12 @@ core/kernel
 
 The shape is format-neutral and exportable as normalized json-like data.
 
-The canonical logical fields are:
+The canonical internal context fields are:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
 ```
@@ -187,15 +189,19 @@ Runtime adapters may derive safe scalar or json-like metadata from transport inp
 
 ## Decision 3: Canonical field set
 
-The canonical `UnitOfWorkContext` fields are:
+The canonical internal `UnitOfWorkContext` fields are:
 
-| field           | type                  | required | meaning                                                                      |
-|-----------------|-----------------------|----------|------------------------------------------------------------------------------|
-| `uowId`         | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
-| `type`          | `string`              | yes      | UnitOfWork type token.                                                       |
-| `startedAt`     | `int`                 | yes      | Kernel-owned non-negative start timing marker. `0` means timing unavailable. |
-| `correlationId` | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
-| `attributes`    | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
+| field            | type                  | required | meaning                                                                      |
+|------------------|-----------------------|----------|------------------------------------------------------------------------------|
+| `uowId`          | `string`              | yes      | Stable UnitOfWork id. ULID format is recommended.                            |
+| `type`           | `string`              | yes      | UnitOfWork type token.                                                       |
+| `startedAtToken` | `int`                 | yes      | Kernel-internal lifecycle timing token. It MUST NOT be exported.             |
+| `correlationId`  | `string`              | yes      | Safe correlation id. ULID format is recommended.                             |
+| `attributes`     | `array<string,mixed>` | yes      | Safe json-like metadata map for the UnitOfWork context.                      |
+
+`startedAtToken` is part of the internal `UnitOfWorkContext` object only.
+
+It MUST NOT appear in the exported context shape, hook payloads, `UnitOfWorkHandle::context()`, result payloads, logs, metrics, traces, diagnostics, generated artifacts, or persistence payloads.
 
 No additional top-level context fields are introduced by this epic.
 
@@ -259,28 +265,35 @@ Coretsia\Foundation\Id\IdGeneratorInterface
 
 `uowId` must not be used as a metric label.
 
-## Decision 6: `startedAt` is a Kernel-owned timing marker
+## Decision 6: `startedAtToken` is Kernel-internal lifecycle timing state
 
-`startedAt` is the Kernel-owned UnitOfWork start timing marker.
+`startedAtToken` is a Kernel-internal UnitOfWork lifecycle timing token.
 
 It MUST be a non-negative integer.
 
-A positive `startedAt` value is the timing token captured by Kernel runtime for lifecycle duration measurement.
+A positive `startedAtToken` value is an opaque `Stopwatch::start()` token captured by Kernel runtime for lifecycle duration measurement.
 
-When Kernel runtime cannot obtain a timing token, `startedAt` MUST be `0`.
+When Kernel runtime cannot obtain a timing token, `startedAtToken` MAY be `0` internally.
 
-`0` is the canonical unavailable timer sentinel.
-
-Consumers MUST NOT treat `0` as a real wall-clock timestamp.
-
-`startedAt` MUST NOT be used as a business timestamp, cache key, ordering key, metric label, or persistence timestamp.
-
-Duration measurement belongs to `UnitOfWorkResult.durationMs` and MUST use the canonical monotonic timing source defined in:
+`startedAtToken` MUST NOT be exported in:
 
 ```text
-docs/ssot/time-ids-and-duration.md
-docs/ssot/uow-shapes.md
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+before-uow hook payloads
+after-uow hook context payloads
+UnitOfWorkResult
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
 ```
+
+Only Kernel runtime may pass `startedAtToken` to `Stopwatch::stop()`.
+
+Duration measurement belongs to `UnitOfWorkResult.durationMs`.
 
 ## Decision 7: `correlationId` is safe correlation metadata
 
@@ -650,17 +663,28 @@ IDs must not be metric labels.
 
 A later Kernel runtime integration must create or derive a `UnitOfWorkContext` at begin-UoW.
 
-The accepted begin shape contains:
+The accepted internal begin shape contains:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
 ```
 
-Before hooks and adapters receive only a normalized exported array derived from this shape.
+The exported begin context shape contains:
+
+```text
+attributes
+correlationId
+type
+uowId
+```
+
+Before hooks receive only the normalized exported array.
+
+Low-level adapters receive `UnitOfWorkHandle`. The handle exposes the normalized exported context array through `UnitOfWorkHandle::context()` and MUST NOT expose `startedAtToken`.
 
 The context shape remains Kernel-owned even when platform adapters attach safe metadata.
 
@@ -851,9 +875,11 @@ Verification must prove:
 - context exported key order is stable;
 - `uowId` is represented as string;
 - `type` accepts only `http`, `cli`, `queue`, and `scheduler`;
-- `startedAt` is represented as a non-negative integer timing marker;
-- `startedAt=0` is accepted as the canonical unavailable timer sentinel;
-- `startedAt=0` is not passed to `Stopwatch::stop()`;
+- `startedAtToken` is represented as an internal non-negative Kernel lifecycle token;
+- `startedAtToken` is not exported by `UnitOfWorkContext::toArray()`;
+- `startedAtToken` is not exported by `UnitOfWorkHandle::context()`;
+- `startedAtToken=0` is accepted only as an internal unavailable timer sentinel;
+- `startedAtToken=0` is not passed to `Stopwatch::stop()`;
 - `correlationId` is represented as string;
 - `attributes` root is a map;
 - attributes accept `null`, `bool`, `int`, `string`, lists, and string-keyed maps;

@@ -25,7 +25,13 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
 use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 
 /**
- * Always-on safe-write guard for ContextStore.
+ * Fail-closed safe-write guard for ContextStore.
+ *
+ * Context validation is baseline safety infrastructure. It is intentionally
+ * not feature-flagged and must not provide a disabled or bypass mode.
+ *
+ * Optional context writers that cannot satisfy this policy must omit the write
+ * rather than store unsafe, unknown, or non-deterministic context data.
  *
  * The policy accepts only keys declared by the public ContextKeys contract
  * registry and json-like deterministic values:

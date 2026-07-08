@@ -14,6 +14,12 @@
 
 # Profiling Ports SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia profiling port semantics, profile artifact invariants, opaque payload policy, profiling redaction rules, and unit-of-work-neutral profiling boundaries.

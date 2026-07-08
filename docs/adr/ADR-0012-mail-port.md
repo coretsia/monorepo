@@ -14,9 +14,11 @@
 
 # ADR-0012: Mail port
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

@@ -76,6 +76,12 @@ This package provides the Kernel baseline runtime layer:
 - Contracts-level runtime port binding:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
   - bound by DI to `Coretsia\Kernel\Runtime\KernelRuntime`
+- Contracts-owned low-level lifecycle handle:
+  - `Coretsia\Contracts\Runtime\UnitOfWorkHandle`
+  - returned by `KernelRuntimeInterface::beginUnitOfWork()`
+  - passed back to `KernelRuntimeInterface::afterUnitOfWork()`
+  - exposes only the normalized exported context array through `UnitOfWorkHandle::context()`
+  - MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, or Kernel runtime internals
 - Canonical runtime driver ids and value objects:
   - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
   - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
@@ -171,10 +177,14 @@ This package provides the Kernel baseline runtime layer:
   - `success`
   - `handled_error`
   - `fatal_error`
-- Canonical UnitOfWork context shape:
+- Canonical internal UnitOfWork context shape:
   - `Coretsia\Kernel\Runtime\UnitOfWorkContext`
+  - contains internal `startedAtToken` lifecycle timing state
+  - exports only `attributes`, `correlationId`, `type`, and `uowId`
 - Canonical UnitOfWork result shape:
   - `Coretsia\Kernel\Runtime\UnitOfWorkResult`
+  - exports only `durationMs` as timing output
+  - MUST NOT export `startedAt`, `startedAtToken`, or `finishedAt`
 - Internal UoW-specific json-like shape wrapper through:
   - `Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer`
 - Foundation-owned baseline json-like value validation and recursive deterministic normalization consumed through:
@@ -562,11 +572,37 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
-`ConfigKernel` and `ModulePlanResolver` stopwatch failures MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
+`ConfigKernel` and `ModulePlanResolver` stopwatch failures are observability-isolated duration measurement failures.
+
+They MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
+
+ConfigKernel and ModulePlanResolver primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
+
+When duration cannot be measured, the duration value MAY collapse to `0` or the timing signal MAY be omitted according to owner policy.
 
 `KernelRuntime` stopwatch failures MUST NOT change `UnitOfWork` lifecycle behavior, hook invocation policy, reset policy, or lifecycle failure precedence.
 
-When monotonic timing is unavailable, `KernelRuntime` MUST use `0` as the canonical unavailable timer sentinel for `startedAt`, `finishedAt`, and `durationMs`. The sentinel MUST NOT be passed to `Stopwatch::stop()`.
+When monotonic timing is unavailable, `KernelRuntime` MAY use `0` only as an internal unavailable timer sentinel for private lifecycle timing state.
+
+The internal timer sentinel MUST NOT be exported in:
+
+```text
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+UnitOfWorkResult::toArray()
+before-uow hook payloads
+after-uow hook payloads
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+The internal timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
+
+When duration cannot be measured, `UnitOfWorkResult.durationMs` MUST be `0`.
 
 Compiled-container compile, factory, and public artifact-runtime boot failures use deterministic Kernel-owned exceptions and safe fixed messages.
 
@@ -784,50 +820,60 @@ bg.worker_queue
 
 `RuntimeEntrypointGuard` is the public runtime-adapter boundary.
 
-Internally, it delegates to the Kernel-owned runtime-driver matrix implementation. Active drivers are derived only from declared config inputs:
+Internally, it delegates to the Kernel-owned runtime-driver matrix implementation.
+
+Active drivers are derived from Kernel-owned runtime config inputs and the resolved `ModulePlan` owner scope for Worker-owned runtime-driver inputs.
+
+Kernel-owned runtime-driver input is:
 
 ```text
-kernel.runtime.frankenphp.enabled
-kernel.runtime.swoole.enabled
-kernel.runtime.roadrunner.enabled
-worker.enabled
+kernel.runtime.http_driver
+```
+
+Allowed Kernel-selected HTTP runtime driver values are:
+
+```text
+http.classic
+http.frankenphp
+http.swoole
+http.roadrunner
+```
+
+`http.worker` is intentionally not accepted by `kernel.runtime.http_driver`.
+
+Worker-owned runtime-driver input is:
+
+```text
 worker.task_type
 ```
 
-`kernel.runtime.*.enabled` values activate non-classic HTTP drivers only when the value is strict boolean `true`.
+`kernel.runtime.http_driver` selects exactly one Kernel-owned HTTP runtime driver.
 
-`worker.enabled` and `worker.task_type` are external runtime-owner inputs used only for the Kernel-owned runtime-driver matrix.
+`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
+
+`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
 
 Kernel does not own the `worker` config root, does not define `worker.*` defaults, and does not validate the full `worker` subtree.
 
-These keys are required in the merged runtime config snapshot consumed by the runtime entrypoint guard.
+Missing `worker.task_type` MUST NOT fail when `platform.worker` is not enabled in `ModulePlan`.
 
-Missing required runtime-driver config keys are invalid and fail with:
+When `platform.worker` is enabled in `ModulePlan`, `worker.task_type` is required and must be a string.
 
-```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-config-key-missing
-```
-
-Non-boolean required runtime-driver flag values are invalid and fail with:
+Accepted values are:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-config-key-invalid
+http
+queue
 ```
 
-`worker.task_type` is read only when `worker.enabled === true`.
-
-If `worker.enabled === false`, `worker.task_type` is not required.
-
-If `worker.enabled === true` and `worker.task_type` is missing, the guard fails with:
+If `platform.worker` is enabled and `worker.task_type` is missing, the guard fails with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 worker-task-type-missing
 ```
 
-If `worker.enabled === true` and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
+If `platform.worker` is enabled and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
@@ -929,22 +975,36 @@ runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
 
 It MUST NOT return the exported UnitOfWork result array.
 
-Low-level adapters that need exported context/result arrays MAY use:
+Low-level adapters that need exported context/result payloads MAY use:
 
 ```text
-beginUnitOfWork(string $type, array $attributes = []): array
-afterUnitOfWork(array $context, string $outcome, ?Throwable $error = null, array $extensions = []): array
+beginUnitOfWork(string $type, array $attributes = []): UnitOfWorkHandle
+afterUnitOfWork(UnitOfWorkHandle $handle, string $outcome, ?Throwable $error = null, array $extensions = []): array
+```
+
+`beginUnitOfWork()` returns an opaque lifecycle handle.
+
+Low-level adapters MAY read the normalized exported context array through:
+
+```text
+UnitOfWorkHandle::context()
 ```
 
 Low-level adapters MUST execute their external body only after successful `beginUnitOfWork()`.
 
-Low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
+If `beginUnitOfWork()` throws, no open lifecycle handle has been handed to the adapter.
+
+For a failed `beginUnitOfWork()` attempt, the adapter MUST NOT call `afterUnitOfWork()`.
+
+This includes failures raised while invoking before-uow hooks.
+
+Low-level adapters that need the exported result array MUST pass the exact returned handle to `afterUnitOfWork()`.
 
 Low-level lifecycle methods are a sharp-edge adapter API.
 
 Adapters SHOULD prefer `runUnitOfWork()` whenever the external runtime body can be delegated to KernelRuntime.
 
-If `beginUnitOfWork()` returns successfully, the adapter owns completion responsibility and MUST attempt exactly one matching `afterUnitOfWork()` call.
+If `beginUnitOfWork()` returns successfully, the adapter owns completion responsibility and MUST attempt exactly one matching `afterUnitOfWork()` call with the exact returned handle.
 
 Low-level adapters MUST structure external body execution with a `finally`-equivalent completion path so that `afterUnitOfWork()` is attempted on both success and failure paths.
 
@@ -965,6 +1025,18 @@ ResetOrchestrator.resetAll()
 surface result or primary failure
 ```
 
+This linear sequence describes executions whose before-uow hooks complete successfully.
+
+If a before-uow hook throws after base `ContextStore` keys have been written, the UnitOfWork has crossed the reset-responsibility boundary but has not entered after-phase handling.
+
+In that case `KernelRuntime` MUST:
+
+- skip external runtime body execution;
+- skip `UnitOfWorkResult` construction;
+- skip after-uow hook invocation;
+- invoke `ResetOrchestrator::resetAll()` exactly once;
+- surface the before-uow hook failure as the primary failure, unless a stricter documented failure-precedence rule explicitly says otherwise.
+
 The conceptual shorthand is:
 
 ```text
@@ -982,6 +1054,10 @@ Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 Reset responsibility starts only after the base `ContextStore` keys have been written successfully.
 
 If UnitOfWork context creation or base context key writing fails before that boundary, `KernelRuntime` MUST surface the primary failure without invoking reset orchestration.
+
+A before-uow hook failure happens after the reset-responsibility boundary and therefore MUST NOT skip reset.
+
+However, a before-uow hook failure happens before after-phase eligibility. It MUST NOT cause after-uow hooks to run.
 
 Before hooks receive the normalized exported UnitOfWork context array.
 
@@ -1137,9 +1213,7 @@ Canonical Kernel config keys:
 | `kernel.boot.default_env`                     | `"local"`                                                  |
 | `kernel.boot.default_preset`                  | `"micro"`                                                  |
 | `kernel.boot.default_debug`                   | `false`                                                    |
-| `kernel.runtime.frankenphp.enabled`           | `false`                                                    |
-| `kernel.runtime.swoole.enabled`               | `false`                                                    |
-| `kernel.runtime.roadrunner.enabled`           | `false`                                                    |
+| `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
 | `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
@@ -1154,16 +1228,15 @@ Canonical Kernel config keys:
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
 
-The runtime-driver entrypoint guard also reads selected external runtime-owner keys:
+The runtime-driver entrypoint guard also reads the selected external runtime-owner key:
 
 ```text
-worker.enabled
 worker.task_type
 ```
 
-These keys are not owned by `core/kernel`.
+This key is not owned by `core/kernel`.
 
-They must be present in the merged runtime config snapshot when required by the runtime-driver matrix, but their defaults and full subtree validation are owned by the package that owns the `worker` root.
+It must be present in the merged runtime config snapshot when `platform.worker` participates in the resolved `ModulePlan`; its default and full subtree validation are owned by the package that owns the `worker` root.
 
 `kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
 
@@ -1369,14 +1442,41 @@ docs/ssot/uow-outcome-policy.md
 
 `Coretsia\Kernel\Runtime\UnitOfWorkContext` is the canonical Kernel runtime shape for the beginning of a UnitOfWork.
 
-Canonical fields:
+Canonical internal fields:
 
 ```text
 uowId
 type
-startedAt
+startedAtToken
 correlationId
 attributes
+```
+
+`startedAtToken` is Kernel-internal lifecycle timing state.
+
+It MUST NOT be exported in:
+
+```text
+UnitOfWorkContext::toArray()
+UnitOfWorkHandle::context()
+before-uow hook payloads
+after-uow hook context payloads
+UnitOfWorkResult::toArray()
+logs
+metrics
+traces
+diagnostics
+generated artifacts
+persistence payloads
+```
+
+The exported context shape is:
+
+```text
+attributes
+correlationId
+type
+uowId
 ```
 
 `attributes` MUST be a json-like map.
@@ -1430,8 +1530,6 @@ Canonical fields:
 uowId
 type
 correlationId
-startedAt
-finishedAt
 durationMs
 outcome
 error
@@ -1440,7 +1538,30 @@ extensions
 
 `error` is optional.
 
-`durationMs` is the canonical duration field.
+The exported result shape with no error is:
+
+```text
+correlationId
+durationMs
+extensions
+outcome
+type
+uowId
+```
+
+The exported result shape with error is:
+
+```text
+correlationId
+durationMs
+error
+extensions
+outcome
+type
+uowId
+```
+
+`durationMs` is the only exported timing field.
 
 It MUST be:
 
@@ -1449,17 +1570,23 @@ int
 >= 0
 ```
 
-`durationMs` MUST be measured from the canonical monotonic timing source:
+`durationMs` MUST be measured by Kernel runtime from private lifecycle timing state using the canonical monotonic timing source:
 
 ```text
 Coretsia\Foundation\Time\Stopwatch
 ```
 
-`durationMs` MUST NOT be calculated from:
+`UnitOfWorkResult` MUST NOT export Stopwatch tokens.
+
+The following fields are not valid `UnitOfWorkResult` fields:
 
 ```text
-finishedAt - startedAt
+startedAt
+startedAtToken
+finishedAt
 ```
+
+Consumers MUST NOT calculate duration from exported start or finish timing fields. Such exported fields MUST NOT exist.
 
 `extensions` MUST be a json-like map.
 

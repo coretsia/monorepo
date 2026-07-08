@@ -85,6 +85,39 @@ final class KernelRuntimeResetResponsibilityContractTest extends TestCase
         }
     }
 
+    public function testRunUnitOfWorkMarksAfterPhaseRequiredOnlyAfterBeforeHooksComplete(): void
+    {
+        $source = self::stripPhpComments(
+            self::sourceFile('src/Runtime/KernelRuntime.php'),
+        );
+
+        $runUnitOfWork = self::methodBody($source, 'runUnitOfWork');
+
+        $beforeHookCall = '$this->hooks->invokeBeforeHooks($contextPayload);';
+        $afterPhaseRequired = '$afterPhaseRequired = true;';
+
+        self::assertStringContainsString($beforeHookCall, $runUnitOfWork);
+        self::assertStringContainsString($afterPhaseRequired, $runUnitOfWork);
+
+        $beforeHookOffset = \strpos($runUnitOfWork, $beforeHookCall);
+        $afterPhaseOffset = \strpos($runUnitOfWork, $afterPhaseRequired);
+
+        self::assertIsInt($beforeHookOffset);
+        self::assertIsInt($afterPhaseOffset);
+
+        self::assertLessThan(
+            $afterPhaseOffset,
+            $beforeHookOffset,
+            'runUnitOfWork() must require the after phase only after before hooks complete successfully.',
+        );
+
+        self::assertStringNotContainsString(
+            $afterPhaseRequired,
+            \substr($runUnitOfWork, 0, $beforeHookOffset),
+            'runUnitOfWork() must not mark the after phase as required before before hooks complete.',
+        );
+    }
+
     private static function stripPhpComments(string $source): string
     {
         $tokens = \token_get_all($source);

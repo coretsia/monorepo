@@ -14,6 +14,12 @@
 
 # Filesystem Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia filesystem contracts, logical disk path semantics, filesystem port boundaries, deterministic listing policy, dependency restrictions, and filesystem redaction rules.

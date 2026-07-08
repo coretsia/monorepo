@@ -48,7 +48,6 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class PriorityResetOrchestrator
 {
-    private const string ASCII_WHITESPACE = " \t\n\r\f\v";
     private const string SPAN_NAME = 'foundation.reset';
     private const string METRIC_RESET_TOTAL = 'foundation.reset_total';
     private const string METRIC_RESET_DURATION_MS = 'foundation.reset_duration_ms';
@@ -223,10 +222,6 @@ final readonly class PriorityResetOrchestrator
 
         if (!\is_string($rawGroup)) {
             throw ResetException::metaInvalid();
-        }
-
-        if (\trim($rawGroup, self::ASCII_WHITESPACE) === '') {
-            return $this->defaultGroup;
         }
 
         return ResetGroup::fromString($rawGroup);

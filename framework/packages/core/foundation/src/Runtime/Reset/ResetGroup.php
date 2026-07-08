@@ -28,8 +28,6 @@ namespace Coretsia\Foundation\Runtime\Reset;
  */
 final readonly class ResetGroup
 {
-    private const string ASCII_WHITESPACE = " \t\n\r\f\v";
-
     private const string PATTERN = '/\A[a-z0-9][a-z0-9._-]*\z/';
 
     private function __construct(
@@ -39,17 +37,11 @@ final readonly class ResetGroup
 
     public static function fromString(string $value): self
     {
-        $normalized = \trim($value, self::ASCII_WHITESPACE);
-
-        if ($normalized === '') {
+        if (\preg_match(self::PATTERN, $value) !== 1) {
             throw ResetException::metaInvalid();
         }
 
-        if (\preg_match(self::PATTERN, $normalized) !== 1) {
-            throw ResetException::metaInvalid();
-        }
-
-        return new self($normalized);
+        return new self($value);
     }
 
     public function value(): string

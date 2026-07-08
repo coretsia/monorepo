@@ -14,6 +14,12 @@
 
 # DTO Policy
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: repo
+```
+
 This document is the **single source of truth** for DTO policy in Coretsia Framework.
 
 DTO policy is intentionally narrow. It applies only to classes that explicitly opt in through the canonical DTO marker attribute.

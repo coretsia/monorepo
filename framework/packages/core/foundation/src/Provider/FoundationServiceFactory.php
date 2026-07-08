@@ -186,8 +186,8 @@ final class FoundationServiceFactory
      *
      * If the key is absent, the 1.250.0 default `default` is used.
      *
-     * The returned string is already validated against the same normalized group
-     * id rules used by runtime reset tag meta.
+     * The returned string is already validated against the same canonical
+     * reset group id rules used by runtime reset tag meta.
      *
      * @param array<string, mixed> $foundationConfig
      */

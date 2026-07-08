@@ -14,9 +14,11 @@
 
 # ADR-0019: Enhanced reset for long-running services
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/foundation
+```
 
 ## Context
 
@@ -745,9 +747,13 @@ outcome
 
 Logs MUST NOT include per-service internals, service dumps, tag meta payloads, stack traces, raw config, raw context, or raw unit-of-work payloads by default.
 
-## Decision 14: Observability failures are failure-silent
+## Decision 14: Observability failures are isolated from reset semantics
 
-Internal observability port failures MUST remain failure-silent.
+Internal observability port failures MUST remain observability-isolated.
+
+They MUST NOT replace reset service failures, reset ordering failures, or reset orchestration failures.
+
+Primary reset failures remain fail-fast according to reset failure precedence.
 
 Reset observability failures, including logger, tracer, meter, span finalization, span exception recording, and `Stopwatch` start/stop failures, MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
 

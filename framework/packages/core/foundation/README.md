@@ -63,7 +63,7 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
 - Foundation runtime context storage through `ContextStore`.
 - Immutable context snapshots through `ContextBag`.
-- Context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
+- Fail-closed context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
 - Always-on context safe-write validation through `ContextStorePolicy`.
 - Canonical json-like runtime value normalization through `JsonLikeNormalizer`.
 - Path-aware safe json-like normalization failures through `JsonLikeNormalizationException`.
@@ -176,6 +176,12 @@ Tag discovery and reset orchestration MUST NOT be feature-disabled through confi
 Empty discovery lists are represented by empty-list semantics only.
 
 This package does not introduce context or correlation feature toggles.
+
+Context safe-write validation is baseline safety infrastructure.
+
+It MUST NOT be disabled through config, environment-derived runtime flags, emergency toggles, debug modes, performance modes, or alternate provider wiring.
+
+Optional context writers that cannot provide safe public-key json-like context values MUST omit the optional write rather than bypass validation.
 
 The following keys MUST NOT be introduced by this epic:
 
@@ -511,7 +517,11 @@ Reserved future keys MAY be present in `ContextKeys` to prevent name drift, even
 
 ## Context safe-write policy
 
-`Coretsia\Foundation\Context\ContextStorePolicy` is the always-on write guard for `ContextStore`.
+`Coretsia\Foundation\Context\ContextStorePolicy` is the fail-closed always-on write guard for `ContextStore`.
+
+It is not a debug, performance, emergency, or environment toggle.
+
+Validation failures reject the attempted write. They MUST NOT cause `ContextStore` to degrade into unsafe storage.
 
 `ContextStore` MUST call:
 

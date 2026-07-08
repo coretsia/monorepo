@@ -14,9 +14,11 @@
 
 # ADR-0029: Kernel compiled container artifact
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

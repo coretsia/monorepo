@@ -22,12 +22,27 @@ use PHPUnit\Framework\TestCase;
 
 final class KernelConfigModuleStopwatchFailurePolicyContractTest extends TestCase
 {
-    public function testConfigKernelUsesSafeStopwatchWrappersOnly(): void
+    public function testConfigKernelUsesObservabilityIsolatedStopwatchWrappersOnly(): void
     {
         $source = self::sourceFile('src/Config/ConfigKernel.php');
 
         self::assertStringContainsString('private function safeStartTimer(): mixed', $source);
         self::assertStringContainsString('private function safeStopTimer(mixed $startedAt): int', $source);
+
+        self::assertStringContainsString(
+            'Stopwatch is used only for ConfigKernel duration observability.',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'Timing failure must not replace config merge/explain outcomes.',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'Timing failure is represented as unavailable duration.',
+            $source,
+        );
 
         $sourceWithoutComments = self::stripPhpComments($source);
 
@@ -55,12 +70,27 @@ final class KernelConfigModuleStopwatchFailurePolicyContractTest extends TestCas
         );
     }
 
-    public function testModulePlanResolverUsesSafeStopwatchWrappersOnly(): void
+    public function testModulePlanResolverUsesObservabilityIsolatedStopwatchWrappersOnly(): void
     {
         $source = self::sourceFile('src/Module/ModulePlanResolver.php');
 
         self::assertStringContainsString('private function safeStartTimer(): mixed', $source);
         self::assertStringContainsString('private function safeStopTimer(mixed $startedAt): int', $source);
+
+        self::assertStringContainsString(
+            'Stopwatch is used only for ModulePlan duration observability.',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'Timing failure must not replace module resolution outcomes.',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            'Timing failure is represented as unavailable duration.',
+            $source,
+        );
 
         $sourceWithoutComments = self::stripPhpComments($source);
 

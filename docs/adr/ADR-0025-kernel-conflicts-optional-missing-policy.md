@@ -14,9 +14,11 @@
 
 # ADR-0025: Kernel module conflicts and optional-missing policy
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

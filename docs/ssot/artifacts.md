@@ -14,6 +14,12 @@
 
 # Artifact Header and Schema Registry (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: repo
+```
+
 This document is the canonical SSoT for artifact envelope shape, artifact header fields, deterministic serialization law, and artifact schema registry.
 
 ## Goal

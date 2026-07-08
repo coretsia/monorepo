@@ -14,9 +14,11 @@
 
 # ADR-0009: Database and migrations ports
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

@@ -16142,6 +16142,7 @@ provides:
 - "PromptPolicyInterface (allow/deny, rule outcomes)"
 - "RedactionHookInterface (PII scrubber boundary)"
 - "GuardrailViolation envelope (redaction-safe diagnostics)"
+- "AI guardrails PII redaction hooks MAY extend or specialize the shared sensitive-data redaction boundary, but MUST NOT replace it with an incompatible package-local redaction model."
 
 tags_introduced: []
 config_roots_introduced: []
@@ -16158,6 +16159,7 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
+  - 2.27.0 — Sensitive data redaction boundary exists.
   - 6.470.0 — базові AI contracts (request/response envelopes) існують
 
 - Required deliverables (exact paths):

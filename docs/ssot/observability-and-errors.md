@@ -14,6 +14,12 @@
 
 # Observability and Errors SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia observability contracts, error descriptor boundary policy, error mapping semantics, redaction invariants, and format-neutral error handling boundaries.

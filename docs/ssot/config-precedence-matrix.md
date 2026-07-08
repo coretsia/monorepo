@@ -14,6 +14,12 @@
 
 # Config Precedence Matrix (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 ## Scope
 
 This document is the canonical precedence matrix for ConfigKernel Phase B.

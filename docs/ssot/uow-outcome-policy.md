@@ -14,6 +14,12 @@
 
 # UnitOfWork Outcome Policy SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia Kernel UnitOfWork lifecycle policy, after-phase reset discipline, outcome token vocabulary, HTTP outcome mapping, CLI outcome mapping, failure precedence, and safe result metadata policy.

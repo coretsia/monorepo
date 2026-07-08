@@ -14,9 +14,11 @@
 
 # ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 Amended by the compiled-container work in epic `1.340.0`.
 

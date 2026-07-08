@@ -14,9 +14,11 @@
 
 # ADR-0027: Runtime driver and entrypoint guard
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

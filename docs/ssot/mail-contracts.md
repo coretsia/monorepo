@@ -14,6 +14,12 @@
 
 # Mail Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia mail contracts, mailer port semantics, transport port semantics, mail message shape policy, redaction invariants, async-safe message boundaries, and runtime ownership rules.

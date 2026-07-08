@@ -84,8 +84,22 @@ Coretsia also tracks architecture generator idempotence evidence in CI. See [Arc
 - Package path: `framework/packages/<layer>/<slug>/`
 - Package id: `<layer>/<slug>`
 - Composer name: `coretsia/<layer>-<slug>`
-- Monorepo-wide versioning via git tags `vMAJOR.MINOR.PATCH` (no per-package versions)
+- Monorepo-wide release-train versioning via git tags `vMAJOR.MINOR.PATCH` (no per-package versions)
 - [Canonical packaging strategy (single-choice)](docs/architecture/PACKAGING.md)
+
+### Release-train versioning (MUST)
+
+Coretsia packages are split for distribution, dependency boundaries, and Packagist publishing, but they are versioned as one framework release train.
+
+All split packages receive the same version as the monorepo tag.
+
+Independent package versions are intentionally not supported.
+
+SemVer applies at the Coretsia framework release-train level, not as independent SemVer streams for every package.
+
+A patch that changes one package may still produce a monorepo-wide patch release. Unchanged packages may receive the same new tag so consumers can keep all `coretsia/*` packages aligned.
+
+This avoids maintaining a compatibility matrix across framework packages, generated artifacts, runtime contracts, platform adapters, docs, and tooling.
 
 ### Canonical entrypoints (MUST)
 

@@ -14,9 +14,11 @@
 
 # ADR-0016: Clock, IDs, and Stopwatch
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/foundation
+```
 
 ## Correlation id provider safety hardening follow-up note
 

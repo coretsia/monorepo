@@ -14,6 +14,12 @@
 
 # Json-like Runtime Values SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia Foundation baseline runtime json-like value validation, deterministic recursive normalization, and safe path/reason diagnostics.

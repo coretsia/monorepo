@@ -14,9 +14,11 @@
 
 # ADR-0007: Validation ports
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

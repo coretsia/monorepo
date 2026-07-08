@@ -14,6 +14,12 @@
 
 # Reset tags SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Purpose
 
 This document is the Single Source of Truth for reset-specific semantics around already-canonical Foundation reset tags.
@@ -868,7 +874,7 @@ The deterministic mapping is:
 | discovered service does not implement `ResetInterface` | `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` | `reset-not-resettable`       |
 | service resolution or reset execution throws           | `CORETSIA_RESET_SERVICE_FAILED`         | `reset-service-failed`       |
 
-Reset observability failures are failure-silent and MUST NOT be used to signal reset failure.
+Reset observability failures are observability-isolated and MUST NOT be used to signal reset failure.
 
 Exception messages MUST be fixed safe tokens.
 
@@ -1043,7 +1049,7 @@ Logs MUST NOT include per-service internals, service dumps, tag meta payloads, s
 
 ## Observability failure policy
 
-Internal observability port failures MUST remain failure-silent.
+Internal observability port failures MUST remain observability-isolated.
 
 Reset observability failures, including logger, tracer, meter, span finalization, span exception recording, and `Stopwatch` start/stop failures, MUST NOT change reset discovery, reset ordering, reset execution, reset success, or reset failure precedence.
 

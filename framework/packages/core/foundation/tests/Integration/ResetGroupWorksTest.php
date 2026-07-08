@@ -31,7 +31,7 @@ use Psr\Log\AbstractLogger;
 
 final class ResetGroupWorksTest extends TestCase
 {
-    public function testGroupAbsentEmptyAndTrimmedValuesAreNormalizedAndAffectOrdering(): void
+    public function testGroupAbsentAndCanonicalValuesAffectOrdering(): void
     {
         $effectiveResetTag = 'kernel.reset';
         $defaultGroup = 'default';
@@ -44,28 +44,20 @@ final class ResetGroupWorksTest extends TestCase
             'service.beta' => new ResetGroupWorksService('service.beta', $recorder),
             'service.cache' => new ResetGroupWorksService('service.cache', $recorder),
             'service.default_absent' => new ResetGroupWorksService('service.default_absent', $recorder),
-            'service.default_empty' => new ResetGroupWorksService('service.default_empty', $recorder),
         ];
 
         /*
          * All registry priorities are intentionally equal.
          *
          * Enhanced mode therefore must order only by:
-         * 1) normalized group ASC via strcmp
+         * 1) canonical group ASC via strcmp
          * 2) serviceId ASC via strcmp
          *
          * Covered group cases:
          * - group absent => foundation.reset.group.default
-         * - group ASCII-whitespace-only => foundation.reset.group.default
-         * - group with ASCII surrounding whitespace => trimmed valid group
          * - already-valid group value remains usable as ordering key
+         * - group values are not trimmed or rewritten
          */
-        $tagRegistry->add(
-            $effectiveResetTag,
-            'service.default_empty',
-            0,
-            ['group' => " \t "],
-        );
         $tagRegistry->add(
             $effectiveResetTag,
             'service.cache',
@@ -88,7 +80,7 @@ final class ResetGroupWorksTest extends TestCase
             $effectiveResetTag,
             'service.alpha',
             0,
-            ['group' => " \talpha\t "],
+            ['group' => 'alpha'],
         );
 
         $tracer = new ResetGroupWorksFakeTracer();
@@ -126,17 +118,16 @@ final class ResetGroupWorksTest extends TestCase
                 'service.beta',
                 'service.cache',
                 'service.default_absent',
-                'service.default_empty',
             ],
             $recorder->ids(),
-            'Enhanced reset must use normalized group ASC and serviceId ASC ordering.',
+            'Enhanced reset must use canonical group ASC and serviceId ASC ordering.',
         );
 
         self::assertCount(1, $tracer->startedSpans());
         $span = $tracer->startedSpans()[0];
 
         self::assertSame('foundation.reset', $span->name());
-        self::assertSame(5, $span->attributes()['services_count'] ?? null);
+        self::assertSame(4, $span->attributes()['services_count'] ?? null);
         self::assertSame(4, $span->attributes()['groups_count'] ?? null);
         self::assertSame('ok', $span->attributes()['outcome'] ?? null);
         self::assertTrue($span->ended());

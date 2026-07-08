@@ -14,6 +14,12 @@
 
 # Time, IDs, and Duration SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia Foundation runtime time access, id generation, and duration measurement policy.

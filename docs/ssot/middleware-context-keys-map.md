@@ -14,6 +14,12 @@
 
 # Middleware → ContextKeys map
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: platform/http
+```
+
 ## Purpose
 
 This document is the reference-only map from HTTP middleware FQCNs to canonical `Coretsia\Contracts\Context\ContextKeys` entries that the middleware may write or read.

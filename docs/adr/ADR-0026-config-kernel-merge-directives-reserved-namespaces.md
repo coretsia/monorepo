@@ -14,9 +14,11 @@
 
 # ADR-0026: Config Kernel Merge, Directives, and Reserved Namespaces
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 
@@ -441,9 +443,15 @@ Config merge and explain observability boundaries belong to `ConfigKernel`.
 
 `ConfigKernel` `Stopwatch` start/stop failures are part of the ConfigKernel observability boundary.
 
+They are `observability-isolated` failures.
+
 They MUST NOT change config compilation, config explain behavior, validation results, returned config payloads, source provenance metadata, or surfaced config exceptions.
 
+Config loading, directive processing, merge, validation, explain construction, and source provenance failures remain primary ConfigKernel failures and MUST be surfaced according to ConfigKernel exception policy.
+
 When config merge or explain duration cannot be measured, the duration metric value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
+
+Unavailable timing MUST NOT be described as a successful config operation.
 
 Loaders, `DirectiveProcessor`, `ConfigMerger`, `ConfigValidator`, and `ConfigExplainer` must remain focused and should not emit config merge/explain lifecycle metrics/spans.
 

@@ -14,6 +14,12 @@
 
 # UoW and Reset Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia unit-of-work runtime contracts, reset contracts, before/after unit-of-work hook contracts, reset discipline, runtime ownership boundaries, exported hook payload policy, and DI tag usage policy.

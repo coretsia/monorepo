@@ -14,9 +14,11 @@
 
 # ADR-0017: Worker manager and application worker
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: platform/worker
+```
 
 ## Context
 

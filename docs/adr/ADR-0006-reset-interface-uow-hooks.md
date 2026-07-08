@@ -14,9 +14,11 @@
 
 # ADR-0006: Reset interface and UoW hooks
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Reset failure diagnostics hardening follow-up note
 

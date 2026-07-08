@@ -14,9 +14,11 @@
 
 # ADR-0002: Config, env, source tracking, and directive invariants
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

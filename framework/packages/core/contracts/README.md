@@ -14,7 +14,7 @@
 
 # coretsia/core-contracts
 
-`core/contracts` is the **contracts-only** package for the Coretsia Framework monorepo.
+`core/contracts` is the **boundary-only contracts package** for the Coretsia Framework monorepo.
 
 **Scope:** public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define cross-package boundaries.
 

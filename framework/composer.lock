@@ -1238,16 +1238,16 @@
         },
         {
             "name": "phpstan/phpdoc-parser",
-            "version": "2.3.2",
+            "version": "2.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpdoc-parser.git",
-                "reference": "a004701b11273a26cd7955a61d67a7f1e525a45a"
+                "reference": "fb19eedd2bb67ff8cf7a5502ad329e701d6398a3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/a004701b11273a26cd7955a61d67a7f1e525a45a",
-                "reference": "a004701b11273a26cd7955a61d67a7f1e525a45a",
+                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/fb19eedd2bb67ff8cf7a5502ad329e701d6398a3",
+                "reference": "fb19eedd2bb67ff8cf7a5502ad329e701d6398a3",
                 "shasum": ""
             },
             "require": {
@@ -1279,9 +1279,9 @@
             "description": "PHPDoc parser with support for nullable, intersection and generic types",
             "support": {
                 "issues": "https://github.com/phpstan/phpdoc-parser/issues",
-                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.2"
+                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.3"
             },
-            "time": "2026-01-25T14:56:51+00:00"
+            "time": "2026-07-08T07:01:06+00:00"
         },
         {
             "name": "phpstan/phpstan",
@@ -1694,24 +1694,24 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.30",
+            "version": "12.5.31",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "900400a5b616d6fb306f9549f6da33ba615d3fbb"
+                "reference": "0608d157a284f15cc73b99a3327eff06b66a176d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/900400a5b616d6fb306f9549f6da33ba615d3fbb",
-                "reference": "900400a5b616d6fb306f9549f6da33ba615d3fbb",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/0608d157a284f15cc73b99a3327eff06b66a176d",
+                "reference": "0608d157a284f15cc73b99a3327eff06b66a176d",
                 "shasum": ""
             },
             "require": {
                 "ext-dom": "*",
+                "ext-filter": "*",
                 "ext-json": "*",
                 "ext-libxml": "*",
                 "ext-mbstring": "*",
-                "ext-xml": "*",
                 "ext-xmlwriter": "*",
                 "myclabs/deep-copy": "^1.13.4",
                 "phar-io/manifest": "^2.0.4",
@@ -1772,7 +1772,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.30"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.31"
             },
             "funding": [
                 {
@@ -1780,7 +1780,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-06-15T13:12:30+00:00"
+            "time": "2026-07-06T14:54:16+00:00"
         },
         {
             "name": "psr/clock",

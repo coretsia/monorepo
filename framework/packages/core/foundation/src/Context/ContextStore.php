@@ -26,6 +26,9 @@ use Coretsia\Contracts\Runtime\ResetInterface;
  *
  * ContextStore is unit-of-work-local state. Every write is guarded by
  * ContextStorePolicy, and reset() clears all stored values between UoWs.
+ *
+ * Validation failures reject the attempted write. ContextStore must not degrade
+ * to unsafe storage; optional writers should omit optional context instead.
  */
 final class ContextStore implements ContextAccessorInterface, ResetInterface
 {

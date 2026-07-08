@@ -14,6 +14,12 @@
 
 # Modes SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia mode names, mode preset meaning, mode preset contract semantics, and deterministic mode preset loading policy.

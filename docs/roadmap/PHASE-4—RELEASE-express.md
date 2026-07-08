@@ -54,6 +54,7 @@ ssot_refs:
   - 1.100.0 — ErrorDescriptor boundary/policy documented
   - 1.200.0 — foundation DI/config baseline exists
   - 1.205.0 — noop-safe observability baseline exists
+  - 2.27.0 — Sensitive data redaction boundary exists.
 
 - Required deliverables (exact paths):
   - `framework/packages/core/contracts/src/Validation/ValidatorInterface.php` — public validation port
@@ -237,7 +238,7 @@ N/A
   - [ ] `validation.violations_total` (labels: `outcome`)
   - [ ] `validation.duration_ms` (labels: `outcome`)
 - [ ] Logs:
-  - [ ] redaction applied; no raw payload values
+  - [ ] redaction applied through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`; no raw payload values
 
 #### Errors
 

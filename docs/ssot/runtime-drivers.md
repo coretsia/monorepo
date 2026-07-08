@@ -14,6 +14,12 @@
 
 # Runtime Drivers SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: repo
+```
+
 ## Purpose
 
 This document is the Single Source of Truth for Coretsia runtime driver compatibility.

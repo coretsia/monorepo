@@ -14,6 +14,12 @@
 
 # Context Store SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia Foundation runtime context storage, immutable context snapshots, controlled context mutation, safe-write policy, value validation, reset discipline, and correlation id storage boundaries.
@@ -238,7 +244,15 @@ Consumers MUST NOT be able to mutate the stored snapshot by mutating the returne
 
 ## ContextStorePolicy responsibilities
 
-`ContextStorePolicy` is the always-on safety guard for context writes.
+`ContextStorePolicy` is the fail-closed always-on safety guard for context writes.
+
+It is baseline safety infrastructure, not a debug, performance, emergency, or environment toggle.
+
+No runtime mode may bypass `ContextStorePolicy`.
+
+A validation failure rejects the attempted write. It MUST NOT degrade to storing unsafe, unknown, raw, or non-deterministic context data.
+
+Optional writers MAY gracefully degrade only by omitting optional context writes.
 
 `ContextStorePolicy` owns context-specific write policy:
 
@@ -1001,7 +1015,28 @@ It MUST NOT be represented by disabling Foundation context services.
 
 `ContextStorePolicy` is baseline runtime safety.
 
-It MUST always be enabled and MUST NOT be feature-disabled through config.
+It MUST always be enabled and MUST NOT be feature-disabled through config or environment-derived runtime flags.
+
+The following toggles MUST NOT be introduced:
+
+```text
+foundation.context.enabled
+foundation.context.validation.enabled
+foundation.context.safe_write.enabled
+foundation.context.safe_write_validation.enabled
+FOUNDATION_CONTEXT_ENABLED
+FOUNDATION_CONTEXT_VALIDATION_ENABLED
+FOUNDATION_CONTEXT_VALIDATION_DISABLED
+```
+
+Graceful degradation MUST NOT mean unsafe context storage.
+
+Graceful degradation MAY mean:
+
+```text
+optional writer omits optional context write
+optional reader treats absent context as absent
+```
 
 ## Artifact policy
 

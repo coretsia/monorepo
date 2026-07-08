@@ -14,6 +14,12 @@
 
 # Routing and HttpApp Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia routing contracts, route descriptor shape policy, route match shape policy, route provider semantics, router matching semantics, HttpApp invocation ports, runtime ownership boundaries, and no-PSR-7 dependency rules.

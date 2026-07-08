@@ -14,9 +14,11 @@
 
 # ADR-0001: Module descriptor, manifest reader, and mode preset contracts
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

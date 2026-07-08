@@ -460,7 +460,7 @@ Coretsia/
 │   │   │   │   │   │   ├── CrossCuttingNoopDoesNotThrowTest.php (CrossCuttingNoopDoesNotThrowTest - testNoopLoggerAcceptsArbitraryPsr3ContextAndIgnoresItSafely()/testNoopTracerReturnsNoopSpanAndRunsSuccessfulCallback()/testNoopTracerRethrowsThrowableFromCallback()/testNoopSpanOperationsDoNotThrow()/testNoopMeterOperationsDoNotThrow()/testNoopErrorReporterDoesNotThrow()/testNoopProfilerReturnsNoopSessionAndRepeatedStopDoesNotThrow()/testNoopContextPropagationDoesNotThrowAndDoesNotMutateCarrier()/testNoopImplementationsDoNotContainOutputSinks()/noopImplementationFiles()/assertNoOutputSinksInPhpFile()/isNameToken())
 │   │   │   │   │   │   ├── DeterministicOrderSortContractTest.php (DeterministicOrderSortContractTest - testCanonicalOrderIsPriorityDescThenByteOrderIdAscForDifferentInputOrders()/testCanonicalSortDoesNotDependOnLocaleCollation()/testCanonicalSortPreservesAllEntriesWithoutDedupe()/inputOrders()/idsFrom())
 │   │   │   │   │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php (FoundationConfigRejectsFloatValuesInIdsContractTest - testRulesDeclareIdsDefaultAsOnlyTimeIdsConfigKey()/testDefaultsDeclareIdsDefaultAndNoClockConfig()/testDefaultConfigMatchesRules()/testInvalidIdsAndClockConfigFailDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/validateResetGroupId()/reject())
-│   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/foundationConfig()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
+│   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php (FoundationConfigSubtreeShapeContractTest - testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testFoundationDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testFoundationDefaultsDoNotDefineForbiddenFeatureFlags()/testFoundationRulesDoNotDeclareContextOrCorrelationFeatureFlags()/foundationConfig()/foundationRules()/foundationConfigPath()/reservedDirectiveKeyPaths()/hasDotPath())
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php (FoundationEnhancedResetConfigShapeContractTest - testDefaultsReturnFoundationSubtreeWithoutRootWrapping()/testRulesDeclareEnhancedResetConfigShape()/testDefaultsDeclareEnhancedResetValues()/testDefaultConfigMatchesRules()/testInvalidEnhancedResetConfigFailsDeterministicallyWithSafeMessage()/invalidConfigProvider()/assertConfigAccepted()/assertConfigRejected()/defaults()/rules()/configWith()/validateValue()/validateMap()/validateBool()/validateString()/validateNonEmptyStringNoWhitespace()/validateResetGroupId()/reject())
 │   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php (JsonLikeNormalizerContractTest - testAcceptsJsonLikeScalars()/testRejectsFloatsNaNAndInfinity()/floatProvider()/testRejectsObjectsWithoutLeakingObjectDetails()/testRejectsStringableObjectsAsObjectsWithoutLeakingObjectDetails()/testRejectsEnumObjectsAsObjectsWithoutLeakingEnumDetails()/testRejectsClosuresBeforeGenericObjectRejection()/testRejectsResourcesWithoutLeakingResourceDetails()/testRejectsUnsupportedClosedResourceTypeWithoutLeakingDetails()/testRejectsNonStringMapKeys()/testNormalizesMapsRecursivelyByByteOrderAndPreservesListOrder()/testPreservesEmptyArrayAsEmptyArray()/testExceptionExposesErrorCodePathAndReason()/testFailureDiagnosticsDoNotLeakRawValuesSecretsSqlObjectDetailsResourcesOrLocalPaths()/testUnsafeMapKeysAreNotLeakedInDiagnosticPath()/unsafeKeyProvider()/testInvalidRootPathIsSanitized()/testReasonConstantsExposeStableTokenVocabulary()/assertJsonLikeInvalid())
 │   │   │   │   │   │   ├── PriorityResetStopwatchFailurePolicyContractTest.php (PriorityResetStopwatchFailurePolicyContractTest - testPriorityResetOrchestratorUsesSafeStopwatchWrappersOnly()/testResetAllDoesNotAccessStopwatchDirectly()/testSummaryHelperUsesSafeStopwatchWrapper()/testResetAllMarksUnexpectedThrowableAsFailedWithoutWrappingIt()/stripPhpComments()/withoutMethodBodies()/withoutMethodBody()/methodBody()/methodBodyRange()/sourceFile()/packageRoot())
@@ -506,7 +506,7 @@ Coretsia/
 │   │   │   │   │   │   ├── PriorityResetOrderDeterministicTest.php (PriorityResetOrderDeterministicTest - testPriorityEnabledOrdersByPriorityDescGroupAscAndServiceIdAscDeterministically(); PriorityResetOrderDeterministicRecorder - record()/ids()/clear(); PriorityResetOrderDeterministicService - reset(); PriorityResetOrderDeterministicContainer - get()/has(); PriorityResetOrderDeterministicFakeTracer - startSpan()/inSpan()/currentSpan()/startedSpans(); PriorityResetOrderDeterministicFakeSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/attributes()/ended(); PriorityResetOrderDeterministicFakeMeter - increment()/observe()/increments()/observations(); PriorityResetOrderDeterministicFakeLogger - log()/records())
 │   │   │   │   │   │   ├── PriorityResetRecordsSanitizedFailureExceptionTest.php (PriorityResetRecordsSanitizedFailureExceptionTest - testResetFailureRecordedIntoSpanUsesSanitizedResetExceptionWithoutPrevious()/assertSurfacedFailurePreservesSafeShapeAndRawPrevious()/assertSpanRecordedSanitizedFailureException()/assertResetMetricsAndLogsRemainSummaryOnly()/assertNoUnsafeDiagnosticsInString()/assertNoUnsafeDiagnosticsInMap()/unsafeDiagnosticsNeedles(); PriorityResetRecordsSanitizedFailureExceptionThrowingService - reset()/wasReset(); PriorityResetRecordsSanitizedFailureExceptionContainer - get()/has(); PriorityResetRecordsSanitizedFailureExceptionFakeTracer - startSpan()/inSpan()/currentSpan()/startedSpans(); PriorityResetRecordsSanitizedFailureExceptionFakeSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/attributes()/recordedExceptions()/ended(); PriorityResetRecordsSanitizedFailureExceptionFakeMeter - increment()/observe()/increments()/observations(); PriorityResetRecordsSanitizedFailureExceptionFakeLogger - log()/records())
 │   │   │   │   │   │   ├── PriorityResetUsesConfiguredResetTagTest.php (PriorityResetUsesConfiguredResetTagTest - testProviderAndPriorityResetUseConfiguredEffectiveResetTag()/foundationConfig()/taggedServiceIds()/assertResetObservabilityIsSummaryOnly(); PriorityResetUsesConfiguredResetTagRecorder - record()/ids(); PriorityResetUsesConfiguredResetTagService - reset()/wasReset(); PriorityResetUsesConfiguredResetTagContainer - get()/has(); PriorityResetUsesConfiguredResetTagFakeTracer - startSpan()/inSpan()/currentSpan()/startedSpans(); PriorityResetUsesConfiguredResetTagFakeSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/attributes()/ended(); PriorityResetUsesConfiguredResetTagFakeMeter - increment()/observe()/increments()/observations(); PriorityResetUsesConfiguredResetTagFakeLogger - log()/records())
-│   │   │   │   │   │   ├── ResetGroupWorksTest.php (ResetGroupWorksTest - testGroupAbsentEmptyAndTrimmedValuesAreNormalizedAndAffectOrdering(); ResetGroupWorksRecorder - record()/ids(); ResetGroupWorksService - reset(); ResetGroupWorksContainer - get()/has(); ResetGroupWorksFakeTracer - startSpan()/inSpan()/currentSpan()/startedSpans(); ResetGroupWorksFakeSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/attributes()/ended(); ResetGroupWorksFakeMeter - increment()/observe()/increments()/observations(); ResetGroupWorksFakeLogger - log()/records())
+│   │   │   │   │   │   ├── ResetGroupWorksTest.php (ResetGroupWorksTest - testGroupAbsentAndCanonicalValuesAffectOrdering(); ResetGroupWorksRecorder - record()/ids(); ResetGroupWorksService - reset(); ResetGroupWorksContainer - get()/has(); ResetGroupWorksFakeTracer - startSpan()/inSpan()/currentSpan()/startedSpans(); ResetGroupWorksFakeSpan - name()/setAttribute()/setAttributes()/addEvent()/recordException()/end()/attributes()/ended(); ResetGroupWorksFakeMeter - increment()/observe()/increments()/observations(); ResetGroupWorksFakeLogger - log()/records())
 │   │   │   │   │   │   ├── ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php (ResetOrchestratorInvokesResetExactlyOncePerServiceTest - testInvokesResetExactlyOncePerTaggedResettableServiceInRegistryOrder()/testEachResetCycleInvokesEachServiceOnceAgain()/testEmptyDiscoveryListIsDeterministicNoop()/testResetExecutionDoesNotRequireAutowireConfigForExplicitInstances()/orchestratorFrom()/validConfig(); ResetOrchestratorInvokesRecorder - record()/events(); ResetOrchestratorInvokesResettableService - reset()/resetCount())
 │   │   │   │   │   │   ├── ResetOrchestratorRejectsTaggedNonResettableServiceTest.php (ResetOrchestratorRejectsTaggedNonResettableServiceTest - testRejectsTaggedNonResettableServiceWithTypedResetExceptionAndStableMessage()/testTypedHardFailIsDeterministicAndStopsAtFirstNonResettableServiceInRegistryOrder()/assertServiceNotResettableException()/orchestratorFrom()/validConfig(); ResetOrchestratorRejectsRecorder - record()/events(); ResetOrchestratorRejectsResettableService - reset()/resetCount(); ResetOrchestratorRejectsNonResettableService)
 │   │   │   │   │   │   ├── ResetOrchestratorUsesConfiguredResetTagTest.php (ResetOrchestratorUsesConfiguredResetTagTest - testFoundationServiceProviderWiresOrchestratorWithConfiguredResetTag()/testFoundationServiceProviderFallsBackToKernelResetWhenResetTagIsAbsent()/configWithResetTag()/configWithoutResetTag(); ResetOrchestratorConfiguredTagRecorder - record()/events(); ResetOrchestratorConfiguredTagResettableService - reset()/resetCount())
@@ -687,7 +687,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php (KernelArtifactsReuseFoundationStableJsonEncoderContractTest - testKernelPayloadNormalizationMatchesFoundationJsonLikeNormalization()/testFoundationStableJsonEncoderBytesAreTheCanonicalHashInput()/testFoundationStableJsonEncoderEmitsStableLfTerminatedJsonForKernelNormalizedPayloads()/fingerprintCalculator())
 │   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php (KernelArtifactsRuntimeDependencyBoundaryContractTest - testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportToolingSpikeNamespaces()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportDevtoolsPackages()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportPlatformPackages()/testArtifactFingerprintAndCacheRuntimeCodeDoesNotReadFrameworkToolsTree()/testOnlyContractTestsMayReferenceSpikeFixtures()/artifactRuntimeFiles()/kernelTestFiles()/phpFiles()/readFile()/relativeToRepo()/packageRoot()/repoRoot())
 │   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php (KernelBootstrapDoesNotUseRuntimeLifecycleTest - testBootstrapLayerDoesNotUseRuntimeLifecycleServicesOrResetTags()/kernelRoot()/phpFiles()/relativeToKernelRoot())
-│   │   │       │   │   ├── KernelConfigModuleStopwatchFailurePolicyContractTest.php (KernelConfigModuleStopwatchFailurePolicyContractTest - testConfigKernelUsesSafeStopwatchWrappersOnly()/testModulePlanResolverUsesSafeStopwatchWrappersOnly()/stripPhpComments()/withoutMethodBodies()/withoutMethodBody()/sourceFile()/packageRoot())
+│   │   │       │   │   ├── KernelConfigModuleStopwatchFailurePolicyContractTest.php (KernelConfigModuleStopwatchFailurePolicyContractTest - testConfigKernelUsesObservabilityIsolatedStopwatchWrappersOnly()/testModulePlanResolverUsesObservabilityIsolatedStopwatchWrappersOnly()/stripPhpComments()/withoutMethodBodies()/withoutMethodBody()/sourceFile()/packageRoot())
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php (KernelConfigSubtreeShapeContractTest - testKernelDefaultsReturnSubtreeOnlyWithoutRepeatedRoot()/testKernelDefaultsContainNoReservedDirectiveKeysAtAnyDepth()/testKernelDefaultsContainCanonicalUnitOfWorkAttributeLimits()/testKernelDefaultsContainPositiveIntegerUnitOfWorkAttributeLimits()/kernelConfig()/kernelConfigPath()/reservedDirectiveKeyPaths())
 │   │   │       │   │   ├── KernelDoesNotEmitRoutesArtifactContractTest.php (KernelDoesNotEmitRoutesArtifactContractTest - testArtifactCompilerSourceDoesNotWriteRoutesArtifact()/testArtifactBuildersListDoesNotContainRoutesBuilder()/testPathResolverRejectsRoutesPhpBasename()/testKernelOwnedSchemaValidatorDoesNotClaimRoutesArtifactOwnership()/testRoutesArtifactOwnershipRemainsDocumentedAsPlatformRouting()/bootstrapConfig()/kernelConfig()/sourceFile()/repoFile()/packageRoot()/repoRoot())
 │   │   │       │   │   ├── KernelDoesNotEnumerateResetDiscoveryTagTest.php (KernelDoesNotEnumerateResetDiscoveryTagTest - testKernelSourceContainsNoResetDiscoveryTagLiteralOrConfigKey()/testKernelSourceDoesNotReferenceFoundationKernelResetTagConstant()/testKernelRuntimeSourceDoesNotImportResetInterface()/testKernelRuntimeDoesNotCallResetInterfaceResetDirectly()/testKernelSourceDoesNotEnumerateResetServicesThroughTagRegistry()/testKernelRuntimeDependsOnResetOrchestratorBoundaryOnly()/testResetTagIdentifierExistsInReservedTagsRegistry()/kernelSourceFiles()/kernelRuntimeSourceFiles()/phpFilesUnder()/forbiddenStringLiteralViolations()/forbiddenIdentifierViolations()/resetInterfaceReferenceViolations()/directResetCallViolations()/resetTagRegistryEnumerationViolations()/looksLikeResetDiscoveryContext()/nearbyTokenText()/nextMeaningfulToken()/previousMeaningfulToken()/isIgnorableToken()/isObjectOrStaticAccessToken()/readSource()/kernelPackageRoot()/kernelRuntimeFile()/violation()/formatViolations()/normalizePath())
@@ -1074,6 +1074,7 @@ Coretsia/
 │   │   │   ├── composer_audit_gate.php
 │   │   │   ├── contracts_only_ports_gate.php
 │   │   │   ├── cross_cutting_contract_gate.php
+│   │   │   ├── doc_version_drift_gate.php
 │   │   │   ├── dto_gate.php
 │   │   │   ├── dto_marker_consistency_gate.php
 │   │   │   ├── dto_no_logic_gate.php
@@ -1317,6 +1318,63 @@ Coretsia/
 │   │       │   │   ├── audit_clean.json
 │   │       │   │   ├── audit_scan_failed.json
 │   │       │   │   └── audit_with_advisories.json
+│   │       │   ├── DocVersion/
+│   │       │   │   ├── AdrVersionDrift/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── InvalidIndexEntry/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── valid.md
+│   │       │   │   ├── MissingDocument/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           └── INDEX.md
+│   │       │   │   ├── MissingMetadataBlock/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── Pass/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-example.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           └── example.md
+│   │       │   │   ├── SortedDiagnostics/
+│   │       │   │   │   └── docs/
+│   │       │   │   │       ├── adr/
+│   │       │   │   │       │   ├── ADR-0001-a.md
+│   │       │   │   │       │   └── INDEX.md
+│   │       │   │   │       └── ssot/
+│   │       │   │   │           ├── INDEX.md
+│   │       │   │   │           ├── a.md
+│   │       │   │   │           └── b.md
+│   │       │   │   └── SsotVersionDrift/
+│   │       │   │       └── docs/
+│   │       │   │           ├── adr/
+│   │       │   │           │   ├── ADR-0001-example.md
+│   │       │   │           │   └── INDEX.md
+│   │       │   │           └── ssot/
+│   │       │   │               ├── INDEX.md
+│   │       │   │               └── example.md
 │   │       │   ├── Gitleaks/
 │   │       │   │   ├── gitleaks_clean.json
 │   │       │   │   ├── gitleaks_scan_failed.json
@@ -1486,7 +1544,8 @@ Coretsia/
 │   │       ├── Smoke/
 │   │       │   └── MonorepoSmokeTest.php (MonorepoSmokeTest - testHarnessBootsAndCanonicalEntryFilesExist()/frameworkRoot()/repoRoot())
 │   │       └── Unit/
-│   │           └── DeterministicFileAtomicWriteTest.php (DeterministicFileAtomicWriteTest - testWriteTextLfUsesAtomicTempAndCleansItUp()/testWriteBytesExactPreservesEmptyPayloadExactly()/makeTempDir())
+│   │           ├── DeterministicFileAtomicWriteTest.php (DeterministicFileAtomicWriteTest - testWriteTextLfUsesAtomicTempAndCleansItUp()/testWriteBytesExactPreservesEmptyPayloadExactly()/makeTempDir())
+│   │           └── DocVersionDriftGateTest.php (DocVersionDriftGateTest - testPassFixtureExitsZeroAndEmitsNoOutput()/testSsotIndexDocumentMismatchEmitsDocVersionDrift()/testAdrIndexDocumentMismatchEmitsDocVersionDrift()/testMissingFencedYamlMetadataBlockEmitsDeterministicDiagnostic()/testMissingLinkedDocumentEmitsDeterministicDiagnostic()/testInvalidIndexEntryEmitsDeterministicLineDiagnostic()/testDiagnosticsAreSortedByByteOrder()/testDiagnosticsContainRepoRelativePathsOnly()/testInvalidPathEmitsGateFailed()/runGate()/runGatePath()/procOptions()/fixtureRoot()/repoRoot())
 │   ├── var/
 │   │   ├── backups/
 │   │   │   ├── release-line/

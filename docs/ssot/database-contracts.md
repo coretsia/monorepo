@@ -14,6 +14,12 @@
 
 # Database Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia database contracts, SQL query value semantics, database result value semantics, driver and connection ports, SQL dialect boundaries, deterministic database policy, dependency restrictions, and database redaction rules.

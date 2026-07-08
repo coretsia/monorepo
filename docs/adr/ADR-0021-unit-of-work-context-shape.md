@@ -14,9 +14,11 @@
 
 # ADR-0021: UnitOfWork context shape
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

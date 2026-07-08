@@ -14,9 +14,11 @@
 
 # ADR-0003: Observability, ErrorDescriptor, health, and profiling ports
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

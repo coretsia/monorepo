@@ -414,6 +414,480 @@ Forbidden:
 
 ---
 
+### 2.27.0 Sensitive data redaction boundary (MUST) [CONTRACTS+IMPL+DOC]
+
+---
+type: package
+phase: 2
+epic_id: "2.27.0"
+owner_path: "framework/packages/platform/redaction/"
+
+package_id: "platform/redaction"
+composer: "coretsia/platform-redaction"
+kind: runtime
+module_id: "platform.redaction"
+
+goal: "Надати єдиний deterministic sensitive-data redaction boundary до появи platform/cli, щоб CLI output, Kernel ops diagnostics, future logs/errors/metrics/traces, and later runtime packages used one shared safe representation model instead of package-local redaction helpers."
+
+provides:
+- "Contracts-level redaction port for packages that need safe diagnostic/output representations."
+- "Default platform redactor implementation with deterministic placeholder/hash/length policies."
+- "Shared redaction vocabulary for secret refs, credentials, auth headers, cookies, session ids, tokens, raw payloads, raw SQL, PII-like values, env values, and local paths."
+- "Policy: redaction complements owner safe-shape design and MUST NOT permit raw sensitive data to flow through diagnostics before redaction."
+- "Required boundary for platform/cli output rendering and future migration target for platform/errors, platform/logging, platform/validation, platform/secrets, integrations/secrets-*, auth/session/database/mail packages, and AI guardrails."
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: "docs/adr/ADR-0010-sensitive-data-redaction-boundary.md"
+ssot_refs:
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/secrets-contracts.md"
+- "docs/ssot/config-and-env.md"
+---
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - 1.90.0 — observability + ErrorDescriptor contracts exist.
+  - 1.100.0 — errors and ErrorDescriptor safety policy exists.
+  - 1.180.0 — contracts secrets port exists.
+  - 1.200.0 — Foundation DI/container baseline exists.
+  - 1.205.0 — noop-safe observability baseline exists.
+  - 1.275.0 — Foundation json-like runtime value normalization primitive exists.
+  - 2.25.0 — Kernel ops façade for CLI exists and returns safe json-like result DTOs.
+
+- Required deliverables (exact paths):
+  - `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
+  - `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+  - `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+
+- Required config roots/keys:
+  - none
+
+- Required tags:
+  - none
+
+- Required contracts / ports:
+  - defines redaction contracts in `core/contracts`
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Contracts additions depend on:
+- none
+
+`platform/redaction` depends on:
+- `core/contracts`
+- `core/foundation`
+
+Forbidden:
+- `platform/http`
+- `platform/cli`
+- `platform/errors`
+- `platform/validation`
+- `platform/database`
+- `platform/mail`
+- `platform/secrets`
+- `integrations/*`
+- vendor HTTP/database/mail SDK concretes
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Log\LoggerInterface` only for package self-diagnostics if needed, with observability-isolated failure policy.
+- Contracts:
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - `Coretsia\Contracts\Security\RedactionContext`
+  - `Coretsia\Contracts\Security\RedactedValue`
+
+### Entry points / integration points (MUST)
+
+- Runtime:
+  - DI binds `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` to the default platform implementation.
+- Package owners:
+  - packages that emit logs/traces/metrics/CLI/errors/diagnostics MAY consume the redaction port.
+  - packages MUST still prefer safe-by-construction shapes over late redaction.
+- Artifacts:
+  - generated artifacts MUST NOT rely on redaction as permission to include raw runtime values.
+
+### Deliverables (MUST)
+
+#### Creates
+
+Contracts:
+- [ ] `framework/packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+- [ ] `framework/packages/core/contracts/src/Security/RedactionContext.php`
+- [ ] `framework/packages/core/contracts/src/Security/RedactionKind.php`
+- [ ] `framework/packages/core/contracts/src/Security/RedactionMode.php`
+- [ ] `framework/packages/core/contracts/src/Security/RedactedValue.php`
+
+Platform implementation:
+- [ ] `framework/packages/platform/redaction/composer.json`
+- [ ] `framework/packages/platform/redaction/src/Module/RedactionModule.php`
+- [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+- [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceFactory.php`
+- [ ] `framework/packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
+- [ ] `framework/packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
+- [ ] `framework/packages/platform/redaction/src/Redaction/SensitiveValueClassifier.php`
+- [ ] `framework/packages/platform/redaction/src/Redaction/StableRedactionHasher.php`
+- [ ] `framework/packages/platform/redaction/src/Exception/RedactionException.php`
+- [ ] `framework/packages/platform/redaction/README.md`
+
+Docs:
+- [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+- [ ] `docs/ssot/sensitive-data-redaction.md`
+
+Tests:
+- [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
+- [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+
+#### Modifies
+
+- [ ] `docs/ssot/INDEX.md` — register:
+  - [ ] `docs/ssot/sensitive-data-redaction.md`
+
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+
+- [ ] `docs/ssot/observability-and-errors.md`:
+  - [ ] add redaction mechanism policy.
+  - [ ] clarify safe-by-construction remains mandatory.
+  - [ ] forbid relying on late redaction to make unsafe diagnostic shapes acceptable.
+  - [ ] define that error descriptors, exception summaries, reporter payloads, and diagnostic extensions may contain only safe fields or redacted summaries.
+
+- [ ] `docs/ssot/observability.md`:
+  - [ ] logs/spans/metrics must use safe fields and may use redacted summaries only.
+  - [ ] metrics labels remain allowlist-only; redaction does not permit arbitrary labels.
+  - [ ] tracing span attributes MUST NOT contain raw payloads, headers, cookies, tokens, SQL, env values, provider payloads, or absolute paths.
+
+- [ ] `docs/ssot/secrets-contracts.md`:
+  - [ ] resolved secrets are never diagnostic-safe.
+  - [ ] raw secret refs are sensitive metadata unless owner policy explicitly permits hash/len only.
+  - [ ] consumers of `SecretsResolverInterface` MUST use `SensitiveDataRedactorInterface` for secret-ref diagnostics where summaries are unavoidable.
+
+- [ ] `docs/ssot/config-and-env.md`:
+  - [ ] raw env values MUST NOT be passed to diagnostics.
+  - [ ] config explain/source traces MAY expose source/provenance metadata, but MUST NOT expose raw values.
+  - [ ] redaction summaries may be used only where omission is not sufficient.
+
+- [ ] `docs/roadmap/PHASE-2—Mode-Infrastructure.md`:
+  - [ ] update `2.25.0 Kernel ops façade for CLI` to clarify that Kernel ops remain safe-by-construction and MUST NOT depend on `platform/redaction`.
+  - [ ] update `2.25.0 Kernel ops façade for CLI` to clarify that `OpsResult` MUST NOT require late redaction to become safe.
+  - [ ] update `2.30.0 Platform CLI` to consume `SensitiveDataRedactorInterface` for CLI output rendering.
+  - [ ] update `2.30.0 Platform CLI` to remove package-local `platform/cli/src/Redaction/RedactionEngine.php`.
+  - [ ] update `2.30.0 Platform CLI` to remove package-local `platform/cli/src/Redaction/RedactionPolicy.php`.
+  - [ ] update `2.30.0 Platform CLI` to forbid `platform/cli/src/Redaction/*` and `platform/cli/src/Output/Redaction/*`.
+  - [ ] update `2.30.0 Platform CLI` tests to assert CLI uses the shared redaction port rather than package-local redaction helpers.
+  - [ ] update `2.40.0 Platform CLI: Workflows + Advanced UX` to consume `SensitiveDataRedactorInterface` for interactive output, prompts, confirmations, previews, and diagnostics.
+  - [ ] update `2.60.0 Devtools CLI-spikes: migrate to tag-first cli.command` to follow `docs/ssot/sensitive-data-redaction.md` and avoid introducing a second runtime redaction model.
+  - [ ] update `2.70.0 CLI Performance Gate` to ensure performance diagnostics do not print raw argv, env values, absolute paths, payloads, or secrets.
+
+- [ ] `docs/roadmap/PHASE-3—RELEASE-micro.md`:
+  - [ ] update `3.10.0 Platform errors` to consume `SensitiveDataRedactorInterface` instead of owning baseline sensitive-key/value policy.
+  - [ ] update `3.20.0 Platform logging` to consume `SensitiveDataRedactorInterface` for log record redaction.
+  - [ ] update `3.30.0 Platform tracing baseline` to consume `SensitiveDataRedactorInterface` for span attribute summaries where redaction is needed.
+  - [ ] update `3.31.0 Platform metrics baseline` to clarify that redaction does not permit arbitrary metric labels; metrics remain allowlist-only.
+  - [ ] update `3.40.0 Platform problem-details` to consume `SensitiveDataRedactorInterface` for safe `detail`, `extensions`, and debug/local-only diagnostics.
+  - [ ] update `3.50.0 Platform HTTP runtime` to consume `SensitiveDataRedactorInterface` for request/response diagnostic summaries and to forbid raw headers, cookies, body, query payloads, and authorization values.
+  - [ ] update `3.120.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
+  - [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to consume `SensitiveDataRedactorInterface` for rendered diagnostics and local debug pages.
+  - [ ] update `3.200.0 HTTP Performance Benchmarking Harness` to ensure benchmark output does not include raw payloads, tokens, env values, or absolute local paths.
+
+- [ ] `docs/roadmap/PHASE-4—RELEASE-express.md`:
+  - [ ] update `4.10.0 platform/validation` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.10.1 Extended format rules pack` to avoid leaking raw validated values in violation params/messages.
+  - [ ] update `4.10.2 Date/time rules pack` to avoid leaking raw validated values in violation params/messages.
+  - [ ] update `4.10.3 Message/i18n layer` to ensure messages receive only safe params or redacted summaries.
+  - [ ] update `4.10.4 DTO validation adapter` to avoid leaking raw DTO property values.
+  - [ ] update `4.10.5 File validation pack` to redact filenames/paths and never expose raw uploaded file metadata beyond safe summaries.
+  - [ ] update `4.10.6 Database validation pack` to avoid leaking raw database values, SQL, bindings, or existence-check payloads.
+  - [ ] update `4.10.7 Convenience facade/helpers` to consume the shared redaction boundary instead of introducing helper-local redaction.
+  - [ ] update `4.20.0 coretsia/http-client` to consume `SensitiveDataRedactorInterface` for outbound request/response diagnostics, headers, URLs, tokens, and provider payloads.
+  - [ ] update `4.30.0 Platform filesystem + Local driver` to consume `SensitiveDataRedactorInterface` for path diagnostics and to avoid leaking absolute local paths.
+  - [ ] update `4.50.0 platform/uploads` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.60.0 platform/database` to consume `SensitiveDataRedactorInterface` for SQL, bindings, DSNs, credentials, and query diagnostics.
+  - [ ] update `4.70.0 platform/database-driver-sqlite` to follow the shared database redaction policy.
+  - [ ] update `4.71.0 platform/database-driver-mysql` to follow the shared database redaction policy.
+  - [ ] update `4.72.0 platform/database-driver-mariadb` to follow the shared database redaction policy.
+  - [ ] update `4.73.0 platform/database-driver-pgsql` to follow the shared database redaction policy.
+  - [ ] update `4.74.0 platform/database-driver-sqlserver` to follow the shared database redaction policy.
+  - [ ] update `4.90.0 Migrations` to consume `SensitiveDataRedactorInterface` for SQL/schema diagnostics and migration failure summaries.
+  - [ ] update `4.100.0 platform/mail` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.101.0 integrations/mail-smtp` to consume `SensitiveDataRedactorInterface` for SMTP credentials, host/auth diagnostics, recipients, subject, and body summaries.
+  - [ ] update `4.110.0 coretsia/view` to avoid leaking raw template context values in rendering diagnostics.
+  - [ ] update `4.130.0 Contracts: Auth/Session/Security/Lock` to reference the shared redaction boundary for future runtime diagnostics.
+  - [ ] update `4.140.0 platform/session` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.150.0 platform/auth` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.160.0 platform/auth Token/Bearer + optional JWT guard` to consume `SensitiveDataRedactorInterface` for bearer tokens, JWTs, claims, and auth failure diagnostics.
+  - [ ] update `4.170.0 platform/security` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+  - [ ] update `4.180.0 coretsia/encryption` to consume `SensitiveDataRedactorInterface` for key refs, key ids, ciphertext/plaintext diagnostics, and failure summaries.
+  - [ ] update `4.190.0 platform/http Rate limiting` to consume `SensitiveDataRedactorInterface` for identity-aware diagnostics.
+  - [ ] update `4.220.0 coretsia/cache` to consume `SensitiveDataRedactorInterface` for cache keys, values, backend diagnostics, and provider payloads where needed.
+
+- [ ] `docs/roadmap/PHASE-5—RELEASE-hybrid.md`:
+  - [ ] update `5.10.0 platform/secrets` to consume shared redaction boundary and remove package-local `src/Security/Redaction.php`.
+  - [ ] update `5.30.0 Contracts: Events` to reference the shared redaction boundary for event payload diagnostics.
+  - [ ] update `5.40.0 coretsia/events` to consume `SensitiveDataRedactorInterface` for event payload summaries and dispatcher diagnostics.
+  - [ ] update `5.50.0 Deferred events semantics` to define safe payload diagnostics for deferred/flushed events.
+  - [ ] update `5.60.0 coretsia/queue` to consume `SensitiveDataRedactorInterface` for job payloads, retry diagnostics, dead-letter summaries, and worker logs.
+  - [ ] update `5.70.0 coretsia/queue DB driver` to consume `SensitiveDataRedactorInterface` for persisted job diagnostics and DB-backed queue failures.
+  - [ ] update `5.80.0 coretsia/queue CLI commands` to consume the shared redaction boundary for queue:* command output.
+  - [ ] update `5.90.0 Contracts: CommandBus + Scheduler` to reference the shared redaction boundary for command/schedule diagnostics.
+  - [ ] update `5.100.0 coretsia/cqrs` to consume `SensitiveDataRedactorInterface` for command/query payload summaries.
+  - [ ] update `5.110.0 coretsia/scheduler` to consume `SensitiveDataRedactorInterface` for schedule payloads, command args, and run diagnostics.
+
+- [ ] `docs/roadmap/PHASE-6—RELEASE-enterprise.md`:
+  - [ ] update `6.10.0 platform/health` to consume `SensitiveDataRedactorInterface` for health-check failure summaries where checks may include backend/provider data.
+  - [ ] update `6.20.0 platform/metrics` to clarify that redaction does not permit arbitrary metric labels or metric dumps.
+  - [ ] update `6.30.0 platform/tracing` to consume `SensitiveDataRedactorInterface` for span/event attribute summaries.
+  - [ ] update `6.40.0 coretsia/observability` to aggregate observability with the shared redaction boundary and not define a second redaction model.
+  - [ ] update `6.50.0 coretsia/profiling` to avoid leaking raw stack args, payloads, paths, env values, or secrets in profiler samples.
+  - [ ] update `6.80.0 coretsia/features` to consume `SensitiveDataRedactorInterface` for experiment/analytics diagnostics.
+  - [ ] update `6.90.0 coretsia/outbox` to consume `SensitiveDataRedactorInterface` for outgoing event/message payload summaries.
+  - [ ] update `6.100.0 coretsia/inbox` to consume `SensitiveDataRedactorInterface` for idempotency payloads and inbound message diagnostics.
+  - [ ] update `6.130.0 devtools/api-docs` to avoid exposing secrets/PII in generated examples or debug docs.
+  - [ ] update `6.140.0 devtools/dev-tools` to consume `SensitiveDataRedactorInterface` for debugbar/dev diagnostics.
+  - [ ] update `6.150.0 devtools/admin-panel` to consume `SensitiveDataRedactorInterface` for admin diagnostics and previews.
+  - [ ] update `6.170.0 coretsia/streaming` to consume `SensitiveDataRedactorInterface` for SSE/NDJSON diagnostics.
+  - [ ] update `6.230.0 coretsia/etl` to consume `SensitiveDataRedactorInterface` for pipeline row/payload diagnostics.
+  - [ ] update `6.290.0 Database advanced: ORM + Transactions` to consume `SensitiveDataRedactorInterface` for model attributes, transactions, SQL, and binding diagnostics.
+  - [ ] update `6.310.0 Enterprise SSO: OIDC` to consume `SensitiveDataRedactorInterface` for tokens, claims, provider payloads, and auth diagnostics.
+  - [ ] update `6.320.0 Enterprise SSO: SAML` to consume `SensitiveDataRedactorInterface` for assertions, claims, certificates, provider payloads, and auth diagnostics.
+  - [ ] update `6.330.0 Enterprise: SCIM` to consume `SensitiveDataRedactorInterface` for user/group provisioning payloads.
+  - [ ] update `6.340.0 Enterprise Tenancy` to consume `SensitiveDataRedactorInterface` for tenant/user/account diagnostics.
+  - [ ] update `6.350.0 Enterprise Audit` to define how audit records use redacted summaries without destroying audit usefulness.
+  - [ ] update `6.360.0 Enterprise Compliance` to reference the shared redaction boundary for compliance-safe diagnostics.
+  - [ ] update `6.370.0 integrations/secrets-vault` to consume `SensitiveDataRedactorInterface` for secret refs, Vault tokens, addresses, provider payloads, and backend errors.
+  - [ ] update `6.371.0 integrations/secrets-aws` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, AWS payloads, and backend errors.
+  - [ ] update `6.372.0 integrations/secrets-gcp` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, GCP payloads, and backend errors.
+  - [ ] update `6.380.0 Webhooks` to consume `SensitiveDataRedactorInterface` for payloads, HMAC secrets, signatures, headers, retry diagnostics, and provider responses.
+  - [ ] update `6.390.0 Search` and `6.391.0`–`6.393.0` search integrations to consume `SensitiveDataRedactorInterface` for query payloads, indexed documents, provider payloads, and backend errors.
+  - [ ] update `6.400.0 API versioning` to consume `SensitiveDataRedactorInterface` for header/request diagnostics.
+  - [ ] update `6.410.0 Rate limit advanced` to consume `SensitiveDataRedactorInterface` for identity keys, Redis keys, and tier diagnostics.
+  - [ ] update `6.420.0 Uploads virus scanning hook` to consume `SensitiveDataRedactorInterface` for file names, paths, verdict payloads, scanner responses, and quarantine diagnostics.
+  - [ ] update `6.430.0 Policy engine` to consume `SensitiveDataRedactorInterface` for policy input/output diagnostics.
+  - [ ] update `6.470.0 Contracts: AI` to reference the shared redaction boundary for prompts, tool inputs, tool outputs, embeddings metadata, and provider payloads.
+  - [ ] update `6.471.0 coretsia/ai` to consume `SensitiveDataRedactorInterface` for prompts, completions, tools, embeddings, and provider diagnostics.
+  - [ ] update `6.472.0 Contracts: AI guardrails` to extend or consume the shared redaction boundary instead of defining an incompatible local PII redaction model.
+  - [ ] update `6.473.0 coretsia/ai-guardrails` to consume `SensitiveDataRedactorInterface` and define AI-specific PII hooks as extensions, not replacements.
+  - [ ] update `6.474.0 Contracts: AI vectorstore` and `6.475.0 coretsia/ai-vectorstore` to consume `SensitiveDataRedactorInterface` for document chunks, metadata, embeddings diagnostics, and provider payloads.
+
+#### Package skeleton (if type=package)
+
+- [ ] `framework/packages/platform/redaction/composer.json`
+- [ ] `framework/packages/platform/redaction/src/Module/RedactionModule.php`
+- [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+- [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceFactory.php`
+- [ ] `framework/packages/platform/redaction/README.md`
+- [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+#### Configuration (keys + defaults)
+
+N/A.
+
+Redaction baseline MUST NOT introduce a disable toggle in this epic.
+
+The following keys are explicitly out of scope and MUST NOT be introduced:
+
+```text
+redaction.enabled
+redaction.mode
+redaction.disable
+security.redaction.enabled
+foundation.redaction.enabled
+```
+
+Future custom policy packs MAY be considered only after platform HTTP, database, mail, auth/session, secrets, and AI guardrails surfaces exist.
+
+#### Wiring / DI tags (when applicable)
+
+- Tags introduced:
+  - N/A
+- ServiceProvider wiring evidence:
+  - [ ] registers: `Coretsia\Redaction\Redaction\DefaultSensitiveDataRedactor`
+  - [ ] binds: `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` → `Coretsia\Redaction\Redaction\DefaultSensitiveDataRedactor`
+  - [ ] registers: `Coretsia\Redaction\Redaction\SensitiveKeyClassifier`
+  - [ ] registers: `Coretsia\Redaction\Redaction\SensitiveValueClassifier`
+  - [ ] registers: `Coretsia\Redaction\Redaction\StableRedactionHasher`
+
+#### Artifacts / outputs (if applicable)
+
+N/A.
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- Context reads:
+  - N/A
+- Context writes:
+  - N/A
+- Reset discipline:
+  - Redactor implementation MUST be stateless.
+  - If future classifier packs become stateful, they MUST implement `ResetInterface` and use `kernel.reset`.
+
+#### Observability (policy-compliant)
+
+- Spans:
+  - N/A by default
+- Metrics:
+  - N/A by default
+- Logs:
+  - Redaction service MUST NOT log raw values.
+  - Redaction failures MUST NOT expose rejected raw values.
+  - Redaction failures MUST return deterministic safe fallback where possible.
+
+#### Errors
+
+- Exceptions introduced:
+  - `Coretsia\Redaction\Exception\RedactionException`
+- Error code:
+  - `CORETSIA_REDACTION_FAILED`
+- Exception messages MUST NOT contain:
+  - raw values
+  - raw secret refs
+  - raw env values
+  - raw SQL
+  - raw payloads
+  - credentials
+  - tokens
+  - cookies
+  - authorization headers
+  - session ids
+  - absolute local paths
+  - object dumps
+  - stack traces
+
+#### Security / Redaction
+
+- MUST NOT leak:
+  - secrets
+  - resolved secret values
+  - raw secret refs by default
+  - env values
+  - credentials
+  - tokens
+  - cookies
+  - authorization headers
+  - session ids
+  - raw request payloads
+  - raw response payloads
+  - raw SQL
+  - SQL bindings
+  - mail body/subject/recipients by default
+  - local absolute paths
+  - provider payloads
+  - PII-like values
+- Default output policy:
+  - placeholder-only is the default for unknown sensitive values
+  - hash/len is allowed only when owner policy explicitly requests deterministic correlation
+  - hash/len MUST NOT be treated as proof that output is non-sensitive
+  - redacted output MUST be deterministic for the same input and context
+
+- Allowed safe summaries:
+  - `kind`
+  - `redacted=true`
+  - `len(value)`
+  - `hash(value)` only where owner policy permits
+  - stable reason token
+  - safe field path
+  - safe rule id
+  - safe operation id
+  - safe outcome token
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [ ] Interface shape:
+  - [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
+- [ ] Redacted value shape:
+  - [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
+- [ ] No raw leakage:
+  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
+- [ ] Deterministic output:
+  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
+- [ ] Classifier coverage:
+  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+- [ ] DI wiring:
+  - [ ] `framework/packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+
+#### Test harness / fixtures (when integration is needed)
+
+- Fake values:
+  - `secret-value`
+  - `env-secret-value`
+  - `Authorization: Bearer token`
+  - `Cookie: session=...`
+  - `tok_live_example`
+  - `AKIA...`
+  - `john@example.test`
+  - `+123456789`
+  - `SELECT * FROM users WHERE email = ?`
+  - `/home/user/project/.env`
+
+All tests MUST assert that raw fixture values do not appear in returned redacted output, exception messages, logs, traces, metrics, or diagnostics.
+
+### Tests (MUST)
+
+- Contract:
+  - [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
+  - [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
+- Unit:
+  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
+- Integration:
+  - [ ] `framework/packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+- Gates/Arch:
+  - [ ] deptrac updated if new package edge is required
+  - [ ] package compliance gate updated for the new package
+  - [ ] package publish safety allowlist updated only when split publishing is intended
+
+### DoD (MUST)
+
+- [ ] Contracts exist and are tested.
+- [ ] Runtime default redactor exists and is wired.
+- [ ] No config/env disable toggle exists.
+- [ ] Redaction output is deterministic.
+- [ ] Redaction output never contains raw sensitive fixture values.
+- [ ] `platform/errors` no longer owns a duplicate baseline sensitive-key/value policy.
+- [ ] `platform/validation` can consume the redaction port instead of implementing local redaction logic.
+- [ ] Future packages (`platform/database`, `platform/mail`, `platform/uploads`, `platform/session`, `platform/auth`, `platform/security`, `platform/secrets`, `integrations/secrets-*`) have a single redaction boundary to depend on.
+- [ ] Docs updated:
+  - [ ] `docs/ssot/sensitive-data-redaction.md`
+  - [ ] `docs/ssot/observability-and-errors.md`
+  - [ ] `docs/ssot/observability.md`
+  - [ ] `docs/ssot/secrets-contracts.md`
+  - [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+- [ ] Non-goals / out of scope:
+  - [ ] resolving secrets
+  - [ ] Vault/AWS/GCP integrations
+  - [ ] AI guardrails PII rewriting
+  - [ ] HTTP request-body inspection
+  - [ ] database query parsing
+  - [ ] mail body rewriting
+  - [ ] allowing redaction to replace safe-by-construction diagnostic shape design
+- [ ] When a package needs to represent sensitive data in diagnostics, it can use `SensitiveDataRedactorInterface` and receive deterministic safe output without leaking the raw value.
+
+---
+
 ### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops façade (MUST) [IMPL]
 
 ---
@@ -465,6 +939,7 @@ ssot_refs:
 - Epic prerequisites:
   - 2.25.0 — Kernel ops façade exists **as a contracts port implementation**:
     - `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` is bound in container to kernel implementation
+  - 2.27.0 — Sensitive data redaction boundary exists.
 
 - Required deliverables (exact paths):
   - `docs/ssot/tags.md` contains reserved tag `cli.command` (owner `platform/cli`)
@@ -669,8 +1144,9 @@ Output:
 Output (deterministic + redacted):
 - [ ] `framework/packages/platform/cli/src/Output/OutputFormatter.php`
   - [ ] SHOULD be stateless transformer; if implemented as multi-step accumulator/buffer (`begin/add/flush`) → MUST be `kernel.stateful + kernel.reset`.
-  - [ ] MUST consume canonical redaction services from top-level `framework/packages/platform/cli/src/Redaction/RedactionEngine.php` and `framework/packages/platform/cli/src/Redaction/RedactionPolicy.php`.
+  - [ ] MUST consume `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` for sensitive output summaries.
   - [ ] `framework/packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
+  - [ ] `framework/packages/platform/cli/src/Redaction/*` MUST NOT exist in this package.
 
 - [ ] `framework/packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
   - [ ] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
@@ -770,20 +1246,9 @@ Runner + diagnostics:
   - [ ] Stable, secret-free diagnostics payload generator (no absolute paths, no stack traces by default).
 
 Redaction:
-- [ ] `framework/packages/platform/cli/src/Redaction/RedactionEngine.php`
-  - [ ] Stateless service:
-    - [ ] `redact(mixed $value, array $patterns): mixed`
-    - [ ] MUST NOT keep caches/state between calls
-  - [ ] Policy (MUST):
-    - [ ] strings: apply patterns, replace matches with `"<redacted>"` (or token), preserve determinism
-    - [ ] arrays: recurse; maps keep key order as input; lists preserve order
-    - [ ] objects/resources: forbidden → throw `RedactionViolationException`
-    - [ ] floats: forbidden → throw `RedactionViolationException`
-
-- [ ] `framework/packages/platform/cli/src/Redaction/RedactionPolicy.php`
-  - [ ] Pure helpers for:
-    - [ ] “json-like” checks (no floats, no objects/resources)
-    - [ ] safe diagnostics shaping (hash/len only; no raw secrets)
+- [ ] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
+- [ ] CLI MUST NOT define package-local redaction engine/policy classes.
+- [ ] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
 
 Built-in commands:
 - [ ] `framework/packages/platform/cli/src/Command/ListCommand.php`

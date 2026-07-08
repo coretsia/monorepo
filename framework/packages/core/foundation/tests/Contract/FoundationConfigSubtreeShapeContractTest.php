@@ -22,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 final class FoundationConfigSubtreeShapeContractTest extends TestCase
 {
+    private const string RULES_PATH = __DIR__ . '/../../config/rules.php';
     public function testFoundationDefaultsReturnSubtreeOnlyWithoutRepeatedRoot(): void
     {
         $config = self::foundationConfig();
@@ -46,15 +47,48 @@ final class FoundationConfigSubtreeShapeContractTest extends TestCase
     {
         $config = self::foundationConfig();
 
-        self::assertFalse(
-            self::hasDotPath($config, 'tags.enabled'),
-            'Foundation config subtree must not define forbidden config key: tags.enabled',
-        );
+        foreach (
+            [
+                'tags.enabled',
+                'reset.enabled',
+                'context.enabled',
+                'context.validation.enabled',
+                'context.safe_write.enabled',
+                'context.safe_write_validation.enabled',
+                'correlation.enabled',
+            ] as $forbiddenKey
+        ) {
+            self::assertFalse(
+                self::hasDotPath($config, $forbiddenKey),
+                'Foundation config subtree must not define forbidden config key: ' . $forbiddenKey,
+            );
+        }
+    }
 
-        self::assertFalse(
-            self::hasDotPath($config, 'reset.enabled'),
-            'Foundation config subtree must not define forbidden config key: reset.enabled',
-        );
+    public function testFoundationRulesDoNotDeclareContextOrCorrelationFeatureFlags(): void
+    {
+        $rules = self::foundationRules();
+        $keys = $rules['keys'] ?? null;
+
+        self::assertIsArray($keys);
+
+        foreach (
+            [
+                'context',
+                'correlation',
+                'json_like',
+                'serialization',
+                'request_id',
+                'time',
+                'duration',
+            ] as $forbiddenRoot
+        ) {
+            self::assertArrayNotHasKey(
+                $forbiddenRoot,
+                $keys,
+                'Foundation config rules must not declare forbidden root key: foundation.' . $forbiddenRoot,
+            );
+        }
     }
 
     /**
@@ -69,6 +103,20 @@ final class FoundationConfigSubtreeShapeContractTest extends TestCase
         }
 
         return $config;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private static function foundationRules(): array
+    {
+        $rules = require self::RULES_PATH;
+
+        if (!\is_array($rules)) {
+            self::fail('config/rules.php must return an array.');
+        }
+
+        return $rules;
     }
 
     private static function foundationConfigPath(): string

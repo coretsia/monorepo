@@ -14,9 +14,11 @@
 
 # ADR-0022: UnitOfWork result and outcome policy
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

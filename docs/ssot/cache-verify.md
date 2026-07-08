@@ -14,6 +14,12 @@
 
 # Cache Verification Semantics (SSoT)
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/kernel
+```
+
 This document is the canonical SSoT for Kernel-owned artifact cache verification semantics.
 
 It defines how existing Kernel artifact files are classified as clean, dirty, invalid, or failure during verification.

@@ -14,6 +14,12 @@
 
 # Modules and manifests SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, and deterministic module descriptor ordering.

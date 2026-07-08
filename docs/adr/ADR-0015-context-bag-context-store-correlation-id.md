@@ -14,9 +14,11 @@
 
 # ADR-0015: ContextBag, ContextStore, and CorrelationId
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/foundation
+```
 
 ## Runtime diagnostics hardening follow-up note
 
@@ -268,9 +270,15 @@ Snapshot immutability is achieved by accepting only object-free json-like contex
 
 `ContextStore` and `ContextBag` MUST NOT maintain separate recursive copy implementations. Context value copying MUST be centralized in a Foundation-owned context implementation helper.
 
-## Decision 4: ContextStorePolicy is the always-on safe-write guard
+## Decision 4: ContextStorePolicy is the fail-closed always-on safe-write guard
 
 `Coretsia\Foundation\Context\ContextStorePolicy` validates all writes.
+
+The policy is baseline safety infrastructure, not a debug, performance, emergency, or environment toggle.
+
+A validation failure rejects the attempted write and MUST NOT degrade into unsafe context storage.
+
+Optional writers MAY gracefully degrade only by omitting optional context writes.
 
 It MUST validate:
 
@@ -280,7 +288,7 @@ It MUST validate:
 - nested arrays;
 - deterministic safe failure messages.
 
-The policy MUST NOT be feature-disabled through config.
+The policy MUST NOT be feature-disabled through config or environment-derived runtime flags.
 
 No `foundation.context.*` config keys are introduced.
 
@@ -599,9 +607,24 @@ Rejected.
 
 ContextStore, ContextStorePolicy, correlation id generation, and correlation id provider wiring are baseline runtime infrastructure.
 
-They MUST NOT be feature-disabled through config.
+They MUST NOT be feature-disabled through config or environment-derived runtime flags.
+
+The following toggles are explicitly forbidden:
+
+```text
+foundation.context.enabled
+foundation.context.validation.enabled
+foundation.context.safe_write.enabled
+foundation.context.safe_write_validation.enabled
+foundation.correlation.enabled
+FOUNDATION_CONTEXT_ENABLED
+FOUNDATION_CONTEXT_VALIDATION_ENABLED
+FOUNDATION_CONTEXT_VALIDATION_DISABLED
+```
 
 Absence of optional writers/readers is represented by no writes/no reads.
+
+Graceful degradation is represented by omitting optional context writes, not by accepting unsafe context values.
 
 ## Security and redaction
 

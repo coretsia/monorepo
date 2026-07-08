@@ -14,6 +14,12 @@
 
 # HTTP Middleware Catalog SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: platform/http
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia HTTP middleware slot taxonomy, baseline HTTP middleware catalog placement, cross-cutting runtime invariants, noop-safe observability expectations, context and unit-of-work policy, redaction rules, and ownership boundaries introduced by epic `1.190.0`.

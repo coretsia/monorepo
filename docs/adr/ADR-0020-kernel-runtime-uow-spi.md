@@ -14,9 +14,11 @@
 
 # ADR-0020: Kernel runtime UnitOfWork SPI
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/kernel
+```
 
 ## Context
 

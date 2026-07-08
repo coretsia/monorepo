@@ -14,6 +14,12 @@
 
 # Context Keys SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/foundation
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia runtime context key names, meanings, writer categories, lifecycle notes, and safe-value policy.

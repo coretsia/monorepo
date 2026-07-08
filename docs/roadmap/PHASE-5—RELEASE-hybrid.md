@@ -31,7 +31,7 @@ goal: "Будь-який пакет може викликати SecretsResolverI
 provides:
 - "Reference SecretsResolver drivers: null (noop) + env (env-map)"
 - "Deterministic secret_ref parsing (env:KEY) без експозиції значень"
-- "Security-redaction helpers (hash/len) + базова noop-safe observability"
+- "Uses the shared sensitive-data redaction boundary for secret-ref hash/len summaries and noop-safe observability"
 
 tags_introduced: []
 config_roots_introduced: ["secrets"]
@@ -51,6 +51,8 @@ ssot_refs:
 - Epic prerequisites:
   - (pre-existing) `core/contracts` — contains `Coretsia\Contracts\Secrets\SecretsResolverInterface` and observability ports used here.
   - (pre-existing) `core/foundation` — stable context APIs (optional usage) + container/wiring base.
+  - 2.27.0 — Sensitive data redaction boundary exists.
+  - `framework/packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
 
 - Required deliverables (exact paths):
   - `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
@@ -70,6 +72,7 @@ ssot_refs:
   - `Psr\Log\LoggerInterface` — logging (policy-compliant redaction).
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — tracing.
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics.
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` — safe secret-ref diagnostics and hash/len summaries.
 
 - Rails reused (NO DEAD WEIGHT) (MUST):
   - Never print ref raw; only `hash(ref)` / `len(ref)`.
@@ -116,7 +119,6 @@ N/A
 - [ ] `framework/packages/platform/secrets/src/Secrets/EnvSecretsResolver.php` — env-map resolver (never logs values).
 - [ ] `framework/packages/platform/secrets/src/Secrets/SecretRefParser.php` — deterministic parsing (`env:KEY`).
 - [ ] `framework/packages/platform/secrets/src/Exception/SecretsResolutionException.php` — deterministic errors.
-- [ ] `framework/packages/platform/secrets/src/Security/Redaction.php` — `hash(string): string`, `len(string): int`.
 
 #### Modifies
 

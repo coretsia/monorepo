@@ -31,9 +31,11 @@ declare(strict_types=1);
  * - tag discovery is always available when `core/foundation` is enabled;
  * - reset orchestration is always available when `core/foundation` is enabled;
  * - Foundation clock/id/stopwatch services are baseline runtime infrastructure;
+ * - ContextStorePolicy safe-write validation is baseline safety infrastructure;
  * - empty discovery lists are represented by empty-list semantics;
  * - no feature flag may disable tags or reset orchestration;
  * - no feature flag may disable Stopwatch;
+ * - no feature flag may disable ContextStorePolicy safe-write validation;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -129,8 +131,7 @@ return [
          * Default enhanced reset group.
          *
          * This value is used when enhanced reset planning is enabled and a
-         * reset tag entry does not provide a group, or provides an ASCII-empty
-         * group after normalization.
+         * reset tag entry does not provide a group.
          *
          * The value must match the same reset group id rules as tag meta group.
          */

@@ -14,6 +14,12 @@
 
 # Migrations Contracts SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for Coretsia migration contracts, migration boundary policy, migration determinism expectations, migration tooling redaction rules, and runtime ownership boundaries for future migration implementations.

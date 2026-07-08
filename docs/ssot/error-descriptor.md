@@ -14,6 +14,12 @@
 
 # ErrorDescriptor SSoT
 
+```yaml
+ssotVersion: 1
+status: pre-stable
+owner: core/contracts
+```
+
 ## Scope
 
 This document is the Single Source of Truth for the human-readable `ErrorDescriptor` field reference, field meanings, field rules, mapping hints, extension payload constraints, safe examples, and DTO boundary.

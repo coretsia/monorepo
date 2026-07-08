@@ -572,7 +572,13 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
-`ConfigKernel` and `ModulePlanResolver` stopwatch failures MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
+`ConfigKernel` and `ModulePlanResolver` stopwatch failures are observability-isolated duration measurement failures.
+
+They MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
+
+ConfigKernel and ModulePlanResolver primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
+
+When duration cannot be measured, the duration value MAY collapse to `0` or the timing signal MAY be omitted according to owner policy.
 
 `KernelRuntime` stopwatch failures MUST NOT change `UnitOfWork` lifecycle behavior, hook invocation policy, reset policy, or lifecycle failure precedence.
 

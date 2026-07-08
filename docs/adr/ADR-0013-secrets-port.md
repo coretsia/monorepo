@@ -14,9 +14,11 @@
 
 # ADR-0013: Secrets port
 
-## Status
-
-Accepted.
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: core/contracts
+```
 
 ## Context
 

@@ -20,66 +20,57 @@ namespace Coretsia\Kernel\Tests\Unit;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-final class RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest extends TestCase
+final class RuntimeDriverGuardIgnoresOwnerScopedRuntimeInputsTest extends TestCase
 {
-    public function testDetectsClassicHttpWhenNoAdaptersAreConfigured(): void
+    public function testDetectIgnoresWorkerTaskTypeInConfigOnlyDetection(): void
     {
-        $cfg = self::config([
-            'kernel.runtime.http_driver' => 'http.classic',
+        $cfg = new ArrayConfigRepository([
+            'kernel' => [
+                'runtime' => [
+                    'http_driver' => 'http.classic',
+                ],
+            ],
+            'worker' => [
+                'task_type' => 'queue',
+            ],
         ]);
 
         $drivers = new RuntimeDriverGuard()->detect($cfg);
 
         self::assertSame(HttpDriver::CLASSIC, $drivers->httpDriver());
-        self::assertSame('http.classic', $drivers->httpDriverId());
-
         self::assertSame([], $drivers->backgroundDrivers());
-        self::assertSame([], $drivers->backgroundDriverIds());
         self::assertSame(['http.classic'], $drivers->driverIds());
     }
 
-    public function testAssertCompatibleAllowsClassicHttpWhenNoNonClassicHttpDriversAreEnabled(): void
+    public function testDetectDoesNotReadWorkerTaskType(): void
     {
-        $cfg = self::config([
-            'kernel.runtime.http_driver' => 'http.classic',
-        ]);
-
-        new RuntimeDriverGuard()->assertCompatible($cfg);
-
-        self::assertTrue(true);
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     */
-    private static function config(array $values): ConfigRepositoryInterface
-    {
-        return new class($values) implements ConfigRepositoryInterface {
-            /**
-             * @param array<string,mixed> $values
-             */
-            public function __construct(
-                private readonly array $values,
-            ) {
-            }
-
+        $cfg = new class() implements ConfigRepositoryInterface {
             public function has(string $keyPath): bool
             {
-                return \array_key_exists($keyPath, $this->values);
+                if ($keyPath === 'worker.task_type') {
+                    throw new RuntimeException('worker-task-type-must-not-be-read');
+                }
+
+                return $keyPath === 'kernel.runtime.http_driver';
             }
 
             public function get(string $keyPath, mixed $default = null): mixed
             {
-                if (!\array_key_exists($keyPath, $this->values)) {
-                    return $default;
+                if ($keyPath === 'worker.task_type') {
+                    throw new RuntimeException('worker-task-type-must-not-be-read');
                 }
 
-                return $this->values[$keyPath];
+                if ($keyPath === 'kernel.runtime.http_driver') {
+                    return 'http.classic';
+                }
+
+                return $default;
             }
 
             /**
@@ -87,12 +78,12 @@ final class RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest extends Te
              */
             public function all(): array
             {
-                throw new RuntimeException('runtime-driver-guard-test-config-all-forbidden');
+                throw new RuntimeException('all-forbidden');
             }
 
             public function sourceOf(string $keyPath): ?ConfigValueSource
             {
-                throw new RuntimeException('runtime-driver-guard-test-config-source-of-forbidden');
+                throw new RuntimeException('source-of-forbidden');
             }
 
             /**
@@ -100,8 +91,12 @@ final class RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest extends Te
              */
             public function explain(): array
             {
-                throw new RuntimeException('runtime-driver-guard-test-config-explain-forbidden');
+                throw new RuntimeException('explain-forbidden');
             }
         };
+
+        $drivers = new RuntimeDriverGuard()->detect($cfg);
+
+        self::assertSame(['http.classic'], $drivers->driverIds());
     }
 }

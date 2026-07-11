@@ -23,6 +23,7 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
+use Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
@@ -96,7 +97,7 @@ final readonly class HttpTaskFactory implements TaskFactoryInternalInterface
     {
         $operationId = $this->operationId($spec);
 
-        $this->assertRuntimeEntrypointCompatibilityHasPassed();
+        $this->assertRuntimeEntrypointCompatibilityHasPassed($spec);
         $this->assertRequestHandlerResolvable();
 
         return [
@@ -107,11 +108,12 @@ final readonly class HttpTaskFactory implements TaskFactoryInternalInterface
         ];
     }
 
-    private function assertRuntimeEntrypointCompatibilityHasPassed(): void
+    private function assertRuntimeEntrypointCompatibilityHasPassed(WorkerPoolSpec $spec): void
     {
         $this->runtimeEntrypointGuard->assertEntrypointAllowed(
             config: $this->config,
             modulePlan: $this->modulePlan,
+            runtimeDriverContributions: WorkerRuntimeDriverContributions::fromSpec($spec),
         );
     }
 

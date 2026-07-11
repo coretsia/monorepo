@@ -117,7 +117,6 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
         self::assertSame(
             [
                 'kernel.runtime.http_driver',
-                'worker.task_type',
             ],
             $config->guardReadKeys(),
             'RuntimeEntrypointGuard must run before RequestHandlerInterface resolution.',
@@ -157,7 +156,7 @@ final class WorkerHttpTaskRequiresRequestHandlerTest extends TestCase
     {
         $source = self::methodSource(HttpTaskFactory::class, 'create');
 
-        $guardOffset = \strpos($source, '$this->assertRuntimeEntrypointCompatibilityHasPassed();');
+        $guardOffset = \strpos($source, '$this->assertRuntimeEntrypointCompatibilityHasPassed($spec);');
         $handlerOffset = \strpos($source, '$this->assertRequestHandlerResolvable();');
 
         self::assertIsInt($guardOffset);

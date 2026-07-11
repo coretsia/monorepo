@@ -50,41 +50,52 @@ background drivers may run alongside compatible HTTP drivers
 conflicts fail deterministically before runtime entrypoint execution
 ```
 
-Runtime driver activation is config-driven.
+Runtime-driver composition has two explicit selection sources:
 
-The canonical matrix input keys are:
+1. the Kernel-owned HTTP selector from the Phase-B config snapshot;
+2. already-selected runtime-driver contributions supplied explicitly by owner packages.
+
+The Kernel-owned runtime-driver input is:
 
 ```text
 kernel.runtime.http_driver
-worker.task_type
 ```
 
-`worker.task_type` is a Worker-owned runtime-driver input used by the Kernel-owned runtime-driver matrix only when `platform.worker` is enabled in the resolved `ModulePlan`.
+Owner-selected drivers cross the package boundary through:
 
-It is not a `core/kernel` config root ownership claim.
+```text
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
+```
 
-It also does not decide whether the `platform.worker` package participates in runtime composition.
+`RuntimeDriverContributions` contains already-selected canonical drivers. It does not read config, inspect `ModulePlan`, discover packages, or know which package produced a contribution.
+
+`worker.task_type` is owned by `platform/worker`.
+
+The Worker package normalizes that input through `WorkerPoolSpec` and maps it to explicit contributions:
+
+```text
+worker.task_type=queue -> bg.worker_queue
+worker.task_type=http  -> http.worker
+```
 
 Therefore:
 
 - `core/kernel` does not own the `worker` config root;
 - `core/kernel` does not define `worker.*` defaults;
-- `core/kernel` does not validate the full `worker` subtree;
-- package/module activation is owned by mode preset resolution and `ModulePlan`;
-- package config flags must not decide whether a package participates in runtime composition;
-- Worker-owned runtime-driver inputs are in scope only when `platform.worker` is enabled in the caller-provided `ModulePlan`;
-- missing `worker.task_type` does not fail when `platform.worker` is not enabled in `ModulePlan`;
-- when `platform.worker` is enabled in `ModulePlan`, `worker.task_type` is required;
-- `worker.task_type` must be either `http` or `queue`;
-- missing `worker.task_type` while `platform.worker` is enabled fails with `worker-task-type-missing`;
-- invalid `worker.task_type` while `platform.worker` is enabled fails with `worker-task-type-invalid`;
-- generic `worker.*` shape and unknown-key validation remains owned by the package that owns the `worker` root.
+- `core/kernel` does not validate the `worker` config subtree;
+- `core/kernel` does not read `worker.task_type`;
+- `core/kernel` does not inspect `ModulePlan` membership for `platform.worker` to infer Worker contributions;
+- owner packages validate and normalize their own runtime inputs before creating contributions;
+- owner packages that contribute no runtime drivers pass an explicit empty `RuntimeDriverContributions` object;
+- `ModulePlan` is compatibility context, not a runtime-driver contribution discovery source;
+- the current Kernel guard inspects `ModulePlan` only for the `platform.http` requirement;
+- Worker entrypoints may enforce Worker-owned module preconditions before invoking the Kernel entrypoint guard.
 
-The runtime driver guard must not become a second source of truth for generic config validation.
+Missing or invalid `worker.task_type` is a Worker-owned start-validation failure.
 
-Generic config shape validation is owned by declarative config rules.
+It is not a Kernel runtime-driver matrix invalid-config failure.
 
-Runtime driver ids, activation conditions, matrix compatibility, missing `worker.*` policy, and deterministic error code names are owned by:
+Runtime driver ids, Kernel selector policy, contribution composition, compatibility rules, and deterministic Kernel matrix failure semantics are owned by:
 
 ```text
 docs/ssot/runtime-drivers.md
@@ -100,15 +111,22 @@ This ADR decides the package/API boundary for the runtime-driver guard and preve
 
 ## Decision
 
-Coretsia introduces a Kernel-owned runtime-driver matrix implementation and a separate public runtime entrypoint compatibility boundary.
+Coretsia introduces a Kernel-owned runtime-driver matrix implementation, a public owner-contribution handoff object, and a separate public runtime entrypoint compatibility boundary.
 
-Runtime-driver matrix evaluation is Phase-B and ModulePlan-aware.
+Kernel-owned runtime-driver selection consumes the Phase-B config snapshot.
 
-Package/module activation is owned exclusively by mode preset resolution and `ModulePlan`.
+Owner packages select their own runtime drivers outside Kernel and pass them through explicit `RuntimeDriverContributions`.
 
-Package config flags MUST NOT decide whether a package participates in runtime composition.
+The Kernel matrix composes:
 
-Worker-owned config keys are consumed by the Kernel runtime-driver matrix only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
+```text
+Kernel-selected HTTP driver
++ explicit owner RuntimeDriverContributions
+```
+
+`ModulePlan` MUST NOT be used to discover, infer, enable, disable, or synthesize owner contributions.
+
+The current Kernel matrix inspects the caller-provided `ModulePlan` only to validate the `platform.http` requirement for the final composed HTTP driver.
 
 The concrete public Kernel API class for runtime adapters and production boot paths is:
 
@@ -121,6 +139,7 @@ The related public Kernel API symbols are:
 ```php
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
@@ -135,9 +154,15 @@ framework/packages/core/kernel/PUBLIC_API.md
 
 `RuntimeDriverGuard` is a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
 
-Runtime adapters and production boot paths must use `RuntimeEntrypointGuard`.
+Runtime adapters and owner packages that have a resolved `ConfigRepositoryInterface`, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions` must use `RuntimeEntrypointGuard`.
 
-They must not call `RuntimeDriverGuard` directly.
+Kernel production boot paths that have a resolved config snapshot and caller-provided `ModulePlan` must invoke this boundary with explicit `RuntimeDriverContributions`.
+
+A Kernel-owned boot path that has no owner-package runtime-driver contributions must pass an explicit empty contribution object.
+
+A production boot path that does not yet possess all required inputs must not infer them, synthesize owner contributions, or establish an implicit fallback policy for runtime adapters.
+
+Callers must not call `RuntimeDriverGuard` directly.
 
 It is not an external runtime execution SPI.
 
@@ -168,16 +193,28 @@ They must not treat the guard as a replacement for the external UnitOfWork runti
 
 `docs/ssot/runtime-drivers.md` remains the single canonical source for:
 
-- runtime driver ids;
-- runtime driver categories;
-- runtime driver activation conditions;
-- canonical config and ModulePlan inputs;
+- canonical runtime driver ids and categories;
+- the Kernel-owned `kernel.runtime.http_driver` selector;
+- the public `RuntimeDriverContributions` handoff contract;
+- Kernel-selected and owner-contributed driver composition;
 - HTTP driver mutual-exclusion rules;
 - HTTP/background compatibility rules;
-- required runtime-driver input key policy, including owner-scoped Worker inputs;
-- external runtime-owner input handling for `worker.task_type` and `platform.worker` owner scope;
-- deterministic runtime-driver matrix failure semantics;
-- canonical runtime-driver matrix error code names.
+- final HTTP-driver `platform.http` compatibility requirements;
+- deterministic Kernel runtime-driver matrix failure semantics;
+- canonical Kernel runtime-driver matrix error codes and reason tokens;
+- deterministic driver-id ordering;
+- the boundary between owner input validation and Kernel matrix validation.
+
+The current Worker-owned mapping is:
+
+```text
+worker.task_type=queue -> bg.worker_queue
+worker.task_type=http  -> http.worker
+```
+
+The mapping is implemented and validated by `platform/worker`.
+
+Kernel consumes only the resulting `RuntimeDriverContributions`.
 
 The implementation must conform to that SSoT.
 
@@ -189,13 +226,23 @@ Runtime entrypoints must not introduce local compatibility matrices that conflic
 
 ## Guard behavior decision
 
-`RuntimeEntrypointGuard` is the public runtime-adapter and production-entrypoint boundary.
+`RuntimeEntrypointGuard` is the public runtime-adapter and owner-package compatibility boundary.
 
-Internally, it delegates runtime-driver matrix selection and ModulePlan compatibility enforcement to the Kernel-owned `RuntimeDriverGuard` implementation.
+It receives:
 
-`RuntimeDriverGuard` derives active runtime drivers from Kernel-owned config values and, for owner-scoped runtime inputs, the caller-provided `ModulePlan`.
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimeDriverContributions
+```
 
-It must read config only through:
+It returns the resolved `RuntimeDrivers` value after composition and module compatibility validation.
+
+Internally, it delegates to the Kernel-owned `RuntimeDriverGuard`.
+
+`RuntimeDriverGuard` derives the Kernel-selected HTTP driver only from Kernel-owned config.
+
+It reads config only through:
 
 ```php
 ConfigRepositoryInterface::get(...)
@@ -209,6 +256,10 @@ ConfigRepositoryInterface::all()
 ConfigRepositoryInterface::sourceOf(...)
 ConfigRepositoryInterface::explain()
 ```
+
+It must not read `worker.task_type` or any other owner-package config input.
+
+It must not inspect `ModulePlan` to discover or infer owner contributions.
 
 It must not inspect:
 
@@ -224,96 +275,130 @@ It must not inspect:
 - source config files;
 - config source metadata.
 
-The guard owns runtime-driver matrix selection and compatibility checks only.
+`RuntimeDriverContributions` contains already-selected drivers only.
 
-It must not own generic config shape validation.
+It must not read config, inspect `ModulePlan`, inspect container services, discover packages, inspect generated artifacts, or know which package produced it.
 
-It must not validate unknown `worker.*` keys.
+The Kernel guard owns:
 
-It must not introduce `worker.*` defaults or rules in `core/kernel`.
+- Kernel HTTP selector validation;
+- deterministic composition with explicit contributions;
+- HTTP-driver conflict detection;
+- final HTTP-driver `platform.http` compatibility.
 
-When `platform.worker` is not enabled in the caller-provided `ModulePlan`, Worker-owned runtime-driver inputs are outside the active owner domain.
+It does not own:
 
-In that state, missing `worker.task_type` must not fail, and worker-derived runtime drivers must not be selected.
+- Worker config normalization;
+- Worker task-type validation;
+- Worker package enablement inference;
+- generic owner-package config validation;
+- unknown `worker.*` key validation;
+- Worker-owned defaults.
 
-When `platform.worker` is enabled in the caller-provided `ModulePlan`, missing `worker.task_type` must fail deterministically with `worker-task-type-missing`.
+`platform/worker` owns the current mapping from normalized `WorkerPoolSpec::taskType()` to `RuntimeDriverContributions`.
+
+Missing or invalid Worker task type fails through Worker exception policy before Kernel matrix evaluation.
+
+`WorkerStartCommand` also performs its own `platform.worker` module precondition before invoking the Kernel entrypoint guard.
 
 ## Method boundary decision
 
 The public runtime entrypoint boundary exposes:
 
 ```php
-RuntimeEntrypointGuard::assertEntrypointAllowed(ConfigRepositoryInterface $config, ModulePlan $modulePlan): void
+RuntimeEntrypointGuard::assertEntrypointAllowed(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): RuntimeDrivers
 ```
 
-This method must be invoked after config and `ModulePlan` are resolved and before runtime execution starts.
+This method must be invoked after config, `ModulePlan`, and owner contributions are resolved and before runtime execution starts.
 
-It must not resolve config, resolve `ModulePlan`, inspect env, inspect container services, read artifacts, start `KernelRuntime`, or fallback to `http.classic`.
+It must not resolve config, resolve `ModulePlan`, read owner-package config, inspect env, inspect container services, read artifacts, start `KernelRuntime`, or synthesize owner contributions.
 
 The following `RuntimeDriverGuard` methods are internal Kernel implementation details.
 
-The guard exposes a config-only detection method:
+Kernel-only detection:
 
 ```php
 detect(ConfigRepositoryInterface $cfg): RuntimeDrivers
 ```
 
-`detect()` returns a `RuntimeDrivers` value object only for a valid single-HTTP-driver selection.
+`detect()` reads only `kernel.runtime.http_driver`.
 
-If more than one HTTP driver is active, `detect()` must throw:
+It does not include owner contributions.
 
-```php
-Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
-```
-
-The guard exposes a config-only assertion method:
+Config-only assertion:
 
 ```php
 assertCompatible(ConfigRepositoryInterface $cfg): void
 ```
 
-`assertCompatible()` must not inspect `ModulePlan`.
+`assertCompatible()` validates only Kernel-owned runtime-driver config and does not inspect `ModulePlan` or owner contributions.
 
-It may delegate to `detect()`.
-
-The guard exposes a module-aware assertion method:
+Explicit composition:
 
 ```php
-assertHttpDriverCompatibleWithModules(ConfigRepositoryInterface $cfg, ModulePlan $plan): void
+resolve(
+    ConfigRepositoryInterface $cfg,
+    RuntimeDriverContributions $contributions,
+): RuntimeDrivers
 ```
 
-This is the only guard method that validates `platform.http` / `ModulePlan` compatibility.
+`resolve()` composes the Kernel-selected HTTP driver with explicit owner contributions.
 
-It must first derive active drivers through the ModulePlan-aware runtime-entrypoint selection logic.
+Module compatibility assertion:
 
-This logic is deterministic and uses the same Kernel-owned driver activation rules as `detect()`, but it scopes Worker-owned runtime-driver inputs through the caller-provided `ModulePlan`.
+```php
+assertHttpDriverCompatibleWithModules(
+    ConfigRepositoryInterface $cfg,
+    ModulePlan $plan,
+    RuntimeDriverContributions $contributions,
+): RuntimeDrivers
+```
+
+This is the only current Kernel guard method that validates `platform.http` compatibility.
+
+It must first resolve the complete driver set from Kernel config and explicit contributions.
 
 It must not resolve `ModulePlan` internally.
 
 It must inspect only the caller-provided `ModulePlan`.
 
-It must compare module ids by canonical string value.
+It must not inspect `platform.worker` to infer contributions.
 
 It must not inspect Composer metadata, providers, package paths, module manifests, generated artifacts, config source files, or container services.
 
 ## ModulePlan compatibility decision
 
-The following worker-derived runtime drivers are in the Worker owner scope:
+Owner contributions are supplied explicitly.
+
+The Kernel guard MUST NOT select or suppress contributions based on `platform.worker` membership in `ModulePlan`.
+
+The current Worker package may contribute:
 
 ```text
 http.worker
 bg.worker_queue
 ```
 
-They are selected only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
+through `WorkerRuntimeDriverContributions`.
 
-When `platform.worker` is not enabled, Worker-owned runtime-driver inputs are outside the active owner domain.
+`WorkerStartCommand` owns the precondition that `platform.worker` must be enabled before the worker pool starts.
 
-In that state, the guard must not select worker-derived runtime drivers and must not fail because `worker.task_type` is missing.
+When that owner precondition fails, the Worker command surfaces:
 
-Owner entrypoints such as `worker:start` may perform their own package/module precheck before invoking the runtime entrypoint guard.
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+requires-platform-worker-module
+```
 
-After Worker owner-scope is satisfied, the following non-classic HTTP drivers require `platform.http` to be enabled in the caller-provided `ModulePlan`:
+This failure occurs before `RuntimeEntrypointGuard` matrix evaluation.
+
+After explicit contributions have been supplied, the final composed HTTP driver determines the `platform.http` requirement.
+
+The following final HTTP drivers require `platform.http`:
 
 ```text
 http.frankenphp
@@ -333,11 +418,11 @@ bg.worker_queue
 
 It must not be treated as an HTTP driver.
 
-It must not satisfy the `platform.http` requirement for selected non-classic HTTP drivers.
+It must not satisfy the `platform.http` requirement for a selected non-classic HTTP driver.
 
-The guard must not silently downgrade a selected non-classic HTTP driver to `http.classic` when `platform.http` is missing.
+The guard must not silently downgrade a selected or contributed non-classic HTTP driver to `http.classic`.
 
-Missing `platform.http` for a selected non-classic HTTP driver must fail deterministically.
+Missing `platform.http` for the final composed non-classic HTTP driver must fail deterministically.
 
 ## Error code decision
 
@@ -366,7 +451,16 @@ For example:
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT: worker-http-conflicts-with-http-driver
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: requires-platform-http-module
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: worker-task-type-missing
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: config-key-missing
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: config-key-invalid
+```
+
+Missing or invalid `worker.task_type` is not a Kernel matrix invalid-config failure.
+
+The current Worker package surfaces that owner-validation failure as:
+
+```text
+CORETSIA_WORKER_START_FAILED: worker-invalid-state
 ```
 
 Diagnostics may expose only stable safe data:
@@ -404,11 +498,15 @@ Required module id lists must also be sorted by byte-order comparison.
 
 `RuntimeEntrypointGuard` is intentionally public in `core/kernel`.
 
+`RuntimeDriverContributions` is also intentionally public in `core/kernel`.
+
+It is the stable handoff object through which owner packages provide already-selected canonical drivers without exposing owner config to Kernel.
+
 This public API exists so Kernel-owned runtime entrypoints, platform packages, and adapter wiring can invoke the canonical Kernel runtime-entrypoint compatibility boundary without duplicating matrix logic.
 
 `RuntimeDriverGuard` is intentionally internal.
 
-It remains the Kernel-owned implementation detail that performs runtime-driver matrix detection and module compatibility checks behind `RuntimeEntrypointGuard`.
+It remains the Kernel-owned implementation detail that validates the Kernel selector, composes explicit owner contributions, detects HTTP-driver conflicts, and validates final HTTP-driver `platform.http` compatibility behind `RuntimeEntrypointGuard`.
 
 This does not promote runtime-driver matrix enforcement to `core/contracts`.
 
@@ -435,11 +533,22 @@ Public error handling can rely on deterministic code-first exception semantics.
 
 Tests must verify:
 
-- config-only full-matrix detection and selector validation behavior;
-- ModulePlan-aware Worker input scoping;
-- deterministic `worker-task-type-missing` and `worker-task-type-invalid` failures;
-- module-aware `platform.http` compatibility behavior;
-- worker HTTP conflicts with Kernel-selected non-classic HTTP drivers.
+- config-only Kernel selector detection;
+- missing, non-string, and unsupported `kernel.runtime.http_driver` failures;
+- explicit empty contributions preserve the Kernel-selected driver;
+- Kernel-owned production boot paths pass explicit empty contributions when no owner package contributes runtime drivers;
+- `http.classic` is replaced by one contributed HTTP driver;
+- a contributed HTTP driver conflicts with a Kernel-selected non-classic HTTP driver;
+- background contributions are preserved alongside compatible HTTP drivers;
+- an HTTP contribution may coexist with a background contribution at the generic Kernel matrix level;
+- contribution and diagnostic driver ids are sorted by byte-order `strcmp`;
+- `RuntimeDriverGuard` does not read `worker.task_type`;
+- `RuntimeDriverGuard` does not infer contributions from `platform.worker`;
+- final non-classic HTTP drivers require `platform.http`;
+- missing or invalid `worker.task_type` is tested in `platform/worker`;
+- Worker task type maps deterministically to `RuntimeDriverContributions`;
+- `WorkerStartCommand` performs its `platform.worker` precondition before runtime execution;
+- HTTP task preflight invokes `RuntimeEntrypointGuard` before request-handler resolution.
 
 Changing driver ids, config keys, activation rules, or error code names requires updating:
 

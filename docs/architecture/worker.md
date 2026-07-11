@@ -65,6 +65,7 @@ If this document conflicts with any of the following, the SSoT or ADR wins:
 
 ```text
 docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0027-runtime-driver-guard.md
 docs/ssot/config-roots.md
 docs/ssot/observability.md
 docs/ssot/runtime-drivers.md
@@ -153,6 +154,7 @@ ApplicationWorker
 TaskFactoryInternalInterface
 QueueTaskFactory
 HttpTaskFactory
+WorkerRuntimeDriverContributions
 ```
 
 The internal interfaces are package-local seams only:
@@ -161,6 +163,16 @@ The internal interfaces are package-local seams only:
 Coretsia\Platform\Worker\Internal\WorkerManagerDriverInterface
 Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
+
+The following helper is also package-internal:
+
+```text
+Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions
+```
+
+It maps normalized Worker-owned task type state to the public Kernel `RuntimeDriverContributions` handoff object.
+
+It is not a public Worker extension point.
 
 They are not public framework extension points and must not be moved to `core/contracts`.
 
@@ -172,15 +184,22 @@ The lifecycle shape is:
 
 ```text
 worker:start command
-  -> RuntimeDriverGuard
-  -> WorkerServiceFactory
+  -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
-  -> WorkerManager
+  -> WorkerRuntimeDriverContributions::fromSpec(...)
+  -> RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+  -> WorkerManager::start(...)
   -> selected process driver
   -> master process state
   -> N worker children
   -> ApplicationWorker task loops
 ```
+
+`WorkerPoolSpec` is the normalized Worker-owned source of truth for `worker.task_type`.
+
+Contribution mapping occurs after `WorkerPoolSpec` construction and before runtime entrypoint validation.
+
+Kernel does not read the `worker` config root.
 
 The master process owns pool lifecycle orchestration through `WorkerManager`.
 
@@ -272,40 +291,75 @@ Endpoint identity may be represented publicly only through a deterministic hash.
 
 ## Runtime-driver guard boundary
 
-Runtime-driver compatibility is Kernel-owned policy.
+Runtime-driver composition and compatibility are Kernel-owned policy.
 
-The public runtime entrypoint guard is:
+The public Kernel boundary is:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
-`WorkerStartCommand` must invoke the runtime entrypoint guard before starting the worker pool.
-
-The command must call:
+The public contribution handoff object is:
 
 ```text
-RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 ```
 
-before `WorkerManager::start(...)`.
-
-The command must pass the resolved config repository and caller-provided `ModulePlan`.
-
-`RuntimeDriverGuard` remains a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
-
-The worker package must not duplicate runtime-driver matrix logic.
-
-The worker package must not translate runtime-driver guard failures into worker-specific driver failures.
-
-The runtime-driver guard remains the source of deterministic matrix errors such as:
+The Worker package owns:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+worker.task_type
 ```
 
-Missing `platform.http` for HTTP worker mode must fail through `RuntimeDriverGuard` before request-handler resolution.
+The normalized task type is read from `WorkerPoolSpec` and mapped by:
+
+```text
+Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions
+```
+
+The mapping is:
+
+```text
+queue -> bg.worker_queue
+http  -> http.worker
+```
+
+`WorkerStartCommand` must use this order:
+
+```text
+build WorkerPoolSpec
+-> enforce platform.worker owner precondition
+-> map WorkerPoolSpec to RuntimeDriverContributions
+-> call RuntimeEntrypointGuard
+-> start WorkerManager
+```
+
+The guard invocation supplies:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimeDriverContributions
+```
+
+The Worker package must not:
+
+- ask Kernel to read `worker.task_type`;
+- call `RuntimeDriverGuard` directly;
+- infer contributions from `ModulePlan`;
+- duplicate runtime-driver composition;
+- duplicate the `platform.http` requirement;
+- translate Kernel matrix failures into Worker driver failures.
+
+Missing or invalid `worker.task_type` is a Worker-owned start-validation failure:
+
+```text
+CORETSIA_WORKER_START_FAILED: worker-invalid-state
+```
+
+Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
+
+HTTP Worker mode must pass `RuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
 
 ## Worker manager boundary
 
@@ -480,9 +534,11 @@ worker.task_type=http
 
 It does not implement a real HTTP request source.
 
-HTTP task mode must first pass runtime-driver and module compatibility checks.
+`HttpTaskFactory` receives the normalized `WorkerPoolSpec`.
 
-After guard compatibility passes, HTTP task mode may require a resolvable:
+It maps the spec to explicit `RuntimeDriverContributions` and invokes `RuntimeEntrypointGuard` before resolving an HTTP request handler.
+
+Only after compatibility passes may HTTP task mode require a resolvable:
 
 ```text
 Psr\Http\Server\RequestHandlerInterface
@@ -499,6 +555,12 @@ The worker runtime has the following safety controls.
 ### Module participation and process startup
 
 `platform.worker` module participation is controlled by mode preset resolution and the resolved `ModulePlan`.
+
+`WorkerStartCommand` verifies that `platform.worker` is enabled before starting runtime execution.
+
+This owner precondition does not cause Kernel to discover or infer Worker runtime-driver contributions.
+
+Contributions are produced explicitly from `WorkerPoolSpec`.
 
 Installing `platform/worker` must not start worker processes by itself.
 
@@ -678,6 +740,12 @@ endpoint_hash
 ```
 
 Failure output must use deterministic error codes and reason tokens.
+
+Worker-owned config and normalization failures use Worker error policy.
+
+Kernel runtime-driver matrix failures are surfaced with their original Kernel error code and reason token.
+
+The command must not reclassify one category as the other.
 
 Failure output must not include raw config values, raw endpoints, absolute paths, environment values, payloads, headers, tokens, stack traces, or throwable messages.
 
@@ -866,11 +934,20 @@ docs/adr/ADR-0017-worker-manager-application-worker.md
 docs/architecture/worker.md
 ```
 
-Changing runtime-driver ids, activation rules, compatibility rules, or runtime-driver matrix failure semantics requires updating:
+Changing runtime-driver ids, Kernel selector rules, contribution composition, compatibility rules, or runtime-driver matrix failure semantics requires updating:
 
 ```text
+docs/adr/ADR-0027-runtime-driver-guard.md
 docs/ssot/runtime-drivers.md
 docs/architecture/runtime-driver-guard.md
+docs/architecture/worker.md
+```
+
+Changing the Worker task-type-to-contribution mapping also requires updating:
+
+```text
+framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
+framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
 ```
 
 Changing the `worker` config root ownership or defaults/rules authority requires updating:
@@ -915,3 +992,4 @@ docs/ssot/observability.md
 - `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
 - `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
 - `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
+- `framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php`

@@ -26,8 +26,11 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
+use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions;
 use Coretsia\Platform\Worker\Manager\WorkerManager;
 use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
+use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 
 /**
@@ -110,9 +113,10 @@ final readonly class WorkerStartCommand implements CommandInterface
         }
 
         try {
-            $this->assertRuntimeEntrypointAllowed();
-
             $spec = $this->factory->workerPoolSpec($this->config);
+
+            $this->assertRuntimeEntrypointAllowed($spec);
+
             $state = $this->manager()->start($spec);
 
             $output->json(self::startSummary($state));
@@ -132,6 +136,13 @@ final readonly class WorkerStartCommand implements CommandInterface
             );
 
             return self::EXIT_FAILURE;
+        } catch (WorkerStartFailedException $exception) {
+            $output->error(
+                $exception->errorCode(),
+                $exception->reason(),
+            );
+
+            return self::EXIT_FAILURE;
         } catch (\Throwable) {
             $output->error(
                 self::ERROR_CODE_WORKER_START_FAILED,
@@ -142,7 +153,7 @@ final readonly class WorkerStartCommand implements CommandInterface
         }
     }
 
-    private function assertRuntimeEntrypointAllowed(): void
+    private function assertRuntimeEntrypointAllowed(WorkerPoolSpec $spec): void
     {
         if (!$this->modulePlan->hasEnabledModule(self::MODULE_PLATFORM_WORKER)) {
             throw RuntimeDriverInvalidConfigException::requiresPlatformWorkerModule();
@@ -151,6 +162,7 @@ final readonly class WorkerStartCommand implements CommandInterface
         $this->runtimeEntrypointGuard->assertEntrypointAllowed(
             config: $this->config,
             modulePlan: $this->modulePlan,
+            runtimeDriverContributions: WorkerRuntimeDriverContributions::fromSpec($spec),
         );
     }
 

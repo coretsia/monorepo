@@ -119,8 +119,8 @@ final class WorkerStartCommandContractTest extends TestCase
     {
         $source = self::workerStartCommandSource();
 
-        $guardPosition = \strpos($source, '$this->assertRuntimeEntrypointAllowed()');
-        $specPosition = \strpos($source, '$this->factory->workerPoolSpec($this->config)');
+        $specPosition = \strpos($source, '$spec = $this->factory->workerPoolSpec($this->config)');
+        $guardPosition = \strpos($source, '$this->assertRuntimeEntrypointAllowed($spec)');
         $managerStartPosition = \strpos($source, '$this->manager()->start($spec)');
 
         self::assertIsInt($guardPosition);
@@ -128,15 +128,15 @@ final class WorkerStartCommandContractTest extends TestCase
         self::assertIsInt($managerStartPosition);
 
         self::assertLessThan(
-            $specPosition,
             $guardPosition,
-            'RuntimeEntrypointGuard compatibility check must happen before WorkerServiceFactory::workerPoolSpec(...).',
+            $specPosition,
+            'WorkerServiceFactory::workerPoolSpec(...) must build the normalized WorkerPoolSpec before runtime-driver contribution mapping.',
         );
 
         self::assertLessThan(
             $managerStartPosition,
-            $specPosition,
-            'WorkerServiceFactory::workerPoolSpec(...) must happen before WorkerManager::start(...).',
+            $guardPosition,
+            'RuntimeEntrypointGuard compatibility check must happen before WorkerManager::start(...).',
         );
 
         self::assertStringContainsString('$this->manager()->start($spec)', $source);
@@ -209,7 +209,7 @@ final class WorkerStartCommandContractTest extends TestCase
         );
     }
 
-    public function testGuardInvalidConfigReturnsOriginalRuntimeDriverInvalidConfigCodeAndReason(): void
+    public function testInvalidWorkerTaskTypeReturnsWorkerStartFailureCodeAndReason(): void
     {
         $config = new WorkerStartArrayConfigRepository(
             self::workerConfig([
@@ -246,8 +246,8 @@ final class WorkerStartCommandContractTest extends TestCase
         self::assertSame(
             [
                 [
-                    'code' => RuntimeDriverInvalidConfigException::ERROR_CODE,
-                    'message' => RuntimeDriverInvalidConfigException::REASON_WORKER_TASK_TYPE_INVALID,
+                    'code' => WorkerStartFailedException::ERROR_CODE,
+                    'message' => WorkerStartFailedException::REASON_INVALID_STATE,
                 ],
             ],
             $output->errors,

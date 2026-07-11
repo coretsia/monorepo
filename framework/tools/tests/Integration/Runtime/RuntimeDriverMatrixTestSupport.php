@@ -21,6 +21,9 @@ namespace Coretsia\Tools\Tests\Integration\Runtime;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
@@ -37,6 +40,7 @@ use RuntimeException;
  * - validates fixture shape before invoking RuntimeDriverGuard;
  * - builds an in-memory ConfigRepositoryInterface;
  * - builds a minimal caller-provided ModulePlan;
+ * - maps fixture owner inputs to explicit RuntimeDriverContributions;
  * - invokes RuntimeDriverGuard directly;
  * - asserts only deterministic outcome, error code, reason token, driver ids,
  *   and required module ids.
@@ -52,6 +56,14 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     private const array CONFIG_KEYS = [
         'kernel.runtime.http_driver' => true,
         'worker.task_type' => true,
+    ];
+
+    /**
+     * @var array<string, true>
+     */
+    private const array WORKER_TASK_TYPES = [
+        'http' => true,
+        'queue' => true,
     ];
 
     /**
@@ -98,7 +110,6 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      */
     private const array INVALID_CONFIG_REASONS = [
         'requires-platform-http-module' => true,
-        'worker-task-type-invalid' => true,
     ];
 
     /**
@@ -221,11 +232,15 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     {
         $cfg = new RuntimeDriverMatrixConfigRepository($config);
         $plan = $this->buildRuntimeDriverMatrixModulePlan($moduleIds);
+        $contributions = self::runtimeDriverContributionsFromConfig($config);
         $guard = new RuntimeDriverGuard();
 
         try {
-            $drivers = $guard->detect($cfg);
-            $guard->assertHttpDriverCompatibleWithModules($cfg, $plan);
+            $drivers = $guard->assertHttpDriverCompatibleWithModules(
+                cfg: $cfg,
+                plan: $plan,
+                contributions: $contributions,
+            );
 
             return [
                 'outcome' => 'allowed',
@@ -254,6 +269,34 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
                 'requiredModuleIds' => $exception->requiredModuleIds(),
             ];
         }
+    }
+
+    private static function runtimeDriverContributionsFromConfig(array $config): RuntimeDriverContributions
+    {
+        $workerTaskType = $config['worker.task_type'] ?? null;
+
+        if ($workerTaskType === null) {
+            return RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [],
+                backgroundDrivers: [],
+            );
+        }
+
+        return match ($workerTaskType) {
+            'queue' => RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [],
+                backgroundDrivers: [BackgroundDriver::WORKER_QUEUE],
+            ),
+
+            'http' => RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [HttpDriver::WORKER],
+                backgroundDrivers: [],
+            ),
+
+            default => throw new RuntimeException(
+                'Runtime driver matrix worker.task_type fixture value must be "http" or "queue".'
+            ),
+        };
     }
 
     private function runtimeDriverMatrixFixtureRoot(): string
@@ -309,9 +352,9 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
             }
 
             if ($key === 'worker.task_type') {
-                if (!is_string($value) || $value === '') {
+                if (!is_string($value) || !isset(self::WORKER_TASK_TYPES[$value])) {
                     throw new RuntimeException(
-                        'Runtime driver matrix worker.task_type must be non-empty string: ' . $label
+                        'Runtime driver matrix worker.task_type must be "http" or "queue": ' . $label
                     );
                 }
 

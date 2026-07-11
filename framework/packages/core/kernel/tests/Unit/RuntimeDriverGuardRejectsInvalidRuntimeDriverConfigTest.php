@@ -19,51 +19,52 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Unit;
 
 use Coretsia\Kernel\Config\ArrayConfigRepository;
-use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use PHPUnit\Framework\TestCase;
 
-final class RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest extends TestCase
+final class RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest extends TestCase
 {
-    public function testRejectsMissingWorkerTaskTypeConfigKey(): void
+    public function testRejectsMissingKernelRuntimeHttpDriverConfigKey(): void
+    {
+        $cfg = new ArrayConfigRepository([
+            'kernel' => [
+                'runtime' => [],
+            ],
+        ]);
+
+        $this->expectException(RuntimeDriverInvalidConfigException::class);
+
+        new RuntimeDriverGuard()->detect($cfg);
+    }
+
+    public function testRejectsNonStringKernelRuntimeHttpDriverConfigValue(): void
     {
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'http_driver' => 'http.classic',
+                    'http_driver' => ['http.classic'],
                 ],
             ],
         ]);
 
         $this->expectException(RuntimeDriverInvalidConfigException::class);
-        $this->expectExceptionMessage(
-            RuntimeDriverInvalidConfigException::ERROR_CODE
-            . ': '
-            . RuntimeDriverInvalidConfigException::REASON_WORKER_TASK_TYPE_MISSING,
-        );
 
         new RuntimeDriverGuard()->detect($cfg);
     }
 
-    public function testDetectsClassicHttpPlusWorkerQueueWhenWorkerTaskTypeIsQueue(): void
+    public function testRejectsUnknownKernelRuntimeHttpDriverConfigValue(): void
     {
         $cfg = new ArrayConfigRepository([
             'kernel' => [
                 'runtime' => [
-                    'http_driver' => 'http.classic',
+                    'http_driver' => 'http.unknown',
                 ],
-            ],
-            'worker' => [
-                'task_type' => 'queue',
             ],
         ]);
 
-        $drivers = new RuntimeDriverGuard()->detect($cfg);
+        $this->expectException(RuntimeDriverInvalidConfigException::class);
 
-        self::assertSame(HttpDriver::CLASSIC, $drivers->httpDriver());
-        self::assertSame('http.classic', $drivers->httpDriverId());
-        self::assertSame(['bg.worker_queue'], $drivers->backgroundDriverIds());
-        self::assertSame(['bg.worker_queue', 'http.classic'], $drivers->driverIds());
+        new RuntimeDriverGuard()->detect($cfg);
     }
 }

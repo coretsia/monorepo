@@ -22,6 +22,9 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -42,6 +45,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
                 cfg: self::config($config),
                 plan: self::modulePlan([]),
+                contributions: self::runtimeDriverContributions(null),
             );
         } catch (RuntimeDriverInvalidConfigException $exception) {
             self::assertSame(
@@ -72,12 +76,13 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: self::config($config),
             plan: self::modulePlan(['platform.http']),
+            contributions: self::runtimeDriverContributions(null),
         );
 
         self::assertTrue(true);
     }
 
-    public function testWorkerTaskTypeIsOutOfScopeWhenPlatformWorkerModuleIsNotEnabled(): void
+    public function testWorkerTaskTypeConfigIsOutOfScopeForKernelRuntimeGuard(): void
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.classic',
@@ -87,6 +92,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: $cfg,
             plan: self::modulePlan([]),
+            contributions: self::runtimeDriverContributions(null),
         );
 
         self::assertTrue(true);
@@ -96,12 +102,12 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.classic',
-            'worker.task_type' => 'queue',
         ]);
 
-        new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: $cfg,
-            plan: self::modulePlan(['platform.worker']),
+            plan: self::modulePlan([]),
+            contributions: self::runtimeDriverContributions('queue'),
         );
 
         self::assertSame(
@@ -109,51 +115,49 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
                 'bg.worker_queue',
                 'http.classic',
             ],
-            new RuntimeDriverGuard()->detect($cfg)->driverIds(),
+            $drivers->driverIds(),
         );
     }
 
-    public function testWorkerHttpRequiresPlatformHttpWhenPlatformWorkerIsEnabled(): void
+    public function testWorkerHttpContributionRequiresPlatformHttp(): void
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.classic',
-            'worker.task_type' => 'http',
         ]);
 
         try {
             new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
                 cfg: $cfg,
-                plan: self::modulePlan(['platform.worker']),
+                plan: self::modulePlan([]),
+                contributions: self::runtimeDriverContributions('http'),
             );
         } catch (RuntimeDriverInvalidConfigException $exception) {
             self::assertSame(
                 RuntimeDriverInvalidConfigException::REASON_REQUIRES_PLATFORM_HTTP_MODULE,
                 $exception->reason(),
             );
+            self::assertSame(['http.worker'], $exception->activeDriverIds());
             self::assertSame(['platform.http'], $exception->requiredModuleIds());
 
             return;
         }
 
-        self::fail('http.worker must require platform.http after platform.worker is present.');
+        self::fail('http.worker contribution must require platform.http.');
     }
 
-    public function testWorkerHttpIsAllowedWhenPlatformWorkerAndPlatformHttpAreEnabled(): void
+    public function testWorkerHttpContributionIsAllowedWhenPlatformHttpIsEnabled(): void
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.classic',
-            'worker.task_type' => 'http',
         ]);
 
-        new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: $cfg,
-            plan: self::modulePlan([
-                'platform.http',
-                'platform.worker',
-            ]),
+            plan: self::modulePlan(['platform.http']),
+            contributions: self::runtimeDriverContributions('http'),
         );
 
-        self::assertTrue(true);
+        self::assertSame(['http.worker'], $drivers->driverIds());
     }
 
     /**
@@ -164,7 +168,6 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         yield 'frankenphp requires platform.http' => [
             [
                 'kernel.runtime.http_driver' => 'http.frankenphp',
-                'worker.task_type' => 'queue',
             ],
             [
                 'http.frankenphp',
@@ -174,7 +177,6 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         yield 'roadrunner requires platform.http' => [
             [
                 'kernel.runtime.http_driver' => 'http.roadrunner',
-                'worker.task_type' => 'queue',
             ],
             [
                 'http.roadrunner',
@@ -184,12 +186,33 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         yield 'swoole requires platform.http' => [
             [
                 'kernel.runtime.http_driver' => 'http.swoole',
-                'worker.task_type' => 'queue',
             ],
             [
                 'http.swoole',
             ],
         ];
+    }
+
+    private static function runtimeDriverContributions(?string $workerTaskType): RuntimeDriverContributions
+    {
+        return match ($workerTaskType) {
+            null => RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [],
+                backgroundDrivers: [],
+            ),
+
+            'queue' => RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [],
+                backgroundDrivers: [BackgroundDriver::WORKER_QUEUE],
+            ),
+
+            'http' => RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [HttpDriver::WORKER],
+                backgroundDrivers: [],
+            ),
+
+            default => throw new \LogicException('runtime-driver-test-worker-task-type-invalid'),
+        };
     }
 
     /**
@@ -247,15 +270,20 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
      */
     private static function config(array $values): ArrayConfigRepository
     {
-        return new ArrayConfigRepository([
+        $config = [
             'kernel' => [
                 'runtime' => [
                     'http_driver' => $values['kernel.runtime.http_driver'],
                 ],
             ],
-            'worker' => [
+        ];
+
+        if (\array_key_exists('worker.task_type', $values)) {
+            $config['worker'] = [
                 'task_type' => $values['worker.task_type'],
-            ],
-        ]);
+            ];
+        }
+
+        return new ArrayConfigRepository($config);
     }
 }

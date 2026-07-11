@@ -18,86 +18,65 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Unit;
 
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest extends TestCase
 {
     /**
-     * @param array<string,mixed> $runtimeConfig
-     * @param list<string> $expectedDriverIds
+     * @param non-empty-string $configuredHttpDriver
+     * @param list<non-empty-string> $expectedDriverIds
      */
     #[DataProvider('workerHttpConflictProvider')]
-    public function testDetectRejectsWorkerHttpWithAnyConfiguredHttpDriver(
-        array $runtimeConfig,
+    public function testResolveRejectsWorkerHttpWithAnyNonClassicConfiguredHttpDriver(
+        string $configuredHttpDriver,
         array $expectedDriverIds,
     ): void {
-        try {
-            new RuntimeDriverGuard()->detect(self::config($runtimeConfig));
-        } catch (RuntimeDriverConflictException $exception) {
-            self::assertSame(
-                RuntimeDriverConflictException::ERROR_CODE,
-                $exception->errorCode(),
-            );
-            self::assertSame(
-                RuntimeDriverConflictException::REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER,
-                $exception->reason(),
-            );
-            self::assertSame($expectedDriverIds, $exception->activeDriverIds());
-            self::assertSame($expectedDriverIds, $exception->conflictingDriverIds());
+        $cfg = new ArrayConfigRepository([
+            'kernel' => [
+                'runtime' => [
+                    'http_driver' => $configuredHttpDriver,
+                ],
+            ],
+        ]);
 
-            return;
-        }
-
-        self::fail('RuntimeDriverGuard must reject http.worker with any configured HTTP runtime driver.');
-    }
-
-    /**
-     * @param array<string,mixed> $runtimeConfig
-     * @param list<string> $expectedDriverIds
-     */
-    #[DataProvider('workerHttpConflictProvider')]
-    public function testAssertCompatibleRejectsWorkerHttpWithAnyConfiguredHttpDriver(
-        array $runtimeConfig,
-        array $expectedDriverIds,
-    ): void {
-        try {
-            new RuntimeDriverGuard()->assertCompatible(self::config($runtimeConfig));
-        } catch (RuntimeDriverConflictException $exception) {
-            self::assertSame(
-                RuntimeDriverConflictException::ERROR_CODE,
-                $exception->errorCode(),
-            );
-            self::assertSame(
-                RuntimeDriverConflictException::REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER,
-                $exception->reason(),
-            );
-            self::assertSame($expectedDriverIds, $exception->activeDriverIds());
-            self::assertSame($expectedDriverIds, $exception->conflictingDriverIds());
-
-            return;
-        }
-
-        self::fail(
-            'RuntimeDriverGuard::assertCompatible() must reject http.worker with any configured HTTP runtime driver.'
+        $contributions = RuntimeDriverContributions::fromDrivers(
+            httpDrivers: [HttpDriver::WORKER],
+            backgroundDrivers: [],
         );
+
+        try {
+            new RuntimeDriverGuard()->resolve($cfg, $contributions);
+        } catch (RuntimeDriverConflictException $exception) {
+            self::assertSame(
+                RuntimeDriverConflictException::ERROR_CODE,
+                $exception->errorCode(),
+            );
+            self::assertSame(
+                RuntimeDriverConflictException::REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER,
+                $exception->reason(),
+            );
+            self::assertSame($expectedDriverIds, $exception->activeDriverIds());
+            self::assertSame($expectedDriverIds, $exception->conflictingDriverIds());
+
+            return;
+        }
+
+        self::fail('RuntimeDriverGuard::resolve() must reject http.worker with a non-classic configured HTTP runtime driver.');
     }
 
     /**
-     * @return iterable<string, array{0:array<string,mixed>,1:list<string>}>
+     * @return iterable<string, array{0: non-empty-string, 1: list<non-empty-string>}>
      */
     public static function workerHttpConflictProvider(): iterable
     {
         yield 'frankenphp + worker http' => [
-            [
-                'kernel.runtime.http_driver' => 'http.frankenphp',
-                'worker.task_type' => 'http',
-            ],
+            'http.frankenphp',
             [
                 'http.frankenphp',
                 'http.worker',
@@ -105,10 +84,7 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest e
         ];
 
         yield 'roadrunner + worker http' => [
-            [
-                'kernel.runtime.http_driver' => 'http.roadrunner',
-                'worker.task_type' => 'http',
-            ],
+            'http.roadrunner',
             [
                 'http.roadrunner',
                 'http.worker',
@@ -116,65 +92,11 @@ final class RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest e
         ];
 
         yield 'swoole + worker http' => [
-            [
-                'kernel.runtime.http_driver' => 'http.swoole',
-                'worker.task_type' => 'http',
-            ],
+            'http.swoole',
             [
                 'http.swoole',
                 'http.worker',
             ],
         ];
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     */
-    private static function config(array $values): ConfigRepositoryInterface
-    {
-        return new class($values) implements ConfigRepositoryInterface {
-            /**
-             * @param array<string,mixed> $values
-             */
-            public function __construct(
-                private readonly array $values,
-            ) {
-            }
-
-            public function has(string $keyPath): bool
-            {
-                return \array_key_exists($keyPath, $this->values);
-            }
-
-            public function get(string $keyPath, mixed $default = null): mixed
-            {
-                if (!\array_key_exists($keyPath, $this->values)) {
-                    return $default;
-                }
-
-                return $this->values[$keyPath];
-            }
-
-            /**
-             * @return array<string,mixed>
-             */
-            public function all(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-all-forbidden');
-            }
-
-            public function sourceOf(string $keyPath): ?ConfigValueSource
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-source-of-forbidden');
-            }
-
-            /**
-             * @return list<ConfigValueSource>
-             */
-            public function explain(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-explain-forbidden');
-            }
-        };
     }
 }

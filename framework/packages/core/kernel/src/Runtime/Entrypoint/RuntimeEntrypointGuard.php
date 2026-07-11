@@ -20,7 +20,9 @@ namespace Coretsia\Kernel\Runtime\Entrypoint;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDrivers;
 
 /**
  * Kernel-owned runtime entrypoint compatibility boundary.
@@ -47,10 +49,12 @@ final readonly class RuntimeEntrypointGuard
     public function assertEntrypointAllowed(
         ConfigRepositoryInterface $config,
         ModulePlan $modulePlan,
-    ): void {
-        $this->runtimeDrivers->assertHttpDriverCompatibleWithModules(
+        RuntimeDriverContributions $runtimeDriverContributions,
+    ): RuntimeDrivers {
+        return $this->runtimeDrivers->assertHttpDriverCompatibleWithModules(
             cfg: $config,
             plan: $modulePlan,
+            contributions: $runtimeDriverContributions,
         );
     }
 }

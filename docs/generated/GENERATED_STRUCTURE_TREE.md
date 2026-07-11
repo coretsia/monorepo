@@ -650,6 +650,7 @@ Coretsia/
 │   │   │       │       ├── Driver/
 │   │   │       │       │   ├── BackgroundDriver.php
 │   │   │       │       │   ├── HttpDriver.php
+│   │   │       │       │   ├── RuntimeDriverContributions.php
 │   │   │       │       │   ├── RuntimeDriverGuard.php
 │   │   │       │       │   └── RuntimeDrivers.php
 │   │   │       │       ├── Entrypoint/
@@ -832,17 +833,14 @@ Coretsia/
 │   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php
 │   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
+│   │   │       │       ├── RuntimeDriverGuardIgnoresOwnerScopedRuntimeInputsTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest.php
+│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php
+│   │   │       │       ├── RuntimeDriverGuardResolvesRuntimeDriverContributionsTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -984,7 +982,8 @@ Coretsia/
 │   │           │   │   └── WorkerStartFailedException.php
 │   │           │   ├── Internal/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
-│   │           │   │   └── WorkerManagerDriverInterface.php
+│   │           │   │   ├── WorkerManagerDriverInterface.php
+│   │           │   │   └── WorkerRuntimeDriverContributions.php
 │   │           │   ├── Manager/
 │   │           │   │   ├── Driver/
 │   │           │   │   │   ├── PcntlWorkerManagerDriver.php
@@ -1046,6 +1045,7 @@ Coretsia/
 │   │           │       ├── WorkerManagerLifecycleTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
+│   │           │       ├── WorkerRuntimeDriverContributionsTest.php
 │   │           │       ├── WorkerServiceProviderTaskFactorySelectionTest.php
 │   │           │       └── WorkerStateStoreStateFactoryTest.php
 │   │           ├── LICENSE
@@ -1440,11 +1440,7 @@ Coretsia/
 │   │       │   │   │   ├── config.php
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php
-│   │       │   │   ├── WorkerQueueApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   └── WorkerTaskTypeInvalidApp/
+│   │       │   │   └── WorkerQueueApp/
 │   │       │   │       ├── config.php
 │   │       │   │       ├── expected.php
 │   │       │   │       └── modules.php

@@ -87,6 +87,7 @@ This package provides the worker runtime layer:
 - package-internal task factory seam through `TaskFactoryInternalInterface`;
 - placeholder queue task factory through `QueueTaskFactory`;
 - HTTP task-mode preflight factory through `HttpTaskFactory`;
+- package-local runtime-driver contribution mapper through `WorkerRuntimeDriverContributions`;
 - deterministic worker exceptions under `Coretsia\Platform\Worker\Exception`.
 
 ## Process model
@@ -95,15 +96,20 @@ The worker runtime uses a master-plus-workers model:
 
 ```text
 worker:start command
-  -> RuntimeDriverGuard
-  -> WorkerServiceFactory
+  -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
+  -> WorkerRuntimeDriverContributions::fromSpec(...)
+  -> RuntimeEntrypointGuard
   -> WorkerManager
   -> selected process driver
   -> master process state
   -> N worker children
   -> ApplicationWorker task loops
 ```
+
+`WorkerPoolSpec` is the normalized Worker-owned source of truth for `worker.task_type`.
+
+Worker runtime-driver contributions are derived from `WorkerPoolSpec`, not by asking Kernel to read the `worker` config root.
 
 The master process owns pool lifecycle orchestration through `WorkerManager`.
 
@@ -243,6 +249,19 @@ Important config rules:
 - runtime paths must not be absolute.
 - runtime paths must not contain `..`, `skeleton/`, backslashes, whitespace, control characters, `://`, or segments beginning with `@`.
 
+`worker.task_type` is Worker-owned runtime input.
+
+It is normalized by `WorkerPoolSpec`.
+
+It is mapped to Kernel runtime-driver contributions by the package-local `WorkerRuntimeDriverContributions` mapper:
+
+```text
+queue -> bg.worker_queue
+http  -> http.worker
+```
+
+Invalid or missing `worker.task_type` is a Worker-owned start-validation failure, not a Kernel runtime-driver invalid-config failure.
+
 ## Worker commands
 
 This package provides command classes for:
@@ -285,14 +304,22 @@ Start order is intentionally strict:
 
 ```text
 WorkerStartCommand
-  -> RuntimeDriverGuard
   -> WorkerServiceFactory::workerPoolSpec(...)
+  -> WorkerPoolSpec
+  -> WorkerRuntimeDriverContributions::fromSpec(...)
+  -> RuntimeEntrypointGuard::assertEntrypointAllowed(...)
   -> WorkerManager::start(...)
 ```
+
+`WorkerPoolSpec` must be built before runtime-driver contribution mapping.
+
+`WorkerRuntimeDriverContributions::fromSpec(...)` maps the normalized Worker task type to Kernel runtime-driver contributions.
 
 Runtime-driver guard failures are surfaced with the original Kernel guard error code and reason token.
 
 They are not translated into worker-specific conflict errors.
+
+Worker-owned configuration failures, including invalid Worker task type state, remain Worker failures and use Worker exception policy.
 
 ### `worker:stop`
 
@@ -331,23 +358,66 @@ The public runtime entrypoint guard is:
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
-`WorkerStartCommand` must invoke the runtime entrypoint guard before starting the worker pool.
+The public runtime-driver contribution handoff object is:
 
-The command must call:
+```text
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
+```
+
+`WorkerStartCommand` and HTTP task preflight code must invoke the runtime entrypoint guard before starting worker runtime execution.
+
+They must call:
 
 ```text
 RuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
-with the resolved config repository and caller-provided `ModulePlan`.
+with:
 
-Missing `platform.http` for HTTP worker mode must fail through the Kernel runtime entrypoint guard before request-handler resolution.
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimeDriverContributions
+```
+
+The Worker package owns:
+
+```text
+worker.task_type
+```
+
+The Worker package maps task type to Kernel runtime-driver contributions:
+
+```text
+worker.task_type=queue -> bg.worker_queue
+worker.task_type=http  -> http.worker
+```
+
+This mapping is package-local and is owned by:
+
+```text
+WorkerRuntimeDriverContributions
+```
+
+The Worker package MUST NOT ask Kernel to read `worker.task_type`.
+
+The Worker package MUST NOT make `RuntimeDriverGuard` read the `worker` config root.
+
+The Worker package MUST NOT call `RuntimeDriverGuard` directly.
 
 `RuntimeDriverGuard` remains a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
 
+Missing or invalid `worker.task_type` is Worker-owned invalid state and must fail through Worker exception policy.
+
+Runtime-driver matrix conflicts and module-compatibility failures remain Kernel runtime-driver guard failures.
+
 The worker package MUST NOT duplicate runtime-driver matrix logic.
 
-The worker package MUST NOT reclassify runtime-driver guard failures as worker exceptions.
+The worker package MUST NOT reclassify Kernel runtime-driver guard failures as worker exceptions.
+
+HTTP worker mode must pass Kernel runtime entrypoint compatibility before request-handler resolution.
+
+Missing `platform.http` for `http.worker` must fail through the Kernel runtime entrypoint guard before request-handler resolution.
 
 ## UnitOfWork and reset boundary
 
@@ -422,7 +492,7 @@ It does not create PSR-7 requests.
 
 It does not depend on `platform/http`.
 
-HTTP task mode first requires RuntimeDriverGuard/module compatibility to pass.
+HTTP task mode first requires `RuntimeEntrypointGuard` compatibility to pass with the explicit `http.worker` contribution produced from the normalized `WorkerPoolSpec`.
 
 Only after that may it require a resolvable:
 
@@ -614,6 +684,18 @@ Runtime-driver matrix failures remain Kernel runtime-driver guard failures.
 
 They must not be reclassified as worker exceptions.
 
+Worker-owned task type validation failures are not runtime-driver matrix failures.
+
+Missing or invalid `worker.task_type` is surfaced as:
+
+```text
+CORETSIA_WORKER_START_FAILED: worker-invalid-state
+```
+
+after Worker-owned normalization fails.
+
+Kernel runtime-driver failures are surfaced unchanged only after Worker has produced explicit `RuntimeDriverContributions`.
+
 ## Security / Redaction
 
 The worker package treats the following values as unsafe for public diagnostics:
@@ -661,6 +743,16 @@ The following interfaces are package-internal:
 Coretsia\Platform\Worker\Internal\WorkerManagerDriverInterface
 Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
+
+The following helper is also package-internal:
+
+```text
+Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions
+```
+
+It is the package-local mapper from Worker-owned runtime inputs to the public Kernel `RuntimeDriverContributions` handoff object.
+
+It is not a public Worker API, application extension point, or reusable config-mapping service.
 
 They are not public package APIs.
 

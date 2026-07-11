@@ -71,6 +71,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
@@ -1075,6 +1076,10 @@ final class KernelServiceFactory
         $guard->assertEntrypointAllowed(
             config: new ArrayConfigRepository($config),
             modulePlan: $modulePlan,
+            runtimeDriverContributions: RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [],
+                backgroundDrivers: [],
+            ),
         );
     }
 

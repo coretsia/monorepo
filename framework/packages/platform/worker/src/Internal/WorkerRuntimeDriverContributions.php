@@ -18,7 +18,6 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Internal;
 
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
@@ -35,31 +34,8 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
  */
 final class WorkerRuntimeDriverContributions
 {
-    private const string CONFIG_WORKER_TASK_TYPE = 'worker.task_type';
-
     private const string TASK_TYPE_HTTP = 'http';
     private const string TASK_TYPE_QUEUE = 'queue';
-
-    public static function fromConfig(ConfigRepositoryInterface $config): RuntimeDriverContributions
-    {
-        try {
-            if (!$config->has(self::CONFIG_WORKER_TASK_TYPE)) {
-                throw WorkerStartFailedException::invalidState();
-            }
-
-            $taskType = $config->get(self::CONFIG_WORKER_TASK_TYPE);
-        } catch (WorkerStartFailedException $exception) {
-            throw $exception;
-        } catch (\Throwable) {
-            throw WorkerStartFailedException::invalidState();
-        }
-
-        if (!\is_string($taskType)) {
-            throw WorkerStartFailedException::invalidState();
-        }
-
-        return self::fromTaskType($taskType);
-    }
 
     public static function fromSpec(WorkerPoolSpec $spec): RuntimeDriverContributions
     {

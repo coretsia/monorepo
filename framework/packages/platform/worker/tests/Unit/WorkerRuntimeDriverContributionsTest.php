@@ -18,15 +18,11 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Unit;
 
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class WorkerRuntimeDriverContributionsTest extends TestCase
 {
@@ -50,17 +46,6 @@ final class WorkerRuntimeDriverContributionsTest extends TestCase
         self::assertSame([HttpDriver::WORKER], $contributions->httpDrivers());
         self::assertSame([], $contributions->backgroundDrivers());
         self::assertSame(['http.worker'], $contributions->driverIds());
-    }
-
-    public function testRejectsUnknownWorkerTaskType(): void
-    {
-        $config = self::config([
-            'worker.task_type' => 'unknown',
-        ]);
-
-        $this->expectException(WorkerStartFailedException::class);
-
-        WorkerRuntimeDriverContributions::fromConfig($config);
     }
 
     private static function workerPoolSpec(string $taskType): WorkerPoolSpec
@@ -87,56 +72,5 @@ final class WorkerRuntimeDriverContributionsTest extends TestCase
             platformFamily: 'Linux',
             unixDomainSocketsSupported: false,
         );
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     */
-    private static function config(array $values): ConfigRepositoryInterface
-    {
-        return new class($values) implements ConfigRepositoryInterface {
-            /**
-             * @param array<string,mixed> $values
-             */
-            public function __construct(
-                private readonly array $values,
-            ) {
-            }
-
-            public function has(string $keyPath): bool
-            {
-                return \array_key_exists($keyPath, $this->values);
-            }
-
-            public function get(string $keyPath, mixed $default = null): mixed
-            {
-                if (!\array_key_exists($keyPath, $this->values)) {
-                    return $default;
-                }
-
-                return $this->values[$keyPath];
-            }
-
-            /**
-             * @return array<string,mixed>
-             */
-            public function all(): array
-            {
-                throw new RuntimeException('worker-runtime-driver-contributions-test-config-all-forbidden');
-            }
-
-            public function sourceOf(string $keyPath): ?ConfigValueSource
-            {
-                throw new RuntimeException('worker-runtime-driver-contributions-test-config-source-of-forbidden');
-            }
-
-            /**
-             * @return list<ConfigValueSource>
-             */
-            public function explain(): array
-            {
-                throw new RuntimeException('worker-runtime-driver-contributions-test-config-explain-forbidden');
-            }
-        };
     }
 }

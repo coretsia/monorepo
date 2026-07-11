@@ -82,20 +82,23 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         self::assertTrue(true);
     }
 
-    public function testWorkerTaskTypeConfigIsOutOfScopeForKernelRuntimeGuard(): void
+    public function testModuleAwareGuardDoesNotInferWorkerContributionFromRawConfigOrModulePlan(): void
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.classic',
-            'worker.task_type' => 'http',
+            'worker.task_type' => 'queue',
         ]);
 
-        new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
             cfg: $cfg,
-            plan: self::modulePlan([]),
+            plan: self::modulePlan(['platform.worker']),
             contributions: self::runtimeDriverContributions(null),
         );
 
-        self::assertTrue(true);
+        self::assertSame(
+            ['http.classic'],
+            $drivers->driverIds(),
+        );
     }
 
     public function testWorkerQueueBackgroundDriverDoesNotRequirePlatformHttpModule(): void

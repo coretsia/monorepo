@@ -1346,6 +1346,8 @@ provides:
 - "SSoT модель middleware wiring через DI tags + optional manual overrides (no skeleton defaults)"
 - "Baseline system middlewares (correlation/trace/metrics/access log + safety hardening toggles)"
 - "Cutline impact: blocks Phase 3 platform/runtime cutline"
+- "Kernel/platform HTTP compatibility boundary finalized: remove the temporary direct `platform.http` module-id knowledge from RuntimeDriverGuard."
+- "Introduce and declare the canonical HTTP runtime provider contract used by RuntimeEntrypointGuard."
 
 tags_introduced: []
 config_roots_introduced: []
@@ -1403,6 +1405,10 @@ ssot_refs:
   - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
+
+- Existing temporary Kernel compatibility check:
+  - `RuntimeDriverGuard` currently checks enabled module id `platform.http`.
+  - The check MUST remain active until this epic supplies and wires its replacement.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -1482,6 +1488,10 @@ Forbidden:
 #### Creates
 
 - [ ] `framework/packages/platform/http/src/Module/HttpModule.php` — module entry
+  - [ ] MUST declare canonical provided capability `runtime.http`
+  - [ ] MUST use `RuntimeCapability::HTTP->value` or prove exact equality to that canonical id
+  - [ ] MUST NOT rely on package id inference such as `platform.http -> runtime.http`
+
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
 - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` —  define constants for ALL 9 tags above (owner = platform/http)
@@ -1553,8 +1563,17 @@ Docs:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/http-middleware-wiring.md`
   - [ ] `docs/ssot/http-middleware-catalog.md`
+
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0035-platform-http-runtime-pipeline-wiring.md`
+
+- [ ] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php`
+  - [ ] replace the temporary direct `platform.http` module-id check with the finalized HTTP runtime provider contract;
+  - [ ] remove `TODO(platform-http-3.50.0)` only after replacement tests are green.
+
+- [ ] `docs/adr/ADR-0027-runtime-driver-guard.md`
+- [ ] `docs/ssot/runtime-drivers.md`
+- [ ] `docs/architecture/runtime-driver-guard.md`
 
 #### Package skeleton (if type=package)
 
@@ -1769,6 +1788,12 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] `framework/tools/gates/no_skeleton_http_default_gate.php` green
   - [ ] deptrac updated (if needed)
 
+- [ ] non-classic HTTP driver is rejected when no HTTP runtime provider is present;
+- [ ] non-classic HTTP driver is accepted when `platform/http` supplies the canonical provider contract;
+- [ ] `http.classic` remains valid without `platform/http`;
+- [ ] `bg.worker_queue` remains valid without `platform/http`;
+- [ ] Kernel no longer contains temporary owner-module knowledge after the replacement is complete.
+
 ### DoD (MUST)
 
 - [ ] Spec locked (this epic text reviewed + no open questions)
@@ -1793,6 +1818,9 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] Dedupe policy MUST be single-choice and stable:
     - [ ] If dedupe is needed, it MUST preserve first occurrence order (tagged first, then manual).
     - [ ] MUST NOT re-sort anything (TagRegistry already sorted tagged portion).
+- [ ] temporary `platform.http` module-id coupling is either removed through the finalized provider contract or explicitly retained by a new ADR decision;
+- [ ] no runtime service/container probing is used to establish HTTP runtime availability;
+- [ ] RuntimeEntrypointGuard remains the single compatibility boundary.
 
 ---
 

@@ -113,12 +113,23 @@ docs/ssot/reset-tags.md
 docs/ssot/stateful-services.md
 ```
 
-This document does not own generated artifact schemas. Artifact ownership is governed by:
+This document does not own generated artifact schemas or artifact production boundaries.
+
+Artifact identity and ownership are governed by:
 
 ```text
 docs/ssot/artifacts.md
+docs/ssot/artifacts-and-fingerprint.md
 docs/ssot/modules-and-manifests.md
 ```
+
+This document MAY define composite artifact requirements for runtime entrypoints, but it MUST NOT redefine artifact ownership or present owner-package artifacts as Kernel-owned artifacts.
+
+Every non-Kernel artifact requirement MUST identify:
+
+- the owning package;
+- the condition under which the artifact is required;
+- the boundary responsible for production, path resolution, schema validation, and verification.
 
 This document does not own config root registration rules. Config root ownership is governed by:
 
@@ -300,15 +311,7 @@ bg.worker_queue
 
 Notes:
 
-- artifact-only boot is required:
-
-```text
-module-manifest.php
-config.php
-container.php
-routes.php
-```
-
+- artifact-only boot MUST satisfy the composite, ownership-aware artifact contract defined in [Artifact-only boot boundary](#artifact-only-boot-boundary).
 - UoW boundary MUST be enforced per request.
 - Reset MUST run exactly once per UoW through Kernel runtime.
 - Long-running runtime state MUST NOT leak across requests.
@@ -337,15 +340,7 @@ bg.worker_queue
 
 Notes:
 
-- artifact-only boot is required:
-
-```text
-module-manifest.php
-config.php
-container.php
-routes.php
-```
-
+- artifact-only boot MUST satisfy the composite, ownership-aware artifact contract defined in [Artifact-only boot boundary](#artifact-only-boot-boundary).
 - UoW boundary MUST be enforced per request.
 - Reset MUST run exactly once per UoW through Kernel runtime.
 - Long-running loop state MUST NOT leak context or mutable state across requests.
@@ -374,15 +369,7 @@ bg.worker_queue
 
 Notes:
 
-- artifact-only boot is required:
-
-```text
-module-manifest.php
-config.php
-container.php
-routes.php
-```
-
+- artifact-only boot MUST satisfy the composite, ownership-aware artifact contract defined in [Artifact-only boot boundary](#artifact-only-boot-boundary).
 - UoW boundary MUST be enforced per request.
 - Reset MUST run exactly once per UoW through Kernel runtime.
 - Long-running loop state MUST NOT leak context or mutable state across requests.
@@ -1052,14 +1039,36 @@ http.swoole
 http.roadrunner
 ```
 
-Required artifacts are:
+Kernel-owned required artifacts are:
 
 ```text
 module-manifest.php
 config.php
 container.php
+```
+
+These are the only artifacts in this boot contract that are produced, path-resolved, schema-validated, and cache-verified by `core/kernel`.
+
+When the module owned by `platform/routing` is enabled in the resolved `ModulePlan`, artifact-only HTTP boot additionally requires the platform/routing-owned artifact:
+
+```text
 routes.php
 ```
+
+`routes.php` is not part of the Kernel-owned artifact set.
+
+It MUST NOT be produced, path-resolved, schema-validated, or cache-verified by `core/kernel`.
+
+Production, path policy, schema validation, and verification of `routes.php` belong to `platform/routing`.
+
+Therefore, artifact-only HTTP boot uses a composite requirement:
+
+```text
+Kernel-owned artifacts
++ artifacts required by enabled owner packages
+```
+
+When `platform/routing` does not participate in the resolved runtime plan, `routes.php` MUST NOT be treated as an unconditional consequence of selecting a long-running HTTP driver.
 
 Artifact-only boot MUST NOT infer owner runtime-driver contributions from:
 
@@ -1074,10 +1083,11 @@ Owner-specific runtime entrypoints MUST construct and supply their own contribut
 
 Runtime entrypoints for these drivers MUST NOT perform package filesystem scanning as a replacement for generated artifacts.
 
-Artifact schema and ownership are governed by:
+Artifact identity, ownership, production boundaries, and Kernel artifact path policy are governed by:
 
 ```text
 docs/ssot/artifacts.md
+docs/ssot/artifacts-and-fingerprint.md
 docs/ssot/modules-and-manifests.md
 ```
 
@@ -1372,6 +1382,7 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
+- [Kernel Artifacts, Fingerprint, and Cache Verification](./artifacts-and-fingerprint.md)
 - [Config Roots Registry](./config-roots.md)
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
 - [Modules and manifests SSoT](./modules-and-manifests.md)

@@ -14,17 +14,17 @@
 
 # Developer onboarding
 
-This is a **checklist** to get from zero → productive contributor with the canonical workflows.
+This is a checklist to get from zero → productive contributor with the canonical workflows.
 
-**Scope:** Current monorepo development baseline. Commands are assumed to run from the **repository root**.
+Scope: Current monorepo development baseline. Commands are assumed to run from the repository root.
 
-**Hard rule:** docs/workflows MUST NOT rely on `./dev/**`.
+Hard rule: docs/workflows MUST NOT rely on `./dev/**`.
 
 ---
 
 ## 1) Environment checklist
 
-- [ ] PHP **8.4+** installed and on PATH
+- [ ] PHP 8.4+ installed and on PATH
 - [ ] Composer 2.x installed
 - [ ] Git installed
 - [ ] (Windows) You can run Bash scripts (Git Bash recommended)

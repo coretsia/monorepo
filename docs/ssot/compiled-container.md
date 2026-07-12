@@ -59,7 +59,7 @@ This document owns only compiled-container-specific rules for:
 - compiled-container missing/invalid artifact failure semantics;
 - unsupported `1.330.0` transitional stub payload rejection semantics.
 
-This document **MUST NOT** redefine:
+This document MUST NOT redefine:
 
 - the canonical artifact envelope shape;
 - canonical artifact header fields;
@@ -80,9 +80,9 @@ Those rules remain owned by their canonical SSoT documents.
 
 ## Relationship to Global Artifact Law (MUST)
 
-`container@1` **MUST** remain compatible with the global artifact envelope and deterministic serialization law defined by `docs/ssot/artifacts.md`.
+`container@1` MUST remain compatible with the global artifact envelope and deterministic serialization law defined by `docs/ssot/artifacts.md`.
 
-The REAL compiled-container artifact **MUST** use the canonical Kernel artifact envelope:
+The REAL compiled-container artifact MUST use the canonical Kernel artifact envelope:
 
 ```php
 [
@@ -93,9 +93,9 @@ The REAL compiled-container artifact **MUST** use the canonical Kernel artifact 
 
 This document describes only the `payload` value for the `container@1` artifact.
 
-This document **MUST NOT** add, remove, rename, or redefine artifact header fields.
+This document MUST NOT add, remove, rename, or redefine artifact header fields.
 
-This document **MUST NOT** add, remove, rename, or redefine artifact registry rows.
+This document MUST NOT add, remove, rename, or redefine artifact registry rows.
 
 ## `container@1` Schema Evolution Note (MUST)
 
@@ -110,7 +110,7 @@ compiled = false
 
 That transitional payload is no longer a supported production runtime container format.
 
-Current Kernel-produced `container@1` artifacts **MUST** use REAL compiled-container semantics:
+Current Kernel-produced `container@1` artifacts MUST use REAL compiled-container semantics:
 
 ```text
 kind = compiled
@@ -125,7 +125,7 @@ A future `container@2` is required only if a later change needs to preserve an a
 
 ## REAL `container@1` Payload Shape (MUST)
 
-The REAL `container@1` payload **MUST** be a deterministic map with exactly these top-level fields:
+The REAL `container@1` payload MUST be a deterministic map with exactly these top-level fields:
 
 ```text
 aliases
@@ -149,23 +149,23 @@ The canonical payload shape is:
 ]
 ```
 
-The payload **MUST** satisfy:
+The payload MUST satisfy:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-The payload **MUST NOT** satisfy:
+The payload MUST NOT satisfy:
 
 ```text
 kind = stub
 compiled = false
 ```
 
-The payload **MUST NOT** contain unknown top-level fields.
+The payload MUST NOT contain unknown top-level fields.
 
-The payload top-level map fields **MUST** be deterministic maps:
+The payload top-level map fields MUST be deterministic maps:
 
 ```text
 aliases
@@ -191,7 +191,7 @@ An empty compiled graph is a valid REAL `container@1` payload.
 
 ## Deterministic Value Law (MUST)
 
-Compiled-container payload values **MUST** be deterministic schema values only.
+Compiled-container payload values MUST be deterministic schema values only.
 
 Allowed value forms are:
 
@@ -204,7 +204,7 @@ list<value>
 map<string, value>
 ```
 
-Compiled-container payload values **MUST NOT** contain:
+Compiled-container payload values MUST NOT contain:
 
 - floats;
 - objects;
@@ -225,30 +225,30 @@ Compiled-container payload values **MUST NOT** contain:
 - timestamps;
 - filesystem metadata.
 
-Map keys owned by compiled-container payloads **MUST** be deterministic strings.
+Map keys owned by compiled-container payloads MUST be deterministic strings.
 
-Map keys owned by compiled-container payloads **MUST** be sorted by byte-order string comparison where the producing component owns map ordering.
+Map keys owned by compiled-container payloads MUST be sorted by byte-order string comparison where the producing component owns map ordering.
 
 Lists preserve caller-supplied order when list order is semantic.
 
 ## Compile Input Semantics (MUST)
 
-Compiled-container input **MUST** be descriptor-based and closure-free.
+Compiled-container input MUST be descriptor-based and closure-free.
 
 `ContainerCompiler` owns deterministic descriptor-to-`DefinitionGraph` compilation.
 
 The descriptor stream order is caller-owned and semantically significant.
 
-`ContainerCompiler` **MUST NOT** globally re-sort providers, modules, or descriptors before applying binding collision semantics.
+`ContainerCompiler` MUST NOT globally re-sort providers, modules, or descriptors before applying binding collision semantics.
 
-Compiled-container compile semantics **MUST** preserve the Foundation binding collision policy:
+Compiled-container compile semantics MUST preserve the Foundation binding collision policy:
 
 - later service binding overrides earlier service binding for the same service id;
 - later alias binding overrides earlier alias binding for the same alias;
 - later parameter binding overrides earlier parameter binding for the same parameter name;
 - duplicate tag registration for the same `(tag, serviceId)` is ignored after the first registration.
 
-`ContainerCompiler` **MUST NOT**:
+`ContainerCompiler` MUST NOT:
 
 - read source config files;
 - read generated artifacts;
@@ -267,7 +267,7 @@ Compiled-container compile semantics **MUST** preserve the Foundation binding co
 
 It is an internal compilation model, not a public DTO marker class.
 
-It **MUST** contain only exported deterministic array data for:
+It MUST contain only exported deterministic array data for:
 
 ```text
 aliases
@@ -276,11 +276,11 @@ services
 tags
 ```
 
-It **MUST NOT** store `ServiceDefinition`, `ParameterBag`, `TagRegistry`, `TaggedService`, or runtime object instances as payload state.
+It MUST NOT store `ServiceDefinition`, `ParameterBag`, `TagRegistry`, `TaggedService`, or runtime object instances as payload state.
 
-It **MUST NOT** use PHP object identity as compiled payload state.
+It MUST NOT use PHP object identity as compiled payload state.
 
-The exported graph shape **MUST** be:
+The exported graph shape MUST be:
 
 ```php
 [
@@ -293,7 +293,7 @@ The exported graph shape **MUST** be:
 
 ## Service Definition Schema (MUST)
 
-The `services` payload field **MUST** be a deterministic map:
+The `services` payload field MUST be a deterministic map:
 
 ```php
 [
@@ -301,7 +301,7 @@ The `services` payload field **MUST** be a deterministic map:
 ]
 ```
 
-Each service definition **MUST** be a deterministic map with exactly these fields:
+Each service definition MUST be a deterministic map with exactly these fields:
 
 ```text
 arguments
@@ -323,15 +323,15 @@ The canonical service definition shape is:
 ]
 ```
 
-The `id` field **MUST** equal the surrounding service map key.
+The `id` field MUST equal the surrounding service map key.
 
-The `shared` field **MUST** be a boolean.
+The `shared` field MUST be a boolean.
 
-The `arguments` field **MUST** be a list.
+The `arguments` field MUST be a list.
 
-The `construction` field **MUST** be a deterministic map.
+The `construction` field MUST be a deterministic map.
 
-Unknown service definition fields **MUST** be rejected.
+Unknown service definition fields MUST be rejected.
 
 ## Service Definition Lifecycle Subsection (MUST)
 
@@ -346,7 +346,7 @@ shared = false
 
 `shared = true` means the runtime Foundation container resolves the service once per container instance and stores the resolved value in the resolved-instance cache.
 
-`shared = false` means the runtime Foundation container resolves the service on every `Container::get($id)` call and **MUST NOT** store the resolved value in the resolved-instance cache.
+`shared = false` means the runtime Foundation container resolves the service on every `Container::get($id)` call and MUST NOT store the resolved value in the resolved-instance cache.
 
 The default compile-side lifecycle for service definitions is `shared = true` unless the descriptor explicitly defines otherwise.
 
@@ -363,13 +363,13 @@ It does not apply to:
 
 ## Service Type: `class` (MUST)
 
-A class service definition **MUST** use:
+A class service definition MUST use:
 
 ```text
 type = class
 ```
 
-Its construction map **MUST** use exactly this shape:
+Its construction map MUST use exactly this shape:
 
 ```php
 [
@@ -377,21 +377,21 @@ Its construction map **MUST** use exactly this shape:
 ]
 ```
 
-The `class` value **MUST** be a deterministic class reference string.
+The `class` value MUST be a deterministic class reference string.
 
 The runtime container MAY instantiate the class through reflection using the resolved `arguments` list.
 
-The construction map **MUST NOT** contain closures, callable arrays, object instances, reflection objects, absolute paths, source snippets, or runtime callable payloads.
+The construction map MUST NOT contain closures, callable arrays, object instances, reflection objects, absolute paths, source snippets, or runtime callable payloads.
 
 ## Service Type: `factory` (MUST)
 
-A factory service definition **MUST** use:
+A factory service definition MUST use:
 
 ```text
 type = factory
 ```
 
-Its construction map **MUST** use exactly one nested `factory` map:
+Its construction map MUST use exactly one nested `factory` map:
 
 ```php
 [
@@ -399,9 +399,9 @@ Its construction map **MUST** use exactly one nested `factory` map:
 ]
 ```
 
-The factory map **MUST** use one of the canonical factory shapes defined below.
+The factory map MUST use one of the canonical factory shapes defined below.
 
-The factory map **MUST NOT** use non-canonical flat construction keys such as:
+The factory map MUST NOT use non-canonical flat construction keys such as:
 
 ```text
 factoryClass
@@ -414,7 +414,7 @@ Those flat keys are not the canonical REAL `container@1` factory construction sh
 
 ### Factory Class-Method Shape (MUST)
 
-A factory class-method construction **MUST** use:
+A factory class-method construction MUST use:
 
 ```php
 [
@@ -426,7 +426,7 @@ A factory class-method construction **MUST** use:
 ]
 ```
 
-The nested factory map **MUST** contain exactly these fields:
+The nested factory map MUST contain exactly these fields:
 
 ```text
 class
@@ -434,21 +434,21 @@ kind
 method
 ```
 
-The `kind` field **MUST** be:
+The `kind` field MUST be:
 
 ```text
 class-method
 ```
 
-The `class` field **MUST** be a deterministic class reference string.
+The `class` field MUST be a deterministic class reference string.
 
-The `method` field **MUST** be a safe method name.
+The `method` field MUST be a safe method name.
 
-Runtime invocation **MUST** call a public static method on the factory class.
+Runtime invocation MUST call a public static method on the factory class.
 
 ### Factory Service-Method Shape (MUST)
 
-A factory service-method construction **MUST** use:
+A factory service-method construction MUST use:
 
 ```php
 [
@@ -460,7 +460,7 @@ A factory service-method construction **MUST** use:
 ]
 ```
 
-The nested factory map **MUST** contain exactly these fields:
+The nested factory map MUST contain exactly these fields:
 
 ```text
 kind
@@ -468,31 +468,31 @@ method
 service
 ```
 
-The `kind` field **MUST** be:
+The `kind` field MUST be:
 
 ```text
 service-method
 ```
 
-The `service` field **MUST** reference a known compiled service id or known compiled alias id.
+The `service` field MUST reference a known compiled service id or known compiled alias id.
 
-The `service` field **MUST NOT** reference a reserved runtime support service id.
+The `service` field MUST NOT reference a reserved runtime support service id.
 
-The `method` field **MUST** be a safe method name.
+The `method` field MUST be a safe method name.
 
-Runtime invocation **MUST** resolve the factory service from the compiled runtime container and then call the named method.
+Runtime invocation MUST resolve the factory service from the compiled runtime container and then call the named method.
 
 ## Argument and Reference Schema (MUST)
 
-Compiled service arguments **MUST** be represented as a list.
+Compiled service arguments MUST be represented as a list.
 
-Argument values **MUST** use deterministic value forms only.
+Argument values MUST use deterministic value forms only.
 
-Compiled-container references **MUST** be represented as deterministic maps.
+Compiled-container references MUST be represented as deterministic maps.
 
 ### Service Reference (MUST)
 
-A service reference argument **MUST** use exactly this shape:
+A service reference argument MUST use exactly this shape:
 
 ```php
 [
@@ -501,7 +501,7 @@ A service reference argument **MUST** use exactly this shape:
 ]
 ```
 
-The referenced id **MUST** be a known compiled service id, known compiled alias id, or allowed reserved runtime support id.
+The referenced id MUST be a known compiled service id, known compiled alias id, or allowed reserved runtime support id.
 
 The reserved runtime support ids are:
 
@@ -511,11 +511,11 @@ Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
 ```
 
-Compiled service and alias definitions **MUST NOT** define or shadow reserved runtime support ids.
+Compiled service and alias definitions MUST NOT define or shadow reserved runtime support ids.
 
 ### Parameter Reference (MUST)
 
-A parameter reference argument **MUST** use exactly this shape:
+A parameter reference argument MUST use exactly this shape:
 
 ```php
 [
@@ -524,11 +524,11 @@ A parameter reference argument **MUST** use exactly this shape:
 ]
 ```
 
-The referenced parameter name **MUST** exist in the compiled `parameters` payload map.
+The referenced parameter name MUST exist in the compiled `parameters` payload map.
 
 ### Class Reference (MUST)
 
-A class reference argument **MUST** use exactly this shape:
+A class reference argument MUST use exactly this shape:
 
 ```php
 [
@@ -537,13 +537,13 @@ A class reference argument **MUST** use exactly this shape:
 ]
 ```
 
-The class reference **MUST** be deterministic schema data.
+The class reference MUST be deterministic schema data.
 
-It **MUST NOT** imply runtime object identity.
+It MUST NOT imply runtime object identity.
 
 ## Parameter Bag Schema (MUST)
 
-The `parameters` payload field **MUST** be a deterministic map:
+The `parameters` payload field MUST be a deterministic map:
 
 ```php
 [
@@ -553,11 +553,11 @@ The `parameters` payload field **MUST** be a deterministic map:
 
 Empty parameter maps are valid.
 
-Parameter names **MUST** be deterministic safe strings.
+Parameter names MUST be deterministic safe strings.
 
-Parameter values **MUST** use deterministic schema values only.
+Parameter values MUST use deterministic schema values only.
 
-Parameter values **MUST NOT** contain:
+Parameter values MUST NOT contain:
 
 - floats;
 - objects;
@@ -572,9 +572,9 @@ Parameter values **MUST NOT** contain:
 - raw env values;
 - secrets.
 
-The parameter bag **MUST NOT** duplicate the full `config@1` compiled config payload.
+The parameter bag MUST NOT duplicate the full `config@1` compiled config payload.
 
-The following parameter names are reserved and **MUST NOT** be accepted as compiled parameter names:
+The following parameter names are reserved and MUST NOT be accepted as compiled parameter names:
 
 ```text
 config
@@ -588,7 +588,7 @@ Runtime config snapshot ownership remains with the already-read and already-vali
 
 ## Alias Schema (MUST)
 
-The `aliases` payload field **MUST** be a deterministic map:
+The `aliases` payload field MUST be a deterministic map:
 
 ```php
 [
@@ -598,39 +598,39 @@ The `aliases` payload field **MUST** be a deterministic map:
 
 Empty alias maps are valid.
 
-Alias ids **MUST** be deterministic safe service-id strings.
+Alias ids MUST be deterministic safe service-id strings.
 
-Alias targets **MUST** be deterministic safe service-id strings.
+Alias targets MUST be deterministic safe service-id strings.
 
-Alias ids **MUST NOT** equal their target ids.
+Alias ids MUST NOT equal their target ids.
 
-Alias ids **MUST NOT** conflict with compiled service ids.
+Alias ids MUST NOT conflict with compiled service ids.
 
-Alias ids **MUST NOT** define or shadow reserved runtime support service ids.
+Alias ids MUST NOT define or shadow reserved runtime support service ids.
 
-Alias targets **MUST** point to known compiled service ids or known compiled alias ids.
+Alias targets MUST point to known compiled service ids or known compiled alias ids.
 
-Alias targets **MUST NOT** point to reserved runtime support service ids.
+Alias targets MUST NOT point to reserved runtime support service ids.
 
 ## Alias Lifecycle Rule for Compiled Aliases (MUST)
 
-Compiled aliases **MUST** be runtime delegation wrappers.
+Compiled aliases MUST be runtime delegation wrappers.
 
-Compiled aliases **MUST** be registered as non-shared runtime definitions.
+Compiled aliases MUST be registered as non-shared runtime definitions.
 
-Compiled aliases **MUST NOT** own independent lifecycle state.
+Compiled aliases MUST NOT own independent lifecycle state.
 
-Compiled aliases **MUST NOT** convert a non-shared target into a shared target.
+Compiled aliases MUST NOT convert a non-shared target into a shared target.
 
-Compiled aliases **MUST NOT** cache the resolved target.
+Compiled aliases MUST NOT cache the resolved target.
 
-Each alias resolution **MUST** delegate to the target service id through the runtime container.
+Each alias resolution MUST delegate to the target service id through the runtime container.
 
 The target service definition owns lifecycle through its own `shared` field.
 
 ## Tag Schema (MUST)
 
-The `tags` payload field **MUST** be a deterministic map:
+The `tags` payload field MUST be a deterministic map:
 
 ```php
 [
@@ -645,55 +645,55 @@ The `tags` payload field **MUST** be a deterministic map:
 
 Empty tag maps are valid.
 
-Tag names **MUST** be deterministic safe tag strings.
+Tag names MUST be deterministic safe tag strings.
 
-Framework-reserved tag names, when present in the compiled `tags` payload, **MUST** use the canonical identifier strings declared by `Coretsia\Foundation\Tag\ReservedTags`.
+Framework-reserved tag names, when present in the compiled `tags` payload, MUST use the canonical identifier strings declared by `Coretsia\Foundation\Tag\ReservedTags`.
 
 This document does not introduce new reserved tag identifiers and does not authorize additional code-level registries for framework-reserved DI tag identifiers.
 
 Custom or user-defined non-reserved tag strings MAY appear in compiled payloads only when they come from compile-time container metadata and satisfy the tag string safety rules.
 
-Each tag entry **MUST** contain exactly these fields:
+Each tag entry MUST contain exactly these fields:
 
 ```text
 id
 priority
 ```
 
-The `id` field **MUST** be a deterministic service id string.
+The `id` field MUST be a deterministic service id string.
 
-The `priority` field **MUST** be an integer.
+The `priority` field MUST be an integer.
 
-Tag entry lists **MUST** preserve canonical Foundation discovery order:
+Tag entry lists MUST preserve canonical Foundation discovery order:
 
 ```text
 priority DESC
 id ASC
 ```
 
-The `id ASC` comparison **MUST** use byte-order string comparison.
+The `id ASC` comparison MUST use byte-order string comparison.
 
-Duplicate service ids inside the same tag list **MUST** be rejected in existing artifact validation.
+Duplicate service ids inside the same tag list MUST be rejected in existing artifact validation.
 
-Compile-time tag duplicate handling **MUST** preserve canonical Foundation first-wins semantics per `(tag, serviceId)`.
+Compile-time tag duplicate handling MUST preserve canonical Foundation first-wins semantics per `(tag, serviceId)`.
 
-Tag metadata **MUST NOT** be emitted into the compiled-container tag payload.
+Tag metadata MUST NOT be emitted into the compiled-container tag payload.
 
 Owner-defined tag metadata may exist in compile-time descriptor input or Foundation `TagRegistry`, but the REAL `container@1` tag payload requires only deterministic service id and priority data.
 
 ## Foundation Tag and Reset Linkage (MUST)
 
-Compiled-container tag payload semantics **MUST** preserve Foundation tag discovery semantics.
+Compiled-container tag payload semantics MUST preserve Foundation tag discovery semantics.
 
-Compiled-container code **MUST NOT** invent a second tag ordering rule.
+Compiled-container code MUST NOT invent a second tag ordering rule.
 
-Compiled-container code **MUST NOT** invent a second tag dedupe rule.
+Compiled-container code MUST NOT invent a second tag dedupe rule.
 
 Reset discovery semantics remain Foundation/reset-owned.
 
 The reset discovery tag identifier is the framework-reserved DI tag string `kernel.reset`, declared by `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET` and registered in `docs/ssot/tags.md`.
 
-The compiled-container payload may carry the service ids and priorities required for reset discovery, but it **MUST NOT** redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
+The compiled-container payload may carry the service ids and priorities required for reset discovery, but it MUST NOT redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
 
 Those rules are owned by:
 
@@ -705,26 +705,26 @@ docs/ssot/reset-tags.md
 
 ## Closure and Callable Rejection Semantics (MUST)
 
-Compiled-container compile and artifact production **MUST** reject any closure, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, absolute path, runtime callable payload, raw env value, or secret before such data can become serialized `container@1` payload state.
+Compiled-container compile and artifact production MUST reject any closure, anonymous function, callable object, raw PHP callable array, object instance, resource, reflection object, source snippet, absolute path, runtime callable payload, raw env value, or secret before such data can become serialized `container@1` payload state.
 
 Closure rejection is a compiled-container semantic invariant.
 
 It is not a generic PHP-source static gate.
 
-Runtime provider closures may exist in non-artifact builder mode, compile-time wiring, tests, or provider-based scaffolding, but any definition that reaches the compiled-container graph **MUST** be represented as deterministic schema data.
+Runtime provider closures may exist in non-artifact builder mode, compile-time wiring, tests, or provider-based scaffolding, but any definition that reaches the compiled-container graph MUST be represented as deterministic schema data.
 
-Factory behavior **MUST** be represented by deterministic class references, service ids, method names, service references, parameter references, and scalar/list/map arguments.
+Factory behavior MUST be represented by deterministic class references, service ids, method names, service references, parameter references, and scalar/list/map arguments.
 
-Factory behavior **MUST NOT** be represented by serialized PHP callables or closures.
+Factory behavior MUST NOT be represented by serialized PHP callables or closures.
 
-Compile failures for invalid compiled-container input **MUST** use:
+Compile failures for invalid compiled-container input MUST use:
 
 ```text
 CORETSIA_CONTAINER_COMPILE_FAILED
 container-compile-failed
 ```
 
-Diagnostics for compile failures **MUST NOT** expose:
+Diagnostics for compile failures MUST NOT expose:
 
 - closure dumps;
 - source snippets;
@@ -743,16 +743,16 @@ Diagnostics for compile failures **MUST NOT** expose:
 
 `CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
 
-`CompiledContainerBuilder` **MUST** build the REAL `container@1` payload shape defined by this document.
+`CompiledContainerBuilder` MUST build the REAL `container@1` payload shape defined by this document.
 
-`CompiledContainerBuilder` **MUST** set:
+`CompiledContainerBuilder` MUST set:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-`CompiledContainerBuilder` **MUST NOT**:
+`CompiledContainerBuilder` MUST NOT:
 
 - compile the container graph;
 - calculate fingerprints;
@@ -767,27 +767,27 @@ Fingerprint calculation, artifact writing, artifact path policy, and cache verif
 
 ## Existing Artifact Validation Semantics (MUST)
 
-Existing `container@1` artifacts **MUST** be validated by artifact header semantics and compiled-container payload schema semantics.
+Existing `container@1` artifacts MUST be validated by artifact header semantics and compiled-container payload schema semantics.
 
-Validation **MUST NOT** rely on PHP object identity.
+Validation MUST NOT rely on PHP object identity.
 
-Validation **MUST NOT** rely on runtime class type checks as the source of truth for artifact validity.
+Validation MUST NOT rely on runtime class type checks as the source of truth for artifact validity.
 
-A valid REAL `container@1` artifact payload **MUST** satisfy:
+A valid REAL `container@1` artifact payload MUST satisfy:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-A transitional stub payload **MUST** be rejected for production runtime boot:
+A transitional stub payload MUST be rejected for production runtime boot:
 
 ```text
 kind = stub
 compiled = false
 ```
 
-Existing artifact validation **MUST** reject:
+Existing artifact validation MUST reject:
 
 - invalid envelope shape;
 - invalid header semantics;
@@ -808,7 +808,7 @@ Existing artifact validation **MUST** reject:
 
 ## Artifact-Only Runtime Boot Inputs (MUST)
 
-Production runtime boot paths covered by compiled-container semantics **MUST** use artifact-only boot.
+Production runtime boot paths covered by compiled-container semantics MUST use artifact-only boot.
 
 The artifact-only runtime boot inputs are:
 
@@ -817,29 +817,29 @@ container@1
 already-read/validated config@1 payload
 ```
 
-`CompiledContainerFactory` **MUST** read the `container@1` artifact through Kernel artifact reading infrastructure.
+`CompiledContainerFactory` MUST read the `container@1` artifact through Kernel artifact reading infrastructure.
 
-`CompiledContainerFactory` **MUST** receive the `config@1` payload from the caller as an already-read and already-validated payload.
+`CompiledContainerFactory` MUST receive the `config@1` payload from the caller as an already-read and already-validated payload.
 
-`CompiledContainerFactory` **MUST** use the `config` field from the `config@1` payload as the runtime Foundation container config snapshot.
+`CompiledContainerFactory` MUST use the `config` field from the `config@1` payload as the runtime Foundation container config snapshot.
 
-`CompiledContainerFactory` **MUST NOT** read source config files.
+`CompiledContainerFactory` MUST NOT read source config files.
 
-`CompiledContainerFactory` **MUST NOT** run source config discovery.
+`CompiledContainerFactory` MUST NOT run source config discovery.
 
-`CompiledContainerFactory` **MUST NOT** run module discovery.
+`CompiledContainerFactory` MUST NOT run module discovery.
 
-`CompiledContainerFactory` **MUST NOT** run providers as an implicit fallback.
+`CompiledContainerFactory` MUST NOT run providers as an implicit fallback.
 
-`CompiledContainerFactory` **MUST NOT** compile a new container during production runtime boot.
+`CompiledContainerFactory` MUST NOT compile a new container during production runtime boot.
 
-`CompiledContainerFactory` **MUST NOT** calculate fingerprints.
+`CompiledContainerFactory` MUST NOT calculate fingerprints.
 
-`CompiledContainerFactory` **MUST NOT** write artifacts.
+`CompiledContainerFactory` MUST NOT write artifacts.
 
-`CompiledContainerFactory` **MUST NOT** mutate existing artifacts.
+`CompiledContainerFactory` MUST NOT mutate existing artifacts.
 
-`CompiledContainerFactory` **MUST NOT** emit stdout or stderr.
+`CompiledContainerFactory` MUST NOT emit stdout or stderr.
 
 Provider-based container construction remains allowed only for:
 
@@ -847,19 +847,19 @@ Provider-based container construction remains allowed only for:
 - test scaffolding;
 - explicitly documented non-production paths outside this SSoT.
 
-Any future developer-mode fallback requires a separate epic/ADR and **MUST NOT** be implied by this document.
+Any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied by this document.
 
 ## Runtime Container Construction Semantics (MUST)
 
-Runtime container construction from `container@1` **MUST** be based only on deterministic compiled graph entries.
+Runtime container construction from `container@1` MUST be based only on deterministic compiled graph entries.
 
-Compiled service definitions **MUST** be registered into the Foundation container as runtime factories using their compiled `shared` lifecycle value.
+Compiled service definitions MUST be registered into the Foundation container as runtime factories using their compiled `shared` lifecycle value.
 
-Compiled aliases **MUST** be registered as non-shared delegation factories.
+Compiled aliases MUST be registered as non-shared delegation factories.
 
-The runtime `TagRegistry` **MUST** be derived from the compiled `tags` payload and injected as a runtime support instance.
+The runtime `TagRegistry` MUST be derived from the compiled `tags` payload and injected as a runtime support instance.
 
-Reserved runtime support ids **MUST** be available for service reference resolution where explicitly allowed:
+Reserved runtime support ids MUST be available for service reference resolution where explicitly allowed:
 
 ```text
 Coretsia\Foundation\Container\Container
@@ -867,20 +867,20 @@ Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
 ```
 
-Compiled service ids and alias ids **MUST NOT** conflict with reserved runtime support ids.
+Compiled service ids and alias ids MUST NOT conflict with reserved runtime support ids.
 
 ## Missing Artifact Failure Semantics (MUST)
 
-If the required `container.php` artifact is missing during artifact-only runtime boot, runtime boot **MUST** fail deterministically.
+If the required `container.php` artifact is missing during artifact-only runtime boot, runtime boot MUST fail deterministically.
 
-Missing artifact failure **MUST** use:
+Missing artifact failure MUST use:
 
 ```text
 CORETSIA_CONTAINER_ARTIFACT_MISSING
 container-artifact-missing
 ```
 
-The missing artifact exception **MUST NOT** expose:
+The missing artifact exception MUST NOT expose:
 
 - the missing filesystem path;
 - absolute paths;
@@ -892,9 +892,9 @@ The missing artifact exception **MUST NOT** expose:
 
 ## Invalid Artifact Failure Semantics (MUST)
 
-If `container.php` exists but cannot be accepted as a production REAL `container@1` artifact, runtime boot **MUST** fail deterministically.
+If `container.php` exists but cannot be accepted as a production REAL `container@1` artifact, runtime boot MUST fail deterministically.
 
-Invalid artifact failure **MUST** use:
+Invalid artifact failure MUST use:
 
 ```text
 CORETSIA_CONTAINER_ARTIFACT_INVALID
@@ -915,7 +915,7 @@ Invalid artifact failure covers:
 - unsupported `1.330.0` transitional stub payloads;
 - non-REAL `container@1` payloads.
 
-Invalid artifact diagnostics **MUST NOT** expose:
+Invalid artifact diagnostics MUST NOT expose:
 
 - absolute paths;
 - raw artifact payloads;
@@ -935,7 +935,7 @@ Invalid artifact diagnostics **MUST NOT** expose:
 
 Compiled-container compile observability is owned by `ContainerCompiler`.
 
-`ContainerCompiler` **MUST** emit only safe bounded observability data.
+`ContainerCompiler` MUST emit only safe bounded observability data.
 
 The compile span name is:
 
@@ -963,19 +963,19 @@ success
 failure
 ```
 
-Compiled-container compile observability **MUST** comply with the global observability SSoT.
+Compiled-container compile observability MUST comply with the global observability SSoT.
 
 This document does not own the global metrics catalog.
 
-Observability failures **MUST NOT** alter compile behavior, compile results, exception precedence, artifact payload semantics, or runtime boot behavior.
+Observability failures MUST NOT alter compile behavior, compile results, exception precedence, artifact payload semantics, or runtime boot behavior.
 
-Provider registration and factory wiring **MUST NOT** start spans, emit metrics, or write logs merely by registering compiled-container services.
+Provider registration and factory wiring MUST NOT start spans, emit metrics, or write logs merely by registering compiled-container services.
 
 ## Provider Registration Non-Semantics (MUST)
 
-Registering compiled-container services in a provider **MUST NOT** compile a container.
+Registering compiled-container services in a provider MUST NOT compile a container.
 
-Provider registration **MUST NOT**:
+Provider registration MUST NOT:
 
 - read source config files;
 - read generated artifacts;
@@ -999,9 +999,9 @@ Provider registration only wires services.
 
 ## Security and Redaction (MUST)
 
-Compiled-container code **MUST** prefer safe tokens, omission, hashes, lengths, counts, and safe ids over raw values.
+Compiled-container code MUST prefer safe tokens, omission, hashes, lengths, counts, and safe ids over raw values.
 
-Compiled-container compile, payload construction, artifact validation, and artifact-only runtime boot **MUST NOT** expose:
+Compiled-container compile, payload construction, artifact validation, and artifact-only runtime boot MUST NOT expose:
 
 - raw config values;
 - raw env values;

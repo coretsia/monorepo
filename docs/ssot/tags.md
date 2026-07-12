@@ -28,22 +28,22 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 
 ## Invariants (MUST)
 
-- This registry **MUST** be the canonical source for reserved DI tag names.
-- Every reserved tag **MUST** have exactly one owner `package_id`.
+- This registry MUST be the canonical source for reserved DI tag names.
+- Every reserved tag MUST have exactly one owner `package_id`.
 - Shared ownership is forbidden.
 - Only the owner epic may introduce or modify a reserved tag entry.
-- Registry rows **MAY** exist independently of whether the semantic owner package currently registers runtime services for that tag.
+- Registry rows MAY exist independently of whether the semantic owner package currently registers runtime services for that tag.
 - Every framework-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
 - Framework packages MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
 - `ReservedTags` owns tag identifier strings only.
 - Runtime semantics, metadata schema, discovery, ordering, dispatch, validation, and consumer behavior remain owned by the semantic owner package declared in this SSoT.
-- Non-owner packages **MAY** use existing reserved tags, but **MUST NOT** redefine competing semantics or competing meta-schema for the same tag.
-- Raw literal tag strings are allowed in docs, tests, and fixtures for readability, but **MUST NOT** be the preferred runtime-code pattern.
+- Non-owner packages MAY use existing reserved tags, but MUST NOT redefine competing semantics or competing meta-schema for the same tag.
+- Raw literal tag strings are allowed in docs, tests, and fixtures for readability, but MUST NOT be the preferred runtime-code pattern.
 
 ## Naming Rules (MUST)
 
-- Tag names **MUST** use dot-separated tokens.
-- Tag names **MUST** be lowercase.
+- Tag names MUST use dot-separated tokens.
+- Tag names MUST be lowercase.
 - Digits and `_` are allowed inside a token.
 - Whitespace is forbidden.
 - Canonical regex:
@@ -68,9 +68,9 @@ The semantic owner package owns:
 
 Non-owner packages:
 
-- **MAY** use existing reserved tags
-- **MUST NOT** define competing public tag APIs for the same tag
-- **MUST NOT** define competing meta keys or competing semantics for the same tag
+- MAY use existing reserved tags
+- MUST NOT define competing public tag APIs for the same tag
+- MUST NOT define competing meta keys or competing semantics for the same tag
 
 ## Reserved Prefixes (MUST)
 
@@ -116,7 +116,7 @@ Stability enum is single-choice:
 
 ## Forbidden Non-canonical Tags (MUST)
 
-The following non-canonical tags are forbidden and **MUST NOT** be introduced anywhere:
+The following non-canonical tags are forbidden and MUST NOT be introduced anywhere:
 
 - `http.middleware.user_before_routing`
 - `http.middleware.user`
@@ -125,8 +125,8 @@ The following non-canonical tags are forbidden and **MUST NOT** be introduced an
 Rationale:
 
 - Canonical Phase 0+ HTTP middleware taxonomy is single-choice: `system/app/route`.
-- Any new epic mentioning `http.middleware.user*` **MUST** treat it only as forbidden non-canonical terminology.
-- `http.middleware.user*` names **MUST NOT** appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
+- Any new epic mentioning `http.middleware.user*` MUST treat it only as forbidden non-canonical terminology.
+- `http.middleware.user*` names MUST NOT appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
 
 ## Runtime Usage Rule (MUST)
 
@@ -142,9 +142,9 @@ Custom/user tags are outside this reserved registry unless explicitly promoted t
 
 ## Contributor Rule (MUST)
 
-- A non-owner epic **MAY** say `N/A (uses existing <tag>)`.
-- A non-owner epic **MUST NOT** introduce or freeze a competing meta-schema for that tag.
-- If the owner meta-schema is not cemented yet, contributor epics **MUST** say `meta per owner schema` or equivalent wording instead of inventing alternative keys.
+- A non-owner epic MAY say `N/A (uses existing <tag>)`.
+- A non-owner epic MUST NOT introduce or freeze a competing meta-schema for that tag.
+- If the owner meta-schema is not cemented yet, contributor epics MUST say `meta per owner schema` or equivalent wording instead of inventing alternative keys.
 
 ## Introducing a New Tag (MUST)
 
@@ -158,9 +158,9 @@ A new tag is not complete unless both artifacts exist.
 
 ## Non-tag Metadata Rule (MUST)
 
-- PHP attributes, including DTO marker attributes, are **NOT** DI tags.
-- PHP attributes **MUST NOT** be registered in this tag registry.
-- DI tags and PHP attributes are orthogonal mechanisms and **MUST NOT** be conflated.
+- PHP attributes, including DTO marker attributes, are NOT DI tags.
+- PHP attributes MUST NOT be registered in this tag registry.
+- DI tags and PHP attributes are orthogonal mechanisms and MUST NOT be conflated.
 
 ## Cross-references
 

@@ -24,13 +24,13 @@ This package MUST NOT be required by runtime packages and MUST NOT become a prod
 
 ## Package identity
 
-- **Monorepo source path:** `framework/packages/devtools/internal-toolkit`
-- **Split repository:** `coretsia/devtools-internal-toolkit`
-- **Package id:** `devtools/internal-toolkit`
-- **Composer name:** `coretsia/devtools-internal-toolkit`
-- **Namespace:** `Coretsia\Devtools\InternalToolkit\*` (PSR-4: `src/`)
-- **Kind:** library
-- **Lifecycle:** tooling-only / devtools / internal Coretsia tooling support
+- Monorepo source path: `framework/packages/devtools/internal-toolkit`
+- Split repository: `coretsia/devtools-internal-toolkit`
+- Package id: `devtools/internal-toolkit`
+- Composer name: `coretsia/devtools-internal-toolkit`
+- Namespace: `Coretsia\Devtools\InternalToolkit\*` (PSR-4: `src/`)
+- Kind: library
+- Lifecycle: tooling-only / devtools / internal Coretsia tooling support
 
 Versioning is monorepo-wide.
 
@@ -42,14 +42,14 @@ Per-package independent versions MUST NOT be used.
 
 This package is tooling-only and intentionally small.
 
-- **Depends on:**
+- Depends on:
   - PHP
   - `ext-json`
-- **Allowed consumers:**
+- Allowed consumers:
   - Coretsia devtools packages
   - Coretsia repository tooling
   - Coretsia gates, generators, runners, and split/publishing automation
-- **Forbidden consumers:**
+- Forbidden consumers:
   - runtime packages under `core/*`
   - runtime packages under `platform/*`
   - runtime packages under `integrations/*`

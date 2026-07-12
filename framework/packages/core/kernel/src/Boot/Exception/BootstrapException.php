@@ -36,6 +36,7 @@ final class BootstrapException extends \RuntimeException
 
     public const string REASON_INVALID_APP_TARGET = 'bootstrap-invalid-app-target';
     public const string REASON_INVALID_SKELETON_ROOT = 'bootstrap-invalid-skeleton-root';
+    public const string REASON_ARTIFACTS_CACHE_DIR_INVALID = 'bootstrap-artifacts-cache-dir-invalid';
     public const string REASON_DOTENV_FILE_INVALID = 'bootstrap-dotenv-file-invalid';
     public const string REASON_DOTENV_LOAD_FAILED = 'bootstrap-dotenv-load-failed';
     public const string REASON_OVERRIDES_INVALID = 'bootstrap-overrides-invalid';
@@ -47,6 +48,7 @@ final class BootstrapException extends \RuntimeException
     private const array REASONS = [
         self::REASON_INVALID_APP_TARGET => true,
         self::REASON_INVALID_SKELETON_ROOT => true,
+        self::REASON_ARTIFACTS_CACHE_DIR_INVALID => true,
         self::REASON_DOTENV_FILE_INVALID => true,
         self::REASON_DOTENV_LOAD_FAILED => true,
         self::REASON_OVERRIDES_INVALID => true,

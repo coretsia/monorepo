@@ -205,6 +205,7 @@ final class AppBuilder
             appEnv: 'prod',
             preset: $preset,
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,

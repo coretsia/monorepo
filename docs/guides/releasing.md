@@ -14,35 +14,35 @@
 
 # Releasing (GitHub Release + Packagist)
 
-This guide defines the **canonical** (single-choice) release procedure for the Coretsia monorepo during the current development release line.
+This guide defines the canonical (single-choice) release procedure for the Coretsia monorepo during the current development release line.
 
 ## Invariants (MUST)
 
 ### Version source of truth
 
-- The **git tag** is the single source of truth for the released version.
-- Tags **MUST** use semantic versioning format: `vMAJOR.MINOR.PATCH` (example: `v1.2.3`).
-- Per-package independent versions **MUST NOT** be used.
+- The git tag is the single source of truth for the released version.
+- Tags MUST use semantic versioning format: `vMAJOR.MINOR.PATCH` (example: `v1.2.3`).
+- Per-package independent versions MUST NOT be used.
 
 ### Release notes source
 
-- Release notes source is **human-maintained** `CHANGELOG.md`.
-- `CHANGELOG.md` **MUST** contain a section header exactly:
+- Release notes source is human-maintained `CHANGELOG.md`.
+- `CHANGELOG.md` MUST contain a section header exactly:
   - `## vMAJOR.MINOR.PATCH`
 - The release notes body is the content under that header until the next `## ...` header.
 
 ### Publishing policy
 
-- Publishing **MUST be source-only**:
+- Publishing MUST be source-only:
   - no built binaries
   - no generated artifacts attached to GitHub Releases
 - GitHub Release is created from the tag.
-- Packagist package updates are **automatic** via GitHub integration after the package has been submitted once.
+- Packagist package updates are automatic via GitHub integration after the package has been submitted once.
 - The first Packagist package submission is a one-time bootstrap action per public split repository.
 
 ## Packagist policy (MUST)
 
-Packagist publish target is **split repositories** (one package → one repo), not the monorepo root.
+Packagist publish target is split repositories (one package → one repo), not the monorepo root.
 
 Canonical packaging law:
 
@@ -66,7 +66,7 @@ push monorepo tag vMAJOR.MINOR.PATCH
 
 - GitHub Release automation for this monorepo is implemented by `.github/workflows/release.yml`.
 - Split publishing automation is implemented by `.github/workflows/split-publish.yml`.
-- Packagist auto-update is a **policy requirement** for submitted public split repositories.
+- Packagist auto-update is a policy requirement for submitted public split repositories.
 - Package-specific publication evidence belongs in release notes, epics, issues, or PR records.
 
 ## Preconditions (MUST)
@@ -170,7 +170,7 @@ These commands synchronize and verify:
 
 ## Canonical procedure (MUST)
 
-All commands are run from the **repo root**.
+All commands are run from the repo root.
 
 ### 1) Prepare the release notes (CHANGELOG)
 
@@ -254,7 +254,7 @@ composer ci
 
 ### 4) Create the tag
 
-Create an **annotated** tag where the message equals the tag:
+Create an annotated tag where the message equals the tag:
 
 ```bash
 git tag -a "${TAG}" -m "${TAG}"
@@ -293,7 +293,7 @@ For the detailed split publishing procedure, see:
 
 ## Validation / dry-run mode (MUST)
 
-The workflow supports manual **validation** (no release creation) via `workflow_dispatch`.
+The workflow supports manual validation (no release creation) via `workflow_dispatch`.
 
 Use this when:
 
@@ -307,17 +307,17 @@ Inputs:
 
 ## Security & redaction (MUST)
 
-- Workflow logs **MUST NOT** print secrets:
+- Workflow logs MUST NOT print secrets:
   - tokens, cookies, session ids, private keys, `.env` contents
-- Diagnostics **MAY** include only safe tokens (e.g., tag string, file paths relative to repo root).
+- Diagnostics MAY include only safe tokens (e.g., tag string, file paths relative to repo root).
 - No generated text must include timestamps/randomness.
 
 ## Troubleshooting
 
-- **Validation fails: missing `## vX.Y.Z` in CHANGELOG**
+- Validation fails: missing `## vX.Y.Z` in CHANGELOG
   - Add the header and content, commit, and re-run validation.
-- **Release already exists for the tag**
+- Release already exists for the tag
   - The workflow is idempotent: it will detect the existing release and exit successfully.
-- **Packagist did not update**
+- Packagist did not update
   - Confirm the Packagist project is connected to GitHub and auto-update is enabled.
   - The canonical process forbids relying on manual “Update” for normal releases.

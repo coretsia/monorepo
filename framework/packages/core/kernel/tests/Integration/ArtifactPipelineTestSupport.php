@@ -161,9 +161,6 @@ final class ArtifactPipelineTestSupport
     public static function kernelConfig(): array
     {
         return [
-            'artifacts' => [
-                'cache_dir' => 'var/cache',
-            ],
             'env' => [
                 'dotenv' => [
                     'files' => [],
@@ -171,19 +168,21 @@ final class ArtifactPipelineTestSupport
             ],
             'fingerprint' => [
                 'skeleton_ignore_prefixes' => [
-                    'var/cache',
                     'var/maintenance',
                 ],
             ],
         ];
     }
 
-    public static function bootstrapConfig(string $skeletonRoot): BootstrapConfig
-    {
+    public static function bootstrapConfig(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): BootstrapConfig {
         return new BootstrapConfig(
             appEnv: 'prod',
             preset: 'default',
             debug: false,
+            artifactsCacheDir: $artifactsCacheDir,
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,
@@ -238,11 +237,15 @@ final class ArtifactPipelineTestSupport
         string $skeletonRoot,
         array $config,
         iterable $containerDescriptors = [],
+        string $artifactsCacheDir = 'var/cache',
     ): array {
         self::writeRootConfig($skeletonRoot, $config);
 
         return self::artifactCompiler($testCase)->compile(
-            bootstrapConfig: self::bootstrapConfig($skeletonRoot),
+            bootstrapConfig: self::bootstrapConfig(
+                skeletonRoot: $skeletonRoot,
+                artifactsCacheDir: $artifactsCacheDir,
+            ),
             modulePlan: self::modulePlan(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
@@ -263,9 +266,13 @@ final class ArtifactPipelineTestSupport
         TestCase $testCase,
         string $skeletonRoot,
         iterable $containerDescriptors = [],
+        string $artifactsCacheDir = 'var/cache',
     ): array {
         return self::cacheVerifier($testCase)->verify(
-            bootstrapConfig: self::bootstrapConfig($skeletonRoot),
+            bootstrapConfig: self::bootstrapConfig(
+                skeletonRoot: $skeletonRoot,
+                artifactsCacheDir: $artifactsCacheDir,
+            ),
             modulePlan: self::modulePlan(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
@@ -279,10 +286,18 @@ final class ArtifactPipelineTestSupport
         );
     }
 
-    public static function fingerprintForCurrentConfig(TestCase $testCase, string $skeletonRoot): string
-    {
+    public static function fingerprintForCurrentConfig(
+        TestCase $testCase,
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): string {
+        $bootstrapConfig = self::bootstrapConfig(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
+
         $compiled = self::configKernel($testCase)->compile(
-            bootstrapConfig: self::bootstrapConfig($skeletonRoot),
+            bootstrapConfig: $bootstrapConfig,
             modulePlan: self::modulePlan(),
             env: self::envRepository(),
             packageDefaultSources: [],
@@ -294,7 +309,7 @@ final class ArtifactPipelineTestSupport
         );
 
         $input = self::fingerprintInputBuilder()->build(
-            bootstrapConfig: self::bootstrapConfig($skeletonRoot),
+            bootstrapConfig: $bootstrapConfig,
             modulePlan: self::modulePlan(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
@@ -312,9 +327,14 @@ final class ArtifactPipelineTestSupport
     /**
      * @return array<string,string>
      */
-    public static function artifactBytes(string $skeletonRoot): array
-    {
-        $paths = self::artifactPaths($skeletonRoot);
+    public static function artifactBytes(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): array {
+        $paths = self::artifactPaths(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
         $bytes = [];
 
         foreach ($paths as $basename => $path) {
@@ -333,18 +353,31 @@ final class ArtifactPipelineTestSupport
     /**
      * @return array<string,string>
      */
-    public static function artifactPaths(string $skeletonRoot): array
-    {
+    public static function artifactPaths(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): array {
+        $directory = \rtrim($skeletonRoot, '/\\')
+            . '/'
+            . $artifactsCacheDir
+            . '/web';
+
         return [
-            'config.php' => $skeletonRoot . '/var/cache/web/config.php',
-            'container.php' => $skeletonRoot . '/var/cache/web/container.php',
-            'module-manifest.php' => $skeletonRoot . '/var/cache/web/module-manifest.php',
+            'config.php' => $directory . '/config.php',
+            'container.php' => $directory . '/container.php',
+            'module-manifest.php' => $directory . '/module-manifest.php',
         ];
     }
 
-    public static function artifactPath(string $skeletonRoot, string $basename): string
-    {
-        $paths = self::artifactPaths($skeletonRoot);
+    public static function artifactPath(
+        string $skeletonRoot,
+        string $basename,
+        string $artifactsCacheDir = 'var/cache',
+    ): string {
+        $paths = self::artifactPaths(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
 
         if (!isset($paths[$basename])) {
             throw new \InvalidArgumentException('test-artifact-basename-invalid');

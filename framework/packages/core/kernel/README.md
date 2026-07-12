@@ -14,34 +14,34 @@
 
 # coretsia/core-kernel
 
-`core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
+`core/kernel` is the Kernel runtime package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+Out of scope: public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
-- **Path:** `framework/packages/core/kernel`
-- **Package id:** `core/kernel`
-- **Composer name:** `coretsia/core-kernel`
-- **Module id:** `core.kernel`
-- **Namespace:** `Coretsia\Kernel\*` (PSR-4: `src/`)
-- **Kind:** runtime
-- **Config root:** `kernel`
+- Path: `framework/packages/core/kernel`
+- Package id: `core/kernel`
+- Composer name: `coretsia/core-kernel`
+- Module id: `core.kernel`
+- Namespace: `Coretsia\Kernel\*` (PSR-4: `src/`)
+- Kind: runtime
+- Config root: `kernel`
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
 This package is runtime-safe and format-neutral.
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `core/foundation`
-- **Forbidden:**
+- Forbidden:
   - `platform/*`
   - `integrations/*`
   - `Psr\Http\Message\*`
@@ -112,6 +112,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
   - `Coretsia\Kernel\Boot\DotenvLoader`
   - `Coretsia\Kernel\Boot\EnvRepositoryBuilder`
+- Bootstrap Phase A artifact cache directory validation:
+  - `Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir`
+  - internal portable and bounded artifact-root policy
 - Kernel-owned ConfigKernel Phase B orchestration:
   - `Coretsia\Kernel\Config\ConfigKernel`
   - `Coretsia\Kernel\Config\ConfigRulesLoader`
@@ -222,6 +225,7 @@ appTarget
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
 appRoot
 immutable EnvRepositoryInterface snapshot
@@ -277,6 +281,19 @@ explicit BootstrapInput
 → package defaults from kernel.boot.* and kernel.env.*
 → BootstrapConfig
 ```
+
+Artifact cache directory resolution uses:
+
+```text
+BootstrapInput::artifactsCacheDir()
+→ skeleton/config/app.php artifactsCacheDir
+→ kernel.boot.default_artifacts_cache_dir
+→ BootstrapConfig::artifactsCacheDir()
+```
+
+`BootstrapConfig::artifactsCacheDir()` is the only resolved artifact location source used by `ArtifactPathResolver`, `ArtifactCompiler`, and `CacheVerifier`.
+
+ConfigKernel Phase B and compiled `config@1` do not re-resolve artifact location.
 
 `EnvRepositoryBuilder` is internal and owns only immutable env repository snapshot construction.
 
@@ -417,6 +434,28 @@ config.php
 container.php
 ```
 
+Artifact path resolution consumes:
+
+```text
+BootstrapConfig::skeletonRoot()
+BootstrapConfig::artifactsCacheDir()
+BootstrapConfig::appTarget()
+```
+
+The default path shape is:
+
+```text
+<skeletonRoot>/var/cache/<appTarget>/<artifact-basename>
+```
+
+A custom valid Bootstrap Phase A override may instead produce:
+
+```text
+<skeletonRoot>/var/artifacts_cache/<appTarget>/<artifact-basename>
+```
+
+`ArtifactCompiler` and `CacheVerifier` consume the same resolved `BootstrapConfig`, so they write and verify the same artifact location.
+
 The corresponding canonical artifact identities are:
 
 ```text
@@ -467,6 +506,49 @@ valid fingerprint+bytes → clean
 ```
 
 Cache verification MUST NOT use mtimes, ctimes, permissions, owners, inode ids, directory ordering, or filesystem traversal order as cache semantics.
+
+The resolved artifact cache directory is always added to the effective fingerprint traversal exclusions.
+
+It is not serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected output directory.
+
+Therefore:
+
+```text
+generated files under the current resolved artifactsCacheDir
+→ do not affect fingerprint
+
+only the resolved BootstrapConfig::artifactsCacheDir() changes
+and all separately fingerprinted inputs remain unchanged
+→ fingerprint remains unchanged
+```
+
+Changing the package fallback:
+
+```text
+kernel.boot.default_artifacts_cache_dir
+```
+
+is not a location-only change. It also changes package and compiled config input and may therefore change the fingerprint through normal config provenance.
+
+The configured baseline:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
+```
+
+contains only explicit operational/source exclusion policy such as:
+
+```text
+var/maintenance
+```
+
+The mandatory generated-output exclusion covers only the current resolved artifact cache directory.
+
+After relocating artifacts, stale files under the previous directory should be removed. When that directory must remain and may appear under a fingerprinted skeleton-local directory candidate, it must be retained explicitly in:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
+```
 
 ### Compiled container artifact
 
@@ -1164,6 +1246,7 @@ return [
         'default_env' => 'local',
         'default_preset' => 'micro',
         'default_debug' => false,
+        'default_artifacts_cache_dir' => 'var/cache',
     ],
     'runtime' => [
         'frankenphp' => [
@@ -1203,12 +1286,8 @@ return [
         'defaults_path' => 'resources/modes',
         'overrides_path' => 'config/modes',
     ],
-    'artifacts' => [
-        'cache_dir' => 'var/cache',
-    ],
     'fingerprint' => [
         'skeleton_ignore_prefixes' => [
-            'var/cache',
             'var/maintenance',
         ],
     ],
@@ -1233,7 +1312,11 @@ return [
 ];
 ```
 
-Runtime code reads from the global configuration under `kernel.*`.
+Package fallback values are declared under `kernel.*`.
+
+Bootstrap Phase A resolves its values before artifact path lookup.
+
+Runtime and ConfigKernel Phase B consumers read the merged global configuration under `kernel.*`, but artifact path consumers use the already resolved `BootstrapConfig::artifactsCacheDir()`.
 
 Canonical Kernel config keys:
 
@@ -1242,6 +1325,7 @@ Canonical Kernel config keys:
 | `kernel.boot.default_env`                     | `"local"`                                                  |
 | `kernel.boot.default_preset`                  | `"micro"`                                                  |
 | `kernel.boot.default_debug`                   | `false`                                                    |
+| `kernel.boot.default_artifacts_cache_dir`     | `"var/cache"`                                              |
 | `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
@@ -1252,10 +1336,55 @@ Canonical Kernel config keys:
 | `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
 | `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
 | `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
-| `kernel.artifacts.cache_dir`                  | `"var/cache"`                                              |
-| `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/cache", "var/maintenance"]`                         |
+| `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/maintenance"]`                                      |
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
+
+`kernel.boot.default_artifacts_cache_dir` is the package fallback for the Bootstrap Phase A artifact cache directory.
+
+The default is:
+
+```text
+var/cache
+```
+
+Applications may override it in bootstrap-only:
+
+```text
+skeleton/config/app.php
+```
+
+using:
+
+```php
+return [
+    'artifactsCacheDir' => 'var/artifacts_cache',
+];
+```
+
+Entrypoints may provide the highest-precedence explicit value through:
+
+```text
+BootstrapInput::artifactsCacheDir()
+```
+
+The resolved value is exposed through:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+Kernel artifact paths use:
+
+```text
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>/<artifact-basename>
+```
+
+The directory must be a portable, bounded, `skeletonRoot`-relative dedicated generated-output root.
+
+Absolute paths, traversal, source/config roots, public roots, dependency roots, repository roots, Windows-invalid components, and unsafe path segments are rejected.
+
+ConfigKernel Phase B merged config and compiled `config@1` are not artifact location resolution sources.
 
 The runtime-driver entrypoint guard reads only Kernel-owned runtime config keys from the config repository.
 

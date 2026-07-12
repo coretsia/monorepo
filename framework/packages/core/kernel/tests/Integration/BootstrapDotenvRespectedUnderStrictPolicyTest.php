@@ -180,6 +180,7 @@ final class BootstrapDotenvRespectedUnderStrictPolicyTest extends TestCase
             appEnv: 'test',
             preset: 'micro',
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,

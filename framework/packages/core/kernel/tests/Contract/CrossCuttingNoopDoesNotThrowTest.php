@@ -158,7 +158,6 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                 'env',
                 'modules',
                 'modes',
-                'artifacts',
                 'fingerprint',
                 'uow',
             ],
@@ -204,10 +203,12 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('resources/modes', $kernelSubtree['modes']['defaults_path'] ?? null);
         self::assertSame('config/modes', $kernelSubtree['modes']['overrides_path'] ?? null);
 
-        self::assertSame('var/cache', $kernelSubtree['artifacts']['cache_dir'] ?? null);
+        self::assertSame(
+            'var/cache',
+            $kernelSubtree['boot']['default_artifacts_cache_dir'] ?? null,
+        );
         self::assertSame(
             [
-                'var/cache',
                 'var/maintenance',
             ],
             $kernelSubtree['fingerprint']['skeleton_ignore_prefixes'] ?? null,
@@ -239,7 +240,6 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                 'env',
                 'modules',
                 'modes',
-                'artifacts',
                 'fingerprint',
                 'uow',
             ] as $key
@@ -253,7 +253,6 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('map', $rules['keys']['env']['type'] ?? null);
         self::assertSame('map', $rules['keys']['modules']['type'] ?? null);
         self::assertSame('map', $rules['keys']['modes']['type'] ?? null);
-        self::assertSame('map', $rules['keys']['artifacts']['type'] ?? null);
         self::assertSame('map', $rules['keys']['fingerprint']['type'] ?? null);
         self::assertSame('map', $rules['keys']['uow']['type'] ?? null);
 
@@ -306,7 +305,17 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('int', $rules['keys']['modes']['keys']['schema_version']['type'] ?? null);
         self::assertSame('relative-safe-path', $rules['keys']['modes']['keys']['defaults_path']['type'] ?? null);
         self::assertSame('relative-safe-path', $rules['keys']['modes']['keys']['overrides_path']['type'] ?? null);
-        self::assertSame('relative-safe-path', $rules['keys']['artifacts']['keys']['cache_dir']['type'] ?? null);
+        $artifactsCacheDirRule = $rules['keys']['boot']['keys']['default_artifacts_cache_dir'] ?? null;
+
+        self::assertIsArray($artifactsCacheDirRule);
+        self::assertSame(
+            'relative-safe-path',
+            $artifactsCacheDirRule['type'] ?? null,
+        );
+        self::assertArrayNotHasKey(
+            'allowedValues',
+            $artifactsCacheDirRule,
+        );
         self::assertSame('list', $rules['keys']['fingerprint']['keys']['skeleton_ignore_prefixes']['type'] ?? null);
         self::assertSame('int', $rules['keys']['uow']['keys']['attributes']['keys']['max_depth']['type'] ?? null);
         self::assertSame('int', $rules['keys']['uow']['keys']['attributes']['keys']['max_keys']['type'] ?? null);

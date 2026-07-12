@@ -28,26 +28,26 @@ A single SSoT defines reserved config roots, ownership, defaults-file authority,
 
 ## Invariants (MUST)
 
-- `config/<name>.php` **MUST** return the subtree for that root and **MUST NOT** repeat the root wrapper.
-- Defaults for a config root **MUST** live in the owning package only.
-- `config/rules.php` for a config root **MUST** be owned by the owning package only.
-- Package `config/rules.php` files **MUST** return plain declarative ruleset arrays.
-- Package `config/rules.php` files **MUST NOT** return callables, closures, objects, service instances, executable validators, or runtime wiring objects.
+- `config/<name>.php` MUST return the subtree for that root and MUST NOT repeat the root wrapper.
+- Defaults for a config root MUST live in the owning package only.
+- `config/rules.php` for a config root MUST be owned by the owning package only.
+- Package `config/rules.php` files MUST return plain declarative ruleset arrays.
+- Package `config/rules.php` files MUST NOT return callables, closures, objects, service instances, executable validators, or runtime wiring objects.
 - Package-owned rules files define validation rules as data only.
-- Runtime validation logic is kernel-owned and **MUST** be implemented by `ConfigKernel` / `ConfigValidator` using contracts such as `ConfigValidatorInterface`.
+- Runtime validation logic is kernel-owned and MUST be implemented by `ConfigKernel` / `ConfigValidator` using contracts such as `ConfigValidatorInterface`.
 - Configuration ownership is defined exclusively by this config roots registry.
 - Config roots and DTO policy are orthogonal mechanisms.
-- PHP attributes **MUST NOT** replace package-owned config defaults or package-owned config rules.
-- Each reserved config root **MUST** have exactly one owner `package_id`.
+- PHP attributes MUST NOT replace package-owned config defaults or package-owned config rules.
+- Each reserved config root MUST have exactly one owner `package_id`.
 - Shared ownership of config defaults or rules is forbidden.
-- This registry **MAY** be extended only by later owner epics via direct modification of this file.
-- Later additions **MUST** update the canonical registry rows directly and **MUST NOT** leave parallel “future reserved identifier” notes in roadmap epics.
+- This registry MAY be extended only by later owner epics via direct modification of this file.
+- Later additions MUST update the canonical registry rows directly and MUST NOT leave parallel “future reserved identifier” notes in roadmap epics.
 
 ## Cemented Example (MUST)
 
 ### File: `config/foundation.php`
 
-The defaults file **MUST** return the subtree without repeating the root key.
+The defaults file MUST return the subtree without repeating the root key.
 
 Valid shape:
 
@@ -126,10 +126,10 @@ For every reserved config root, the owning package exclusively owns:
 
 Non-owner packages:
 
-- **MAY** read existing config roots according to published owner semantics
-- **MUST NOT** define competing defaults for an existing reserved root
-- **MUST NOT** define competing `config/rules.php` authority for an existing reserved root
-- **MUST NOT** redefine ownership of an existing reserved root
+- MAY read existing config roots according to published owner semantics
+- MUST NOT define competing defaults for an existing reserved root
+- MUST NOT define competing `config/rules.php` authority for an existing reserved root
+- MUST NOT redefine ownership of an existing reserved root
 
 ## Reserved Config Roots (MUST)
 
@@ -149,7 +149,7 @@ Non-owner packages:
 
 Introducing a new reserved config root requires direct modification of this file by the future owner epic.
 
-A later owner epic **MUST**:
+A later owner epic MUST:
 
 1. add or update the canonical registry row in `docs/ssot/config-roots.md`
 2. define the owner package defaults file for that root
@@ -164,7 +164,7 @@ Parallel placeholder notes are not a substitute for updating the canonical regis
 - This registry does not define config validation implementation.
 - This registry does not define config artifact schema.
 - This registry does not turn DTO attributes into configuration ownership.
-- PHP attributes and configuration roots are orthogonal and **MUST NOT** be conflated.
+- PHP attributes and configuration roots are orthogonal and MUST NOT be conflated.
 
 ## Cross-references
 

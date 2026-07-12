@@ -14,16 +14,16 @@
 
 # Quickstart
 
-**Goal:** clean clone → working baseline (tests green, CI entrypoints runnable).
+Goal: clean clone → working baseline (tests green, CI entrypoints runnable).
 
-**Scope:** Current monorepo development baseline. Commands are assumed to run from the **repository root**.
+Scope: Current monorepo development baseline. Commands are assumed to run from the repository root.
 
 ---
 
 ## 0) Prerequisites
 
 - Git
-- PHP **8.4+**
+- PHP 8.4+
 - Composer 2.x
 
 Recommended:
@@ -117,7 +117,7 @@ Policy summary:
 
 Fix approach:
 
-- do **not** run `composer update` as a first reaction;
+- do NOT run `composer update` as a first reaction;
 - re-run `composer setup` and/or ensure you are on the correct branch/commit;
 - if you intentionally changed dependencies, ensure the correct lockfiles are updated and committed.
 
@@ -133,6 +133,6 @@ PHP=/path/to/php composer setup
 
 ## 6) Minimal workflow reminder
 
-- Always run commands from the **repo root** (`composer setup|test|ci`).
+- Always run commands from the repo root (`composer setup|test|ci`).
 - Do not manually edit managed `repositories` blocks in Composer roots.
 - Keep your working tree clean; policies rely on deterministic “rerun-no-diff” discipline.

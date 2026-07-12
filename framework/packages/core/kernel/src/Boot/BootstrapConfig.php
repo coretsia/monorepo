@@ -48,11 +48,13 @@ final readonly class BootstrapConfig
     /**
      * @param non-empty-string $appEnv
      * @param non-empty-string $preset
+     * @param non-empty-string $artifactsCacheDir
      */
     public function __construct(
         private string $appEnv,
         private string $preset,
         private bool $debug,
+        private string $artifactsCacheDir,
         private BootstrapEnvSourcePolicy $envSourcePolicy,
         private AppTarget $appTarget,
         private string $skeletonRoot,
@@ -63,6 +65,12 @@ final readonly class BootstrapConfig
 
         if (!self::isNonEmptySafeSingleLineString($this->preset)) {
             throw new \InvalidArgumentException('bootstrap-config-preset-invalid');
+        }
+
+        if (!BootstrapArtifactsCacheDir::isValid($this->artifactsCacheDir)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID,
+            );
         }
 
         if (!self::isNonEmptySafeSingleLineString($this->skeletonRoot)) {
@@ -97,6 +105,16 @@ final readonly class BootstrapConfig
     public function debug(): bool
     {
         return $this->debug;
+    }
+
+    /**
+     * Resolved Kernel artifact cache directory relative to skeletonRoot.
+     *
+     * @return non-empty-string
+     */
+    public function artifactsCacheDir(): string
+    {
+        return $this->artifactsCacheDir;
     }
 
     public function envSourcePolicy(): BootstrapEnvSourcePolicy

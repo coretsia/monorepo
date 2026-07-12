@@ -28,21 +28,21 @@ A single SSoT defines artifact envelope, header, and schema versioning so all ge
 
 ## Invariants (MUST)
 
-- All artifacts **MUST** use the same logical envelope shape regardless of file encoding.
-- Artifact generators **MUST** be rerun-no-diff.
-- Artifacts **MUST NOT** embed timestamps, absolute paths, environment-dependent bytes, secrets, or PII.
+- All artifacts MUST use the same logical envelope shape regardless of file encoding.
+- Artifact generators MUST be rerun-no-diff.
+- Artifacts MUST NOT embed timestamps, absolute paths, environment-dependent bytes, secrets, or PII.
 - Artifact identity is the pair `name@schemaVersion`.
-- Registry entries **MUST** declare explicit ownership.
+- Registry entries MUST declare explicit ownership.
 - Header semantics and validation rules are defined by this registry and by the owning artifact schema.
-- Artifact readers and consumers **MUST** validate by schema and header semantics, not by PHP class type checks.
-- Artifact payloads **MAY** be derived from descriptors, results, or DTO-like models, but the serialized artifact is the canonical runtime-independent shape.
-- Artifacts **MUST NOT** depend on PHP object identity or PHP class semantics at runtime.
+- Artifact readers and consumers MUST validate by schema and header semantics, not by PHP class type checks.
+- Artifact payloads MAY be derived from descriptors, results, or DTO-like models, but the serialized artifact is the canonical runtime-independent shape.
+- Artifacts MUST NOT depend on PHP object identity or PHP class semantics at runtime.
 
 ## Artifact Envelope (MUST)
 
-This envelope law applies to **all** artifacts, regardless of whether the final encoding is JSON, PHP, or any other artifact encoding.
+This envelope law applies to all artifacts, regardless of whether the final encoding is JSON, PHP, or any other artifact encoding.
 
-The top-level object **MUST** be:
+The top-level object MUST be:
 
 ```json
 {
@@ -73,34 +73,34 @@ The canonical header fields are:
 - `name` — string
 - `schemaVersion` — int
 - `fingerprint` — string; deterministic
-- `generator` — string; stable generator id and **MUST NOT** include build timestamps or absolute paths
+- `generator` — string; stable generator id and MUST NOT include build timestamps or absolute paths
 - `requires` — optional; deterministic; for example minimum runtime version or compatible capability floor
 
 ### Header Semantics (MUST)
 
-- `name` **MUST** equal the canonical artifact name from the registry row.
-- `schemaVersion` **MUST** equal the canonical schema version from the registry row.
-- `fingerprint` **MUST** be deterministic for the same logical inputs.
-- `generator` **MUST** be stable for the same generator lineage and **MUST NOT** encode environment-specific bytes.
-- `requires`, when present, **MUST** be deterministic and schema-relevant only.
+- `name` MUST equal the canonical artifact name from the registry row.
+- `schemaVersion` MUST equal the canonical schema version from the registry row.
+- `fingerprint` MUST be deterministic for the same logical inputs.
+- `generator` MUST be stable for the same generator lineage and MUST NOT encode environment-specific bytes.
+- `requires`, when present, MUST be deterministic and schema-relevant only.
 
 ## Deterministic Serialization Law (MUST)
 
 This law applies to any JSON-like artifact body or header and also to any code generation step that materializes map ordering.
 
-- Maps and objects **MUST** be normalized by sorting keys ascending by byte-order `strcmp` recursively at every nesting level.
-- Lists and arrays **MUST** preserve order and **MUST NOT** be sorted.
-- List-vs-map classification **MUST** use `array_is_list(...)` for **any** array value.
-- Encoding flags **MUST** be deterministic.
-- Serialized output **MUST** use unescaped slashes and unescaped unicode.
-- Serialization and code generation **MUST NOT** depend on locale.
-- Artifacts **MUST** be rerun-no-diff and **MUST NOT** embed timestamps, absolute paths, or environment-specific bytes.
+- Maps and objects MUST be normalized by sorting keys ascending by byte-order `strcmp` recursively at every nesting level.
+- Lists and arrays MUST preserve order and MUST NOT be sorted.
+- List-vs-map classification MUST use `array_is_list(...)` for any array value.
+- Encoding flags MUST be deterministic.
+- Serialized output MUST use unescaped slashes and unescaped unicode.
+- Serialization and code generation MUST NOT depend on locale.
+- Artifacts MUST be rerun-no-diff and MUST NOT embed timestamps, absolute paths, or environment-specific bytes.
 
 ## Empty Array Rule (Cemented) (MUST)
 
-- `[]` **MUST** be treated as a list in serialized form.
-- Producers **MUST** serialize `[]` exactly as `[]`.
-- Consumers **MUST** interpret `[]` according to schema and context, for example whether the location requires a list or a map.
+- `[]` MUST be treated as a list in serialized form.
+- Producers MUST serialize `[]` exactly as `[]`.
+- Consumers MUST interpret `[]` according to schema and context, for example whether the location requires a list or a map.
 
 Rationale:
 
@@ -112,9 +112,9 @@ Therefore serialized `[]` is byte-wise identical for both “empty list” and �
 ## Tooling Boundary and Runtime Law (MUST)
 
 - `coretsia/devtools-internal-toolkit` is a Phase 0 tooling-only helper library.
-- It **MUST NOT** become a mandatory runtime dependency.
-- Runtime packages under `core/*` and `platform/*` that generate or consume artifacts **MUST** implement the deterministic laws locally, or via runtime-owned shared code.
-- Runtime implementations **MUST** still match the same laws exactly:
+- It MUST NOT become a mandatory runtime dependency.
+- Runtime packages under `core/*` and `platform/*` that generate or consume artifacts MUST implement the deterministic laws locally, or via runtime-owned shared code.
+- Runtime implementations MUST still match the same laws exactly:
   - byte-order key sorting for maps and objects
   - preserved list order
   - `array_is_list(...)` classification for any array value
@@ -151,23 +151,23 @@ This epic introduces the following canonical artifact identities:
 
 ## Artifact Payload Rule (MUST)
 
-- Payloads **MAY** be derived from descriptors, results, or DTO-like models.
+- Payloads MAY be derived from descriptors, results, or DTO-like models.
 - The artifact payload is the canonical serialized shape.
-- Artifact payloads **MUST NOT** depend on PHP object identity.
-- Artifact payloads **MUST NOT** depend on PHP class type semantics at runtime.
+- Artifact payloads MUST NOT depend on PHP object identity.
+- Artifact payloads MUST NOT depend on PHP class type semantics at runtime.
 
 ## Reader and Consumer Rule (MUST)
 
 Artifact readers and consumers:
 
-- **MUST** validate by artifact header semantics and schema semantics
-- **MUST NOT** rely on PHP class type checks
-- **MUST NOT** treat in-memory object class identity as the source of truth for artifact validity
+- MUST validate by artifact header semantics and schema semantics
+- MUST NOT rely on PHP class type checks
+- MUST NOT treat in-memory object class identity as the source of truth for artifact validity
 
 ## Non-goals / Clarifications (MUST)
 
 - This registry defines the global artifact envelope and deterministic serialization law.
-- Owner-specific payload schemas may be detailed in later owner epics, but they **MUST** remain compatible with the global envelope and deterministic law defined here.
+- Owner-specific payload schemas may be detailed in later owner epics, but they MUST remain compatible with the global envelope and deterministic law defined here.
 - Contracts packages do not gain ownership of artifact generation merely by exposing related contracts.
 - Artifact format law is global; payload semantics are owner-scoped.
 

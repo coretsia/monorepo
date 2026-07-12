@@ -21,8 +21,8 @@ namespace Coretsia\Kernel\Artifacts\Exception;
 /**
  * Deterministic Kernel artifact path resolution failure.
  *
- * This exception is used by ArtifactPathResolver when artifact output path
- * configuration or artifact basenames violate Kernel artifact path policy.
+ * This exception is used by ArtifactPathResolver when resolved Bootstrap
+ * path inputs or artifact basenames violate Kernel artifact path policy.
  *
  * The message is intentionally stable and safe. It contains only the package
  * error code and a stable reason token:
@@ -40,10 +40,6 @@ final class ArtifactPathInvalidException extends \RuntimeException
     public const string ERROR_CODE = 'CORETSIA_ARTIFACT_PATH_INVALID';
 
     public const string REASON_PATH_INVALID = 'artifact-path-invalid';
-    public const string REASON_CACHE_DIR_INVALID = 'artifact-cache-dir-invalid';
-    public const string REASON_CACHE_DIR_ABSOLUTE = 'artifact-cache-dir-absolute';
-    public const string REASON_CACHE_DIR_TRAVERSAL = 'artifact-cache-dir-traversal';
-    public const string REASON_CACHE_DIR_SKELETON_PREFIXED = 'artifact-cache-dir-skeleton-prefixed';
     public const string REASON_BASENAME_INVALID = 'artifact-basename-invalid';
     public const string REASON_TARGET_OUTSIDE_CACHE_DIR = 'artifact-target-outside-cache-dir';
 
@@ -52,10 +48,6 @@ final class ArtifactPathInvalidException extends \RuntimeException
      */
     private const array REASONS = [
         self::REASON_PATH_INVALID => true,
-        self::REASON_CACHE_DIR_INVALID => true,
-        self::REASON_CACHE_DIR_ABSOLUTE => true,
-        self::REASON_CACHE_DIR_TRAVERSAL => true,
-        self::REASON_CACHE_DIR_SKELETON_PREFIXED => true,
         self::REASON_BASENAME_INVALID => true,
         self::REASON_TARGET_OUTSIDE_CACHE_DIR => true,
     ];

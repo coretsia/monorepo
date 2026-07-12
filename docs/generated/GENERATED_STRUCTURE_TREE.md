@@ -580,6 +580,7 @@ Coretsia/
 │   │   │       │   │   ├── AppTarget.php
 │   │   │       │   │   ├── ArrayEnvRepository.php
 │   │   │       │   │   ├── ArtifactRuntimeBooter.php
+│   │   │       │   │   ├── BootstrapArtifactsCacheDir.php
 │   │   │       │   │   ├── BootstrapConfig.php
 │   │   │       │   │   ├── BootstrapConfigResolver.php
 │   │   │       │   │   ├── BootstrapEnvSourcePolicy.php
@@ -736,6 +737,7 @@ Coretsia/
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
+│   │   │       │   │   ├── ArtifactPipelineUsesConfiguredCacheDirTest.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootExpressPresetTest.php
@@ -769,6 +771,7 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
 │   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
+│   │   │       │   │   ├── FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 │   │   │       │   │   ├── FingerprintIgnoresSkeletonVarTest.php
 │   │   │       │   │   ├── FingerprintIncludesUserOwnedConfigRootsTest.php
 │   │   │       │   │   ├── KernelArtifactObservabilityDoesNotChangeBehaviorTest.php
@@ -822,6 +825,7 @@ Coretsia/
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
 │   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
 │   │   │       │       ├── ArtifactPathResolverUsesBootstrapAppTargetTest.php
+│   │   │       │       ├── BootstrapArtifactsCacheDirValidationTest.php
 │   │   │       │       ├── ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php
 │   │   │       │       ├── ConfigValidatorRelativeSafePathTypeTest.php
 │   │   │       │       ├── DirectivesAppendRemoveListLikeOnlyTest.php

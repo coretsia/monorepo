@@ -224,6 +224,7 @@ final class BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest extends 
             appEnv: 'test',
             preset: 'micro',
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::AllowSystem,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,

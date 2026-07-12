@@ -46,7 +46,10 @@ declare(strict_types=1);
  * - `kernel.modes.schema_version` must be integer `1`;
  * - `kernel.modes.defaults_path` must be a non-empty relative safe path;
  * - `kernel.modes.overrides_path` must be a non-empty relative safe path;
- * - `kernel.artifacts.cache_dir` must be a non-empty relative safe path;
+ * - `kernel.boot.default_artifacts_cache_dir` must be a non-empty
+ *   relative-safe path;
+ * - concrete BootstrapInput and app.php artifact cache directory values are
+ *   validated by Bootstrap Phase A services;
  * - `kernel.fingerprint.skeleton_ignore_prefixes` must be a list of non-empty
  *   relative safe paths;
  * - `kernel.fingerprint.*` must not define an `env` subtree or
@@ -67,7 +70,7 @@ declare(strict_types=1);
  *
  * The defaults file must return the subtree only:
  *
- *     config/kernel.php => ['config' => [...], 'boot' => [...], 'runtime' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'artifacts' => [...], 'fingerprint' => [...], 'uow' => [...]]
+ *     config/kernel.php => ['config' => [...], 'boot' => [...], 'runtime' => [...], 'env' => [...], 'modules' => [...], 'modes' => [...], 'fingerprint' => [...], 'uow' => [...]]
  *
  * It must not return:
  *
@@ -108,6 +111,10 @@ return [
                 'default_debug' => [
                     'required' => true,
                     'type' => 'bool',
+                ],
+                'default_artifacts_cache_dir' => [
+                    'required' => true,
+                    'type' => 'relative-safe-path',
                 ],
             ],
         ],
@@ -212,17 +219,6 @@ return [
                     'type' => 'relative-safe-path',
                 ],
                 'overrides_path' => [
-                    'required' => true,
-                    'type' => 'relative-safe-path',
-                ],
-            ],
-        ],
-        'artifacts' => [
-            'required' => true,
-            'type' => 'map',
-            'additionalKeys' => false,
-            'keys' => [
-                'cache_dir' => [
                     'required' => true,
                     'type' => 'relative-safe-path',
                 ],

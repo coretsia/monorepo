@@ -355,6 +355,7 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
             appEnv: 'prod',
             preset: 'default',
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: \sys_get_temp_dir() . '/coretsia-fingerprint-user-roots-bootstrap',

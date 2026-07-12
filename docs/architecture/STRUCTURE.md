@@ -12,10 +12,9 @@
   See LICENSE and NOTICE in the project root for full license information.
 -->
 
-# Structure with a **full package catalog** (Non-product doc)
+# Structure with a full package catalog (Non-product doc)
 
-- The structure is split by layers (Core / Platform / Integrations / Enterprise / DevTools / Presets) +
-  **naming and dependency rules**, so that modularity is real rather than “dependencies everywhere”.
+- The structure is split by layers (Core / Platform / Integrations / Enterprise / DevTools / Presets) + naming and dependency rules, so that modularity is real rather than “dependencies everywhere”.
 
 ---
 
@@ -23,18 +22,18 @@
 
 ### 0.0. Packaging strategy (canonical reference)
 
-- All `path ↔ package_id ↔ composer ↔ namespace`, publishable units, and versioning rules **MUST** comply with:
+- All `path ↔ package_id ↔ composer ↔ namespace`, publishable units, and versioning rules MUST comply with:
   - `docs/architecture/PACKAGING.md`
 
 ### 0.1. Names and the “folder ↔ package_id ↔ composer ↔ namespace” mapping
 
-- Package path **MUST**: `framework/packages/<layer>/<slug>/`
-- Package id **MUST**: `<layer>/<slug>` (e.g. `platform/http-client`)
-- Composer package **MUST**: `coretsia/<layer>-<slug>` (e.g. `coretsia/platform-http-client`)
+- Package path MUST: `framework/packages/<layer>/<slug>/`
+- Package id MUST: `<layer>/<slug>` (e.g. `platform/http-client`)
+- Composer package MUST: `coretsia/<layer>-<slug>` (e.g. `coretsia/platform-http-client`)
 - Slug uniqueness policy (single-choice):
-  - slug **MUST** be unique within one layer
-  - slug **MAY** repeat across layers (uniqueness is ensured by the `<layer>-` prefix in the composer name)
-- Namespace mapping **MUST** be deterministic (single-choice; core exception):
+  - slug MUST be unique within one layer
+  - slug MAY repeat across layers (uniqueness is ensured by the `<layer>-` prefix in the composer name)
+- Namespace mapping MUST be deterministic (single-choice; core exception):
   - For `core/*` packages:
     - `Coretsia\<StudlyCase(slug)>\...` (e.g. `core/kernel` → `Coretsia\Kernel\...`)
   - For non-core packages (`platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`):
@@ -42,7 +41,7 @@
     - (e.g. `platform/http-client` → `Coretsia\Platform\HttpClient\...`)
   - `src/` → the corresponding root namespace, `tests/` → `...\Tests\...`
 - Collision safety (MUST):
-  - For `core/*` packages, the value of `Studly(<slug>)` **MUST NOT** equal any of:
+  - For `core/*` packages, the value of `Studly(<slug>)` MUST NOT equal any of:
     - `Core`
     - `Platform`
     - `Integrations`
@@ -56,29 +55,29 @@
     - `enterprise`
     - `devtools`
     - `presets`
-- Versioning **MUST** be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions **MUST NOT** be used.
+- Versioning MUST be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions MUST NOT be used.
 
 > Note: tooling-only libs that live outside `framework/packages/**` (for example `framework/tools/**`)
 > are not publishable units and may have separate rules (see `docs/architecture/PACKAGING.md`).
 
 ### 0.2. Core vs Platform vs Integrations — hard separation
 
-- **Core**: the minimum everything stands on (contracts/foundation/kernel).
-- **Platform**: the framework’s “built-in” capabilities (http/db/queue/security/…).
-- **Integrations**: everything that pulls concrete drivers/vendors (redis/prometheus/s3/otlp/smtp/…).
-- **DevTools**: DX tools (debugbar/scaffolding/admin/api-docs profiling).
-- **Enterprise**: “strict stack” policies/packages (audit/compliance/tenancy/sso/…).
-- **Presets**: composer convenience packages (they pull dependencies), and do not replace runtime modes.
+- Core: the minimum everything stands on (contracts/foundation/kernel).
+- Platform: the framework’s “built-in” capabilities (http/db/queue/security/…).
+- Integrations: everything that pulls concrete drivers/vendors (redis/prometheus/s3/otlp/smtp/…).
+- DevTools: DX tools (debugbar/scaffolding/admin/api-docs profiling).
+- Enterprise: “strict stack” policies/packages (audit/compliance/tenancy/sso/…).
+- Presets: composer convenience packages (they pull dependencies), and do not replace runtime modes.
 
 ### 0.3. Framework packages
 
 - Each package is self-contained: `src/`, `config/`, `tests/`, `composer.json`, `README.md`
-- Packages **do not pull in the application**: no `apps/*`, no “project-specific” configs inside `framework/`.
+- Packages do not pull in the application: no `apps/*`, no “project-specific” configs inside `framework/`.
 
 ### 0.4. Skeleton (application)
 
 - Everything written by the user: `apps/`, `modules/`, `config/`, `resources/`, `var/`, `tests/`
-- `config/` in skeleton is **overrides only**, not framework defaults
+- `config/` in skeleton is overrides only, not framework defaults
 - Defaults live in packages (`framework/packages/**/config`), skeleton only overrides them.
 
 ### 0.5. “contracts” — the single source of truth for ports
@@ -86,7 +85,7 @@
 - `core/contracts` — centralized ports (Module/Config/Env/Bus/Observability/Storage/Security/Runtime…)
 - Implementations live in concrete packages (`integrations/*`, `platform/*`).
 - Minimize “Contracts in packages”. If absolutely needed, only private internal interfaces, not cross-package APIs.
-- If a capability already has a sufficient external standard port (e.g. `Psr\SimpleCache\CacheInterface`), `core/contracts` **MAY NOT** introduce a duplicate port without a separate framework-specific need.
+- If a capability already has a sufficient external standard port (e.g. `Psr\SimpleCache\CacheInterface`), `core/contracts` MAY NOT introduce a duplicate port without a separate framework-specific need.
 
 ---
 
@@ -94,15 +93,16 @@
 
 Canonical repo roots (Prelude):
 
-- `framework/` — the framework **tooling workspace root** (packages + tools) + workspace runtime state in `framework/var/**`
+- `framework/` — the framework tooling workspace root (packages + tools) + workspace runtime state in `framework/var/**`
   - `framework/var/**` contains temporary/service tooling files (e.g. backups), and is not publishable content
-- `skeleton/` — the **skeleton app workspace root** (application sandbox) + runtime state in `skeleton/var/**`
-- `.githooks/` — Git hooks, **enabled** via `composer setup` (sets `git config core.hooksPath .githooks`)
+- `skeleton/` — the skeleton app workspace root (application sandbox) + runtime state in `skeleton/var/**`
+- `.githooks/` — Git hooks, enabled via `composer setup` (sets `git config core.hooksPath .githooks`)
 
 > `framework/packages/` has sublayers (core/platform/integrations/enterprise/devtools/presets).
-> Composer name is **deterministically** derived from `{layer, slug}` by the rule: `coretsia/<layer>-<slug>`.
+> Composer name is deterministically derived from `{layer, slug}` by the rule: `coretsia/<layer>-<slug>`.
 
-**Canonical entrypoints (Prelude):** everything runs from the **repo root** via `composer setup|test|ci`.  
+Canonical entrypoints (Prelude): everything runs from the repo root via `composer setup|test|ci`.
+
 See the minimal “clean clone → green baseline” scenario in `docs/guides/quickstart.md`.
 
 ```txt
@@ -289,7 +289,7 @@ framework/packages/<layer>/<slug>/
 └── composer.json
 ```
 
-**Required conventions inside the package**
+Required conventions inside the package
 
 - `src/Module/*Module.php` exports:
   - id/version/deps/providers
@@ -299,7 +299,7 @@ framework/packages/<layer>/<slug>/
 - `src/Provider/*ServiceProvider.php`:
   - DI bindings
   - tags (health/middleware/exporters/commands)
-- `config/<slug>.php` returns a **subtree** (without repeating the wrapper root).
+- `config/<slug>.php` returns a subtree (without repeating the wrapper root).
 
 ---
 
@@ -324,8 +324,8 @@ framework/packages/core/contracts/src/
 └── Runtime/           # optional (loop/async primitives)
 ```
 
-**Rule:** if something is potentially needed by **two or more packages**, it has a chance to live in `contracts`.
-**Anti-rule:** do not pull “concrete things” (PDO/Redis/S3/Prometheus) into `contracts`.
+Rule: if something is potentially needed by two or more packages, it has a chance to live in `contracts`.
+Anti-rule: do not pull “concrete things” (PDO/Redis/S3/Prometheus) into `contracts`.
 
 ---
 
@@ -352,7 +352,7 @@ Examples (all under `framework/packages/integrations/`):
 - `mail-smtp` → `coretsia/integrations-mail-smtp`
 - `runtime-roadrunner` → `coretsia/integrations-runtime-roadrunner`
 
-**Hard dependency rule:** integrations may depend on platform, but platform **must never** depend on integrations.
+Hard dependency rule: integrations may depend on platform, but platform must never depend on integrations.
 
 ---
 
@@ -361,22 +361,22 @@ Examples (all under `framework/packages/integrations/`):
 ### 5.1. Mode presets (kernel runtime planning)
 
 - Live in skeleton: `skeleton/config/modes/*.php`
-- Affect the **module plan** (required/optional/disabled + bundles such as `observability=minimal`)
+- Affect the module plan (required/optional/disabled + bundles such as `observability=minimal`)
 
 ### 5.2. Preset packages (composer dependency convenience)
 
 - Live in framework: `framework/packages/presets/preset-*/`
 - They make “composer require coretsia/presets-preset-express” pull the recommended dependency set for the corresponding release line
-- They **do not replace** mode presets. They only install dependencies.
-- Preset package **MUST** be phase-consistent with `ROADMAP.md`:
+- They do not replace mode presets. They only install dependencies.
+- Preset package MUST be phase-consistent with `ROADMAP.md`:
   - `preset-micro` — `micro` baseline only
   - `preset-express` — `micro` + required `express` additions
   - `preset-hybrid` — `express` + `hybrid` additions
   - `preset-enterprise` — `hybrid` + `enterprise` additions
 - If the release line contains `SHOULD` packages (for example `platform/cache` in `express`), the canonical preset:
-  - **MUST** clearly distinguish required baseline from later-optional additions,
-  - **MUST NOT** implicitly make an optional package part of the required mode definition without a separate policy note,
-  - **MAY** have separate convenience variants / extras for richer distribution.
+  - MUST clearly distinguish required baseline from later-optional additions,
+  - MUST NOT implicitly make an optional package part of the required mode definition without a separate policy note,
+  - MAY have separate convenience variants / extras for richer distribution.
 
 ---
 
@@ -405,7 +405,7 @@ skeleton/modules/<ContextName>/
 └── README.md
 ```
 
-**Integration channels between modules:**
+Integration channels between modules:
 
 - domain events
 - query bus (read model)
@@ -418,15 +418,15 @@ skeleton/modules/<ContextName>/
 
 Here is a simple “law”:
 
-- **Core** (`contracts`, `foundation`, `kernel`)
+- Core (`contracts`, `foundation`, `kernel`)
   → depends on nothing “above” it (except PSR/standards).
-- **Platform**
+- Platform
   → depends on Core (+ sometimes on each other, but without cycles).
-- **Integrations**
+- Integrations
   → depend on Platform + Core, but Platform never depends on Integrations.
-- **DevTools**
+- DevTools
   → depend on Platform (http/observability/routing/db), but not the other way around.
-- **Enterprise**
+- Enterprise
   → may depend on Platform/Integrations, but it is the “upper layer”.
 
 Mini permission matrix:
@@ -447,18 +447,18 @@ Mini permission matrix:
 
 ## 8) Small “finishing touches” so the structure is complete
 
-1. **A single place for runtime “build artifacts”**
+1. A single place for runtime “build artifacts”
 
 - skeleton: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
 - kernel artifacts: `var/cache/module-manifest.php`, `var/cache/config.php`, `var/cache/container.php` (stub/later)
 
-2. **Unified config rules**
+2. Unified config rules
 
 - defaults — packages only (`framework/packages/**/config`)
 - overrides — skeleton only (`skeleton/config`, `skeleton/apps/*/config`, `skeleton/modules/*/config`)
 - validators/metadata — `config/rules.php` (package) + explain/source tracking in kernel
 
-3. **A package is always “enabled” through Module + Provider**
+3. A package is always “enabled” through Module + Provider
 
 - even if a package is “small”: this saves you from registration chaos
 
@@ -466,24 +466,24 @@ Mini permission matrix:
 
 ## 9) Final mode map — `micro | express | hybrid | enterprise | custom`
 
-> **Canonical rule:** `ROADMAP.md` defines **when** a capability enters the system; this section describes **how** capabilities are grouped at the runtime mode level.  
-> The mode map in this document **MUST NOT** contradict `ROADMAP.md` on the phase availability of a capability.
+> Canonical rule: `ROADMAP.md` defines when a capability enters the system; this section describes how capabilities are grouped at the runtime mode level. \
+> The mode map in this document MUST NOT contradict `ROADMAP.md` on the phase availability of a capability.
 >
-> **Description taxonomy (single-choice):**
-> - **Required** — the minimally required payload of the mode;
-> - **Adds** — capabilities this mode adds on top of the previous one;
-> - **Optional / later addons** — not mode-defining minimums and may appear later in the same phase or in later phases.
+> Description taxonomy (single-choice):
+> - Required — the minimally required payload of the mode;
+> - Adds — capabilities this mode adds on top of the previous one;
+> - Optional / later addons — not mode-defining minimums and may appear later in the same phase or in later phases.
 
 ### Custom
 
 - `custom` — a user-defined mode preset (`skeleton/config/modes/*.php`) that:
   - is based on the same `required|optional|disabled` rules,
-  - **MUST NOT** require capabilities that do not yet exist in the roadmap phase / installed packages,
-  - **MAY** assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
+  - MUST NOT require capabilities that do not yet exist in the roadmap phase / installed packages,
+  - MAY assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
 
 ### Micro
 
-**Required:**
+Required:
 
 - `core/contracts`
 - `core/foundation`
@@ -497,7 +497,7 @@ Mini permission matrix:
 - `platform/tracing`
 - `platform/metrics`
 
-**Runtime baseline (cemented by roadmap):**
+Runtime baseline (cemented by roadmap):
 
 - real HTTP runtime
 - router + http-app wiring
@@ -506,7 +506,7 @@ Mini permission matrix:
 - maintenance mode
 - CORS
 
-**Optional / later addons inside the same release line:**
+Optional / later addons inside the same release line:
 
 - request-id policy refinements
 - response hardening
@@ -519,7 +519,7 @@ Mini permission matrix:
 
 ### Express
 
-**Adds over `micro`:**
+Adds over `micro`:
 
 - `platform/validation`
 - `platform/filesystem`
@@ -534,7 +534,7 @@ Mini permission matrix:
 - `platform/auth`
 - `platform/security`
 
-**Optional / later addons in express line:**
+Optional / later addons in express line:
 
 - `platform/http-client`
 - `platform/translation`
@@ -545,11 +545,11 @@ Mini permission matrix:
 - `platform/cache` (`PSR-16` implementation / manager / reference stores)
 
 > `express` = “web + persistence + IO”.  
-> `platform/cache` belongs to the express release line, but **MUST NOT** be considered a required baseline of this mode if it remains `SHOULD` in the roadmap.
+> `platform/cache` belongs to the express release line, but MUST NOT be considered a required baseline of this mode if it remains `SHOULD` in the roadmap.
 
 ### Hybrid
 
-**Adds over `express`:**
+Adds over `express`:
 
 - secrets capability
 - `platform/events`
@@ -560,17 +560,17 @@ Mini permission matrix:
 - `platform/scheduler`
 - `platform/cqrs`
 
-**Optional / scenario-specific additions:**
+Optional / scenario-specific additions:
 
 - DB-backed async queue driver
 - stronger authorization engines (RBAC/REBAC), if needed by a specific preset
 
 > `hybrid` = async/business orchestration mode.  
-> `http-client`, `feature-flags`, advanced observability, rate-limit hardening **MUST NOT** define this mode if they are introduced in other phases.
+> `http-client`, `feature-flags`, advanced observability, rate-limit hardening MUST NOT define this mode if they are introduced in other phases.
 
 ### Enterprise
 
-**Adds over `hybrid`:**
+Adds over `hybrid`:
 
 - `platform/health`
 - advanced metrics/tracing integrations
@@ -587,19 +587,19 @@ Mini permission matrix:
 - ETL / preload / performance middleware family
 - enterprise integrations for secrets/search/AI and related extensions
 
-**Notes:**
+Notes:
 
 - `enterprise` — an extension-heavy / strict-stack mode, not a baseline condition for HTTP or persistence.
-- `CQRS` **is not** an enterprise-only capability, because it is added at `hybrid`.
+- `CQRS` is not an enterprise-only capability, because it is added at `hybrid`.
 
 ### Preset packages vs runtime modes
 
-- Runtime mode preset (`skeleton/config/modes/*.php`) defines the **module plan**.
-- Composer preset package (`framework/packages/presets/preset-*`) defines the **dependency convenience set**.
-- A preset package **MUST NOT** declare capabilities that do not yet exist in the corresponding roadmap release line.
+- Runtime mode preset (`skeleton/config/modes/*.php`) defines the module plan.
+- Composer preset package (`framework/packages/presets/preset-*`) defines the dependency convenience set.
+- A preset package MUST NOT declare capabilities that do not yet exist in the corresponding roadmap release line.
 - Recommended mapping:
   - `preset-micro` → required payload `micro`
-  - `preset-express` → `micro` + required payload `express`; **MAY** add express-line `SHOULD` packages as separate preset variants or extras, but the canonical baseline **MUST NOT** mix required and later-optional items without an explicit policy note
+  - `preset-express` → `micro` + required payload `express`; MAY add express-line `SHOULD` packages as separate preset variants or extras, but the canonical baseline MUST NOT mix required and later-optional items without an explicit policy note
   - `preset-hybrid` → `express` + adds `hybrid`
   - `preset-enterprise` → `hybrid` + adds `enterprise`
 
@@ -607,8 +607,8 @@ Mini permission matrix:
 
 ## 10) Full package catalog (DDD-friendly, PSR-first)
 
-Below is the **maximally complete** set that gives a “full stack”, while still preserving minimal dependencies through a **split into
-“platform + integrations adapters”**.
+Below is the maximally complete set that gives a “full stack”, while still preserving minimal dependencies through a split into
+“platform + integrations adapters”.
 
 ### A) Core Runtime / Kernel (indispensable)
 

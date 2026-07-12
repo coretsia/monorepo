@@ -14,47 +14,47 @@
 
 # coretsia/platform-worker
 
-**Experimental long-running worker runtime substrate.**
+Experimental long-running worker runtime substrate.
 
-**No real queue/HTTP task sources yet.**
+No real queue/HTTP task sources yet.
 
-**Used by future Coretsia queue/HTTP/runtime integrations.**
+Used by future Coretsia queue/HTTP/runtime integrations.
 
-`platform/worker` is the **long-running Worker runtime** package for the Coretsia Framework monorepo.
+`platform/worker` is the long-running Worker runtime package for the Coretsia Framework monorepo.
 
-**Scope:** worker module metadata, worker service provider/factory wiring, worker pool specification, process-driver lifecycle orchestration, application worker task loops, deterministic worker state storage, payload-free control transport, package-contributed worker command classes, safe worker exceptions, and worker runtime observability summaries.
+Scope: worker module metadata, worker service provider/factory wiring, worker pool specification, process-driver lifecycle orchestration, application worker task loops, deterministic worker state storage, payload-free control transport, package-contributed worker command classes, safe worker exceptions, and worker runtime observability summaries.
 
-**Out of scope:** CLI binary dispatch, CLI command catalog construction, HTTP platform adapters, real HTTP request production, real queue adapter behavior, external queue acknowledgement/retry/dead-letter semantics, scheduler integrations, RoadRunner/Swoole/FrankenPHP adapters, public task-source plugin APIs, public worker-driver plugin APIs, Kernel UnitOfWork lifecycle ownership, Kernel hook discovery, reset discovery, reset execution semantics, observability exporters, and tooling-only behavior.
+Out of scope: CLI binary dispatch, CLI command catalog construction, HTTP platform adapters, real HTTP request production, real queue adapter behavior, external queue acknowledgement/retry/dead-letter semantics, scheduler integrations, RoadRunner/Swoole/FrankenPHP adapters, public task-source plugin APIs, public worker-driver plugin APIs, Kernel UnitOfWork lifecycle ownership, Kernel hook discovery, reset discovery, reset execution semantics, observability exporters, and tooling-only behavior.
 
 This README is a consumer-oriented package summary.
 
 ## Package identity
 
-- **Path:** `framework/packages/platform/worker`
-- **Package id:** `platform/worker`
-- **Composer name:** `coretsia/platform-worker`
-- **Module id:** `platform.worker`
-- **Namespace:** `Coretsia\Platform\Worker\*` (PSR-4: `src/`)
-- **Kind:** runtime
-- **Config root:** `worker`
-- **Child launcher:** `bin/coretsia-worker`
+- Path: `framework/packages/platform/worker`
+- Package id: `platform/worker`
+- Composer name: `coretsia/platform-worker`
+- Module id: `platform.worker`
+- Namespace: `Coretsia\Platform\Worker\*` (PSR-4: `src/`)
+- Kind: runtime
+- Config root: `worker`
+- Child launcher: `bin/coretsia-worker`
 
 The child launcher is process-driver infrastructure. It is not the user-facing `coretsia worker:*` command dispatcher.
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
 This package is runtime-safe and process-oriented.
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `core/foundation`
   - `core/kernel`
   - PSR interfaces used only as ports
-- **Forbidden:**
+- Forbidden:
   - `platform/cli`
   - `platform/http`
   - `integrations/*`

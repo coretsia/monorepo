@@ -14,35 +14,35 @@
 
 # coretsia/core-foundation
 
-`core/foundation` is the **Foundation runtime** package for the Coretsia Framework monorepo.
+`core/foundation` is the Foundation runtime package for the Coretsia Framework monorepo.
 
-**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
+Scope: PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
-**Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
+Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
 ## Package identity
 
-- **Path:** `framework/packages/core/foundation`
-- **Package id:** `core/foundation`
-- **Composer name:** `coretsia/core-foundation`
-- **Module id:** `core.foundation`
-- **Namespace:** `Coretsia\Foundation\*` (PSR-4: `src/`)
-- **Kind:** runtime
+- Path: `framework/packages/core/foundation`
+- Package id: `core/foundation`
+- Composer name: `coretsia/core-foundation`
+- Module id: `core.foundation`
+- Namespace: `Coretsia\Foundation\*` (PSR-4: `src/`)
+- Kind: runtime
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy (Phase 1)
 
 This package is runtime-safe and intentionally small:
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `psr/clock`
   - `psr/container`
   - `psr/log`
-- **Forbidden:**
+- Forbidden:
   - `platform/*`
   - `integrations/*`
   - `devtools/*`

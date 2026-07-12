@@ -20,18 +20,18 @@ The package is intentionally tiny: it defines the marker only and does not provi
 
 This repository is a split package generated from the Coretsia monorepo package `framework/packages/core/dto-attribute`.
 
-**Scope:** explicit DTO opt-in marker only.
+Scope: explicit DTO opt-in marker only.
 
-**Out of scope:** validation, serialization, hydration, normalization, runtime mapping, service behavior, domain modeling, and transport execution.
+Out of scope: validation, serialization, hydration, normalization, runtime mapping, service behavior, domain modeling, and transport execution.
 
 ## Package identity
 
-- **Monorepo source path:** `framework/packages/core/dto-attribute`
-- **Split repository:** `coretsia/core-dto-attribute`
-- **Package id:** `core/dto-attribute`
-- **Composer name:** `coretsia/core-dto-attribute`
-- **Namespace:** `Coretsia\Dto\Attribute\*` (PSR-4: `src/Attribute/`)
-- **Kind:** library
+- Monorepo source path: `framework/packages/core/dto-attribute`
+- Split repository: `coretsia/core-dto-attribute`
+- Package id: `core/dto-attribute`
+- Composer name: `coretsia/core-dto-attribute`
+- Namespace: `Coretsia\Dto\Attribute\*` (PSR-4: `src/Attribute/`)
+- Kind: library
 
 Versioning is monorepo-wide.
 
@@ -43,8 +43,8 @@ Per-package independent versions MUST NOT be used.
 
 This package is intentionally minimal.
 
-- **Depends on:** PHP only
-- **Forbidden:**
+- Depends on: PHP only
+- Forbidden:
   - `core/*` runtime implementations
   - `platform/*`
   - `integrations/*`

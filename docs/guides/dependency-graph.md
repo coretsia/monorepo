@@ -14,10 +14,10 @@
 
 # Dependency graph (conceptual)
 
-This document explains **how to think** about dependencies in the Coretsia monorepo.
+This document explains how to think about dependencies in the Coretsia monorepo.
 
-**Important:** this is a conceptual guide. It MUST NOT be treated as an enforcement statement.  
-**Dependency truth (Phase 0 compile-time):** `docs/roadmap/phase0/00_2-dependency-table.md`.
+Important: this is a conceptual guide. It MUST NOT be treated as an enforcement statement. \
+Dependency truth (Phase 0 compile-time): `docs/roadmap/phase0/00_2-dependency-table.md`.
 
 ---
 
@@ -27,17 +27,17 @@ This document explains **how to think** about dependencies in the Coretsia monor
 
 A package is identified by:
 
-- **path:** `framework/packages/<layer>/<slug>/`
-- **package_id:** `<layer>/<slug>`
-- **composer name:** `coretsia/<layer>-<slug>`
-- **namespace root:** `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
+- path: `framework/packages/<layer>/<slug>/`
+- package_id: `<layer>/<slug>`
+- composer name: `coretsia/<layer>-<slug>`
+- namespace root: `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
 
 ### Dependency types
 
-- **Compile-time dependency:** a Composer requirement needed to build/test/package code.
-- **Runtime wiring / discovery:** how modules/providers are discovered and assembled at runtime (policy: metadata-driven, no filesystem scanning).
+- Compile-time dependency: a Composer requirement needed to build/test/package code.
+- Runtime wiring / discovery: how modules/providers are discovered and assembled at runtime (policy: metadata-driven, no filesystem scanning).
 
-This doc is about the **graph model**, not the enforcement tooling.
+This doc is about the graph model, not the enforcement tooling.
 
 ---
 
@@ -45,10 +45,10 @@ This doc is about the **graph model**, not the enforcement tooling.
 
 The graph exists to guarantee:
 
-- **acyclic architecture** (in practice: no circular compile-time deps),
-- **clear layering** (contracts/core/platform/integrations/tooling),
-- **deterministic builds** (same inputs → same outputs),
-- **stable public surfaces** (boundaries are explicit, not “accidental imports”).
+- acyclic architecture (in practice: no circular compile-time deps),
+- clear layering (contracts/core/platform/integrations/tooling),
+- deterministic builds (same inputs → same outputs),
+- stable public surfaces (boundaries are explicit, not “accidental imports”).
 
 The SSoT dependency table is the only authoritative source for Phase 0 compile-time edges.
 
@@ -58,17 +58,17 @@ The SSoT dependency table is the only authoritative source for Phase 0 compile-t
 
 A useful mental model:
 
-- **core/contracts**
+- `core/contracts`
   - pure ports / value objects; minimal dependencies.
-- **core/foundation**
+- `core/foundation`
   - primitives and baseline runtime wiring; depends on contracts (and allowed PSR interfaces where explicitly permitted).
-- **core/kernel**
+- `core/kernel`
   - orchestrates runtime, modules, config/artifacts; depends on contracts + foundation.
-- **platform/\***
+- `platform/*`
   - adapters, UX surfaces, integrations glue; generally depends “downward” on core.
-- **integrations/\***
+- `integrations/*`
   - optional external drivers; typically depends on platform and/or core (but should not pull platform into core).
-- **devtools/\*** and `framework/tools/**`
+- `devtools/*` and `framework/tools/**`
   - tooling and development-time utilities; must not become runtime requirements.
 
 Again: the exact allowed edges live in the dependency SSoT table.
@@ -83,10 +83,10 @@ Think of packages as nodes and compile-time requirements as directed edges:
 
 Two practical questions to ask for any change:
 
-1) **Does this introduce a new edge?**  
+1) Does this introduce a new edge? \
    If yes, it must be reflected (or rejected) by the dependency SSoT.
 
-2) **Does this invert layering?**  
+2) Does this invert layering? \
    Example smell: core importing platform types, or tooling leaking into runtime.
 
 ---
@@ -105,13 +105,13 @@ Other docs MAY provide summaries/diagrams, but MUST link to the table and MUST N
 
 A frequent confusion:
 
-- Runtime can **discover** modules/providers via Composer metadata.
-- That discovery does **not** change compile-time dependency rules.
+- Runtime can discover modules/providers via Composer metadata.
+- That discovery does NOT change compile-time dependency rules.
 
 Keep the two separate:
 
-- **Dependencies:** what Composer requires to build/run a package.
-- **Discovery:** what the runtime finds from installed packages’ metadata.
+- Dependencies: what Composer requires to build/run a package.
+- Discovery: what the runtime finds from installed packages’ metadata.
 
 ---
 
@@ -134,7 +134,7 @@ flowchart TB
 ```
 
 - Solid arrows: typical compile-time direction (conceptual).
-- Dotted arrows: examples of **undesired** direction (tooling → runtime).
+- Dotted arrows: examples of undesired direction (tooling → runtime).
 
 The authoritative edges are defined by the dependency SSoT table.
 
@@ -144,8 +144,8 @@ The authoritative edges are defined by the dependency SSoT table.
 
 Before you add a `use ...` import across packages, ask:
 
-- Is this a **ports/VO** concern? If yes, it likely belongs in **contracts**.
-- Is this a runtime primitive? If yes, it likely belongs in **foundation**.
-- Is this orchestration? If yes, it likely belongs in **kernel**.
-- Is this a user-facing adapter or integration? If yes, it likely belongs in **platform/integrations**.
-- Is this tooling-only? If yes, it must stay under **tools/devtools** and must not become a runtime dependency.
+- Is this a ports/VO concern? If yes, it likely belongs in contracts.
+- Is this a runtime primitive? If yes, it likely belongs in foundation.
+- Is this orchestration? If yes, it likely belongs in kernel.
+- Is this a user-facing adapter or integration? If yes, it likely belongs in platform/integrations.
+- Is this tooling-only? If yes, it must stay under tools/devtools and must not become a runtime dependency.

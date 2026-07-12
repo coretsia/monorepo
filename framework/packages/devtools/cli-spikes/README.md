@@ -14,7 +14,7 @@
 
 # coretsia/devtools-cli-spikes
 
-`devtools/cli-spikes` is the **devtools-only deterministic command pack** for the Phase 0 `coretsia` CLI.
+`devtools/cli-spikes` is the devtools-only deterministic command pack for the Phase 0 `coretsia` CLI.
 
 It provides thin command adapters for repository diagnostics, spike execution, deptrac graph rendering, and workspace sync operations.
 
@@ -22,27 +22,27 @@ This package is intended only for Coretsia monorepo development and CI workflows
 
 ## Package identity
 
-- **Path:** `framework/packages/devtools/cli-spikes`
-- **Package id:** `devtools/cli-spikes`
-- **Composer name:** `coretsia/devtools-cli-spikes`
-- **Namespace:** `Coretsia\Devtools\CliSpikes\*` (PSR-4: `src/`)
-- **Kind:** library
-- **Lifecycle:** Phase 0 devtools package
+- Path: `framework/packages/devtools/cli-spikes`
+- Package id: `devtools/cli-spikes`
+- Composer name: `coretsia/devtools-cli-spikes`
+- Namespace: `Coretsia\Devtools\CliSpikes\*` (PSR-4: `src/`)
+- Kind: library
+- Lifecycle: Phase 0 devtools package
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
 This package is devtools-only and MUST be installed through development dependencies only.
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `platform/cli`
-- **Suggested only:**
+- Suggested only:
   - `devtools/internal-toolkit`
-- **Forbidden:**
+- Forbidden:
   - `core/kernel`
   - production runtime packages as operational dependencies
   - integrations as command execution dependencies

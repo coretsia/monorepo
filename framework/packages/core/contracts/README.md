@@ -119,6 +119,10 @@ It is not a Kernel context/result schema object.
 
 It may expose only the normalized safe context array through `UnitOfWorkHandle::context()`.
 
+A runtime implementation may associate private lifecycle state with the exact handle object identity.
+
+Such state is not part of the contracts-owned handle context shape and MUST NOT be exposed through `UnitOfWorkHandle::context()`.
+
 It MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, mutable runtime state, or Kernel-owned runtime internals.
 
 The contracts package does not own DI tags, reset discovery, hook discovery, lifecycle execution, lifecycle timing state, config defaults, config rules, or provider wiring.

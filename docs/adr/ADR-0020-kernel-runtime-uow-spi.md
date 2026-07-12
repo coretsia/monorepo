@@ -257,7 +257,7 @@ Coretsia\Kernel\Runtime\UnitOfWorkContext
 Coretsia\Kernel\Runtime\UnitOfWorkResult
 ```
 
-The contracts package may expose:
+The contracts package exposes the canonical low-level lifecycle handle:
 
 ```text
 Coretsia\Contracts\Runtime\UnitOfWorkHandle
@@ -266,6 +266,22 @@ Coretsia\Contracts\Runtime\UnitOfWorkHandle
 This handle is an opaque lifecycle handle, not a Kernel runtime shape.
 
 It MUST expose only the normalized exported context array through `UnitOfWorkHandle::context()` and MUST NOT expose Stopwatch tokens.
+
+`KernelRuntime` maintains exported context and private lifecycle timing state through separate channels:
+
+```text
+UnitOfWorkContext::toArray()
+  → normalized exported context
+  → UnitOfWorkHandle::context()
+
+UnitOfWorkContext::startedAtToken()
+  → private lifecycle state associated with the exact UnitOfWorkHandle identity
+  → duration calculation during afterUnitOfWork()
+```
+
+The presence of `startedAtToken` in the internal `UnitOfWorkContext` does not make it a key of the exported handle context.
+
+Private timing state MUST NOT be copied into, reconstructed from, or exposed through `UnitOfWorkHandle::context()`.
 
 Those internal objects are Kernel-owned and must not become part of the contracts port.
 
@@ -669,6 +685,7 @@ framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextK
 framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php
@@ -682,6 +699,9 @@ These tests are expected to verify:
 - `core/contracts` owns hook signatures;
 - `core/contracts` owns public context key identifiers used by Kernel base context writes;
 - `core/kernel` owns normalized hook payload production;
+- `beginUnitOfWork()` returns a handle whose context excludes `startedAt`, `startedAtToken`, and `finishedAt`;
+- the exact returned handle retains access to private lifecycle timing state through Kernel-owned identity association;
+- `afterUnitOfWork()` completes successfully without reading timing state from `UnitOfWorkHandle::context()`;
 - adapters consume the contracts port;
 - Kernel does not define a competing runtime interface;
 - Kernel does not expose PSR-7/15 in public runtime APIs;

@@ -94,6 +94,10 @@ interface KernelRuntimeInterface
      * keys, invoke before-unit-of-work hooks, and return a handle that exposes the
      * normalized exported context through UnitOfWorkHandle::context().
      *
+     * Implementation-private lifecycle state, including Stopwatch tokens, MAY be
+     * associated with the exact handle object identity, but MUST NOT be exposed
+     * through UnitOfWorkHandle::context().
+     *
      * If this method returns successfully, before-unit-of-work hooks have already
      * completed successfully.
      *

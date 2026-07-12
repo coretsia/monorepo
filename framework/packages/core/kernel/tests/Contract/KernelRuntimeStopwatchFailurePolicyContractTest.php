@@ -31,7 +31,15 @@ final class KernelRuntimeStopwatchFailurePolicyContractTest extends TestCase
         self::assertStringContainsString('private function safeStopTimer(int $startedAt): int', $source);
 
         self::assertStringContainsString('startedAtToken: $this->safeStartTimer(),', $source);
-        self::assertStringContainsString('$this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();', $source);
+        self::assertStringContainsString(
+            '$this->openUnitOfWorkStartTokens->offsetSet(',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            '$context->startedAtToken(),',
+            $source,
+        );
         self::assertStringContainsString('durationMs: $this->safeStopTimer($context->startedAtToken()),', $source);
 
         self::assertStringNotContainsString('finishedAt: $this->safeStartTimer(),', $source);
@@ -46,13 +54,35 @@ final class KernelRuntimeStopwatchFailurePolicyContractTest extends TestCase
         $contextFromHandle = self::methodBody($source, 'contextFromHandle');
 
         self::assertStringContainsString(
-            '$this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();',
+            '$this->openUnitOfWorkStartTokens->offsetSet(',
             $source,
         );
 
         self::assertStringContainsString(
-            'unset($this->openUnitOfWorkStartTokens[$handle]);',
+            '$context->startedAtToken(),',
             $source,
+        );
+
+        self::assertStringContainsString(
+            '$this->openUnitOfWorkStartTokens->offsetExists($handle)',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            '$this->openUnitOfWorkStartTokens->offsetGet($handle)',
+            $source,
+        );
+
+        self::assertStringContainsString(
+            '$this->openUnitOfWorkStartTokens->offsetUnset($handle)',
+            $source,
+        );
+
+        self::assertStringNotContainsString(
+            '$this->openUnitOfWorkStartTokens[$handle]',
+            $source,
+            'KernelRuntime must mutate its readonly WeakMap state holder through '
+            . 'WeakMap methods rather than property array-access syntax.',
         );
 
         self::assertStringNotContainsString(

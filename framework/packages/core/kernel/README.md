@@ -1653,6 +1653,22 @@ generated artifacts
 persistence payloads
 ```
 
+`KernelRuntime` maintains two separate lifecycle channels:
+
+```text
+UnitOfWorkContext::toArray()
+  -> normalized exported context
+  -> UnitOfWorkHandle::context()
+
+UnitOfWorkContext::startedAtToken()
+  -> private WeakMap<UnitOfWorkHandle, int>
+  -> duration calculation during afterUnitOfWork()
+```
+
+The `WeakMap` is keyed by the exact handle object identity.
+
+`afterUnitOfWork()` retrieves the private timing token from that map. It does not read timing state from `UnitOfWorkHandle::context()`.
+
 The exported context shape is:
 
 ```text

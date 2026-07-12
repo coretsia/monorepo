@@ -301,7 +301,7 @@ The public Kernel boundary is:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
-````
+```
 
 The public Kernel contribution handoff object is:
 

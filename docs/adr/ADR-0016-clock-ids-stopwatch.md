@@ -415,7 +415,11 @@ generated artifacts
 persistence payloads
 ```
 
-Kernel runtime MAY keep a Stopwatch token only as private lifecycle state associated with an opaque `UnitOfWorkHandle`.
+Kernel runtime MAY keep a Stopwatch token only as private lifecycle state associated with the exact opaque `UnitOfWorkHandle` object identity.
+
+That association MUST remain outside `UnitOfWorkHandle::context()`.
+
+The token MUST NOT be inserted into the handle context, derived from the exported context, or exposed through any handle accessor.
 
 Only `durationMs` or another owner-defined non-negative duration value may cross an export or observability boundary.
 

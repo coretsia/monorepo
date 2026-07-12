@@ -181,7 +181,13 @@ The contracts-owned lifecycle handle is allowed:
 Coretsia\Contracts\Runtime\UnitOfWorkHandle
 ```
 
-`UnitOfWorkHandle` is not a context/result schema object. It MUST expose only the exported safe context array and MUST NOT expose Stopwatch tokens.
+`UnitOfWorkHandle` is not a context/result schema object.
+
+It MUST expose only the normalized exported safe context array and MUST NOT expose Stopwatch tokens.
+
+A runtime implementation MAY associate implementation-private lifecycle state with the exact handle object identity.
+
+Such state is not part of the contracts-owned handle context shape and MUST NOT be stored in, read from, or reconstructed from `UnitOfWorkHandle::context()`.
 
 `core/contracts` owns the external port.
 
@@ -885,6 +891,12 @@ framework/packages/core/contracts/tests/Contract/UnitOfWorkHandleContractTest.ph
 framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
 ```
 
+Kernel implementation evidence additionally includes:
+
+```text
+framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+```
+
 These tests are expected to verify:
 
 - `ResetInterface` exists and exposes only `reset(): void`;
@@ -893,6 +905,8 @@ These tests are expected to verify:
 - `afterUnitOfWork()` accepts `UnitOfWorkHandle`;
 - `UnitOfWorkHandle::context()` exposes only the normalized safe context array;
 - `UnitOfWorkHandle::context()` does not expose `startedAt`, `startedAtToken`, or `finishedAt`;
+- the Kernel low-level lifecycle stores timing state outside the exported handle context;
+- `beginUnitOfWork()` and `afterUnitOfWork()` complete successfully using the exact handle identity;
 - `KernelRuntimeInterface` does not depend on `core/kernel`;
 - `BeforeUowHookInterface` exists and exposes only `beforeUow(array $context): void`;
 - `AfterUowHookInterface` exists and exposes only `afterUow(array $context, array $result): void`;

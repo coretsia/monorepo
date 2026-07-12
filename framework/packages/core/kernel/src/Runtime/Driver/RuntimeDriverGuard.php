@@ -91,8 +91,8 @@ final class RuntimeDriverGuard
     }
 
     /**
-     * Asserts Kernel-selected HTTP driver compatibility against the
-     * caller-provided ModulePlan.
+     * Resolves the composed runtime-driver set and validates HTTP driver
+     * compatibility against the caller-provided ModulePlan.
      *
      * TODO(kernel-boundaries): move platform-owned HTTP module compatibility
      * checks out of Kernel runtime guard in a follow-up boundary refactor.
@@ -105,7 +105,7 @@ final class RuntimeDriverGuard
      * @throws RuntimeDriverConflictException
      * @throws RuntimeDriverInvalidConfigException
      */
-    public function assertHttpDriverCompatibleWithModules(
+    public function resolveForModules(
         ConfigRepositoryInterface $cfg,
         ModulePlan $plan,
         RuntimeDriverContributions $contributions,

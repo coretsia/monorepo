@@ -42,7 +42,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         array $expectedActiveDriverIds,
     ): void {
         try {
-            new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+            new RuntimeDriverGuard()->resolveForModules(
                 cfg: self::config($config),
                 plan: self::modulePlan([]),
                 contributions: self::runtimeDriverContributions(null),
@@ -73,7 +73,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         array $config,
         array $_expectedActiveDriverIds,
     ): void {
-        new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        new RuntimeDriverGuard()->resolveForModules(
             cfg: self::config($config),
             plan: self::modulePlan(['platform.http']),
             contributions: self::runtimeDriverContributions(null),
@@ -89,7 +89,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             'worker.task_type' => 'queue',
         ]);
 
-        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->resolveForModules(
             cfg: $cfg,
             plan: self::modulePlan(['platform.worker']),
             contributions: self::runtimeDriverContributions(null),
@@ -107,7 +107,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             'kernel.runtime.http_driver' => 'http.classic',
         ]);
 
-        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->resolveForModules(
             cfg: $cfg,
             plan: self::modulePlan([]),
             contributions: self::runtimeDriverContributions('queue'),
@@ -129,7 +129,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
         ]);
 
         try {
-            new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+            new RuntimeDriverGuard()->resolveForModules(
                 cfg: $cfg,
                 plan: self::modulePlan([]),
                 contributions: self::runtimeDriverContributions('http'),
@@ -154,7 +154,7 @@ final class RuntimeDriverGuardChecksModulePlanForPlatformHttpTest extends TestCa
             'kernel.runtime.http_driver' => 'http.classic',
         ]);
 
-        $drivers = new RuntimeDriverGuard()->assertHttpDriverCompatibleWithModules(
+        $drivers = new RuntimeDriverGuard()->resolveForModules(
             cfg: $cfg,
             plan: self::modulePlan(['platform.http']),
             contributions: self::runtimeDriverContributions('http'),

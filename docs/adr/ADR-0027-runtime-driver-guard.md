@@ -236,9 +236,18 @@ ModulePlan
 RuntimeDriverContributions
 ```
 
-It returns the resolved `RuntimeDrivers` value after composition and module compatibility validation.
+It exposes two explicit operations:
 
-Internally, it delegates to the Kernel-owned `RuntimeDriverGuard`.
+```text
+resolveEntrypointDrivers(...) → RuntimeDrivers
+assertEntrypointAllowed(...)  → void
+```
+
+`resolveEntrypointDrivers(...)` returns the same canonical driver set that was validated against the caller-provided `ModulePlan`.
+
+`assertEntrypointAllowed(...)` is an assertion-only wrapper around the resolver and discards the resolved result.
+
+Internally, both operations delegate to the Kernel-owned `RuntimeDriverGuard`.
 
 `RuntimeDriverGuard` derives the Kernel-selected HTTP driver only from Kernel-owned config.
 
@@ -299,23 +308,45 @@ It does not own:
 
 Missing or invalid Worker task type fails through Worker exception policy before Kernel matrix evaluation.
 
-`WorkerStartCommand` also performs its own `platform.worker` module precondition before invoking the Kernel entrypoint guard.
+`platform/worker` exposes `WorkerRuntimeEntrypointGuard` as its Worker-owned public compatibility boundary.
+
+That boundary validates the `platform.worker` module precondition, maps the already-normalized `WorkerPoolSpec` to explicit contributions through the package-internal mapper, and then invokes the Kernel entrypoint guard.
+
+`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must not perform that mapping or call the Kernel guard directly.
 
 ## Method boundary decision
 
 The public runtime entrypoint boundary exposes:
 
 ```php
-RuntimeEntrypointGuard::assertEntrypointAllowed(
+RuntimeEntrypointGuard::resolveEntrypointDrivers(
     ConfigRepositoryInterface $config,
     ModulePlan $modulePlan,
     RuntimeDriverContributions $runtimeDriverContributions,
 ): RuntimeDrivers
 ```
 
-This method must be invoked after config, `ModulePlan`, and owner contributions are resolved and before runtime execution starts.
+and:
 
-It must not resolve config, resolve `ModulePlan`, read owner-package config, inspect env, inspect container services, read artifacts, start `KernelRuntime`, or synthesize owner contributions.
+```php
+RuntimeEntrypointGuard::assertEntrypointAllowed(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): void
+```
+
+`resolveEntrypointDrivers(...)` is the canonical query-and-validation operation.
+
+It must return the exact `RuntimeDrivers` set that was composed and validated against the caller-provided `ModulePlan`.
+
+`assertEntrypointAllowed(...)` is a thin assertion-only wrapper around `resolveEntrypointDrivers(...)`.
+
+A caller must not invoke both methods for the same entrypoint attempt.
+
+Both public methods must be invoked only after config, `ModulePlan`, and explicit owner contributions are available.
+
+They must not resolve config, resolve `ModulePlan`, read owner-package config, inspect env, inspect container services, read artifacts, start `KernelRuntime`, or synthesize owner contributions.
 
 The following `RuntimeDriverGuard` methods are internal Kernel implementation details.
 
@@ -348,23 +379,21 @@ resolve(
 
 `resolve()` composes the Kernel-selected HTTP driver with explicit owner contributions.
 
-Module compatibility assertion:
+Module-aware resolution and validation:
 
 ```php
-assertHttpDriverCompatibleWithModules(
+resolveForModules(
     ConfigRepositoryInterface $cfg,
     ModulePlan $plan,
     RuntimeDriverContributions $contributions,
 ): RuntimeDrivers
 ```
 
-This is the only current Kernel guard method that validates `platform.http` compatibility.
+`resolveForModules()` is the only current internal Kernel guard method that validates `platform.http` compatibility.
 
-It must first resolve the complete driver set from Kernel config and explicit contributions.
+It first resolves the complete driver set from Kernel config and explicit contributions and then validates that exact set against the caller-provided `ModulePlan`.
 
 It must not resolve `ModulePlan` internally.
-
-It must inspect only the caller-provided `ModulePlan`.
 
 It must not inspect `platform.worker` to infer contributions.
 
@@ -383,18 +412,24 @@ http.worker
 bg.worker_queue
 ```
 
-through `WorkerRuntimeDriverContributions`.
+through the package-internal `WorkerRuntimeDriverContributions` mapper.
 
-`WorkerStartCommand` owns the precondition that `platform.worker` must be enabled before the worker pool starts.
+The public Worker-owned boundary is:
 
-When that owner precondition fails, the Worker command surfaces:
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+It owns the precondition that `platform.worker` must be enabled before Worker runtime execution starts.
+
+When that owner precondition fails, the Worker runtime caller surfaces:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 requires-platform-worker-module
 ```
 
-This failure occurs before `RuntimeEntrypointGuard` matrix evaluation.
+This failure occurs inside `WorkerRuntimeEntrypointGuard` before delegation to the Kernel `RuntimeEntrypointGuard` matrix evaluation.
 
 After explicit contributions have been supplied, the final composed HTTP driver determines the `platform.http` requirement.
 
@@ -547,8 +582,11 @@ Tests must verify:
 - final non-classic HTTP drivers require `platform.http`;
 - missing or invalid `worker.task_type` is tested in `platform/worker`;
 - Worker task type maps deterministically to `RuntimeDriverContributions`;
-- `WorkerStartCommand` performs its `platform.worker` precondition before runtime execution;
-- HTTP task preflight invokes `RuntimeEntrypointGuard` before request-handler resolution.
+- `WorkerRuntimeEntrypointGuard` performs the `platform.worker` precondition before runtime execution;
+- Worker production callers use `WorkerRuntimeEntrypointGuard` rather than importing the internal mapper or invoking the Kernel guard directly;
+- HTTP task preflight invokes `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- `resolveEntrypointDrivers(...)` returns the same composed set that passed module compatibility validation;
+- `assertEntrypointAllowed(...)` is an assertion-only `void` wrapper.
 
 Changing driver ids, config keys, activation rules, or error code names requires updating:
 

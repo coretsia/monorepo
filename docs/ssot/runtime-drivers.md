@@ -397,14 +397,14 @@ any additional contributed HTTP driver
 
 Notes:
 
-- `http.worker` is an HTTP runtime mode.
-- `http.worker` is not a background driver.
-- `http.worker` participates in HTTP-driver mutual exclusion.
-- `http.worker` MUST NOT be treated as `bg.worker_queue`.
-- `http.worker` replaces `http.classic` when it is the only contributed HTTP driver.
-- `http.worker` requires `platform.http` because it is the final HTTP runtime driver.
-- Kernel does not require or infer `platform.worker` membership when composing this contribution.
-- Worker entrypoints own their own `platform.worker` module precondition.
+- `http.worker` is an HTTP runtime mode;
+- `http.worker` is not a background driver;
+- `http.worker` participates in HTTP-driver mutual exclusion;
+- `http.worker` MUST NOT be treated as `bg.worker_queue`;
+- `http.worker` replaces `http.classic` when it is the only contributed HTTP driver;
+- `http.worker` requires `platform.http` because it is the final HTTP runtime driver;
+- Kernel does not require or infer `platform.worker` membership when composing this contribution;
+- the Worker package owns the `platform.worker` module precondition through `WorkerRuntimeEntrypointGuard`.
 
 ### `bg.worker_queue`
 
@@ -438,11 +438,11 @@ http.worker
 
 Notes:
 
-- `bg.worker_queue` is a background driver.
-- `bg.worker_queue` is not an HTTP driver.
-- `bg.worker_queue` MUST NOT require `platform.http`.
-- Kernel does not infer or validate `platform.worker` membership from this contribution.
-- Worker entrypoints own their own `platform.worker` module precondition.
+- `bg.worker_queue` is a background driver;
+- `bg.worker_queue` is not an HTTP driver;
+- `bg.worker_queue` MUST NOT require `platform.http`;
+- Kernel does not infer or validate `platform.worker` membership from this contribution;
+- the Worker package owns the `platform.worker` module precondition through `WorkerRuntimeEntrypointGuard`;
 - the current `WorkerRuntimeDriverContributions` mapper produces either `http.worker` or `bg.worker_queue` from one `WorkerPoolSpec`;
 - the generic Kernel matrix nevertheless permits `http.worker` and `bg.worker_queue` together because one is HTTP and the other is background.
 
@@ -830,15 +830,21 @@ worker.task_type=http from /absolute/path/.env
 
 The Kernel guard does not inspect `platform.worker` membership.
 
-Worker entrypoints own their own Worker module preconditions.
+The Worker package owns that module precondition through:
 
-The current `WorkerStartCommand` requires:
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+The boundary requires:
 
 ```text
 platform.worker
 ```
 
-before starting the Worker runtime.
+before Worker runtime execution starts.
+
+`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must use this boundary rather than performing independent module checks.
 
 A failed Worker owner precondition is surfaced as:
 
@@ -954,17 +960,63 @@ Driver ids remain canonical runtime ids and may contain dots or underscores.
 
 ## Entry points and integration points
 
-Runtime entrypoints that have all required inputs MUST call:
+Runtime entrypoints that have all required inputs MUST use the public `RuntimeEntrypointGuard` boundary.
+
+Runtime adapters that need the resolved active runtime-driver set MUST call:
 
 ```php
-RuntimeEntrypointGuard::assertEntrypointAllowed(
+RuntimeEntrypointGuard::resolveEntrypointDrivers(
     ConfigRepositoryInterface $config,
     ModulePlan $modulePlan,
     RuntimeDriverContributions $runtimeDriverContributions,
 ): RuntimeDrivers
 ```
 
-Owner packages MUST build contributions before calling this boundary.
+Entrypoints that require only a compatibility gate MAY call:
+
+```php
+RuntimeEntrypointGuard::assertEntrypointAllowed(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): void
+```
+
+`assertEntrypointAllowed(...)` is an assertion-only wrapper around `resolveEntrypointDrivers(...)`.
+
+Callers MUST NOT invoke both methods for the same entrypoint attempt.
+
+Owner packages MUST build contributions before calling either boundary.
+
+An owner package MAY centralize this responsibility in its own public entrypoint boundary.
+
+`platform/worker` does so through:
+
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+Worker production callers MUST call that Worker-owned boundary.
+
+They MUST NOT:
+
+- import `WorkerRuntimeDriverContributions`;
+- call the package-internal mapper directly;
+- call the Kernel `RuntimeEntrypointGuard` directly;
+- invoke both Worker and Kernel guards for one entrypoint attempt.
+
+`WorkerRuntimeEntrypointGuard` builds explicit contributions and delegates to the Kernel assertion boundary.
+
+The `RuntimeDriverContributions` argument is mandatory even when no owner package contributes a driver. The explicit empty value is:
+
+```php
+RuntimeDriverContributions::fromDrivers(
+    httpDrivers: [],
+    backgroundDrivers: [],
+)
+```
+
+Callers MUST NOT resolve the runtime-driver matrix independently after either public guard method succeeds.
 
 They MUST NOT call `RuntimeDriverGuard` directly.
 
@@ -1079,7 +1131,11 @@ Artifact-only boot MUST NOT infer owner runtime-driver contributions from:
 
 When a Kernel-owned artifact boot path invokes `RuntimeEntrypointGuard` without any owner-package runtime-driver participation, it MUST pass an explicit empty `RuntimeDriverContributions` object.
 
-Owner-specific runtime entrypoints MUST construct and supply their own contributions before invoking the guard.
+Owner-specific runtime entrypoints MUST ensure that explicit contributions are constructed and supplied before the Kernel guard is invoked.
+
+They MAY do this through an owner-owned public wrapper such as `WorkerRuntimeEntrypointGuard`.
+
+Owner callers behind such a wrapper MUST NOT invoke the Kernel guard a second time.
 
 Runtime entrypoints for these drivers MUST NOT perform package filesystem scanning as a replacement for generated artifacts.
 
@@ -1123,6 +1179,7 @@ framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPl
 framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGuardTest.php
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
 framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php
 ```
 
@@ -1153,10 +1210,13 @@ Worker package tests MUST prove at minimum:
 - `worker.task_type=queue` maps to `bg.worker_queue`;
 - `worker.task_type=http` maps to `http.worker`;
 - missing or invalid Worker task type fails through Worker exception policy;
-- `WorkerPoolSpec` is built before contribution mapping;
-- `platform.worker` owner precondition is checked before runtime execution;
-- `RuntimeEntrypointGuard` is invoked with explicit contributions;
-- HTTP task compatibility is checked before request-handler resolution;
+- `WorkerPoolSpec` is built before `WorkerRuntimeEntrypointGuard` is invoked;
+- `platform.worker` owner precondition is checked by `WorkerRuntimeEntrypointGuard` before runtime execution;
+- `WorkerRuntimeEntrypointGuard` maps `WorkerPoolSpec` to explicit contributions;
+- the Worker-owned boundary invokes the Kernel `RuntimeEntrypointGuard` with those explicit contributions;
+- Worker production callers do not import the internal mapper or invoke the Kernel guard directly;
+- HTTP task compatibility is checked through `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- the child launcher invokes `WorkerRuntimeEntrypointGuard` before resolving `ApplicationWorker`;
 - Kernel guard failures are surfaced without reclassification as Worker failures.
 
 ## Examples

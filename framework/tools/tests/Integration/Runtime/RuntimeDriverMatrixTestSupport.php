@@ -236,7 +236,7 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         $guard = new RuntimeDriverGuard();
 
         try {
-            $drivers = $guard->assertHttpDriverCompatibleWithModules(
+            $drivers = $guard->resolveForModules(
                 cfg: $cfg,
                 plan: $plan,
                 contributions: $contributions,

@@ -22,6 +22,7 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
@@ -29,6 +30,39 @@ use PHPUnit\Framework\TestCase;
 
 final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
 {
+    public function testResolveEntrypointDriversReturnsValidatedComposedDrivers(): void
+    {
+        $drivers = self::guard()->resolveEntrypointDrivers(
+            config: new ArrayConfigRepository(
+                self::runtimeConfig(
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
+                ),
+            ),
+            modulePlan: self::modulePlan([
+                'platform.http',
+                'platform.worker',
+            ]),
+            runtimeDriverContributions: RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [
+                    HttpDriver::WORKER,
+                ],
+                backgroundDrivers: [],
+            ),
+        );
+
+        self::assertSame(HttpDriver::WORKER, $drivers->httpDriver());
+        self::assertSame('http.worker', $drivers->httpDriverId());
+        self::assertSame([], $drivers->backgroundDrivers());
+        self::assertSame([], $drivers->backgroundDriverIds());
+        self::assertSame(
+            [
+                'http.worker',
+            ],
+            $drivers->driverIds(),
+        );
+    }
+
     public function testRoadrunnerWithoutPlatformHttpFailsBeforeRuntimeStart(): void
     {
         $started = false;

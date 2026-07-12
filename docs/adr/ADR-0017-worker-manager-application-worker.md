@@ -92,15 +92,23 @@ Kernel owns:
 
 Runtime-driver composition must be checked before worker pool startup.
 
-The canonical public runtime entrypoint compatibility boundary is:
+The canonical public Kernel runtime entrypoint compatibility boundary is:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
+The public Worker-owned boundary used by Worker runtime paths is:
+
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+`WorkerRuntimeEntrypointGuard` maps an already-normalized `WorkerPoolSpec` to explicit Kernel `RuntimeDriverContributions` and delegates canonical matrix and module compatibility validation to the Kernel boundary.
+
 The worker package must not duplicate runtime-driver matrix policy.
 
-It must not call the Kernel-internal `RuntimeDriverGuard` directly.
+Worker callers must not call the Kernel-internal `RuntimeDriverGuard` directly.
 
 ## Decision
 
@@ -192,17 +200,44 @@ It must not invent missing defaults outside the package-owned defaults file.
 
 ## Runtime entrypoint guard decision
 
-`WorkerStartCommand` must call `RuntimeEntrypointGuard` before creating `WorkerPoolSpec`, resolving `WorkerManager`, or starting the worker pool.
-
-The command must call:
+Worker runtime paths must use the Worker-owned public boundary:
 
 ```text
-RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
-with the resolved runtime config snapshot and caller-provided `ModulePlan`.
+The boundary receives:
 
-The worker package must not call the Kernel-internal `RuntimeDriverGuard` directly.
+```text
+ConfigRepositoryInterface
+ModulePlan
+WorkerPoolSpec
+```
+
+The required startup order is:
+
+```text
+build WorkerPoolSpec
+→ invoke WorkerRuntimeEntrypointGuard
+→ resolve or start runtime services
+```
+
+`WorkerRuntimeEntrypointGuard` owns:
+
+- validation that `platform.worker` participates in the resolved `ModulePlan`;
+- delegation to the package-internal `WorkerRuntimeDriverContributions::fromSpec(...)` mapper;
+- construction of explicit Kernel `RuntimeDriverContributions`;
+- delegation to `RuntimeEntrypointGuard::assertEntrypointAllowed(...)`.
+
+`WorkerStartCommand`, `HttpTaskFactory`, and the shipped `bin/coretsia-worker` child launcher must use this Worker-owned boundary.
+
+They must not:
+
+- import `WorkerRuntimeDriverContributions`;
+- call the internal mapper directly;
+- call the Kernel `RuntimeEntrypointGuard` directly;
+- call the Kernel-internal `RuntimeDriverGuard`;
+- resolve the runtime-driver matrix independently.
 
 Runtime-driver matrix failures must be surfaced using the Kernel runtime-driver matrix deterministic error codes and reason tokens.
 
@@ -219,7 +254,7 @@ The compatibility check is based on the complete runtime-driver matrix, not only
 
 In particular, the worker package MUST NOT decide independently that `platform.http` is required only for `worker.task_type=http`.
 
-Missing `platform.http` for any selected non-classic HTTP driver must fail through `RuntimeEntrypointGuard` before `RequestHandlerInterface` resolution.
+Missing `platform.http` for any selected non-classic HTTP driver must fail through the Worker-owned boundary, which delegates to the Kernel guard, before `RequestHandlerInterface` resolution.
 
 ## CLI command decision
 
@@ -277,13 +312,16 @@ It delegates process-specific behavior to package-internal `WorkerManagerDriverI
 - write socket files directly;
 - call `RuntimeDriverGuard`;
 - call `RuntimeEntrypointGuard`;
+- call `WorkerRuntimeEntrypointGuard`;
 - call `KernelRuntimeInterface` for individual task execution;
 - enumerate reset tags;
 - enumerate before/after UnitOfWork hook tags;
 - call `ResetOrchestrator` directly;
 - write stdout or stderr directly.
 
-Runtime-driver compatibility belongs to `WorkerStartCommand`.
+Runtime-driver compatibility belongs to `WorkerRuntimeEntrypointGuard`.
+
+`WorkerStartCommand` owns only the ordering requirement that this boundary must pass before `WorkerManager` is resolved or started.
 
 Task execution belongs to `ApplicationWorker`.
 
@@ -416,7 +454,9 @@ It must not depend on `platform/http`.
 
 It may validate that `Psr\Http\Server\RequestHandlerInterface` is resolvable.
 
-Request-handler preflight must happen only after RuntimeEntrypointGuard compatibility has passed.
+Request-handler preflight must happen only after `WorkerRuntimeEntrypointGuard` compatibility has passed.
+
+`HttpTaskFactory` must not call the Kernel `RuntimeEntrypointGuard` or the package-internal contribution mapper directly.
 
 Request handler preflight failures use deterministic worker start failures:
 
@@ -663,7 +703,9 @@ Runtime-driver composition is Kernel-owned policy.
 
 `WorkerManager` receives an already-built `WorkerPoolSpec` and delegates process lifecycle behavior.
 
-`WorkerStartCommand` is the correct boundary for enforcing runtime-driver guard policy before pool startup.
+`WorkerRuntimeEntrypointGuard` is the correct Worker-owned boundary for enforcing runtime-driver compatibility.
+
+`WorkerStartCommand` invokes that boundary after constructing `WorkerPoolSpec` and before resolving or starting `WorkerManager`.
 
 ### Let `ApplicationWorker` invoke hooks and reset directly
 
@@ -766,8 +808,12 @@ These tests are expected to verify:
 - process drivers do not execute task logic directly;
 - process drivers do not call KernelRuntime directly;
 - WorkerManager does not enforce runtime-driver guard policy;
-- WorkerStartCommand invokes RuntimeEntrypointGuard before WorkerPoolSpec creation and pool startup;
-- HTTP task factory checks RuntimeEntrypointGuard compatibility before request handler resolution;
+- `WorkerPoolSpec` is constructed before `WorkerRuntimeEntrypointGuard` is invoked;
+- `WorkerStartCommand` invokes `WorkerRuntimeEntrypointGuard` before resolving or starting `WorkerManager`;
+- `HttpTaskFactory` invokes `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- the shipped child launcher invokes `WorkerRuntimeEntrypointGuard` before resolving `ApplicationWorker`;
+- Worker callers do not import `WorkerRuntimeDriverContributions` or call the Kernel guard directly;
+- `WorkerRuntimeEntrypointGuard` validates the `platform.worker` owner precondition;
 - worker command classes use contracts-level CLI ports only;
 - worker runtime code does not write stdout or stderr directly;
 - worker exceptions expose stable error codes and reason tokens;
@@ -806,12 +852,15 @@ These tests are expected to verify:
 - `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
 - `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
+- `framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
 - `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`
 - `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
 - `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
 - `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
+- `framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php`
+- `framework/packages/platform/worker/bin/coretsia-worker`
 - `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
 - `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
 - `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`

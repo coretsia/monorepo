@@ -131,7 +131,7 @@ The worker package may contribute CLI command services, but CLI discovery, catal
 
 The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain owned by later platform/runtime adapter epics.
 
-## Public architecture components
+## Architecture components
 
 The main worker architecture components are:
 
@@ -147,6 +147,7 @@ WorkerManagerDriverInterface
 PcntlWorkerManagerDriver
 ProcWorkerManagerDriver
 WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
 WorkerPoolState
 WorkerStateStore
 WorkerSocketServer
@@ -186,8 +187,9 @@ The lifecycle shape is:
 worker:start command
   -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
-  -> WorkerRuntimeDriverContributions::fromSpec(...)
-  -> RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+  -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
+       -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
+       -> Kernel RuntimeEntrypointGuard::assertEntrypointAllowed(...)
   -> WorkerManager::start(...)
   -> selected process driver
   -> master process state
@@ -197,7 +199,9 @@ worker:start command
 
 `WorkerPoolSpec` is the normalized Worker-owned source of truth for `worker.task_type`.
 
-Contribution mapping occurs after `WorkerPoolSpec` construction and before runtime entrypoint validation.
+Contribution mapping occurs only inside `WorkerRuntimeEntrypointGuard`, after `WorkerPoolSpec` construction and before Kernel compatibility validation.
+
+Worker commands and launchers do not import or invoke the internal mapper directly.
 
 Kernel does not read the `worker` config root.
 
@@ -291,19 +295,48 @@ Endpoint identity may be represented publicly only through a deterministic hash.
 
 ## Runtime-driver guard boundary
 
-Runtime-driver composition and compatibility are Kernel-owned policy.
+Runtime-driver composition and module compatibility are Kernel-owned policy.
 
 The public Kernel boundary is:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
-```
+````
 
-The public contribution handoff object is:
+The public Kernel contribution handoff object is:
 
 ```text
 Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 ```
+
+The public Worker-owned runtime entrypoint boundary is:
+
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+Worker runtime callers use the Worker-owned boundary:
+
+```text
+WorkerStartCommand
+HttpTaskFactory
+bin/coretsia-worker
+```
+
+They supply:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+WorkerPoolSpec
+```
+
+`WorkerRuntimeEntrypointGuard` owns:
+
+- validation that `platform.worker` participates in the resolved `ModulePlan`;
+- delegation to the package-internal `WorkerRuntimeDriverContributions::fromSpec(...)` mapper;
+- construction of explicit Kernel `RuntimeDriverContributions`;
+- delegation to the Kernel `RuntimeEntrypointGuard::assertEntrypointAllowed(...)`.
 
 The Worker package owns:
 
@@ -311,40 +344,27 @@ The Worker package owns:
 worker.task_type
 ```
 
-The normalized task type is read from `WorkerPoolSpec` and mapped by:
-
-```text
-Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions
-```
-
-The mapping is:
+The normalized task type is read from `WorkerPoolSpec` and mapped internally:
 
 ```text
 queue -> bg.worker_queue
 http  -> http.worker
 ```
 
-`WorkerStartCommand` must use this order:
+`WorkerStartCommand` uses this order:
 
 ```text
 build WorkerPoolSpec
--> enforce platform.worker owner precondition
--> map WorkerPoolSpec to RuntimeDriverContributions
--> call RuntimeEntrypointGuard
--> start WorkerManager
+→ call WorkerRuntimeEntrypointGuard
+→ resolve and start WorkerManager
 ```
 
-The guard invocation supplies:
-
-```text
-ConfigRepositoryInterface
-ModulePlan
-RuntimeDriverContributions
-```
-
-The Worker package must not:
+Worker callers must not:
 
 - ask Kernel to read `worker.task_type`;
+- import `WorkerRuntimeDriverContributions`;
+- call `WorkerRuntimeDriverContributions::fromSpec(...)` directly;
+- call the Kernel `RuntimeEntrypointGuard` directly;
 - call `RuntimeDriverGuard` directly;
 - infer contributions from `ModulePlan`;
 - duplicate runtime-driver composition;
@@ -359,7 +379,7 @@ CORETSIA_WORKER_START_FAILED: worker-invalid-state
 
 Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
 
-HTTP Worker mode must pass `RuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
+HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
 
 ## Worker manager boundary
 
@@ -536,7 +556,11 @@ It does not implement a real HTTP request source.
 
 `HttpTaskFactory` receives the normalized `WorkerPoolSpec`.
 
-It maps the spec to explicit `RuntimeDriverContributions` and invokes `RuntimeEntrypointGuard` before resolving an HTTP request handler.
+It invokes `WorkerRuntimeEntrypointGuard` before resolving an HTTP request handler.
+
+The Worker-owned guard performs the internal contribution mapping and delegates to the Kernel guard.
+
+`HttpTaskFactory` must not import the mapper or call the Kernel guard directly.
 
 Only after compatibility passes may HTTP task mode require a resolvable:
 
@@ -556,11 +580,13 @@ The worker runtime has the following safety controls.
 
 `platform.worker` module participation is controlled by mode preset resolution and the resolved `ModulePlan`.
 
-`WorkerStartCommand` verifies that `platform.worker` is enabled before starting runtime execution.
+`WorkerRuntimeEntrypointGuard` verifies that `platform.worker` is enabled before Worker runtime execution starts.
+
+`WorkerStartCommand`, `HttpTaskFactory`, and the child launcher reach this check through the same Worker-owned boundary.
 
 This owner precondition does not cause Kernel to discover or infer Worker runtime-driver contributions.
 
-Contributions are produced explicitly from `WorkerPoolSpec`.
+Contributions are produced explicitly from `WorkerPoolSpec` inside the Worker-owned boundary.
 
 Installing `platform/worker` must not start worker processes by itself.
 
@@ -943,11 +969,14 @@ docs/architecture/runtime-driver-guard.md
 docs/architecture/worker.md
 ```
 
-Changing the Worker task-type-to-contribution mapping also requires updating:
+Changing the Worker task-type-to-contribution mapping or Worker entrypoint boundary also requires updating:
 
 ```text
+framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
 framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
+framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 ```
 
 Changing the `worker` config root ownership or defaults/rules authority requires updating:
@@ -986,6 +1015,7 @@ docs/ssot/observability.md
 - `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
 - `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
+- `framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
 - `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
 - `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`

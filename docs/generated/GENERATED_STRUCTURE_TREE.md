@@ -1001,6 +1001,7 @@ Coretsia/
 │   │           │   ├── Runtime/
 │   │           │   │   ├── WorkerPoolSpec.php
 │   │           │   │   ├── WorkerPoolState.php
+│   │           │   │   ├── WorkerRuntimeEntrypointGuard.php
 │   │           │   │   └── WorkerStateStore.php
 │   │           │   ├── Task/
 │   │           │   │   ├── HttpTaskFactory.php
@@ -1022,6 +1023,7 @@ Coretsia/
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
+│   │           │   │   ├── WorkerServiceProviderArtifactPathContractTest.php
 │   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
 │   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerStartCommandContractTest.php

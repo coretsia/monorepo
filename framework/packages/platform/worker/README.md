@@ -88,6 +88,7 @@ This package provides the worker runtime layer:
 - placeholder queue task factory through `QueueTaskFactory`;
 - HTTP task-mode preflight factory through `HttpTaskFactory`;
 - package-local runtime-driver contribution mapper through `WorkerRuntimeDriverContributions`;
+- Worker-owned runtime entrypoint compatibility boundary through `WorkerRuntimeEntrypointGuard`;
 - deterministic worker exceptions under `Coretsia\Platform\Worker\Exception`.
 
 ## Process model
@@ -98,8 +99,9 @@ The worker runtime uses a master-plus-workers model:
 worker:start command
   -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
-  -> WorkerRuntimeDriverContributions::fromSpec(...)
-  -> RuntimeEntrypointGuard
+  -> WorkerRuntimeEntrypointGuard
+       -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
+       -> Kernel RuntimeEntrypointGuard
   -> WorkerManager
   -> selected process driver
   -> master process state
@@ -306,14 +308,17 @@ Start order is intentionally strict:
 WorkerStartCommand
   -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
-  -> WorkerRuntimeDriverContributions::fromSpec(...)
-  -> RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+  -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
+       -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
+       -> Kernel RuntimeEntrypointGuard::assertEntrypointAllowed(...)
   -> WorkerManager::start(...)
 ```
 
-`WorkerPoolSpec` must be built before runtime-driver contribution mapping.
+`WorkerPoolSpec` must be built before the Worker-owned runtime entrypoint boundary is invoked.
 
-`WorkerRuntimeDriverContributions::fromSpec(...)` maps the normalized Worker task type to Kernel runtime-driver contributions.
+`WorkerStartCommand` does not import the package-internal mapper and does not call the Kernel guard directly.
+
+`WorkerRuntimeEntrypointGuard` maps the normalized Worker task type to explicit Kernel runtime-driver contributions and delegates canonical compatibility validation to the Kernel boundary.
 
 Runtime-driver guard failures are surfaced with the original Kernel guard error code and reason token.
 
@@ -350,26 +355,40 @@ Raw socket paths, raw TCP endpoints, config values, payloads, headers, tokens, a
 
 ## Runtime-driver guard boundary
 
-Runtime-driver compatibility is Kernel-owned policy.
+Runtime-driver matrix and module-compatibility policy are Kernel-owned.
 
-The public runtime entrypoint guard is:
+The public Kernel boundary is:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 ```
 
-The public runtime-driver contribution handoff object is:
+The public Kernel contribution handoff object is:
 
 ```text
 Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 ```
 
-`WorkerStartCommand` and HTTP task preflight code must invoke the runtime entrypoint guard before starting worker runtime execution.
+Worker runtime callers do not invoke this Kernel boundary directly.
 
-They must call:
+The public Worker-owned entrypoint boundary is:
 
 ```text
-RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+The following Worker-owned runtime paths use this boundary:
+
+```text
+WorkerStartCommand
+HttpTaskFactory
+bin/coretsia-worker
+```
+
+They call:
+
+```text
+WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
 with:
@@ -377,8 +396,31 @@ with:
 ```text
 ConfigRepositoryInterface
 ModulePlan
-RuntimeDriverContributions
+WorkerPoolSpec
 ```
+
+`WorkerRuntimeEntrypointGuard` owns:
+
+- the `platform.worker` ModulePlan participation check;
+- delegation to the package-internal `WorkerRuntimeDriverContributions::fromSpec(...)` mapper;
+- construction of explicit Kernel `RuntimeDriverContributions`;
+- delegation to the public Kernel `RuntimeEntrypointGuard`.
+
+Worker callers MUST NOT:
+
+- import `WorkerRuntimeDriverContributions`;
+- call `WorkerRuntimeDriverContributions::fromSpec(...)` directly;
+- call the Kernel `RuntimeEntrypointGuard` directly;
+- call both Worker and Kernel guards for one entrypoint attempt;
+- independently resolve the active runtime-driver set.
+
+The shipped `bin/coretsia-worker` executable MUST NOT import classes from:
+
+```text
+Coretsia\Platform\Worker\Internal\*
+```
+
+The Kernel assertion method delegates internally to the canonical `RuntimeEntrypointGuard::resolveEntrypointDrivers(...)` implementation.
 
 The Worker package owns:
 

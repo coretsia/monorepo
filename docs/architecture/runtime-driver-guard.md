@@ -123,8 +123,10 @@ Coretsia\Contracts\Runtime\KernelRuntimeInterface
 
 - accepting resolved config, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions`;
 - invoking the Kernel-owned matrix implementation;
-- returning the resolved `RuntimeDrivers`;
-- providing one public entrypoint compatibility boundary.
+- exposing `resolveEntrypointDrivers(...)` for callers that need the validated `RuntimeDrivers`;
+- exposing `assertEntrypointAllowed(...)` as an assertion-only `void` wrapper;
+- ensuring both operations use the same composition and module-compatibility policy;
+- providing one public Kernel entrypoint compatibility boundary.
 
 The internal `RuntimeDriverGuard` is responsible for:
 
@@ -211,25 +213,41 @@ Generic config shape and unknown-key validation remain outside the guard.
 
 ## ModulePlan boundary
 
-The public entrypoint boundary is:
+The public entrypoint boundary exposes:
 
 ```php
-RuntimeEntrypointGuard::assertEntrypointAllowed(
+RuntimeEntrypointGuard::resolveEntrypointDrivers(
     ConfigRepositoryInterface $config,
     ModulePlan $modulePlan,
     RuntimeDriverContributions $runtimeDriverContributions,
 ): RuntimeDrivers
 ```
 
+and:
+
+```php
+RuntimeEntrypointGuard::assertEntrypointAllowed(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): void
+```
+
 The internal module-aware method is:
 
 ```php
-RuntimeDriverGuard::assertHttpDriverCompatibleWithModules(
+RuntimeDriverGuard::resolveForModules(
     ConfigRepositoryInterface $cfg,
     ModulePlan $plan,
     RuntimeDriverContributions $contributions,
 ): RuntimeDrivers
 ```
+
+All three operations receive a caller-provided `ModulePlan`.
+
+`assertEntrypointAllowed(...)` delegates to `resolveEntrypointDrivers(...)`.
+
+`resolveEntrypointDrivers(...)` delegates to `resolveForModules(...)`.
 
 Both methods receive a caller-provided `ModulePlan`.
 
@@ -243,15 +261,16 @@ The guard must not inspect Composer metadata, providers, package paths, module m
 
 ## Expected callers
 
-Runtime entrypoints and owner packages call `RuntimeEntrypointGuard` after all required inputs have been resolved and before runtime execution starts.
+Direct Kernel runtime adapters and owner-package compatibility boundaries call `RuntimeEntrypointGuard` after all required inputs have been resolved and before runtime execution starts.
 
-Expected caller categories include:
+Expected direct caller categories include:
 
-- Worker command surfaces such as `coretsia worker:start`;
-- Worker HTTP task preflight;
-- FrankenPHP, Swoole, and RoadRunner entrypoints;
+- Worker-owned `WorkerRuntimeEntrypointGuard`;
+- FrankenPHP, Swoole, and RoadRunner entrypoint boundaries;
 - Kernel-owned production boot paths;
-- platform or integration packages that require Kernel-owned compatibility validation.
+- platform or integration package boundaries that already possess explicit `RuntimeDriverContributions`.
+
+Worker command surfaces, Worker HTTP task preflight, and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly.
 
 Every caller supplies:
 
@@ -381,6 +400,16 @@ matrix policy: docs/ssot/runtime-drivers.md
 
 It is constructed and owned internally by `RuntimeEntrypointGuard`.
 
+An owner package may expose its own public wrapper around `RuntimeEntrypointGuard` when that wrapper owns package-specific input normalization or contribution mapping.
+
+The current Worker wrapper is:
+
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+It may depend on the package-internal Worker contribution mapper, but external Worker callers must not.
+
 Provider registration must not:
 
 - execute guard validation;
@@ -415,12 +444,16 @@ framework/tools/tests/Fixtures/RuntimeDriverMatrix/*
 
 E2E matrix fixture tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` must stay aligned with the SSoT and Kernel guard behavior.
 
-Changes to Worker-owned task-type mapping must also update:
+Changes to Worker-owned task-type mapping or Worker entrypoint ownership must also update:
 
 ```text
 docs/architecture/worker.md
+docs/adr/ADR-0017-worker-manager-application-worker.md
+framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
+framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
 framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 ```
 
 Implementation changes must not be treated as canonical until the SSoT and locks are updated.

@@ -878,11 +878,21 @@ Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 
 `RuntimeDriverGuard` is a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
 
-Runtime adapters and owner packages that have a resolved `ConfigRepositoryInterface`, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions` MUST use:
+Runtime adapters and owner packages that have a resolved `ConfigRepositoryInterface`, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions` MUST use the public `RuntimeEntrypointGuard` boundary.
+
+Callers that need the resolved active driver set use:
+
+```text
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::resolveEntrypointDrivers(...)
+```
+
+Assertion-only entrypoints use:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
+
+Both methods use the same canonical matrix and module-compatibility policy. Callers MUST NOT invoke both methods for one entrypoint attempt.
 
 Kernel production boot paths MUST use this boundary whenever those three required inputs are available.
 
@@ -971,11 +981,16 @@ worker.task_type=http  -> http.worker
 
 That mapping is owned by `platform/worker`, not by `core/kernel`.
 
-The public entrypoint method is:
+The public entrypoint methods are:
 
 ```text
-RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+RuntimeEntrypointGuard::resolveEntrypointDrivers(...) → RuntimeDrivers
+RuntimeEntrypointGuard::assertEntrypointAllowed(...)  → void
 ```
+
+`resolveEntrypointDrivers(...)` is the canonical query-and-validation boundary.
+
+`assertEntrypointAllowed(...)` is its assertion-only wrapper.
 
 It receives:
 

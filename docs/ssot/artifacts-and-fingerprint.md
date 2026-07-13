@@ -40,7 +40,7 @@ This document owns only Kernel-side behavior for:
 - Kernel cache verification linkage;
 - Kernel artifact/fingerprint/container-compile/cache service wiring constraints.
 
-This document **MUST NOT** redefine:
+This document MUST NOT redefine:
 
 - the canonical artifact envelope shape;
 - canonical artifact header fields;
@@ -53,17 +53,23 @@ Those rules remain owned by their canonical SSoT documents.
 
 ## Invariants (MUST)
 
-- Kernel-owned artifacts **MUST** remain compatible with the global artifact envelope and deterministic serialization law defined by `docs/ssot/artifacts.md`.
-- Kernel-owned artifact identities **MUST** use the canonical registry entries from `docs/ssot/artifacts.md`.
-- Kernel artifact production **MUST NOT** introduce alternative envelope forms.
-- Kernel artifact production **MUST NOT** redefine header semantics.
-- Kernel artifact production **MUST NOT** add registry rows in this document.
-- Kernel artifact production **MUST NOT** produce artifacts owned by other packages.
-- `routes@1` **MUST NOT** be produced by `core/kernel`; it is owned by `platform/routing`.
-- Kernel artifacts **MUST** be deterministic and rerun-no-diff for the same logical inputs.
-- Kernel artifacts **MUST NOT** embed timestamps, absolute paths, hostnames, usernames, process ids, raw env values, secrets, PII, raw payloads, raw SQL, stack traces, mtimes, permissions, owners, or filesystem-order-dependent bytes.
-- Kernel fingerprint input **MUST** be safe, deterministic, and derived only from already-resolved Kernel inputs.
-- Kernel cache verification **MUST** compare deterministic expected artifacts against existing artifacts without mutating artifact files.
+- Kernel-owned artifacts MUST remain compatible with the global artifact envelope and deterministic serialization law defined by `docs/ssot/artifacts.md`.
+- Kernel-owned artifact identities MUST use the canonical registry entries from `docs/ssot/artifacts.md`.
+- Kernel artifact production MUST NOT introduce alternative envelope forms.
+- Kernel artifact production MUST NOT redefine header semantics.
+- Kernel artifact production MUST NOT add registry rows in this document.
+- Kernel artifact production MUST NOT produce artifacts owned by other packages.
+- `routes@1` MUST NOT be produced by `core/kernel`; it is owned by `platform/routing`.
+- Kernel artifacts MUST be deterministic and rerun-no-diff for the same logical inputs.
+- Kernel artifact location MUST be resolved during Bootstrap Phase A.
+- `BootstrapConfig::artifactsCacheDir()` MUST be the only resolved artifact cache directory consumed by Kernel artifact path services.
+- ConfigKernel Phase B and compiled `config@1` MUST NOT re-resolve or override artifact location.
+- The resolved artifact output location itself MUST NOT be serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected output directory.
+- Changing only `BootstrapConfig::artifactsCacheDir()`, while all separately fingerprinted config and source inputs remain unchanged, MUST NOT change artifact fingerprint identity or generated artifact bytes.
+- Changing `kernel.boot.default_artifacts_cache_dir` in package config is also a fingerprinted config-source change and MAY therefore change the fingerprint through normal config provenance.
+- Kernel artifacts MUST NOT embed timestamps, absolute paths, hostnames, usernames, process ids, raw env values, secrets, PII, raw payloads, raw SQL, stack traces, mtimes, permissions, owners, or filesystem-order-dependent bytes.
+- Kernel fingerprint input MUST be safe, deterministic, and derived only from already-resolved Kernel inputs.
+- Kernel cache verification MUST compare deterministic expected artifacts against existing artifacts without mutating artifact files.
 
 ## Kernel-Owned Artifact Set (MUST)
 
@@ -85,26 +91,26 @@ The basename `routes.php` is intentionally not a Kernel artifact basename.
 
 ## Artifact Output Path Policy (MUST)
 
-Kernel artifact output paths are derived from:
+Kernel artifact output paths are derived exclusively from:
 
 - `BootstrapConfig::skeletonRoot()`;
+- `BootstrapConfig::artifactsCacheDir()`;
 - `BootstrapConfig::appTarget()->value`;
-- `kernel.artifacts.cache_dir`;
 - the canonical Kernel artifact basename.
 
-Kernel-owned artifact files **MUST** be materialized under:
+The canonical absolute shape is:
 
 ```text
-<skeletonRoot>/var/cache/<appTarget>/
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>/<artifact-basename>
 ```
 
-Kernel artifact relative paths therefore use this shape:
+The canonical skeleton-relative shape is:
 
 ```text
-var/cache/<appTarget>/<artifact-basename>
+<artifactsCacheDir>/<appTarget>/<artifact-basename>
 ```
 
-Examples:
+With the package fallback, the default paths are:
 
 ```text
 var/cache/web/module-manifest.php
@@ -112,23 +118,164 @@ var/cache/web/config.php
 var/cache/web/container.php
 ```
 
-### `kernel.artifacts.cache_dir` Policy (MUST)
+With an application override, valid paths may instead be:
 
-The `kernel.artifacts.cache_dir` value:
+```text
+var/artifacts_cache/web/module-manifest.php
+var/artifacts_cache/web/config.php
+var/artifacts_cache/web/container.php
+```
 
-- **MUST** be `BootstrapConfig::skeletonRoot()`-relative;
-- **MUST** be a relative-safe path;
-- **MUST NOT** be absolute;
-- **MUST NOT** contain `..`;
-- **MUST NOT** contain a `skeleton/` prefix;
-- **MUST NOT** contain host-specific or monorepo-only path fragments;
-- **MUST NOT** be used to relocate Kernel artifacts outside the canonical `var/cache` subtree in this epic.
+### Bootstrap Phase A Resolution (MUST)
 
-The baseline value is:
+Artifact cache directory resolution precedence is:
+
+1. explicit `BootstrapInput::artifactsCacheDir()`;
+2. bootstrap-only `skeleton/config/app.php` `artifactsCacheDir`;
+3. package fallback `kernel.boot.default_artifacts_cache_dir`.
+
+The resolved result is stored in:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+`kernel.boot.default_artifacts_cache_dir` is a package fallback only.
+
+It is not a Phase B runtime selector and must not be re-read by artifact path consumers after `BootstrapConfig` has been resolved.
+
+The following are not artifact location sources:
+
+```text
+ConfigKernel Phase B merged config
+compiled config@1
+kernel.artifacts.cache_dir
+```
+
+`kernel.artifacts.cache_dir` MUST NOT be introduced.
+
+Even when `kernel.boot.default_artifacts_cache_dir` is preserved inside merged or compiled config as ordinary config data, artifact services MUST NOT use that copy to resolve artifact paths.
+
+### Application Override (MUST)
+
+The application-level override belongs only to:
+
+```text
+skeleton/config/app.php
+```
+
+Its key is:
+
+```text
+artifactsCacheDir
+```
+
+Example:
+
+```php
+return [
+    'artifactsCacheDir' => 'var/artifacts_cache',
+];
+```
+
+This file is a Bootstrap Phase A input only.
+
+It MUST NOT participate in ConfigKernel Phase B merge.
+
+### Artifact Cache Directory Domain (MUST)
+
+The resolved artifact cache directory:
+
+- MUST be a non-empty valid UTF-8 string;
+- MUST be relative to `BootstrapConfig::skeletonRoot()`;
+- MUST use `/` separators;
+- MUST be no longer than 480 bytes;
+- MUST NOT be absolute;
+- MUST NOT contain whitespace or control characters;
+- MUST NOT contain `:`, `\`, or `//`;
+- MUST NOT contain empty, `.` or `..` path segments;
+- MUST NOT end a path segment with `.`;
+- MUST NOT contain Windows-invalid path component characters;
+- MUST NOT use Windows reserved device names;
+- MUST NOT use any of these forbidden top-level segments as the artifact root:
+
+```text
+.git
+.github
+apps
+config
+public
+resources
+skeleton
+src
+tests
+vendor
+```
+
+The directory represents a dedicated generated-output root.
+
+Valid examples include:
 
 ```text
 var/cache
+var/artifacts_cache
+var/runtime/coretsia
+storage/coretsia/artifacts
 ```
+
+Invalid examples include:
+
+```text
+/cache
+C:\cache
+../cache
+var/../cache
+var//cache
+skeleton/var/cache
+config/artifacts
+apps/artifacts
+public/cache
+vendor/generated
+```
+
+The declarative config rule for:
+
+```text
+kernel.boot.default_artifacts_cache_dir
+```
+
+validates the generic `relative-safe-path` shape.
+
+The stricter portable artifact-root domain is validated by Bootstrap Phase A through `BootstrapArtifactsCacheDir`.
+
+### `ArtifactPathResolver` Boundary (MUST)
+
+`ArtifactPathResolver` consumes only the already resolved:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+It MUST:
+
+- accept only Kernel-owned artifact basenames;
+- reject `routes.php`;
+- construct paths under `<skeletonRoot>/<artifactsCacheDir>/<appTarget>/`;
+- enforce a maximum final skeleton-relative artifact path length of 512 bytes;
+- ensure the final artifact path remains under the resolved artifact cache directory;
+- keep `ArtifactPathInvalidException` diagnostics stable and safe.
+
+It MUST NOT:
+
+- read Kernel config;
+- read `kernel.boot.default_artifacts_cache_dir`;
+- read `skeleton/config/app.php`;
+- resolve bootstrap defaults;
+- resolve application overrides;
+- read files;
+- write files;
+- validate artifact envelope schemas;
+- calculate fingerprints.
 
 ## Artifact Production Responsibilities (MUST)
 
@@ -138,7 +285,7 @@ Kernel artifact production is split into narrow services.
 
 `ArtifactCompiler` owns Kernel artifact production orchestration.
 
-It **MUST**:
+It MUST:
 
 - call `ConfigKernel` once for the supplied compile inputs;
 - build the deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
@@ -150,7 +297,7 @@ It **MUST**:
 - write Kernel artifacts through `ArtifactWriter`;
 - return only safe summary data.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - read existing generated artifacts;
 - decide cache clean/dirty state;
@@ -162,33 +309,13 @@ It **MUST NOT**:
 - use provider fallback for `container.php`;
 - start or complete a UnitOfWork.
 
-### `ArtifactPathResolver`
-
-`ArtifactPathResolver` owns Kernel artifact path policy.
-
-It **MUST**:
-
-- accept only Kernel-owned artifact basenames;
-- reject `routes.php`;
-- reject absolute artifact cache paths;
-- reject path traversal;
-- reject `skeleton/`-prefixed cache directories;
-- keep diagnostics stable and safe.
-
-It **MUST NOT**:
-
-- read files;
-- write files;
-- validate artifact envelope schemas;
-- calculate fingerprints.
-
 ### Kernel Artifact Builders
 
 Kernel artifact builders produce artifact envelopes for Kernel-owned artifact identities.
 
-Kernel artifact builders **MUST** use `ArtifactEnvelopeFactory` for envelope construction.
+Kernel artifact builders MUST use `ArtifactEnvelopeFactory` for envelope construction.
 
-Kernel artifact builders **MUST NOT**:
+Kernel artifact builders MUST NOT:
 
 - manually redefine the top-level envelope shape;
 - read files;
@@ -205,16 +332,16 @@ The Kernel artifact builders are:
 
 `ContainerCompiler` is not an artifact builder. It owns descriptor-to-`DefinitionGraph` compilation for REAL `container@1` artifacts. `CompiledContainerBuilder` receives the compiled `DefinitionGraph` and wraps its deterministic payload in the canonical Kernel artifact envelope.
 
-`CompiledContainerBuilder` **MUST** emit a REAL `container@1` payload.
+`CompiledContainerBuilder` MUST emit a REAL `container@1` payload.
 
-The `container@1` payload **MUST** use:
+The `container@1` payload MUST use:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-The `container@1` payload **MUST** contain the canonical compiled-container map fields:
+The `container@1` payload MUST contain the canonical compiled-container map fields:
 
 ```text
 aliases
@@ -223,7 +350,7 @@ services
 tags
 ```
 
-`CompiledContainerBuilder` **MUST NOT** emit the unsupported transitional stub payload:
+`CompiledContainerBuilder` MUST NOT emit the unsupported transitional stub payload:
 
 ```text
 kind = stub
@@ -261,14 +388,14 @@ Fingerprint exclusions remain owned by the Kernel fingerprint exclusion policy i
 
 `ArtifactEnvelopeFactory` is the Kernel-owned service that assembles Kernel artifact envelopes.
 
-It **MUST**:
+It MUST:
 
 - create envelopes compatible with the global envelope law;
 - use stable artifact names and schema versions from the canonical artifact registry;
 - use stable generator ids;
 - avoid timestamps, absolute paths, hostnames, usernames, process ids, and runtime-specific bytes.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - write files;
 - read files;
@@ -280,7 +407,7 @@ It **MUST NOT**:
 
 `ArtifactWriter` owns Kernel artifact file writing.
 
-It **MUST**:
+It MUST:
 
 - write deterministic PHP artifact bytes produced by `StablePhpArrayDumper`;
 - normalize output to LF-only bytes with exactly one final newline;
@@ -288,7 +415,7 @@ It **MUST**:
 - clean up temporary files on write failure where possible;
 - keep diagnostics safe and stable.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - calculate fingerprints;
 - validate artifact schemas;
@@ -299,7 +426,7 @@ It **MUST NOT**:
 
 `StablePhpArrayDumper` owns deterministic PHP array emission for Kernel artifact files.
 
-It **MUST**:
+It MUST:
 
 - emit PHP files that return a single array expression;
 - preserve the received canonical envelope without wrapping it in another root key;
@@ -308,7 +435,7 @@ It **MUST**:
 - avoid generated comments, timestamps, tool versions, absolute paths, hostnames, usernames, and process-specific bytes;
 - use Kernel/Foundation json-like normalization rules before emission.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - validate artifact envelope semantics;
 - calculate fingerprints;
@@ -318,7 +445,7 @@ It **MUST NOT**:
 
 `PhpArtifactReader` owns safe reading and parsing of existing Kernel PHP artifact files for cache verification.
 
-It **MUST**:
+It MUST:
 
 - read existing artifact bytes;
 - LF-normalize read bytes for byte comparison;
@@ -326,7 +453,7 @@ It **MUST**:
 - reject emitted output from artifact files;
 - convert read/include/parse failures into deterministic safe reason tokens.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - resolve artifact paths;
 - build expected artifacts;
@@ -339,21 +466,21 @@ It **MUST NOT**:
 
 `ArtifactSchemaValidator` owns validation of existing artifact envelope/header/payload schemas for Kernel cache verification.
 
-It **MUST** validate existing artifacts by:
+It MUST validate existing artifacts by:
 
 - canonical envelope structure;
 - canonical header semantics;
 - Kernel-owned artifact name and schema version;
 - Kernel-owned payload schema.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - produce artifacts;
 - write artifacts;
 - calculate fingerprints;
 - infer artifact ownership outside the canonical artifact registry.
 
-For `container@1`, `ArtifactSchemaValidator` **MUST** validate the REAL compiled-container payload shape:
+For `container@1`, `ArtifactSchemaValidator` MUST validate the REAL compiled-container payload shape:
 
 ```text
 aliases
@@ -364,35 +491,35 @@ services
 tags
 ```
 
-The `container@1` payload **MUST** satisfy:
+The `container@1` payload MUST satisfy:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-The validator **MUST** reject unsupported transitional stub payloads:
+The validator MUST reject unsupported transitional stub payloads:
 
 ```text
 kind = stub
 compiled = false
 ```
 
-The validator **MUST** validate `aliases`, `parameters`, `services`, and `tags` as deterministic maps. Empty maps are valid.
+The validator MUST validate `aliases`, `parameters`, `services`, and `tags` as deterministic maps. Empty maps are valid.
 
-Compiled service definitions **MUST** include the canonical lifecycle field:
+Compiled service definitions MUST include the canonical lifecycle field:
 
 ```text
 shared
 ```
 
-Container tag entries **MUST** be ordered by:
+Container tag entries MUST be ordered by:
 
 ```text
 priority DESC, id ASC
 ```
 
-Duplicate service ids inside the same tag list **MUST** be rejected.
+Duplicate service ids inside the same tag list MUST be rejected.
 
 ## Fingerprint Input Behavior (MUST)
 
@@ -407,7 +534,7 @@ It consumes only already-resolved inputs:
 - `EnvRepositoryInterface` source metadata;
 - Kernel config subtree.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - resolve `BootstrapConfig`;
 - resolve `ModulePlan`;
@@ -421,9 +548,9 @@ It **MUST NOT**:
 - enumerate arbitrary dotenv files;
 - emit spans, metrics, logs, stdout, or stderr.
 
-Fingerprint input **MUST** be deterministic for the same logical inputs.
+Fingerprint input MUST be deterministic for the same logical inputs.
 
-Fingerprint input **MUST NOT** contain:
+Fingerprint input MUST NOT contain:
 
 - raw config values;
 - raw env values;
@@ -439,7 +566,7 @@ Fingerprint input **MUST NOT** contain:
 - raw payloads;
 - stack traces.
 
-Raw value influence **MAY** be represented only through safe deterministic metadata such as:
+Raw value influence MAY be represented only through safe deterministic metadata such as:
 
 - hash;
 - length;
@@ -452,9 +579,9 @@ Raw value influence **MAY** be represented only through safe deterministic metad
 
 ## Fingerprint Coverage (MUST)
 
-Kernel artifact fingerprints **MUST** cover deterministic identity and provenance inputs needed to decide whether Kernel artifacts are current.
+Kernel artifact fingerprints MUST cover deterministic identity and provenance inputs needed to decide whether Kernel artifacts are current.
 
-Fingerprint input **MUST** include safe deterministic representation of:
+Fingerprint input MUST include safe deterministic representation of:
 
 - Bootstrap identity;
 - ModulePlan identity;
@@ -471,7 +598,21 @@ Fingerprint input **MUST** include safe deterministic representation of:
 - env source metadata;
 - fingerprint policy.
 
-Fingerprint input **MUST NOT** include `kernel.fingerprint.env.tracked_keys`.
+`Bootstrap identity` includes semantic bootstrap selections such as app target, environment, preset, debug mode, and env source policy.
+
+It MUST NOT include:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+Artifact cache directory is an output materialization location, not semantic artifact identity.
+
+Changing only the resolved `BootstrapConfig::artifactsCacheDir()` value, while all separately fingerprinted config and source inputs remain unchanged, MUST NOT change the fingerprint.
+
+Changing the package fallback `kernel.boot.default_artifacts_cache_dir` is not a location-only change, because that edit also changes fingerprinted package and compiled config input.
+
+Fingerprint input MUST NOT include `kernel.fingerprint.env.tracked_keys`.
 
 Env fingerprint coverage is derived from:
 
@@ -487,7 +628,7 @@ The canonical dotenv files list remains owned by:
 kernel.env.dotenv.files
 ```
 
-It **MUST NOT** be duplicated under `kernel.fingerprint.*`.
+It MUST NOT be duplicated under `kernel.fingerprint.*`.
 
 ## Fingerprint Exclusion Policy (MUST)
 
@@ -499,37 +640,68 @@ kernel.fingerprint.skeleton_ignore_prefixes
 
 Values are `BootstrapConfig::skeletonRoot()`-relative prefixes.
 
-The baseline exclusions are:
+The configured baseline exclusion is:
 
 ```text
-var/cache
 var/maintenance
 ```
 
-These exclusions exist to prevent generated and operational skeleton-local paths from affecting deterministic Kernel artifact fingerprints.
+The resolved artifact cache directory is a mandatory effective exclusion:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+The effective exclusion list is:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
++ BootstrapConfig::artifactsCacheDir()
+```
+
+The effective list MUST be normalized, deterministically sorted, and deduplicated before source traversal.
+
+The resolved artifact cache directory MUST be excluded even when it is not listed in `kernel.fingerprint.skeleton_ignore_prefixes`.
+
+The mandatory exclusion applies only to the currently resolved artifact cache directory.
+
+A previously selected artifact cache directory is not retained automatically as a mandatory exclusion after relocation.
+
+After changing artifact location, callers or deployment tooling MUST either:
+
+- remove stale generated artifacts from the previous directory; or
+- keep the previous directory as an explicit `kernel.fingerprint.skeleton_ignore_prefixes` entry when it may remain under a fingerprinted skeleton-local directory candidate.
+
+Adding the previous directory to configured fingerprint policy is itself a fingerprint-policy change and therefore changes fingerprint input deterministically.
 
 ### Exclusion Rules (MUST)
 
 `skeleton_ignore_prefixes` values:
 
-- **MUST** be relative-safe paths;
-- **MUST NOT** be absolute paths;
-- **MUST NOT** contain `..`;
-- **MUST NOT** contain empty path segments;
-- **MUST NOT** contain whitespace;
-- **MUST NOT** contain a `skeleton/` prefix;
-- **MUST** be normalized before use;
-- **MUST** be sorted deterministically;
-- **MUST** be deduplicated deterministically;
-- **MUST** be included in fingerprint input under fingerprint policy.
+- MUST be relative-safe paths;
+- MUST NOT be absolute paths;
+- MUST NOT contain `..`;
+- MUST NOT contain empty path segments;
+- MUST NOT contain whitespace;
+- MUST NOT contain a `skeleton/` prefix;
+- MUST be normalized before use;
+- MUST be sorted deterministically;
+- MUST be deduplicated deterministically;
+- configured `kernel.fingerprint.skeleton_ignore_prefixes` values MUST be included in fingerprint input under fingerprint policy.
 
-Changing the exclusion policy **MUST** change the fingerprint input.
+Changing the exclusion policy MUST change the fingerprint input.
+
+The mandatory resolved artifact cache directory is an effective traversal exclusion only.
+
+It MUST NOT be serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected output directory.
+
+Changing only the resolved `BootstrapConfig::artifactsCacheDir()` value does not change fingerprint identity when all separately fingerprinted config and source inputs remain identical.
 
 ### Exclusion Application (MUST)
 
 `skeleton_ignore_prefixes` apply only to skeleton-local directory candidate traversal.
 
-When a directory candidate is inside `BootstrapConfig::skeletonRoot()`, ignored skeleton-relative subtrees **MUST** be skipped before recursive traversal and before symlink inspection.
+When a directory candidate is inside `BootstrapConfig::skeletonRoot()`, ignored skeleton-relative subtrees MUST be skipped before recursive traversal and before symlink inspection.
 
 This means ignored generated/operational subtrees:
 
@@ -538,22 +710,24 @@ This means ignored generated/operational subtrees:
 - are not traversed;
 - cannot make fingerprint construction fail merely because ignored contents contain symlinks.
 
-`skeleton_ignore_prefixes` **MUST NOT** apply to explicit dotenv candidates.
+`skeleton_ignore_prefixes` MUST NOT apply to explicit dotenv candidates.
 
-`DeterministicFileLister` **MUST** remain policy-free. It may accept a caller-supplied skip callback, but it **MUST NOT** know about Kernel config, skeleton roots, or `var/cache`.
+`DeterministicFileLister` MUST remain policy-free.
+
+It may accept a caller-supplied skip callback, but it MUST NOT know about Kernel config, skeleton roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
 
 ## Fingerprint Calculation (MUST)
 
 `FingerprintCalculator` owns calculation of the Kernel artifact fingerprint from normalized fingerprint input.
 
-It **MUST**:
+It MUST:
 
 - normalize fingerprint input according to canonical json-like byte rules;
 - calculate a deterministic digest over stable bytes;
 - return a stable lowercase fingerprint string;
 - expose only safe observability metadata.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - read files directly;
 - write artifacts;
@@ -567,7 +741,7 @@ It **MUST NOT**:
 
 `FingerprintExplainer` owns safe explain and diff representations for fingerprint input.
 
-It **MAY** expose safe metadata such as:
+It MAY expose safe metadata such as:
 
 - bucket names;
 - safe key paths;
@@ -579,7 +753,7 @@ It **MAY** expose safe metadata such as:
 - validation reason tokens;
 - fingerprint policy entries such as skeleton ignore prefixes.
 
-It **MUST NOT** expose:
+It MUST NOT expose:
 
 - raw config values;
 - raw env values;
@@ -592,13 +766,13 @@ It **MUST NOT** expose:
 - stack traces;
 - host-specific bytes.
 
-Fingerprint explain output is diagnostic metadata only. It **MUST NOT** change fingerprint calculation semantics.
+Fingerprint explain output is diagnostic metadata only. It MUST NOT change fingerprint calculation semantics.
 
 ## Cache Verification Behavior (MUST)
 
 `CacheVerifier` owns Kernel artifact cache verification.
 
-It **MUST**:
+It MUST:
 
 - compute the current deterministic fingerprint input from already-supplied resolved inputs;
 - calculate the current fingerprint;
@@ -612,7 +786,7 @@ It **MUST**:
 - compare expected bytes to existing normalized bytes;
 - return safe clean/dirty/invalid/failure summary data.
 
-It **MUST NOT**:
+It MUST NOT:
 
 - write artifacts;
 - repair artifacts;
@@ -653,9 +827,9 @@ Neither service may trigger reset orchestration or UnitOfWork lifecycle.
 
 ## Provider and Factory Wiring (MUST)
 
-Kernel provider/factory wiring **MUST** register artifact, fingerprint, compiler, and verifier services as factories only.
+Kernel provider/factory wiring MUST register artifact, fingerprint, compiler, and verifier services as factories only.
 
-Provider/factory wiring **MUST NOT**:
+Provider/factory wiring MUST NOT:
 
 - write artifacts;
 - read generated artifacts;
@@ -672,34 +846,34 @@ Provider/factory wiring **MUST NOT**:
 - emit artifact/fingerprint/container-compile/cache metrics;
 - write artifact/fingerprint/container-compile/cache logs.
 
-Artifact/fingerprint/container-compile/cache services that emit observability **MUST** receive non-null dependencies through public ports/interfaces only:
+Artifact/fingerprint/container-compile/cache services that emit observability MUST receive non-null dependencies through public ports/interfaces only:
 
 - `TracerPortInterface`;
 - `MeterPortInterface`;
 - `LoggerInterface`;
 - `Stopwatch`.
 
-Provider/factory wiring **MUST NOT** decide whether an observability dependency is real or Noop.
+Provider/factory wiring MUST NOT decide whether an observability dependency is real or Noop.
 
-Provider/factory wiring **MUST NOT** instantiate Noop observability implementations directly.
+Provider/factory wiring MUST NOT instantiate Noop observability implementations directly.
 
 Default real-vs-Noop binding is owned by the application/foundation composition layer.
 
 ## Observability Linkage (MUST)
 
-Artifact, fingerprint, container compilation, and cache verification observability **MUST** comply with the canonical observability naming, metric catalog, label allowlist, and redaction law.
+Artifact, fingerprint, container compilation, and cache verification observability MUST comply with the canonical observability naming, metric catalog, label allowlist, and redaction law.
 
 This document does not own the global metrics catalog.
 
-Any artifact/fingerprint/container-compile/cache metrics emitted by Kernel services **MUST** be registered in `docs/ssot/observability.md`.
+Any artifact/fingerprint/container-compile/cache metrics emitted by Kernel services MUST be registered in `docs/ssot/observability.md`.
 
-Artifact/fingerprint/container-compile/cache metrics **MUST** use only safe bounded labels. For the baseline Kernel artifact/fingerprint/container-compile/cache services, the only allowed metric label is:
+Artifact/fingerprint/container-compile/cache metrics MUST use only safe bounded labels. For the baseline Kernel artifact/fingerprint/container-compile/cache services, the only allowed metric label is:
 
 ```text
 outcome
 ```
 
-Artifact/fingerprint/container-compile/cache spans and logs **MUST NOT** expose:
+Artifact/fingerprint/container-compile/cache spans and logs MUST NOT expose:
 
 - raw paths;
 - raw config values;
@@ -711,22 +885,49 @@ Artifact/fingerprint/container-compile/cache spans and logs **MUST NOT** expose:
 - stack traces;
 - throwable messages.
 
-Observability failures **MUST NOT** change artifact writing, fingerprint calculation, container compilation, or cache verification semantics. Services that emit observability **MUST** catch observability adapter failures.
+Observability failures MUST NOT change artifact writing, fingerprint calculation, container compilation, or cache verification semantics. Services that emit observability MUST catch observability adapter failures.
 
-## Config Linkage (MUST)
+## Bootstrap and Config Linkage (MUST)
 
 The `kernel` config root is owned by `core/kernel`.
 
-Kernel artifact and fingerprint config keys are subtrees under the `kernel` root, not independent config roots:
+The package fallback for Bootstrap Phase A artifact location is:
+
+```text
+kernel.boot.default_artifacts_cache_dir
+```
+
+The configured fingerprint exclusion policy remains:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
+```
+
+These are key namespaces under the existing `kernel` root, not independent config roots.
+
+There is no:
 
 ```text
 kernel.artifacts.*
-kernel.fingerprint.*
 ```
 
-The defaults file for the `kernel` root returns only the `kernel` subtree.
+subtree in the current Kernel config contract.
 
-Kernel artifact/fingerprint config rules are owned by the `core/kernel` package rules file.
+Application-level artifact cache directory override belongs only to:
+
+```text
+skeleton/config/app.php artifactsCacheDir
+```
+
+The resolved artifact location belongs to:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+ConfigKernel Phase B and compiled `config@1` are not artifact location resolution sources.
+
+The defaults file for the `kernel` root returns only the `kernel` subtree.
 
 This document does not redefine config root ownership.
 
@@ -755,4 +956,6 @@ This document does not redefine config root ownership.
 - [Config Roots Registry](./config-roots.md)
 - [Config and env SSoT](./config-and-env.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
+- [Kernel Bootstrap Phase A ADR](../adr/ADR-0023-kernel-bootstrap-phase-a.md)
+- [Kernel Artifacts, Fingerprint, and Cache Verification ADR](../adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

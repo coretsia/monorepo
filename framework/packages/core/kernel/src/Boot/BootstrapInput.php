@@ -35,8 +35,9 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * - contain raw env values.
  *
  * Filesystem existence and readability checks are owned by later bootstrap
- * services. This class only validates that `skeletonRoot` is a non-empty safe
- * single-line string and stores the explicit `AppTarget`.
+ * services. This class validates that `skeletonRoot` is a non-empty safe
+ * single-line string, validates the optional Phase A artifact cache directory,
+ * and stores the explicit `AppTarget`.
  */
 final readonly class BootstrapInput
 {
@@ -47,10 +48,20 @@ final readonly class BootstrapInput
         private ?string $preset = null,
         private ?bool $debug = null,
         private ?BootstrapEnvSourcePolicy $envSourcePolicy = null,
+        private ?string $artifactsCacheDir = null,
     ) {
         if (!self::isNonEmptySafeSingleLineString($this->skeletonRoot)) {
             throw BootstrapException::withReason(
                 BootstrapException::REASON_INVALID_SKELETON_ROOT,
+            );
+        }
+
+        if (
+            $this->artifactsCacheDir !== null
+            && !BootstrapArtifactsCacheDir::isValid($this->artifactsCacheDir)
+        ) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID,
             );
         }
     }
@@ -106,6 +117,16 @@ final readonly class BootstrapInput
     public function envSourcePolicy(): ?BootstrapEnvSourcePolicy
     {
         return $this->envSourcePolicy;
+    }
+
+    /**
+     * Optional entrypoint-provided Kernel artifact cache directory.
+     *
+     * The value is relative to BootstrapConfig::skeletonRoot().
+     */
+    public function artifactsCacheDir(): ?string
+    {
+        return $this->artifactsCacheDir;
     }
 
     private static function isNonEmptySafeSingleLineString(string $value): bool

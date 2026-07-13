@@ -50,6 +50,11 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  * encoder/decoder entrypoints. This normalizer operates only on the baseline
  * runtime json-like value model.
  *
+ * Optional owner-supplied limits bound recursive container depth, total map
+ * values/list items, and individual string byte length during the same
+ * recursive traversal. Omitting limits preserves the baseline behavior for
+ * existing consumers.
+ *
  * Diagnostics are intentionally stable and safe. They include only a safe
  * path-to-value and a stable reason token. They must never include rejected
  * raw values, object class names, resource ids, payloads, secrets, raw SQL,
@@ -74,17 +79,43 @@ final class JsonLikeNormalizer
      *
      * @return null|bool|int|string|array<int|string, mixed>
      */
-    public static function normalize(mixed $value, string $path = 'value'): mixed
-    {
-        return self::normalizeValue($value, self::safeRootPath($path));
+    public static function normalize(
+        mixed $value,
+        string $path = 'value',
+        ?JsonLikeNormalizationLimits $limits = null,
+    ): mixed {
+        $nodeCount = 0;
+
+        return self::normalizeValue(
+            value: $value,
+            path: self::safeRootPath($path),
+            parentContainerDepth: 0,
+            limits: $limits,
+            nodeCount: $nodeCount,
+        );
     }
 
     /**
      * @return null|bool|int|string|array<int|string, mixed>
      */
-    private static function normalizeValue(mixed $value, string $path): null|bool|int|string|array
-    {
-        if ($value === null || \is_bool($value) || \is_int($value) || \is_string($value)) {
+    private static function normalizeValue(
+        mixed $value,
+        string $path,
+        int $parentContainerDepth,
+        ?JsonLikeNormalizationLimits $limits,
+        int &$nodeCount,
+    ): null|bool|int|string|array {
+        if ($value === null || \is_bool($value) || \is_int($value)) {
+            return $value;
+        }
+
+        if (\is_string($value)) {
+            self::assertStringBytes(
+                value: $value,
+                path: $path,
+                limits: $limits,
+            );
+
             return $value;
         }
 
@@ -123,11 +154,31 @@ final class JsonLikeNormalizer
             );
         }
 
+        $containerDepth = $parentContainerDepth + 1;
+
+        self::assertContainerDepth(
+            path: $path,
+            containerDepth: $containerDepth,
+            limits: $limits,
+        );
+
         if (\array_is_list($value)) {
-            return self::normalizeList($value, $path);
+            return self::normalizeList(
+                value: $value,
+                path: $path,
+                containerDepth: $containerDepth,
+                limits: $limits,
+                nodeCount: $nodeCount,
+            );
         }
 
-        return self::normalizeMap($value, $path);
+        return self::normalizeMap(
+            value: $value,
+            path: $path,
+            containerDepth: $containerDepth,
+            limits: $limits,
+            nodeCount: $nodeCount,
+        );
     }
 
     /**
@@ -135,14 +186,30 @@ final class JsonLikeNormalizer
      *
      * @return list<mixed>
      */
-    private static function normalizeList(array $value, string $path): array
-    {
+    private static function normalizeList(
+        array $value,
+        string $path,
+        int $containerDepth,
+        ?JsonLikeNormalizationLimits $limits,
+        int &$nodeCount,
+    ): array {
         $normalized = [];
 
         foreach ($value as $index => $item) {
+            $itemPath = self::listPath($path, $index);
+
+            self::consumeNode(
+                path: $itemPath,
+                limits: $limits,
+                nodeCount: $nodeCount,
+            );
+
             $normalized[] = self::normalizeValue(
-                $item,
-                self::listPath($path, $index),
+                value: $item,
+                path: $itemPath,
+                parentContainerDepth: $containerDepth,
+                limits: $limits,
+                nodeCount: $nodeCount,
             );
         }
 
@@ -154,30 +221,126 @@ final class JsonLikeNormalizer
      *
      * @return array<string, mixed>
      */
-    private static function normalizeMap(array $value, string $path): array
-    {
-        $normalized = [];
+    private static function normalizeMap(
+        array $value,
+        string $path,
+        int $containerDepth,
+        ?JsonLikeNormalizationLimits $limits,
+        int &$nodeCount,
+    ): array {
+        if (
+            $limits !== null
+            && \count($value) > $limits->maxNodes - $nodeCount
+        ) {
+            throw JsonLikeNormalizationException::atPath(
+                $path,
+                JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+            );
+        }
 
-        foreach ($value as $key => $item) {
+        $keys = \array_keys($value);
+
+        foreach ($keys as $key) {
             if (!\is_string($key)) {
                 throw JsonLikeNormalizationException::atPath(
                     $path,
                     JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING,
                 );
             }
+        }
+
+        \usort(
+            $keys,
+            static fn (string $left, string $right): int => \strcmp(
+                $left,
+                $right,
+            ),
+        );
+
+        $normalized = [];
+
+        foreach ($keys as $key) {
+            $itemPath = self::mapPath($path, $key);
+
+            self::assertStringBytes(
+                value: $key,
+                path: $itemPath,
+                limits: $limits,
+            );
+
+            self::consumeNode(
+                path: $itemPath,
+                limits: $limits,
+                nodeCount: $nodeCount,
+            );
 
             $normalized[$key] = self::normalizeValue(
-                $item,
-                self::mapPath($path, $key),
+                value: $value[$key],
+                path: $itemPath,
+                parentContainerDepth: $containerDepth,
+                limits: $limits,
+                nodeCount: $nodeCount,
             );
         }
 
-        \uksort(
-            $normalized,
-            static fn (string $left, string $right): int => \strcmp($left, $right),
-        );
-
         return $normalized;
+    }
+
+    private static function assertContainerDepth(
+        string $path,
+        int $containerDepth,
+        ?JsonLikeNormalizationLimits $limits,
+    ): void {
+        if (
+            $limits === null
+            || $containerDepth <= $limits->maxDepth
+        ) {
+            return;
+        }
+
+        throw JsonLikeNormalizationException::atPath(
+            $path,
+            JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
+        );
+    }
+
+    private static function consumeNode(
+        string $path,
+        ?JsonLikeNormalizationLimits $limits,
+        int &$nodeCount,
+    ): void {
+        if ($limits === null) {
+            return;
+        }
+
+        ++$nodeCount;
+
+        if ($nodeCount <= $limits->maxNodes) {
+            return;
+        }
+
+        throw JsonLikeNormalizationException::atPath(
+            $path,
+            JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+    }
+
+    private static function assertStringBytes(
+        string $value,
+        string $path,
+        ?JsonLikeNormalizationLimits $limits,
+    ): void {
+        if (
+            $limits === null
+            || \strlen($value) <= $limits->maxStringBytes
+        ) {
+            return;
+        }
+
+        throw JsonLikeNormalizationException::atPath(
+            $path,
+            JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+        );
     }
 
     private static function listPath(string $path, int $index): string

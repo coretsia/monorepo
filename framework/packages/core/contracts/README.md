@@ -14,20 +14,20 @@
 
 # coretsia/core-contracts
 
-`core/contracts` is the **boundary-only contracts package** for the Coretsia Framework monorepo.
+`core/contracts` is the boundary-only contracts package for the Coretsia Framework monorepo.
 
-**Scope:** public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define cross-package boundaries.
+Scope: public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define cross-package boundaries.
 
-**Out of scope:** runtime implementations, DI wiring, filesystem scanning, platform adapters, integrations, generated artifacts, and tooling-only behavior.
+Out of scope: runtime implementations, DI wiring, filesystem scanning, platform adapters, integrations, generated artifacts, and tooling-only behavior.
 
 ## Package identity
 
-- **Monorepo source path:** `framework/packages/core/contracts`
-- **Split repository:** `coretsia/core-contracts`
-- **Package id:** `core/contracts`
-- **Composer name:** `coretsia/core-contracts`
-- **Namespace:** `Coretsia\Contracts\*` (PSR-4: `src/`)
-- **Kind:** library
+- Monorepo source path: `framework/packages/core/contracts`
+- Split repository: `coretsia/core-contracts`
+- Package id: `core/contracts`
+- Composer name: `coretsia/core-contracts`
+- Namespace: `Coretsia\Contracts\*` (PSR-4: `src/`)
+- Kind: library
 
 Versioning is monorepo-wide.
 
@@ -37,10 +37,10 @@ Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
-This package is **boundary-only** and MUST stay lightweight.
+This package is boundary-only and MUST stay lightweight.
 
-- **Depends on:** PHP only
-- **Forbidden:**
+- Depends on: PHP only
+- Forbidden:
   - `platform/*`
   - `integrations/*`
   - `devtools/*`
@@ -118,6 +118,10 @@ Examples include:
 It is not a Kernel context/result schema object.
 
 It may expose only the normalized safe context array through `UnitOfWorkHandle::context()`.
+
+A runtime implementation may associate private lifecycle state with the exact handle object identity.
+
+Such state is not part of the contracts-owned handle context shape and MUST NOT be exposed through `UnitOfWorkHandle::context()`.
 
 It MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, mutable runtime state, or Kernel-owned runtime internals.
 

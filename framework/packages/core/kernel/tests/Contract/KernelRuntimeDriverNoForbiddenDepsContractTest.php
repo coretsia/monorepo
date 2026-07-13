@@ -78,6 +78,7 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
             [
                 'src/Runtime/Driver/BackgroundDriver.php',
                 'src/Runtime/Driver/HttpDriver.php',
+                'src/Runtime/Driver/RuntimeDriverContributions.php',
                 'src/Runtime/Driver/RuntimeDriverGuard.php',
                 'src/Runtime/Driver/RuntimeDrivers.php',
                 'src/Runtime/Exception/RuntimeDriverConflictException.php',

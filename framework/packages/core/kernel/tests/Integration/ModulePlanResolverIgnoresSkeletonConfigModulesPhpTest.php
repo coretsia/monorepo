@@ -167,6 +167,7 @@ final class ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest extends TestCa
             appEnv: 'local',
             preset: $preset,
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
             appTarget: AppTarget::from($appTarget),
             skeletonRoot: $skeletonRoot,

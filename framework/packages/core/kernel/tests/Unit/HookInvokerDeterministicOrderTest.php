@@ -148,6 +148,144 @@ final class HookInvokerDeterministicOrderTest extends TestCase
         );
     }
 
+    public function testBeforeHookFailurePropagatesUnchangedAndStopsRemainingHooks(): void
+    {
+        $recorder = new HookInvocationRecorder();
+        $failure = new \RuntimeException('before-hook-failure');
+
+        $container = new HookInvokerTestContainer([
+            'hook.first' => new RecordingBeforeHook(
+                'hook.first',
+                $recorder,
+            ),
+            'hook.throwing' => new ThrowingBeforeHook(
+                id: 'hook.throwing',
+                recorder: $recorder,
+                failure: $failure,
+            ),
+            'hook.remaining' => new RecordingBeforeHook(
+                'hook.remaining',
+                $recorder,
+            ),
+        ]);
+
+        $tags = new TagRegistry();
+
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_BEFORE_UOW,
+            'hook.first',
+            priority: 30,
+        );
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_BEFORE_UOW,
+            'hook.throwing',
+            priority: 20,
+        );
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_BEFORE_UOW,
+            'hook.remaining',
+            priority: 10,
+        );
+
+        $context = [
+            'type' => 'http',
+            'uowId' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ];
+
+        try {
+            new HookInvoker(
+                $container,
+                $tags,
+            )->invokeBeforeHooks($context);
+
+            self::fail('Expected the first before-hook failure to propagate.');
+        } catch (\RuntimeException $throwable) {
+            self::assertSame($failure, $throwable);
+        }
+
+        self::assertSame(
+            [
+                ['before', 'hook.first', $context],
+                ['before', 'hook.throwing', $context],
+            ],
+            $recorder->calls(),
+            'Hooks ordered after the failing before hook must not run.',
+        );
+    }
+
+    public function testAfterHookFailurePropagatesUnchangedAndStopsRemainingHooks(): void
+    {
+        $recorder = new HookInvocationRecorder();
+        $failure = new \RuntimeException('after-hook-failure');
+
+        $container = new HookInvokerTestContainer([
+            'hook.first' => new RecordingAfterHook(
+                'hook.first',
+                $recorder,
+            ),
+            'hook.throwing' => new ThrowingAfterHook(
+                id: 'hook.throwing',
+                recorder: $recorder,
+                failure: $failure,
+            ),
+            'hook.remaining' => new RecordingAfterHook(
+                'hook.remaining',
+                $recorder,
+            ),
+        ]);
+
+        $tags = new TagRegistry();
+
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_AFTER_UOW,
+            'hook.first',
+            priority: 30,
+        );
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_AFTER_UOW,
+            'hook.throwing',
+            priority: 20,
+        );
+        $tags->add(
+            ReservedTags::KERNEL_HOOK_AFTER_UOW,
+            'hook.remaining',
+            priority: 10,
+        );
+
+        $context = [
+            'type' => 'http',
+            'uowId' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ];
+
+        $result = [
+            'outcome' => 'success',
+            'durationMs' => 12,
+        ];
+
+        try {
+            new HookInvoker(
+                $container,
+                $tags,
+            )->invokeAfterHooks(
+                $context,
+                $result,
+            );
+
+            self::fail('Expected the first after-hook failure to propagate.');
+        } catch (\RuntimeException $throwable) {
+            self::assertSame($failure, $throwable);
+        }
+
+        self::assertSame(
+            [
+                ['after', 'hook.first', $context, $result],
+                ['after', 'hook.throwing', $context, $result],
+            ],
+            $recorder->calls(),
+            'Hooks ordered after the failing after hook must not run.',
+        );
+    }
+
     public function testEmptyHookTagsAreNoop(): void
     {
         $container = new HookInvokerTestContainer([]);
@@ -216,6 +354,47 @@ final class HookInvocationRecorder
     public function calls(): array
     {
         return $this->calls;
+    }
+}
+
+final readonly class ThrowingBeforeHook implements BeforeUowHookInterface
+{
+    public function __construct(
+        private string $id,
+        private HookInvocationRecorder $recorder,
+        private \Throwable $failure,
+    ) {
+    }
+
+    public function beforeUow(array $context): void
+    {
+        $this->recorder->recordBefore(
+            $this->id,
+            $context,
+        );
+
+        throw $this->failure;
+    }
+}
+
+final readonly class ThrowingAfterHook implements AfterUowHookInterface
+{
+    public function __construct(
+        private string $id,
+        private HookInvocationRecorder $recorder,
+        private \Throwable $failure,
+    ) {
+    }
+
+    public function afterUow(array $context, array $result): void
+    {
+        $this->recorder->recordAfter(
+            $this->id,
+            $context,
+            $result,
+        );
+
+        throw $this->failure;
     }
 }
 

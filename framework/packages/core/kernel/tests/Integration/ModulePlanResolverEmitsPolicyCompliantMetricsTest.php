@@ -259,6 +259,7 @@ final class ModulePlanResolverEmitsPolicyCompliantMetricsTest extends TestCase
             appEnv: 'local',
             preset: $preset,
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
             appTarget: AppTarget::from('api'),
             skeletonRoot: $skeletonRoot,

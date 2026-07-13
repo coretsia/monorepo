@@ -24,10 +24,10 @@ use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 
 /**
- * Canonical runtime driver matrix guard.
+ * Canonical runtime driver guard.
  *
- * This guard derives active runtime drivers from Kernel-owned config inputs and,
- * for owner-scoped runtime inputs, the caller-provided ModulePlan.
+ * This guard derives the Kernel-owned runtime driver selection from
+ * Kernel-owned config inputs only.
  *
  * It is intentionally stateless and deterministic. It must not inspect
  * environment variables, loaded PHP extensions, process names, CLI argv, ports,
@@ -38,8 +38,8 @@ use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
  * and ConfigRepositoryInterface::has().
  *
  * Generic config shape and unknown-key validation is owned by config rules.
- * This guard owns only runtime-driver matrix selection and the explicit
- * ModulePlan compatibility rule required by the runtime drivers SSoT.
+ * This guard owns only Kernel runtime driver selection from Kernel-owned
+ * config inputs.
  *
  * @internal Kernel runtime entrypoint implementation detail. Runtime adapters
  * should depend on RuntimeEntrypointGuard instead.
@@ -48,44 +48,41 @@ final class RuntimeDriverGuard
 {
     private const string CONFIG_HTTP_DRIVER = 'kernel.runtime.http_driver';
 
-    private const string CONFIG_WORKER_TASK_TYPE = 'worker.task_type';
-
-    private const string WORKER_TASK_TYPE_HTTP = 'http';
-    private const string WORKER_TASK_TYPE_QUEUE = 'queue';
-
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
-    private const string MODULE_PLATFORM_WORKER = 'platform.worker';
 
     /**
-     * Derives the active runtime driver set from canonical config inputs.
+     * Derives the active runtime driver set from canonical Kernel config inputs.
      *
-     * @throws RuntimeDriverConflictException
      * @throws RuntimeDriverInvalidConfigException
      */
     public function detect(ConfigRepositoryInterface $cfg): RuntimeDrivers
     {
-        [$httpDrivers, $backgroundDrivers] = self::activeDrivers($cfg);
-
-        if (\count($httpDrivers) > 1) {
-            self::throwHttpDriverConflict($httpDrivers, $backgroundDrivers);
-        }
-
-        if ($httpDrivers === []) {
-            $httpDrivers[] = HttpDriver::CLASSIC;
-        }
-
         return new RuntimeDrivers(
-            $httpDrivers[0],
-            ...$backgroundDrivers,
+            self::configuredHttpDriver($cfg),
         );
     }
 
     /**
-     * Asserts config-only runtime driver matrix compatibility.
+     * Resolves Kernel-selected runtime drivers plus explicit owner contributions.
+     *
+     * @throws RuntimeDriverConflictException
+     * @throws RuntimeDriverInvalidConfigException
+     */
+    public function resolve(
+        ConfigRepositoryInterface $cfg,
+        RuntimeDriverContributions $contributions,
+    ): RuntimeDrivers {
+        return self::composeRuntimeDrivers(
+            kernelHttpDriver: self::configuredHttpDriver($cfg),
+            contributions: $contributions,
+        );
+    }
+
+    /**
+     * Asserts config-only runtime driver compatibility.
      *
      * This method intentionally does not inspect ModulePlan.
      *
-     * @throws RuntimeDriverConflictException
      * @throws RuntimeDriverInvalidConfigException
      */
     public function assertCompatible(ConfigRepositoryInterface $cfg): void
@@ -94,11 +91,11 @@ final class RuntimeDriverGuard
     }
 
     /**
-     * Asserts runtime driver compatibility against the caller-provided ModulePlan.
+     * Resolves the composed runtime-driver set and validates HTTP driver
+     * compatibility against the caller-provided ModulePlan.
      *
-     * This is the only guard method that applies ModulePlan-aware runtime
-     * entrypoint validation, including Worker owner-scope and `platform.http`
-     * requirements for selected non-classic HTTP drivers.
+     * TODO(kernel-boundaries): move platform-owned HTTP module compatibility
+     * checks out of Kernel runtime guard in a follow-up boundary refactor.
      *
      * The ModulePlan is caller-provided. This method must not resolve it
      * internally and must not inspect Composer metadata, providers, package
@@ -108,19 +105,20 @@ final class RuntimeDriverGuard
      * @throws RuntimeDriverConflictException
      * @throws RuntimeDriverInvalidConfigException
      */
-    public function assertHttpDriverCompatibleWithModules(
+    public function resolveForModules(
         ConfigRepositoryInterface $cfg,
         ModulePlan $plan,
-    ): void {
-        $drivers = $this->detectForModulePlan($cfg, $plan);
+        RuntimeDriverContributions $contributions,
+    ): RuntimeDrivers {
+        $drivers = $this->resolve($cfg, $contributions);
         $httpDriver = $drivers->httpDriver();
 
         if (!self::httpDriverRequiresPlatformHttp($httpDriver)) {
-            return;
+            return $drivers;
         }
 
         if ($plan->hasEnabledModule(self::MODULE_PLATFORM_HTTP)) {
-            return;
+            return $drivers;
         }
 
         throw RuntimeDriverInvalidConfigException::requiresPlatformHttpModule(
@@ -129,54 +127,10 @@ final class RuntimeDriverGuard
     }
 
     /**
-     * @return array{0: list<HttpDriver>, 1: list<BackgroundDriver>}
+     * @param ConfigRepositoryInterface $cfg
+     * @return HttpDriver
      */
-    private static function activeDrivers(
-        ConfigRepositoryInterface $cfg,
-        bool $workerInputsInScope = true,
-    ): array {
-        $httpDrivers = self::configuredHttpDrivers($cfg);
-        $backgroundDrivers = [];
-
-        if (!$workerInputsInScope) {
-            return [$httpDrivers, $backgroundDrivers];
-        }
-
-        if (!$cfg->has(self::CONFIG_WORKER_TASK_TYPE)) {
-            throw RuntimeDriverInvalidConfigException::workerTaskTypeMissing(
-                self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
-            );
-        }
-
-        $workerTaskType = $cfg->get(self::CONFIG_WORKER_TASK_TYPE);
-
-        if (!\is_string($workerTaskType)) {
-            throw RuntimeDriverInvalidConfigException::workerTaskTypeInvalid(
-                self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
-            );
-        }
-
-        if ($workerTaskType === self::WORKER_TASK_TYPE_HTTP) {
-            $httpDrivers[] = HttpDriver::WORKER;
-
-            return [$httpDrivers, $backgroundDrivers];
-        }
-
-        if ($workerTaskType === self::WORKER_TASK_TYPE_QUEUE) {
-            $backgroundDrivers[] = BackgroundDriver::WORKER_QUEUE;
-
-            return [$httpDrivers, $backgroundDrivers];
-        }
-
-        throw RuntimeDriverInvalidConfigException::workerTaskTypeInvalid(
-            self::driverIdsFromDrivers($httpDrivers, $backgroundDrivers),
-        );
-    }
-
-    /**
-     * @return list<HttpDriver>
-     */
-    private static function configuredHttpDrivers(ConfigRepositoryInterface $cfg): array
+    private static function configuredHttpDriver(ConfigRepositoryInterface $cfg): HttpDriver
     {
         if (!$cfg->has(self::CONFIG_HTTP_DRIVER)) {
             throw RuntimeDriverInvalidConfigException::configKeyMissing();
@@ -189,12 +143,61 @@ final class RuntimeDriverGuard
         }
 
         return match ($httpDriver) {
-            HttpDriver::CLASSIC->value => [],
-            HttpDriver::FRANKENPHP->value => [HttpDriver::FRANKENPHP],
-            HttpDriver::SWOOLE->value => [HttpDriver::SWOOLE],
-            HttpDriver::ROADRUNNER->value => [HttpDriver::ROADRUNNER],
+            HttpDriver::CLASSIC->value => HttpDriver::CLASSIC,
+            HttpDriver::FRANKENPHP->value => HttpDriver::FRANKENPHP,
+            HttpDriver::SWOOLE->value => HttpDriver::SWOOLE,
+            HttpDriver::ROADRUNNER->value => HttpDriver::ROADRUNNER,
             default => throw RuntimeDriverInvalidConfigException::configKeyInvalid(),
         };
+    }
+
+    /**
+     * @throws RuntimeDriverConflictException
+     */
+    private static function composeRuntimeDrivers(
+        HttpDriver $kernelHttpDriver,
+        RuntimeDriverContributions $contributions,
+    ): RuntimeDrivers {
+        $httpDriver = self::composeHttpDriver(
+            kernelHttpDriver: $kernelHttpDriver,
+            contributedHttpDrivers: $contributions->httpDrivers(),
+            contributedBackgroundDrivers: $contributions->backgroundDrivers(),
+        );
+
+        return new RuntimeDrivers(
+            $httpDriver,
+            ...$contributions->backgroundDrivers(),
+        );
+    }
+
+    /**
+     * @param list<HttpDriver> $contributedHttpDrivers
+     * @param list<BackgroundDriver> $contributedBackgroundDrivers
+     *
+     * @throws RuntimeDriverConflictException
+     */
+    private static function composeHttpDriver(
+        HttpDriver $kernelHttpDriver,
+        array $contributedHttpDrivers,
+        array $contributedBackgroundDrivers,
+    ): HttpDriver {
+        if ($contributedHttpDrivers === []) {
+            return $kernelHttpDriver;
+        }
+
+        if ($kernelHttpDriver === HttpDriver::CLASSIC && \count($contributedHttpDrivers) === 1) {
+            return $contributedHttpDrivers[0];
+        }
+
+        $httpDrivers = [
+            $kernelHttpDriver,
+            ...$contributedHttpDrivers,
+        ];
+
+        self::throwHttpDriverConflict(
+            httpDrivers: $httpDrivers,
+            backgroundDrivers: $contributedBackgroundDrivers,
+        );
     }
 
     /**
@@ -218,29 +221,6 @@ final class RuntimeDriverGuard
         throw RuntimeDriverConflictException::multipleHttpDrivers(
             activeDriverIds: $activeDriverIds,
             conflictingDriverIds: $conflictingDriverIds,
-        );
-    }
-
-    private function detectForModulePlan(
-        ConfigRepositoryInterface $cfg,
-        ModulePlan $plan,
-    ): RuntimeDrivers {
-        [$httpDrivers, $backgroundDrivers] = self::activeDrivers(
-            cfg: $cfg,
-            workerInputsInScope: $plan->hasEnabledModule(self::MODULE_PLATFORM_WORKER),
-        );
-
-        if (\count($httpDrivers) > 1) {
-            self::throwHttpDriverConflict($httpDrivers, $backgroundDrivers);
-        }
-
-        if ($httpDrivers === []) {
-            $httpDrivers[] = HttpDriver::CLASSIC;
-        }
-
-        return new RuntimeDrivers(
-            $httpDrivers[0],
-            ...$backgroundDrivers,
         );
     }
 

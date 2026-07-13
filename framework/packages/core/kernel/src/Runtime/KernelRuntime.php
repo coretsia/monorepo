@@ -42,6 +42,10 @@ use Psr\Log\LoggerInterface;
  * adapters. It owns UnitOfWork context creation, base context key writes,
  * hook invocation, result export, and reset orchestration.
  *
+ * The class is shallow-readonly: dependency and state-holder references are
+ * fixed after construction, while the privately owned WeakMap maintains
+ * mutable lifecycle state associated with active UnitOfWorkHandle instances.
+ *
  * Diagnostics are intentionally stable and safe. Runtime validation failures
  * surface KernelRuntimeException messages that contain only the package error
  * code and stable reason token. This class must not log, dump, or expose raw
@@ -56,6 +60,12 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     private const int TIMER_UNAVAILABLE = 0;
 
     /**
+     * Private lifecycle timing state associated with the exact opaque handle
+     * instance returned by beginUnitOfWork().
+     *
+     * Stopwatch tokens are never copied into UnitOfWorkHandle::context() or any
+     * exported hook, result, observability, diagnostic, or persistence payload.
+     *
      * @var \WeakMap<UnitOfWorkHandle, int>
      */
     private \WeakMap $openUnitOfWorkStartTokens;
@@ -156,13 +166,20 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
             $resetRequired = true;
 
-            $contextPayload = HookContextNormalizer::normalizeContext($context);
+            // Normalization exports only attributes, correlationId, type, and uowId.
+            // Internal startedAtToken state is intentionally omitted from this payload.
+            $exportedContext = HookContextNormalizer::normalizeContext($context);
 
-            $this->hooks->invokeBeforeHooks($contextPayload);
+            $this->hooks->invokeBeforeHooks($exportedContext);
 
-            $handle = new UnitOfWorkHandle($contextPayload);
+            $handle = new UnitOfWorkHandle($exportedContext);
 
-            $this->openUnitOfWorkStartTokens[$handle] = $context->startedAtToken();
+            // Keep private timing state associated by handle identity rather than
+            // exporting it through the contracts-owned handle context.
+            $this->openUnitOfWorkStartTokens->offsetSet(
+                $handle,
+                $context->startedAtToken(),
+            );
 
             return $handle;
         } catch (\Throwable $throwable) {
@@ -451,15 +468,16 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
 
     private function startedAtTokenForHandle(UnitOfWorkHandle $handle): int
     {
-        if (!isset($this->openUnitOfWorkStartTokens[$handle])) {
+        if (!$this->openUnitOfWorkStartTokens->offsetExists($handle)) {
             throw KernelRuntimeException::withReason(
                 KernelRuntimeException::REASON_INVALID_CONTEXT,
             );
         }
 
-        $startedAtToken = $this->openUnitOfWorkStartTokens[$handle];
+        /** @var int $startedAtToken */
+        $startedAtToken = $this->openUnitOfWorkStartTokens->offsetGet($handle);
 
-        unset($this->openUnitOfWorkStartTokens[$handle]);
+        $this->openUnitOfWorkStartTokens->offsetUnset($handle);
 
         return $startedAtToken;
     }
@@ -634,12 +652,18 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     }
 
     /**
-     * Runs reset orchestration and returns the failure that must be surfaced.
+     * Runs reset orchestration and selects the exact failure to surface.
+     *
+     * Reset is attempted before failure selection.
      *
      * Failure precedence is Kernel-owned:
      *
-     * - primary lifecycle/body failure wins;
-     * - reset failure is surfaced only when there is no primary failure.
+     * - an existing primary lifecycle, hook, or body failure is returned unchanged;
+     * - a reset failure never replaces, wraps, or mutates an existing primary failure;
+     * - a safe reset failure is returned only when no primary failure exists.
+     *
+     * Secondary reset failures are not aggregated into the surfaced lifecycle
+     * throwable.
      */
     private function resetAndSelectFailure(?\Throwable $primaryFailure): ?\Throwable
     {

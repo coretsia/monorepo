@@ -134,7 +134,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
     {
         $source = self::repoFile('framework/packages/core/kernel/README.md');
 
-        $outOfScope = self::section($source, '**Out of scope:**', '## Runtime responsibilities');
+        $outOfScope = self::section($source, 'Out of scope:', '## Runtime responsibilities');
 
         self::assertStringNotContainsString(
             'config artifact writing',
@@ -162,6 +162,28 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
     }
 
+    public function testArtifactCacheDirFallbackBelongsToBootstrapPhaseA(): void
+    {
+        $config = require self::kernelPath('config/kernel.php');
+        $rules = require self::kernelPath('config/rules.php');
+
+        self::assertIsArray($config);
+        self::assertIsArray($rules);
+
+        self::assertSame(
+            'var/cache',
+            $config['boot']['default_artifacts_cache_dir'] ?? null,
+        );
+
+        self::assertSame(
+            'relative-safe-path',
+            $rules['keys']['boot']['keys']['default_artifacts_cache_dir']['type'] ?? null,
+        );
+
+        self::assertArrayNotHasKey('artifacts', $config);
+        self::assertArrayNotHasKey('artifacts', $rules['keys']);
+    }
+
     public function testCompiledContainerReusesExistingKernelArtifactPathPolicy(): void
     {
         $pathResolver = self::kernelSource('src/Artifacts/Paths/ArtifactPathResolver.php');
@@ -169,15 +191,17 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         $cacheVerifier = self::kernelSource('src/Artifacts/Verifier/CacheVerifier.php');
 
         self::assertStringContainsString(
-            "private const string KEY_ARTIFACTS = 'artifacts';",
+            '$bootstrapConfig->artifactsCacheDir()',
             $pathResolver,
         );
-        self::assertStringContainsString(
-            "private const string KEY_CACHE_DIR = 'cache_dir';",
+
+        self::assertStringNotContainsString(
+            'kernel.artifacts.cache_dir',
             $pathResolver,
         );
-        self::assertStringContainsString(
-            "private const string CANONICAL_CACHE_DIR = 'var/cache';",
+
+        self::assertStringNotContainsString(
+            '$kernelConfig',
             $pathResolver,
         );
         self::assertStringContainsString(
@@ -190,7 +214,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
 
         self::assertStringContainsString(
-            '$this->pathResolver->containerPath($bootstrapConfig, $kernelConfig)',
+            '$this->pathResolver->containerPath($bootstrapConfig)',
             $artifactCompiler,
         );
         self::assertStringContainsString(
@@ -199,7 +223,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
 
         self::assertStringContainsString(
-            '$this->pathResolver->containerPath($bootstrapConfig, $kernelConfig)',
+            '$this->pathResolver->containerPath($bootstrapConfig)',
             $cacheVerifier,
         );
         self::assertStringContainsString(
@@ -214,9 +238,11 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
 
         self::assertIsArray($config);
 
-        self::assertArrayHasKey('artifacts', $config);
-        self::assertArrayHasKey('cache_dir', $config['artifacts']);
-        self::assertSame('var/cache', $config['artifacts']['cache_dir']);
+        self::assertArrayNotHasKey('artifacts', $config);
+        self::assertSame(
+            'var/cache',
+            $config['boot']['default_artifacts_cache_dir'] ?? null,
+        );
 
         self::assertArrayHasKey('fingerprint', $config);
         self::assertArrayHasKey('skeleton_ignore_prefixes', $config['fingerprint']);

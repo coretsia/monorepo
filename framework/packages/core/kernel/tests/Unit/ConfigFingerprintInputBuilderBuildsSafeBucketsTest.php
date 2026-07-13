@@ -153,6 +153,7 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
             appEnv: 'local',
             preset: 'micro',
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Api,
             skeletonRoot: self::skeletonRoot(),

@@ -36,6 +36,9 @@ final class ContextWriteForbiddenDiagnosticsAreSafeContractTest extends TestCase
         yield 'resource forbidden' => ['context-write-forbidden-resource'];
         yield 'map key forbidden' => ['context-write-forbidden-map-key'];
         yield 'type forbidden' => ['context-write-forbidden-type'];
+        yield 'maximum depth exceeded' => ['context-write-forbidden-max-depth'];
+        yield 'maximum nodes exceeded' => ['context-write-forbidden-max-nodes'];
+        yield 'string bytes exceeded' => ['context-write-forbidden-string-bytes'];
     }
 
     #[DataProvider('writeForbiddenReasonProvider')]

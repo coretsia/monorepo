@@ -14,28 +14,28 @@
 
 # Packaging strategy (monorepo packaging law) (Non-product doc)
 
-> **Canonical / single-choice.**  
-> This is the single source of truth for monorepo packaging rules. Any other documents **MUST** refer to this file and **MUST NOT** introduce alternative rules.
+> Canonical / single-choice. \
+> This is the single source of truth for monorepo packaging rules. Any other documents MUST refer to this file and MUST NOT introduce alternative rules.
 
 ---
 
 ## 0) Scope
 
-This document fixes **one** canonical packaging strategy for the monorepo:
+This document fixes one canonical packaging strategy for the monorepo:
 
-- **Package identity**: `path ↔ package_id ↔ composer ↔ namespace`.
-- **Publishable units law**: what is publishable (packages) vs non-publishable (tools/skeleton/docs).
-- **Versioning**: one release line for the entire repository.
+- Package identity: `path ↔ package_id ↔ composer ↔ namespace`.
+- Publishable units law: what is publishable (packages) vs non-publishable (tools/skeleton/docs).
+- Versioning: one release line for the entire repository.
 
 ---
 
 ## 1) Terminology (normative)
 
-- **layer** — the top package layer under `framework/packages/` (for example: `core`, `platform`).
-- **slug** — the package identifier within a layer in kebab-case (for example: `problem-details`).
-- **package_id** — `<layer>/<slug>` (for example: `platform/problem-details`).
-- **composer name** — `coretsia/<layer>-<slug>` (for example: `coretsia/platform-problem-details`).
-- **namespace root** — the root PHP namespace for `src/` and `tests/`.
+- layer — the top package layer under `framework/packages/` (for example: `core`, `platform`).
+- slug — the package identifier within a layer in kebab-case (for example: `problem-details`).
+- package_id — `<layer>/<slug>` (for example: `platform/problem-details`).
+- composer name — `coretsia/<layer>-<slug>` (for example: `coretsia/platform-problem-details`).
+- namespace root — the root PHP namespace for `src/` and `tests/`.
 
 ---
 
@@ -43,23 +43,23 @@ This document fixes **one** canonical packaging strategy for the monorepo:
 
 ### 2.1. Package path (single-choice)
 
-Every framework package **MUST** live at the path:
+Every framework package MUST live at the path:
 
 - `framework/packages/<layer>/<slug>/`
 
 Accordingly:
 
-- **package_id MUST** be: `<layer>/<slug>`.
-- **composer name MUST** be: `coretsia/<layer>-<slug>`.
+- package_id MUST be: `<layer>/<slug>`.
+- composer name MUST be: `coretsia/<layer>-<slug>`.
 
-**Examples:**
+Examples:
 
 - `framework/packages/core/contracts/` ↔ `core/contracts` ↔ `coretsia/core-contracts`
 - `framework/packages/platform/problem-details/` ↔ `platform/problem-details` ↔ `coretsia/platform-problem-details`
 
 ### 2.2. Allowed layers (single-choice)
 
-`<layer>` **MUST** be one of:
+`<layer>` MUST be one of:
 
 - `core`
 - `platform`
@@ -74,24 +74,24 @@ Accordingly:
 
 ### 3.1. Format (single-choice)
 
-`<slug>` **MUST** be kebab-case and **MUST** match:
+`<slug>` MUST be kebab-case and MUST match:
 
 - `/\A[a-z0-9][a-z0-9-]*\z/`
 
 ### 3.2. Uniqueness policy (single-choice)
 
-- `<slug>` **MUST** be unique **within one layer**.
-- `<slug>` **MAY** repeat **across different layers** (global uniqueness is ensured by the composer prefix `coretsia/<layer>-...`).
+- `<slug>` MUST be unique within one layer.
+- `<slug>` MAY repeat across different layers (global uniqueness is ensured by the composer prefix `coretsia/<layer>-...`).
 
 ---
 
 ## 4) Composer identity mapping (MUST)
 
-Composer package name **MUST** be derived **only** from `{layer, slug}` by the formula:
+Composer package name MUST be derived only from `{layer, slug}` by the formula:
 
 - `coretsia/<layer>-<slug>`
 
-**MUST NOT:**
+MUST NOT:
 
 - any other prefixes/naming (such as `coretsia/<slug>` without the layer),
 - “personal” vendor names for framework packages,
@@ -112,7 +112,7 @@ We define `Studly(x)` as follows:
   - digits are preserved as-is;
 - the tokens are concatenated.
 
-**Examples:**
+Examples:
 
 - `problem-details` → `ProblemDetails`
 - `http-client` → `HttpClient`
@@ -120,15 +120,15 @@ We define `Studly(x)` as follows:
 
 ### 5.2. Rule (single-choice)
 
-Namespaces **MUST** be deterministically derived from `{layer, slug}` — but with a **core exception** (short canonical namespaces).
+Namespaces MUST be deterministically derived from `{layer, slug}` — but with a core exception (short canonical namespaces).
 
 #### A) Core packages (`core/*`) (single-choice)
 
-For `core/*` packages, the namespace root **MUST** be:
+For `core/*` packages, the namespace root MUST be:
 
 - `Coretsia\<Studly(slug)>\...`
 
-**Examples:**
+Examples:
 
 - `core/contracts` → `Coretsia\Contracts\...`
 - `core/foundation` → `Coretsia\Foundation\...`
@@ -136,11 +136,11 @@ For `core/*` packages, the namespace root **MUST** be:
 
 #### B) Non-core packages (`platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`) (single-choice)
 
-For non-core packages, the namespace root **MUST** be:
+For non-core packages, the namespace root MUST be:
 
 - `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
 
-**Examples:**
+Examples:
 
 - `platform/cli` → `Coretsia\Platform\Cli\...`
 - `platform/problem-details` → `Coretsia\Platform\ProblemDetails\...`
@@ -151,10 +151,10 @@ For non-core packages, the namespace root **MUST** be:
 
 For any package:
 
-- `framework/packages/<layer>/<slug>/src` **MUST** map to the namespace root (see §5.2).
-- `framework/packages/<layer>/<slug>/tests` **MUST** map to `...\Tests\...` under the same root.
+- `framework/packages/<layer>/<slug>/src` MUST map to the namespace root (see §5.2).
+- `framework/packages/<layer>/<slug>/tests` MUST map to `...\Tests\...` under the same root.
 
-**Examples:**
+Examples:
 
 - `framework/packages/core/kernel/src` → `Coretsia\Kernel\...`
 - `framework/packages/core/kernel/tests` → `Coretsia\Kernel\Tests\...`
@@ -192,7 +192,7 @@ collisions with non-core layers must be prevented, where the namespace root cont
 
 #### Normative rule (single-choice)
 
-For `core/*` packages, the value of `Studly(<slug>)` **MUST NOT** equal any of:
+For `core/*` packages, the value of `Studly(<slug>)` MUST NOT equal any of:
 
 - `Core`
 - `Platform`
@@ -203,8 +203,8 @@ For `core/*` packages, the value of `Studly(<slug>)` **MUST NOT** equal any of:
 
 #### Equivalent slug values (derived)
 
-Because `<slug>` **MUST** be kebab-case (see §3.1), this rule means that
-the following `<slug>` values **MUST NOT** be used under `core/*`:
+Because `<slug>` MUST be kebab-case (see §3.1), this rule means that
+the following `<slug>` values MUST NOT be used under `core/*`:
 
 - `core`
 - `platform`
@@ -213,7 +213,7 @@ the following `<slug>` values **MUST NOT** be used under `core/*`:
 - `devtools`
 - `presets`
 
-**Rationale:**
+Rationale:
 
 - `core/*` has short canonical namespaces (`Coretsia\Foundation`, etc.).
 - non-core packages include the layer segment (`Coretsia\Platform\...`) for global uniqueness.
@@ -225,22 +225,22 @@ the following `<slug>` values **MUST NOT** be used under `core/*`:
 
 ### 7.1. Publishable (single-choice)
 
-**Publishable units** are **only** packages under:
+Publishable units are only packages under:
 
 - `framework/packages/<layer>/<slug>/`
 
-Each such directory is **one** Composer package (`coretsia/<layer>-<slug>`).
+Each such directory is one Composer package (`coretsia/<layer>-<slug>`).
 
 ### 7.2. Non-publishable (single-choice)
 
-The following parts of the repository **MUST NOT** be considered publishable packages (and **MUST NOT** be positioned as such):
+The following parts of the repository MUST NOT be considered publishable packages (and MUST NOT be positioned as such):
 
 - `framework/tools/**` — tooling, gates, CI rails, spikes, generators
 - `skeleton/**` — workspace app sandbox, fixtures, runtime caches (`skeleton/var/**`)
 - `docs/**` — documentation
 - repo root files (`README.md`, `LICENSE`, etc.) — navigation/rules, not packages
 
-> If tooling requires a composer package, it **MUST** be implemented as a normal package under `framework/packages/devtools/*` (as a publishable unit), or explicitly marked as a tooling-only library with its own rule space (outside this document).
+> If tooling requires a composer package, it MUST be implemented as a normal package under `framework/packages/devtools/*` (as a publishable unit), or explicitly marked as a tooling-only library with its own rule space (outside this document).
 
 ---
 
@@ -464,21 +464,21 @@ The existing canonical package `framework/packages/core/kernel/` MUST remain val
 
 ## 11) Versioning and release-line package policy (MUST)
 
-Versioning **MUST** be monorepo-wide:
+Versioning MUST be monorepo-wide:
 
-- the repository has **one** release line: git tags `vMAJOR.MINOR.PATCH`;
-- all packages in the monorepo have **the same** version derived from the repo tag.
+- the repository has one release line: git tags `vMAJOR.MINOR.PATCH`;
+- all packages in the monorepo have the same version derived from the repo tag.
 
-**MUST NOT:**
+MUST NOT:
 
 - per-package independent versions,
 - “internal” tags for individual packages.
 
 ### 11.1. Package version source (single-choice)
 
-Package versions published to Packagist **MUST** be derived from git tags in split repositories.
+Package versions published to Packagist MUST be derived from git tags in split repositories.
 
-Package `composer.json` files **MUST NOT** contain a manual `version` field.
+Package `composer.json` files MUST NOT contain a manual `version` field.
 
 Rationale:
 
@@ -502,19 +502,19 @@ This file owns:
 
 `schemaVersion` is the schema version of `release-line.json`, not the package release version.
 
-`schemaVersion` **MUST NOT** be changed for ordinary patch or minor releases.
+`schemaVersion` MUST NOT be changed for ordinary patch or minor releases.
 
 ### 11.3. Monorepo workspace package resolution (single-choice)
 
-The monorepo workspace **MUST** resolve local package changes through Composer path repositories.
+The monorepo workspace MUST resolve local package changes through Composer path repositories.
 
-Managed package wildcard path repositories **MUST** contain generated `options.versions` values derived from:
+Managed package wildcard path repositories MUST contain generated `options.versions` values derived from:
 
 ```text
 framework/tools/release/release-line.json
 ```
 
-The generated package version for workspace path repositories **MUST** be `devVersion`.
+The generated package version for workspace path repositories MUST be `devVersion`.
 
 Example:
 
@@ -534,15 +534,15 @@ This keeps local development source-linked through symlinks while allowing packa
 
 ### 11.4. Internal Coretsia dependency constraints (MUST)
 
-Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages as `dev-main`.
+Published or split-publish allowlisted packages MUST NOT require internal `coretsia/*` packages as `dev-main`.
 
-Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages as `*`.
+Published or split-publish allowlisted packages MUST NOT require internal `coretsia/*` packages as `*`.
 
-Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages with `@dev` stability flags.
+Published or split-publish allowlisted packages MUST NOT require internal `coretsia/*` packages with `@dev` stability flags.
 
-Published or split-publish allowlisted packages **MUST NOT** require internal `coretsia/*` packages with exact SemVer pins.
+Published or split-publish allowlisted packages MUST NOT require internal `coretsia/*` packages with exact SemVer pins.
 
-Published or split-publish allowlisted packages **MUST** use the release-line `publicConstraint` for internal `coretsia/*` dependencies.
+Published or split-publish allowlisted packages MUST use the release-line `publicConstraint` for internal `coretsia/*` dependencies.
 
 Example for release line `0.4`:
 
@@ -554,7 +554,7 @@ Example for release line `0.4`:
 }
 ```
 
-The public internal constraint **MUST** be synchronized from:
+The public internal constraint MUST be synchronized from:
 
 ```text
 framework/tools/release/release-line.json
@@ -568,26 +568,26 @@ Do not edit public internal `coretsia/*` dependency constraints manually except 
 
 ### 12.1. Canonical publish target (single-choice)
 
-Packagist.org publish target **MUST** be **only** split repositories (one package → one VCS repo):
+Packagist.org publish target MUST be only split repositories (one package → one VCS repo):
 
-- For every publishable unit `framework/packages/<layer>/<slug>/` there is a **separate** split repository,
-  where the **package itself** lives at the repository root (that is, `composer.json` is at the repository root).
-- Monorepo root (`coretsia/`) is the **dev workspace / source of truth** and **MUST NOT** be submitted to Packagist
+- For every publishable unit `framework/packages/<layer>/<slug>/` there is a separate split repository,
+  where the package itself lives at the repository root (that is, `composer.json` is at the repository root).
+- Monorepo root (`coretsia/`) is the dev workspace / source of truth and MUST NOT be submitted to Packagist
   as a canonical publishable package.
 
-**Rationale (normative):**
+Rationale (normative):
 Packagist expects `composer.json` at the root of the VCS repository, and versions are taken automatically from git tags.
 
 ### 12.2. Split repository naming & mapping (single-choice)
 
-For every `package_id = <layer>/<slug>`, split repository identity **MUST** be deterministic:
+For every `package_id = <layer>/<slug>`, split repository identity MUST be deterministic:
 
-- **VCS host (single-choice):** GitHub
-- **GitHub org/user (single-choice):** `coretsia`
-- **Repository name (single-choice):** `<layer>-<slug>`
-- **Repository URL (derived):** `https://github.com/coretsia/<layer>-<slug>`
+- VCS host (single-choice): GitHub
+- GitHub org/user (single-choice): `coretsia`
+- Repository name (single-choice): `<layer>-<slug>`
+- Repository URL (derived): `https://github.com/coretsia/<layer>-<slug>`
 
-**Examples (derived):**
+Examples (derived):
 
 - `core/contracts` → repo `coretsia/core-contracts`
 - `platform/problem-details` → repo `coretsia/platform-problem-details`
@@ -595,44 +595,44 @@ For every `package_id = <layer>/<slug>`, split repository identity **MUST** be d
 
 ### 12.3. Split content law (single-choice)
 
-Split repository content **MUST** equal **exactly** the package subtree:
+Split repository content MUST equal exactly the package subtree:
 
 - split repo root == `framework/packages/<layer>/<slug>/` (including `src/`, `config/`, `tests/`, `README.md`, `composer.json`, …)
-- split repo **MUST NOT** contain anything outside the package (for example: `docs/**`, `framework/tools/**`, `skeleton/**`, monorepo root files).
+- split repo MUST NOT contain anything outside the package (for example: `docs/**`, `framework/tools/**`, `skeleton/**`, monorepo root files).
 
 ### 12.4. Tag/version propagation (single-choice)
 
 Versioning remains monorepo-wide (§11), therefore:
 
-- Monorepo git tags `vMAJOR.MINOR.PATCH` are the **single source of version truth**.
-- Every split repo **MUST** receive the **same** tag `vMAJOR.MINOR.PATCH`,
-  which **MUST** point to the split commit corresponding to that package.
-- Tags **MUST NOT** be rewritten/re-tagged (immutability policy).
+- Monorepo git tags `vMAJOR.MINOR.PATCH` are the single source of version truth.
+- Every split repo MUST receive the same tag `vMAJOR.MINOR.PATCH`,
+  which MUST point to the split commit corresponding to that package.
+- Tags MUST NOT be rewritten/re-tagged (immutability policy).
 
 Packagist picks up new versions automatically from tags in the VCS repository.
 
 ### 12.5. Auto-update policy (single-choice)
 
-Canonical publishing procedure **MUST** use auto-update (service hook / GitHub integration):
+Canonical publishing procedure MUST use auto-update (service hook / GitHub integration):
 
-- For every split repo that is submitted to Packagist, GitHub hook / auto-sync **MUST** be enabled.
-- Manual “Update” in the UI **MUST NOT** be part of the canonical release procedure.
+- For every split repo that is submitted to Packagist, GitHub hook / auto-sync MUST be enabled.
+- Manual “Update” in the UI MUST NOT be part of the canonical release procedure.
 - Hook mode (GitHub) is recommended and gives crawl-on-push behavior.
 
 ### 12.6. Private phase status (MUST)
 
 While the repositories are not public:
 
-- Packagist submission **MUST NOT** be considered completed, because submission is done via a public repository URL.
-- The roadmap checkbox for Packagist auto-update **MUST** remain in the `[ ]` state with the semantics:
-  **blocked until first public release** (or until switching to a private registry / Private Packagist as an explicit architectural change).
+- Packagist submission MUST NOT be considered completed, because submission is done via a public repository URL.
+- The roadmap checkbox for Packagist auto-update MUST remain in the `[ ]` state with the semantics:
+  blocked until first public release (or until switching to a private registry / Private Packagist as an explicit architectural change).
 
-At the same time, split automation rails (dry-run / verify) **MAY** be implemented and verified in CI without Packagist,
-but they **MUST NOT** change the canonical checkbox status until public evidence exists (see the plan below).
+At the same time, split automation rails (dry-run / verify) MAY be implemented and verified in CI without Packagist,
+but they MUST NOT change the canonical checkbox status until public evidence exists (see the plan below).
 
 ---
 
 ## 13) Required references (MUST)
 
-- `docs/architecture/STRUCTURE.md` **MUST** refer to this document as the packaging law.
-- `README.md` **MUST** include a link to this document in the documentation/navigation section.
+- `docs/architecture/STRUCTURE.md` MUST refer to this document as the packaging law.
+- `README.md` MUST include a link to this document in the documentation/navigation section.

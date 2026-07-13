@@ -75,7 +75,6 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
         try {
             $resolver->relativePath(
                 bootstrapConfig: self::bootstrapConfig(),
-                kernelConfig: self::kernelConfig(),
                 basename: 'routes.php',
             );
 
@@ -113,14 +112,38 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
 
     public function testRoutesArtifactOwnershipRemainsDocumentedAsPlatformRouting(): void
     {
-        $adr = self::repoFile('docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md');
+        $adr = self::repoFile(
+            'docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md',
+        );
         $artifactsSsot = self::repoFile('docs/ssot/artifacts.md');
+        $runtimeDriversSsot = self::repoFile('docs/ssot/runtime-drivers.md');
 
         self::assertStringContainsString('routes@1', $adr);
         self::assertStringContainsString('platform/routing', $adr);
 
         self::assertStringContainsString('routes@1', $artifactsSsot);
         self::assertStringContainsString('platform/routing', $artifactsSsot);
+
+        self::assertStringContainsString(
+            'Kernel-owned required artifacts are:',
+            $runtimeDriversSsot,
+        );
+        self::assertStringContainsString(
+            'platform/routing-owned artifact',
+            $runtimeDriversSsot,
+        );
+        self::assertStringContainsString(
+            'routes.php',
+            $runtimeDriversSsot,
+        );
+        self::assertStringContainsString(
+            'MUST NOT be produced, path-resolved, schema-validated, or cache-verified',
+            $runtimeDriversSsot,
+        );
+        self::assertStringContainsString(
+            'MUST NOT be treated as an unconditional consequence',
+            $runtimeDriversSsot,
+        );
     }
 
     private static function bootstrapConfig(): BootstrapConfig
@@ -129,22 +152,11 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
             appEnv: 'local',
             preset: 'micro',
             debug: false,
+            artifactsCacheDir: 'var/cache',
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Api,
             skeletonRoot: '/workspace/skeleton',
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function kernelConfig(): array
-    {
-        return [
-            'artifacts' => [
-                'cache_dir' => 'var/cache',
-            ],
-        ];
     }
 
     private static function sourceFile(string $relativePath): string

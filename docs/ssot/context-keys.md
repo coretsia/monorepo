@@ -241,6 +241,12 @@ docs/ssot/middleware-context-keys-map.md
 
 All values written under canonical context keys MUST obey `ContextStorePolicy`.
 
+Passing `ContextStorePolicy` is necessary but not sufficient.
+
+The package that owns a context write MUST also enforce the semantic value contract of the selected key.
+
+Writers MUST NOT use a canonical key as a container for unrelated sensitive data merely because that data has an allowed json-like type.
+
 Allowed values are JSON-safe deterministic values only:
 
 - `null`

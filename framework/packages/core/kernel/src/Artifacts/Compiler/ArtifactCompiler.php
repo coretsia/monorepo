@@ -49,8 +49,8 @@ use Coretsia\Kernel\Module\ModulePlan;
  * - container.php.
  *
  * `container.php` uses the same Kernel artifact path policy as the other
- * Kernel-owned artifacts. Artifact paths remain resolved by ArtifactPathResolver
- * from the existing `kernel.artifacts.cache_dir` key; this compiler does not
+ * Kernel-owned artifacts. Artifact paths are resolved by ArtifactPathResolver from the
+ * BootstrapConfig::artifactsCacheDir() Phase A value; this compiler does not
  * introduce container-specific artifact path configuration.
  *
  * Fingerprint exclusion policy remains owned by ConfigFingerprintInputBuilder
@@ -240,19 +240,16 @@ final readonly class ArtifactCompiler
         $writes = [
             $this->writeModuleManifest(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 modulePlan: $modulePlan,
                 fingerprint: $fingerprint,
             ),
             $this->writeCompiledConfig(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 compiledConfig: $compiledConfig,
                 fingerprint: $fingerprint,
             ),
             $this->writeCompiledContainer(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 fingerprint: $fingerprint,
                 containerGraph: $containerGraph,
             ),
@@ -262,8 +259,6 @@ final readonly class ArtifactCompiler
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
-     *
      * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
      *
      * @throws JsonFloatForbiddenException
@@ -273,7 +268,6 @@ final readonly class ArtifactCompiler
      */
     private function writeModuleManifest(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         ModulePlan $modulePlan,
         string $fingerprint,
     ): array {
@@ -285,10 +279,9 @@ final readonly class ArtifactCompiler
         return self::writeResult(
             name: self::ARTIFACT_MODULE_MANIFEST,
             write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig, $kernelConfig),
+                targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig),
                 relativePath: $this->pathResolver->relativePath(
                     bootstrapConfig: $bootstrapConfig,
-                    kernelConfig: $kernelConfig,
                     basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
                 ),
                 envelope: $envelope,
@@ -297,7 +290,6 @@ final readonly class ArtifactCompiler
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
      * @param array<string,mixed> $compiledConfig
      *
      * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
@@ -309,7 +301,6 @@ final readonly class ArtifactCompiler
      */
     private function writeCompiledConfig(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         array $compiledConfig,
         string $fingerprint,
     ): array {
@@ -321,10 +312,9 @@ final readonly class ArtifactCompiler
         return self::writeResult(
             name: self::ARTIFACT_CONFIG,
             write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->configPath($bootstrapConfig, $kernelConfig),
+                targetPath: $this->pathResolver->configPath($bootstrapConfig),
                 relativePath: $this->pathResolver->relativePath(
                     bootstrapConfig: $bootstrapConfig,
-                    kernelConfig: $kernelConfig,
                     basename: ArtifactPathResolver::CONFIG_BASENAME,
                 ),
                 envelope: $envelope,
@@ -333,8 +323,6 @@ final readonly class ArtifactCompiler
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
-     *
      * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
      *
      * @throws JsonFloatForbiddenException
@@ -344,7 +332,6 @@ final readonly class ArtifactCompiler
      */
     private function writeCompiledContainer(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         string $fingerprint,
         DefinitionGraph $containerGraph,
     ): array {
@@ -356,10 +343,9 @@ final readonly class ArtifactCompiler
         return self::writeResult(
             name: self::ARTIFACT_CONTAINER,
             write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->containerPath($bootstrapConfig, $kernelConfig),
+                targetPath: $this->pathResolver->containerPath($bootstrapConfig),
                 relativePath: $this->pathResolver->relativePath(
                     bootstrapConfig: $bootstrapConfig,
-                    kernelConfig: $kernelConfig,
                     basename: ArtifactPathResolver::CONTAINER_BASENAME,
                 ),
                 envelope: $envelope,

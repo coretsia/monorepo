@@ -63,6 +63,7 @@ final readonly class BootstrapConfigResolver
     private const string KEY_DEFAULT_ENV = 'default_env';
     private const string KEY_DEFAULT_PRESET = 'default_preset';
     private const string KEY_DEFAULT_DEBUG = 'default_debug';
+    private const string KEY_DEFAULT_ARTIFACTS_CACHE_DIR = 'default_artifacts_cache_dir';
 
     private const string KEY_SOURCE_POLICY = 'source_policy';
     private const string KEY_DEFAULT_LOCAL = 'default_local';
@@ -72,6 +73,7 @@ final readonly class BootstrapConfigResolver
     private const string OVERRIDE_PRESET = 'preset';
     private const string OVERRIDE_PRESETS = 'presets';
     private const string OVERRIDE_DEBUG = 'debug';
+    private const string OVERRIDE_ARTIFACTS_CACHE_DIR = 'artifactsCacheDir';
 
     /**
      * @var array<string, true>
@@ -115,6 +117,10 @@ final readonly class BootstrapConfigResolver
             ?? $overrides[self::OVERRIDE_DEBUG]
             ?? self::defaultDebug($kernelConfig);
 
+        $artifactsCacheDir = $input->artifactsCacheDir()
+            ?? $overrides[self::OVERRIDE_ARTIFACTS_CACHE_DIR]
+            ?? self::defaultArtifactsCacheDir($kernelConfig);
+
         $envSourcePolicy = $input->envSourcePolicy()
             ?? self::defaultEnvSourcePolicy($kernelConfig, $appEnv);
 
@@ -122,6 +128,7 @@ final readonly class BootstrapConfigResolver
             appEnv: $appEnv,
             preset: $preset,
             debug: $debug,
+            artifactsCacheDir: $artifactsCacheDir,
             envSourcePolicy: $envSourcePolicy,
             appTarget: $input->appTarget(),
             skeletonRoot: $input->skeletonRoot(),
@@ -140,7 +147,8 @@ final readonly class BootstrapConfigResolver
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
-     *     debug?: bool
+     *     debug?: bool,
+     *     artifactsCacheDir?: non-empty-string
      * } $overrides
      * @param array<string,mixed> $kernelConfig
      *
@@ -180,7 +188,8 @@ final readonly class BootstrapConfigResolver
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
-     *     debug?: bool
+     *     debug?: bool,
+     *     artifactsCacheDir?: non-empty-string
      * } $overrides
      *
      * @return non-empty-string|null
@@ -255,6 +264,25 @@ final readonly class BootstrapConfigResolver
             throw new \InvalidArgumentException('bootstrap-config-default-debug-invalid');
         }
 
+        return $value;
+    }
+
+    /**
+     * @param array<string,mixed> $kernelConfig
+     *
+     * @return non-empty-string
+     */
+    private static function defaultArtifactsCacheDir(array $kernelConfig): string
+    {
+        $value = $kernelConfig[self::KEY_BOOT][self::KEY_DEFAULT_ARTIFACTS_CACHE_DIR] ?? null;
+
+        if (!BootstrapArtifactsCacheDir::isValid($value)) {
+            throw new \InvalidArgumentException(
+                'bootstrap-config-default-artifacts-cache-dir-invalid',
+            );
+        }
+
+        /** @var non-empty-string $value */
         return $value;
     }
 

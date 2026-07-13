@@ -18,7 +18,6 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Unit;
 
-use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
@@ -27,21 +26,23 @@ use PHPUnit\Framework\TestCase;
 
 final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
 {
-    public function testResolvesPathsUnderAppTargetCacheDirectory(): void
+    public function testResolvesPathsUnderDefaultAppTargetCacheDirectory(): void
     {
         $resolver = new ArtifactPathResolver();
-        $bootstrapConfig = self::bootstrapConfig(AppTarget::Api);
+        $bootstrapConfig = self::bootstrapConfig(
+            appTarget: AppTarget::Api,
+            artifactsCacheDir: 'var/cache',
+        );
 
         self::assertSame(
             'var/cache/api',
-            $resolver->relativeCacheDirectory($bootstrapConfig, self::kernelConfig()),
+            $resolver->relativeCacheDirectory($bootstrapConfig),
         );
 
         self::assertSame(
             'var/cache/api/config.php',
             $resolver->relativePath(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: self::kernelConfig(),
                 basename: ArtifactPathResolver::CONFIG_BASENAME,
             ),
         );
@@ -50,115 +51,68 @@ final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
             '/workspace/skeleton/var/cache/api/config.php',
             $resolver->resolve(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: self::kernelConfig(),
                 basename: ArtifactPathResolver::CONFIG_BASENAME,
             ),
         );
     }
 
-    public function testRejectsAbsoluteCacheDirWithoutLeakingConfiguredPath(): void
+    public function testResolvesPathsUnderConfiguredArtifactCacheDirectory(): void
     {
-        self::assertPathInvalid(
-            kernelConfig: self::kernelConfig('/tmp/cache'),
-            expectedReason: ArtifactPathInvalidException::REASON_CACHE_DIR_ABSOLUTE,
-            forbiddenNeedles: [
-                '/tmp/cache',
-                '/workspace/skeleton',
-            ],
-        );
-    }
-
-    public function testRejectsTraversalCacheDirWithoutLeakingConfiguredPath(): void
-    {
-        self::assertPathInvalid(
-            kernelConfig: self::kernelConfig('var/../cache'),
-            expectedReason: ArtifactPathInvalidException::REASON_CACHE_DIR_TRAVERSAL,
-            forbiddenNeedles: [
-                'var/../cache',
-                '/workspace/skeleton',
-            ],
-        );
-    }
-
-    public function testRejectsSkeletonPrefixedCacheDirWithoutLeakingConfiguredPath(): void
-    {
-        self::assertPathInvalid(
-            kernelConfig: self::kernelConfig('skeleton/var/cache'),
-            expectedReason: ArtifactPathInvalidException::REASON_CACHE_DIR_SKELETON_PREFIXED,
-            forbiddenNeedles: [
-                'skeleton/var/cache',
-                '/workspace/skeleton',
-            ],
-        );
-    }
-
-    public function testRejectsInvalidCacheDirWithSafeReasonOnly(): void
-    {
-        self::assertPathInvalid(
-            kernelConfig: self::kernelConfig('var/cache//web'),
-            expectedReason: ArtifactPathInvalidException::REASON_CACHE_DIR_INVALID,
-            forbiddenNeedles: [
-                'var/cache//web',
-                '/workspace/skeleton',
-            ],
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $kernelConfig
-     * @param list<string> $forbiddenNeedles
-     */
-    private static function assertPathInvalid(
-        array $kernelConfig,
-        string $expectedReason,
-        array $forbiddenNeedles,
-    ): void {
         $resolver = new ArtifactPathResolver();
+        $bootstrapConfig = self::bootstrapConfig(
+            appTarget: AppTarget::Web,
+            artifactsCacheDir: 'var/artifacts_cache',
+        );
 
-        try {
-            $resolver->relativePath(
-                bootstrapConfig: self::bootstrapConfig(AppTarget::Web),
-                kernelConfig: $kernelConfig,
-                basename: ArtifactPathResolver::CONFIG_BASENAME,
+        self::assertSame(
+            'var/artifacts_cache/web',
+            $resolver->relativeCacheDirectory($bootstrapConfig),
+        );
+
+        self::assertSame(
+            '/workspace/skeleton/var/artifacts_cache/web/container.php',
+            $resolver->containerPath($bootstrapConfig),
+        );
+    }
+
+    public function testMaximumAcceptedCacheDirKeepsCanonicalArtifactPathsWithinSafeLimit(): void
+    {
+        $resolver = new ArtifactPathResolver();
+        $artifactsCacheDir = \str_repeat('a', 480);
+
+        foreach (AppTarget::cases() as $appTarget) {
+            $bootstrapConfig = self::bootstrapConfig(
+                appTarget: $appTarget,
+                artifactsCacheDir: $artifactsCacheDir,
             );
 
-            self::fail('Expected ArtifactPathInvalidException was not thrown.');
-        } catch (ArtifactPathInvalidException $exception) {
-            self::assertSame(ArtifactPathInvalidException::ERROR_CODE, $exception->errorCode());
-            self::assertSame($expectedReason, $exception->reason());
-            self::assertStringContainsString($expectedReason, $exception->getMessage());
+            foreach (ArtifactPathResolver::canonicalBasenames() as $basename) {
+                $relativePath = $resolver->relativePath(
+                    bootstrapConfig: $bootstrapConfig,
+                    basename: $basename,
+                );
 
-            foreach ($forbiddenNeedles as $needle) {
-                self::assertStringNotContainsString(
-                    $needle,
-                    $exception->getMessage(),
-                    'Artifact path diagnostics must not leak configured paths or resolved absolute paths.',
+                self::assertLessThanOrEqual(
+                    512,
+                    \strlen($relativePath),
+                    $appTarget->value . ':' . $basename,
                 );
             }
         }
     }
 
-    private static function bootstrapConfig(AppTarget $appTarget): BootstrapConfig
-    {
+    private static function bootstrapConfig(
+        AppTarget $appTarget,
+        string $artifactsCacheDir,
+    ): BootstrapConfig {
         return new BootstrapConfig(
             appEnv: 'local',
             preset: 'micro',
             debug: false,
+            artifactsCacheDir: $artifactsCacheDir,
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: $appTarget,
             skeletonRoot: '/workspace/skeleton',
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function kernelConfig(string $cacheDir = 'var/cache'): array
-    {
-        return [
-            'artifacts' => [
-                'cache_dir' => $cacheDir,
-            ],
-        ];
     }
 }

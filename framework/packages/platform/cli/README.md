@@ -14,24 +14,24 @@
 
 # coretsia/platform-cli
 
-Phase 0 package: **Minimal `coretsia` CLI base (prod-safe)**.
+Phase 0 package: Minimal `coretsia` CLI base (prod-safe).
 
-This package provides a **kernel-free** CLI runtime that:
+This package provides a kernel-free CLI runtime that:
 
-- uses a **config-based** command registry (`cli.commands: list<FQCN>`),
-- produces **deterministic safe output** (text/JSON),
-- enforces **security redaction** by default,
-- is scoped to the **Coretsia monorepo layout** in Phase 0 (no vendor-only install promises).
+- uses a config-based command registry (`cli.commands: list<FQCN>`),
+- produces deterministic safe output (text/JSON),
+- enforces security redaction by default,
+- is scoped to the Coretsia monorepo layout in Phase 0 (no vendor-only install promises).
 
 ## Package identity
 
-- **Path:** `framework/packages/platform/cli`
-- **Package id:** `platform/cli`
-- **Composer name:** `coretsia/platform-cli`
-- **Module id:** `platform.cli`
-- **Namespace:** `Coretsia\Platform\Cli\*` (PSR-4: `src/`)
-- **Kind:** runtime
-- **Lifecycle:** Phase 0 prod-safe CLI base
+- Path: `framework/packages/platform/cli`
+- Package id: `platform/cli`
+- Composer name: `coretsia/platform-cli`
+- Module id: `platform.cli`
+- Namespace: `Coretsia\Platform\Cli\*` (PSR-4: `src/`)
+- Kind: runtime
+- Lifecycle: Phase 0 prod-safe CLI base
 
 Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
@@ -41,9 +41,9 @@ Per-package independent versions MUST NOT be used.
 
 This package is runtime-safe but intentionally kernel-free in Phase 0.
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
-- **Forbidden:**
+- Forbidden:
   - `core/kernel`
   - `core/foundation`
   - `platform/http`
@@ -56,12 +56,12 @@ Before public stable release, public Composer dependencies MUST use SemVer const
 
 ## Scope (Phase 0 constraints)
 
-- **No `core/kernel` dependency** (compile-time forbidden).
-- **No DI / no container / no autowiring**:
+- No `core/kernel` dependency (compile-time forbidden).
+- No DI / no container / no autowiring:
   - commands are instantiated as `new $fqcn()` (zero-arg constructor).
-- **No runtime filesystem scanning for discovery**:
+- No runtime filesystem scanning for discovery:
   - command discovery is purely config-driven (`cli.commands`).
-- **Monorepo layout assumption is explicit**:
+- Monorepo layout assumption is explicit:
   - the CLI base assumes `framework/` and (if present) `skeleton/` are siblings under a common repo root.
 
 ## Canonical entrypoints
@@ -80,15 +80,15 @@ Notes:
 - The launcher selects composer autoload by ordered fallback:
   1) `framework/vendor/autoload.php`
   2) `vendor/autoload.php`
-- The launcher is top-level exception-safe and prints **only deterministic codes** (no stack traces/messages).
+- The launcher is top-level exception-safe and prints only deterministic codes (no stack traces/messages).
 
 ## Configuration
 
-This package owns the config root **`cli`**.
+This package owns the config root `cli`.
 
 ### Config files (shape rule)
 
-All `config/cli.php` files MUST return the **`cli` subtree** (NO repeated root wrapper):
+All `config/cli.php` files MUST return the `cli` subtree (NO repeated root wrapper):
 
 ✅ allowed:
 
@@ -120,31 +120,26 @@ return [
 
 The runtime builds the final `cli` subtree using this fixed merge order:
 
-1. **Package defaults**
-
-- `framework/packages/platform/cli/config/cli.php`
-
-2. **Devtools preset** (optional; allowlisted, NOT a plugin system)
-
-- only if the preset package is installed (detected via `Composer\InstalledVersions::isInstalled('coretsia/devtools-cli-spikes')`)
-- preset file path is derived from the selected `$autoloadFile`:
-  - `$vendorDir = dirname($autoloadFile)`
-  - preset path: `$vendorDir . '/coretsia/devtools-cli-spikes/config/cli.php'`
-
-3. **Skeleton overrides**
-
-- `skeleton/config/cli.php`
-- if `skeleton/` directory is missing: treated as empty overlay (no error)
-- if `skeleton/config/cli.php` is missing: treated as empty overlay (no error)
+1. Package defaults
+   - `framework/packages/platform/cli/config/cli.php`
+2. Devtools preset (optional; allowlisted, NOT a plugin system)
+   - only if the preset package is installed (detected via `Composer\InstalledVersions::isInstalled('coretsia/devtools-cli-spikes')`)
+   - preset file path is derived from the selected `$autoloadFile`:
+     - `$vendorDir = dirname($autoloadFile)`
+     - preset path: `$vendorDir . '/coretsia/devtools-cli-spikes/config/cli.php'`
+3. Skeleton overrides
+   - `skeleton/config/cli.php`
+   - if `skeleton/` directory is missing: treated as empty overlay (no error)
+   - if `skeleton/config/cli.php` is missing: treated as empty overlay (no error)
 
 ### Merge algorithm (cemented)
 
-- `cli.commands` uses **append-unique** preserving **first occurrence order**:
+- `cli.commands` uses append-unique preserving first occurrence order:
   - apply sources in order: defaults → preset → skeleton
   - remove duplicates deterministically by keeping the first occurrence
 - all other `cli.*` keys:
   - higher-precedence values override lower-precedence values
-  - lists (except `cli.commands`) are **replaced** (no implicit list merge)
+  - lists (except `cli.commands`) are replaced (no implicit list merge)
 
 ## Command model
 
@@ -222,7 +217,7 @@ Before JSON normalization/encoding:
 
 ## Errors
 
-Phase 0 CLI errors are **code-first** and deterministic.
+Phase 0 CLI errors are code-first and deterministic.
 This package owns its CLI error codes (NOT the spikes registry):
 
 - `CORETSIA_CLI_COMMAND_CLASS_MISSING`

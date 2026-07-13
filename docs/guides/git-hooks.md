@@ -14,9 +14,9 @@
 
 # Git hooks
 
-Git hooks are used as a **local convenience guard** to enforce the **managed Composer repositories** policy.
+Git hooks are used as a local convenience guard to enforce the managed Composer repositories policy.
 
-**Scope:** Local convenience guards for the current monorepo development baseline.
+Scope: Local convenience guards for the current monorepo development baseline.
 
 ---
 
@@ -28,11 +28,11 @@ The `repositories` blocks in all three Composer roots:
 - `framework/composer.json`
 - `skeleton/composer.json`
 
-**MUST** be managed only by:
+MUST be managed only by:
 
 - `composer sync:repos`
 
-Manual edits of managed entries **MUST NOT** be part of the workflow.
+Manual edits of managed entries MUST NOT be part of the workflow.
 
 The pre-commit hook enforces this by running:
 
@@ -46,7 +46,7 @@ If drift is detected, the commit is blocked.
 
 ## 2) Enable hooks (single-choice)
 
-Hooks **MUST** be enabled by setting the Git hooks path:
+Hooks MUST be enabled by setting the Git hooks path:
 
 ```bash
 git config core.hooksPath .githooks
@@ -95,7 +95,7 @@ git commit
 
 ## 4) CI remains authoritative
 
-CI repeats the same rule and MUST run the drift check **before** any `composer install`:
+CI repeats the same rule and MUST run the drift check before any `composer install`:
 
 ```bash
 composer sync:check

@@ -20,7 +20,11 @@ namespace Coretsia\Kernel\Runtime\Entrypoint;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDrivers;
+use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
+use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 
 /**
  * Kernel-owned runtime entrypoint compatibility boundary.
@@ -37,20 +41,54 @@ use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
  */
 final readonly class RuntimeEntrypointGuard
 {
-    private RuntimeDriverGuard $runtimeDrivers;
+    private RuntimeDriverGuard $runtimeDriverGuard;
 
     public function __construct()
     {
-        $this->runtimeDrivers = new RuntimeDriverGuard();
+        $this->runtimeDriverGuard = new RuntimeDriverGuard();
     }
 
+    /**
+     * Resolves the canonical active runtime-driver set and validates entrypoint
+     * compatibility against the caller-provided ModulePlan.
+     *
+     * Runtime adapters that need the active driver selection must use this
+     * method and must not resolve the matrix independently.
+     *
+     * @throws RuntimeDriverConflictException
+     * @throws RuntimeDriverInvalidConfigException
+     */
+    public function resolveEntrypointDrivers(
+        ConfigRepositoryInterface $config,
+        ModulePlan $modulePlan,
+        RuntimeDriverContributions $runtimeDriverContributions,
+    ): RuntimeDrivers {
+        return $this->runtimeDriverGuard->resolveForModules(
+            cfg: $config,
+            plan: $modulePlan,
+            contributions: $runtimeDriverContributions,
+        );
+    }
+
+    /**
+     * Asserts that runtime execution may start.
+     *
+     * This is an assertion-only wrapper around resolveEntrypointDrivers().
+     * Callers that need the resolved driver set must call
+     * resolveEntrypointDrivers() directly instead of resolving twice.
+     *
+     * @throws RuntimeDriverConflictException
+     * @throws RuntimeDriverInvalidConfigException
+     */
     public function assertEntrypointAllowed(
         ConfigRepositoryInterface $config,
         ModulePlan $modulePlan,
+        RuntimeDriverContributions $runtimeDriverContributions,
     ): void {
-        $this->runtimeDrivers->assertHttpDriverCompatibleWithModules(
-            cfg: $config,
-            plan: $modulePlan,
+        $this->resolveEntrypointDrivers(
+            config: $config,
+            modulePlan: $modulePlan,
+            runtimeDriverContributions: $runtimeDriverContributions,
         );
     }
 }

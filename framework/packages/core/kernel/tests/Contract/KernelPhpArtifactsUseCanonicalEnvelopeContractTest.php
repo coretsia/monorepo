@@ -194,8 +194,8 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
         return [
             'config' => [
                 'kernel' => [
-                    'artifacts' => [
-                        'cache_dir' => 'var/cache',
+                    'boot' => [
+                        'default_artifacts_cache_dir' => 'var/cache',
                     ],
                 ],
             ],

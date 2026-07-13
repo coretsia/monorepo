@@ -14,24 +14,24 @@
 
 # SSoT Index
 
-This document is the **single navigation entrypoint** for all SSoT (Single Source of Truth) documents.
+This document is the single navigation entrypoint for all SSoT (Single Source of Truth) documents.
 
 ## Invariants (MUST)
 
-- This index **MUST** be the only canonical navigation entrypoint for SSoT docs.
-- SSoT docs **MUST** be registered here **exactly once**.
-- This index **MUST NOT** contain forward references:
-  - links **MUST** point only to existing files.
-- This index **MUST NOT** contain unstable fields:
+- This index MUST be the only canonical navigation entrypoint for SSoT docs.
+- SSoT docs MUST be registered here exactly once.
+- This index MUST NOT contain forward references:
+  - links MUST point only to existing files.
+- This index MUST NOT contain unstable fields:
   - no dates, no “last updated”, no timestamps.
 - Stable document version metadata is allowed:
   - `ssotVersion` is a deterministic positive integer;
   - current pre-stable SSoT documents use `ssotVersion: 1`;
   - `ssotVersion` is not a date, timestamp, or freshness marker.
-- Ordering **MUST** be deterministic:
+- Ordering MUST be deterministic:
   - sections order is fixed;
   - entries inside a section are sorted by `relative-path` using byte-order `strcmp` (locale-independent).
-- Entry format is **single-choice** (one line per file):
+- Entry format is single-choice (one line per file):
   - `- [<title>](<relative-path>) — owner: <package_id|repo> — ssotVersion: <int> — scope: <tokens>`
 
 ## Registries

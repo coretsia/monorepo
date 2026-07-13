@@ -18,12 +18,12 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Unit;
 
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest extends TestCase
 {
@@ -54,10 +54,7 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
 
     public function testConflictDiagnosticsUseOnlyCanonicalDriverIds(): void
     {
-        $exception = self::detectConflict([
-            'kernel.runtime.http_driver' => 'http.roadrunner',
-            'worker.task_type' => 'http',
-        ]);
+        $exception = self::detectConflict();
 
         self::assertSame(
             RuntimeDriverConflictException::ERROR_CODE,
@@ -74,10 +71,7 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
 
     public function testConflictDiagnosticsForbidShortenedAliases(): void
     {
-        $exception = self::detectConflict([
-            'kernel.runtime.http_driver' => 'http.roadrunner',
-            'worker.task_type' => 'http',
-        ]);
+        $exception = self::detectConflict();
 
         foreach (self::SHORTENED_ALIASES as $alias) {
             self::assertNotContains(
@@ -96,10 +90,7 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
 
     public function testConflictDiagnosticsAreSortedByCanonicalIdUsingByteOrderStrcmp(): void
     {
-        $exception = self::detectConflict([
-            'kernel.runtime.http_driver' => 'http.roadrunner',
-            'worker.task_type' => 'http',
-        ]);
+        $exception = self::detectConflict();
 
         self::assertSame(
             [
@@ -122,12 +113,25 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
     }
 
     /**
-     * @param array<string,mixed> $values
+     * @return RuntimeDriverConflictException
      */
-    private static function detectConflict(array $values): RuntimeDriverConflictException
+    private static function detectConflict(): RuntimeDriverConflictException
     {
+        $cfg = new ArrayConfigRepository([
+            'kernel' => [
+                'runtime' => [
+                    'http_driver' => 'http.roadrunner',
+                ],
+            ],
+        ]);
+
+        $contributions = RuntimeDriverContributions::fromDrivers(
+            httpDrivers: [HttpDriver::WORKER],
+            backgroundDrivers: [],
+        );
+
         try {
-            new RuntimeDriverGuard()->detect(self::config($values));
+            new RuntimeDriverGuard()->resolve($cfg, $contributions);
         } catch (RuntimeDriverConflictException $exception) {
             return $exception;
         }
@@ -168,56 +172,5 @@ final class RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest 
             $values,
             'Runtime driver diagnostics must be sorted by canonical id using byte-order strcmp.',
         );
-    }
-
-    /**
-     * @param array<string,mixed> $values
-     */
-    private static function config(array $values): ConfigRepositoryInterface
-    {
-        return new class($values) implements ConfigRepositoryInterface {
-            /**
-             * @param array<string,mixed> $values
-             */
-            public function __construct(
-                private readonly array $values,
-            ) {
-            }
-
-            public function has(string $keyPath): bool
-            {
-                return \array_key_exists($keyPath, $this->values);
-            }
-
-            public function get(string $keyPath, mixed $default = null): mixed
-            {
-                if (!\array_key_exists($keyPath, $this->values)) {
-                    return $default;
-                }
-
-                return $this->values[$keyPath];
-            }
-
-            /**
-             * @return array<string,mixed>
-             */
-            public function all(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-all-forbidden');
-            }
-
-            public function sourceOf(string $keyPath): ?ConfigValueSource
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-source-of-forbidden');
-            }
-
-            /**
-             * @return list<ConfigValueSource>
-             */
-            public function explain(): array
-            {
-                throw new RuntimeException('runtime-driver-guard-test-config-explain-forbidden');
-            }
-        };
     }
 }

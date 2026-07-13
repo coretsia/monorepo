@@ -61,6 +61,7 @@ This document is the canonical human-readable reference for:
 - context key allowlist enforcement;
 - reserved `@*` context key rejection;
 - context-specific exception mapping;
+- mandatory context value resource-budget semantics;
 - context reset discipline.
 
 Baseline json-like runtime value validation and deterministic recursive normalization are owned by:
@@ -261,6 +262,7 @@ Optional writers MAY gracefully degrade only by omitting optional context writes
 - reserved `@*` key namespace rejection;
 - unknown context key rejection;
 - mapping baseline json-like value failures to context write failures;
+- mandatory bounded resource policy for every stored value;
 - deterministic safe context failure messages.
 
 `ContextStorePolicy` MUST allow writes only for keys declared by:
@@ -320,6 +322,25 @@ Context diagnostics MUST NOT include:
 - absolute local paths;
 - environment-specific bytes.
 
+### Semantic sensitivity boundary
+
+`ContextStorePolicy` is a structural safety boundary.
+
+It mechanically enforces:
+
+- canonical context key membership;
+- reserved-key rejection;
+- baseline json-like value shape;
+- deterministic safe failure diagnostics.
+
+It does not perform heuristic secret scanning over arbitrary scalar strings.
+
+Each owner that writes a context key MUST enforce the value semantics defined for that key in `docs/ssot/context-keys.md`.
+
+Writers MUST NOT submit secrets, credentials, authorization values, session identifiers, raw payloads, private customer data, or direct user identifiers to `ContextStore`.
+
+A value accepted for in-process storage is not automatically approved for observability or export.
+
 ## Json-like value validation boundary
 
 Baseline json-like runtime value validation is owned by:
@@ -353,6 +374,9 @@ json-like-object-forbidden            -> context-write-forbidden-object
 json-like-resource-forbidden          -> context-write-forbidden-resource
 json-like-map-key-must-be-string      -> context-write-forbidden-map-key
 json-like-type-forbidden              -> context-write-forbidden-type
+json-like-max-depth-exceeded          -> context-write-forbidden-max-depth
+json-like-max-nodes-exceeded          -> context-write-forbidden-max-nodes
+json-like-string-bytes-exceeded       -> context-write-forbidden-string-bytes
 ```
 
 Context validation failures MUST preserve safe nested path information from the baseline json-like failure.
@@ -366,6 +390,142 @@ Context validation failures MUST NOT leak raw rejected values.
 - transport payload semantics;
 - UoW-specific root map policy;
 - unsafe metadata key denylist policy.
+
+## Context value resource budget
+
+Every value accepted by `ContextStorePolicy` MUST obey the mandatory Foundation-owned context resource budget.
+
+The canonical limits are:
+
+```text
+max container depth = 8
+max nodes per stored value = 256
+max bytes per string value or nested map key = 4096
+```
+
+These limits apply independently to each top-level value stored under a canonical `ContextKeys` key.
+
+### Depth semantics
+
+Depth counts nested list/map containers only.
+
+A root list or map has depth `1`.
+
+Every list or map nested inside another container increments depth by `1`.
+
+Scalar values do not introduce another container level.
+
+Maps and lists MUST use identical depth semantics.
+
+A container at depth `8` is accepted.
+
+A container at depth `9` MUST be rejected with:
+
+```text
+json-like-max-depth-exceeded
+context-write-forbidden-max-depth
+```
+
+The depth guard MUST run before recursive descent into the rejected container.
+
+This also ensures that self-referential PHP arrays fail deterministically instead of recursing until memory exhaustion.
+
+### Node semantics
+
+A node is one map value or one list item visited during normalization.
+
+The root value is not counted as a node.
+
+Map keys are not separate nodes.
+
+A nested container stored as a map value or list item consumes one node.
+
+Every scalar or nested container value inside that container consumes additional nodes.
+
+Empty nested containers consume one node through their parent entry or list position but contain no additional child nodes.
+
+Exactly `256` nodes are accepted.
+
+Any value requiring more than `256` nodes MUST be rejected with:
+
+```text
+json-like-max-nodes-exceeded
+context-write-forbidden-max-nodes
+```
+
+For lists and nested values, the node budget MUST be checked before recursive descent into the first over-budget item or map value.
+
+When a map's direct entry count already exceeds the remaining node budget, the map MUST be rejected at its current container path before key sorting or value descent.
+
+When the direct map entry count fits the remaining budget, map values MUST be visited in byte-order `strcmp` key order so nested node-limit failure paths do not depend on PHP insertion order.
+
+### String-byte semantics
+
+String size is measured with:
+
+```php
+strlen($value)
+```
+
+The limit is a byte limit, not a Unicode character-count limit.
+
+It applies to:
+
+- scalar string values;
+- strings nested in lists or maps;
+- nested map keys.
+
+Exactly `4096` bytes are accepted.
+
+A string or nested map key of `4097` bytes MUST be rejected with:
+
+```text
+json-like-string-bytes-exceeded
+context-write-forbidden-string-bytes
+```
+
+Diagnostics MUST NOT expose the rejected string or raw oversized map key.
+
+Unsafe map keys MUST continue to use `[<key>]`.
+
+### Enforcement ownership
+
+`ContextStorePolicy` MUST supply these limits through:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits
+```
+
+to:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizer
+```
+
+The resource checks MUST run inside the existing recursive normalization traversal.
+
+`ContextStorePolicy` MUST NOT introduce a second recursive walker.
+
+The context resource budget is mandatory and MUST NOT provide:
+
+- an unlimited mode;
+- a disabled mode;
+- a debug bypass;
+- an environment-specific bypass;
+- a config-based bypass.
+
+No `foundation.context.*` resource-limit config keys are introduced.
+
+Direct `ContextBag` construction MUST apply the same policy through the canonical `ContextValues::validatedCopyMap()` boundary.
+
+Kernel UnitOfWork limits such as:
+
+```text
+kernel.uow.attributes.max_depth
+kernel.uow.attributes.max_keys
+```
+
+are independent Kernel-owned shape policy and MUST NOT govern general Foundation context values.
 
 ## Key allowlist
 
@@ -1088,6 +1248,20 @@ Context values MAY be read by logging and tracing owners through:
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
 
+Observability and diagnostic producers MUST read only explicitly approved individual keys through `ContextAccessorInterface`.
+
+They MUST NOT construct an output payload from:
+
+```text
+ContextStore::all()
+ContextStore::snapshot()
+ContextBag::all()
+```
+
+Whole-context export is forbidden even when every stored value is structurally json-like.
+
+Each sink remains responsible for its own explicit field allowlist, redaction rules, and cardinality policy.
+
 Any export to logs, spans, metrics, errors, profiling, health output, public diagnostics, or generated artifacts remains governed by:
 
 ```text
@@ -1229,6 +1403,8 @@ Deterministic requirements:
 - stable snapshot immutability;
 - stable context value copy behavior through one shared copy boundary;
 - object-free snapshot construction;
+- stable fixed context resource limits;
+- stable resource-limit failure precedence;
 - stable absence/null distinction through `has()`.
 
 Runtime behavior MUST NOT depend on:
@@ -1248,6 +1424,8 @@ Expected verification includes:
 
 ```text
 framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
+framework/packages/core/foundation/tests/Unit/ContextBagRejectsValuesExceedingResourceLimitsTest.php
+framework/packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
 framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
@@ -1264,6 +1442,11 @@ framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatVal
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxDepthTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxNodesTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsOversizedStringValuesTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php
 ```
@@ -1288,6 +1471,20 @@ These tests are expected to verify:
 - objects are rejected;
 - resources are rejected;
 - non-string map keys are rejected;
+- root list/map container depth starts at `1`;
+- map and list nesting use the same depth semantics;
+- container depth `8` is accepted;
+- container depth `9` is rejected deterministically;
+- map values and list items consume the same node budget;
+- nested scalar values consume node budget;
+- node count `256` is accepted;
+- node count `257` is rejected deterministically;
+- string values and nested map keys use byte-length limits;
+- string byte length `4096` is accepted;
+- string byte length `4097` is rejected deterministically;
+- resource limits are checked before recursive descent;
+- self-referential arrays are rejected by the depth budget;
+- direct `ContextBag` construction cannot bypass resource limits;
 - error messages do not expose raw values;
 - context invalid-key diagnostics expose only stable reason tokens and safe key segments;
 - unsafe rejected context keys are represented by `<key>`;

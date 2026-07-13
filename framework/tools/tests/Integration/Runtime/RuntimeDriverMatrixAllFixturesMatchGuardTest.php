@@ -42,7 +42,6 @@ final class RuntimeDriverMatrixAllFixturesMatchGuardTest extends RuntimeDriverMa
                 'WorkerHttpApp',
                 'WorkerHttpWithoutPlatformHttpModuleApp',
                 'WorkerQueueApp',
-                'WorkerTaskTypeInvalidApp',
             ],
             $fixtureNames,
             'Runtime driver matrix fixture corpus must be explicit and deterministic.',

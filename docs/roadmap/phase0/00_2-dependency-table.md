@@ -14,19 +14,19 @@
 
 # Phase 0 — compile-time dependency table (SSoT)
 
-> **Canonical / single-choice.**  
-> This document is the **single source of truth** for **Phase 0 compile-time** dependencies between Coretsia monorepo packages.
+> Canonical / single-choice. \
+> This document is the single source of truth for Phase 0 compile-time dependencies between Coretsia monorepo packages.
 >
-> **Other docs MAY explain the model**, but they **MUST NOT** claim dependency truth.
+> Other docs MAY explain the model, but they MUST NOT claim dependency truth. \
 > Conceptual guide (non-authoritative): `docs/guides/dependency-graph.md`
 
 ---
 
 ## 0) Scope
 
-- **Scope:** Phase 0 only.
-- **What is defined here:** **compile-time** edges between **framework packages** (`framework/packages/<layer>/<slug>/`).
-- **What is NOT defined here:**
+- Scope: Phase 0 only.
+- What is defined here: compile-time edges between framework packages (`framework/packages/<layer>/<slug>/`).
+- What is NOT defined here:
   - external vendor dependencies (Symfony, PSR packages, etc.),
   - PHP extensions,
   - runtime wiring / module discovery mechanisms (see §3),
@@ -36,9 +36,9 @@
 
 ## 1) Terminology (normative)
 
-- **package_id** — `<layer>/<slug>` (see `docs/architecture/PACKAGING.md`).
-- **compile-time dependency** — `A → B` means package `A` **requires** package `B` as a Composer requirement to build/test/run `A`.
-- **direct edge only** — the table lists **direct** edges; transitive closure is not repeated unless the direct dependency is real/needed.
+- package_id — `<layer>/<slug>` (see `docs/architecture/PACKAGING.md`).
+- compile-time dependency — `A → B` means package `A` requires package `B` as a Composer requirement to build/test/run `A`.
+- direct edge only — the table lists direct edges; transitive closure is not repeated unless the direct dependency is real/needed.
 
 ---
 
@@ -46,7 +46,7 @@
 
 ### 2.1. Single-choice representation
 
-The dependency table **MUST** be represented as a Markdown table with **exactly** these columns:
+The dependency table MUST be represented as a Markdown table with exactly these columns:
 
 - `package_id` | `depends_on` | `notes`
 
@@ -63,8 +63,8 @@ The dependency table **MUST** be represented as a Markdown table with **exactly*
 
 ### 2.3. Ordering rules (MUST)
 
-- Rows **MUST** be sorted by `package_id` ascending using byte-order `strcmp` (locale-independent).
-- `depends_on` entries **MUST** be:
+- Rows MUST be sorted by `package_id` ascending using byte-order `strcmp` (locale-independent).
+- `depends_on` entries MUST be:
   - unique (no duplicates),
   - sorted ascending using byte-order `strcmp`,
   - separated by `, ` (comma + single space).
@@ -75,14 +75,14 @@ The dependency table **MUST** be represented as a Markdown table with **exactly*
 
 These invariants are part of Phase 0 dependency law:
 
-1. **Runtime module discovery = Composer metadata only**
+1. Runtime module discovery = Composer metadata only
   - Runtime MUST rely on installed packages’ Composer metadata (e.g., `composer.json` `extra.*`), not filesystem scanning.
 
-2. **No runtime filesystem scanning**
+2. No runtime filesystem scanning
   - Runtime MUST NOT scan directories (no “discover by walking `framework/packages/**`”, no “scan `vendor/**` for classes”, etc.).
 
-3. **Tooling package index is tooling-only**
-  - Any tooling-generated index (e.g., package-index) MUST be treated as **tooling input/output only** and MUST NOT become a runtime input.
+3. Tooling package index is tooling-only
+  - Any tooling-generated index (e.g., package-index) MUST be treated as tooling input/output only and MUST NOT become a runtime input.
 
 ---
 
@@ -109,6 +109,6 @@ These invariants are part of Phase 0 dependency law:
 
 ## 5) Consistency requirements (MUST)
 
-- The table **MUST NOT** declare cycles.
-- Every referenced `depends_on` entry **MUST** appear as a `package_id` row in this table (Phase 0 closed world).
-- Any change to compile-time edges in Phase 0 **MUST** be expressed by editing this table (no “silent edges”).
+- The table MUST NOT declare cycles.
+- Every referenced `depends_on` entry MUST appear as a `package_id` row in this table (Phase 0 closed world).
+- Any change to compile-time edges in Phase 0 MUST be expressed by editing this table (no “silent edges”).

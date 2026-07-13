@@ -30,6 +30,15 @@ use Coretsia\Kernel\Runtime\UnitOfWorkResult;
  * This class converts Kernel-owned UnitOfWork export objects into normalized
  * json-like hook payload arrays.
  *
+ * It accepts only Kernel-owned UnitOfWorkContext and UnitOfWorkResult
+ * instances. Raw arrays are not accepted because they could bypass the
+ * UoW-specific root, unsafe-key, limit, and exception-mapping policy enforced
+ * by JsonLikeShapeNormalizer.
+ *
+ * JsonLikeShapeNormalizer validates and normalizes UoW-owned nested fields.
+ * This class performs only the final whole-export baseline normalization
+ * before the payload crosses the hook boundary.
+ *
  * It intentionally delegates baseline json-like validation and deterministic
  * map sorting to Foundation JsonLikeNormalizer. Kernel must not define a
  * second json-like policy.
@@ -54,33 +63,35 @@ final class HookContextNormalizer
     /**
      * Normalizes a UnitOfWork context export for before-uow hooks.
      *
-     * @param array<string, mixed>|UnitOfWorkContext $context
+     * Raw arrays are intentionally not accepted so callers cannot bypass the
+     * UoW-specific validation owned by UnitOfWorkContext and
+     * JsonLikeShapeNormalizer.
      *
      * @return array<string, mixed>
      */
-    public static function normalizeContext(UnitOfWorkContext|array $context): array
+    public static function normalizeContext(UnitOfWorkContext $context): array
     {
-        $payload = $context instanceof UnitOfWorkContext
-            ? $context->toArray()
-            : $context;
-
-        return self::normalizeMapPayload($payload, 'context');
+        return self::normalizeMapPayload(
+            $context->toArray(),
+            'context',
+        );
     }
 
     /**
      * Normalizes a UnitOfWork result export for after-uow hooks.
      *
-     * @param array<string, mixed>|UnitOfWorkResult $result
+     * Raw arrays are intentionally not accepted so callers cannot bypass the
+     * UoW-specific validation owned by UnitOfWorkResult and
+     * JsonLikeShapeNormalizer.
      *
      * @return array<string, mixed>
      */
-    public static function normalizeResult(UnitOfWorkResult|array $result): array
+    public static function normalizeResult(UnitOfWorkResult $result): array
     {
-        $payload = $result instanceof UnitOfWorkResult
-            ? $result->toArray()
-            : $result;
-
-        return self::normalizeMapPayload($payload, 'result');
+        return self::normalizeMapPayload(
+            $result->toArray(),
+            'result',
+        );
     }
 
     /**

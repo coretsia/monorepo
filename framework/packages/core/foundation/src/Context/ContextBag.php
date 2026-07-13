@@ -26,6 +26,9 @@ use Coretsia\Contracts\Context\ContextAccessorInterface;
  * A ContextBag represents a point-in-time copy of ContextStore data. It does
  * not observe later ContextStore mutations and does not expose mutable internal
  * arrays through read APIs.
+ *
+ * Direct construction applies the same ContextStorePolicy validation and
+ * mandatory resource budget as mutable ContextStore writes.
  */
 final class ContextBag implements ContextAccessorInterface
 {

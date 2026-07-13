@@ -116,6 +116,7 @@ final class ModulePlanResolverDoesNotEmitPathLabelsTest extends TestCase
                 appEnv: 'local',
                 preset: 'micro',
                 debug: false,
+                artifactsCacheDir: 'var/cache',
                 envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
                 appTarget: AppTarget::from('api'),
                 skeletonRoot: $skeletonRoot,

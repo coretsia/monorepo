@@ -28,6 +28,7 @@ final class KernelRuntimeDriverAndEntrypointPublicApiContractTest extends TestCa
     private const array RUNTIME_DRIVER_AND_ENTRYPOINT_PUBLIC_SYMBOLS = [
         'Coretsia\\Kernel\\Runtime\\Driver\\BackgroundDriver',
         'Coretsia\\Kernel\\Runtime\\Driver\\HttpDriver',
+        'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDriverContributions',
         'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDrivers',
         'Coretsia\\Kernel\\Runtime\\Entrypoint\\RuntimeEntrypointGuard',
         'Coretsia\\Kernel\\Runtime\\Exception\\RuntimeDriverConflictException',
@@ -48,6 +49,61 @@ final class KernelRuntimeDriverAndEntrypointPublicApiContractTest extends TestCa
                 ),
             );
         }
+    }
+
+    public function testRuntimeEntrypointGuardExposesExplicitResolveAndAssertContracts(): void
+    {
+        $resolve = new \ReflectionMethod(
+            'Coretsia\\Kernel\\Runtime\\Entrypoint\\RuntimeEntrypointGuard',
+            'resolveEntrypointDrivers',
+        );
+
+        self::assertTrue($resolve->isPublic());
+        self::assertSame(
+            'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDrivers',
+            (string)$resolve->getReturnType(),
+        );
+        self::assertSame(
+            [
+                'config',
+                'modulePlan',
+                'runtimeDriverContributions',
+            ],
+            \array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                $resolve->getParameters(),
+            ),
+        );
+        self::assertSame(
+            [
+                'Coretsia\\Contracts\\Config\\ConfigRepositoryInterface',
+                'Coretsia\\Kernel\\Module\\ModulePlan',
+                'Coretsia\\Kernel\\Runtime\\Driver\\RuntimeDriverContributions',
+            ],
+            \array_map(
+                static fn (\ReflectionParameter $parameter): string => (string)$parameter->getType(),
+                $resolve->getParameters(),
+            ),
+        );
+
+        $assert = new \ReflectionMethod(
+            'Coretsia\\Kernel\\Runtime\\Entrypoint\\RuntimeEntrypointGuard',
+            'assertEntrypointAllowed',
+        );
+
+        self::assertTrue($assert->isPublic());
+        self::assertSame('void', (string)$assert->getReturnType());
+        self::assertSame(
+            [
+                'config',
+                'modulePlan',
+                'runtimeDriverContributions',
+            ],
+            \array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                $assert->getParameters(),
+            ),
+        );
     }
 
     /**

@@ -273,7 +273,6 @@ final readonly class CacheVerifier
 
             $expectedArtifacts = $this->expectedArtifacts(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 modulePlan: $modulePlan,
                 compiledConfig: $compiledConfig,
                 fingerprint: $currentFingerprint,
@@ -308,7 +307,6 @@ final readonly class CacheVerifier
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
      * @param array<string,mixed> $compiledConfig
      *
      * @return list<array{
@@ -326,7 +324,6 @@ final readonly class CacheVerifier
      */
     private function expectedArtifacts(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         ModulePlan $modulePlan,
         array $compiledConfig,
         string $fingerprint,
@@ -335,19 +332,16 @@ final readonly class CacheVerifier
         return [
             $this->expectedModuleManifest(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 modulePlan: $modulePlan,
                 fingerprint: $fingerprint,
             ),
             $this->expectedConfig(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 compiledConfig: $compiledConfig,
                 fingerprint: $fingerprint,
             ),
             $this->expectedContainer(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 fingerprint: $fingerprint,
                 containerGraph: $containerGraph,
             ),
@@ -355,8 +349,6 @@ final readonly class CacheVerifier
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
-     *
      * @return array{
      *     name: non-empty-string,
      *     basename: non-empty-string,
@@ -372,7 +364,6 @@ final readonly class CacheVerifier
      */
     private function expectedModuleManifest(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         ModulePlan $modulePlan,
         string $fingerprint,
     ): array {
@@ -385,10 +376,9 @@ final readonly class CacheVerifier
             name: self::ARTIFACT_MODULE_MANIFEST,
             basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
             schemaVersion: self::SCHEMA_VERSION_MODULE_MANIFEST,
-            targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig, $kernelConfig),
+            targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig),
             relativePath: $this->pathResolver->relativePath(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
             ),
             envelope: $envelope,
@@ -396,7 +386,6 @@ final readonly class CacheVerifier
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
      * @param array<string,mixed> $compiledConfig
      *
      * @return array{
@@ -414,7 +403,6 @@ final readonly class CacheVerifier
      */
     private function expectedConfig(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         array $compiledConfig,
         string $fingerprint,
     ): array {
@@ -427,10 +415,9 @@ final readonly class CacheVerifier
             name: self::ARTIFACT_CONFIG,
             basename: ArtifactPathResolver::CONFIG_BASENAME,
             schemaVersion: self::SCHEMA_VERSION_CONFIG,
-            targetPath: $this->pathResolver->configPath($bootstrapConfig, $kernelConfig),
+            targetPath: $this->pathResolver->configPath($bootstrapConfig),
             relativePath: $this->pathResolver->relativePath(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 basename: ArtifactPathResolver::CONFIG_BASENAME,
             ),
             envelope: $envelope,
@@ -438,8 +425,6 @@ final readonly class CacheVerifier
     }
 
     /**
-     * @param array<string,mixed> $kernelConfig
-     *
      * @return array{
      *     name: non-empty-string,
      *     basename: non-empty-string,
@@ -455,7 +440,6 @@ final readonly class CacheVerifier
      */
     private function expectedContainer(
         BootstrapConfig $bootstrapConfig,
-        array $kernelConfig,
         string $fingerprint,
         DefinitionGraph $containerGraph,
     ): array {
@@ -468,10 +452,9 @@ final readonly class CacheVerifier
             name: self::ARTIFACT_CONTAINER,
             basename: ArtifactPathResolver::CONTAINER_BASENAME,
             schemaVersion: self::SCHEMA_VERSION_CONTAINER,
-            targetPath: $this->pathResolver->containerPath($bootstrapConfig, $kernelConfig),
+            targetPath: $this->pathResolver->containerPath($bootstrapConfig),
             relativePath: $this->pathResolver->relativePath(
                 bootstrapConfig: $bootstrapConfig,
-                kernelConfig: $kernelConfig,
                 basename: ArtifactPathResolver::CONTAINER_BASENAME,
             ),
             envelope: $envelope,

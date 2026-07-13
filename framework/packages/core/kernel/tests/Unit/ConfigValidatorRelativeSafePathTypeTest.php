@@ -94,6 +94,45 @@ final class ConfigValidatorRelativeSafePathTypeTest extends TestCase
         self::assertStringNotContainsString('\u0000', $diagnostics);
     }
 
+    public function testAcceptsConfigurableDefaultArtifactsCacheDir(): void
+    {
+        $config = self::kernelGlobalConfig();
+
+        $config['kernel']['boot']['default_artifacts_cache_dir'] = 'var/artifacts_cache';
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [self::kernelRuleset()],
+        );
+
+        self::assertTrue($result->isSuccess());
+        self::assertSame([], $result->violations());
+    }
+
+    public function testRejectsUnsafeDefaultArtifactsCacheDir(): void
+    {
+        $config = self::kernelGlobalConfig();
+
+        $config['kernel']['boot']['default_artifacts_cache_dir'] = '../artifacts';
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [self::kernelRuleset()],
+        );
+
+        self::assertTrue($result->isFailure());
+        self::assertCount(1, $result->violations());
+
+        $violation = $result->violations()[0];
+
+        self::assertSame('kernel', $violation->root());
+        self::assertSame(
+            'boot.default_artifacts_cache_dir',
+            $violation->path(),
+        );
+        self::assertSame('relative-safe-path', $violation->reason());
+    }
+
     /**
      * @return iterable<string, array{0:string}>
      */

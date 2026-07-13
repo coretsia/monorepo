@@ -20,22 +20,22 @@ status: pre-stable
 owner: repo
 ```
 
-This document is the **single source of truth** for DTO policy in Coretsia Framework.
+This document is the single source of truth for DTO policy in Coretsia Framework.
 
 DTO policy is intentionally narrow. It applies only to classes that explicitly opt in through the canonical DTO marker attribute.
 
 ## Invariants (MUST)
 
-- DTO detection **MUST** be explicit opt-in only.
+- DTO detection MUST be explicit opt-in only.
 - A class is treated as a DTO only when it is marked with:
 
 ```php
 #[Coretsia\Dto\Attribute\Dto]
 ```
 
-- Unmarked classes **MUST NOT** be analyzed by DTO gates.
+- Unmarked classes MUST NOT be analyzed by DTO gates.
 - Absence of the DTO marker means the class is outside DTO policy scope.
-- DTO gates **MUST NOT** infer DTO status from:
+- DTO gates MUST NOT infer DTO status from:
   - class name;
   - namespace;
   - directory;
@@ -43,9 +43,9 @@ DTO policy is intentionally narrow. It applies only to classes that explicitly o
   - constructor shape;
   - property shape;
   - package ownership.
-- Phase 1 DTO detection **MUST** be attribute-only.
+- Phase 1 DTO detection MUST be attribute-only.
 - The canonical DTO marker is `Coretsia\Dto\Attribute\Dto`.
-- DTO policy **MUST NOT** impose DTO rules on unmarked:
+- DTO policy MUST NOT impose DTO rules on unmarked:
   - value objects;
   - descriptors;
   - result models;
@@ -59,12 +59,12 @@ DTO policy is intentionally narrow. It applies only to classes that explicitly o
 
 ## Canonical vocabulary
 
-- **DTO** — explicit transport class, opt-in via marker, enforced by DTO gates.
-- **VO** — value object with behavior, invariants, validation, normalization, or domain semantics; outside DTO gate scope unless explicitly marked.
-- **Descriptor** — structured model used for cross-package or runtime boundaries; not automatically a DTO.
-- **Result** — structured operation result; not automatically a DTO.
-- **Shape** — structured payload or schema-like model; not automatically a DTO.
-- **Context model** — runtime/context carrier model; not automatically a DTO.
+- DTO — explicit transport class, opt-in via marker, enforced by DTO gates.
+- VO — value object with behavior, invariants, validation, normalization, or domain semantics; outside DTO gate scope unless explicitly marked.
+- Descriptor — structured model used for cross-package or runtime boundaries; not automatically a DTO.
+- Result — structured operation result; not automatically a DTO.
+- Shape — structured payload or schema-like model; not automatically a DTO.
+- Context model — runtime/context carrier model; not automatically a DTO.
 
 ## Scope rule
 
@@ -76,33 +76,33 @@ DTO policy applies only to classes explicitly marked with:
 
 Unmarked classes are outside DTO gate scope.
 
-Contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services **MUST NOT** be treated as DTOs unless explicitly marked.
+Contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked.
 
 ## Canonical DTO rules
 
 A compliant DTO in Coretsia Phase 1:
 
-- **MUST** be explicitly marked with `#[Coretsia\Dto\Attribute\Dto]`;
-- **MUST** be declared as `final class`;
-- **MUST** contain only instance properties;
-- **MUST** declare an explicit type for every property;
-- **MUST** expose every property as `public`;
-- **MUST NOT** declare static properties;
-- **MUST NOT** extend another class;
-- **MUST NOT** be extended;
-- **MUST NOT** use traits;
-- **MUST NOT** implement interfaces;
-- **MUST NOT** contain methods except optional `__construct(...)`;
-- **MUST NOT** contain business logic;
-- **MUST NOT** perform I/O;
-- **MUST NOT** depend on services;
-- **MUST NOT** define an inheritance-based extension model.
+- MUST be explicitly marked with `#[Coretsia\Dto\Attribute\Dto]`;
+- MUST be declared as `final class`;
+- MUST contain only instance properties;
+- MUST declare an explicit type for every property;
+- MUST expose every property as `public`;
+- MUST NOT declare static properties;
+- MUST NOT extend another class;
+- MUST NOT be extended;
+- MUST NOT use traits;
+- MUST NOT implement interfaces;
+- MUST NOT contain methods except optional `__construct(...)`;
+- MUST NOT contain business logic;
+- MUST NOT perform I/O;
+- MUST NOT depend on services;
+- MUST NOT define an inheritance-based extension model.
 
 ## Constructor rule
 
 A DTO may declare `__construct(...)`.
 
-The constructor **MUST** be limited to DTO initialization. It **MUST NOT** introduce:
+The constructor MUST be limited to DTO initialization. It MUST NOT introduce:
 
 - validation policy;
 - normalization policy;
@@ -150,10 +150,10 @@ Coretsia\Dto\Attribute\Dto
 
 The marker attribute:
 
-- **MUST** target classes only;
-- **MUST** have no parameters in Phase 1;
-- **MUST** have no runtime behavior;
-- **MUST** be used only to opt a class into DTO policy.
+- MUST target classes only;
+- MUST have no parameters in Phase 1;
+- MUST have no runtime behavior;
+- MUST be used only to opt a class into DTO policy.
 
 ## Compliant example
 
@@ -252,7 +252,7 @@ final class ExampleDto
 
 ## Gate policy
 
-DTO gates **MUST** follow the canonical tooling gate output policy:
+DTO gates MUST follow the canonical tooling gate output policy:
 
 - line 1: deterministic machine-readable `CORETSIA_*` error code string only;
 - line 2+: stable diagnostics using normalized repo-relative paths and fixed reason tokens;
@@ -263,7 +263,7 @@ DTO gates **MUST** follow the canonical tooling gate output policy:
 - no property values;
 - no class body dumps.
 
-DTO aggregate execution **MUST** preserve specialized gate output unchanged.
+DTO aggregate execution MUST preserve specialized gate output unchanged.
 
 ## Out of scope
 

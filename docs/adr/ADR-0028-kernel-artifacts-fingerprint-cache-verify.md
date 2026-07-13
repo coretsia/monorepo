@@ -22,6 +22,10 @@ owner: core/kernel
 
 Amended by the compiled-container work in epic `1.340.0`.
 
+Amended by the Bootstrap Phase A artifact cache directory refactor.
+
+Artifact location is now resolved before ConfigKernel Phase B and is consumed through `BootstrapConfig::artifactsCacheDir()`.
+
 The original `container@1` transitional stub decision is no longer current: Kernel-produced `container@1` artifacts now use the REAL compiled-container payload shape emitted through `ContainerCompiler` and `CompiledContainerBuilder`.
 
 ## Context
@@ -92,21 +96,78 @@ config.php
 container.php
 ```
 
-The artifacts are materialized under the application target cache directory:
+The artifacts are materialized under the resolved Bootstrap Phase A artifact cache directory:
 
 ```text
-<skeletonRoot>/var/cache/<appTarget>/
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>/
 ```
 
 The corresponding skeleton-relative shape is:
 
 ```text
-var/cache/<appTarget>/<artifact-basename>
+<artifactsCacheDir>/<appTarget>/<artifact-basename>
 ```
 
-The Kernel artifact path policy is owned by `ArtifactPathResolver`.
+The package fallback is:
 
-The path resolver accepts only Kernel-owned artifact basenames and must reject non-Kernel artifact basenames such as `routes.php`.
+```text
+kernel.boot.default_artifacts_cache_dir = var/cache
+```
+
+Therefore, the default path shape is:
+
+```text
+<skeletonRoot>/var/cache/<appTarget>/
+```
+
+A valid application override may produce another deterministic `skeletonRoot`-relative path, for example:
+
+```text
+<skeletonRoot>/var/artifacts_cache/<appTarget>/
+```
+
+Artifact cache directory resolution precedence is:
+
+1. `BootstrapInput::artifactsCacheDir()`;
+2. `skeleton/config/app.php` `artifactsCacheDir`;
+3. `kernel.boot.default_artifacts_cache_dir`.
+
+The canonical resolved value is:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+`ArtifactCompiler`, `CacheVerifier`, and `ArtifactPathResolver` must consume the same resolved `BootstrapConfig`.
+
+They must not resolve artifact location from:
+
+```text
+ConfigKernel Phase B merged config
+compiled config@1
+kernel.artifacts.cache_dir
+```
+
+`kernel.artifacts.cache_dir` is not a supported config key.
+
+The Kernel artifact path policy is owned jointly by:
+
+```text
+BootstrapArtifactsCacheDir
+ArtifactPathResolver
+```
+
+`BootstrapArtifactsCacheDir` validates the Phase A cache directory domain.
+
+`ArtifactPathResolver`:
+
+- consumes the already resolved `BootstrapConfig::artifactsCacheDir()`;
+- accepts only Kernel-owned artifact basenames;
+- rejects non-Kernel artifact basenames such as `routes.php`;
+- enforces the final normalized relative-path bound;
+- verifies that the final artifact path remains under the resolved cache directory;
+- does not read Kernel config;
+- does not resolve defaults or application overrides.
 
 ## Decision 3: Keep artifact production and cache verification separate
 
@@ -238,6 +299,14 @@ Fingerprint input must not contain:
 
 Raw value influence may be represented only through safe deterministic metadata such as hashes, lengths, safe source ids, safe relative paths, safe roots, safe key paths, and safe counts.
 
+`BootstrapConfig::artifactsCacheDir()` is an output materialization location, not semantic artifact identity.
+
+It must not be included in the serialized Bootstrap fingerprint identity or in configured fingerprint policy solely because it is the selected output directory.
+
+Changing only the resolved `BootstrapConfig::artifactsCacheDir()` value, while all separately fingerprinted config and source inputs remain unchanged, must not change the artifact fingerprint or generated artifact bytes.
+
+Changing `kernel.boot.default_artifacts_cache_dir` in package config is not such a location-only change. It also changes fingerprinted config and source provenance and may therefore change the fingerprint through the normal compiled-config fingerprint path.
+
 ## Decision 7: Keep dotenv coverage derived, not duplicated
 
 The fingerprint policy must not introduce:
@@ -270,16 +339,44 @@ The fingerprint exclusion policy is configured through:
 kernel.fingerprint.skeleton_ignore_prefixes
 ```
 
-The baseline exclusions are:
+The configured baseline exclusion is:
 
 ```text
-var/cache
 var/maintenance
 ```
 
-These exclusions are skeleton-root-relative.
+The resolved artifact cache directory is not duplicated in `kernel.fingerprint.skeleton_ignore_prefixes`.
 
-They prevent generated and operational skeleton-local paths from affecting Kernel artifact fingerprints.
+Instead, `ConfigFingerprintInputBuilder` must add:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+as a mandatory effective traversal exclusion.
+
+The effective traversal exclusions are:
+
+```text
+configured kernel.fingerprint.skeleton_ignore_prefixes
++ resolved BootstrapConfig::artifactsCacheDir()
+```
+
+The effective list must be normalized, deterministically sorted, and deduplicated before source traversal.
+
+The configured exclusion policy remains part of fingerprint input.
+
+The mandatory resolved artifact cache directory does not become fingerprint identity. Its purpose is only to prevent generated artifact output from being read as fingerprint source input.
+
+Therefore:
+
+```text
+artifact output appears under resolved artifact cache directory
+→ fingerprint unchanged
+
+only artifactsCacheDir changes
+→ fingerprint unchanged
+```
 
 Ignored skeleton-relative subtrees are skipped before recursive traversal and before symlink inspection.
 
@@ -290,7 +387,9 @@ Therefore ignored generated/operational subtrees:
 - are not traversed;
 - cannot make fingerprint construction fail merely because ignored contents contain symlinks.
 
-`DeterministicFileLister` remains policy-free. It may receive a caller-supplied skip callback, but it does not know about Kernel config, skeleton roots, or `var/cache`.
+`DeterministicFileLister` remains policy-free.
+
+It may receive a caller-supplied skip callback, but it does not know about Kernel config, skeleton roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
 
 ## Decision 9: Calculate fingerprint from stable normalized bytes
 
@@ -580,6 +679,14 @@ Later CLI or build tooling may call these services explicitly, but the services 
 
 Kernel artifacts now have a deterministic production boundary.
 
+Artifact output location is configurable during Bootstrap Phase A without introducing a dependency on ConfigKernel Phase B.
+
+Compiler and verifier consume the same resolved artifact directory.
+
+Relocating artifacts by changing only the resolved Bootstrap Phase A output location does not change artifact fingerprints or deterministic artifact bytes when all separately fingerprinted config and source inputs remain unchanged.
+
+Changing the package fallback itself remains a fingerprinted config-source change.
+
 Fingerprint calculation is explicit, safe, and independent from generated artifact files.
 
 Cache verification can report `clean`, `dirty`, and `invalid` without mutating the cache.
@@ -600,6 +707,10 @@ Generated artifacts remain compatible with the global artifact envelope and dete
 
 Cache verification rebuilds expected artifacts in memory instead of reusing generated files.
 
+Artifact cache relocation supports only portable, bounded, `skeletonRoot`-relative output directories.
+
+Absolute paths and output locations inside source, config, public, dependency, or repository-owned roots are rejected.
+
 Verification depends on the same deterministic builders used by production.
 
 A malformed existing artifact is invalid rather than silently ignored.
@@ -619,6 +730,10 @@ This ADR does not define:
 - artifact registry rows;
 - `routes@1` production;
 - platform routing artifact behavior;
+- absolute or external artifact cache roots;
+- artifact output outside `BootstrapConfig::skeletonRoot()`;
+- artifact location resolution from ConfigKernel Phase B;
+- artifact location resolution from compiled `config@1`;
 - provider/runtime discovery as an implicit source for compiled-container payloads;
 - automatic runtime fallback when `container.php` is missing or invalid;
 - CLI command UX;
@@ -651,6 +766,9 @@ This ADR does not define:
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php`
+- `framework/packages/core/kernel/src/Boot/BootstrapArtifactsCacheDir.php`
+- `framework/packages/core/kernel/src/Boot/BootstrapConfig.php`
+- `framework/packages/core/kernel/src/Boot/BootstrapConfigResolver.php`
 - `framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php`
 - `framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php`
 - `framework/packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`

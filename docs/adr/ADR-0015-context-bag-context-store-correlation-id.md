@@ -274,6 +274,12 @@ Snapshot immutability is achieved by accepting only object-free json-like contex
 
 `Coretsia\Foundation\Context\ContextStorePolicy` validates all writes.
 
+This is a Foundation runtime implementation responsibility.
+
+`core/contracts` owns the stable context key vocabulary and read-only accessor port only. It does not own mutable storage, mutation APIs, or context write-validation implementation.
+
+Delegation from `ContextStorePolicy` to the Foundation-owned `JsonLikeNormalizer` is an intra-package implementation dependency, not a cross-package contract leak.
+
 The policy is baseline safety infrastructure, not a debug, performance, emergency, or environment toggle.
 
 A validation failure rejects the attempted write and MUST NOT degrade into unsafe context storage.
@@ -286,7 +292,50 @@ It MUST validate:
 - reserved `@*` namespace rejection;
 - JSON-safe deterministic values;
 - nested arrays;
+- bounded recursive container depth;
+- bounded total map-value and list-item count;
+- bounded individual string byte length;
 - deterministic safe failure messages.
+
+`ContextStorePolicy` MUST enforce bounded structural resource usage for every stored value.
+
+The canonical Foundation context limits are:
+
+```text
+max container depth = 8
+max map values/list items per stored value = 256
+max bytes per string value or nested map key = 4096
+```
+
+The root list or map has container depth `1`.
+
+Every nested list or map increases container depth by `1`.
+
+The node budget counts every map value and every list item. The root value is not counted as a node. A nested container stored as a map value or list item counts as one node, and its nested values consume additional nodes.
+
+String byte length is measured through PHP `strlen()`, not character count.
+
+The string-byte limit applies to string values and nested string map keys.
+
+Limits MUST be checked during the existing json-like recursive traversal and before recursive descent into an over-budget item.
+
+These limits are Foundation-owned context policy.
+
+Kernel UnitOfWork attribute limits do not govern `ContextStore` values.
+
+The context resource budget MUST NOT provide an unlimited, disabled, debug, or environment-specific mode.
+
+Direct `ContextBag` construction MUST apply the same resource budget.
+
+`ContextStorePolicy` owns structural write validation only.
+
+It cannot reliably infer whether an otherwise valid scalar string contains a password, token, credential, private customer value, or other semantically sensitive data.
+
+Semantic value safety belongs to the owner writing a canonical context key.
+
+A writer MUST validate, normalize, omit, hash, or otherwise derive an owner-approved safe representation before calling `ContextStore::set()`.
+
+Acceptance by `ContextStorePolicy` does not make a value safe for export.
 
 The policy MUST NOT be feature-disabled through config or environment-derived runtime flags.
 
@@ -738,6 +787,8 @@ Expected verification includes:
 
 ```text
 framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
+framework/packages/core/foundation/tests/Unit/ContextBagRejectsValuesExceedingResourceLimitsTest.php
+framework/packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
 framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
@@ -751,6 +802,11 @@ framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatVal
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxDepthTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxNodesTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsOversizedStringValuesTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
+framework/packages/core/foundation/tests/Integration/ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php
 framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php
 framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php
@@ -777,6 +833,20 @@ Verification MUST prove:
 - objects are rejected;
 - resources are rejected;
 - non-string map keys are rejected;
+- root list/map container depth starts at `1`;
+- map and list nesting use the same depth semantics;
+- container depth `8` is accepted;
+- container depth `9` is rejected deterministically;
+- map values and list items consume the same node budget;
+- nested scalar values consume node budget;
+- node count `256` is accepted;
+- node count `257` is rejected deterministically;
+- string values and nested map keys use byte-length limits;
+- string byte length `4096` is accepted;
+- string byte length `4097` is rejected deterministically;
+- resource limits are checked before recursive descent;
+- self-referential arrays are rejected by the depth budget;
+- direct `ContextBag` construction cannot bypass resource limits;
 - callable strings remain accepted as strings;
 - error messages do not expose raw values;
 - `ContextStore` is tagged with `kernel.stateful` through `ReservedTags::KERNEL_STATEFUL`;

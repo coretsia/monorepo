@@ -203,6 +203,14 @@ The canonical internal `UnitOfWorkContext` fields are:
 
 It MUST NOT appear in the exported context shape, hook payloads, `UnitOfWorkHandle::context()`, result payloads, logs, metrics, traces, diagnostics, generated artifacts, or persistence payloads.
 
+The internal object field set and the exported context key set are distinct contracts.
+
+`UnitOfWorkContext::toArray()` MUST omit `startedAtToken` before the normalized context is supplied to hooks or used to construct `UnitOfWorkHandle`.
+
+Kernel runtime MAY associate the token separately with the exact `UnitOfWorkHandle` object identity.
+
+That private association is lifecycle state, not part of the handle context shape.
+
 No additional top-level context fields are introduced by this epic.
 
 Adding a future top-level field requires:
@@ -274,6 +282,12 @@ It MUST be a non-negative integer.
 A positive `startedAtToken` value is an opaque `Stopwatch::start()` token captured by Kernel runtime for lifecycle duration measurement.
 
 When Kernel runtime cannot obtain a timing token, `startedAtToken` MAY be `0` internally.
+
+Internal storage MAY remain inside `UnitOfWorkContext` while the UnitOfWork is owned directly by Kernel runtime.
+
+For the low-level begin/after API, Kernel runtime MAY preserve the token through a private identity-based association after constructing the exported handle.
+
+Neither representation permits the token to appear in `UnitOfWorkHandle::context()`.
 
 `startedAtToken` MUST NOT be exported in:
 
@@ -865,6 +879,7 @@ Expected verification includes:
 
 ```text
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
 ```
@@ -878,6 +893,8 @@ Verification must prove:
 - `startedAtToken` is represented as an internal non-negative Kernel lifecycle token;
 - `startedAtToken` is not exported by `UnitOfWorkContext::toArray()`;
 - `startedAtToken` is not exported by `UnitOfWorkHandle::context()`;
+- the low-level `beginUnitOfWork()` and `afterUnitOfWork()` lifecycle completes successfully while timing state remains outside the exported handle context;
+- private timing state is associated with the exact handle object identity;
 - `startedAtToken=0` is accepted only as an internal unavailable timer sentinel;
 - `startedAtToken=0` is not passed to `Stopwatch::stop()`;
 - `correlationId` is represented as string;

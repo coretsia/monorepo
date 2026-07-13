@@ -31,7 +31,6 @@ final class RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest extends TestCas
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => 'http.reactphp',
-            'worker.task_type' => 'queue',
         ]);
 
         try {
@@ -58,7 +57,6 @@ final class RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest extends TestCas
     {
         $cfg = self::config([
             'kernel.runtime.http_driver' => true,
-            'worker.task_type' => 'queue',
         ]);
 
         $this->expectException(RuntimeDriverInvalidConfigException::class);

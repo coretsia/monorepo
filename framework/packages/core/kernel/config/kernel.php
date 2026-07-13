@@ -31,7 +31,7 @@ declare(strict_types=1);
  * - the `kernel` root is owned by `core/kernel`;
  * - dotted keys such as `kernel.boot.*`, `kernel.config.*`, `kernel.runtime.*`,
  *   `kernel.env.*`, `kernel.modules.*`, `kernel.modes.*`,
- *   `kernel.artifacts.*`, `kernel.fingerprint.*`, `kernel.uow.*` are config
+ *   `kernel.fingerprint.*`, `kernel.uow.*` are config
  *   key namespaces, not roots;
  * - `kernel.config.*` owns ConfigKernel Phase B safety defaults;
  * - `kernel.config.forbidden_top_level_roots` reserves global internal config
@@ -40,7 +40,8 @@ declare(strict_types=1);
  *   `foundation` because applications must be able to configure those roots;
  * - `kernel.modules.*` owns module discovery source defaults;
  * - `kernel.modes.*` owns mode preset path/schema defaults;
- * - `kernel.artifacts.*` owns Kernel artifact output path defaults;
+ * - `kernel.boot.default_artifacts_cache_dir` owns the package fallback for
+ *   Bootstrap Phase A artifact cache directory resolution;
  * - `kernel.runtime.http_driver` owns the Kernel-selected HTTP runtime driver default;
  * - `kernel.fingerprint.*` owns deterministic fingerprint exclusion defaults;
  * - `kernel.fingerprint.*` MUST NOT duplicate the canonical dotenv files list from
@@ -109,11 +110,23 @@ return [
      *
      * Full config merge, environment overlays, directives, validation, explain,
      * and application config discovery are owned by ConfigKernel Phase B.
+     *
+     * Artifact output defaults `default_artifacts_cache_dir`.
+     *
+     * Artifacts are build-time/cache outputs owned by core/kernel.
+     *
+     * `default_artifacts_cache_dir` is BootstrapConfig::skeletonRoot()-relative.
+     * It MUST remain a relative-safe path and MUST NOT contain a `skeleton/` prefix, `..`,
+     * absolute path syntax, host-specific path fragments, or monorepo-only paths.
+     *
+     * Artifact schema versions are owned by artifact code and SSoT documents.
+     * They are intentionally not runtime-configurable.
      */
     'boot' => [
         'default_env' => 'local',
         'default_preset' => 'micro',
         'default_debug' => false,
+        'default_artifacts_cache_dir' => 'var/cache',
     ],
 
     /*
@@ -224,22 +237,6 @@ return [
     ],
 
     /*
-     * Artifact output defaults.
-     *
-     * Artifacts are build-time/cache outputs owned by core/kernel.
-     *
-     * `cache_dir` is BootstrapConfig::skeletonRoot()-relative. It MUST remain a
-     * relative-safe path and MUST NOT contain a `skeleton/` prefix, `..`,
-     * absolute path syntax, host-specific path fragments, or monorepo-only paths.
-     *
-     * Artifact schema versions are owned by artifact code and SSoT documents.
-     * They are intentionally not runtime-configurable.
-     */
-    'artifacts' => [
-        'cache_dir' => 'var/cache',
-    ],
-
-    /*
      * Fingerprint defaults.
      *
      * Fingerprinting is deterministic and safe by construction. It MUST NOT
@@ -261,7 +258,6 @@ return [
      */
     'fingerprint' => [
         'skeleton_ignore_prefixes' => [
-            'var/cache',
             'var/maintenance',
         ],
     ],

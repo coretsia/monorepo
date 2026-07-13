@@ -14,24 +14,24 @@
 
 # ADR Index
 
-This document is the **single navigation entrypoint** for all ADR (Architecture Decision Record) documents.
+This document is the single navigation entrypoint for all ADR (Architecture Decision Record) documents.
 
 ## Invariants (MUST)
 
-- This index **MUST** be the only canonical navigation entrypoint for ADR docs.
-- ADR docs **MUST** be registered here **exactly once**.
-- This index **MUST NOT** contain forward references:
-  - links **MUST** point only to existing files.
-- This index **MUST NOT** contain unstable fields:
+- This index MUST be the only canonical navigation entrypoint for ADR docs.
+- ADR docs MUST be registered here exactly once.
+- This index MUST NOT contain forward references:
+  - links MUST point only to existing files.
+- This index MUST NOT contain unstable fields:
   - no dates, no “last updated”, no timestamps.
 - Stable document version metadata is allowed:
   - `adrVersion` is a deterministic positive integer;
   - current pre-accepted ADR documents use `adrVersion: 1`;
   - `adrVersion` is not a date, timestamp, or freshness marker.
-- Ordering **MUST** be deterministic:
+- Ordering MUST be deterministic:
   - sections order is fixed;
   - entries inside a section are sorted by `relative-path` using byte-order `strcmp` (locale-independent).
-- Entry format is **single-choice** (one line per file):
+- Entry format is single-choice (one line per file):
   - `- [<title>](<relative-path>) — owner: <package_id|repo> — adrVersion: <int> — scope: <tokens>`
 
 ## Architecture Decision Records

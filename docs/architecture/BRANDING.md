@@ -36,11 +36,11 @@ This document is design guidance for brand consistency. It is not a generated ar
 
 The Coretsia mark MUST communicate the following qualities:
 
-- **core / foundation / "серцевина"**
-- **modular architecture**
-- **deterministic-by-default**
-- **strict boundaries / SSoT**
-- **serious framework-level identity**
+- core / foundation / "серцевина"
+- modular architecture
+- deterministic-by-default
+- strict boundaries / SSoT
+- serious framework-level identity
 
 The approved symbol satisfies these requirements by combining:
 
@@ -56,7 +56,7 @@ The approved symbol satisfies these requirements by combining:
 
 ### 3.1 Primary symbol
 
-The canonical Coretsia symbol is **symbol-only** and consists of:
+The canonical Coretsia symbol is symbol-only and consists of:
 
 - a six-segment outer shell
 - a central red core
@@ -70,8 +70,8 @@ The canonical Coretsia symbol is **symbol-only** and consists of:
 
 The canonical horizontal lockup for documentation and site use is:
 
-- **symbol on the left**
-- **wordmark on the right**
+- symbol on the left
+- wordmark on the right
 - wordmark text: `Coretsia`
 - vertical alignment by optical center of the symbol
 
@@ -104,7 +104,7 @@ For light surfaces, use:
 - core mid: `#BE1828`
 - core shadow: `#AD1927`
 - background: `#F8F8F8` or `#FFFFFF`
-- separators: **background knockout**, not hardcoded white where possible
+- separators: background knockout, not hardcoded white where possible
 
 ### 4.3 Dark version
 
@@ -115,7 +115,7 @@ For dark surfaces, use:
 - core mid: `#BE1828`
 - core shadow: `#AD1927`
 - background: `#0F1115`
-- separators: **background knockout**
+- separators: background knockout
 
 ### 4.4 Monochrome fallback
 
@@ -140,7 +140,7 @@ To keep the specification resolution-independent, a base unit is defined.
 
 Let:
 
-- **x = flat-to-flat width of the central red core**
+- x = flat-to-flat width of the central red core
 
 All spacing and proportional guidance is expressed relative to `x`.
 
@@ -148,10 +148,10 @@ All spacing and proportional guidance is expressed relative to `x`.
 
 Recommended proportions:
 
-- outer shell thickness: **~0.42x**
-- knockout ring around core: **~0.14x**
-- gaps between outer shell segments: **~0.10x – 0.12x**
-- total symbol width: **~2.30x – 2.45x** for the canonical symbol master
+- outer shell thickness: ~0.42x
+- knockout ring around core: ~0.14x
+- gaps between outer shell segments: ~0.10x – 0.12x
+- total symbol width: ~2.30x – 2.45x for the canonical symbol master
 
 ### 5.3 Geometry rules
 
@@ -172,11 +172,11 @@ Gaps MUST NOT become so thin that they collapse at small raster sizes.
 
 Minimum safe area around the symbol:
 
-- **0.5x** on all sides
+- 0.5x on all sides
 
 Preferred safe area:
 
-- **0.75x** on all sides
+- 0.75x on all sides
 
 No text, iconography, border, or decorative element may intrude into the safe area.
 
@@ -184,9 +184,9 @@ No text, iconography, border, or decorative element may intrude into the safe ar
 
 For the horizontal lockup `symbol + Coretsia`:
 
-- spacing between symbol and wordmark: **0.55x**
-- minimum outer safe area for the full lockup: **0.5x**
-- preferred outer safe area for the full lockup: **0.75x**
+- spacing between symbol and wordmark: 0.55x
+- minimum outer safe area for the full lockup: 0.5x
+- preferred outer safe area for the full lockup: 0.75x
 
 ---
 
@@ -196,18 +196,18 @@ For the horizontal lockup `symbol + Coretsia`:
 
 Minimum digital sizes:
 
-- **16 px** — favicon-adapted micro version only
-- **24 px** — minimum UI usage
-- **32 px** — minimum GitHub/avatar-like usage
-- **64 px+** — preferred general digital usage
+- 16 px — favicon-adapted micro version only
+- 24 px — minimum UI usage
+- 32 px — minimum GitHub/avatar-like usage
+- 64 px+ — preferred general digital usage
 
 ### 7.2 Lockup sizes
 
 Minimum height for `symbol + wordmark`:
 
-- **24 px** — absolute minimum
-- **32 px** — recommended minimum
-- **48 px+** — preferred for docs/site header use
+- 24 px — absolute minimum
+- 32 px — recommended minimum
+- 48 px+ — preferred for docs/site header use
 
 The lockup MUST NOT be used where the wordmark becomes unreadable.
 
@@ -219,7 +219,7 @@ Favicon and app/site icon assets MUST NOT be treated as a naive scaled-down mast
 
 ### 8.1 64 px and above
 
-Use the **full symbol**:
+Use the full symbol:
 
 - all 6 outer segments
 - faceted red core
@@ -241,7 +241,7 @@ Use a dedicated micro version:
 - preserve the 6 outer segments
 - remove faceted core shading
 - use single-fill core color: `#E41E29`
-- increase outer shell thickness by **~10–12%**
+- increase outer shell thickness by ~10–12%
 - remove micro-detail that does not survive rasterization
 
 ### 8.4 Canonical 16 px rule
@@ -306,7 +306,7 @@ Minimum contrast MUST preserve the shell silhouette distinctly from the backgrou
 
 For GitHub organization avatar usage, the canonical form is:
 
-- **symbol-only**
+- symbol-only
 - centered on a square artboard
 - no wordmark
 - no decorative background texture
@@ -316,13 +316,13 @@ For GitHub organization avatar usage, the canonical form is:
 - artboard: square
 - background: `#F8F8F8`
 - symbol centered
-- visual symbol width: **64–68%** of canvas width
+- visual symbol width: 64–68% of canvas width
 
 ### 10.2 Circular mask tolerance
 
 If the avatar is expected to be displayed inside a circular mask:
 
-- visual symbol width: **60–64%** of canvas width
+- visual symbol width: 60–64% of canvas width
 
 This prevents edge collisions and maintains optical balance.
 
@@ -368,8 +368,8 @@ Preferred backgrounds:
 
 Coretsia uses a two-role typography system:
 
-- **canonical wordmark font:** `Manrope`
-- **canonical UI/content font:** `Inter`
+- canonical wordmark font: `Manrope`
+- canonical UI/content font: `Inter`
 
 These roles are distinct and MUST NOT be treated as interchangeable in canonical brand usage.
 
@@ -377,7 +377,7 @@ These roles are distinct and MUST NOT be treated as interchangeable in canonical
 
 The canonical Coretsia wordmark font is:
 
-- **Manrope SemiBold**
+- Manrope SemiBold
 
 The wordmark text is:
 
@@ -393,7 +393,7 @@ The wordmark MUST preserve:
 
 ### 12.3 Wordmark delivery rule
 
-For production brand usage, the Coretsia wordmark MUST be delivered as a **vector SVG asset** derived from the canonical wordmark master.
+For production brand usage, the Coretsia wordmark MUST be delivered as a vector SVG asset derived from the canonical wordmark master.
 
 Canonical brand lockups for site, documentation, README, and promotional usage MUST NOT depend on runtime font loading for correct wordmark rendering.
 
@@ -408,7 +408,7 @@ This means:
 
 The canonical UI/content font is:
 
-- **Inter**
+- Inter
 
 `Inter` MUST be used for:
 
@@ -423,7 +423,7 @@ The canonical UI/content font is:
 
 For canonical website runtime typography, Coretsia MUST use:
 
-- **one self-hosted canonical webfont only:** `Inter`
+- one self-hosted canonical webfont only: `Inter`
 
 Runtime loading of additional brand font families is discouraged unless explicitly required for a non-canonical experimental surface.
 
@@ -443,7 +443,7 @@ The canonical production direction is:
 
 Recommended lockup proportion:
 
-- cap-height of wordmark: **~72–78%** of symbol height
+- cap-height of wordmark: ~72–78% of symbol height
 
 The wordmark MUST NOT visually outweigh the symbol.
 
@@ -531,16 +531,16 @@ Recommended final asset inventory:
 
 ### 16.1 Primary usage
 
-- **GitHub org / favicon / icon:** symbol-only
-- **README / website / docs header:** horizontal lockup
-- **dark theme surfaces:** dark variant with light shell
-- **small sizes:** simplified favicon adaptation
-- **vector master:** SVG is the source of truth
-- **canonical wordmark font:** Manrope
-- **canonical UI/content font:** Inter
-- **runtime website font policy:** one self-hosted runtime webfont only
-- **wordmark delivery policy:** SVG asset, not required runtime webfont rendering
+- GitHub org / favicon / icon: symbol-only
+- README / website / docs header: horizontal lockup
+- dark theme surfaces: dark variant with light shell
+- small sizes: simplified favicon adaptation
+- vector master: SVG is the source of truth
+- canonical wordmark font: Manrope
+- canonical UI/content font: Inter
+- runtime website font policy: one self-hosted runtime webfont only
+- wordmark delivery policy: SVG asset, not required runtime webfont rendering
 
 ### 16.2 One-line summary
 
-**Coretsia mark = structured outer system + central core, expressed through a deterministic, modular, high-contrast geometric emblem.**
+Coretsia mark = structured outer system + central core, expressed through a deterministic, modular, high-contrast geometric emblem.

@@ -14,34 +14,34 @@
 
 # coretsia/core-kernel
 
-`core/kernel` is the **Kernel runtime** package for the Coretsia Framework monorepo.
+`core/kernel` is the Kernel runtime package for the Coretsia Framework monorepo.
 
-**Scope:** Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
-**Out of scope:** public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
+Out of scope: public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
 ## Package identity
 
-- **Path:** `framework/packages/core/kernel`
-- **Package id:** `core/kernel`
-- **Composer name:** `coretsia/core-kernel`
-- **Module id:** `core.kernel`
-- **Namespace:** `Coretsia\Kernel\*` (PSR-4: `src/`)
-- **Kind:** runtime
-- **Config root:** `kernel`
+- Path: `framework/packages/core/kernel`
+- Package id: `core/kernel`
+- Composer name: `coretsia/core-kernel`
+- Module id: `core.kernel`
+- Namespace: `Coretsia\Kernel\*` (PSR-4: `src/`)
+- Kind: runtime
+- Config root: `kernel`
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy
 
 This package is runtime-safe and format-neutral.
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `core/foundation`
-- **Forbidden:**
+- Forbidden:
   - `platform/*`
   - `integrations/*`
   - `Psr\Http\Message\*`
@@ -82,9 +82,10 @@ This package provides the Kernel baseline runtime layer:
   - passed back to `KernelRuntimeInterface::afterUnitOfWork()`
   - exposes only the normalized exported context array through `UnitOfWorkHandle::context()`
   - MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, or Kernel runtime internals
-- Canonical runtime driver ids and value objects:
+- Canonical runtime driver ids, value objects, and owner-contribution handoff:
   - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
   - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
+  - `Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions`
   - `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
 - Public runtime entrypoint compatibility boundary:
   - `Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard`
@@ -111,6 +112,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
   - `Coretsia\Kernel\Boot\DotenvLoader`
   - `Coretsia\Kernel\Boot\EnvRepositoryBuilder`
+- Bootstrap Phase A artifact cache directory validation:
+  - `Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir`
+  - internal portable and bounded artifact-root policy
 - Kernel-owned ConfigKernel Phase B orchestration:
   - `Coretsia\Kernel\Config\ConfigKernel`
   - `Coretsia\Kernel\Config\ConfigRulesLoader`
@@ -221,6 +225,7 @@ appTarget
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
 appRoot
 immutable EnvRepositoryInterface snapshot
@@ -276,6 +281,19 @@ explicit BootstrapInput
 → package defaults from kernel.boot.* and kernel.env.*
 → BootstrapConfig
 ```
+
+Artifact cache directory resolution uses:
+
+```text
+BootstrapInput::artifactsCacheDir()
+→ skeleton/config/app.php artifactsCacheDir
+→ kernel.boot.default_artifacts_cache_dir
+→ BootstrapConfig::artifactsCacheDir()
+```
+
+`BootstrapConfig::artifactsCacheDir()` is the only resolved artifact location source used by `ArtifactPathResolver`, `ArtifactCompiler`, and `CacheVerifier`.
+
+ConfigKernel Phase B and compiled `config@1` do not re-resolve artifact location.
 
 `EnvRepositoryBuilder` is internal and owns only immutable env repository snapshot construction.
 
@@ -416,6 +434,28 @@ config.php
 container.php
 ```
 
+Artifact path resolution consumes:
+
+```text
+BootstrapConfig::skeletonRoot()
+BootstrapConfig::artifactsCacheDir()
+BootstrapConfig::appTarget()
+```
+
+The default path shape is:
+
+```text
+<skeletonRoot>/var/cache/<appTarget>/<artifact-basename>
+```
+
+A custom valid Bootstrap Phase A override may instead produce:
+
+```text
+<skeletonRoot>/var/artifacts_cache/<appTarget>/<artifact-basename>
+```
+
+`ArtifactCompiler` and `CacheVerifier` consume the same resolved `BootstrapConfig`, so they write and verify the same artifact location.
+
 The corresponding canonical artifact identities are:
 
 ```text
@@ -466,6 +506,49 @@ valid fingerprint+bytes → clean
 ```
 
 Cache verification MUST NOT use mtimes, ctimes, permissions, owners, inode ids, directory ordering, or filesystem traversal order as cache semantics.
+
+The resolved artifact cache directory is always added to the effective fingerprint traversal exclusions.
+
+It is not serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected output directory.
+
+Therefore:
+
+```text
+generated files under the current resolved artifactsCacheDir
+→ do not affect fingerprint
+
+only the resolved BootstrapConfig::artifactsCacheDir() changes
+and all separately fingerprinted inputs remain unchanged
+→ fingerprint remains unchanged
+```
+
+Changing the package fallback:
+
+```text
+kernel.boot.default_artifacts_cache_dir
+```
+
+is not a location-only change. It also changes package and compiled config input and may therefore change the fingerprint through normal config provenance.
+
+The configured baseline:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
+```
+
+contains only explicit operational/source exclusion policy such as:
+
+```text
+var/maintenance
+```
+
+The mandatory generated-output exclusion covers only the current resolved artifact cache directory.
+
+After relocating artifacts, stale files under the previous directory should be removed. When that directory must remain and may appear under a fingerprinted skeleton-local directory candidate, it must be retained explicitly in:
+
+```text
+kernel.fingerprint.skeleton_ignore_prefixes
+```
 
 ### Compiled container artifact
 
@@ -779,13 +862,14 @@ Diagnostics MUST NOT expose paths, raw Composer metadata, raw preset payloads, s
 
 ## Runtime driver and entrypoint guard
 
-`core/kernel` owns the canonical runtime-driver selection model and compatibility guard.
+`core/kernel` owns the canonical runtime-driver vocabulary, Kernel-owned runtime-driver selection, runtime-driver composition, and runtime entrypoint compatibility guard.
 
 The public Kernel API is:
 
 ```text
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
@@ -794,13 +878,27 @@ Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 
 `RuntimeDriverGuard` is a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
 
-Runtime adapters and production boot paths MUST use:
+Runtime adapters and owner packages that have a resolved `ConfigRepositoryInterface`, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions` MUST use the public `RuntimeEntrypointGuard` boundary.
+
+Callers that need the resolved active driver set use:
+
+```text
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::resolveEntrypointDrivers(...)
+```
+
+Assertion-only entrypoints use:
 
 ```text
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::assertEntrypointAllowed(...)
 ```
 
-They MUST NOT call `RuntimeDriverGuard` directly.
+Both methods use the same canonical matrix and module-compatibility policy. Callers MUST NOT invoke both methods for one entrypoint attempt.
+
+Kernel production boot paths MUST use this boundary whenever those three required inputs are available.
+
+The current `ArtifactRuntimeBooter` path does not yet have a dedicated `ModulePlan` artifact and therefore does not currently perform this pre-container entrypoint check. That limitation is documented in the artifact-only runtime boot section and MUST NOT be treated as an implicit fallback policy for runtime adapters.
+
+Callers MUST NOT call `RuntimeDriverGuard` directly.
 
 Canonical HTTP driver ids are:
 
@@ -817,12 +915,6 @@ The canonical background driver id is:
 ```text
 bg.worker_queue
 ```
-
-`RuntimeEntrypointGuard` is the public runtime-adapter boundary.
-
-Internally, it delegates to the Kernel-owned runtime-driver matrix implementation.
-
-Active drivers are derived from Kernel-owned runtime config inputs and the resolved `ModulePlan` owner scope for Worker-owned runtime-driver inputs.
 
 Kernel-owned runtime-driver input is:
 
@@ -841,56 +933,90 @@ http.roadrunner
 
 `http.worker` is intentionally not accepted by `kernel.runtime.http_driver`.
 
-Worker-owned runtime-driver input is:
+`kernel.runtime.http_driver` selects exactly one Kernel-owned HTTP runtime driver.
+
+Owner packages that need to participate in runtime-driver selection MUST map their owner-owned runtime inputs to explicit:
+
+```text
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
+```
+
+`RuntimeDriverContributions` contains already-selected runtime drivers only.
+
+It MUST NOT read config, inspect `ModulePlan`, resolve packages, inspect container services, inspect generated artifacts, or know which package produced the contribution.
+
+For owner packages that do not contribute runtime drivers, callers MUST pass an explicit empty contribution object:
+
+```php
+RuntimeDriverContributions::fromDrivers(
+    httpDrivers: [],
+    backgroundDrivers: [],
+)
+```
+
+This is an explicit "no owner contributions" signal, not an implicit fallback.
+
+Worker-owned runtime input is:
 
 ```text
 worker.task_type
 ```
 
-`kernel.runtime.http_driver` selects exactly one Kernel-owned HTTP runtime driver.
+`worker.task_type` is owned by `platform/worker`.
 
-`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
+`core/kernel` MUST NOT read `worker.task_type`.
 
-`worker.task_type` is consumed only when `platform.worker` is enabled in the caller-provided `ModulePlan`.
+`core/kernel` MUST NOT define `worker.*` defaults.
 
-Kernel does not own the `worker` config root, does not define `worker.*` defaults, and does not validate the full `worker` subtree.
+`core/kernel` MUST NOT validate the `worker` config subtree.
 
-Missing `worker.task_type` MUST NOT fail when `platform.worker` is not enabled in `ModulePlan`.
+`core/kernel` MUST NOT inspect `ModulePlan` membership for `platform.worker` to infer, synthesize, enable, disable, or conditionally select Worker runtime-driver contributions.
 
-When `platform.worker` is enabled in `ModulePlan`, `worker.task_type` is required and must be a string.
-
-Accepted values are:
+The Worker package maps its owner-owned task type to runtime-driver contributions:
 
 ```text
-http
-queue
+worker.task_type=queue -> bg.worker_queue
+worker.task_type=http  -> http.worker
 ```
 
-If `platform.worker` is enabled and `worker.task_type` is missing, the guard fails with:
+That mapping is owned by `platform/worker`, not by `core/kernel`.
+
+The public entrypoint methods are:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-worker-task-type-missing
+RuntimeEntrypointGuard::resolveEntrypointDrivers(...) → RuntimeDrivers
+RuntimeEntrypointGuard::assertEntrypointAllowed(...)  → void
 ```
 
-If `platform.worker` is enabled and `worker.task_type` is present but not one of the accepted task type strings, the guard fails with:
+`resolveEntrypointDrivers(...)` is the canonical query-and-validation boundary.
+
+`assertEntrypointAllowed(...)` is its assertion-only wrapper.
+
+It receives:
 
 ```text
-CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
-worker-task-type-invalid
+ConfigRepositoryInterface
+ModulePlan
+RuntimeDriverContributions
 ```
-
-The public entrypoint method is:
-
-```text
-RuntimeEntrypointGuard::assertEntrypointAllowed(...)
-```
-
-It receives a resolved `ConfigRepositoryInterface` and caller-provided `ModulePlan`.
 
 The guard MUST be invoked after config and `ModulePlan` are resolved and before runtime execution starts.
 
-The internal matrix implementation returns `RuntimeDrivers` only for a valid single-HTTP-driver selection.
+The internal matrix implementation returns `RuntimeDrivers` only for a valid single-HTTP-driver selection after Kernel config and explicit owner contributions have been composed.
+
+The composition rules are:
+
+| Kernel HTTP driver | owner contribution | result                                |
+|--------------------|--------------------|---------------------------------------|
+| `http.classic`     | none               | `http.classic`                        |
+| `http.classic`     | `bg.worker_queue`  | `http.classic` + `bg.worker_queue`    |
+| `http.classic`     | `http.worker`      | `http.worker`                         |
+| `http.frankenphp`  | `bg.worker_queue`  | `http.frankenphp` + `bg.worker_queue` |
+| `http.swoole`      | `bg.worker_queue`  | `http.swoole` + `bg.worker_queue`     |
+| `http.roadrunner`  | `bg.worker_queue`  | `http.roadrunner` + `bg.worker_queue` |
+| `http.frankenphp`  | `http.worker`      | conflict                              |
+| `http.swoole`      | `http.worker`      | conflict                              |
+| `http.roadrunner`  | `http.worker`      | conflict                              |
 
 The internal module compatibility rule requires `platform.http` for:
 
@@ -912,7 +1038,7 @@ Runtime adapters MUST NOT partially duplicate this policy.
 
 They MUST NOT decide independently that `platform.http` is required only for `worker.task_type=http`.
 
-The compatibility check is based on the complete runtime-driver matrix, not only on the worker task type.
+The compatibility check is based on the complete composed runtime-driver matrix, not on raw owner package config.
 
 Runtime-driver failures are deterministic and safe:
 
@@ -1095,6 +1221,18 @@ It MUST NOT dedupe hooks.
 
 It MUST NOT apply custom priority rules.
 
+Hook invocation is sequential and fail-fast.
+
+The first hook service resolution failure, interface mismatch, or exception thrown by a valid hook stops the remaining hooks in the same phase.
+
+`HookInvoker` wraps only service-resolution failures and interface mismatches in safe `KernelRuntimeException` diagnostics.
+
+Exceptions thrown by valid hook implementations propagate unchanged to `KernelRuntime`.
+
+`HookInvoker` does not execute reset orchestration and does not aggregate hook failures.
+
+Once the reset-responsibility boundary has been crossed, `KernelRuntime` ensures that `ResetOrchestrator::resetAll()` is invoked exactly once even when a before or after hook fails.
+
 Hook service ids are resolved through PSR-11 container lookup.
 
 A before hook must implement:
@@ -1135,6 +1273,7 @@ return [
         'default_env' => 'local',
         'default_preset' => 'micro',
         'default_debug' => false,
+        'default_artifacts_cache_dir' => 'var/cache',
     ],
     'runtime' => [
         'frankenphp' => [
@@ -1174,12 +1313,8 @@ return [
         'defaults_path' => 'resources/modes',
         'overrides_path' => 'config/modes',
     ],
-    'artifacts' => [
-        'cache_dir' => 'var/cache',
-    ],
     'fingerprint' => [
         'skeleton_ignore_prefixes' => [
-            'var/cache',
             'var/maintenance',
         ],
     ],
@@ -1204,7 +1339,11 @@ return [
 ];
 ```
 
-Runtime code reads from the global configuration under `kernel.*`.
+Package fallback values are declared under `kernel.*`.
+
+Bootstrap Phase A resolves its values before artifact path lookup.
+
+Runtime and ConfigKernel Phase B consumers read the merged global configuration under `kernel.*`, but artifact path consumers use the already resolved `BootstrapConfig::artifactsCacheDir()`.
 
 Canonical Kernel config keys:
 
@@ -1213,6 +1352,7 @@ Canonical Kernel config keys:
 | `kernel.boot.default_env`                     | `"local"`                                                  |
 | `kernel.boot.default_preset`                  | `"micro"`                                                  |
 | `kernel.boot.default_debug`                   | `false`                                                    |
+| `kernel.boot.default_artifacts_cache_dir`     | `"var/cache"`                                              |
 | `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
 | `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
 | `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
@@ -1223,20 +1363,75 @@ Canonical Kernel config keys:
 | `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
 | `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
 | `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
-| `kernel.artifacts.cache_dir`                  | `"var/cache"`                                              |
-| `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/cache", "var/maintenance"]`                         |
+| `kernel.fingerprint.skeleton_ignore_prefixes` | `["var/maintenance"]`                                      |
 | `kernel.uow.attributes.max_depth`             | `10`                                                       |
 | `kernel.uow.attributes.max_keys`              | `200`                                                      |
 
-The runtime-driver entrypoint guard also reads the selected external runtime-owner key:
+`kernel.boot.default_artifacts_cache_dir` is the package fallback for the Bootstrap Phase A artifact cache directory.
+
+The default is:
 
 ```text
-worker.task_type
+var/cache
 ```
 
-This key is not owned by `core/kernel`.
+Applications may override it in bootstrap-only:
 
-It must be present in the merged runtime config snapshot when `platform.worker` participates in the resolved `ModulePlan`; its default and full subtree validation are owned by the package that owns the `worker` root.
+```text
+skeleton/config/app.php
+```
+
+using:
+
+```php
+return [
+    'artifactsCacheDir' => 'var/artifacts_cache',
+];
+```
+
+Entrypoints may provide the highest-precedence explicit value through:
+
+```text
+BootstrapInput::artifactsCacheDir()
+```
+
+The resolved value is exposed through:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+Kernel artifact paths use:
+
+```text
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>/<artifact-basename>
+```
+
+The directory must be a portable, bounded, `skeletonRoot`-relative dedicated generated-output root.
+
+Absolute paths, traversal, source/config roots, public roots, dependency roots, repository roots, Windows-invalid components, and unsafe path segments are rejected.
+
+ConfigKernel Phase B merged config and compiled `config@1` are not artifact location resolution sources.
+
+The runtime-driver entrypoint guard reads only Kernel-owned runtime config keys from the config repository.
+
+The Kernel-owned runtime-driver config key is:
+
+```text
+kernel.runtime.http_driver
+```
+
+The guard receives owner-selected runtime drivers through explicit:
+
+```text
+RuntimeDriverContributions
+```
+
+`core/kernel` does not read `worker.task_type`.
+
+`worker.task_type` is owned, defaulted, normalized, and validated by `platform/worker`.
+
+When Worker participates in runtime-driver selection, `platform/worker` must convert `worker.task_type` into `RuntimeDriverContributions` before calling the Kernel runtime entrypoint guard.
 
 `kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
 
@@ -1469,6 +1664,22 @@ diagnostics
 generated artifacts
 persistence payloads
 ```
+
+`KernelRuntime` maintains two separate lifecycle channels:
+
+```text
+UnitOfWorkContext::toArray()
+  -> normalized exported context
+  -> UnitOfWorkHandle::context()
+
+UnitOfWorkContext::startedAtToken()
+  -> private WeakMap<UnitOfWorkHandle, int>
+  -> duration calculation during afterUnitOfWork()
+```
+
+The `WeakMap` is keyed by the exact handle object identity.
+
+`afterUnitOfWork()` retrieves the private timing token from that map. It does not read timing state from `UnitOfWorkHandle::context()`.
 
 The exported context shape is:
 
@@ -1804,6 +2015,16 @@ For every UnitOfWork lifecycle that reaches reset responsibility, `KernelRuntime
 
 If an earlier primary failure exists and reset also fails, the earlier primary failure remains surfaced.
 
+The earlier primary throwable is surfaced unchanged.
+
+A later reset failure does not replace, wrap, or mutate it.
+
+If body execution fails and after-phase handling also fails, the body failure remains primary.
+
+If body execution succeeds and after-phase handling fails, the after-phase failure becomes primary.
+
+`KernelRuntime` does not aggregate secondary lifecycle or reset failures into the surfaced throwable.
+
 If no earlier primary failure exists and reset fails, `KernelRuntime` surfaces a safe `KernelRuntimeException` with reason:
 
 ```text
@@ -2040,6 +2261,7 @@ Runtime driver and entrypoint public API symbols are:
 ```text
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException

@@ -35,10 +35,17 @@ use Psr\Container\ContainerInterface;
  *
  * Tagged services are resolved through PSR-11 by TaggedService::id().
  *
+ * Hook invocation is sequential and fail-fast.
+ *
  * Hook service resolution failures and hook service type mismatches are wrapped
- * in KernelRuntimeException with stable safe diagnostics. Exceptions thrown by
- * valid hook implementations are not wrapped here; they propagate as-is so
- * KernelRuntime can apply deterministic lifecycle failure precedence.
+ * in KernelRuntimeException with stable safe diagnostics.
+ *
+ * The first exception thrown by a valid hook implementation stops the remaining
+ * hooks in the same phase and propagates unchanged to KernelRuntime.
+ *
+ * HookInvoker does not own reset execution, hook failure aggregation, or
+ * lifecycle failure precedence. KernelRuntime owns those policies and ensures
+ * reset orchestration after the reset-responsibility boundary is crossed.
  *
  * @internal Kernel-owned hook invocation service.
  */
@@ -52,6 +59,10 @@ final readonly class HookInvoker
 
     /**
      * Invokes before-unit-of-work hooks in exact TagRegistry order.
+     *
+     * Invocation is fail-fast. The first service-resolution, type-validation, or
+     * hook-execution failure stops all remaining before hooks and propagates to
+     * KernelRuntime.
      *
      * @param array<string, mixed> $context Normalized exported UnitOfWork
      *                                      context payload.
@@ -67,6 +78,10 @@ final readonly class HookInvoker
 
     /**
      * Invokes after-unit-of-work hooks in exact TagRegistry order.
+     *
+     * Invocation is fail-fast. The first service-resolution, type-validation, or
+     * hook-execution failure stops all remaining after hooks and propagates to
+     * KernelRuntime.
      *
      * @param array<string, mixed> $context Normalized exported UnitOfWork
      *                                      context payload.

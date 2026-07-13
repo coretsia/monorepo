@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Tests\Contract;
 
 use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+use Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits;
 use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
@@ -33,6 +34,7 @@ final class StableJsonSerializationSafetyContractTest extends TestCase
                 StableJsonEncoder::class,
                 StableJsonDecoder::class,
                 JsonLikeNormalizer::class,
+                JsonLikeNormalizationLimits::class,
                 JsonLikeNormalizationException::class,
             ] as $className
         ) {

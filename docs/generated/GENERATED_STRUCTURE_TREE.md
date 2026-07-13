@@ -435,6 +435,7 @@ Coretsia/
 │   │   │   │   │   ├── Serialization/
 │   │   │   │   │   │   ├── Exception/
 │   │   │   │   │   │   │   └── JsonLikeNormalizationException.php
+│   │   │   │   │   │   ├── JsonLikeNormalizationLimits.php
 │   │   │   │   │   │   ├── JsonLikeNormalizer.php
 │   │   │   │   │   │   ├── StableJsonDecoder.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
@@ -462,6 +463,7 @@ Coretsia/
 │   │   │   │   │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
+│   │   │   │   │   │   ├── JsonLikeNormalizationLimitsContractTest.php
 │   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── PriorityResetStopwatchFailurePolicyContractTest.php
 │   │   │   │   │   │   ├── StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
@@ -479,14 +481,19 @@ Coretsia/
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
 │   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
+│   │   │   │   │   │   ├── ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsFloatValuesTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsObjectValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsOversizedStringValuesTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsResourceValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsUnknownKeysTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsValuesExceedingMaxDepthTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsValuesExceedingMaxNodesTest.php
 │   │   │   │   │   │   ├── ContextStoreResetClearsContextTest.php
 │   │   │   │   │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
 │   │   │   │   │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
@@ -517,6 +524,7 @@ Coretsia/
 │   │   │   │   │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
 │   │   │   │   │       ├── ContainerDoesNotAutowireInterfacesTest.php
 │   │   │   │   │       ├── ContextBagImmutabilityTest.php
+│   │   │   │   │       ├── ContextBagRejectsValuesExceedingResourceLimitsTest.php
 │   │   │   │   │       ├── CorrelationIdFormatTest.php
 │   │   │   │   │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 │   │   │   │   │       ├── DeterministicOrderSortRuleTest.php
@@ -580,6 +588,7 @@ Coretsia/
 │   │   │       │   │   ├── AppTarget.php
 │   │   │       │   │   ├── ArrayEnvRepository.php
 │   │   │       │   │   ├── ArtifactRuntimeBooter.php
+│   │   │       │   │   ├── BootstrapArtifactsCacheDir.php
 │   │   │       │   │   ├── BootstrapConfig.php
 │   │   │       │   │   ├── BootstrapConfigResolver.php
 │   │   │       │   │   ├── BootstrapEnvSourcePolicy.php
@@ -650,6 +659,7 @@ Coretsia/
 │   │   │       │       ├── Driver/
 │   │   │       │       │   ├── BackgroundDriver.php
 │   │   │       │       │   ├── HttpDriver.php
+│   │   │       │       │   ├── RuntimeDriverContributions.php
 │   │   │       │       │   ├── RuntimeDriverGuard.php
 │   │   │       │       │   └── RuntimeDrivers.php
 │   │   │       │       ├── Entrypoint/
@@ -735,6 +745,7 @@ Coretsia/
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
+│   │   │       │   │   ├── ArtifactPipelineUsesConfiguredCacheDirTest.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootExpressPresetTest.php
@@ -768,6 +779,7 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
 │   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
+│   │   │       │   │   ├── FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 │   │   │       │   │   ├── FingerprintIgnoresSkeletonVarTest.php
 │   │   │       │   │   ├── FingerprintIncludesUserOwnedConfigRootsTest.php
 │   │   │       │   │   ├── KernelArtifactObservabilityDoesNotChangeBehaviorTest.php
@@ -821,6 +833,7 @@ Coretsia/
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
 │   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
 │   │   │       │       ├── ArtifactPathResolverUsesBootstrapAppTargetTest.php
+│   │   │       │       ├── BootstrapArtifactsCacheDirValidationTest.php
 │   │   │       │       ├── ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php
 │   │   │       │       ├── ConfigValidatorRelativeSafePathTypeTest.php
 │   │   │       │       ├── DirectivesAppendRemoveListLikeOnlyTest.php
@@ -829,20 +842,17 @@ Coretsia/
 │   │   │       │       ├── FingerprintInstalledManifestNormalizationTest.php
 │   │   │       │       ├── GraphCycleDetectionTest.php
 │   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
-│   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
+│   │   │       │       ├── HookContextNormalizerRequiresKernelOwnedShapesTest.php
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php
 │   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php
-│   │   │       │       ├── RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
 │   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
+│   │   │       │       ├── RuntimeDriverGuardIgnoresOwnerScopedRuntimeInputsTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsMissingRuntimeDriverConfigTest.php
+│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php
+│   │   │       │       ├── RuntimeDriverGuardResolvesRuntimeDriverContributionsTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -984,7 +994,8 @@ Coretsia/
 │   │           │   │   └── WorkerStartFailedException.php
 │   │           │   ├── Internal/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
-│   │           │   │   └── WorkerManagerDriverInterface.php
+│   │           │   │   ├── WorkerManagerDriverInterface.php
+│   │           │   │   └── WorkerRuntimeDriverContributions.php
 │   │           │   ├── Manager/
 │   │           │   │   ├── Driver/
 │   │           │   │   │   ├── PcntlWorkerManagerDriver.php
@@ -998,6 +1009,7 @@ Coretsia/
 │   │           │   ├── Runtime/
 │   │           │   │   ├── WorkerPoolSpec.php
 │   │           │   │   ├── WorkerPoolState.php
+│   │           │   │   ├── WorkerRuntimeEntrypointGuard.php
 │   │           │   │   └── WorkerStateStore.php
 │   │           │   ├── Task/
 │   │           │   │   ├── HttpTaskFactory.php
@@ -1019,6 +1031,7 @@ Coretsia/
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
+│   │           │   │   ├── WorkerServiceProviderArtifactPathContractTest.php
 │   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
 │   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerStartCommandContractTest.php
@@ -1046,6 +1059,7 @@ Coretsia/
 │   │           │       ├── WorkerManagerLifecycleTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
+│   │           │       ├── WorkerRuntimeDriverContributionsTest.php
 │   │           │       ├── WorkerServiceProviderTaskFactorySelectionTest.php
 │   │           │       └── WorkerStateStoreStateFactoryTest.php
 │   │           ├── LICENSE
@@ -1440,11 +1454,7 @@ Coretsia/
 │   │       │   │   │   ├── config.php
 │   │       │   │   │   ├── expected.php
 │   │       │   │   │   └── modules.php
-│   │       │   │   ├── WorkerQueueApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   └── WorkerTaskTypeInvalidApp/
+│   │       │   │   └── WorkerQueueApp/
 │   │       │   │       ├── config.php
 │   │       │   │       ├── expected.php
 │   │       │   │       └── modules.php

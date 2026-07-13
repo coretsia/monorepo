@@ -21,6 +21,7 @@ return [
     'code' => 'CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG',
     'reason' => 'requires-platform-http-module',
     'activeDriverIds' => [
+        'bg.worker_queue',
         'http.roadrunner',
     ],
     'conflictingDriverIds' => [],

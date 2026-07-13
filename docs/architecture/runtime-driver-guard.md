@@ -29,7 +29,7 @@ It explains:
 
 This document is intentionally not the compatibility matrix.
 
-The canonical source for runtime driver ids, canonical config input keys, activation rules, compatibility rules, missing `worker.*` policy, and deterministic matrix decision rules is:
+The canonical source for runtime driver ids, the Kernel-owned selector, owner-contribution composition, compatibility rules, owner-validation boundaries, and deterministic matrix decision rules is:
 
 ```text
 docs/ssot/runtime-drivers.md
@@ -47,15 +47,17 @@ docs/ssot/runtime-drivers.md
 
 That SSoT owns:
 
-- canonical runtime driver ids;
-- runtime driver categories;
-- canonical matrix input config keys;
-- active-driver selection rules;
-- HTTP driver mutual-exclusion rules;
-- HTTP/background compatibility rules;
-- missing `worker.*` key policy before `1.360.0`;
-- deterministic runtime-driver matrix failure semantics;
-- canonical runtime-driver matrix error code names.
+- canonical runtime driver ids and categories;
+- the Kernel-owned `kernel.runtime.http_driver` selector;
+- the public `RuntimeDriverContributions` handoff contract;
+- Kernel-selected and owner-contributed driver composition;
+- HTTP-driver mutual exclusion;
+- HTTP/background category compatibility;
+- final HTTP-driver `platform.http` requirements;
+- deterministic runtime-driver matrix failures;
+- canonical error codes and reason tokens;
+- deterministic driver-id ordering;
+- the boundary between owner validation and Kernel matrix validation.
 
 This architecture document owns only a package-level explanation of how the Kernel implementation is structured around that SSoT.
 
@@ -71,14 +73,19 @@ docs/adr/ADR-0027-runtime-driver-guard.md
 
 ADR-0027 records that:
 
-- `RuntimeDriverGuard` is public Kernel API;
-- no new `core/contracts` runtime-driver port is introduced by this epic;
-- `docs/ssot/runtime-drivers.md` remains the single canonical source for driver ids, config keys, and matrix rules;
-- deterministic runtime-driver matrix failures use code-first exception semantics.
+- `RuntimeEntrypointGuard` is public Kernel API;
+- `RuntimeDriverContributions` is public Kernel API;
+- `RuntimeDriverGuard` is a Kernel-internal implementation detail;
+- owner packages select their own runtime drivers before calling Kernel;
+- Kernel composes its selector with explicit owner contributions;
+- `ModulePlan` is compatibility context, not contribution discovery;
+- no new `core/contracts` runtime-driver port is introduced;
+- `docs/ssot/runtime-drivers.md` remains the canonical matrix source;
+- deterministic runtime-driver failures use code-first exception semantics.
 
 ## Public API surface
 
-The Kernel runtime-driver guard API is package-public and listed in:
+The public Kernel runtime-driver and entrypoint symbols are listed in:
 
 ```text
 framework/packages/core/kernel/PUBLIC_API.md
@@ -89,15 +96,20 @@ The public symbols are:
 ```text
 Coretsia\Kernel\Runtime\Driver\HttpDriver
 Coretsia\Kernel\Runtime\Driver\BackgroundDriver
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
 
-`RuntimeDriverGuard` is public Kernel API.
+`RuntimeEntrypointGuard` is the public compatibility boundary.
 
-It is not a `core/contracts` runtime SPI.
+`RuntimeDriverContributions` is the public owner-to-Kernel handoff object.
+
+`RuntimeDriverGuard` is internal Kernel implementation and MUST NOT be listed as public API.
+
+The runtime-driver API is not a `core/contracts` runtime execution SPI.
 
 External UnitOfWork execution remains owned by:
 
@@ -105,32 +117,74 @@ External UnitOfWork execution remains owned by:
 Coretsia\Contracts\Runtime\KernelRuntimeInterface
 ```
 
-Runtime-driver matrix validation remains owned by `core/kernel`.
-
 ## Guard responsibilities
 
-`RuntimeDriverGuard` is responsible for:
+`RuntimeEntrypointGuard` is responsible for:
 
-- deriving active runtime drivers from canonical config inputs;
-- enforcing single-HTTP-driver selection;
-- returning `RuntimeDrivers` for valid config-only selections;
-- failing deterministically for conflicting selections;
-- validating the `platform.http` ModulePlan requirement for selected non-classic HTTP drivers;
-- exposing safe deterministic exception data.
+- accepting resolved config, caller-provided `ModulePlan`, and explicit `RuntimeDriverContributions`;
+- invoking the Kernel-owned matrix implementation;
+- exposing `resolveEntrypointDrivers(...)` for callers that need the validated `RuntimeDrivers`;
+- exposing `assertEntrypointAllowed(...)` as an assertion-only `void` wrapper;
+- ensuring both operations use the same composition and module-compatibility policy;
+- providing one public Kernel entrypoint compatibility boundary.
 
-The guard is stateless.
+The internal `RuntimeDriverGuard` is responsible for:
 
-The guard must not keep mutable runtime state, cache detected drivers, cache config, cache ModulePlan values, inspect adapters, inspect the environment, or read generated artifacts.
+- validating the Kernel-owned HTTP selector;
+- deriving the Kernel-selected HTTP driver;
+- composing explicit HTTP and background contributions;
+- replacing `http.classic` with one contributed HTTP driver;
+- detecting multiple/conflicting HTTP drivers;
+- preserving compatible background contributions;
+- validating the final HTTP driver's `platform.http` requirement;
+- producing safe deterministic exception data.
+
+Neither guard resolves config or `ModulePlan`.
+
+Neither guard discovers owner contributions.
+
+`RuntimeDriverGuard` does not read `worker.task_type`.
+
+Both guards are stateless and must not retain config, contributions, `ModulePlan`, resolved drivers, container instances, or mutable runtime state.
+
+## Composition flow
+
+```text
+kernel.runtime.http_driver
+  -> Kernel-selected HTTP driver
+
+owner package input
+  -> owner normalization
+  -> RuntimeDriverContributions
+
+Kernel-selected HTTP driver
+  + RuntimeDriverContributions
+  -> RuntimeDriverGuard::resolve(...)
+  -> RuntimeDrivers
+
+RuntimeDrivers
+  + caller-provided ModulePlan
+  -> platform.http compatibility
+  -> allowed or deterministic failure
+```
+
+`ModulePlan` enters only after explicit owner contributions exist.
 
 ## Config input boundary
 
-The guard reads merged config through:
+The internal Kernel guard reads merged config through:
 
 ```text
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 ```
 
-The guard may read config only through:
+The only runtime-driver selector read by Kernel is:
+
+```text
+kernel.runtime.http_driver
+```
+
+Config access is restricted to:
 
 ```text
 ConfigRepositoryInterface::get(...)
@@ -145,57 +199,97 @@ ConfigRepositoryInterface::sourceOf(...)
 ConfigRepositoryInterface::explain()
 ```
 
-Generic config shape validation remains outside the guard.
+Owner-package config is outside the Kernel guard boundary.
 
-The guard must not become a generic config validator.
+In particular, Kernel must not read:
 
-Unknown-key validation for `kernel.runtime.*` is owned by Kernel config rules.
+```text
+worker.task_type
+```
 
-Generic `worker.*` root shape and unknown-key validation is owned by the future `platform/worker` owner epic.
+`platform/worker` owns the `worker` config root, defaults, validation, normalization, and task-type-to-contribution mapping.
+
+Generic config shape and unknown-key validation remain outside the guard.
 
 ## ModulePlan boundary
 
-The guard has one module-aware method:
+The public entrypoint boundary exposes:
 
-```text
-assertHttpDriverCompatibleWithModules(ConfigRepositoryInterface $cfg, ModulePlan $plan): void
+```php
+RuntimeEntrypointGuard::resolveEntrypointDrivers(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): RuntimeDrivers
 ```
 
-This method receives a caller-provided `ModulePlan`.
+and:
 
-It must not resolve `ModulePlan` internally.
-
-It must not inspect Composer metadata, providers, package paths, module manifests, generated artifacts, config source files, or container services.
-
-The module compatibility check compares module ids by canonical string value.
-
-The canonical module requirement itself is defined by:
-
-```text
-docs/ssot/runtime-drivers.md
+```php
+RuntimeEntrypointGuard::assertEntrypointAllowed(
+    ConfigRepositoryInterface $config,
+    ModulePlan $modulePlan,
+    RuntimeDriverContributions $runtimeDriverContributions,
+): void
 ```
 
-This document intentionally does not restate the full matrix.
+The internal module-aware method is:
+
+```php
+RuntimeDriverGuard::resolveForModules(
+    ConfigRepositoryInterface $cfg,
+    ModulePlan $plan,
+    RuntimeDriverContributions $contributions,
+): RuntimeDrivers
+```
+
+All three operations receive a caller-provided `ModulePlan`.
+
+`assertEntrypointAllowed(...)` delegates to `resolveEntrypointDrivers(...)`.
+
+`resolveEntrypointDrivers(...)` delegates to `resolveForModules(...)`.
+
+Both methods receive a caller-provided `ModulePlan`.
+
+They must not resolve `ModulePlan` internally.
+
+`ModulePlan` must not be used to discover, infer, enable, disable, or synthesize owner contributions.
+
+The current Kernel implementation inspects only the canonical `platform.http` module id after the final HTTP driver has been composed.
+
+The guard must not inspect Composer metadata, providers, package paths, module manifests, generated artifacts, config source files, or container services.
 
 ## Expected callers
 
-Runtime entrypoints and runtime owners are expected to call `RuntimeEntrypointGuard` before starting runtime execution.
+Direct Kernel runtime adapters and owner-package compatibility boundaries call `RuntimeEntrypointGuard` after all required inputs have been resolved and before runtime execution starts.
 
-Expected caller categories:
+Expected direct caller categories include:
 
-- worker command surfaces, such as `coretsia worker:start`;
-- long-running HTTP runtime entrypoints, such as FrankenPHP, Swoole, and RoadRunner entrypoints;
-- Kernel-owned boot or runtime paths that need to enforce runtime-driver matrix validity before entrypoint execution;
-- integration or platform packages that need Kernel-owned entrypoint validation without duplicating matrix rules.
+- Worker-owned `WorkerRuntimeEntrypointGuard`;
+- FrankenPHP, Swoole, and RoadRunner entrypoint boundaries;
+- Kernel-owned production boot paths;
+- platform or integration package boundaries that already possess explicit `RuntimeDriverContributions`.
 
-Callers are responsible for supplying:
+Worker command surfaces, Worker HTTP task preflight, and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly.
+
+Every caller supplies:
 
 - a merged `ConfigRepositoryInterface`;
-- a caller-resolved `ModulePlan` when module compatibility must be checked.
+- a caller-resolved `ModulePlan`;
+- explicit `RuntimeDriverContributions`.
 
-Callers must not implement competing local runtime-driver matrices and must not call `RuntimeDriverGuard` directly unless they are Kernel-internal tests or implementation code.
+A caller with no owner contributions must pass:
 
-Callers must not silently ignore guard failures.
+```php
+RuntimeDriverContributions::fromDrivers(
+    httpDrivers: [],
+    backgroundDrivers: [],
+)
+```
+
+Owner packages must validate and normalize their own runtime inputs before constructing contributions.
+
+Callers must not call `RuntimeDriverGuard` directly, duplicate the matrix, or silently ignore guard failures.
 
 ## Deterministic errors
 
@@ -210,6 +304,16 @@ Runtime-driver invalid-config failures use:
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 ```
+
+Missing or invalid owner-package runtime input is not automatically a Kernel matrix invalid-config failure.
+
+For the current Worker package, missing or invalid `worker.task_type` fails through Worker policy:
+
+```text
+CORETSIA_WORKER_START_FAILED: worker-invalid-state
+```
+
+The current Worker module-owner precondition is enforced before Kernel matrix evaluation.
 
 Public exception messages are deterministic and safe.
 
@@ -249,11 +353,27 @@ strcmp
 
 ## Public API and contracts boundary
 
-The runtime-driver guard is public in `core/kernel` because it enforces Kernel-owned runtime composition policy.
+The public compatibility boundary is owned by `core/kernel`:
 
-This epic does not introduce a new `core/contracts` runtime-driver port.
+```text
+Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
+```
 
-Do not introduce any of the following without a future ADR:
+The public owner-contribution handoff object is:
+
+```text
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
+```
+
+The internal matrix implementation is:
+
+```text
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
+```
+
+No runtime-driver port is introduced in `core/contracts`.
+
+Do not introduce the following without a future ADR:
 
 ```text
 Coretsia\Contracts\Runtime\RuntimeDriverGuardInterface
@@ -265,19 +385,36 @@ Coretsia\Contracts\Runtime\RuntimeDriverMatrixInterface
 The current boundary is:
 
 ```text
-runtime-driver matrix checking: core/kernel public API
-runtime UnitOfWork execution SPI: core/contracts public API
-runtime-driver matrix rules: docs/ssot/runtime-drivers.md
+entrypoint compatibility: core/kernel public API
+owner contribution handoff: core/kernel public API
+matrix implementation: core/kernel internal
+UnitOfWork execution SPI: core/contracts public API
+matrix policy: docs/ssot/runtime-drivers.md
 ```
 
 ## Wiring boundary
 
-`RuntimeDriverGuard` may be registered in Kernel DI as a factory-only stateless service.
+`RuntimeEntrypointGuard` may be registered by Kernel DI as a factory-only stateless service.
+
+`RuntimeDriverGuard` is not a public DI service.
+
+It is constructed and owned internally by `RuntimeEntrypointGuard`.
+
+An owner package may expose its own public wrapper around `RuntimeEntrypointGuard` when that wrapper owns package-specific input normalization or contribution mapping.
+
+The current Worker wrapper is:
+
+```text
+Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
+```
+
+It may depend on the package-internal Worker contribution mapper, but external Worker callers must not.
 
 Provider registration must not:
 
-- run guard detection;
+- execute guard validation;
 - inspect runtime-driver config values;
+- create owner contributions;
 - resolve `ModulePlan`;
 - read generated artifacts;
 - emit stdout or stderr;
@@ -285,7 +422,7 @@ Provider registration must not:
 - start a UnitOfWork;
 - start a runtime loop.
 
-Actual guard execution belongs to runtime or entrypoint paths, not provider registration.
+Actual guard execution belongs to explicit runtime and entrypoint paths.
 
 ## Change protocol
 
@@ -293,6 +430,8 @@ Any behavioral change to runtime-driver selection, compatibility, diagnostics, r
 
 ```text
 docs/ssot/runtime-drivers.md
+docs/adr/ADR-0027-runtime-driver-guard.md
+docs/architecture/runtime-driver-guard.md
 ```
 
 ```text
@@ -304,6 +443,18 @@ framework/tools/tests/Fixtures/RuntimeDriverMatrix/*
 ```
 
 E2E matrix fixture tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` must stay aligned with the SSoT and Kernel guard behavior.
+
+Changes to Worker-owned task-type mapping or Worker entrypoint ownership must also update:
+
+```text
+docs/architecture/worker.md
+docs/adr/ADR-0017-worker-manager-application-worker.md
+framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
+framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
+framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
+framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+```
 
 Implementation changes must not be treated as canonical until the SSoT and locks are updated.
 
@@ -338,3 +489,4 @@ This document does not introduce a `core/contracts` runtime-driver interface.
 - [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
 - [Kernel Public API evidence](../../framework/packages/core/kernel/PUBLIC_API.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
+- [Worker Architecture](./worker.md)

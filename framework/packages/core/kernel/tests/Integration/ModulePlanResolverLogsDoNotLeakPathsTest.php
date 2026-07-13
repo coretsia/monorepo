@@ -101,6 +101,7 @@ final class ModulePlanResolverLogsDoNotLeakPathsTest extends TestCase
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: self::nullMeter(),
             stopwatch: new Stopwatch(),
+            logger: $logger,
             modulesConfig: [
                 'discovery' => [
                     'source' => 'composer',
@@ -109,7 +110,6 @@ final class ModulePlanResolverLogsDoNotLeakPathsTest extends TestCase
                     ],
                 ],
             ],
-            logger: $logger,
         );
 
         try {
@@ -118,6 +118,7 @@ final class ModulePlanResolverLogsDoNotLeakPathsTest extends TestCase
                     appEnv: 'local',
                     preset: 'micro',
                     debug: false,
+                    artifactsCacheDir: 'var/cache',
                     envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
                     appTarget: AppTarget::from('api'),
                     skeletonRoot: $skeletonRoot,

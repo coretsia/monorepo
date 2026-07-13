@@ -34,6 +34,7 @@ appTarget
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
 appRoot
 immutable EnvRepositoryInterface snapshot
@@ -49,6 +50,7 @@ Phase A needs to support:
 - deterministic app root derivation;
 - optional bootstrap-only overrides;
 - package fallback defaults;
+- deterministic artifact cache directory resolution before artifact path lookup;
 - dotenv loading based on already selected `appEnv`;
 - deterministic dotenv/system env source precedence;
 - immutable env repository snapshots;
@@ -62,9 +64,18 @@ The Phase A package defaults live under the existing `kernel` subtree:
 kernel.boot.default_env
 kernel.boot.default_preset
 kernel.boot.default_debug
+kernel.boot.default_artifacts_cache_dir
 kernel.env.source_policy.default_local
 kernel.env.source_policy.default_production
 kernel.env.dotenv.files
+```
+
+`kernel.boot.default_artifacts_cache_dir` is a package fallback only.
+
+It is not the final artifact location source consumed by artifact services. The canonical resolved artifact cache directory is exposed through:
+
+```text
+BootstrapConfig::artifactsCacheDir()
 ```
 
 These are config key namespaces under `kernel`, not separate config roots.
@@ -101,6 +112,7 @@ The internal Phase A implementation helpers are:
 
 ```text
 Coretsia\Kernel\Boot\BootstrapConfigResolver
+Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir
 Coretsia\Kernel\Boot\BootstrapOverridesLoader
 Coretsia\Kernel\Boot\DotenvLoader
 Coretsia\Kernel\Boot\EnvRepositoryBuilder
@@ -117,6 +129,7 @@ appTarget
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
 appRoot
 immutable EnvRepositoryInterface snapshot
@@ -199,6 +212,7 @@ appEnv?
 preset?
 debug?
 envSourcePolicy?
+artifactsCacheDir?
 ```
 
 `BootstrapInput` must not:
@@ -212,6 +226,17 @@ envSourcePolicy?
 
 Optional values in `BootstrapInput` have the highest Phase A resolution precedence.
 
+`BootstrapInput::artifactsCacheDir()` is the optional explicit entrypoint-owned artifact cache directory override.
+
+When present, it has higher precedence than both:
+
+```text
+skeleton/config/app.php artifactsCacheDir
+kernel.boot.default_artifacts_cache_dir
+```
+
+The value is `skeletonRoot`-relative and must satisfy the canonical portable artifact cache directory policy.
+
 ## Decision 4: BootstrapConfig is a resolved immutable VO only
 
 `Coretsia\Kernel\Boot\BootstrapConfig` is a resolved immutable value object.
@@ -224,6 +249,7 @@ It must contain:
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
 appTarget
 skeletonRoot
@@ -244,6 +270,10 @@ appRoot
 
 The object derives only `appRoot` from already resolved `skeletonRoot` and `appTarget`.
 
+`BootstrapConfig::artifactsCacheDir()` contains the already resolved and validated artifact cache directory.
+
+`BootstrapConfig` does not derive this value from Phase B config and does not read compiled runtime config.
+
 ## Decision 5: BootstrapConfigResolver owns Phase A config resolution
 
 `Coretsia\Kernel\Boot\BootstrapConfigResolver` is the canonical internal owner of Phase A config resolution.
@@ -260,7 +290,30 @@ The resolver resolves:
 appEnv
 preset
 debug
+artifactsCacheDir
 envSourcePolicy
+```
+
+Artifact cache directory resolution has this deterministic precedence:
+
+1. explicit `BootstrapInput::artifactsCacheDir()`;
+2. bootstrap-only `skeleton/config/app.php` `artifactsCacheDir`;
+3. package fallback `kernel.boot.default_artifacts_cache_dir`.
+
+The result is stored in:
+
+```text
+BootstrapConfig::artifactsCacheDir()
+```
+
+After resolution, artifact path consumers must use only this `BootstrapConfig` value.
+
+They must not re-read:
+
+```text
+kernel.boot.default_artifacts_cache_dir
+Phase B merged config
+compiled config@1
 ```
 
 Preset resolution has a dedicated deterministic precedence:
@@ -367,6 +420,7 @@ appEnv
 preset
 presets
 debug
+artifactsCacheDir
 ```
 
 Unknown top-level keys fail with:
@@ -382,17 +436,39 @@ appEnv: non-empty safe string
 preset: non-empty safe string
 presets: string-keyed map of appTarget => non-empty safe preset string
 debug: bool
+artifactsCacheDir: portable skeletonRoot-relative artifact output directory
 ```
 
 `preset` is a global fallback preset override.
 
 `presets` is a bootstrap-only per-app preset override map.
 
+An invalid `artifactsCacheDir` value loaded from `skeleton/config/app.php` fails with:
+
+```text
+BootstrapException::REASON_OVERRIDES_INVALID
+```
+
+The dedicated:
+
+```text
+BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID
+```
+
+is used for invalid explicit `BootstrapInput` and direct `BootstrapConfig` artifact cache directory values.
+
+An invalid package fallback `kernel.boot.default_artifacts_cache_dir` fails internally and deterministically with:
+
+```text
+bootstrap-config-default-artifacts-cache-dir-invalid
+```
+
 Example:
 
 ```php
 return [
     'preset' => 'hybrid',
+    'artifactsCacheDir' => 'var/artifacts_cache',
     'presets' => [
         'api' => 'micro',
         'web' => 'express',
@@ -401,6 +477,10 @@ return [
     ],
 ];
 ```
+
+`artifactsCacheDir` is a global Bootstrap Phase A override for the selected entrypoint.
+
+It does not select an app target and is not part of ConfigKernel Phase B merge.
 
 `presets` may be partial.
 
@@ -682,6 +762,7 @@ Stable reason tokens are:
 ```text
 bootstrap-invalid-app-target
 bootstrap-invalid-skeleton-root
+bootstrap-artifacts-cache-dir-invalid
 bootstrap-dotenv-file-invalid
 bootstrap-dotenv-load-failed
 bootstrap-overrides-invalid
@@ -834,6 +915,10 @@ Application target selection is explicit.
 
 Bare skeletons can boot from package defaults.
 
+Artifact cache location is resolved before artifact lookup without depending on ConfigKernel Phase B or compiled runtime config.
+
+Applications may relocate Kernel artifacts within the skeleton through a bootstrap-only override while preserving deterministic precedence.
+
 Per-app preset selection can be expressed in bootstrap-only `skeleton/config/app.php` without introducing a module-selection source.
 
 The selected app target remains explicit even when `presets` contains entries for multiple app targets.
@@ -875,7 +960,13 @@ Entrypoints or platform packages must compose the resolver and builder through D
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
-`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, and `debug`. Other bootstrap inputs require explicit entrypoint input or future owner epics.
+`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, and `artifactsCacheDir`.
+
+Other bootstrap inputs require explicit entrypoint input or future owner epics.
+
+Artifact cache relocation is limited to a portable, bounded, `skeletonRoot`-relative generated-output directory.
+
+Absolute paths and relocation into source, config, public, dependency, or repository-owned roots are intentionally unsupported.
 
 `presets` can select different preset names per app target, but it does not validate that those preset files exist. Missing preset files are reported later by ModulePlan resolution.
 
@@ -1095,6 +1186,10 @@ framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTarg
 framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php
+framework/packages/core/kernel/tests/Unit/BootstrapArtifactsCacheDirValidationTest.php
+framework/packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactPipelineUsesConfiguredCacheDirTest.php
+framework/packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
@@ -1124,6 +1219,14 @@ Verification must prove:
 - Phase A does not require selected preset file to exist;
 - Phase A does not load `resources/modes/*.php`;
 - Phase A does not load `skeleton/config/modes/*.php`;
+- `kernel.boot.default_artifacts_cache_dir` is used when neither explicit input nor `app.php` override exists;
+- `skeleton/config/app.php` `artifactsCacheDir` wins over the package fallback;
+- explicit `BootstrapInput::artifactsCacheDir()` wins over both the app override and package fallback;
+- invalid explicit artifact cache directory values fail with `BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID`;
+- invalid `app.php` artifact cache directory values fail through the safe override failure policy;
+- invalid package fallback `kernel.boot.default_artifacts_cache_dir` fails deterministically with `bootstrap-config-default-artifacts-cache-dir-invalid`;
+- the resolved directory is exposed through `BootstrapConfig::artifactsCacheDir()`;
+- Phase B config and compiled config are not used to re-resolve artifact location;
 - strict dotenv policy ignores system env values;
 - strict dotenv policy forbids system env fallback;
 - allow-system policy lets system env values override dotenv values;
@@ -1144,6 +1247,7 @@ Verification must prove:
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
+- `docs/ssot/artifacts-and-fingerprint.md`
 
 ## Related epic
 

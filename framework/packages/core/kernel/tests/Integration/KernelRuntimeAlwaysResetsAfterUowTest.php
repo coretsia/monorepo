@@ -29,6 +29,8 @@ use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
+use Coretsia\Foundation\Runtime\Reset\ResetErrorCodes;
+use Coretsia\Foundation\Runtime\Reset\ResetException;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
@@ -231,6 +233,31 @@ final class KernelRuntimeAlwaysResetsAfterUowTest extends TestCase
             self::assertSame(
                 'CORETSIA_KERNEL_RUNTIME_ERROR: kernel-runtime-reset-failed',
                 $exception->getMessage(),
+            );
+
+            $resetBoundaryFailure = $exception->getPrevious();
+
+            self::assertInstanceOf(
+                ResetException::class,
+                $resetBoundaryFailure,
+            );
+
+            self::assertSame(
+                ResetErrorCodes::CORETSIA_RESET_SERVICE_FAILED,
+                $resetBoundaryFailure->errorCode(),
+            );
+
+            self::assertSame(
+                'reset-service-failed',
+                $resetBoundaryFailure->reason(),
+            );
+
+            self::assertSame(
+                $resetFailure,
+                $resetBoundaryFailure->getPrevious(),
+                'The original reset throwable must remain available through the '
+                . 'Foundation reset boundary exception chain when reset is the '
+                . 'primary lifecycle failure.',
             );
 
             self::assertSafeRuntimeExceptionMessage($exception);

@@ -14,35 +14,35 @@
 
 # coretsia/core-foundation
 
-`core/foundation` is the **Foundation runtime** package for the Coretsia Framework monorepo.
+`core/foundation` is the Foundation runtime package for the Coretsia Framework monorepo.
 
-**Scope:** PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
+Scope: PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
-**Out of scope:** kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
+Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
 ## Package identity
 
-- **Path:** `framework/packages/core/foundation`
-- **Package id:** `core/foundation`
-- **Composer name:** `coretsia/core-foundation`
-- **Module id:** `core.foundation`
-- **Namespace:** `Coretsia\Foundation\*` (PSR-4: `src/`)
-- **Kind:** runtime
+- Path: `framework/packages/core/foundation`
+- Package id: `core/foundation`
+- Composer name: `coretsia/core-foundation`
+- Module id: `core.foundation`
+- Namespace: `Coretsia\Foundation\*` (PSR-4: `src/`)
+- Kind: runtime
 
-Monorepo versioning is **repo-wide only** via git tags `vMAJOR.MINOR.PATCH`.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-Per-package independent versions **MUST NOT** be used.
+Per-package independent versions MUST NOT be used.
 
 ## Dependency policy (Phase 1)
 
 This package is runtime-safe and intentionally small:
 
-- **Depends on:**
+- Depends on:
   - `core/contracts`
   - `psr/clock`
   - `psr/container`
   - `psr/log`
-- **Forbidden:**
+- Forbidden:
   - `platform/*`
   - `integrations/*`
   - `devtools/*`
@@ -537,7 +537,8 @@ for every write.
 - empty context key rejection;
 - reserved `@*` key rejection;
 - unknown context key rejection;
-- mapping json-like value failures to context write failures.
+- mapping json-like value failures to context write failures;
+- mandatory bounded resource policy for every stored context value.
 
 Baseline value-shape validation is delegated to:
 
@@ -546,6 +547,20 @@ Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
 
 `ContextStorePolicy` MUST NOT duplicate the recursive baseline json-like value walker.
+
+`ContextStorePolicy` supplies a mandatory owner-specific resource budget to the Foundation normalizer:
+
+```text
+max container depth = 8
+max map values/list items per stored value = 256
+max bytes per string value or nested map key = 4096
+```
+
+The limits are fixed Foundation context policy.
+
+They are not configurable and cannot be disabled.
+
+Direct `ContextBag` construction applies the same limits.
 
 `ContextStorePolicy` MUST NOT store or return the normalized value produced by `JsonLikeNormalizer`.
 
@@ -643,6 +658,18 @@ Foundation owns the canonical baseline runtime json-like value normalizer:
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
+
+Optional resource budgets are represented by:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits
+```
+
+The limits object is caller-supplied.
+
+When omitted, existing baseline normalization behavior remains unchanged.
+
+Resource budgets are owner-specific and do not alter the baseline accepted value types.
 
 The canonical baseline exception is:
 

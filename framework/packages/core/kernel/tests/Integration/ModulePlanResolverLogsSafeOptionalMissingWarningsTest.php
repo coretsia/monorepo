@@ -102,6 +102,7 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: self::nullMeter(),
             stopwatch: new Stopwatch(),
+            logger: $logger,
             modulesConfig: [
                 'discovery' => [
                     'source' => 'composer',
@@ -110,7 +111,6 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                     ],
                 ],
             ],
-            logger: $logger,
         );
 
         $plan = $resolver->resolve(
@@ -118,6 +118,7 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                 appEnv: 'local',
                 preset: 'micro',
                 debug: false,
+                artifactsCacheDir: 'var/cache',
                 envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
                 appTarget: AppTarget::from('api'),
                 skeletonRoot: $skeletonRoot,

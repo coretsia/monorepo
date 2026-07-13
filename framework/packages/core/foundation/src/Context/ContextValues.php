@@ -27,6 +27,10 @@ use Coretsia\Foundation\Context\Exception\ContextInvalidKeyException;
  * resources, floats, unsupported types, and invalid map keys must be rejected
  * before values are copied into ContextStore or ContextBag.
  *
+ * ContextStorePolicy resource limits must also be enforced before recursive
+ * copying starts. ContextValues assumes that copied values already satisfy the
+ * canonical Foundation context resource budget.
+ *
  * @internal Foundation context implementation detail.
  */
 final class ContextValues

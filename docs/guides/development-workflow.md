@@ -14,13 +14,13 @@
 
 # Development workflow
 
-**Goal:** a newcomer can follow a canonical workflow **from a clean clone** without manually editing Composer `repositories`.
+Goal: a newcomer can follow a canonical workflow from a clean clone without manually editing Composer `repositories`.
 
-**Scope:** Current monorepo development baseline.
+Scope: Current monorepo development baseline.
 
-**Hard invariant:** commands are assumed to run from the **repository root** unless explicitly stated otherwise.
+Hard invariant: commands are assumed to run from the repository root unless explicitly stated otherwise.
 
-**Hard rule:** documented workflows **MUST NOT** rely on `./dev/**`.
+Hard rule: documented workflows MUST NOT rely on `./dev/**`.
 
 ---
 
@@ -38,11 +38,11 @@
 
 ### 1.1 Repo-root execution (MUST)
 
-- All workflow steps assume you are in the **repo root** (the directory that contains `composer.json` + `framework/` + `skeleton/`).
+- All workflow steps assume you are in the repo root (the directory that contains `composer.json` + `framework/` + `skeleton/`).
 
 ### 1.2 Managed Composer repositories (MUST)
 
-- You **MUST NOT** manually edit `repositories` blocks in:
+- You MUST NOT manually edit `repositories` blocks in:
   - `composer.json`
   - `framework/composer.json`
   - `skeleton/composer.json`
@@ -57,19 +57,19 @@ See: `docs/guides/git-hooks.md`.
 
 ### 1.3 Lock determinism (MUST)
 
-- Lockfiles **MUST** be committed for all three roots:
+- Lockfiles MUST be committed for all three roots:
   - `composer.lock`
   - `framework/composer.lock`
   - `skeleton/composer.lock`
 
-- CI entrypoint **MUST** fail on lock drift:
+- CI entrypoint MUST fail on lock drift:
   - `composer lock:check` (part of `composer ci`)
 
 ---
 
 ## 2) Baseline: “clean clone → green” (single-choice)
 
-If you are not sure where to start, do **exactly** this from repo root:
+If you are not sure where to start, do exactly this from repo root:
 
 ```bash
 composer setup
@@ -122,7 +122,7 @@ or the full rails:
 composer ci
 ```
 
-If you changed dependencies anywhere (any `composer.json` or lockfile), **always** run:
+If you changed dependencies anywhere (any `composer.json` or lockfile), always run:
 
 ```bash
 composer ci
@@ -160,7 +160,7 @@ Verify the package matches the packaging law:
 
 ### 4.4 Sync repositories (optional, safe; rerun-no-diff)
 
-You normally do **not** need this for package creation alone (glob repos already cover packages), but it is always safe to rerun:
+You normally do NOT need this for package creation alone (glob repos already cover packages), but it is always safe to rerun:
 
 ```bash
 composer sync:repos
@@ -242,7 +242,7 @@ Minimum set you will use constantly:
 - `composer sync:repos`
 - `composer sync:check`
 
-**Invariant reminder:** these commands are anchored in the repo root.
+Invariant reminder: these commands are anchored in the repo root.
 
 ---
 

@@ -201,7 +201,16 @@ final readonly class ConfigFingerprintInputBuilder
         self::assertCompiledConfigShape($compiledConfig);
 
         $skeletonRoot = self::normalizeSkeletonRoot($bootstrapConfig->skeletonRoot());
-        $skeletonIgnorePrefixes = self::skeletonIgnorePrefixes($kernelConfig);
+        $configuredSkeletonIgnorePrefixes = self::skeletonIgnorePrefixes(
+            $kernelConfig,
+        );
+
+        $effectiveSkeletonIgnorePrefixes = self::mergeSkeletonIgnorePrefixes(
+            configuredPrefixes: $configuredSkeletonIgnorePrefixes,
+            mandatoryPrefixes: [
+                $bootstrapConfig->artifactsCacheDir(),
+            ],
+        );
 
         $skeletonConfigSources = self::compiledSourceFileList(
             $compiledConfig[self::KEY_CONFIG_SOURCE_FILES],
@@ -211,28 +220,28 @@ final readonly class ConfigFingerprintInputBuilder
             kind: self::SOURCE_KIND_PACKAGE_CONFIG,
             candidates: $packageDefaultSources,
             skeletonRoot: $skeletonRoot,
-            skeletonIgnorePrefixes: $skeletonIgnorePrefixes,
+            skeletonIgnorePrefixes: $effectiveSkeletonIgnorePrefixes,
         );
 
         $packageRuleCandidates = $this->sourceCandidateList(
             kind: self::SOURCE_KIND_PACKAGE_RULES,
             candidates: $packageRuleSources,
             skeletonRoot: $skeletonRoot,
-            skeletonIgnorePrefixes: $skeletonIgnorePrefixes,
+            skeletonIgnorePrefixes: $effectiveSkeletonIgnorePrefixes,
         );
 
         $explicitRuleCandidates = $this->sourceCandidateList(
             kind: self::SOURCE_KIND_EXPLICIT_RULES,
             candidates: $explicitRuleSources,
             skeletonRoot: $skeletonRoot,
-            skeletonIgnorePrefixes: $skeletonIgnorePrefixes,
+            skeletonIgnorePrefixes: $effectiveSkeletonIgnorePrefixes,
         );
 
         $modePresetCandidates = $this->sourceCandidateList(
             kind: self::SOURCE_KIND_MODE_PRESET,
             candidates: $modePresetSourceCandidates,
             skeletonRoot: $skeletonRoot,
-            skeletonIgnorePrefixes: $skeletonIgnorePrefixes,
+            skeletonIgnorePrefixes: $effectiveSkeletonIgnorePrefixes,
         );
 
         $dotenvCandidates = $this->dotenvCandidateList(
@@ -244,7 +253,7 @@ final readonly class ConfigFingerprintInputBuilder
             'schemaVersion' => self::SCHEMA_VERSION,
             'bootstrap' => self::bootstrapIdentity($bootstrapConfig),
             'fingerprintPolicy' => [
-                'skeletonIgnorePrefixes' => $skeletonIgnorePrefixes,
+                'skeletonIgnorePrefixes' => $configuredSkeletonIgnorePrefixes,
             ],
             'modulePlan' => self::modulePlanIdentity($modulePlan),
             'compiledConfig' => [
@@ -1012,6 +1021,44 @@ final readonly class ConfigFingerprintInputBuilder
         }
 
         \usort($prefixes, static fn (string $a, string $b): int => \strcmp($a, $b));
+
+        return \array_values(\array_unique($prefixes));
+    }
+
+    /**
+     * @param list<non-empty-string> $configuredPrefixes
+     * @param list<non-empty-string> $mandatoryPrefixes
+     *
+     * @return list<non-empty-string>
+     */
+    private static function mergeSkeletonIgnorePrefixes(
+        array $configuredPrefixes,
+        array $mandatoryPrefixes,
+    ): array {
+        $prefixes = $configuredPrefixes;
+
+        foreach ($mandatoryPrefixes as $prefix) {
+            $normalized = self::normalizeFingerprintRelativePath(
+                value: $prefix,
+                reason: 'fingerprint-skeleton-ignore-prefix-invalid',
+            );
+
+            if (
+                $normalized === 'skeleton'
+                || \str_starts_with($normalized, 'skeleton/')
+            ) {
+                throw new \InvalidArgumentException(
+                    'fingerprint-skeleton-ignore-prefix-invalid',
+                );
+            }
+
+            $prefixes[] = $normalized;
+        }
+
+        \usort(
+            $prefixes,
+            static fn (string $left, string $right): int => \strcmp($left, $right),
+        );
 
         return \array_values(\array_unique($prefixes));
     }

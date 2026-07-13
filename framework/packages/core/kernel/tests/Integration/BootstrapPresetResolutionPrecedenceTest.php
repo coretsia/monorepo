@@ -247,6 +247,160 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
         }
     }
 
+    public function testKernelDefaultArtifactsCacheDirIsUsed(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('default-artifacts-cache-dir');
+
+        try {
+            $config = self::resolver()->resolve(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Web,
+                ),
+                self::kernelConfig(),
+            );
+
+            self::assertSame('var/cache', $config->artifactsCacheDir());
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testAppOverrideArtifactsCacheDirWinsOverKernelDefault(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('app-artifacts-cache-dir');
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'artifactsCacheDir' => 'var/app_artifacts',
+            ]);
+
+            $config = self::resolver()->resolve(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Web,
+                ),
+                self::kernelConfig(),
+            );
+
+            self::assertSame(
+                'var/app_artifacts',
+                $config->artifactsCacheDir(),
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testExplicitArtifactsCacheDirWinsOverAppOverrideAndKernelDefault(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot('explicit-artifacts-cache-dir');
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'artifactsCacheDir' => 'var/app_artifacts',
+            ]);
+
+            $config = self::resolver()->resolve(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Web,
+                    artifactsCacheDir: 'var/explicit_artifacts',
+                ),
+                self::kernelConfig(),
+            );
+
+            self::assertSame(
+                'var/explicit_artifacts',
+                $config->artifactsCacheDir(),
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testInvalidAppOverrideArtifactsCacheDirFailsDeterministically(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot(
+            'invalid-app-artifacts-cache-dir',
+        );
+
+        $unsafePath = '../unsafe-artifacts';
+
+        try {
+            self::writePhpArrayFile($skeletonRoot . '/config/app.php', [
+                'artifactsCacheDir' => $unsafePath,
+            ]);
+
+            try {
+                self::resolver()->resolve(
+                    new BootstrapInput(
+                        skeletonRoot: $skeletonRoot,
+                        appTarget: AppTarget::Web,
+                    ),
+                    self::kernelConfig(),
+                );
+            } catch (BootstrapException $exception) {
+                self::assertSame(
+                    BootstrapException::ERROR_CODE,
+                    $exception->errorCode(),
+                );
+                self::assertSame(
+                    BootstrapException::REASON_OVERRIDES_INVALID,
+                    $exception->reason(),
+                );
+                self::assertSame(
+                    'CORETSIA_BOOTSTRAP_FAILED: bootstrap-overrides-invalid',
+                    $exception->getMessage(),
+                );
+                self::assertStringNotContainsString(
+                    $unsafePath,
+                    $exception->getMessage(),
+                );
+                self::assertStringNotContainsString(
+                    $skeletonRoot,
+                    $exception->getMessage(),
+                );
+
+                return;
+            }
+
+            self::fail(
+                'Invalid artifactsCacheDir app override must fail deterministically.',
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
+    public function testInvalidKernelDefaultArtifactsCacheDirFailsDeterministically(): void
+    {
+        $skeletonRoot = self::createSkeletonRoot(
+            'invalid-default-artifacts-cache-dir',
+        );
+
+        try {
+            $kernelConfig = self::kernelConfig();
+
+            $kernelConfig['boot']['default_artifacts_cache_dir'] = 'skeleton/var/cache';
+
+            $this->expectException(\InvalidArgumentException::class);
+            $this->expectExceptionMessage(
+                'bootstrap-config-default-artifacts-cache-dir-invalid',
+            );
+
+            self::resolver()->resolve(
+                new BootstrapInput(
+                    skeletonRoot: $skeletonRoot,
+                    appTarget: AppTarget::Web,
+                ),
+                $kernelConfig,
+            );
+        } finally {
+            self::removeDirectory($skeletonRoot);
+        }
+    }
+
     public function testDiagnosticsDoNotLeakRawPresetValues(): void
     {
         $skeletonRoot = self::createSkeletonRoot('diagnostics-safe');
@@ -313,6 +467,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
                 'default_env' => 'local',
                 'default_preset' => 'micro',
                 'default_debug' => false,
+                'default_artifacts_cache_dir' => 'var/cache',
             ],
             'env' => [
                 'source_policy' => [

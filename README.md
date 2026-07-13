@@ -16,27 +16,27 @@
 
 # Coretsia Framework (Monorepo)
 
-**Coretsia** [kɔˈrɛtsjɑ] / [ko-RET-si-ya] — from the Ukrainian word **“серцевина”** (*core, foundation*)
+Coretsia [kɔˈrɛtsjɑ] / [ko-RET-si-ya] — from the Ukrainian word “серцевина” (*core, foundation*)
 
-**A modular, deterministic-by-default PHP framework monorepo with strict compile-time boundaries and SSoT-driven development**
+A modular, deterministic-by-default PHP framework monorepo with strict compile-time boundaries and SSoT-driven development
 
 </div>
 
 ## Status
 
-Coretsia Framework is in **active development** and remains **pre-release**.
+Coretsia Framework is in active development and remains pre-release.
 
 Roadmap status:
 
-- **Prelude**: implemented
-- **Phase 0 — Spikes and prototypes**: implemented
-- **Phase 1 — Core**: implemented
-- **Phase 2 — Mode Infrastructure & CLI**: active development
-- **Phase 3 — RELEASE: micro**: planned
-- **Phase 4 — RELEASE: express**: planned
-- **Phase 5 — RELEASE: hybrid**: planned
-- **Phase 6+ — RELEASE: enterprise (extensions)**: planned
-- **Stable production release**: not available yet
+- Prelude: implemented
+- Phase 0 — Spikes and prototypes: implemented
+- Phase 1 — Core: implemented
+- Phase 2 — Mode Infrastructure & CLI: active development
+- Phase 3 — RELEASE: micro: planned
+- Phase 4 — RELEASE: express: planned
+- Phase 5 — RELEASE: hybrid: planned
+- Phase 6+ — RELEASE: enterprise (extensions): planned
+- Stable production release: not available yet
 
 Current public implementation baseline:
 
@@ -103,7 +103,7 @@ This avoids maintaining a compatibility matrix across framework packages, genera
 
 ### Canonical entrypoints (MUST)
 
-Run commands from the **repo root**. Canonical scripts:
+Run commands from the repo root. Canonical scripts:
 
 ```bash
 composer setup
@@ -131,19 +131,19 @@ See:
 
 - lock files are committed for root/framework/skeleton
 - CI uses `composer install` and fails on lock drift
-- drift check for managed repositories runs **before** installs
+- drift check for managed repositories runs before installs
 
 ### SSoT config shape invariant (cemented)
 
-- `config/<name>.php` returns a **subtree** (no wrapper repeating the root key).
+- `config/<name>.php` returns a subtree (no wrapper repeating the root key).
   - Example: `config/foundation.php` returns `['container' => ...]`, not `['foundation' => ...]`.
 - Runtime reads from global config under that root key (e.g. `foundation.container.*`).
 
 ### Runtime discovery (MUST)
 
-- Runtime module discovery uses **Composer metadata only**.
-- Runtime discovery **MUST NOT** do filesystem scanning.
-- Tooling package indexes **MUST NOT** be used as runtime input.
+- Runtime module discovery uses Composer metadata only.
+- Runtime discovery MUST NOT do filesystem scanning.
+- Tooling package indexes MUST NOT be used as runtime input.
 
 ### Spikes boundary (MUST)
 
@@ -153,12 +153,12 @@ See:
 
 ## Requirements
 
-- PHP: **>= 8.4**
-- Composer: **2.x**
+- PHP: >= 8.4
+- Composer: 2.x
 
 ## Quick start (monorepo dev)
 
-Run everything from the **repository root**. Canonical entrypoints:
+Run everything from the repository root. Canonical entrypoints:
 
 ```bash
 composer setup
@@ -218,5 +218,5 @@ Website proposals must align with:
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).  
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE). \
 See [NOTICE](NOTICE) for attribution and third-party notices (if applicable).

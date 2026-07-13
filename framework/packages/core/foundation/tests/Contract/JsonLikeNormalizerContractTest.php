@@ -459,6 +459,18 @@ final class JsonLikeNormalizerContractTest extends TestCase
             JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING
         );
         self::assertSame('json-like-type-forbidden', JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN);
+        self::assertSame(
+            'json-like-max-depth-exceeded',
+            JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
+        );
+        self::assertSame(
+            'json-like-max-nodes-exceeded',
+            JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+        self::assertSame(
+            'json-like-string-bytes-exceeded',
+            JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+        );
     }
 
     /**

@@ -22,12 +22,47 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Runtime\Driver\HttpDriver;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use PHPUnit\Framework\TestCase;
 
 final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
 {
+    public function testResolveEntrypointDriversReturnsValidatedComposedDrivers(): void
+    {
+        $drivers = self::guard()->resolveEntrypointDrivers(
+            config: new ArrayConfigRepository(
+                self::runtimeConfig(
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
+                ),
+            ),
+            modulePlan: self::modulePlan([
+                'platform.http',
+                'platform.worker',
+            ]),
+            runtimeDriverContributions: RuntimeDriverContributions::fromDrivers(
+                httpDrivers: [
+                    HttpDriver::WORKER,
+                ],
+                backgroundDrivers: [],
+            ),
+        );
+
+        self::assertSame(HttpDriver::WORKER, $drivers->httpDriver());
+        self::assertSame('http.worker', $drivers->httpDriverId());
+        self::assertSame([], $drivers->backgroundDrivers());
+        self::assertSame([], $drivers->backgroundDriverIds());
+        self::assertSame(
+            [
+                'http.worker',
+            ],
+            $drivers->driverIds(),
+        );
+    }
+
     public function testRoadrunnerWithoutPlatformHttpFailsBeforeRuntimeStart(): void
     {
         $started = false;
@@ -40,6 +75,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
             self::guard()->assertEntrypointAllowed(
                 config: new ArrayConfigRepository($config),
                 modulePlan: self::modulePlan([]),
+                runtimeDriverContributions: self::noRuntimeDriverContributions(),
             );
 
             $started = true;
@@ -66,6 +102,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
                 )
             ),
             modulePlan: self::modulePlan(['platform.http']),
+            runtimeDriverContributions: self::noRuntimeDriverContributions(),
         );
 
         self::assertTrue(true);
@@ -81,6 +118,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
                 )
             ),
             modulePlan: self::modulePlan([]),
+            runtimeDriverContributions: self::noRuntimeDriverContributions(),
         );
 
         self::assertTrue(true);
@@ -102,6 +140,7 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
                     ],
                 ]),
                 modulePlan: self::modulePlan([]),
+                runtimeDriverContributions: self::noRuntimeDriverContributions(),
             );
 
             $started = true;
@@ -126,37 +165,34 @@ final class RuntimeEntrypointGuardPreventsRuntimeStartTest extends TestCase
                 )
             ),
             modulePlan: self::modulePlan([]),
+            runtimeDriverContributions: self::noRuntimeDriverContributions(),
         );
 
         self::assertTrue(true);
     }
 
-    public function testMissingWorkerTaskTypeFailsWhenPlatformWorkerIsEnabled(): void
+    public function testMissingWorkerTaskTypeIsOutOfScopeForKernelEntrypointGuard(): void
     {
-        $started = false;
+        self::guard()->assertEntrypointAllowed(
+            config: new ArrayConfigRepository(
+                self::runtimeConfig(
+                    httpDriver: 'http.classic',
+                    workerTaskType: null,
+                )
+            ),
+            modulePlan: self::modulePlan(['platform.worker']),
+            runtimeDriverContributions: self::noRuntimeDriverContributions(),
+        );
 
-        try {
-            self::guard()->assertEntrypointAllowed(
-                config: new ArrayConfigRepository(
-                    self::runtimeConfig(
-                        httpDriver: 'http.classic',
-                        workerTaskType: null,
-                    )
-                ),
-                modulePlan: self::modulePlan(['platform.worker']),
-            );
+        self::assertTrue(true);
+    }
 
-            $started = true;
-
-            self::fail('Expected missing worker.task_type to fail when platform.worker is enabled.');
-        } catch (RuntimeDriverInvalidConfigException $exception) {
-            self::assertFalse($started);
-            self::assertSame(
-                RuntimeDriverInvalidConfigException::REASON_WORKER_TASK_TYPE_MISSING,
-                $exception->reason(),
-            );
-            self::assertSame([], $exception->requiredModuleIds());
-        }
+    private static function noRuntimeDriverContributions(): RuntimeDriverContributions
+    {
+        return RuntimeDriverContributions::fromDrivers(
+            httpDrivers: [],
+            backgroundDrivers: [],
+        );
     }
 
     private static function guard(): RuntimeEntrypointGuard

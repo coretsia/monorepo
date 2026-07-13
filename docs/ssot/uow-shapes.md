@@ -926,6 +926,29 @@ The Kernel wrapper owns only UoW-specific rules:
 
 The Kernel wrapper MUST NOT duplicate the baseline recursive json-like walker owned by Foundation.
 
+Hook payload production uses a separate final export guard:
+
+```text
+Coretsia\Kernel\Runtime\Hook\HookContextNormalizer
+```
+
+The two internal helpers have distinct responsibilities:
+
+```text
+JsonLikeShapeNormalizer
+  → UoW-specific attributes/extensions/error policy
+  → Foundation baseline recursive normalization
+
+HookContextNormalizer
+  → accepts UnitOfWorkContext or UnitOfWorkResult only
+  → calls the canonical toArray() export
+  → applies a final Foundation baseline pass to the complete hook payload
+```
+
+`HookContextNormalizer` MUST NOT accept arbitrary arrays as an alternative input path.
+
+It MUST NOT redefine UoW-specific root, unsafe-key, limit, or exception-mapping policy.
+
 ## Float, NAN, and INF rejection
 
 Floats are forbidden at any nesting depth in:
@@ -1300,13 +1323,30 @@ Low-level adapters receive an opaque lifecycle handle:
 Coretsia\Contracts\Runtime\UnitOfWorkHandle
 ```
 
-The handle exposes the same exported safe context shape through:
+The handle exposes the same normalized exported safe context shape—not the complete internal `UnitOfWorkContext` field set—through:
 
 ```text
 UnitOfWorkHandle::context()
 ```
 
 `UnitOfWorkHandle::context()` MUST NOT expose Stopwatch tokens.
+
+The canonical low-level lifecycle separates exported context from private timing state:
+
+```text
+UnitOfWorkContext::toArray()
+  → normalized exported context
+  → UnitOfWorkHandle::context()
+
+UnitOfWorkContext::startedAtToken()
+  → private Kernel lifecycle association
+  → keyed by the exact UnitOfWorkHandle object identity
+  → consumed during afterUnitOfWork()
+```
+
+The token is not a hidden, optional, or implementation-specific key of the handle context.
+
+The presence of `startedAtToken` in the internal `UnitOfWorkContext` therefore does not conflict with its prohibition in `UnitOfWorkHandle::context()`.
 
 Before hooks, adapters, artifacts, or other export consumers receive result data:
 
@@ -1584,6 +1624,7 @@ Expected Kernel contract enforcement includes:
 
 ```text
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
@@ -1594,6 +1635,8 @@ framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTe
 These tests are expected to verify:
 
 - context field set and exported key order;
+- internal `startedAtToken` state is excluded from the exported handle context;
+- the low-level begin/after lifecycle preserves timing state through exact handle identity rather than through exported context keys;
 - result field set and exported key order;
 - context `attributes` json-like policy;
 - result `extensions` json-like policy;

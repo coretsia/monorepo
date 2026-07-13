@@ -46,7 +46,7 @@ This document owns:
 - filesystem metadata non-semantics;
 - safe verification result shape constraints.
 
-This document **MUST NOT** redefine:
+This document MUST NOT redefine:
 
 - the canonical artifact envelope shape;
 - canonical artifact header fields;
@@ -62,17 +62,17 @@ Those rules remain owned by their canonical SSoT documents.
 
 ## Invariants (MUST)
 
-- Cache verification **MUST** be deterministic for the same logical inputs and existing artifact bytes.
-- Cache verification **MUST** classify each expected Kernel artifact independently.
-- Cache verification **MUST** return a deterministic aggregate outcome.
-- Cache verification **MUST NOT** write artifacts.
-- Cache verification **MUST NOT** repair artifacts.
-- Cache verification **MUST NOT** mutate existing artifact files.
-- Cache verification **MUST NOT** update mtimes.
-- Cache verification **MUST NOT** rely on mtimes, ctimes, permissions, owners, inode ids, directory ordering, hostnames, usernames, process ids, or filesystem-specific metadata for clean/dirty/invalid decisions.
-- Cache verification **MUST NOT** expose absolute paths, raw artifact payloads, raw config values, raw env values, secrets, PII, raw SQL, PHP warning text, stack traces, previous throwable messages, or raw fingerprint input.
-- Cache verification **MUST** use safe relative artifact paths in public result data.
-- Cache verification **MUST** treat observability as best-effort and non-semantic.
+- Cache verification MUST be deterministic for the same logical inputs and existing artifact bytes.
+- Cache verification MUST classify each expected Kernel artifact independently.
+- Cache verification MUST return a deterministic aggregate outcome.
+- Cache verification MUST NOT write artifacts.
+- Cache verification MUST NOT repair artifacts.
+- Cache verification MUST NOT mutate existing artifact files.
+- Cache verification MUST NOT update mtimes.
+- Cache verification MUST NOT rely on mtimes, ctimes, permissions, owners, inode ids, directory ordering, hostnames, usernames, process ids, or filesystem-specific metadata for clean/dirty/invalid decisions.
+- Cache verification MUST NOT expose absolute paths, raw artifact payloads, raw config values, raw env values, secrets, PII, raw SQL, PHP warning text, stack traces, previous throwable messages, or raw fingerprint input.
+- Cache verification MUST use safe relative artifact paths in public result data.
+- Cache verification MUST treat observability as best-effort and non-semantic.
 
 ## Expected Kernel Artifact Set (MUST)
 
@@ -111,7 +111,7 @@ The verifier may receive:
 - explicit env overlay mappings;
 - mode preset source candidates.
 
-Cache verification **MUST NOT**:
+Cache verification MUST NOT:
 
 - resolve `BootstrapConfig`;
 - resolve `ModulePlan`;
@@ -140,13 +140,13 @@ Cache verification follows this semantic sequence:
    - compare existing normalized bytes with expected bytes.
 8. Return safe deterministic per-artifact results and aggregate counts.
 
-Cache verification **MUST NOT** write expected artifacts to disk during verification.
+Cache verification MUST NOT write expected artifacts to disk during verification.
 
 ## Existing Artifact Read Semantics (MUST)
 
 Existing PHP artifacts are read through a narrow artifact reader.
 
-The reader **MUST**:
+The reader MUST:
 
 - read existing artifact bytes;
 - normalize read bytes by converting CRLF and CR to LF;
@@ -155,7 +155,7 @@ The reader **MUST**:
 - reject non-array returned values;
 - convert filesystem/include/parse failures into deterministic safe reason tokens.
 
-The reader **MUST NOT**:
+The reader MUST NOT:
 
 - validate artifact schemas;
 - calculate fingerprints;
@@ -169,7 +169,7 @@ Clean/dirty/invalid orchestration belongs to the cache verifier.
 
 ## Schema Validation Semantics (MUST)
 
-Existing artifact schema validation **MUST** validate by:
+Existing artifact schema validation MUST validate by:
 
 - canonical envelope structure;
 - canonical header semantics;
@@ -177,9 +177,9 @@ Existing artifact schema validation **MUST** validate by:
 - expected schema version;
 - Kernel-owned payload schema.
 
-Existing artifact schema validation **MUST NOT** rely on PHP class identity as the source of truth.
+Existing artifact schema validation MUST NOT rely on PHP class identity as the source of truth.
 
-Invalid envelope, invalid header, invalid schema version, invalid artifact name, or invalid payload shape **MUST** classify the artifact as invalid.
+Invalid envelope, invalid header, invalid schema version, invalid artifact name, or invalid payload shape MUST classify the artifact as invalid.
 
 ## Per-Artifact Statuses (MUST)
 
@@ -215,7 +215,7 @@ Dirty reasons include:
 
 Dirty artifacts are candidates for regeneration by artifact production.
 
-Cache verification itself **MUST NOT** regenerate them.
+Cache verification itself MUST NOT regenerate them.
 
 ### `invalid`
 
@@ -261,7 +261,7 @@ No reason may expose raw exception text, raw PHP warning text, raw artifact payl
 
 ## Missing Artifact Semantics (MUST)
 
-A missing expected artifact file **MUST** be classified as:
+A missing expected artifact file MUST be classified as:
 
 ```text
 status = dirty
@@ -280,7 +280,7 @@ Rationale:
 
 After successful read and schema validation, the existing artifact header fingerprint is compared to the current fingerprint.
 
-If the stored fingerprint does not equal the current fingerprint, the artifact **MUST** be classified as:
+If the stored fingerprint does not equal the current fingerprint, the artifact MUST be classified as:
 
 ```text
 status = dirty
@@ -299,9 +299,9 @@ Rationale:
 
 After successful read, schema validation, and fingerprint match, existing bytes are compared to expected bytes.
 
-Both sides **MUST** be compared as LF-normalized bytes.
+Both sides MUST be compared as LF-normalized bytes.
 
-If the bytes differ, the artifact **MUST** be classified as:
+If the bytes differ, the artifact MUST be classified as:
 
 ```text
 status = dirty
@@ -318,7 +318,7 @@ Rationale:
 
 ## Filesystem Metadata Non-Semantics (MUST)
 
-Cache verification **MUST NOT** use any of the following for clean/dirty/invalid classification:
+Cache verification MUST NOT use any of the following for clean/dirty/invalid classification:
 
 - file mtime;
 - file ctime;
@@ -351,9 +351,9 @@ failure > invalid > dirty > clean
 
 For successfully completed verification over expected artifacts:
 
-1. If any artifact is invalid, aggregate outcome **MUST** be `invalid`.
-2. Else if any artifact is dirty or missing, aggregate outcome **MUST** be `dirty`.
-3. Else aggregate outcome **MUST** be `clean`.
+1. If any artifact is invalid, aggregate outcome MUST be `invalid`.
+2. Else if any artifact is dirty or missing, aggregate outcome MUST be `dirty`.
+3. Else aggregate outcome MUST be `clean`.
 
 `failure` is reserved for verification operation failure before a normal clean/dirty/invalid result can be safely completed.
 
@@ -385,11 +385,11 @@ dirty = false
 invalid = true
 ```
 
-A normal completed verification result **MUST NOT** set multiple state flags to true.
+A normal completed verification result MUST NOT set multiple state flags to true.
 
 ## Counts (MUST)
 
-Verification result counts **MUST** be deterministic and safe.
+Verification result counts MUST be deterministic and safe.
 
 Baseline counts are:
 
@@ -399,13 +399,13 @@ Baseline counts are:
 - `dirty_artifact_count`
 - `invalid_artifact_count`
 
-Counts **MUST NOT** depend on directory enumeration order or unexpected filesystem metadata.
+Counts MUST NOT depend on directory enumeration order or unexpected filesystem metadata.
 
-Counts **MUST** be bounded safe integers.
+Counts MUST be bounded safe integers.
 
 ## Result Safety (MUST)
 
-Verification result data **MAY** include:
+Verification result data MAY include:
 
 - schema version;
 - aggregate outcome;
@@ -420,7 +420,7 @@ Verification result data **MAY** include:
 - safe explain entries;
 - bounded counts.
 
-Verification result data **MUST NOT** include:
+Verification result data MUST NOT include:
 
 - absolute paths;
 - target filesystem paths;
@@ -441,13 +441,13 @@ Verification result data **MUST NOT** include:
 
 Verification explain entries are safe per-artifact diagnostic metadata.
 
-Explain entries **MAY** include:
+Explain entries MAY include:
 
 - artifact basename;
 - skeleton-relative artifact path;
 - reason token.
 
-Explain entries **MUST NOT** include:
+Explain entries MUST NOT include:
 
 - absolute paths;
 - raw artifact bytes;
@@ -458,9 +458,9 @@ Explain entries **MUST NOT** include:
 - stack traces;
 - host-specific bytes.
 
-A clean artifact **MUST** have an empty explain entry list.
+A clean artifact MUST have an empty explain entry list.
 
-A non-clean artifact **MAY** include a safe explain entry with its basename, safe relative path, and reason token.
+A non-clean artifact MAY include a safe explain entry with its basename, safe relative path, and reason token.
 
 ## Verification and Production Boundary (MUST)
 
@@ -473,7 +473,7 @@ Cache verification:
 - compares fingerprints and bytes;
 - returns safe cache state.
 
-Cache verification **MUST NOT**:
+Cache verification MUST NOT:
 
 - write artifacts;
 - repair artifacts;
@@ -490,9 +490,9 @@ Artifact production:
 
 Cache verification observability is best-effort and non-semantic.
 
-Observability failures **MUST NOT** alter verification classification, result data, or exception precedence.
+Observability failures MUST NOT alter verification classification, result data, or exception precedence.
 
-Cache verification observability **MUST NOT** expose:
+Cache verification observability MUST NOT expose:
 
 - absolute paths;
 - raw artifact bytes;
@@ -508,15 +508,15 @@ Cache verification observability **MUST NOT** expose:
 - previous throwable messages;
 - raw fingerprint input.
 
-Cache verification metrics, if emitted, **MUST** comply with the global observability SSoT.
+Cache verification metrics, if emitted, MUST comply with the global observability SSoT.
 
 This document does not own the global metrics catalog.
 
 ## Provider Registration Non-Semantics (MUST)
 
-Registering cache verification services in the provider **MUST NOT** run cache verification.
+Registering cache verification services in the provider MUST NOT run cache verification.
 
-Provider registration **MUST NOT**:
+Provider registration MUST NOT:
 
 - read artifacts;
 - write artifacts;

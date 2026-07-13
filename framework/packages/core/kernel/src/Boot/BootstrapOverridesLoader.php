@@ -38,6 +38,7 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * - preset
  * - presets
  * - debug
+ * - artifactsCacheDir
  *
  * `preset` is a global fallback preset override.
  *
@@ -71,6 +72,7 @@ final readonly class BootstrapOverridesLoader
     private const string KEY_PRESET = 'preset';
     private const string KEY_PRESETS = 'presets';
     private const string KEY_DEBUG = 'debug';
+    private const string KEY_ARTIFACTS_CACHE_DIR = 'artifactsCacheDir';
 
     /**
      * @var array<string, true>
@@ -80,6 +82,7 @@ final readonly class BootstrapOverridesLoader
         self::KEY_PRESET => true,
         self::KEY_PRESETS => true,
         self::KEY_DEBUG => true,
+        self::KEY_ARTIFACTS_CACHE_DIR => true,
     ];
 
     /**
@@ -101,7 +104,8 @@ final readonly class BootstrapOverridesLoader
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
-     *     debug?: bool
+     *     debug?: bool,
+     *     artifactsCacheDir?: non-empty-string
      * }
      */
     public function load(BootstrapInput $input): array
@@ -176,7 +180,8 @@ final readonly class BootstrapOverridesLoader
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
-     *     debug?: bool
+     *     debug?: bool,
+     *     artifactsCacheDir?: non-empty-string
      * }
      */
     private static function normalizeOverrides(array $payload): array
@@ -192,7 +197,8 @@ final readonly class BootstrapOverridesLoader
          *     appEnv?: non-empty-string,
          *     preset?: non-empty-string,
          *     presets?: array<string, non-empty-string>,
-         *     debug?: bool
+         *     debug?: bool,
+         *     artifactsCacheDir?: non-empty-string
          * } $out
          */
         $out = [];
@@ -226,6 +232,14 @@ final readonly class BootstrapOverridesLoader
                 continue;
             }
 
+            if ($key === self::KEY_ARTIFACTS_CACHE_DIR) {
+                $out[self::KEY_ARTIFACTS_CACHE_DIR] = self::normalizeArtifactsCacheDirOverride(
+                    $value,
+                );
+
+                continue;
+            }
+
             if (!\is_bool($value)) {
                 throw BootstrapException::withReason(
                     BootstrapException::REASON_OVERRIDES_INVALID,
@@ -249,6 +263,21 @@ final readonly class BootstrapOverridesLoader
             );
         }
 
+        return $value;
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    private static function normalizeArtifactsCacheDirOverride(mixed $value): string
+    {
+        if (!BootstrapArtifactsCacheDir::isValid($value)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_OVERRIDES_INVALID,
+            );
+        }
+
+        /** @var non-empty-string $value */
         return $value;
     }
 

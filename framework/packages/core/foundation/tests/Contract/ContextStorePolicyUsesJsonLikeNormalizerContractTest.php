@@ -206,6 +206,54 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
         );
     }
 
+    public function testAssertValueMapsMaxDepthViolation(): void
+    {
+        self::assertContextWriteForbidden(
+            operation: static fn (): mixed => new ContextStorePolicy()->assertValue(
+                self::nestedList(9),
+                ContextKeys::PATH_TEMPLATE,
+            ),
+            expectedPath: 'path_template[0][0][0][0][0][0][0][0]',
+            expectedContextReason: 'context-write-forbidden-max-depth',
+            expectedJsonLikeReason: JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
+        );
+    }
+
+    public function testAssertValueMapsMaxNodesViolation(): void
+    {
+        self::assertContextWriteForbidden(
+            operation: static fn (): mixed => new ContextStorePolicy()->assertValue(
+                \array_fill(0, 257, 'value'),
+                ContextKeys::PATH_TEMPLATE,
+            ),
+            expectedPath: 'path_template[256]',
+            expectedContextReason: 'context-write-forbidden-max-nodes',
+            expectedJsonLikeReason: JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+    }
+
+    public function testAssertValueMapsStringBytesViolation(): void
+    {
+        $sentinel = 'CORETSIA_CONTEXT_STRING_SENTINEL';
+        $value = $sentinel . \str_repeat(
+            'x',
+            4097 - \strlen($sentinel),
+        );
+
+        self::assertContextWriteForbidden(
+            operation: static fn (): mixed => new ContextStorePolicy()->assertValue(
+                $value,
+                ContextKeys::PATH_TEMPLATE,
+            ),
+            expectedPath: 'path_template',
+            expectedContextReason: 'context-write-forbidden-string-bytes',
+            expectedJsonLikeReason: JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+            forbiddenDiagnosticsNeedles: [
+                $sentinel,
+            ],
+        );
+    }
+
     public function testAssertCanWritePreservesContextKeyPolicy(): void
     {
         $policy = new ContextStorePolicy();
@@ -289,6 +337,17 @@ final class ContextStorePolicyUsesJsonLikeNormalizerContractTest extends TestCas
             \array_keys($value['items'][0]),
             'ContextStorePolicy must not reorder maps nested inside lists.',
         );
+    }
+
+    private static function nestedList(int $depth): array
+    {
+        $value = 'leaf';
+
+        for ($i = 0; $i < $depth; $i++) {
+            $value = [$value];
+        }
+
+        return $value;
     }
 
     /**

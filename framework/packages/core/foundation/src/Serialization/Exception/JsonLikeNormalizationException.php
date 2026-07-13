@@ -22,7 +22,8 @@ namespace Coretsia\Foundation\Serialization\Exception;
  * Deterministic json-like runtime value normalization failure.
  *
  * This exception is used when Foundation rejects a value that cannot be
- * represented as a Coretsia json-like runtime value.
+ * represented as a Coretsia json-like runtime value or exceeds an explicitly
+ * supplied owner-specific normalization resource budget.
  *
  * The message is intentionally stable and safe. It may include only the
  * package error code, path-to-value, and a stable reason token. It must never
@@ -41,6 +42,9 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
     public const string REASON_OBJECT_FORBIDDEN = 'json-like-object-forbidden';
     public const string REASON_MAP_KEY_MUST_BE_STRING = 'json-like-map-key-must-be-string';
     public const string REASON_TYPE_FORBIDDEN = 'json-like-type-forbidden';
+    public const string REASON_MAX_DEPTH_EXCEEDED = 'json-like-max-depth-exceeded';
+    public const string REASON_MAX_NODES_EXCEEDED = 'json-like-max-nodes-exceeded';
+    public const string REASON_STRING_BYTES_EXCEEDED = 'json-like-string-bytes-exceeded';
 
     /**
      * @var array<string, true>
@@ -53,6 +57,9 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
         self::REASON_OBJECT_FORBIDDEN => true,
         self::REASON_MAP_KEY_MUST_BE_STRING => true,
         self::REASON_TYPE_FORBIDDEN => true,
+        self::REASON_MAX_DEPTH_EXCEEDED => true,
+        self::REASON_MAX_NODES_EXCEEDED => true,
+        self::REASON_STRING_BYTES_EXCEEDED => true,
     ];
 
     private readonly string $path;

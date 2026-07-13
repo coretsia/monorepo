@@ -652,12 +652,18 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     }
 
     /**
-     * Runs reset orchestration and returns the failure that must be surfaced.
+     * Runs reset orchestration and selects the exact failure to surface.
+     *
+     * Reset is attempted before failure selection.
      *
      * Failure precedence is Kernel-owned:
      *
-     * - primary lifecycle/body failure wins;
-     * - reset failure is surfaced only when there is no primary failure.
+     * - an existing primary lifecycle, hook, or body failure is returned unchanged;
+     * - a reset failure never replaces, wraps, or mutates an existing primary failure;
+     * - a safe reset failure is returned only when no primary failure exists.
+     *
+     * Secondary reset failures are not aggregated into the surfaced lifecycle
+     * throwable.
      */
     private function resetAndSelectFailure(?\Throwable $primaryFailure): ?\Throwable
     {

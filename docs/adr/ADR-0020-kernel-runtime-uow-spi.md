@@ -228,6 +228,31 @@ They MUST NOT require:
 - scheduler vendor contexts;
 - concrete service containers.
 
+## Hook invocation failure decision
+
+Kernel hook invocation is sequential and fail-fast in the deterministic order returned by `TagRegistry`.
+
+The first hook service resolution failure, interface mismatch, or exception thrown by a valid hook stops the remaining hooks in the same lifecycle phase.
+
+Exceptions thrown by valid hook implementations propagate unchanged from `HookInvoker` to `KernelRuntime`.
+
+`HookInvoker` MUST NOT:
+
+- suppress hook failures;
+- continue invoking later hooks after a failure;
+- aggregate multiple hook failures;
+- execute reset orchestration;
+- select lifecycle failure precedence.
+
+`KernelRuntime` owns lifecycle-level handling.
+
+After the reset-responsibility boundary is crossed:
+
+- a before-hook failure skips the external body and after phase;
+- an after-hook failure stops the remaining after hooks;
+- reset orchestration still runs exactly once;
+- the first hook failure remains the primary lifecycle failure when reset also fails.
+
 ## Kernel implementation decision
 
 `core/kernel` owns the concrete runtime implementation.
@@ -337,6 +362,24 @@ For a before-uow hook failure, `KernelRuntime` MUST NOT execute the external bod
 
 The before-uow hook failure remains the primary lifecycle failure; reset failure is surfaced only when no primary lifecycle failure exists.
 
+The canonical high-level lifecycle failure precedence is:
+
+| failure situation                                        | surfaced failure                                                        |
+|----------------------------------------------------------|-------------------------------------------------------------------------|
+| context creation fails                                   | context creation failure; reset does not run                            |
+| base context key writing fails                           | context write failure; reset does not run                               |
+| before hook fails                                        | exact before-hook failure                                               |
+| body fails and after phase also fails                    | exact body failure                                                      |
+| body succeeds and after phase fails                      | exact after-phase failure                                               |
+| an earlier lifecycle failure exists and reset also fails | exact earlier lifecycle failure                                         |
+| no earlier lifecycle failure exists and reset fails      | safe `KernelRuntimeException` with reason `kernel-runtime-reset-failed` |
+
+`KernelRuntime` MUST return the existing primary throwable unchanged.
+
+It MUST NOT replace, wrap, or mutate an existing primary throwable with a secondary reset failure.
+
+Secondary after-phase or reset failures are not aggregated into the surfaced lifecycle throwable.
+
 ## Hook payload production decision
 
 `core/kernel` owns normalized hook payload production.
@@ -349,12 +392,18 @@ framework/packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php
 
 Kernel hook payload production converts Kernel-owned runtime shapes into normalized json-like arrays.
 
-The input may be Kernel-owned objects:
+The input MUST be one of the Kernel-owned runtime shapes:
 
 ```text
 UnitOfWorkContext
 UnitOfWorkResult
 ```
+
+`HookContextNormalizer` MUST NOT accept arbitrary context or result arrays.
+
+Raw array input would permit internal callers to bypass UoW-specific validation owned by `UnitOfWorkContext`, `UnitOfWorkResult`, and `JsonLikeShapeNormalizer`.
+
+The runtime shapes first normalize their UoW-owned fields through `JsonLikeShapeNormalizer`. `HookContextNormalizer` then performs a final Foundation baseline normalization pass over the complete exported map.
 
 The output passed to hooks is always array payload data.
 
@@ -702,6 +751,11 @@ These tests are expected to verify:
 - `beginUnitOfWork()` returns a handle whose context excludes `startedAt`, `startedAtToken`, and `finishedAt`;
 - the exact returned handle retains access to private lifecycle timing state through Kernel-owned identity association;
 - `afterUnitOfWork()` completes successfully without reading timing state from `UnitOfWorkHandle::context()`;
+- a body throwable remains the exact surfaced throwable when after-phase or reset handling also fails;
+- an after-hook throwable remains the exact surfaced throwable when reset also fails;
+- a before-hook throwable remains the exact surfaced throwable when reset also fails;
+- reset failure is surfaced only when no earlier lifecycle failure exists;
+- a surfaced reset failure preserves the original reset throwable through in-process previous-throwable chaining;
 - adapters consume the contracts port;
 - Kernel does not define a competing runtime interface;
 - Kernel does not expose PSR-7/15 in public runtime APIs;

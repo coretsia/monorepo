@@ -435,6 +435,7 @@ Coretsia/
 │   │   │   │   │   ├── Serialization/
 │   │   │   │   │   │   ├── Exception/
 │   │   │   │   │   │   │   └── JsonLikeNormalizationException.php
+│   │   │   │   │   │   ├── JsonLikeNormalizationLimits.php
 │   │   │   │   │   │   ├── JsonLikeNormalizer.php
 │   │   │   │   │   │   ├── StableJsonDecoder.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
@@ -462,6 +463,7 @@ Coretsia/
 │   │   │   │   │   │   ├── FoundationConfigRejectsFloatValuesInIdsContractTest.php
 │   │   │   │   │   │   ├── FoundationConfigSubtreeShapeContractTest.php
 │   │   │   │   │   │   ├── FoundationEnhancedResetConfigShapeContractTest.php
+│   │   │   │   │   │   ├── JsonLikeNormalizationLimitsContractTest.php
 │   │   │   │   │   │   ├── JsonLikeNormalizerContractTest.php
 │   │   │   │   │   │   ├── PriorityResetStopwatchFailurePolicyContractTest.php
 │   │   │   │   │   │   ├── StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
@@ -479,14 +481,19 @@ Coretsia/
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
 │   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
+│   │   │   │   │   │   ├── ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsAtPrefixedKeysTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsFloatValuesTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsNonStringMapKeysTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsObjectValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsOversizedStringValuesTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsResourceValuesTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
 │   │   │   │   │   │   ├── ContextStoreRejectsUnknownKeysTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsValuesExceedingMaxDepthTest.php
+│   │   │   │   │   │   ├── ContextStoreRejectsValuesExceedingMaxNodesTest.php
 │   │   │   │   │   │   ├── ContextStoreResetClearsContextTest.php
 │   │   │   │   │   │   ├── ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
 │   │   │   │   │   │   ├── CorrelationIdProviderReadsContextStoreTest.php
@@ -517,6 +524,7 @@ Coretsia/
 │   │   │   │   │       ├── ContainerCanAutowireIsStrictOnMissingConfigTest.php
 │   │   │   │   │       ├── ContainerDoesNotAutowireInterfacesTest.php
 │   │   │   │   │       ├── ContextBagImmutabilityTest.php
+│   │   │   │   │       ├── ContextBagRejectsValuesExceedingResourceLimitsTest.php
 │   │   │   │   │       ├── CorrelationIdFormatTest.php
 │   │   │   │   │       ├── CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
 │   │   │   │   │       ├── DeterministicOrderSortRuleTest.php
@@ -834,7 +842,7 @@ Coretsia/
 │   │   │       │       ├── FingerprintInstalledManifestNormalizationTest.php
 │   │   │       │       ├── GraphCycleDetectionTest.php
 │   │   │       │       ├── HookContextNormalizerNormalizesErrorDescriptorTest.php
-│   │   │       │       ├── HookContextNormalizerRejectsNonJsonLikeValuesTest.php
+│   │   │       │       ├── HookContextNormalizerRequiresKernelOwnedShapesTest.php
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php
 │   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php
 │   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php

@@ -22,10 +22,11 @@ use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Foundation\Context\Exception\ContextInvalidKeyException;
 use Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException;
 use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+use Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits;
 use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 
 /**
- * Fail-closed safe-write guard for ContextStore.
+ * Fail-closed structural write guard for ContextStore.
  *
  * Context validation is baseline safety infrastructure. It is intentionally
  * not feature-flagged and must not provide a disabled or bypass mode.
@@ -43,22 +44,52 @@ use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
  * - list<value>
  * - array<string,value>
  *
+ * This policy validates canonical key membership and deterministic json-like
+ * value shape. It does not classify arbitrary scalar strings as secrets,
+ * credentials, tokens, PII, or other semantically sensitive values.
+ *
+ * Context writers own semantic value safety and MUST derive or validate an
+ * owner-approved safe representation before calling ContextStore::set().
+ *
+ * Acceptance by this policy means structurally admissible for in-process
+ * context storage. It does not make a value safe for logs, traces, metrics,
+ * diagnostics, artifacts, or other export boundaries.
+ *
  * ContextStorePolicy owns context-specific write policy:
  *
  * - public ContextKeys contract allowlist;
  * - reserved @* key rejection;
+ * - bounded recursive container depth;
+ * - bounded total map-value/list-item count;
+ * - bounded individual string byte length;
  * - context-specific exception mapping.
  *
- * The context key vocabulary is owned by core/contracts. This class owns
- * write validation only.
+ * core/contracts owns only the public context key vocabulary and read-only
+ * context access port. It does not own mutable context storage or write
+ * validation.
  *
- * Baseline json-like value validation is delegated to JsonLikeNormalizer.
+ * This Foundation-owned policy owns context-specific write validation.
+ * Baseline json-like value validation is delegated internally to the
+ * Foundation-owned JsonLikeNormalizer to avoid competing recursive value
+ * models.
+ *
+ * ContextStore applies a mandatory Foundation-owned resource budget:
+ *
+ * - maximum container depth: 8;
+ * - maximum map values/list items per stored value: 256;
+ * - maximum bytes per string value or nested map key: 4096.
+ *
+ * These limits are not configurable and cannot be disabled.
  *
  * Failure messages are deterministic and safe: they include only context keys,
  * safe path-to-value, and stable reason tokens.
  */
 final class ContextStorePolicy
 {
+    private const int MAX_VALUE_DEPTH = 8;
+    private const int MAX_VALUE_NODES = 256;
+    private const int MAX_STRING_BYTES = 4096;
+
     public function assertCanWrite(string $key, mixed $value): void
     {
         $this->assertKey($key);
@@ -83,7 +114,11 @@ final class ContextStorePolicy
     public function assertValue(mixed $value, string $path = 'value'): void
     {
         try {
-            JsonLikeNormalizer::normalize($value, $path);
+            JsonLikeNormalizer::normalize(
+                value: $value,
+                path: $path,
+                limits: self::contextLimits(),
+            );
         } catch (JsonLikeNormalizationException $exception) {
             throw new ContextWriteForbiddenException(
                 $exception->path(),
@@ -91,6 +126,15 @@ final class ContextStorePolicy
                 $exception,
             );
         }
+    }
+
+    private static function contextLimits(): JsonLikeNormalizationLimits
+    {
+        return new JsonLikeNormalizationLimits(
+            maxDepth: self::MAX_VALUE_DEPTH,
+            maxNodes: self::MAX_VALUE_NODES,
+            maxStringBytes: self::MAX_STRING_BYTES,
+        );
     }
 
     private static function mapJsonLikeReason(string $reason): string
@@ -102,6 +146,9 @@ final class ContextStorePolicy
             JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN => 'context-write-forbidden-resource',
             JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING => 'context-write-forbidden-map-key',
             JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN => 'context-write-forbidden-type',
+            JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED => 'context-write-forbidden-max-depth',
+            JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED => 'context-write-forbidden-max-nodes',
+            JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED => 'context-write-forbidden-string-bytes',
             default => 'context-write-forbidden-type',
         };
     }

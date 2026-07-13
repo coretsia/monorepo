@@ -29,6 +29,18 @@ use Coretsia\Contracts\Runtime\ResetInterface;
  *
  * Validation failures reject the attempted write. ContextStore must not degrade
  * to unsafe storage; optional writers should omit optional context instead.
+ *
+ * ContextStorePolicy enforces canonical keys and structural value safety.
+ * It also enforces a mandatory bounded resource budget for every stored value:
+ * recursive container depth, map-value/list-item count, and individual string
+ * byte length.
+ *
+ * Semantic sensitivity remains the responsibility of the owner writing each
+ * context key.
+ *
+ * ContextStore is an in-process state holder, not an observability or export
+ * payload. Its complete contents MUST NOT be copied wholesale into logs,
+ * traces, metrics, diagnostics, artifacts, health output, or error payloads.
  */
 final class ContextStore implements ContextAccessorInterface, ResetInterface
 {

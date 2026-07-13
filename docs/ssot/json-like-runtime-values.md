@@ -28,6 +28,7 @@ It defines the canonical runtime value model implemented by:
 
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
+Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits
 Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 ```
 
@@ -35,6 +36,7 @@ The canonical implementation paths are:
 
 ```text
 framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
+framework/packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php
 framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
 ```
 
@@ -196,7 +198,11 @@ Callers remain responsible for target-boundary safety.
 The canonical normalizer API is:
 
 ```text
-Coretsia\Foundation\Serialization\JsonLikeNormalizer::normalize(mixed $value, string $path = 'value'): mixed
+Coretsia\Foundation\Serialization\JsonLikeNormalizer::normalize(
+    mixed $value,
+    string $path = 'value',
+    ?JsonLikeNormalizationLimits $limits = null,
+): mixed
 ```
 
 The method MUST return a deterministic json-like runtime value.
@@ -207,13 +213,88 @@ The method MUST throw:
 Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 ```
 
-when a value cannot be represented by the baseline json-like runtime model.
+when a value cannot be represented by the baseline json-like runtime model or exceeds an explicitly supplied owner-specific normalization resource budget.
+
+The optional resource-budget value object is:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits
+```
+
+When `$limits` is `null`, baseline value-model behavior remains compatible with existing consumers.
+
+Supplying limits does not change which PHP value types belong to the baseline json-like model. It adds only bounded traversal constraints.
 
 The normalizer is a low-level static runtime primitive.
 
 It is not a DI service.
 
 It introduces no config keys, no tags, and no artifacts.
+
+## Optional owner-specific resource limits
+
+The baseline json-like value model and owner-specific resource budgets are distinct responsibilities:
+
+```text
+baseline value model
+≠
+owner-specific resource budget
+```
+
+`JsonLikeNormalizer` MAY receive an optional immutable `JsonLikeNormalizationLimits` value object.
+
+The value object defines:
+
+```text
+maxDepth
+maxNodes
+maxStringBytes
+```
+
+All values MUST be positive integers.
+
+`0` MUST NOT represent an unlimited or disabled mode.
+
+Depth semantics are:
+
+- root scalar values have no container depth;
+- a root list or map has depth `1`;
+- every nested list or map increases depth by `1`;
+- maps and lists use identical depth rules.
+
+Node semantics are:
+
+- the root value is not counted;
+- each map value consumes one node;
+- each list item consumes one node;
+- map keys are not separate nodes;
+- a nested container consumes one node as its parent value/item;
+- its child values consume additional nodes;
+- if a map's direct entry count exceeds the remaining node budget, the map is rejected at its current container path before key sorting or value descent;
+- otherwise map values are traversed in byte-order `strcmp` key order, so nested node-limit failures do not depend on PHP map insertion order.
+
+String-byte semantics are:
+
+- byte length is calculated with PHP `strlen()`;
+- limits apply to string values;
+- limits apply to nested string map keys;
+- byte length is not Unicode character length.
+
+Limits MUST be checked during the same recursive traversal used for baseline normalization.
+
+Container depth MUST be checked before descending into a container.
+
+Node count MUST be checked before descending into an item or map value.
+
+Limit failures MUST use the same safe path policy as type failures.
+
+The baseline normalizer does not impose one mandatory global budget on all consumers.
+
+Each owner decides whether limits are required and owns the concrete limit values for its boundary.
+
+`ContextStorePolicy` requires a mandatory Foundation context budget.
+
+Stable JSON and Kernel consumers that do not pass limits preserve their existing behavior.
 
 ## Stable JSON serialization APIs
 
@@ -487,6 +568,9 @@ json-like-closure-forbidden
 json-like-object-forbidden
 json-like-map-key-must-be-string
 json-like-type-forbidden
+json-like-max-depth-exceeded
+json-like-max-nodes-exceeded
+json-like-string-bytes-exceeded
 ```
 
 These reason tokens are owned by:
@@ -820,6 +904,7 @@ It MUST NOT reorder caller-owned arrays as a side effect.
 - empty context key rejection;
 - reserved `@*` namespace rejection;
 - unknown context key rejection;
+- mandatory owner-specific bounded resource budget supplied through `JsonLikeNormalizationLimits`;
 - context exception mapping.
 
 The public context key registry is owned by:
@@ -850,7 +935,18 @@ json-like-object-forbidden            -> context-write-forbidden-object
 json-like-resource-forbidden          -> context-write-forbidden-resource
 json-like-map-key-must-be-string      -> context-write-forbidden-map-key
 json-like-type-forbidden              -> context-write-forbidden-type
+json-like-max-depth-exceeded          -> context-write-forbidden-max-depth
+json-like-max-nodes-exceeded          -> context-write-forbidden-max-nodes
+json-like-string-bytes-exceeded       -> context-write-forbidden-string-bytes
 ```
+
+Concrete ContextStore limits and ContextBag enforcement semantics are owned by:
+
+```text
+docs/ssot/context-store.md
+```
+
+They are not global defaults for every `JsonLikeNormalizer` consumer.
 
 `ContextStorePolicy` MUST NOT own the reusable baseline json-like model.
 
@@ -1009,6 +1105,14 @@ kernel.json_like.*
 
 The normalizer is baseline runtime infrastructure.
 
+Optional limits are passed explicitly by an owner through `JsonLikeNormalizationLimits`.
+
+This SSoT introduces no global json-like limit configuration.
+
+Owner-specific boundaries MAY define fixed mandatory limits in their own SSoT.
+
+`ContextStorePolicy` uses fixed Foundation-owned limits and does not introduce config-based tuning or a disabled mode.
+
 It MUST NOT be feature-disabled through config.
 
 ## DI policy
@@ -1074,6 +1178,7 @@ Expected contract verification includes:
 
 ```text
 framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
+framework/packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
 framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
 framework/packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
 framework/packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
@@ -1099,6 +1204,20 @@ These tests are expected to verify:
 - resource rejection;
 - unsupported type rejection;
 - non-string map-key rejection;
+- omitted limits preserve baseline consumer compatibility;
+- limit values must be positive;
+- root container depth begins at `1`;
+- list and map depth semantics are identical;
+- map values and list items consume node budget;
+- map node-budget failure paths do not depend on PHP insertion order;
+- nested scalar values consume node budget;
+- map keys do not consume a separate node;
+- string byte limits apply to values and nested map keys;
+- limits are checked before recursive descent;
+- boundary values are accepted;
+- boundary-plus-one values are rejected;
+- limited normalization does not mutate caller-owned arrays;
+- limit diagnostics do not expose raw strings or unsafe map keys;
 - recursive `strcmp` map ordering;
 - list order preservation;
 - empty array preservation;
@@ -1137,6 +1256,9 @@ A runtime implementation is compliant with this SSoT only if:
 - `StableJsonDecoder` owns decoder-specific `json_decode()` behavior, `associative: false`, root decode shape entrypoints, decoded JSON object key safety checks, and stable-json reason mapping;
 - shape-aware stable JSON root entrypoints are used when callers require root object/list distinction;
 - generic stable JSON encode/decode entrypoints are used only when root shape is irrelevant;
+- optional resource limits run inside the canonical recursive walker;
+- owner-specific limits do not redefine the baseline value model;
+- `ContextStorePolicy` supplies its own mandatory fixed resource budget;
 - `ContextStorePolicy` delegates value-shape validation to `JsonLikeNormalizer`;
 - `JsonLikeShapeNormalizer` delegates baseline normalization to `JsonLikeNormalizer`;
 - Kernel keeps UoW-specific policy in Kernel only;
@@ -1163,6 +1285,8 @@ This SSoT does not define:
 - preservation of nested empty object/list distinction;
 - duplicate JSON object member name rejection;
 - custom JSON parser;
+- one mandatory global resource budget for every normalizer consumer;
+- json-like resource-limit config keys;
 - config keys;
 - DI tags;
 - HTTP response construction;

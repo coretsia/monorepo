@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
@@ -149,6 +150,83 @@ final class KernelRuntimeEmitsPolicyCompliantObservabilityTest extends TestCase
         self::assertSafeSummaryPayload($logger->records[0]['context']);
     }
 
+    public function testSensitiveLikeContextValueIsNeverCopiedIntoLifecycleObservability(): void
+    {
+        $sentinel = 'Bearer CORETSIA_CONTEXT_SENTINEL_DO_NOT_EXPORT';
+
+        $contextStore = new ContextStore();
+        $contextStore->set(ContextKeys::USER_AGENT, $sentinel);
+
+        self::assertSame(
+            $sentinel,
+            $contextStore->get(ContextKeys::USER_AGENT),
+            'The adversarial precondition requires a structurally valid but '
+            . 'semantically unsafe in-process context value.',
+        );
+
+        $logger = new KernelRuntimeEmitsPolicyCompliantObservabilityLogger();
+        $tracer = new KernelRuntimeEmitsPolicyCompliantObservabilityTracer();
+        $meter = new KernelRuntimeEmitsPolicyCompliantObservabilityMeter();
+
+        $runtime = self::runtime(
+            logger: $logger,
+            tracer: $tracer,
+            meter: $meter,
+            contextStore: $contextStore,
+        );
+
+        $result = $runtime->runUnitOfWork(
+            UnitOfWorkType::HTTP,
+            static function () use ($contextStore, $sentinel): string {
+                self::assertSame(
+                    $sentinel,
+                    $contextStore->get(ContextKeys::USER_AGENT),
+                    'The sentinel must still exist while KernelRuntime emits '
+                    . 'its lifecycle summary before reset.',
+                );
+
+                return 'body-value';
+            },
+        );
+
+        self::assertSame('body-value', $result);
+
+        self::assertCount(1, $tracer->spans);
+        self::assertCount(1, $meter->increments);
+        self::assertCount(1, $meter->observations);
+        self::assertCount(1, $logger->records);
+
+        $observabilityPayloads = [
+            'span attributes' => $tracer->spans[0]->attributes,
+            'counter labels' => $meter->increments[0]['labels'],
+            'duration labels' => $meter->observations[0]['labels'],
+            'logger context' => $logger->records[0]['context'],
+        ];
+
+        foreach ($observabilityPayloads as $payloadName => $payload) {
+            $encoded = \json_encode($payload, \JSON_THROW_ON_ERROR);
+
+            self::assertStringNotContainsString(
+                $sentinel,
+                $encoded,
+                'Kernel observability must not copy accidental ContextStore values '
+                . 'into ' . $payloadName . '.',
+            );
+
+            self::assertStringNotContainsString(
+                ContextKeys::USER_AGENT,
+                $encoded,
+                'Kernel observability must use an explicit summary allowlist rather '
+                . 'than exporting ContextStore keys into ' . $payloadName . '.',
+            );
+        }
+
+        self::assertFalse(
+            $contextStore->has(ContextKeys::USER_AGENT),
+            'Reset orchestration must clear the adversarial in-process value.',
+        );
+    }
+
     public function testObservabilityPortFailuresDoNotReplacePrimaryKernelRuntimeLifecycleFailures(): void
     {
         $logger = new KernelRuntimeEmitsPolicyCompliantObservabilityLogger(
@@ -242,8 +320,9 @@ final class KernelRuntimeEmitsPolicyCompliantObservabilityTest extends TestCase
         KernelRuntimeEmitsPolicyCompliantObservabilityTracer $tracer,
         KernelRuntimeEmitsPolicyCompliantObservabilityMeter $meter,
         ?\Throwable $resetFailure = null,
+        ?ContextStore $contextStore = null,
     ): KernelRuntime {
-        $contextStore = new ContextStore();
+        $contextStore ??= new ContextStore();
 
         $container = new KernelRuntimeEmitsPolicyCompliantObservabilityContainer([
             KernelRuntimeEmitsPolicyCompliantObservabilityResetService::class => new KernelRuntimeEmitsPolicyCompliantObservabilityResetService(

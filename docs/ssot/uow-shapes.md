@@ -926,6 +926,29 @@ The Kernel wrapper owns only UoW-specific rules:
 
 The Kernel wrapper MUST NOT duplicate the baseline recursive json-like walker owned by Foundation.
 
+Hook payload production uses a separate final export guard:
+
+```text
+Coretsia\Kernel\Runtime\Hook\HookContextNormalizer
+```
+
+The two internal helpers have distinct responsibilities:
+
+```text
+JsonLikeShapeNormalizer
+  → UoW-specific attributes/extensions/error policy
+  → Foundation baseline recursive normalization
+
+HookContextNormalizer
+  → accepts UnitOfWorkContext or UnitOfWorkResult only
+  → calls the canonical toArray() export
+  → applies a final Foundation baseline pass to the complete hook payload
+```
+
+`HookContextNormalizer` MUST NOT accept arbitrary arrays as an alternative input path.
+
+It MUST NOT redefine UoW-specific root, unsafe-key, limit, or exception-mapping policy.
+
 ## Float, NAN, and INF rejection
 
 Floats are forbidden at any nesting depth in:

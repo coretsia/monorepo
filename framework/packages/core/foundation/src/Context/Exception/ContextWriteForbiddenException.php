@@ -38,6 +38,9 @@ final class ContextWriteForbiddenException extends \RuntimeException
     private const string REASON_RESOURCE_FORBIDDEN = 'context-write-forbidden-resource';
     private const string REASON_MAP_KEY_FORBIDDEN = 'context-write-forbidden-map-key';
     private const string REASON_TYPE_FORBIDDEN = 'context-write-forbidden-type';
+    private const string REASON_MAX_DEPTH_EXCEEDED = 'context-write-forbidden-max-depth';
+    private const string REASON_MAX_NODES_EXCEEDED = 'context-write-forbidden-max-nodes';
+    private const string REASON_STRING_BYTES_EXCEEDED = 'context-write-forbidden-string-bytes';
     private const string UNSAFE_PATH_PLACEHOLDER = '<path>';
 
     /**
@@ -51,6 +54,9 @@ final class ContextWriteForbiddenException extends \RuntimeException
         self::REASON_RESOURCE_FORBIDDEN => true,
         self::REASON_MAP_KEY_FORBIDDEN => true,
         self::REASON_TYPE_FORBIDDEN => true,
+        self::REASON_MAX_DEPTH_EXCEEDED => true,
+        self::REASON_MAX_NODES_EXCEEDED => true,
+        self::REASON_STRING_BYTES_EXCEEDED => true,
     ];
 
     private const int MAX_SAFE_PATH_BYTES = 512;

@@ -406,6 +406,24 @@ ResetOrchestrator.resetAll() MUST run exactly once
 
 The before-uow hook failure remains the primary lifecycle failure.
 
+## Lifecycle failure precedence
+
+Kernel runtime lifecycle failure selection is deterministic.
+
+The canonical precedence rules are:
+
+1. a failure before the reset-responsibility boundary is surfaced directly and reset does not run;
+2. a before-hook failure is primary and prevents body and after-phase execution;
+3. a body failure remains primary even if after-phase handling also fails;
+4. an after-phase failure is primary only when no earlier lifecycle failure exists;
+5. a reset failure is surfaced only when no earlier lifecycle failure exists.
+
+An existing primary throwable MUST be surfaced unchanged.
+
+A later reset failure MUST NOT replace, wrap, mutate, or mask an existing primary throwable.
+
+Kernel runtime does not aggregate secondary after-phase or reset failures into the surfaced lifecycle throwable.
+
 Once the after-phase is entered, `ResetOrchestrator.resetAll()` MUST run exactly once before `endUoW()`.
 
 This exactly-once reset requirement applies even if an after-uow hook throws.
@@ -506,6 +524,16 @@ runtime reports/propagates failure according to owner policy
 The reporting or propagation of the after-hook failure is runtime-owned.
 
 The reset guarantee is not optional.
+
+Hook execution within each lifecycle phase is sequential and fail-fast.
+
+The first before-hook or after-hook failure stops the remaining hooks in that same phase.
+
+The canonical Kernel implementation MUST NOT suppress the failure, continue with later hooks, or aggregate multiple hook failures.
+
+This fail-fast rule does not weaken the reset guarantee.
+
+Once the reset-responsibility boundary has been crossed, `ResetOrchestrator.resetAll()` MUST still run exactly once.
 
 For a UnitOfWork that crossed the reset-responsibility boundary but failed before after-phase eligibility, such as a before-uow hook failure, `ResetOrchestrator.resetAll()` MUST still be called exactly once.
 

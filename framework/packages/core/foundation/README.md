@@ -537,7 +537,8 @@ for every write.
 - empty context key rejection;
 - reserved `@*` key rejection;
 - unknown context key rejection;
-- mapping json-like value failures to context write failures.
+- mapping json-like value failures to context write failures;
+- mandatory bounded resource policy for every stored context value.
 
 Baseline value-shape validation is delegated to:
 
@@ -546,6 +547,20 @@ Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
 
 `ContextStorePolicy` MUST NOT duplicate the recursive baseline json-like value walker.
+
+`ContextStorePolicy` supplies a mandatory owner-specific resource budget to the Foundation normalizer:
+
+```text
+max container depth = 8
+max map values/list items per stored value = 256
+max bytes per string value or nested map key = 4096
+```
+
+The limits are fixed Foundation context policy.
+
+They are not configurable and cannot be disabled.
+
+Direct `ContextBag` construction applies the same limits.
 
 `ContextStorePolicy` MUST NOT store or return the normalized value produced by `JsonLikeNormalizer`.
 
@@ -643,6 +658,18 @@ Foundation owns the canonical baseline runtime json-like value normalizer:
 ```text
 Coretsia\Foundation\Serialization\JsonLikeNormalizer
 ```
+
+Optional resource budgets are represented by:
+
+```text
+Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits
+```
+
+The limits object is caller-supplied.
+
+When omitted, existing baseline normalization behavior remains unchanged.
+
+Resource budgets are owner-specific and do not alter the baseline accepted value types.
 
 The canonical baseline exception is:
 

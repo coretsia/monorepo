@@ -1221,6 +1221,18 @@ It MUST NOT dedupe hooks.
 
 It MUST NOT apply custom priority rules.
 
+Hook invocation is sequential and fail-fast.
+
+The first hook service resolution failure, interface mismatch, or exception thrown by a valid hook stops the remaining hooks in the same phase.
+
+`HookInvoker` wraps only service-resolution failures and interface mismatches in safe `KernelRuntimeException` diagnostics.
+
+Exceptions thrown by valid hook implementations propagate unchanged to `KernelRuntime`.
+
+`HookInvoker` does not execute reset orchestration and does not aggregate hook failures.
+
+Once the reset-responsibility boundary has been crossed, `KernelRuntime` ensures that `ResetOrchestrator::resetAll()` is invoked exactly once even when a before or after hook fails.
+
 Hook service ids are resolved through PSR-11 container lookup.
 
 A before hook must implement:
@@ -2002,6 +2014,16 @@ after-uow hooks → ResetOrchestrator.resetAll()
 For every UnitOfWork lifecycle that reaches reset responsibility, `KernelRuntime` MUST call `ResetOrchestrator::resetAll()` exactly once.
 
 If an earlier primary failure exists and reset also fails, the earlier primary failure remains surfaced.
+
+The earlier primary throwable is surfaced unchanged.
+
+A later reset failure does not replace, wrap, or mutate it.
+
+If body execution fails and after-phase handling also fails, the body failure remains primary.
+
+If body execution succeeds and after-phase handling fails, the after-phase failure becomes primary.
+
+`KernelRuntime` does not aggregate secondary lifecycle or reset failures into the surfaced throwable.
 
 If no earlier primary failure exists and reset fails, `KernelRuntime` surfaces a safe `KernelRuntimeException` with reason:
 

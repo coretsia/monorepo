@@ -101,6 +101,75 @@ final class KernelRuntimeWritesBaseContextKeysAtBeginUowTest extends TestCase
         self::assertFalse($contextStore->has(ContextKeys::UOW_TYPE));
     }
 
+    public function testKernelWriterStoresOnlyGeneratedSafeBaseContextValues(): void
+    {
+        $contextStore = new ContextStore();
+
+        $runtime = self::runtime(
+            contextStore: $contextStore,
+            uowIds: new KernelRuntimeWritesBaseContextKeysIdGenerator(
+                '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            ),
+            correlationIdProvider: new KernelRuntimeWritesBaseContextKeysCorrelationIdProvider(null),
+        );
+
+        $seenInBody = null;
+
+        $runtime->runUnitOfWork(
+            UnitOfWorkType::HTTP,
+            function () use ($contextStore, &$seenInBody): void {
+                $seenInBody = $contextStore->all();
+            },
+        );
+
+        self::assertIsArray($seenInBody);
+        self::assertSame(
+            [
+                ContextKeys::CORRELATION_ID,
+                ContextKeys::UOW_ID,
+                ContextKeys::UOW_TYPE,
+            ],
+            \array_keys($seenInBody),
+            'KernelRuntime must write only its three canonical base context keys.',
+        );
+
+        self::assertCount(3, $seenInBody);
+
+        self::assertIsString($seenInBody[ContextKeys::CORRELATION_ID]);
+        self::assertMatchesRegularExpression(
+            '/\A[0-9A-HJKMNP-TV-Z]{26}\z/',
+            $seenInBody[ContextKeys::CORRELATION_ID],
+        );
+
+        self::assertSame(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            $seenInBody[ContextKeys::UOW_ID],
+        );
+        self::assertMatchesRegularExpression(
+            '/\A[0-9A-HJKMNP-TV-Z]{26}\z/',
+            $seenInBody[ContextKeys::UOW_ID],
+        );
+
+        self::assertSame(
+            UnitOfWorkType::HTTP,
+            $seenInBody[ContextKeys::UOW_TYPE],
+        );
+
+        self::assertSame(
+            [
+                ContextKeys::CORRELATION_ID => false,
+                ContextKeys::UOW_ID => false,
+                ContextKeys::UOW_TYPE => false,
+            ],
+            [
+                ContextKeys::CORRELATION_ID => $contextStore->has(ContextKeys::CORRELATION_ID),
+                ContextKeys::UOW_ID => $contextStore->has(ContextKeys::UOW_ID),
+                ContextKeys::UOW_TYPE => $contextStore->has(ContextKeys::UOW_TYPE),
+            ],
+            'Reset orchestration must clear all Kernel-written base context values.',
+        );
+    }
+
     private static function runtime(
         ContextStore $contextStore,
         IdGeneratorInterface $uowIds,

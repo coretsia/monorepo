@@ -61,6 +61,32 @@ final class ContextAccessorSignatureContractTest extends TestCase
         self::assertSame('mixed', $returnType->getName());
     }
 
+    public function testContextAccessorInterfaceDoesNotExposeBulkExportMethods(): void
+    {
+        $methods = \array_map(
+            static fn (\ReflectionMethod $method): string => $method->getName(),
+            new \ReflectionClass(ContextAccessorInterface::class)->getMethods(),
+        );
+
+        \sort($methods, \SORT_STRING);
+
+        self::assertSame(
+            [
+                'get',
+                'has',
+            ],
+            $methods,
+        );
+
+        foreach (['all', 'export', 'snapshot', 'toArray'] as $bulkExportMethod) {
+            self::assertFalse(
+                \method_exists(ContextAccessorInterface::class, $bulkExportMethod),
+                'ContextAccessorInterface must not expose bulk context export through '
+                . $bulkExportMethod . '().',
+            );
+        }
+    }
+
     public function testContextAccessorInterfaceGetSignatureIsStable(): void
     {
         $method = new \ReflectionMethod(ContextAccessorInterface::class, 'get');

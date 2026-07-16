@@ -68,6 +68,7 @@ This document depends on the following canonical SSoTs:
 ```text
 docs/ssot/tags.md
 docs/ssot/http-middleware-catalog.md
+docs/ssot/runtime-container-definitions.md
 ```
 
 The tag registry SSoT remains the canonical owner of reserved DI tag names, semantic owner rows, reserved prefixes, and tag naming rules.
@@ -79,6 +80,10 @@ Coretsia\Foundation\Tag\ReservedTags
 ```
 
 The HTTP middleware catalog remains the canonical owner of HTTP middleware slot taxonomy, slot contents, baseline middleware placement, and HTTP-specific ownership boundaries.
+
+The runtime container definitions SSoT is the canonical owner of the Foundation declarative provider SPI, canonical operation shapes, operation-order preservation, typed value references, parameter later-binding behavior, immutable definition-set semantics, and one-complete-set source application.
+
+This document remains the canonical owner of `TagRegistry` discovery ordering, first-wins tag dedupe, tagged-service consumer obligations, and the baseline Foundation definition-lifecycle semantics shared by imperative and declarative registration paths.
 
 ## Ownership boundary
 
@@ -117,8 +122,9 @@ This document does not define:
 - tag metadata schemas;
 - config roots;
 - config keys;
-- container build order;
-- service provider ordering;
+- canonical declarative container operation shapes;
+- declarative definition-set merge and source-application mechanics;
+- module-plan or orchestration-owned provider-list construction;
 - HTTP middleware implementation;
 - HTTP middleware class lists;
 - HTTP middleware defaults;
@@ -255,15 +261,27 @@ If a consumer needs a different order, that consumer MUST use a distinct owner-a
 
 ## Provider registration rule
 
-Service providers MAY register tagged services through Foundation-owned builder APIs.
+Imperative `ServiceProviderInterface` providers MAY register tagged services through `ContainerBuilder`.
+
+Declarative `ContainerDefinitionProviderInterface` providers MAY append tag operations through `ContainerDefinitionBuilder`.
+
+Canonical declarative operation shapes, definition-set merge behavior, and the one-complete-set application rule are owned by:
+
+```text
+docs/ssot/runtime-container-definitions.md
+```
 
 Provider order remains caller-supplied and significant.
 
-`ContainerBuilder` MUST preserve the caller-supplied provider order exactly and MUST NOT globally re-sort providers by FQCN.
+`ContainerBuilder` MUST preserve caller-supplied imperative provider order and MUST NOT globally re-sort providers by FQCN.
+
+Declarative orchestration MUST invoke definition providers in caller-supplied order.
+
+`ContainerDefinitionBuilder` MUST preserve the resulting operation call order and MUST NOT globally sort tag or service operations.
 
 Container definition collision policy and tag dedupe policy are separate:
 
-- container definitions: later provider binding overrides earlier binding deterministically;
+- service, alias, and parameter definition collisions: later operation wins deterministically;
 - tag registrations: first `(tag, serviceId)` occurrence wins deterministically.
 
 Consumers MUST NOT attempt to recover provider ordering after reading `TagRegistry->all($tag)`.
@@ -271,6 +289,14 @@ Consumers MUST NOT attempt to recover provider ordering after reading `TagRegist
 ## Container definition lifecycle rule
 
 Foundation container definitions have explicit lifecycle semantics.
+
+The same lifecycle semantics apply to imperative definitions and canonical declarative service-definition operations.
+
+Canonical declarative lifecycle representation, operation shapes, alias application, and source-adapter behavior are owned by:
+
+```text
+docs/ssot/runtime-container-definitions.md
+```
 
 `ContainerBuilder::set(...)`, `ContainerBuilder::bind(...)`, and `ContainerBuilder::factory(...)` accept a `shared` flag.
 
@@ -315,7 +341,17 @@ Tag registration lifecycle is independent from container definition lifecycle.
 
 The `shared` flag applies only to container definitions. It MUST NOT alter `TagRegistry` dedupe behavior, tag priority ordering, or discovery-list semantics.
 
-Alias-like definitions that delegate to another service SHOULD be non-shared wrappers unless the alias owner intentionally wants the alias itself to cache the resolved target. Compiled-container runtime aliases MUST be non-shared delegation wrappers so that aliases do not accidentally turn non-shared target services into shared services.
+Canonical declarative aliases and compiled-container runtime aliases MUST be non-shared delegation wrappers so that aliases do not accidentally turn non-shared target services into shared services.
+
+An alias wrapper MUST NOT maintain an independent resolved-value cache.
+
+Therefore:
+
+- an alias to a shared target returns the target's shared result;
+- an alias to a non-shared target preserves repeated target resolution;
+- an alias MUST NOT convert a non-shared target into a shared target.
+
+Imperative custom factories that emulate aliases remain caller-owned definitions and are not canonical alias operations.
 
 ## Foundation container strict presence policy
 
@@ -614,9 +650,17 @@ Foundation ordering behavior SHOULD be locked by tests covering:
 ```text
 framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php
 framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php
-framework/packages/core/foundation/tests/Integration/Container/ContainerFactoryDefinitionsCanBeNonSharedTest.php
+framework/packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php
 framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php
 framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php
+```
+
+Declarative parity with Foundation collision, tag-dedupe, and lifecycle semantics SHOULD be locked by tests covering:
+
+```text
+framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
+framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
+framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
 Container diagnostics safety SHOULD be locked by tests covering:
@@ -654,7 +698,9 @@ When a runtime consumer needs services registered under a DI tag:
 
 - [SSoT Index](./INDEX.md)
 - [Tag Registry](./tags.md) — canonical tag names, reserved prefixes, ownership, and registry rows.
+- [Runtime Container Definitions SSoT](./runtime-container-definitions.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [Config Roots Registry](./config-roots.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
+- [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

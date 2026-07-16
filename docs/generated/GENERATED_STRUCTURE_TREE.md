@@ -59,6 +59,7 @@ Coretsia/
 │   │   ├── ADR-0027-runtime-driver-guard.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
+│   │   ├── ADR-0030-canonical-runtime-container-definitions.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -158,6 +159,7 @@ Coretsia/
 │       ├── rate-limit-contracts.md
 │       ├── reset-tags.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── runtime-container-definitions.md
 │       ├── runtime-drivers.md
 │       ├── secrets-contracts.md
 │       ├── stateful-services.md
@@ -379,9 +381,22 @@ Coretsia/
 │   │   │   │   │   │   ├── FrozenClock.php
 │   │   │   │   │   │   └── SystemClock.php
 │   │   │   │   │   ├── Container/
+│   │   │   │   │   │   ├── Definition/
+│   │   │   │   │   │   │   ├── ContainerDefinitionApplier.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionBuilder.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionContext.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionKind.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionProviderInterface.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionSet.php
+│   │   │   │   │   │   │   ├── ContainerServiceDefinition.php
+│   │   │   │   │   │   │   └── ContainerValueReference.php
 │   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   ├── ContainerDefinitionInvalidException.php
 │   │   │   │   │   │   │   ├── ContainerException.php
 │   │   │   │   │   │   │   └── NotFoundException.php
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   ├── ContainerDefinitionPolicy.php
+│   │   │   │   │   │   │   └── ContainerServiceIdPolicy.php
 │   │   │   │   │   │   ├── ConcreteClassAutowireResolver.php
 │   │   │   │   │   │   ├── Container.php
 │   │   │   │   │   │   ├── ContainerBuilder.php
@@ -440,6 +455,8 @@ Coretsia/
 │   │   │   │   │   │   ├── StableJsonDecoder.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
 │   │   │   │   │   ├── Tag/
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   └── TagNamePolicy.php
 │   │   │   │   │   │   ├── ReservedTags.php
 │   │   │   │   │   │   ├── TagRegistry.php
 │   │   │   │   │   │   └── TaggedService.php
@@ -449,6 +466,8 @@ Coretsia/
 │   │   │   │   │       └── Stopwatch.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ContainerDefinitionSetIsDeterministicContractTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
@@ -476,11 +495,13 @@ Coretsia/
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
 │   │   │   │   │   │   └── UuidFormatContractTest.php
 │   │   │   │   │   ├── Integration/
-│   │   │   │   │   │   ├── Container/
-│   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesLaterBindingTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesSharedLifecycleTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesTagFirstWinsTest.php
 │   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
+│   │   │   │   │   │   ├── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php

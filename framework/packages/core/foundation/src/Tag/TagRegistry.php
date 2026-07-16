@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Tag;
 
 use Coretsia\Foundation\Discovery\DeterministicOrder;
+use Coretsia\Foundation\Tag\Internal\TagNamePolicy;
 
 /**
  * Canonical Foundation registry for tagged service discovery.
@@ -36,8 +37,6 @@ use Coretsia\Foundation\Discovery\DeterministicOrder;
  */
 final class TagRegistry
 {
-    private const string TAG_PATTERN = '/\A[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*\z/';
-
     /**
      * @var array<string, array<string, TaggedService>>
      */
@@ -105,7 +104,7 @@ final class TagRegistry
 
     private static function assertValidTag(string $tag): void
     {
-        if (\preg_match(self::TAG_PATTERN, $tag) !== 1) {
+        if (!TagNamePolicy::isValid($tag)) {
             throw new \InvalidArgumentException('tag-registry-tag-invalid');
         }
     }

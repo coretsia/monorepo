@@ -20,6 +20,7 @@ namespace Coretsia\Foundation\Container;
 
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\Exception\NotFoundException;
+use Coretsia\Foundation\Container\Internal\ContainerServiceIdPolicy;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
@@ -103,15 +104,27 @@ final class Container implements ContainerInterface
         array $definitionShared = [],
     ) {
         foreach ($definitions as $id => $_) {
-            self::assertServiceId($id);
+            if (!\is_string($id)) {
+                throw new ContainerException('container-service-id-invalid');
+            }
+
+            ContainerServiceIdPolicy::assertValid($id);
         }
 
         foreach ($instances as $id => $_) {
-            self::assertServiceId($id);
+            if (!\is_string($id)) {
+                throw new ContainerException('container-service-id-invalid');
+            }
+
+            ContainerServiceIdPolicy::assertValid($id);
         }
 
         foreach ($definitionShared as $id => $shared) {
-            self::assertServiceId($id);
+            if (!\is_string($id)) {
+                throw new ContainerException('container-service-id-invalid');
+            }
+
+            ContainerServiceIdPolicy::assertValid($id);
 
             if (!\is_bool($shared)) {
                 throw new ContainerException('container-definition-shared-flag-invalid');
@@ -135,7 +148,7 @@ final class Container implements ContainerInterface
 
     public function get(string $id): mixed
     {
-        self::assertServiceId($id);
+        ContainerServiceIdPolicy::assertValid($id);
 
         if (\array_key_exists($id, $this->resolved)) {
             return $this->resolved[$id];
@@ -192,7 +205,7 @@ final class Container implements ContainerInterface
      */
     public function has(string $id): bool
     {
-        if (!self::isValidServiceId($id)) {
+        if (!ContainerServiceIdPolicy::isValid($id)) {
             return false;
         }
 
@@ -216,7 +229,7 @@ final class Container implements ContainerInterface
      */
     public function canAutowire(string $id): bool
     {
-        self::assertServiceId($id);
+        ContainerServiceIdPolicy::assertValid($id);
 
         return $this->autowireResolver->canAutowire($id);
     }
@@ -284,23 +297,5 @@ final class Container implements ContainerInterface
     private function autowire(string $className): object
     {
         return $this->autowireResolver->instantiate($className, $this);
-    }
-
-    private static function assertServiceId(string $id): void
-    {
-        if ($id === '') {
-            throw new ContainerException('container-service-id-empty');
-        }
-
-        if (\trim($id) !== $id || \preg_match('/\s/u', $id) === 1) {
-            throw new ContainerException('container-service-id-whitespace-forbidden');
-        }
-    }
-
-    private static function isValidServiceId(string $id): bool
-    {
-        return $id !== ''
-            && \trim($id) === $id
-            && \preg_match('/\s/u', $id) !== 1;
     }
 }

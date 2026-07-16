@@ -18,7 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Container;
 
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionApplier;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Exception\ContainerException;
+use Coretsia\Foundation\Container\Internal\ContainerServiceIdPolicy;
 use Coretsia\Foundation\Tag\TagRegistry;
 
 /**
@@ -67,6 +70,8 @@ final class ContainerBuilder
 
     private TagRegistry $tagRegistry;
 
+    private bool $declarativeDefinitionsApplied = false;
+
     /**
      * @param array<string, mixed> $config
      */
@@ -114,9 +119,12 @@ final class ContainerBuilder
      * Later calls for the same id override earlier definitions
      * deterministically.
      */
-    public function set(string $id, mixed $definition, bool $shared = true): self
-    {
-        self::assertServiceId($id);
+    public function set(
+        string $id,
+        mixed $definition,
+        bool $shared = true,
+    ): self {
+        ContainerServiceIdPolicy::assertValid($id);
 
         $this->definitions[$id] = $definition;
         $this->definitionShared[$id] = $shared;
@@ -128,8 +136,11 @@ final class ContainerBuilder
     /**
      * Alias for `set()` for provider readability.
      */
-    public function bind(string $id, mixed $definition, bool $shared = true): self
-    {
+    public function bind(
+        string $id,
+        mixed $definition,
+        bool $shared = true,
+    ): self {
         return $this->set($id, $definition, $shared);
     }
 
@@ -139,9 +150,11 @@ final class ContainerBuilder
      * Later calls for the same id override earlier definitions or instances
      * deterministically.
      */
-    public function instance(string $id, mixed $instance): self
-    {
-        self::assertServiceId($id);
+    public function instance(
+        string $id,
+        mixed $instance,
+    ): self {
+        ContainerServiceIdPolicy::assertValid($id);
 
         unset($this->definitions[$id], $this->definitionShared[$id]);
         $this->instances[$id] = $instance;
@@ -157,8 +170,11 @@ final class ContainerBuilder
      *
      * @param callable(Container): mixed $factory
      */
-    public function factory(string $id, callable $factory, bool $shared = true): self
-    {
+    public function factory(
+        string $id,
+        callable $factory,
+        bool $shared = true,
+    ): self {
         return $this->set(
             id: $id,
             definition: static fn (Container $container): mixed => $factory($container),
@@ -173,9 +189,38 @@ final class ContainerBuilder
      *
      * @param array<string, mixed> $meta
      */
-    public function tag(string $tag, string $serviceId, int $priority = 0, array $meta = []): self
-    {
+    public function tag(
+        string $tag,
+        string $serviceId,
+        int $priority = 0,
+        array $meta = [],
+    ): self {
         $this->tagRegistry->add($tag, $serviceId, $priority, $meta);
+
+        return $this;
+    }
+
+    /**
+     * Applies exactly one complete canonical definition set in semantic
+     * operation order.
+     *
+     * Multiple provider contributions MUST be aggregated through one shared
+     * ContainerDefinitionBuilder or ContainerDefinitionSet::merge() before this
+     * method is called.
+     */
+    public function applyDefinitions(
+        ContainerDefinitionSet $definitions,
+    ): self {
+        if ($this->declarativeDefinitionsApplied) {
+            throw new ContainerException('container-definition-set-already-applied');
+        }
+
+        new ContainerDefinitionApplier()->apply(
+            builder: $this,
+            definitions: $definitions,
+        );
+
+        $this->declarativeDefinitionsApplied = true;
 
         return $this;
     }
@@ -231,28 +276,27 @@ final class ContainerBuilder
      */
     public function configRoot(string $root): array
     {
-        if ($root === '' || \trim($root) !== $root || \preg_match('/\s/u', $root) === 1) {
+        if ($root === '' || \trim($root) !== $root || \preg_match('/\s/u', $root) !== 0) {
             throw new ContainerException('container-config-root-invalid');
         }
 
-        $value = $this->config[$root] ?? null;
-
-        if (!\is_array($value)) {
+        if (!\array_key_exists($root, $this->config)) {
             throw new ContainerException('container-config-root-missing');
+        }
+
+        $value = $this->config[$root];
+
+        if (!\is_array($value) || ($value !== [] && \array_is_list($value))) {
+            throw new ContainerException('container-config-root-invalid');
+        }
+
+        foreach ($value as $key => $_value) {
+            if (!\is_string($key)) {
+                throw new ContainerException('container-config-root-invalid');
+            }
         }
 
         /** @var array<string, mixed> $value */
         return $value;
-    }
-
-    private static function assertServiceId(string $id): void
-    {
-        if ($id === '') {
-            throw new ContainerException('container-service-id-empty');
-        }
-
-        if (\trim($id) !== $id || \preg_match('/\s/u', $id) === 1) {
-            throw new ContainerException('container-service-id-whitespace-forbidden');
-        }
     }
 }

@@ -59,6 +59,7 @@ Coretsia/
 │   │   ├── ADR-0027-runtime-driver-guard.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
+│   │   ├── ADR-0030-canonical-runtime-container-definitions.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -158,6 +159,7 @@ Coretsia/
 │       ├── rate-limit-contracts.md
 │       ├── reset-tags.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── runtime-container-definitions.md
 │       ├── runtime-drivers.md
 │       ├── secrets-contracts.md
 │       ├── stateful-services.md
@@ -379,12 +381,25 @@ Coretsia/
 │   │   │   │   │   │   ├── FrozenClock.php (FrozenClock - now())
 │   │   │   │   │   │   └── SystemClock.php (SystemClock - now())
 │   │   │   │   │   ├── Container/
+│   │   │   │   │   │   ├── Definition/
+│   │   │   │   │   │   │   ├── ContainerDefinitionApplier.php (ContainerDefinitionApplier - apply()/finalParameters()/applyService()/applyAlias()/applyTag()/runtimeFactory()/instantiateClass()/invokeClassMethodFactory()/invokeServiceMethodFactory()/resolveArguments()/resolveValue()/isServiceReference()/isParameterReference()/isClassReference())
+│   │   │   │   │   │   │   ├── ContainerDefinitionBuilder.php (ContainerDefinitionBuilder - classService()/classMethodFactory()/serviceMethodFactory()/service()/alias()/parameter()/tag()/requireService()/build()/append())
+│   │   │   │   │   │   │   ├── ContainerDefinitionContext.php (ContainerDefinitionContext - configRoot()/assertStringMap())
+│   │   │   │   │   │   │   ├── ContainerDefinitionKind.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionProviderInterface.php (ContainerDefinitionProviderInterface [interface] - define())
+│   │   │   │   │   │   │   ├── ContainerDefinitionSet.php (ContainerDefinitionSet - fromValidatedState()/merge()/toDescriptorStream()/requiredServiceIds()/isEmpty())
+│   │   │   │   │   │   │   ├── ContainerServiceDefinition.php (ContainerServiceDefinition - classService()/classMethodFactory()/serviceMethodFactory()/id()/kind()/shared()/arguments()/toDescriptor())
+│   │   │   │   │   │   │   └── ContainerValueReference.php (ContainerValueReference - service()/parameter()/type()/identifier()/toArray())
 │   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   ├── ContainerDefinitionInvalidException.php (ContainerDefinitionInvalidException - withReason()/errorCode()/messageToken()/reason())
 │   │   │   │   │   │   │   ├── ContainerException.php (ContainerException - errorCode()/reason())
 │   │   │   │   │   │   │   └── NotFoundException.php (NotFoundException - serviceId())
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   ├── ContainerDefinitionPolicy.php (ContainerDefinitionPolicy - normalizeOperation()/normalizeClassServiceOperation()/normalizeClassMethodFactoryOperation()/normalizeServiceMethodFactoryOperation()/normalizeAliasOperation()/normalizeParameterOperation()/normalizeTagOperation()/assertExactKeys()/normalizeArguments()/normalizeDescriptorArguments()/normalizeParameterValue()/normalizeTagMeta()/assertServiceId()/assertParameterName()/assertClassReference()/assertMethodName()/assertPublicStaticFactoryMethod()/assertTag()/normalizeValue()/normalizeTypedReferenceMap()/hasExactReferenceShape()/normalizeServiceReferenceMap()/normalizeParameterReferenceMap()/normalizeClassReferenceMap()/isSafeClassReference()/isSafeMethodName()/isSafeMapKey()/assertSafeSchemaString()/looksLikeAbsolutePath()/looksLikeSourceSnippet()/looksLikeEnvValue()/looksSensitive())
+│   │   │   │   │   │   │   └── ContainerServiceIdPolicy.php (ContainerServiceIdPolicy - assertValid()/isValid()/hasForbiddenCharactersOrInvalidUtf8()/isIntegerLike())
 │   │   │   │   │   │   ├── ConcreteClassAutowireResolver.php (ConcreteClassAutowireResolver - canAutowire()/instantiateIfAllowed()/instantiate()/instantiateAllowed()/containerConfig())
-│   │   │   │   │   │   ├── Container.php (Container - get()/has()/canAutowire()/serviceIds()/config()/resolveDefinition()/autowire()/assertServiceId()/isValidServiceId())
-│   │   │   │   │   │   ├── ContainerBuilder.php (ContainerBuilder - registerProviders()/register()/set()/bind()/instance()/factory()/tag()/build()/tagRegistry()/serviceIds()/config()/configRoot()/assertServiceId())
+│   │   │   │   │   │   ├── Container.php (Container - get()/has()/canAutowire()/serviceIds()/config()/resolveDefinition()/autowire())
+│   │   │   │   │   │   ├── ContainerBuilder.php (ContainerBuilder - registerProviders()/register()/set()/bind()/instance()/factory()/tag()/applyDefinitions()/build()/tagRegistry()/serviceIds()/config()/configRoot())
 │   │   │   │   │   │   ├── ContainerDiagnostics.php (ContainerDiagnostics - fromContainer()/fromBuilder()/toArray()/toJson()/normalizeServiceIds()/normalizeTags()/taggedServiceToDiagnostics()/diagnosticSafeId()/hashedDiagnosticId()/isReadableServiceId()/isSuspiciousServiceId()/looksLikeAbsolutePath()/looksLikePath())
 │   │   │   │   │   │   └── ServiceProviderInterface.php (ServiceProviderInterface [interface] - register())
 │   │   │   │   │   ├── Context/
@@ -440,6 +455,8 @@ Coretsia/
 │   │   │   │   │   │   ├── StableJsonDecoder.php (StableJsonDecoder - decode()/decodeStable()/decodeMap()/decodeStableMap()/decodeList()/decodeStableList()/decodeJson()/convertAndNormalizeValue()/convertAndNormalizeObject()/convertAndNormalizeList()/convertDecodedValue()/convertDecodedList()/convertDecodedObject()/isAmbiguousPhpArrayKey()/listPath()/mapPath()/stableJsonFailure()/mapReason()/message())
 │   │   │   │   │   │   └── StableJsonEncoder.php (StableJsonEncoder - encode()/encodeStable()/encodeMap()/encodeStableMap()/encodeList()/encodeStableList()/normalizeValue()/encodeNormalized()/stableJsonFailure()/mapReason()/message())
 │   │   │   │   │   ├── Tag/
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   └── TagNamePolicy.php (TagNamePolicy - isValid())
 │   │   │   │   │   │   ├── ReservedTags.php (ReservedTags - isKnown()/all())
 │   │   │   │   │   │   ├── TagRegistry.php (TagRegistry - add()/tagNames()/all()/assertValidTag())
 │   │   │   │   │   │   └── TaggedService.php (TaggedService - id()/priority()/meta()/assertStringMap())
@@ -449,6 +466,8 @@ Coretsia/
 │   │   │   │   │       └── Stopwatch.php (Stopwatch - start()/stop())
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ContainerDefinitionSetIsDeterministicContractTest.php (ContainerDefinitionSetIsDeterministicContractTest - testEquivalentDefinitionsProduceIdenticalCanonicalState()/testMergePreservesSetAndOperationOrderAndCanonicalizesRequiredIds()/firstEquivalentSet()/secondEquivalentSet(); ContainerDefinitionDeterministicSubject; ContainerDefinitionDeterministicStaticFactory - create())
+│   │   │   │   │   │   ├── ContainerDefinitionSetRejectsRuntimeValuesContractTest.php (ContainerDefinitionSetRejectsRuntimeValuesContractTest - testBuilderRejectsClosureObjectFloatAndResourceParameterValues()/testBuilderRejectsRuntimeValuesNestedInsideServiceArguments()/testBuilderRejectsRawReferenceMaps()/testValidatedStateRejectsTypedReferenceObjectsAndRuntimeObjects()/assertDefinitionInvalid(); ContainerDefinitionSetRejectsRuntimeValuesSubject)
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php (ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest - testDiagnosticsRedactsAbsolutePathLikeServiceIds()/testDiagnosticsJsonDoesNotContainAbsolutePathPatterns()/testDiagnosticsKeepsNonPathServiceIdsReadable()/absolutePathLikeServiceIds()/redactedPathId()/validConfig())
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php (ContainerDiagnosticsDoesNotLeakSecretsContractTest - testDiagnosticsDoesNotDumpConfigInstancesFactoriesConstructorArgsOrTagMeta()/testDiagnosticsDoesNotLeakSecretValues()/testDiagnosticsDoesNotSerializeSecretLikeKeysOrRuntimeInternals()/builderWithSecretCarriers()/forbiddenValues()/forbiddenFragments(); ContainerDiagnosticsSecretCarrier - secret())
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php (ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest - testNormalFqcnServiceIdsRemainReadable()/testNormalSafeAliasesRemainReadable()/testSensitiveAndSuspiciousServiceIdsAreHashedDeterministically()/testSuspiciousAliasesAreHashedBeforeReadableAliasAllowlist()/testDiagnosticsJsonDoesNotContainUnsafeRawServiceIdsOrTagMetadata()/diagnosticsFor()/builderFor()/taggedIds()/expectedDiagnosticHash()/forbiddenDiagnosticsNeedles())
@@ -476,11 +495,13 @@ Coretsia/
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php (SystemClockReturnsUtcDateTimeImmutableContractTest - testSystemClockImplementsPsrClockInterface()/testNowReturnsDateTimeImmutableInUtc())
 │   │   │   │   │   │   └── UuidFormatContractTest.php (UuidFormatContractTest - testUuidGeneratorImplementsIdGeneratorInterface()/testGeneratedUuidUsesCanonicalLowercaseVersion4Format())
 │   │   │   │   │   ├── Integration/
-│   │   │   │   │   │   ├── Container/
-│   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php (ContainerFactoryDefinitionsCanBeNonSharedTest - testFactoryDefinitionCanBeNonShared()/testFactoryDefinitionIsSharedByDefaultWhenSharedTrue(); ContainerFactoryDefinitionsCanBeNonSharedSubject)
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php (ContainerBuilderLaterBindingOverridesEarlierBindingTest - testLaterProviderBindingOverridesEarlierProviderBindingDeterministically()/testLaterInterfaceBindingOverridesEarlierInterfaceBindingDeterministically()/testLaterInstanceOverridesEarlierDefinitionDeterministically()/testLaterDefinitionOverridesEarlierInstanceDeterministically()/validConfig(); ContainerBuilderOverrideContract [interface] - value(); FirstContainerBuilderOverrideImplementation - value(); SecondContainerBuilderOverrideImplementation - value(); InstanceContainerBuilderOverrideImplementation - value(); FirstContainerBuilderOverrideProvider - register(); SecondContainerBuilderOverrideProvider - register(); InstanceContainerBuilderOverrideProvider - register())
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php (ContainerBuilderProviderOrderIsDeterministicTest - testRegisterPreservesCallerSuppliedProviderOrderExactly()/testRegisterProvidersPreservesIterableOrderExactly()/testProviderOrderIsNotGloballySortedByProviderClassName()/validConfig(); ContainerBuilderProviderOrderRecorder - record()/events(); ZuluContainerBuilderOrderProvider - register(); AlphaContainerBuilderOrderProvider - register(); MiddleContainerBuilderOrderProvider - register())
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesLaterBindingTest.php (ContainerDefinitionApplierPreservesLaterBindingTest - testLaterServiceDefinitionOverridesEarlierDefinition()/testParameterReferenceUsesFinalLaterBindingValue()/testLaterAliasDefinitionOverridesEarlierAliasDefinition()/testOneContainerBuilderRejectsASecondDefinitionSetApplication(); ContainerDefinitionEarlierBindingSubject; ContainerDefinitionLaterBindingSubject; ContainerDefinitionParameterConsumer)
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesSharedLifecycleTest.php (ContainerDefinitionApplierPreservesSharedLifecycleTest - testClassServiceIsSharedByDefault()/testClassServiceCanBeNonShared()/testClassAndServiceMethodFactoriesPreserveNonSharedLifecycle()/testAliasPreservesSharedAndNonSharedTargetLifecycle(); ContainerDefinitionLifecycleSubject; ContainerDefinitionLifecycleStaticFactory - create(); ContainerDefinitionLifecycleServiceFactory - create())
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesTagFirstWinsTest.php (ContainerDefinitionApplierPreservesTagFirstWinsTest - testDuplicateTagOperationKeepsFirstPriorityAndMetadata()/testFirstWinsIsPreservedAcrossMergedProviderSets())
 │   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php (ContainerDefinitionsAreSharedByDefaultTest - testExplicitDefinitionsAreSharedByDefault()/testExplicitDefinitionsCanBeMarkedNonShared()/testUnregisteredConcreteAutowireIsNotCachedAsResolvedService()/testUnregisteredConcreteAutowireResolvesConstructorDependenciesThroughContainer()/testExplicitClassStringDefinitionsRemainSharedByDefault()/foundationConfig(); ContainerAutowireTransientSubject; ContainerAutowireDependency; ContainerAutowireSubjectWithDependency)
+│   │   │   │   │   │   ├── ContainerFactoryDefinitionsCanBeNonSharedTest.php (ContainerFactoryDefinitionsCanBeNonSharedTest - testFactoryDefinitionCanBeNonShared()/testFactoryDefinitionIsSharedByDefaultWhenSharedTrue(); ContainerFactoryDefinitionsCanBeNonSharedSubject)
 │   │   │   │   │   │   ├── ContextStoreAcceptsValuesAtExactResourceLimitsTest.php (ContextStoreAcceptsValuesAtExactResourceLimitsTest - testAcceptsListAndMapAtExactDepthLimit()/testAcceptsListAndMapAtExactNodeLimit()/testAcceptsStringsAtExactByteLimit()/nestedList()/nestedMap())
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php (ContextStoreIsTaggedKernelStatefulTest - testContextStoreIsTaggedKernelStateful()/testContextStoreIsNotTaggedThroughContextAccessorInterface()/foundationContainer())
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php (ContextStoreIsTaggedWithEffectiveResetTagTest - testContextStoreIsTaggedWithDefaultKernelResetTag()/testResetOrchestratorUsesDefaultKernelResetTagAndResetsContextStore()/testContextStoreIsTaggedWithCustomEffectiveResetTag()/testResetOrchestratorUsesCustomEffectiveResetTagAndResetsContextStore()/foundationContainer())

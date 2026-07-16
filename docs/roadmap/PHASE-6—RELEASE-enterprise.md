@@ -10103,7 +10103,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0072-bundles-feature-packs.md
+adr: docs/adr/ADR-0073-bundles-feature-packs.md
 ssot_refs:
 - docs/ssot/modules-and-manifests.md
 - docs/ssot/modes.md
@@ -10203,7 +10203,7 @@ Forbidden:
 - [ ] `framework/packages/core/kernel/resources/bundles/observability-full.php` — example framework default bundle
 - [ ] `framework/packages/core/kernel/resources/bundles/enterprise-baseline.php` — example framework default bundle
 - [ ] `docs/guides/bundles.md` — how bundles work + override rules + examples
-- [ ] `docs/adr/ADR-0072-bundles-feature-packs.md` — ADR covering preset format extension + determinism + compat
+- [ ] `docs/adr/ADR-0073-bundles-feature-packs.md` — ADR covering preset format extension + determinism + compat
 
 - [ ] `framework/packages/platform/cli/src/Command/BundlesListCommand.php` — prints available bundles
 - [ ] `framework/packages/platform/cli/src/Command/BundlesDebugCommand.php` — prints expanded modules + reasons
@@ -10216,7 +10216,7 @@ Forbidden:
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — wire Bundle* services (if kernel uses central provider wiring)
 - [ ] `framework/packages/core/kernel/src/Module/*` integration points — connect expander/loader/validator into preset/module planning (where applicable)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0072-bundles-feature-packs.md`
+  - [ ] `docs/adr/ADR-0073-bundles-feature-packs.md`
 - [ ] `docs/ssot/modes.md` — document bundles field + precedence (skeleton override > framework)
 
 #### Package skeleton (if type=package)
@@ -10331,7 +10331,7 @@ N/A
   - [ ] unit + integration pass
   - [ ] CLI: `BundlesCommandsDoNotLeakSecretsTest.php` pass
 - [ ] Docs updated:
-  - [ ] ADR accepted: `docs/adr/ADR-0072-bundles-feature-packs.md`
+  - [ ] ADR accepted: `docs/adr/ADR-0073-bundles-feature-packs.md`
   - [ ] `docs/guides/bundles.md` complete and accurate
 - [ ] Problem solved:
   - [ ] Додає bundles/feature-packs як framework defaults (не skeleton defaults) для скорочення enable lists у presets
@@ -10373,7 +10373,7 @@ tags_introduced: []
 config_roots_introduced: ["sso_oidc"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0073-enterprise-sso-oidc-contracts.md
+adr: docs/adr/ADR-0074-enterprise-sso-oidc-contracts.md
 ssot_refs: []
 ---
 
@@ -10476,7 +10476,7 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Sso/IdentityLinkRepositoryInterface.php` — link external subject → local identity id
 - [ ] `framework/packages/core/contracts/src/Sso/SsoException.php` — base deterministic exception for SSO domain
 
-- [ ] `docs/adr/ADR-0073-enterprise-sso-oidc-contracts.md` — ADR for new contracts + boundary
+- [ ] `docs/adr/ADR-0074-enterprise-sso-oidc-contracts.md` — ADR for new contracts + boundary
 
 - [ ] `framework/packages/enterprise/sso-oidc/src/Oidc/OidcProvider.php` — implements `SsoProviderInterface` using PSR-18
 - [ ] `framework/packages/enterprise/sso-oidc/src/Oidc/OidcProviderConfig.php` — deterministic config VO (issuer/clientId/redirectUri/scopes)
@@ -10493,7 +10493,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0073-enterprise-sso-oidc-contracts.md`
+  - [ ] `docs/adr/ADR-0074-enterprise-sso-oidc-contracts.md`
 
 #### Package skeleton (if type=package)
 
@@ -10633,7 +10633,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/sso-oidc/README.md`
   - [ ] `framework/packages/enterprise/sso-oidc/docs/oidc.md`
-  - [ ] ADR present (`docs/adr/ADR-0073-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0074-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Дає enterprise SSO через OIDC (login + callback) без вшивання vendor concretes у `core/contracts`
   - [ ] Узгоджує boundary: SSO провайдер → verified identity claims → link-to-local identity (без зміни `platform/auth` internals)
@@ -11224,7 +11224,7 @@ tags_introduced: ["tenancy.resolver"]
 config_roots_introduced: ["tenancy"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0074-enterprise-tenancy-contracts.md
+adr: docs/adr/ADR-0075-enterprise-tenancy-contracts.md
 ssot_refs: []
 ---
 
@@ -11326,8 +11326,8 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Tenancy/TenantResolverInterface.php` — resolve tenant from request/context
 - [ ] `framework/packages/core/contracts/src/Tenancy/TenancyException.php` — deterministic codes
 
-- [ ] `docs/adr/ADR-0074-enterprise-tenancy-contracts.md` — ADR for tenancy contracts + boundary
-- [ ] `docs/adr/ADR-0030-enterprise-tenancy-contracts.md` — legacy ADR reference from prior draft (resolve/cleanup when spec locked)
+- [ ] `docs/adr/ADR-0075-enterprise-tenancy-contracts.md` — ADR for tenancy contracts + boundary
+- [ ] `docs/adr/ADR-0031-enterprise-tenancy-contracts.md` — legacy ADR reference from prior draft (resolve/cleanup when spec locked)
 
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/TenantResolverRegistry.php` — collects resolvers deterministically
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/Resolver/HostTenantResolver.php` — host-based
@@ -11346,7 +11346,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0074-enterprise-tenancy-contracts.md`
+  - [ ] `docs/adr/ADR-0075-enterprise-tenancy-contracts.md`
 - docs/ssot/tags.md — add `tenancy.resolver` row (owner enterprise/tenancy)
 
 #### Package skeleton (if type=package)
@@ -11485,7 +11485,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/tenancy/README.md`
   - [ ] `framework/packages/enterprise/tenancy/docs/tenancy.md`
-  - [ ] ADR present (`docs/adr/ADR-0074-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0075-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Додає multi-tenant контекст для HTTP UoW: детерміноване визначення tenant + запис `tenant_id` у ContextStore (safe id)
   - [ ] Дає pluggable resolvers (host/header/path/jwt_claim) з deterministic order і safety rails
@@ -11532,7 +11532,7 @@ tags_introduced: []
 config_roots_introduced: ["audit"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0075-enterprise-audit-contracts.md
+adr: docs/adr/ADR-0076-enterprise-audit-contracts.md
 ssot_refs: []
 ---
 
@@ -11633,7 +11633,7 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Audit/AuditReaderInterface.php` — read API for admin/devtools (filtered/paged)
 - [ ] `framework/packages/core/contracts/src/Audit/AuditException.php` — deterministic error codes
 
-- [ ] `docs/adr/ADR-0075-enterprise-audit-contracts.md` — ADR for audit contracts + boundary
+- [ ] `docs/adr/ADR-0076-enterprise-audit-contracts.md` — ADR for audit contracts + boundary
 
 - [ ] `framework/packages/enterprise/audit/database/migrations/2026_...._create_audit_log_table.php` — append-only table
 - [ ] `framework/packages/enterprise/audit/src/Audit/AuditBuffer.php` — in-memory buffer (implements ResetInterface)
@@ -11646,7 +11646,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0075-enterprise-audit-contracts.md`
+  - [ ] `docs/adr/ADR-0076-enterprise-audit-contracts.md`
 
 #### Package skeleton (if type=package)
 
@@ -11777,7 +11777,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/audit/README.md`
   - [ ] `framework/packages/enterprise/audit/docs/audit.md`
-  - [ ] ADR present (`docs/adr/ADR-0075-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0076-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Додає enterprise audit trail: append-only записи з safe context (correlation/request/tenant/actor ids) без payload/PII
   - [ ] Дає vendor-agnostic contracts ports/VO для аудиту (щоб devtools/admin-panel могли читати без прив’язки)
@@ -12960,7 +12960,7 @@ provides:
 - "Vendor-agnostic Search ports у `core/contracts` (apps + integrations)."
 - "`platform/search` facade: deterministic indexing plan + query execution via injected client(s)."
 - "CI-safe fake adapter + optional `search:reindex` command (no payload print)."
-- "ADR-0076 locking the boundary and invariants."
+- "ADR-0077 locking the boundary and invariants."
 
 tags_introduced:
 - "search.client"   # discovery of SearchClientInterface implementations
@@ -12969,7 +12969,7 @@ config_roots_introduced:
 - "search"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0076-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0077-search-ports-and-platform-search.md"
 ssot_refs:
 - "docs/ssot/config-and-env.md"
 - "docs/ssot/observability-and-errors.md"
@@ -13088,7 +13088,7 @@ Platform facade + fake:
 - [ ] `framework/packages/platform/search/src/Console/SearchReindexCommand.php` — optional CLI entrypoint (no payload print)
 
 ADR:
-- [ ] `docs/adr/ADR-0076-search-ports-and-platform-search.md` — ADR (contracts ports + platform facade + fake)
+- [ ] `docs/adr/ADR-0077-search-ports-and-platform-search.md` — ADR (contracts ports + platform facade + fake)
 
 Tests (proof):
 - [ ] `framework/packages/core/contracts/tests/Contract/SearchContractsShapeContractTest.php` — contracts shape contract
@@ -13103,7 +13103,7 @@ Tests (proof):
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0076-search-ports-and-platform-search.md`
+  - [ ] `docs/adr/ADR-0077-search-ports-and-platform-search.md`
 
 #### Package skeleton (if type=package)
 
@@ -13251,7 +13251,7 @@ config_roots_introduced:
 - "search_elastic"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0076-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0077-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13446,7 +13446,7 @@ config_roots_introduced:
 - "search_opensearch"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0076-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0077-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13638,7 +13638,7 @@ config_roots_introduced:
 - "search_meilisearch"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0076-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0077-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13830,7 +13830,7 @@ config_roots_introduced:
 - "api_versioning"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0077-api-versioning-header-middleware.md"
+adr: "docs/adr/ADR-0078-api-versioning-header-middleware.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13946,7 +13946,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0077-api-versioning-header-middleware.md`
+  - [ ] `docs/adr/ADR-0078-api-versioning-header-middleware.md`
 
 #### Package skeleton (if type=package)
 
@@ -14070,7 +14070,7 @@ N/A
 - [ ] Determinism: same headers + path → same rewrite
 - [ ] Docs updated:
   - [ ] `framework/packages/platform/api-versioning/README.md`
-  - [ ] `docs/adr/ADR-0077-api-versioning-header-middleware.md`
+  - [ ] `docs/adr/ADR-0078-api-versioning-header-middleware.md`
 - [ ] What problem this epic solves
   - [ ] Provide an optional, deterministic API versioning mechanism without changing contracts/kernel.
   - [ ] Support header-based version selection that rewrites request path before routing.

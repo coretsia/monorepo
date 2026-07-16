@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Tag;
 
+use Coretsia\Foundation\Container\Internal\ContainerServiceIdPolicy;
+
 /**
  * Value object representing one tagged service registration.
  *
@@ -40,8 +42,12 @@ final readonly class TaggedService
             throw new \InvalidArgumentException('tagged-service-id-empty');
         }
 
-        if (\trim($id) !== $id || \preg_match('/\s/u', $id) === 1) {
+        if (ContainerServiceIdPolicy::hasForbiddenCharactersOrInvalidUtf8($id)) {
             throw new \InvalidArgumentException('tagged-service-id-whitespace-forbidden');
+        }
+
+        if (!ContainerServiceIdPolicy::isValid($id)) {
+            throw new \InvalidArgumentException('tagged-service-id-invalid');
         }
 
         self::assertStringMap($meta);

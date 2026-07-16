@@ -15124,7 +15124,7 @@ Docs:
     - [x] alias points to target
     - [x] container->get(alias) twice returns different objects
 - Foundation Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/Container/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
     - [x] factory shared=false returns different objects across get()
     - [x] factory shared=true returns same object across get()
 

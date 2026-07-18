@@ -28,6 +28,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class PriorityResetOrderDeterministicTest extends TestCase
 {
@@ -97,6 +98,11 @@ final class PriorityResetOrderDeterministicTest extends TestCase
         $meter = new PriorityResetOrderDeterministicFakeMeter();
         $logger = new PriorityResetOrderDeterministicFakeLogger();
 
+        $services[Stopwatch::class] = new Stopwatch();
+        $services[TracerPortInterface::class] = $tracer;
+        $services[MeterPortInterface::class] = $meter;
+        $services[LoggerInterface::class] = $logger;
+
         $orchestrator = FoundationServiceFactory::resetOrchestrator(
             container: new PriorityResetOrderDeterministicContainer($services),
             tagRegistry: $tagRegistry,
@@ -111,10 +117,6 @@ final class PriorityResetOrderDeterministicTest extends TestCase
                     ],
                 ],
             ],
-            stopwatch: new Stopwatch(),
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
         );
 
         self::assertTrue($orchestrator->priorityEnabled());

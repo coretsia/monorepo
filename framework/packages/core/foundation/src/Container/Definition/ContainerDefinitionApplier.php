@@ -22,6 +22,7 @@ use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\Exception\NotFoundException;
+use Coretsia\Foundation\Tag\TagRegistry;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -43,6 +44,7 @@ final class ContainerDefinitionApplier
     ): void {
         $operations = $definitions->toDescriptorStream();
         $parameters = self::finalParameters($operations);
+        $tagRegistry = $builder->tagRegistry();
 
         foreach ($operations as $operation) {
             $kind = $operation['kind'] ?? null;
@@ -59,6 +61,7 @@ final class ContainerDefinitionApplier
                         builder: $builder,
                         definition: $operation,
                         parameters: $parameters,
+                        tagRegistry: $tagRegistry,
                     );
                     break;
 
@@ -125,12 +128,15 @@ final class ContainerDefinitionApplier
         ContainerBuilder $builder,
         array $definition,
         array $parameters,
+        TagRegistry $tagRegistry,
     ): void {
         $id = $definition['id'] ?? null;
         $shared = $definition['shared'] ?? null;
 
         if (!\is_string($id) || !\is_bool($shared)) {
-            throw new ContainerException('container-definition-service-invalid');
+            throw new ContainerException(
+                'container-definition-service-invalid',
+            );
         }
 
         $builder->factory(
@@ -138,6 +144,7 @@ final class ContainerDefinitionApplier
             factory: self::runtimeFactory(
                 definition: $definition,
                 parameters: $parameters,
+                tagRegistry: $tagRegistry,
             ),
             shared: $shared,
         );
@@ -206,12 +213,14 @@ final class ContainerDefinitionApplier
     private static function runtimeFactory(
         array $definition,
         array $parameters,
+        TagRegistry $tagRegistry,
     ): callable {
         return static function (
             Container $container,
         ) use (
             $definition,
             $parameters,
+            $tagRegistry,
         ): mixed {
             $kind = $definition['kind'] ?? null;
             $values = $definition['arguments'] ?? null;
@@ -228,6 +237,7 @@ final class ContainerDefinitionApplier
                 container: $container,
                 values: $values,
                 parameters: $parameters,
+                tagRegistry: $tagRegistry,
             );
 
             return match ($kind) {
@@ -280,7 +290,11 @@ final class ContainerDefinitionApplier
         }
 
         try {
-            return $reflection->newInstanceArgs($arguments);
+            return $reflection->newInstanceArgs(
+                $arguments,
+            );
+        } catch (ContainerException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             throw new ContainerException('container-definition-class-instantiation-failed', $exception);
         }
@@ -322,7 +336,12 @@ final class ContainerDefinitionApplier
         }
 
         try {
-            return $reflection->invokeArgs(null, $arguments);
+            return $reflection->invokeArgs(
+                null,
+                $arguments,
+            );
+        } catch (ContainerException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             throw new ContainerException('container-definition-factory-failed', $exception);
         }
@@ -355,6 +374,8 @@ final class ContainerDefinitionApplier
                 : 'container-definition-factory-service-resolution-failed';
 
             throw new ContainerException($reason, $exception);
+        } catch (ContainerException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             throw new ContainerException('container-definition-factory-service-resolution-failed', $exception);
         }
@@ -385,6 +406,8 @@ final class ContainerDefinitionApplier
                 $factoryService,
                 $arguments,
             );
+        } catch (ContainerException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             throw new ContainerException('container-definition-factory-failed', $exception);
         }
@@ -400,6 +423,7 @@ final class ContainerDefinitionApplier
         Container $container,
         array $values,
         array $parameters,
+        TagRegistry $tagRegistry,
     ): array {
         $resolved = [];
 
@@ -408,6 +432,7 @@ final class ContainerDefinitionApplier
                 container: $container,
                 value: $value,
                 parameters: $parameters,
+                tagRegistry: $tagRegistry,
                 depth: 0,
             );
         }
@@ -422,6 +447,7 @@ final class ContainerDefinitionApplier
         Container $container,
         mixed $value,
         array $parameters,
+        TagRegistry $tagRegistry,
         int $depth,
     ): mixed {
         if ($depth > self::MAX_RUNTIME_DEPTH) {
@@ -451,10 +477,28 @@ final class ContainerDefinitionApplier
                 return $container;
             }
 
+            if ($serviceId === TagRegistry::class) {
+                return $tagRegistry;
+            }
+
             try {
                 return $container->get($serviceId);
+            } catch (NotFoundException $exception) {
+                if ($exception->serviceId() !== $serviceId) {
+                    throw $exception;
+                }
+
+                throw new ContainerException(
+                    'container-definition-service-reference-failed',
+                    $exception,
+                );
+            } catch (ContainerException $exception) {
+                throw $exception;
             } catch (\Throwable $exception) {
-                throw new ContainerException('container-definition-service-reference-failed', $exception);
+                throw new ContainerException(
+                    'container-definition-service-reference-failed',
+                    $exception,
+                );
             }
         }
 
@@ -480,6 +524,7 @@ final class ContainerDefinitionApplier
                     container: $container,
                     value: $item,
                     parameters: $parameters,
+                    tagRegistry: $tagRegistry,
                     depth: $depth + 1,
                 );
             }
@@ -498,6 +543,7 @@ final class ContainerDefinitionApplier
                 container: $container,
                 value: $item,
                 parameters: $parameters,
+                tagRegistry: $tagRegistry,
                 depth: $depth + 1,
             );
         }

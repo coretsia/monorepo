@@ -47,7 +47,10 @@ final readonly class ContainerValueReference
             ContainerDefinitionInvalidException::REASON_REFERENCE_INVALID,
         );
 
-        return new self(self::TYPE_SERVICE, $serviceId);
+        return new self(
+            self::TYPE_SERVICE,
+            $serviceId,
+        );
     }
 
     public static function parameter(string $parameterName): self
@@ -57,7 +60,10 @@ final readonly class ContainerValueReference
             ContainerDefinitionInvalidException::REASON_REFERENCE_INVALID,
         );
 
-        return new self(self::TYPE_PARAMETER, $parameterName);
+        return new self(
+            self::TYPE_PARAMETER,
+            $parameterName,
+        );
     }
 
     public static function class(string $className): self
@@ -67,7 +73,10 @@ final readonly class ContainerValueReference
             ContainerDefinitionInvalidException::REASON_REFERENCE_INVALID,
         );
 
-        return new self(self::TYPE_CLASS, $className);
+        return new self(
+            self::TYPE_CLASS,
+            $className,
+        );
     }
 
     public function type(): string

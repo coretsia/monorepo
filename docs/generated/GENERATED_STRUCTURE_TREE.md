@@ -522,6 +522,7 @@ Coretsia/
 │   │   │   │   │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
 │   │   │   │   │   │   ├── FoundationClockAndStopwatchBindingsTest.php
 │   │   │   │   │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+│   │   │   │   │   │   ├── FoundationProviderSourceDefinitionsParityTest.php
 │   │   │   │   │   │   ├── FoundationResolvesContextStoreBindingsTest.php
 │   │   │   │   │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
 │   │   │   │   │   │   ├── PriorityResetBackCompatWhenDisabledTest.php
@@ -718,6 +719,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php
 │   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php
 │   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+│   │   │       │   │   ├── KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 │   │   │       │   │   ├── KernelConfigModuleStopwatchFailurePolicyContractTest.php
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEmitRoutesArtifactContractTest.php
@@ -760,6 +762,8 @@ Coretsia/
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
+│   │   │       │   ├── Fixtures/
+│   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
@@ -806,6 +810,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactObservabilityDoesNotChangeBehaviorTest.php
 │   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
 │   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
+│   │   │       │   │   ├── KernelProviderSourceDefinitionsParityTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php

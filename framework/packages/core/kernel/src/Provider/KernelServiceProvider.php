@@ -18,12 +18,25 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Id\CorrelationIdGenerator;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
+use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
@@ -65,6 +78,8 @@ use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Kernel DI wiring entrypoint.
@@ -125,22 +140,28 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * a ModulePlan, must not compile config, and must not start a UnitOfWork during
  * registration.
  */
-final class KernelServiceProvider implements ServiceProviderInterface
+final class KernelServiceProvider implements
+    ServiceProviderInterface,
+    ContainerDefinitionProviderInterface
 {
+    private const string PARAM_UOW_ATTRIBUTES_MAX_DEPTH = 'kernel.uow.attributes.max_depth';
+    private const string PARAM_UOW_ATTRIBUTES_MAX_KEYS = 'kernel.uow.attributes.max_keys';
+
     public function register(ContainerBuilder $builder): void
     {
-        $kernelConfig = $builder->configRoot('kernel');
-        $kernelPackageRoot = \dirname(__DIR__, 2);
+        $builder->assertDefinitionProviderRegistrationAllowed();
 
         /*
-         * Preserve the existing Kernel-owned config validation behavior.
+         * Fail closed before compile-host registrations mutate the builder.
          *
-         * This validates only the UnitOfWork attributes defensive limits and
-         * does not construct runtime lifecycle state.
+         * `define()` remains the single runtime wiring source and repeats the same
+         * deterministic validation while producing canonical parameter operations.
          */
-        KernelServiceFactory::unitOfWorkAttributeLimits($kernelConfig);
+        KernelServiceFactory::unitOfWorkAttributeLimits(
+            $builder->configRoot('kernel'),
+        );
 
-        $tagRegistry = $builder->tagRegistry();
+        $kernelPackageRoot = \dirname(__DIR__, 2);
 
         /*
          * Register Bootstrap Phase A services.
@@ -361,8 +382,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             DeterministicFileLister::class,
-            static fn (Container $_container): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(
-            ),
+            static fn (
+                Container $_container
+            ): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(),
         );
 
         $builder->factory(
@@ -423,8 +445,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             ArtifactSchemaValidator::class,
-            static fn (Container $_container): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(
-            ),
+            static fn (
+                Container $_container
+            ): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(),
         );
 
         $builder->factory(
@@ -457,51 +480,65 @@ final class KernelServiceProvider implements ServiceProviderInterface
             ),
         );
 
-        /*
-         * Register Kernel runtime services.
-         *
-         * These bindings are factories only. They do not run runtime driver detection,
-         * inspect runtime config, resolve ModulePlan, enumerate hooks, trigger reset,
-         * start a UnitOfWork, execute runtime lifecycle, or emit stdout/stderr during
-         * provider registration.
-         *
-         * RuntimeEntrypointGuard is the canonical production/runtime-adapter boundary
-         * and must be invoked after config and ModulePlan are resolved and before
-         * runtime container or KernelRuntime execution starts.
-         */
-        $builder->factory(
-            RuntimeEntrypointGuard::class,
-            static fn (
-                Container $_container
-            ): RuntimeEntrypointGuard => KernelServiceFactory::runtimeEntrypointGuard(),
+        $builder->registerDefinitionProvider($this);
+    }
+
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $attributeLimits = KernelServiceFactory::unitOfWorkAttributeLimits(
+            $context->configRoot('kernel'),
         );
 
-        $builder->factory(
-            HookInvoker::class,
-            static fn (Container $container): HookInvoker => KernelServiceFactory::hookInvoker(
-                container: $container,
-                tagRegistry: $tagRegistry,
-            ),
-        );
-
-        $builder->factory(
-            KernelRuntime::class,
-            static fn (Container $container): KernelRuntime => KernelServiceFactory::kernelRuntime(
-                container: $container,
-            ),
-        );
-
-        $builder->factory(
-            KernelRuntimeInterface::class,
-            static function (Container $container): KernelRuntimeInterface {
-                $runtime = $container->get(KernelRuntime::class);
-
-                if (!$runtime instanceof KernelRuntimeInterface) {
-                    throw new ContainerException('kernel-runtime-interface-binding-invalid');
-                }
-
-                return $runtime;
-            },
-        );
+        $definitions
+            ->parameter(
+                self::PARAM_UOW_ATTRIBUTES_MAX_DEPTH,
+                $attributeLimits['maxDepth'],
+            )
+            ->parameter(
+                self::PARAM_UOW_ATTRIBUTES_MAX_KEYS,
+                $attributeLimits['maxKeys'],
+            )
+            ->requireService(ContainerInterface::class)
+            ->requireService(TagRegistry::class)
+            ->requireService(ContextAccessorInterface::class)
+            ->requireService(ResetOrchestrator::class)
+            ->requireService(Stopwatch::class)
+            ->requireService(IdGeneratorInterface::class)
+            ->requireService(CorrelationIdProviderInterface::class)
+            ->requireService(CorrelationIdGenerator::class)
+            ->requireService(HookInvoker::class)
+            ->requireService(LoggerInterface::class)
+            ->requireService(TracerPortInterface::class)
+            ->requireService(MeterPortInterface::class)
+            ->classMethodFactory(
+                id: RuntimeEntrypointGuard::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'runtimeEntrypointGuard',
+            )
+            ->classMethodFactory(
+                id: HookInvoker::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'hookInvoker',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(TagRegistry::class),
+                ],
+            )
+            ->classMethodFactory(
+                id: KernelRuntime::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'kernelRuntime',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::parameter(self::PARAM_UOW_ATTRIBUTES_MAX_DEPTH),
+                    ContainerValueReference::parameter(self::PARAM_UOW_ATTRIBUTES_MAX_KEYS),
+                ],
+            )
+            ->alias(
+                KernelRuntimeInterface::class,
+                KernelRuntime::class,
+            );
     }
 }

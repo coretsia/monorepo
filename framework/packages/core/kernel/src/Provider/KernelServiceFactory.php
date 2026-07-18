@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -1100,29 +1101,37 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the KernelRuntime orchestrator from already-registered services.
+     * Creates the KernelRuntime orchestrator from already-registered runtime
+     * services and already-validated UnitOfWork attribute limits.
      *
-     * This method reads only the already-built Kernel config snapshot needed for
-     * UnitOfWork attribute defensive limits. It does not enumerate hooks, does
-     * not trigger reset, and does not start a UoW.
+     * Runtime dependencies are resolved in the same deterministic order as the
+     * previous source-runtime wiring. This method does not read Phase A or
+     * Phase B state, enumerate hooks, trigger reset, or start a UnitOfWork.
      */
-    public static function kernelRuntime(ContainerInterface $container): KernelRuntime
-    {
-        $attributeLimits = self::unitOfWorkAttributeLimits(self::kernelConfig($container));
-
+    public static function kernelRuntime(
+        ContainerInterface $container,
+        int $attributesMaxDepth,
+        int $attributesMaxKeys,
+    ): KernelRuntime {
         return new KernelRuntime(
             contextStore: self::contextStore($container),
-            resetOrchestrator: self::resetOrchestrator($container),
+            resetOrchestrator: self::resetOrchestrator(
+                $container,
+            ),
             stopwatch: self::stopwatch($container),
             uowIds: self::uowIds($container),
-            correlationIdProvider: self::correlationIdProvider($container),
-            correlationIds: self::correlationIds($container),
+            correlationIdProvider: self::correlationIdProvider(
+                $container,
+            ),
+            correlationIds: self::correlationIds(
+                $container,
+            ),
             hooks: self::hooks($container),
             logger: self::logger($container),
             tracer: self::tracer($container),
             meter: self::meter($container),
-            attributesMaxDepth: $attributeLimits['maxDepth'],
-            attributesMaxKeys: $attributeLimits['maxKeys'],
+            attributesMaxDepth: $attributesMaxDepth,
+            attributesMaxKeys: $attributesMaxKeys,
         );
     }
 
@@ -1197,23 +1206,35 @@ final class KernelServiceFactory
         return $maxKeys;
     }
 
-    private static function contextStore(ContainerInterface $container): ContextStore
-    {
-        $service = self::service($container, ContextStore::class);
+    private static function contextStore(
+        ContainerInterface $container,
+    ): ContextStore {
+        $service = self::service(
+            $container,
+            ContextAccessorInterface::class,
+        );
 
         if (!$service instanceof ContextStore) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;
     }
 
-    private static function resetOrchestrator(ContainerInterface $container): ResetOrchestrator
-    {
-        $service = self::service($container, ResetOrchestrator::class);
+    private static function resetOrchestrator(
+        ContainerInterface $container,
+    ): ResetOrchestrator {
+        $service = self::service(
+            $container,
+            ResetOrchestrator::class,
+        );
 
         if (!$service instanceof ResetOrchestrator) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;
@@ -1230,45 +1251,69 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function uowIds(ContainerInterface $container): IdGeneratorInterface
-    {
-        $service = self::service($container, IdGeneratorInterface::class);
+    private static function uowIds(
+        ContainerInterface $container,
+    ): IdGeneratorInterface {
+        $service = self::service(
+            $container,
+            IdGeneratorInterface::class,
+        );
 
         if (!$service instanceof IdGeneratorInterface) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;
     }
 
-    private static function correlationIdProvider(ContainerInterface $container): CorrelationIdProviderInterface
-    {
-        $service = self::service($container, CorrelationIdProviderInterface::class);
+    private static function correlationIdProvider(
+        ContainerInterface $container,
+    ): CorrelationIdProviderInterface {
+        $service = self::service(
+            $container,
+            CorrelationIdProviderInterface::class,
+        );
 
         if (!$service instanceof CorrelationIdProviderInterface) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;
     }
 
-    private static function correlationIds(ContainerInterface $container): CorrelationIdGenerator
-    {
-        $service = self::service($container, CorrelationIdGenerator::class);
+    private static function correlationIds(
+        ContainerInterface $container,
+    ): CorrelationIdGenerator {
+        $service = self::service(
+            $container,
+            CorrelationIdGenerator::class,
+        );
 
         if (!$service instanceof CorrelationIdGenerator) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;
     }
 
-    private static function hooks(ContainerInterface $container): HookInvoker
-    {
-        $service = self::service($container, HookInvoker::class);
+    private static function hooks(
+        ContainerInterface $container,
+    ): HookInvoker {
+        $service = self::service(
+            $container,
+            HookInvoker::class,
+        );
 
         if (!$service instanceof HookInvoker) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
+            throw new ContainerException(
+                'kernel-runtime-dependency-invalid',
+            );
         }
 
         return $service;

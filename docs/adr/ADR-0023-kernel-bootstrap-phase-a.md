@@ -527,7 +527,7 @@ skeleton/apps/<appTarget>/config/**
 
 Module enable/disable composition is not handled by Phase A.
 
-Module composition is owned by the ModulePlan epic and is resolved from preset files plus composer metadata.
+Module composition is owned by ModulePlan resolution and is resolved from preset files plus Composer metadata.
 
 Override values must not appear in exception messages.
 
@@ -890,7 +890,7 @@ The current design keeps public API stable and minimal:
 - internal builder returns `EnvRepositoryInterface`;
 - entrypoint/platform owners compose these services explicitly.
 
-A future owner epic may introduce a public bootstrap orchestration facade only if an actual platform entrypoint contract requires it.
+A public bootstrap orchestration facade may be introduced only if an actual platform entrypoint contract requires it.
 
 For the current CLI use case, command owners can orchestrate explicit DI services without requiring a public `Bootstrapper` type.
 
@@ -902,6 +902,73 @@ coretsia cache:verify
 ```
 
 may invoke the relevant boot/config services through DI while keeping Phase A resolution and env snapshot boundaries unchanged.
+
+## Decision 16: Phase A and Kernel compile-host services are not runtime graph definitions
+
+`KernelServiceProvider` has two distinct wiring responsibilities:
+
+```text
+source compile-host registration
+canonical runtime definition contribution
+```
+
+Source compile-host registration remains in:
+
+```php
+KernelServiceProvider::register(...)
+```
+
+Canonical Kernel runtime contribution is owned by:
+
+```php
+KernelServiceProvider::define(...)
+```
+
+Bootstrap Phase A services are compile-host services.
+
+They may be registered as source-container factories so bootstrap, configuration compilation, module planning, artifact compilation, and verification can execute.
+
+They must not be contributed to the canonical runtime definition graph.
+
+The explicit law is:
+
+```text
+Kernel compile-host services are not part of the compiled runtime
+container definition graph.
+```
+
+The exclusion applies to:
+
+```text
+BootstrapOverridesLoader
+BootstrapConfigResolver
+DotenvLoader
+EnvRepositoryBuilder
+Composer metadata readers
+ModulePlanResolver
+ConfigKernel
+artifact builders
+ArtifactCompiler
+fingerprint services
+CacheVerifier
+artifact readers and writers
+ContainerCompiler
+```
+
+These services may construct, compile, write, read, or verify runtime artifacts.
+
+They are not runtime services consumed by the compiled application container.
+
+`KernelServiceProvider::define()` is limited to Kernel runtime definitions such as:
+
+```text
+RuntimeEntrypointGuard
+HookInvoker
+KernelRuntime
+KernelRuntimeInterface alias
+```
+
+Phase A or Phase B services must not be re-read by Kernel runtime factories.
 
 ## Consequences
 
@@ -956,13 +1023,13 @@ The public API remains small.
 
 There is no one-call public bootstrap facade.
 
-Entrypoints or platform packages must compose the resolver and builder through DI until a future owner epic introduces a justified orchestration facade.
+Entrypoints or platform packages must compose the resolver and builder through DI because no public bootstrap orchestration facade is defined.
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
 `BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, and `artifactsCacheDir`.
 
-Other bootstrap inputs require explicit entrypoint input or future owner epics.
+Other bootstrap inputs require explicit entrypoint input or an explicit extension of the Bootstrap Phase A contract.
 
 Artifact cache relocation is limited to a portable, bounded, `skeletonRoot`-relative generated-output directory.
 
@@ -1065,7 +1132,7 @@ EnvRepositoryInterface
 
 A public `BootstrapResult` would aggregate those objects into a second public result shape, which would create another object to version, preserve, and keep in sync.
 
-A future owner epic may introduce a result wrapper only if there is concrete public API pressure from platform entrypoints.
+A result wrapper may be introduced only if concrete public API pressure from platform entrypoints justifies an additional public result shape.
 
 ### Alternative 8: Treat staging as production-like by default
 
@@ -1153,6 +1220,8 @@ Phase A only prepares minimal boot inputs and env snapshots for later owners.
 
 This ADR does not introduce:
 
+- Bootstrap Phase A services in the compiled runtime definition graph;
+- Kernel compile-host services in the compiled runtime definition graph;
 - public `Bootstrapper`;
 - public `BootstrapResult`;
 - new config roots;
@@ -1181,6 +1250,7 @@ Expected verification includes:
 
 ```text
 framework/packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php
@@ -1238,7 +1308,12 @@ Verification must prove:
 - source metadata does not contain raw system env values;
 - source metadata does not contain absolute skeleton roots;
 - Boot source does not depend on runtime lifecycle/reset services;
-- Kernel boot/runtime/provider source does not write to stdout or stderr.
+- Kernel boot/runtime/provider source does not write to stdout or stderr;
+- Kernel compile-host services are absent from the canonical runtime definition stream;
+- Bootstrap Phase A service ids are absent from the compiled runtime definition graph;
+- `KernelServiceProvider::define()` contributes only Kernel runtime services;
+- `KernelServiceProvider::register()` may register compile-host factories without duplicating Kernel runtime wiring;
+- Kernel runtime factories do not re-read Phase A or Phase B state.
 
 ## Related SSoT
 
@@ -1247,8 +1322,9 @@ Verification must prove:
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
+- `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/artifacts-and-fingerprint.md`
 
-## Related epic
+## Related ADR
 
-- `1.290.0 Kernel Bootstrap Phase A`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

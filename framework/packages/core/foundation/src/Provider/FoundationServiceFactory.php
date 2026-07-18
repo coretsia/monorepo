@@ -90,27 +90,22 @@ final class FoundationServiceFactory
         ContainerInterface $container,
         TagRegistry $tagRegistry,
         array $foundationConfig,
-        Stopwatch $stopwatch,
-        TracerPortInterface $tracer,
-        MeterPortInterface $meter,
-        LoggerInterface $logger,
     ): ResetOrchestrator {
-        $priorityEnabled = self::resetPriorityEnabled($foundationConfig);
+        $priorityEnabled =
+            self::resetPriorityEnabled($foundationConfig);
 
         return new ResetOrchestrator(
             container: $container,
             tagRegistry: $tagRegistry,
-            effectiveResetTag: self::effectiveResetTag($foundationConfig),
+            effectiveResetTag: self::effectiveResetTag(
+                $foundationConfig,
+            ),
             priorityEnabled: $priorityEnabled,
             priorityResetOrchestrator: $priorityEnabled
                 ? self::priorityResetOrchestrator(
                     container: $container,
                     tagRegistry: $tagRegistry,
                     foundationConfig: $foundationConfig,
-                    stopwatch: $stopwatch,
-                    tracer: $tracer,
-                    meter: $meter,
-                    logger: $logger,
                 )
                 : null,
         );
@@ -128,19 +123,18 @@ final class FoundationServiceFactory
         ContainerInterface $container,
         TagRegistry $tagRegistry,
         array $foundationConfig,
-        Stopwatch $stopwatch,
-        TracerPortInterface $tracer,
-        MeterPortInterface $meter,
-        LoggerInterface $logger,
     ): PriorityResetOrchestrator {
+        $defaultGroup =
+            self::defaultResetGroup($foundationConfig);
+
         return new PriorityResetOrchestrator(
             container: $container,
             tagRegistry: $tagRegistry,
-            defaultGroup: self::defaultResetGroup($foundationConfig),
-            stopwatch: $stopwatch,
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
+            defaultGroup: $defaultGroup,
+            stopwatch: self::stopwatch($container),
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
         );
     }
 
@@ -235,21 +229,43 @@ final class FoundationServiceFactory
         UlidGenerator $ulids,
         UuidGenerator $uuids,
     ): IdGeneratorInterface {
+        return match (
+            self::defaultIdGeneratorServiceId(
+                $foundationConfig,
+            )
+        ) {
+            UlidGenerator::class => $ulids,
+            UuidGenerator::class => $uuids,
+
+            default => throw new \LogicException('foundation-id-generator-service-id-unreachable'),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $foundationConfig
+     *
+     * @return class-string<IdGeneratorInterface>
+     */
+    public static function defaultIdGeneratorServiceId(
+        array $foundationConfig,
+    ): string {
         $idsConfig = $foundationConfig['ids'] ?? [];
 
         if (!\is_array($idsConfig)) {
             throw new ContainerException('foundation-ids-config-invalid');
         }
 
-        $default = $idsConfig['default'] ?? self::DEFAULT_ID_ULID;
+        $default = $idsConfig['default']
+            ?? self::DEFAULT_ID_ULID;
 
         if (!\is_string($default)) {
             throw new ContainerException('foundation-ids-default-invalid');
         }
 
         return match ($default) {
-            self::DEFAULT_ID_ULID => $ulids,
-            self::DEFAULT_ID_UUID => $uuids,
+            self::DEFAULT_ID_ULID => UlidGenerator::class,
+            self::DEFAULT_ID_UUID => UuidGenerator::class,
+
             default => throw new ContainerException('foundation-ids-default-invalid'),
         };
     }
@@ -284,6 +300,96 @@ final class FoundationServiceFactory
         }
 
         return $tag;
+    }
+
+    private static function stopwatch(
+        ContainerInterface $container,
+    ): Stopwatch {
+        $service = self::resetService(
+            $container,
+            Stopwatch::class,
+        );
+
+        if (!$service instanceof Stopwatch) {
+            throw new ContainerException(
+                'foundation-reset-dependency-invalid',
+            );
+        }
+
+        return $service;
+    }
+
+    private static function tracer(
+        ContainerInterface $container,
+    ): TracerPortInterface {
+        $service = self::resetService(
+            $container,
+            TracerPortInterface::class,
+        );
+
+        if (!$service instanceof TracerPortInterface) {
+            throw new ContainerException(
+                'foundation-reset-dependency-invalid',
+            );
+        }
+
+        return $service;
+    }
+
+    private static function meter(
+        ContainerInterface $container,
+    ): MeterPortInterface {
+        $service = self::resetService(
+            $container,
+            MeterPortInterface::class,
+        );
+
+        if (!$service instanceof MeterPortInterface) {
+            throw new ContainerException(
+                'foundation-reset-dependency-invalid',
+            );
+        }
+
+        return $service;
+    }
+
+    private static function logger(
+        ContainerInterface $container,
+    ): LoggerInterface {
+        $service = self::resetService(
+            $container,
+            LoggerInterface::class,
+        );
+
+        if (!$service instanceof LoggerInterface) {
+            throw new ContainerException(
+                'foundation-reset-dependency-invalid',
+            );
+        }
+
+        return $service;
+    }
+
+    private static function resetService(
+        ContainerInterface $container,
+        string $serviceId,
+    ): mixed {
+        try {
+            if (!$container->has($serviceId)) {
+                throw new ContainerException(
+                    'foundation-reset-dependency-not-found',
+                );
+            }
+
+            return $container->get($serviceId);
+        } catch (ContainerException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            throw new ContainerException(
+                'foundation-reset-dependency-not-found',
+                $exception,
+            );
+        }
     }
 
     /**

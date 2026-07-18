@@ -117,7 +117,7 @@ final class ContainerDefinitionSetIsDeterministicContractTest extends TestCase
 
     public function testMergePreservesSetAndOperationOrderAndCanonicalizesRequiredIds(): void
     {
-        $first = (new ContainerDefinitionBuilder())
+        $first = new ContainerDefinitionBuilder()
             ->parameter('binding.value', 'first')
             ->tag(
                 tag: 'test.definition',
@@ -127,7 +127,7 @@ final class ContainerDefinitionSetIsDeterministicContractTest extends TestCase
             ->requireService('dependency.zeta')
             ->build();
 
-        $second = (new ContainerDefinitionBuilder())
+        $second = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'service.second',
                 class: ContainerDefinitionDeterministicSubject::class,
@@ -160,7 +160,7 @@ final class ContainerDefinitionSetIsDeterministicContractTest extends TestCase
 
     private static function firstEquivalentSet(): ContainerDefinitionSet
     {
-        return (new ContainerDefinitionBuilder())
+        return new ContainerDefinitionBuilder()
             ->parameter(
                 'application.options',
                 [
@@ -218,7 +218,7 @@ final class ContainerDefinitionSetIsDeterministicContractTest extends TestCase
 
     private static function secondEquivalentSet(): ContainerDefinitionSet
     {
-        return (new ContainerDefinitionBuilder())
+        return new ContainerDefinitionBuilder()
             ->parameter(
                 'application.options',
                 [

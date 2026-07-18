@@ -170,9 +170,11 @@ A definition provider must not:
 - instantiate runtime services;
 - emit stdout or stderr.
 
-The same provider implementation may be used by source-mode and compile-mode orchestration.
+The same provider implementation is used by source-mode and compile-mode orchestration whenever the provider implements `ContainerDefinitionProviderInterface`.
 
-This decision introduces the SPI and canonical model only. It does not migrate existing imperative providers in the same change.
+Foundation and Kernel runtime wiring use provider-owned definitions through that SPI.
+
+Providers that do not implement the declarative SPI remain imperative and are outside this decision.
 
 ### Decision 4: Limit provider context to compiled Phase-B config
 
@@ -283,32 +285,69 @@ Therefore:
 
 Tag registration continues to delegate to `TagRegistry`, where first registration wins for the same `(tag, serviceId)` pair.
 
-### Decision 8: Apply one complete set once in source mode
+### Decision 8: Aggregate declarative providers before one source application
 
-`ContainerBuilder` adds:
+`ContainerBuilder` exposes:
 
 ```php
+public function register(
+    ServiceProviderInterface ...$providers,
+): self;
+
+public function registerProviders(
+    iterable $providers,
+): self;
+
 public function applyDefinitions(
     ContainerDefinitionSet $definitions,
 ): self;
 ```
 
-A `ContainerBuilder` may apply exactly one complete declarative definition set.
+A declarative provider-registration batch must contain only providers that implement:
 
-Multiple provider contributions must be aggregated before source application through either:
+```text
+ContainerDefinitionProviderInterface
+```
 
-- one shared `ContainerDefinitionBuilder`; or
-- `ContainerDefinitionSet::merge(...)`.
+An imperative-only batch must contain only providers that do not implement that SPI.
+
+A mixed declarative and imperative batch is rejected before any provider executes because deferred declarative application cannot preserve caller order relative to immediate imperative mutations.
+
+For one declarative batch, `ContainerBuilder` must:
+
+1. preserve the exact caller-supplied provider order;
+2. create one shared `ContainerDefinitionBuilder`;
+3. create one shared `ContainerDefinitionContext`;
+4. invoke every provider through its normal `ServiceProviderInterface::register()` entrypoint;
+5. let each declarative provider contribute through `registerDefinitionProvider($this)`;
+6. invoke every provider `define()` against the same shared builder and context;
+7. call `build()` exactly once;
+8. call `applyDefinitions()` exactly once.
 
 The selected source flow is:
 
 ```text
-provider contributions
-  -> one complete ContainerDefinitionSet
+provider 1 register() -> define()
+provider 2 register() -> define()
+provider 3 register() -> define()
+  -> one shared ContainerDefinitionBuilder
+  -> one ContainerDefinitionSet
   -> one ContainerBuilder::applyDefinitions(...)
 ```
 
-Repeated per-provider build-and-apply calls are rejected because they would make final parameter semantics depend on application grouping.
+The following flow is forbidden:
+
+```text
+provider 1 -> build -> apply
+provider 2 -> build -> apply
+provider 3 -> build -> apply
+```
+
+A standalone declarative provider may apply one complete definition set when no declarative set has already been applied.
+
+A second standalone or batched declarative application on the same `ContainerBuilder` must fail before provider execution or compile-host registration mutates the builder.
+
+`ContainerDefinitionSet::merge(...)` remains available when orchestration already owns separate immutable sets, but source provider registration should normally contribute through one shared builder.
 
 ### Decision 9: Keep runtime closures inside the source adapter
 
@@ -352,21 +391,150 @@ Public definition-validation diagnostics must not contain raw service ids, class
 
 Runtime source-adapter failures use safe `ContainerException` reason tokens and may retain the causal throwable through `previous` without embedding its message in the public reason token.
 
-### Decision 11: Keep the production path unchanged in G2-01
+### Decision 11: Keep the production artifact path unchanged
 
-This decision does not make the new model an alternative production boot path.
+The canonical definition model and source adapter are active for source-runtime wiring.
 
-Existing providers may remain imperative.
+Foundation and Kernel source-runtime wiring uses provider-owned canonical definitions.
 
-Production artifact generation and artifact-only runtime boot remain unchanged until later integration work explicitly switches Kernel compilation input to the Foundation-owned canonical model.
+Production artifact compilation continues to use its existing input path and does not consume provider-produced `ContainerDefinitionSet` input.
+
+Providers that do not implement `ContainerDefinitionProviderInterface` may remain imperative.
+
+Production artifact generation and artifact-only runtime boot remain governed by their existing compiled-container contracts.
+
+The canonical model is not a second production runtime boot path.
+
+Artifact-only runtime boot must not execute declarative providers as a fallback when the compiled container artifact is missing or invalid.
 
 No new Composer dependency is required.
+
+### Decision 12: Foundation and Kernel providers own their runtime definitions
+
+The following service providers implement both:
+
+```text
+ServiceProviderInterface
+ContainerDefinitionProviderInterface
+```
+
+```text
+Coretsia\Foundation\Provider\FoundationServiceProvider
+Coretsia\Kernel\Provider\KernelServiceProvider
+```
+
+Their `define()` methods are the canonical sources of their runtime wiring.
+
+Their `register()` methods remain the source-container entrypoints required by `ServiceProviderInterface`, but they must not maintain a parallel imperative registration of the same runtime services.
+
+Runtime contribution from `register()` is delegated through:
+
+```php
+$builder->registerDefinitionProvider($this);
+```
+
+Separate parallel provider classes such as:
+
+```text
+FoundationContainerDescriptorProvider
+KernelContainerDescriptorProvider
+```
+
+are not introduced.
+
+`FoundationServiceProvider::define()` owns the canonical runtime definitions for:
+
+```text
+SystemClock
+ClockInterface
+Stopwatch
+UlidGenerator
+UuidGenerator
+IdGeneratorInterface
+ContextStore
+ContextAccessorInterface
+correlation services
+noop logging and observability ports
+PriorityResetOrchestrator
+ResetOrchestrator
+Foundation reset tags
+kernel.stateful tag
+```
+
+`KernelServiceProvider::define()` owns the canonical runtime definitions for:
+
+```text
+RuntimeEntrypointGuard
+HookInvoker
+KernelRuntime
+KernelRuntimeInterface alias
+```
+
+Runtime construction that cannot be represented as direct class construction uses public static class-method factories.
+
+A factory may accept:
+
+```text
+ContainerInterface
+TagRegistry
+canonical service references
+canonical parameter references
+deterministic scalar or map values
+```
+
+When a factory resolves runtime services through `ContainerInterface`, every such dependency must also be declared through:
+
+```php
+ContainerDefinitionBuilder::requireService(...)
+```
+
+This preserves graph topology while allowing deterministic runtime resolution order and failure taxonomy.
+
+Runtime factories must not re-read Bootstrap Phase A or ConfigKernel Phase B.
+
+### Decision 13: Kernel compile-host wiring is outside the runtime definition graph
+
+Kernel service-provider wiring is divided into two categories.
+
+`KernelServiceProvider::register()` may register source-host services needed to perform bootstrap, configuration compilation, module planning, artifact compilation, fingerprinting, cache verification, artifact IO, and container compilation.
+
+Those services include:
+
+```text
+Bootstrap Phase A services
+dotenv loaders
+Composer metadata readers
+ModulePlanResolver
+ConfigKernel
+artifact builders
+ArtifactCompiler
+fingerprint calculators and explainers
+CacheVerifier
+artifact readers and writers
+ContainerCompiler
+```
+
+`KernelServiceProvider::define()` must not contribute those services to the canonical runtime definition graph.
+
+The explicit law is:
+
+```text
+Kernel compile-host services are not part of the compiled runtime
+container definition graph.
+```
+
+Only Kernel runtime services belong in the Kernel provider contribution.
+
+Compile-host services may produce or validate runtime artifacts, but they are not runtime graph definitions and must not appear in the provider-produced runtime descriptor stream.
 
 ## Consequences
 
 ### Positive consequences
 
 - Source runtime wiring and compiled-container input gain one canonical semantic model.
+- Foundation and Kernel runtime wiring no longer have parallel imperative and declarative sources.
+- Existing Foundation and Kernel service providers are the canonical definition providers.
+- Kernel compile-host wiring remains explicitly separated from runtime graph wiring.
 - Foundation remains independent from Kernel.
 - Framework-wide contracts remain free from Foundation-specific DI semantics.
 - Provider order and operation order remain explicit and testable.
@@ -384,14 +552,32 @@ No new Composer dependency is required.
 - Factory class-method definitions require a public non-abstract static method to exist at definition time.
 - Service-method factory existence and compatibility cannot be fully validated until final graph or runtime resolution.
 - All provider contributions must be collected before one source application.
-- Required runtime service ids are collected but are not validated by the source adapter in this work item.
-- Kernel integration requires follow-up work before the canonical model becomes the actual compile input for production artifacts.
+- Required runtime service ids are collected but are not validated by the source adapter.
+- Factories that resolve services through `ContainerInterface` must keep matching `requireService()` declarations synchronized with their lookup behavior.
+- `KernelServiceProvider::register()` owns both compile-host registration and delegation of the Kernel runtime contribution, so that boundary must remain explicit in code and tests.
+- Declarative and imperative-only providers cannot be mixed in one registration batch.
+- The canonical model becomes a production compile input only when compilation orchestration explicitly consumes complete provider-produced definition sets.
 
 ### Operational consequences
 
-Source-mode orchestration must create one `ContainerDefinitionContext`, invoke providers in deterministic caller-supplied order, build one complete set, and apply it once.
+Source-mode orchestration should register the declarative Foundation and Kernel providers in one batch:
 
-Compile-mode orchestration must invoke the same provider sequence against the same canonical builder/context model and pass the resulting descriptor stream to the Kernel compiler.
+```php
+$builder->register(
+    new FoundationServiceProvider(),
+    new KernelServiceProvider(),
+);
+```
+
+`ContainerBuilder` owns creation of the shared definition builder and definition context for that batch.
+
+Provider order remains caller-supplied and significant.
+
+Foundation and Kernel contributions are built into one complete definition set and applied once.
+
+Kernel compile-host factories are registered by `KernelServiceProvider::register()` but do not enter the canonical runtime descriptor stream.
+
+Compile-mode orchestration must invoke the same provider `define()` methods against the same canonical builder/context model and pass the resulting complete definition set to the Kernel compiler.
 
 Artifact-only runtime boot must continue to consume the compiled artifact and must not run definition providers as a fallback.
 
@@ -443,13 +629,13 @@ Operation order carries provider order, later-binding behavior, and first-tag-re
 
 Sorting would change semantics rather than merely canonicalize representation.
 
-### Alternative 7: Migrate production artifact flow in the same change
+### Alternative 7: Use provider-produced definitions as the production artifact input immediately
 
 Rejected.
 
-G2-01 introduces and validates the canonical model without making it an unreviewed parallel production path.
+The canonical model must preserve source-runtime semantics independently of production artifact orchestration.
 
-Kernel compiler adoption and production-flow integration require separate follow-up work.
+Production compilation continues to use its existing input path until an explicit architecture decision assigns complete provider-produced definition sets as its input.
 
 ## Validation and Testing Expectations
 
@@ -472,7 +658,7 @@ This decision should be locked by tests covering:
 - missing factory services and nested resolution failures remain distinguishable;
 - definition-validation diagnostics do not leak raw definition data.
 
-The initial required test files are:
+The required canonical-model test files are:
 
 ```text
 framework/packages/core/foundation/tests/Contract/ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
@@ -481,6 +667,34 @@ framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierP
 framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
 framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
+
+The required provider-integration test files are:
+
+```text
+framework/packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
+framework/packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
+framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
+```
+
+Provider parity tests must compare:
+
+```text
+service ids
+aliases
+tags
+shared flags
+```
+
+between source registration and the canonical definition set.
+
+Tests must also prove:
+
+- Foundation and Kernel providers contribute through one shared builder;
+- one complete set is applied once;
+- mixed declarative and imperative provider batches fail before provider execution;
+- a second declarative set fails before builder mutation;
+- Kernel compile-host service ids do not appear in the Kernel runtime definition stream;
+- container-resolved runtime dependencies have matching required-service declarations.
 
 ## Related SSoT
 
@@ -493,4 +707,5 @@ framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierP
 ## Related ADR
 
 - `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+- `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`

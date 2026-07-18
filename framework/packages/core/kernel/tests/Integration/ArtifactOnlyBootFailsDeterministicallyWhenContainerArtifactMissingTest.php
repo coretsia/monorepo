@@ -30,7 +30,9 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTe
     {
         $builder = new ContainerBuilder(config: self::validConfig());
 
-        new KernelServiceProvider()->register($builder);
+        $builder->register(
+            new KernelServiceProvider(),
+        );
 
         $container = $builder->build();
 

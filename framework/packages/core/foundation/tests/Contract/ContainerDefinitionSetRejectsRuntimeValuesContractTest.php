@@ -29,7 +29,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
     public function testBuilderRejectsClosureObjectFloatAndResourceParameterValues(): void
     {
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->parameter(
                     'runtime.value',
                     static fn (): string => 'raw-closure-secret',
@@ -47,7 +47,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
         };
 
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->parameter('runtime.value', $object)
                 ->build(),
             expectedReason: ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
@@ -59,7 +59,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
         );
 
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->parameter('runtime.value', 12.5)
                 ->build(),
             expectedReason: ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
@@ -74,7 +74,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
 
         try {
             self::assertDefinitionInvalid(
-                operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+                operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                     ->parameter('runtime.value', $resource)
                     ->build(),
                 expectedReason: ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
@@ -91,7 +91,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
     public function testBuilderRejectsRuntimeValuesNestedInsideServiceArguments(): void
     {
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->classService(
                     id: 'definition.runtime_object',
                     class: ContainerDefinitionSetRejectsRuntimeValuesSubject::class,
@@ -109,7 +109,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
         );
 
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->classService(
                     id: 'definition.runtime_closure',
                     class: ContainerDefinitionSetRejectsRuntimeValuesSubject::class,
@@ -131,7 +131,7 @@ final class ContainerDefinitionSetRejectsRuntimeValuesContractTest extends TestC
     public function testBuilderRejectsRawReferenceMaps(): void
     {
         self::assertDefinitionInvalid(
-            operation: static fn (): ContainerDefinitionSet => (new ContainerDefinitionBuilder())
+            operation: static fn (): ContainerDefinitionSet => new ContainerDefinitionBuilder()
                 ->classService(
                     id: 'definition.raw_reference',
                     class: ContainerDefinitionSetRejectsRuntimeValuesSubject::class,

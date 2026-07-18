@@ -26,9 +26,9 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
 {
     public function testClassServiceIsSharedByDefault(): void
     {
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions(
-                (new ContainerDefinitionBuilder())
+                new ContainerDefinitionBuilder()
                     ->classService(
                         id: 'lifecycle.shared',
                         class: ContainerDefinitionLifecycleSubject::class,
@@ -46,9 +46,9 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
 
     public function testClassServiceCanBeNonShared(): void
     {
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions(
-                (new ContainerDefinitionBuilder())
+                new ContainerDefinitionBuilder()
                     ->classService(
                         id: 'lifecycle.non_shared',
                         class: ContainerDefinitionLifecycleSubject::class,
@@ -68,7 +68,7 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
 
     public function testClassAndServiceMethodFactoriesPreserveNonSharedLifecycle(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classMethodFactory(
                 id: 'lifecycle.class_method',
                 factoryClass: ContainerDefinitionLifecycleStaticFactory::class,
@@ -87,7 +87,7 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
             )
             ->build();
 
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions($definitions)
             ->build();
 
@@ -103,7 +103,7 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
 
     public function testAliasPreservesSharedAndNonSharedTargetLifecycle(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'lifecycle.shared_target',
                 class: ContainerDefinitionLifecycleSubject::class,
@@ -123,7 +123,7 @@ final class ContainerDefinitionApplierPreservesSharedLifecycleTest extends TestC
             )
             ->build();
 
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions($definitions)
             ->build();
 

@@ -27,7 +27,7 @@ final class ContainerDefinitionApplierPreservesTagFirstWinsTest extends TestCase
 {
     public function testDuplicateTagOperationKeepsFirstPriorityAndMetadata(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->tag(
                 tag: 'test.handlers',
                 serviceId: 'service.handler',
@@ -64,7 +64,7 @@ final class ContainerDefinitionApplierPreservesTagFirstWinsTest extends TestCase
 
     public function testFirstWinsIsPreservedAcrossMergedProviderSets(): void
     {
-        $firstProviderSet = (new ContainerDefinitionBuilder())
+        $firstProviderSet = new ContainerDefinitionBuilder()
             ->tag(
                 tag: 'test.handlers',
                 serviceId: 'service.duplicate',
@@ -75,7 +75,7 @@ final class ContainerDefinitionApplierPreservesTagFirstWinsTest extends TestCase
             )
             ->build();
 
-        $secondProviderSet = (new ContainerDefinitionBuilder())
+        $secondProviderSet = new ContainerDefinitionBuilder()
             ->tag(
                 tag: 'test.handlers',
                 serviceId: 'service.top',

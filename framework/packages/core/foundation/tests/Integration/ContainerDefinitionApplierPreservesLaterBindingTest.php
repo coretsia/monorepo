@@ -28,7 +28,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
 {
     public function testLaterServiceDefinitionOverridesEarlierDefinition(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'binding.service',
                 class: ContainerDefinitionEarlierBindingSubject::class,
@@ -39,7 +39,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
             )
             ->build();
 
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions($definitions)
             ->build();
 
@@ -51,7 +51,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
 
     public function testParameterReferenceUsesFinalLaterBindingValue(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'binding.parameter_consumer',
                 class: ContainerDefinitionParameterConsumer::class,
@@ -63,7 +63,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
             ->parameter('binding.value', 'second')
             ->build();
 
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions($definitions)
             ->build();
 
@@ -78,7 +78,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
 
     public function testLaterAliasDefinitionOverridesEarlierAliasDefinition(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'binding.target.first',
                 class: ContainerDefinitionEarlierBindingSubject::class,
@@ -97,7 +97,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
             )
             ->build();
 
-        $container = (new ContainerBuilder(config: []))
+        $container = new ContainerBuilder(config: [])
             ->applyDefinitions($definitions)
             ->build();
 
@@ -109,7 +109,7 @@ final class ContainerDefinitionApplierPreservesLaterBindingTest extends TestCase
 
     public function testOneContainerBuilderRejectsASecondDefinitionSetApplication(): void
     {
-        $definitions = (new ContainerDefinitionBuilder())
+        $definitions = new ContainerDefinitionBuilder()
             ->classService(
                 id: 'binding.service',
                 class: ContainerDefinitionLaterBindingSubject::class,

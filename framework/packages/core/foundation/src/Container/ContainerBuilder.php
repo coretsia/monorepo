@@ -19,6 +19,9 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Container;
 
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionApplier;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\Internal\ContainerServiceIdPolicy;
@@ -72,6 +75,10 @@ final class ContainerBuilder
 
     private bool $declarativeDefinitionsApplied = false;
 
+    private ?ContainerDefinitionBuilder $definitionProviderBuilder = null;
+    private ?ContainerDefinitionContext $definitionProviderContext = null;
+    private ?bool $providerRegistrationDeclarativeMode = null;
+
     /**
      * @param array<string, mixed> $config
      */
@@ -86,16 +93,120 @@ final class ContainerBuilder
     /**
      * Registers providers in the exact caller-supplied order.
      *
+     * One registration batch MUST contain either only providers implementing
+     * ContainerDefinitionProviderInterface or only imperative-only providers.
+     *
+     * Mixed batches are rejected before any provider executes because deferred
+     * declarative application cannot preserve operation order relative to
+     * immediate imperative mutations.
+     *
      * @param iterable<ServiceProviderInterface> $providers
      */
     public function registerProviders(iterable $providers): self
     {
+        /** @var list<ServiceProviderInterface> $providerList */
+        $providerList = [];
+        $declarativeMode = null;
+
         foreach ($providers as $provider) {
             if (!$provider instanceof ServiceProviderInterface) {
                 throw new ContainerException('container-provider-invalid');
             }
 
-            $provider->register($this);
+            $providerIsDeclarative = $provider instanceof ContainerDefinitionProviderInterface;
+
+            if (
+                $declarativeMode !== null
+                && $declarativeMode !== $providerIsDeclarative
+            ) {
+                throw new ContainerException('container-provider-registration-mode-mixed');
+            }
+
+            $declarativeMode ??= $providerIsDeclarative;
+            $providerList[] = $provider;
+        }
+
+        if ($providerList === []) {
+            return $this;
+        }
+
+        if (!\is_bool($declarativeMode)) {
+            throw new \LogicException('container-provider-registration-mode-missing');
+        }
+
+        if ($declarativeMode) {
+            $this->assertDefinitionProviderRegistrationAllowed();
+        }
+
+        $ownsRegistrationMode = $this->providerRegistrationDeclarativeMode === null;
+
+        if (
+            !$ownsRegistrationMode
+            && $this->providerRegistrationDeclarativeMode
+            !== $declarativeMode
+        ) {
+            throw new ContainerException('container-provider-registration-mode-mixed');
+        }
+
+        if ($ownsRegistrationMode) {
+            $this->providerRegistrationDeclarativeMode = $declarativeMode;
+        }
+
+        try {
+            if ($declarativeMode === false) {
+                foreach ($providerList as $provider) {
+                    $provider->register($this);
+                }
+            } else {
+                $ownsDefinitionCollection = $this->definitionProviderBuilder === null;
+
+                $definitionSet = null;
+
+                if ($ownsDefinitionCollection) {
+                    $this->definitionProviderBuilder = new ContainerDefinitionBuilder();
+                    $this->definitionProviderContext = new ContainerDefinitionContext($this->config);
+                }
+
+                try {
+                    foreach ($providerList as $provider) {
+                        $provider->register($this);
+                    }
+
+                    if ($ownsDefinitionCollection) {
+                        $definitionProviderBuilder = $this->definitionProviderBuilder;
+
+                        if (
+                            !$definitionProviderBuilder
+                                instanceof ContainerDefinitionBuilder
+                        ) {
+                            throw new \LogicException('container-definition-provider-builder-missing');
+                        }
+
+                        $definitionSet = $definitionProviderBuilder->build();
+                    }
+                } finally {
+                    if ($ownsDefinitionCollection) {
+                        $this->definitionProviderBuilder = null;
+                        $this->definitionProviderContext = null;
+                    }
+                }
+
+                if (
+                    $definitionSet !== null
+                    && !$definitionSet->isEmpty()
+                ) {
+                    $this->instance(
+                        TagRegistry::class,
+                        $this->tagRegistry,
+                    );
+
+                    $this->applyDefinitions($definitionSet);
+                }
+            }
+        } finally {
+            if ($ownsRegistrationMode) {
+                $this->providerRegistrationDeclarativeMode = null;
+            }
         }
 
         return $this;
@@ -106,11 +217,88 @@ final class ContainerBuilder
      */
     public function register(ServiceProviderInterface ...$providers): self
     {
-        foreach ($providers as $provider) {
-            $provider->register($this);
+        return $this->registerProviders($providers);
+    }
+
+    /**
+     * Fails before a standalone declarative provider can produce definitions
+     * after one complete definition set has already been applied.
+     *
+     * Active shared collection is allowed so provider contributions can be
+     * aggregated by register() or registerProviders().
+     */
+    public function assertDefinitionProviderRegistrationAllowed(): void
+    {
+        if (
+            $this->definitionProviderBuilder === null
+            && $this->declarativeDefinitionsApplied
+        ) {
+            throw new ContainerException(
+                'container-definition-set-already-applied',
+            );
+        }
+    }
+
+    /**
+     * Contributes one declarative provider to the active provider-registration
+     * batch or applies it as one complete standalone definition set.
+     *
+     * This is the supported cross-package adapter for service providers that
+     * implement both ServiceProviderInterface and
+     * ContainerDefinitionProviderInterface.
+     *
+     * Application orchestration SHOULD normally call register() or
+     * registerProviders() so multiple provider contributions can be aggregated
+     * into one complete definition set.
+     *
+     * TagRegistry is a builder-owned source-runtime seed. It is not a provider
+     * definition and does not enter canonical descriptor streams.
+     */
+    public function registerDefinitionProvider(
+        ContainerDefinitionProviderInterface $provider,
+    ): self {
+        if ($this->providerRegistrationDeclarativeMode === false) {
+            throw new ContainerException('container-provider-registration-mode-mixed');
         }
 
-        return $this;
+        $this->assertDefinitionProviderRegistrationAllowed();
+
+        if ($this->definitionProviderBuilder !== null) {
+            $context = $this->definitionProviderContext;
+
+            if (!$context instanceof ContainerDefinitionContext) {
+                throw new \LogicException('container-definition-provider-context-missing');
+            }
+
+            $provider->define(
+                $this->definitionProviderBuilder,
+                $context,
+            );
+
+            return $this;
+        }
+
+        $definitions = new ContainerDefinitionBuilder();
+
+        $provider->define(
+            $definitions,
+            new ContainerDefinitionContext(
+                $this->config,
+            ),
+        );
+
+        $definitionSet = $definitions->build();
+
+        if ($definitionSet->isEmpty()) {
+            return $this;
+        }
+
+        $this->instance(
+            TagRegistry::class,
+            $this->tagRegistry,
+        );
+
+        return $this->applyDefinitions($definitionSet);
     }
 
     /**

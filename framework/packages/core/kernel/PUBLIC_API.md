@@ -48,6 +48,7 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException`
 - `Coretsia\Kernel\Runtime\Exception\UnitOfWorkResultInvalidException`
+- `Coretsia\Kernel\Runtime\RuntimePathContext`
 
 ## Internal implementation helpers
 

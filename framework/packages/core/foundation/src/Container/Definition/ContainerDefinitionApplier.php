@@ -134,9 +134,7 @@ final class ContainerDefinitionApplier
         $shared = $definition['shared'] ?? null;
 
         if (!\is_string($id) || !\is_bool($shared)) {
-            throw new ContainerException(
-                'container-definition-service-invalid',
-            );
+            throw new ContainerException('container-definition-service-invalid');
         }
 
         $builder->factory(
@@ -488,17 +486,11 @@ final class ContainerDefinitionApplier
                     throw $exception;
                 }
 
-                throw new ContainerException(
-                    'container-definition-service-reference-failed',
-                    $exception,
-                );
+                throw new ContainerException('container-definition-service-reference-failed', $exception);
             } catch (ContainerException $exception) {
                 throw $exception;
             } catch (\Throwable $exception) {
-                throw new ContainerException(
-                    'container-definition-service-reference-failed',
-                    $exception,
-                );
+                throw new ContainerException('container-definition-service-reference-failed', $exception);
             }
         }
 

@@ -107,23 +107,12 @@ final class ContainerDefinitionPolicy
         }
 
         return match (ContainerDefinitionKind::tryFrom($kind)) {
-            ContainerDefinitionKind::SERVICE_CLASS =>
-            self::normalizeClassServiceOperation($operation),
-
-            ContainerDefinitionKind::SERVICE_FACTORY_CLASS_METHOD =>
-            self::normalizeClassMethodFactoryOperation($operation),
-
-            ContainerDefinitionKind::SERVICE_FACTORY_SERVICE_METHOD =>
-            self::normalizeServiceMethodFactoryOperation($operation),
-
-            ContainerDefinitionKind::ALIAS =>
-            self::normalizeAliasOperation($operation),
-
-            ContainerDefinitionKind::PARAMETER =>
-            self::normalizeParameterOperation($operation),
-
-            ContainerDefinitionKind::TAG =>
-            self::normalizeTagOperation($operation),
+            ContainerDefinitionKind::SERVICE_CLASS => self::normalizeClassServiceOperation($operation),
+            ContainerDefinitionKind::SERVICE_FACTORY_CLASS_METHOD => self::normalizeClassMethodFactoryOperation($operation),
+            ContainerDefinitionKind::SERVICE_FACTORY_SERVICE_METHOD => self::normalizeServiceMethodFactoryOperation($operation),
+            ContainerDefinitionKind::ALIAS => self::normalizeAliasOperation($operation),
+            ContainerDefinitionKind::PARAMETER => self::normalizeParameterOperation($operation),
+            ContainerDefinitionKind::TAG => self::normalizeTagOperation($operation),
 
             default => throw ContainerDefinitionInvalidException::withReason(
                 ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,

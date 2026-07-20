@@ -112,14 +112,16 @@ Worker callers must not call the Kernel-internal `RuntimeDriverGuard` directly.
 
 ## Decision
 
-Coretsia will introduce `platform/worker` as the package that owns the long-running worker runtime.
+`platform/worker` is the package that owns the long-running worker runtime.
 
-The package will provide:
+The package provides:
 
 ```text
 WorkerModule
 WorkerServiceProvider
 WorkerServiceFactory
+WorkerManagerResolverInterface
+ContainerWorkerManagerResolver
 WorkerManager
 WorkerManagerDriverInterface
 PcntlWorkerManagerDriver
@@ -137,7 +139,7 @@ WorkerStopCommand
 WorkerStatusCommand
 ```
 
-The package will keep worker orchestration deterministic, side-effect boundaries explicit, and diagnostics safe.
+The package keeps worker orchestration deterministic, side-effect boundaries explicit, and diagnostics safe.
 
 ## Package ownership decision
 
@@ -147,7 +149,9 @@ It owns:
 
 - worker module metadata;
 - worker config defaults and rules;
-- worker service provider wiring;
+- declarative worker runtime container definitions;
+- source-container delegation of those definitions;
+- package-internal lazy `WorkerManager` resolution;
 - worker pool specification;
 - worker pool state schema;
 - worker state storage;
@@ -197,6 +201,193 @@ The worker package may read worker config values through `ConfigRepositoryInterf
 It must not read environment variables for defaults.
 
 It must not invent missing defaults outside the package-owned defaults file.
+
+## Declarative container wiring decision
+
+`WorkerServiceProvider` implements both:
+
+```text
+Coretsia\Foundation\Container\ServiceProviderInterface
+Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface
+```
+
+`WorkerServiceProvider::define()` is the only canonical source of Worker runtime container wiring.
+
+`WorkerServiceProvider::register()` must not maintain a parallel imperative copy of the Worker runtime graph.
+
+Source registration delegates the same contribution through:
+
+```php
+$builder->registerDefinitionProvider($this);
+```
+
+The Worker definition contribution is closure-free.
+
+It defines:
+
+```text
+WorkerServiceFactory
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+StableJsonEncoder
+StableJsonDecoder
+WorkerStateStore
+WorkerSocketServer
+QueueTaskFactory
+HttpTaskFactory
+TaskFactoryInternalInterface
+ApplicationWorker
+PcntlWorkerManagerDriver
+ProcWorkerManagerDriver
+WorkerManager
+ContainerWorkerManagerResolver
+WorkerManagerResolverInterface alias
+WorkerStartCommand
+WorkerStopCommand
+WorkerStatusCommand
+cli.command tags for all Worker commands
+```
+
+The contribution declares the following required runtime service ids:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+WorkerManager
+QueueTaskFactory
+HttpTaskFactory
+```
+
+The following may be supplied as external runtime seeds:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+The following must be defined by the complete runtime definition graph:
+
+```text
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+WorkerManager
+QueueTaskFactory
+HttpTaskFactory
+```
+
+`QueueTaskFactory` and `HttpTaskFactory` are required declarations because `WorkerServiceFactory::taskFactory(...)` selects one canonical service id and resolves that service through `ContainerInterface`.
+
+`WorkerManager` is also a required declaration because `ContainerWorkerManagerResolver::resolve()` resolves `WorkerManager::class` through `ContainerInterface`.
+
+These declarations describe deferred container-graph edges. They do not imply eager service resolution.
+
+`Psr\Http\Server\RequestHandlerInterface` is not an unconditional Worker required-service declaration.
+
+It is a mode-dependent runtime preflight dependency:
+
+- queue mode does not require it;
+- HTTP mode checks it only after `WorkerRuntimeEntrypointGuard` passes;
+- its absence is an allowed preflight failure state;
+- its absence maps to a deterministic Worker start failure.
+
+It must therefore not make every complete Worker definition graph invalid when HTTP task mode is not selected.
+
+The Worker runtime definition graph must not depend on:
+
+```text
+BootstrapConfig
+```
+
+Closures created internally by the Foundation source-runtime definition adapter are not part of the canonical Worker contribution.
+
+Worker runtime factories and services may create execution callbacks only during runtime service construction or execution, after canonical definition production has completed.
+
+The runtime-only callbacks include:
+
+```text
+PcntlWorkerManagerDriver child runner
+package-internal task-work run callback
+```
+
+These callbacks are runtime behavior.
+
+They must not be embedded into:
+
+- Worker provider output;
+- canonical container-definition operations;
+- canonical definition values;
+- descriptor streams;
+- generated container artifacts;
+- fingerprint input.
+
+## Runtime path context decision
+
+Kernel owns the immutable runtime-only path context:
+
+```text
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+It contains:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+`RuntimePathContext` may contain normalized absolute runtime paths.
+
+It is not:
+
+- a Bootstrap Phase A result;
+- part of `ContainerDefinitionContext`;
+- a literal or parameter value in canonical definitions;
+- a serializable runtime object value;
+- part of fingerprint input.
+
+The `RuntimePathContext` instance and its `skeletonRoot` and `artifactRoot` path values must never be serialized into definitions, descriptors, generated artifact payload values, or fingerprint input.
+
+The canonical service id:
+
+```text
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+may appear in:
+
+- `requireService()` declarations;
+- typed service references;
+- complete runtime graph dependency metadata.
+
+The presence of that service id does not serialize the runtime context object or either path value.
+
+In source mode, `KernelServiceProvider::register()` supplies a source-host factory that constructs `RuntimePathContext` from an already-resolved `BootstrapConfig`.
+
+This source-host factory is not part of `KernelServiceProvider::define()` and must not enter compiled runtime definitions.
+
+In artifact mode, boot orchestration must construct `RuntimePathContext` from explicit runtime input.
+
+The Worker runtime graph receives runtime path data through:
+
+```text
+WorkerServiceFactory::applicationWorker(...)
+WorkerServiceFactory::pcntlWorkerManagerDriver(...)
+WorkerServiceFactory::procWorkerManagerDriver(...)
+```
+
+`WorkerServiceFactory::applicationWorker(...)` passes the normalized skeleton root from `RuntimePathContext::skeletonRoot()` to `ApplicationWorker`.
+
+`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` passes the normalized skeleton root from `RuntimePathContext::skeletonRoot()` to `PcntlWorkerManagerDriver`.
+
+`WorkerServiceFactory::procWorkerManagerDriver(...)` passes the normalized skeleton root to `ProcWorkerManagerDriver` and derives the concrete compiled config and container artifact paths only from `RuntimePathContext::artifactRoot()`.
+
+The constructed Worker runtime services must not depend on `BootstrapConfig` or independently reconstruct runtime roots or generated artifact locations.
 
 ## Runtime entrypoint guard decision
 
@@ -282,11 +473,46 @@ They must not require full binary or catalog dispatch.
 
 They may be tested through direct command invocation or a package-local command harness.
 
-Full end-to-end `coretsia worker:*` dispatch through container-backed CLI tag discovery belongs to a later `platform/cli` epic.
+`platform/cli` owns full end-to-end `coretsia worker:*` dispatch through container-backed CLI tag discovery.
+
+`platform/worker` owns only its command services, command metadata, and `cli.command` tag contributions.
 
 When `platform/worker` contributes commands through the `cli.command` tag, it uses the existing reserved tag owned by `platform/cli`.
 
 This contribution does not make `platform/worker` an owner of CLI discovery, catalog construction, dispatch semantics, or command rendering.
+
+`WorkerStartCommand` receives:
+
+```text
+WorkerManagerResolverInterface
+```
+
+instead of a closure-based `WorkerManager` factory.
+
+Its private manager boundary delegates only to:
+
+```php
+return $this->managerResolver->resolve();
+```
+
+The canonical container-backed implementation is:
+
+```text
+ContainerWorkerManagerResolver
+```
+
+It resolves `WorkerManager` lazily from the active runtime container.
+
+Resolution must happen only after:
+
+```text
+WorkerPoolSpec construction
+→ WorkerRuntimeEntrypointGuard compatibility validation
+```
+
+Container resolution failures and invalid `WorkerManager` bindings must be mapped to safe deterministic Worker start failures.
+
+Public diagnostics must not expose service ids, runtime paths, config values, environment values, container implementation details, or nested throwable messages.
 
 ## Worker manager decision
 
@@ -321,7 +547,28 @@ It delegates process-specific behavior to package-internal `WorkerManagerDriverI
 
 Runtime-driver compatibility belongs to `WorkerRuntimeEntrypointGuard`.
 
-`WorkerStartCommand` owns only the ordering requirement that this boundary must pass before `WorkerManager` is resolved or started.
+`WorkerStartCommand` owns only the ordering requirement that `WorkerRuntimeEntrypointGuard` must pass before `WorkerManagerResolverInterface::resolve()` is called and before `WorkerManager` is started.
+
+`WorkerManagerResolverInterface` is a package-internal lazy-resolution seam.
+
+It must remain under:
+
+```text
+Coretsia\Platform\Worker\Internal
+```
+
+It must be marked `@internal`.
+
+It must not:
+
+- be moved to `core/contracts`;
+- be exported as public package API;
+- be documented as a third-party extension point;
+- resolve or construct `WorkerManager` during resolver construction.
+
+`ContainerWorkerManagerResolver` is the canonical runtime-container implementation.
+
+It must validate that the resolved service is a `WorkerManager` and map container failures or invalid bindings to safe deterministic Worker start failures.
 
 Task execution belongs to `ApplicationWorker`.
 
@@ -372,11 +619,45 @@ Driver auto-resolution must be deterministic.
 
 Driver support checks must not depend on hidden global state beyond explicit capability inputs used to build `WorkerPoolSpec`.
 
+The process-driver factory methods receive runtime filesystem roots through:
+
+```text
+RuntimePathContext
+```
+
+`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` derives the normalized skeleton root and passes it to `PcntlWorkerManagerDriver`.
+
+`WorkerServiceFactory::procWorkerManagerDriver(...)` derives:
+
+```text
+skeleton runtime root
+compiled config artifact path
+compiled container artifact path
+```
+
+from `RuntimePathContext` and passes those concrete values to `ProcWorkerManagerDriver`.
+
+The concrete process drivers do not receive `RuntimePathContext` or `BootstrapConfig`.
+
+The `proc` driver must not independently derive generated artifact locations from environment values, source config discovery, or `BootstrapConfig`.
+
 ## Application worker decision
 
 `ApplicationWorker` owns the child-process task loop.
 
 It processes tasks sequentially without restarting PHP.
+
+`WorkerServiceFactory::applicationWorker(...)` receives `RuntimePathContext` rather than a raw skeleton-root factory argument.
+
+It passes the normalized value returned by:
+
+```php
+$runtimePaths->skeletonRoot()
+```
+
+to the `ApplicationWorker` constructor.
+
+`ApplicationWorker` does not depend on `RuntimePathContext` or `BootstrapConfig` and must not reconstruct runtime roots independently.
 
 Each task must execute through:
 
@@ -414,6 +695,32 @@ It must not be exported through package metadata as a public API.
 
 Task factories produce package-internal task work for `ApplicationWorker`.
 
+`WorkerServiceFactory::taskFactory(...)` receives:
+
+```text
+WorkerPoolSpec
+ContainerInterface
+```
+
+It must not receive closure factories for queue and HTTP task factories.
+
+The method:
+
+1. selects the canonical task-factory service id from the normalized `WorkerPoolSpec`;
+2. resolves only that selected service through `ContainerInterface`;
+3. validates that the resolved service implements `TaskFactoryInternalInterface`;
+4. validates that the resolved factory supports the supplied `WorkerPoolSpec`;
+5. maps resolution and validation failures to safe deterministic Worker start failures.
+
+The canonical service-id mapping is:
+
+```text
+queue -> QueueTaskFactory
+http  -> HttpTaskFactory
+```
+
+The unselected task-factory service must not be resolved as a side effect of task-factory selection.
+
 Task work contains:
 
 ```text
@@ -423,7 +730,7 @@ run
 
 `operation_id` must be deterministic and safe for observability.
 
-The allowed operation ids introduced by this ADR are:
+The canonical allowed operation ids are:
 
 ```text
 queue
@@ -431,6 +738,8 @@ http
 ```
 
 The `run` value is a closure executed inside the KernelRuntime UnitOfWork boundary.
+
+This runtime task-body closure is not a container-definition value and must never enter the Worker provider definition set, descriptor stream, generated container artifact, or fingerprint input.
 
 `QueueTaskFactory` handles:
 
@@ -440,7 +749,7 @@ worker.task_type=queue
 
 It does not implement a real external queue adapter.
 
-External queue sources, acknowledgement semantics, retry semantics, and integration-specific adapters are owned by later integration epics.
+External queue sources, acknowledgement semantics, retry semantics, and integration-specific adapters are owned by integration packages.
 
 `HttpTaskFactory` handles:
 
@@ -661,6 +970,18 @@ Runtime-driver compatibility remains centralized in `core/kernel`.
 
 Worker commands can exist without coupling `platform/worker` to `platform/cli`.
 
+Worker runtime wiring has one declarative source.
+
+Source mode consumes that contribution directly, and any compilation path that selects provider-produced definitions must consume the same contribution.
+
+Worker provider definitions contain no closures.
+
+Lazy `WorkerManager` and task-factory resolution are preserved without closure-valued entries in the Worker provider definition graph.
+
+`BootstrapConfig` is no longer part of the Worker runtime dependency graph.
+
+Runtime-only absolute paths are isolated behind an explicit non-serializable runtime seed.
+
 HTTP task mode can verify the presence of a request handler without importing `platform/http`.
 
 Worker state and control-channel behavior have explicit redaction boundaries.
@@ -669,19 +990,25 @@ Observability names and labels are registered and low-cardinality.
 
 ### Trade-offs
 
-The first worker implementation intentionally uses placeholder task factories instead of real queue or HTTP transport integrations.
+`QueueTaskFactory` and `HttpTaskFactory` are placeholder task sources and do not implement production transport integrations.
 
-Real queue sources are deferred to later integration epics.
+External queue sources and queue transport semantics remain owned by integration packages.
 
-Real HTTP request production is deferred to later platform/runtime adapter epics.
+HTTP request production remains owned by platform/runtime adapters.
 
-`WorkerManagerDriverInterface` and `TaskFactoryInternalInterface` are internal seams, so third-party task-source extension is not introduced by this ADR.
+`WorkerManagerDriverInterface` and `TaskFactoryInternalInterface` remain package-internal seams and are not third-party extension points.
 
 `proc` fallback requires deterministic command construction and stricter command argument validation.
 
 Safe public diagnostics provide less ad hoc debugging context than raw process, socket, path, or payload output.
 
-Full `coretsia worker:*` binary dispatch is deferred until the container-backed `platform/cli` command catalog exists.
+Full `coretsia worker:*` binary dispatch remains outside `platform/worker` and depends on the container-backed command catalog owned by `platform/cli`.
+
+Source-mode and artifact-mode boot orchestration must explicitly provide `RuntimePathContext`.
+
+Production artifact compilation does not consume the Worker provider contribution.
+
+The contribution is closure-free and valid as provider-produced compiler input, but source mode is the active consumer of that contribution.
 
 ## Rejected alternatives
 
@@ -729,7 +1056,7 @@ Rejected.
 
 HTTP task mode needs a request handler preflight, not a compile-time dependency on a concrete platform HTTP package.
 
-Future presets or packages may provide the handler binding.
+A preset or package may provide the handler binding.
 
 `platform/worker` must not import `Coretsia\Platform\Http\*`.
 
@@ -739,7 +1066,7 @@ Rejected.
 
 The worker control channel is lifecycle-only.
 
-Task payload transport belongs to future queue, HTTP, scheduler, or integration adapters.
+Task payload transport belongs to queue, HTTP, scheduler, or integration adapters.
 
 The control protocol remains payload-free to keep diagnostics safe and low-cardinality.
 
@@ -764,6 +1091,7 @@ This ADR does not define:
 - FrankenPHP integration;
 - scheduler integration;
 - container artifact schema;
+- production artifact-compilation consumption of the Worker provider contribution;
 - config merge implementation;
 - config validation implementation;
 - reset tag discovery;
@@ -786,6 +1114,8 @@ framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterminist
 framework/packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerCommandsUseCliContractsOnlyTest.php
 framework/packages/platform/worker/tests/Contract/WorkerStateJsonSchemaContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerSocketProtocolSafetyContractTest.php
 framework/packages/platform/worker/tests/Contract/ProcWorkerManagerDriverSafetyContractTest.php
 framework/packages/platform/worker/tests/Integration/ApplicationWorkerTest.php
@@ -795,6 +1125,10 @@ framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresReque
 framework/packages/platform/worker/tests/Integration/WorkerSocketServerTransportTest.php
 framework/packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php
 framework/packages/platform/worker/tests/Integration/ProcWorkerManagerDriverProcessTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
+framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesManagerLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
+framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
 These tests are expected to verify:
@@ -810,6 +1144,16 @@ These tests are expected to verify:
 - WorkerManager does not enforce runtime-driver guard policy;
 - `WorkerPoolSpec` is constructed before `WorkerRuntimeEntrypointGuard` is invoked;
 - `WorkerStartCommand` invokes `WorkerRuntimeEntrypointGuard` before resolving or starting `WorkerManager`;
+- Worker provider definitions contain no closures;
+- Worker source registration applies the same definition contribution produced by `define()`;
+- resolving `WorkerStartCommand` does not resolve `WorkerManager`;
+- `WorkerManager` is resolved only after runtime entrypoint compatibility passes;
+- task-factory selection resolves only the canonical selected factory service;
+- every task-factory container lookup has a matching required-service declaration;
+- `RuntimePathContext` validates and normalizes runtime roots without filesystem access;
+- `RuntimePathContext::class` is retained as a required runtime service id;
+- the `RuntimePathContext` object and its runtime path values never become canonical definition values, generated artifact payload values, or fingerprint input;
+- the Worker runtime graph does not depend on `BootstrapConfig`;
 - `HttpTaskFactory` invokes `WorkerRuntimeEntrypointGuard` before request-handler resolution;
 - the shipped child launcher invokes `WorkerRuntimeEntrypointGuard` before resolving `ApplicationWorker`;
 - Worker callers do not import `WorkerRuntimeDriverContributions` or call the Kernel guard directly;
@@ -835,6 +1179,7 @@ These tests are expected to verify:
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/context-keys.md`
 - `docs/ssot/context-store.md`
+- `docs/ssot/runtime-container-definitions.md`
 
 ## Related ADRs
 
@@ -842,29 +1187,4 @@ These tests are expected to verify:
 - `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 - `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
 - `docs/adr/ADR-0027-runtime-driver-guard.md`
-
-## Related implementation
-
-- `framework/packages/platform/worker/src/Module/WorkerModule.php`
-- `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
-- `framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php`
-- `framework/packages/platform/worker/src/Manager/WorkerManager.php`
-- `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
-- `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
-- `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`
-- `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
-- `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
-- `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
-- `framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php`
-- `framework/packages/platform/worker/bin/coretsia-worker`
-- `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
-
-## Related epic
-
-- `1.360.0 Long-Running Runtime: Worker Manager & Application Worker`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

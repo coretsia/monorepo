@@ -699,6 +699,7 @@ Coretsia/
 │   │   │       │       │   └── JsonLikeShapeNormalizer.php
 │   │   │       │       ├── KernelRuntime.php
 │   │   │       │       ├── Outcome.php
+│   │   │       │       ├── RuntimePathContext.php
 │   │   │       │       ├── UnitOfWorkContext.php
 │   │   │       │       ├── UnitOfWorkResult.php
 │   │   │       │       └── UnitOfWorkType.php
@@ -879,6 +880,7 @@ Coretsia/
 │   │   │       │       ├── RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
 │   │   │       │       ├── RuntimeDriverGuardResolvesRuntimeDriverContributionsTest.php
+│   │   │       │       ├── RuntimePathContextValidationTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -1021,11 +1023,13 @@ Coretsia/
 │   │           │   ├── Internal/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
 │   │           │   │   ├── WorkerManagerDriverInterface.php
+│   │           │   │   ├── WorkerManagerResolverInterface.php
 │   │           │   │   └── WorkerRuntimeDriverContributions.php
 │   │           │   ├── Manager/
 │   │           │   │   ├── Driver/
 │   │           │   │   │   ├── PcntlWorkerManagerDriver.php
 │   │           │   │   │   └── ProcWorkerManagerDriver.php
+│   │           │   │   ├── ContainerWorkerManagerResolver.php
 │   │           │   │   └── WorkerManager.php
 │   │           │   ├── Module/
 │   │           │   │   └── WorkerModule.php
@@ -1056,8 +1060,9 @@ Coretsia/
 │   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
+│   │           │   │   ├── WorkerProviderDefinitionsContainNoClosuresContractTest.php
+│   │           │   │   ├── WorkerRuntimeArtifactPathContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
-│   │           │   │   ├── WorkerServiceProviderArtifactPathContractTest.php
 │   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
 │   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerStartCommandContractTest.php
@@ -1077,8 +1082,11 @@ Coretsia/
 │   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
+│   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php
 │   │           │   │   ├── WorkerSocketServerTransportTest.php
-│   │           │   │   └── WorkerStateStoreFilesystemTest.php
+│   │           │   │   ├── WorkerStartCommandResolvesManagerLazilyTest.php
+│   │           │   │   ├── WorkerStateStoreFilesystemTest.php
+│   │           │   │   └── WorkerTaskFactorySelectsServiceLazilyTest.php
 │   │           │   └── Unit/
 │   │           │       ├── ApplicationWorkerTest.php
 │   │           │       ├── ProcWorkerManagerDriverSupportTest.php
@@ -1086,7 +1094,7 @@ Coretsia/
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
-│   │           │       ├── WorkerServiceProviderTaskFactorySelectionTest.php
+│   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php
 │   │           │       └── WorkerStateStoreStateFactoryTest.php
 │   │           ├── LICENSE
 │   │           ├── NOTICE

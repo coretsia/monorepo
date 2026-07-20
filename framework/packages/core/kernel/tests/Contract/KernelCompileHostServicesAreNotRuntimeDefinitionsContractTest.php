@@ -78,6 +78,7 @@ use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -149,6 +150,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 $runtimeBindingIds,
                 [
                     TagRegistry::class,
+                    RuntimePathContext::class,
                 ],
             ),
         );
@@ -168,6 +170,45 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 $runtimeDefinitions->requiredServiceIds(),
             );
         }
+    }
+
+    public function testRuntimePathContextIsRegisteredOnlyAsSourceHostRuntimeSeed(): void
+    {
+        $config = self::validConfig();
+        $runtimeDefinitions = self::completeRuntimeDefinitionSet($config);
+        $runtimeBindingIds = self::bindingIds(
+            $runtimeDefinitions->toDescriptorStream(),
+        );
+
+        $sourceBuilder = new ContainerBuilder(config: $config);
+        $sourceBuilder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+
+        self::assertContains(
+            RuntimePathContext::class,
+            $sourceBuilder->serviceIds(),
+            'RuntimePathContext must be registered for source-host runtime wiring.',
+        );
+
+        self::assertNotContains(
+            RuntimePathContext::class,
+            $runtimeBindingIds,
+            'RuntimePathContext must not enter Kernel runtime definitions.',
+        );
+
+        self::assertNotContains(
+            RuntimePathContext::class,
+            $runtimeDefinitions->requiredServiceIds(),
+            'The Kernel runtime contribution must not require RuntimePathContext.',
+        );
+
+        self::assertNotContains(
+            RuntimePathContext::class,
+            self::COMPILE_HOST_SERVICE_IDS,
+            'RuntimePathContext is a source-host runtime seed, not a compile-host service.',
+        );
     }
 
     public function testKernelRuntimeDefinitionContributionContainsOnlyRuntimeBindings(): void

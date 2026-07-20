@@ -47,6 +47,7 @@ use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
+use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
@@ -76,6 +77,7 @@ use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -168,6 +170,30 @@ final class KernelServiceFactory
 
         return new EnvRepositoryBuilder(
             dotenvLoader: $dotenvLoader,
+        );
+    }
+
+    /**
+     * Creates runtime-only path context from an already-resolved BootstrapConfig.
+     *
+     * This factory does not execute Bootstrap Phase A, read the filesystem, or
+     * include runtime paths in generated artifacts or fingerprint input.
+     */
+    public static function runtimePathContext(
+        ContainerInterface $container,
+    ): RuntimePathContext {
+        $bootstrapConfig = self::bootService(
+            $container,
+            BootstrapConfig::class,
+        );
+
+        if (!$bootstrapConfig instanceof BootstrapConfig) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return new RuntimePathContext(
+            skeletonRoot: $bootstrapConfig->skeletonRoot(),
+            artifactRoot: new ArtifactPathResolver()->cacheDirectory($bootstrapConfig),
         );
     }
 
@@ -838,8 +864,8 @@ final class KernelServiceFactory
      *     CORETSIA_CONTAINER_ARTIFACT_MISSING: container-artifact-missing
      *
      * There is deliberately no implicit non-artifact fallback in this production
-     * runtime path. Any future developer-mode fallback requires a separate
-     * epic/ADR and MUST NOT be implied here.
+     * runtime path. A developer-mode fallback requires an explicit architecture
+     * decision and MUST NOT be implied here.
      *
      * @param non-empty-string $containerArtifactPath
      * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.

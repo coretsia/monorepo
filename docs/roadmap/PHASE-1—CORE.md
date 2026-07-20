@@ -17066,7 +17066,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerServiceProviderTaskFactorySelectionTest.php`
+- [x] `framework/packages/platform/worker/tests/Unit/WorkerServiceFactoryTaskFactoryBoundaryTest.php`
   - [x] queue mode resolves `QueueTaskFactory`
   - [x] queue mode does not resolve `HttpTaskFactory`
   - [x] http mode resolves `HttpTaskFactory`

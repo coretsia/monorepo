@@ -409,15 +409,9 @@ final readonly class CompiledConfigBuilder
                 'exists' => $sourceFile['exists'],
                 'kind' => self::safeToken($sourceFile['kind'], 'compiled-config-source-file-kind-invalid'),
                 'layer' => self::safeToken($sourceFile['layer'], 'compiled-config-source-file-layer-invalid'),
-                'path' => self::safeRelativePath(
-                    $sourceFile['path'],
-                    'compiled-config-source-file-path-invalid'
-                ),
+                'path' => self::safeRelativePath($sourceFile['path'], 'compiled-config-source-file-path-invalid'),
                 'readable' => $sourceFile['readable'],
-                'sourceId' => self::safeLogicalIdentifier(
-                    $sourceFile['sourceId'],
-                    'compiled-config-source-file-source-id-invalid'
-                ),
+                'sourceId' => self::safeLogicalIdentifier($sourceFile['sourceId'], 'compiled-config-source-file-source-id-invalid'),
             ];
 
             if (isset($sourceFile['root'])) {
@@ -511,15 +505,9 @@ final readonly class CompiledConfigBuilder
             }
 
             $entry = [
-                'ownership' => self::safeToken(
-                    $subject['ownership'],
-                    'compiled-config-validation-subject-ownership-invalid'
-                ),
+                'ownership' => self::safeToken($subject['ownership'], 'compiled-config-validation-subject-ownership-invalid'),
                 'root' => self::safeRoot($subject['root'], 'compiled-config-validation-subject-root-invalid'),
-                'validation' => self::safeToken(
-                    $subject['validation'],
-                    'compiled-config-validation-subject-validation-invalid'
-                ),
+                'validation' => self::safeToken($subject['validation'], 'compiled-config-validation-subject-validation-invalid'),
             ];
 
             \ksort($entry, \SORT_STRING);

@@ -22,7 +22,7 @@ owner: core/foundation
 
 This document is the Single Source of Truth for the Foundation-owned canonical in-memory runtime container-definition model, declarative definition-provider SPI, ordered operation stream, deterministic value and reference law, source-runtime application semantics, and safe definition-validation failures.
 
-This document also defines the declarative runtime contribution rules used by Foundation and Kernel providers.
+This document also defines the declarative runtime contribution rules used by Foundation, Kernel, and Worker providers.
 
 It does not define the Kernel-owned `container@1` payload schema or artifact-only runtime boot policy. Those remain owned by `docs/ssot/compiled-container.md`.
 
@@ -32,17 +32,30 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Goal
 
-Coretsia needs one canonical deterministic representation of runtime DI wiring that can be produced by declarative providers and consumed consistently by:
+Coretsia needs one canonical deterministic representation of runtime DI wiring.
+
+The current integration state is:
 
 ```text
 Foundation source runtime application
-Kernel container compilation
-artifact generation derived from Kernel compilation
+    -> actively consumes provider-owned canonical definitions
+
+Kernel production container compilation
+    -> continues to use its currently approved input path
+
+provider-produced compiler input
+    -> canonical compiler input when explicitly selected
+    -> not selected by production artifact compilation
+
+artifact-only runtime boot
+    -> consumes the currently approved compiled artifact
 ```
 
-Artifact-only runtime boot consumes the compiled artifact derived from this model. It does not execute definition providers or use this source model as a production fallback.
+The canonical model must be suitable for Kernel container compilation, but production compilation consumes it only when compilation orchestration explicitly selects complete provider-produced definition sets.
 
-The model must prevent source and compiled runtime behavior from drifting in:
+Artifact-only runtime boot must not execute definition providers or use the source model as a production fallback.
+
+When compilation orchestration consumes provider-produced definitions, the model must preserve source-runtime semantics across the compiled path in:
 
 - service construction;
 - factory construction;
@@ -72,7 +85,7 @@ This document owns:
 - one-complete-set application policy;
 - declarative provider batch aggregation semantics;
 - declarative provider adapter semantics;
-- Foundation and Kernel runtime contribution boundaries;
+- Foundation, Kernel, and Worker runtime contribution boundaries;
 - the Kernel compile-host/runtime-graph separation law;
 - definition-validation exception taxonomy;
 - the boundary between the canonical model and artifacts.
@@ -91,7 +104,7 @@ This document does not own:
 - tag identifier ownership rows;
 - middleware slot ownership;
 - reset orchestration;
-- provider implementation policy outside the Foundation and Kernel providers named by this document.
+- provider implementation policy outside the Foundation, Kernel, and Worker providers named by this document.
 
 ## Ownership boundary (MUST)
 
@@ -194,6 +207,7 @@ The following providers MUST use their `define()` methods as their only runtime 
 ```text
 Coretsia\Foundation\Provider\FoundationServiceProvider
 Coretsia\Kernel\Provider\KernelServiceProvider
+Coretsia\Platform\Worker\Provider\WorkerServiceProvider
 ```
 
 Other `ServiceProviderInterface` implementations MAY remain imperative when they do not implement `ContainerDefinitionProviderInterface`.
@@ -222,6 +236,16 @@ $builder->registerDefinitionProvider($this);
 A declarative provider MAY perform deterministic source-host prevalidation before delegation.
 
 `KernelServiceProvider::register()` MAY also register Kernel compile-host factories before delegating its runtime contribution.
+
+`WorkerServiceProvider::register()` MUST delegate its complete runtime contribution through:
+
+```php
+$builder->registerDefinitionProvider($this);
+```
+
+It must not register Worker runtime services, aliases, or tags through a parallel imperative path.
+
+Worker has no provider-owned source-host runtime wiring outside `define()`.
 
 No separate parallel descriptor-provider class may duplicate the provider definition source.
 
@@ -334,6 +358,261 @@ ContainerCompiler
 
 Compile-host services MUST NOT appear in the Kernel runtime descriptor stream.
 
+Kernel source-host orchestration MAY additionally register a factory for:
+
+```text
+RuntimePathContext
+```
+
+This factory:
+
+- consumes an already-resolved `BootstrapConfig`;
+- constructs runtime-only path context;
+- does not execute Bootstrap Phase A;
+- does not belong to `KernelServiceProvider::define()`;
+- does not enter the Kernel runtime descriptor stream;
+- does not enter generated artifacts;
+- does not enter fingerprint input.
+
+`RuntimePathContext` is an allowed external runtime seed, not a compile-host service and not a canonical definition value.
+
+## Worker runtime contribution and runtime-seed boundary (MUST)
+
+`WorkerServiceProvider::define()` is the canonical source for the complete Worker runtime contribution.
+
+It MUST define:
+
+```text
+WorkerServiceFactory
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+StableJsonEncoder
+StableJsonDecoder
+WorkerStateStore
+WorkerSocketServer
+QueueTaskFactory
+HttpTaskFactory
+TaskFactoryInternalInterface
+ApplicationWorker
+PcntlWorkerManagerDriver
+ProcWorkerManagerDriver
+WorkerManager
+ContainerWorkerManagerResolver
+WorkerStartCommand
+WorkerStopCommand
+WorkerStatusCommand
+```
+
+It MUST define the alias:
+
+```text
+WorkerManagerResolverInterface
+    -> ContainerWorkerManagerResolver
+```
+
+It MUST contribute the canonical `cli.command` tags for:
+
+```text
+WorkerStartCommand
+WorkerStopCommand
+WorkerStatusCommand
+```
+
+The complete Worker contribution MUST contain no closure values.
+
+### Required Worker service ids
+
+The Worker contribution MUST declare:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+WorkerManager
+QueueTaskFactory
+HttpTaskFactory
+```
+
+through `requireService()`.
+
+The following MAY be external runtime seeds:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+The following MUST be defined by the complete definition graph:
+
+```text
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+WorkerManager
+QueueTaskFactory
+HttpTaskFactory
+```
+
+`QueueTaskFactory` and `HttpTaskFactory` MUST both be required because `WorkerServiceFactory::taskFactory(...)` performs a runtime `ContainerInterface` lookup against one of those canonical ids.
+
+`WorkerManager` MUST be required because `ContainerWorkerManagerResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerManager::class)` lookup.
+
+These declarations preserve all possible mandatory Worker container-graph edges without prescribing eager resolution order.
+
+`Psr\Http\Server\RequestHandlerInterface` is not an unconditional required service id.
+
+It is a mode-dependent HTTP preflight dependency that:
+
+- is irrelevant in queue mode;
+- is checked only after Worker runtime-driver compatibility passes;
+- may be absent so that HTTP preflight can produce its deterministic Worker start failure.
+
+A compiler or graph validator MUST NOT treat the unselected factory as an unnecessary declaration.
+
+The declarations describe possible runtime graph edges, not eager resolution order.
+
+### Worker task-factory selection
+
+`WorkerServiceFactory::taskFactory(...)` MUST receive:
+
+```text
+WorkerPoolSpec
+ContainerInterface
+```
+
+It MUST NOT receive closure factories.
+
+It MUST:
+
+1. select the canonical service id from `WorkerPoolSpec`;
+2. resolve only that selected service;
+3. validate `TaskFactoryInternalInterface`;
+4. validate `supports($spec)`;
+5. map lookup and validation failures to safe deterministic Worker start failures.
+
+The canonical mapping is:
+
+```text
+queue -> QueueTaskFactory
+http  -> HttpTaskFactory
+```
+
+Task-factory selection MUST NOT eagerly resolve both concrete factories.
+
+A task-body closure produced after successful runtime resolution is allowed runtime work.
+
+It MUST NOT enter:
+
+- provider output;
+- canonical operations;
+- canonical values;
+- descriptor streams;
+- generated container artifacts;
+- fingerprint input.
+
+### Lazy WorkerManager resolution
+
+`WorkerStartCommand` MUST depend on:
+
+```text
+WorkerManagerResolverInterface
+```
+
+It MUST NOT depend on a closure-valued manager factory.
+
+The canonical implementation is:
+
+```text
+ContainerWorkerManagerResolver
+```
+
+The resolver MUST:
+
+- retain only `ContainerInterface`;
+- resolve `WorkerManager` on demand;
+- validate the resolved type;
+- map container failures and invalid bindings to safe deterministic Worker start failures;
+- preserve guard-before-manager ordering.
+
+Resolving `WorkerStartCommand` MUST NOT resolve `WorkerManager`.
+
+The required order is:
+
+```text
+build WorkerPoolSpec
+→ validate WorkerRuntimeEntrypointGuard
+→ resolve WorkerManager
+→ start WorkerManager
+```
+
+### RuntimePathContext
+
+`RuntimePathContext` is an immutable runtime-only seed owned by Kernel.
+
+It MAY contain normalized absolute:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+It MUST NOT:
+
+- be part of `ContainerDefinitionContext`;
+- be represented as a literal or parameter operation;
+- be represented as a runtime-object definition value;
+- serialize its `skeletonRoot` or `artifactRoot` values into descriptor fields;
+- emit its runtime path values into generated artifact payload values;
+- include its runtime path values in fingerprint input;
+- be treated as a Bootstrap Phase A result;
+- be resolved from `BootstrapConfig` by Worker services.
+
+The canonical service id:
+
+```text
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+MAY appear in:
+
+- required-service declarations;
+- typed service references;
+- graph completeness metadata.
+
+The presence of this service id MUST NOT be interpreted as serialization of the runtime context object or its path values.
+
+The exact compiled-artifact representation of an external runtime-seed dependency is owned by `docs/ssot/compiled-container.md`.
+
+Source-mode orchestration constructs it from already-resolved Phase A values.
+
+Artifact-mode orchestration constructs it from explicit runtime input.
+
+The Worker runtime graph MUST consume `RuntimePathContext` as an external runtime seed and MUST NOT depend on:
+
+```text
+BootstrapConfig
+```
+
+The following factory methods MUST receive `RuntimePathContext`:
+
+```text
+WorkerServiceFactory::applicationWorker(...)
+WorkerServiceFactory::pcntlWorkerManagerDriver(...)
+WorkerServiceFactory::procWorkerManagerDriver(...)
+```
+
+`WorkerServiceFactory::applicationWorker(...)` MUST extract the normalized skeleton root and pass it to `ApplicationWorker`.
+
+`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` MUST extract the normalized skeleton root and pass it to `PcntlWorkerManagerDriver`.
+
+`WorkerServiceFactory::procWorkerManagerDriver(...)` MUST extract the normalized skeleton root and derive the concrete compiled config and container artifact paths only from `RuntimePathContext::artifactRoot()`.
+
+The constructed Worker runtime services MUST NOT resolve `BootstrapConfig` or independently reconstruct runtime roots or generated artifact locations.
+
 ## Definition context (MUST)
 
 `ContainerDefinitionContext` is an immutable input context for definition production.
@@ -360,6 +639,10 @@ The context MUST NOT expose:
 - generated artifacts;
 - a container;
 - service instances;
+- `RuntimePathContext`;
+- skeleton runtime roots;
+- artifact runtime roots;
+- absolute runtime filesystem paths;
 - runtime lifecycle objects.
 
 The context validates the supplied snapshot shape.
@@ -1072,7 +1355,13 @@ They do not alter operation order.
 
 They do not imply autowire.
 
-A factory that receives `ContainerInterface` and resolves runtime dependencies internally MUST declare every such lookup through `requireService()`.
+A provider contribution MUST declare through `requireService()` every canonical service id that may be resolved through `ContainerInterface` as a mandatory or possible edge of the container-owned runtime graph.
+
+This includes deferred resolver and selector lookups whose target is expected to exist in every complete graph supporting that resolution path.
+
+A mode-dependent capability or preflight dependency that is intentionally allowed to be absent is not an unconditional required service id.
+
+Such an optional lookup MUST be explicitly documented by its owner package and MUST fail only at its approved runtime boundary.
 
 This requirement preserves graph topology without adding hidden service-construction operations or expanding the canonical value-reference vocabulary.
 
@@ -1081,6 +1370,20 @@ A required service id MAY refer to:
 - a service defined in the same complete definition set;
 - a service defined by another provider contribution in the complete set;
 - an allowed external runtime seed.
+
+The currently allowed Worker external runtime seeds are:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+External-runtime-seed status does not authorize placing seed values into provider output.
+
+A required service id records graph completeness only.
+
+It does not permit eager resolution, hidden fallback construction, or serialization of the runtime seed.
 
 `requireService()` declarations do not prescribe runtime resolution order.
 
@@ -1118,9 +1421,13 @@ ContainerBuilder::set(...)
 ContainerBuilder::tag(...)
 ```
 
-Runtime closures created by the adapter are implementation details.
+Source-container factory closures created by the adapter are implementation details.
 
 They MUST NOT be written back into the canonical set or descriptor stream.
+
+This rule does not prohibit runtime factories or services from creating execution callbacks during runtime service construction or execution, after canonical definition production has completed.
+
+Such callbacks remain runtime behavior and must never be copied back into canonical definitions.
 
 ### One-complete-set rule (MUST)
 
@@ -1278,7 +1585,7 @@ Syntactic service-id validity MUST NOT be confused with diagnostic readability.
 
 The canonical model and source adapter define source-runtime application.
 
-Foundation and Kernel source-runtime wiring uses provider-owned canonical definitions.
+Foundation, Kernel, and Worker source-runtime wiring uses provider-owned canonical definitions.
 
 Production artifact compilation continues to use its existing input path and does not consume complete provider-produced definition sets.
 
@@ -1291,6 +1598,22 @@ Production artifact-only runtime boot MUST continue to follow `docs/ssot/compile
 Production boot MUST NOT run declarative providers as a fallback when the compiled artifact is missing or invalid.
 
 The Kernel compiler may consume complete provider-produced definition sets only when compilation orchestration explicitly selects that input.
+
+### Current Worker compilation boundary (MUST)
+
+`WorkerServiceProvider::define()` provides the canonical closure-free Worker runtime contribution.
+
+Production artifact compilation does not consume complete provider-produced definition sets.
+
+The current boundary is:
+
+- source mode applies the Worker provider contribution;
+- the Worker contribution remains valid compiler input when compilation orchestration explicitly selects provider-produced definitions;
+- production artifact compilation continues to use its currently approved input path;
+- artifact-only boot does not execute Worker providers as a fallback;
+- documentation and tests MUST describe the actual production compiler input path.
+
+Any compilation orchestration that consumes Worker provider definitions MUST use the same `WorkerServiceProvider::define()` contribution rather than a parallel Worker descriptor source.
 
 ## Non-goals / Clarifications (MUST)
 
@@ -1358,11 +1681,12 @@ $container = (new ContainerBuilder($compiledConfig))
     ->register(
         new FoundationServiceProvider(),
         new KernelServiceProvider(),
+        new WorkerServiceProvider(),
     )
     ->build();
 ```
 
-Both providers contribute to one shared definition builder.
+All three providers contribute to one shared definition builder in deterministic caller-supplied order.
 
 The complete definition set is built and applied once.
 
@@ -1473,12 +1797,22 @@ framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierP
 framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
-Foundation and Kernel provider integration SHOULD additionally be locked by:
+Foundation, Kernel, and Worker provider integration SHOULD additionally be locked by:
 
 ```text
 framework/packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
 framework/packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
+framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
 framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
+```
+
+Worker lazy-resolution and runtime-seed behavior SHOULD additionally be locked by:
+
+```text
+framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesManagerLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
+framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
 Parity tests MUST compare:
@@ -1516,8 +1850,16 @@ Additional tests SHOULD cover:
 - second declarative application rejection before mutation;
 - Foundation runtime service parity;
 - Kernel runtime service parity;
+- Worker runtime service parity;
+- Worker provider output containing no closures;
+- `WorkerManager` lazy-resolution ordering;
+- lazy selection of only the canonical task-factory service;
+- `RuntimePathContext::class` remaining visible as a required service id;
+- runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
+- production artifact compilation not consuming complete provider-produced definition sets;
 - Kernel compile-host ids being absent from the runtime descriptor stream;
-- `ContainerInterface`-resolved dependencies having matching required-service declarations.
+- mandatory and possible container-owned graph lookups resolved through `ContainerInterface` having matching required-service declarations;
+- optional mode-dependent preflight lookups remaining outside unconditional required-service declarations.
 
 ## Runtime acceptance scenario
 
@@ -1526,16 +1868,19 @@ When a declarative runtime provider contributes canonical container definitions:
 1. orchestration supplies an already-compiled Phase-B config snapshot;
 2. source orchestration creates one shared `ContainerDefinitionContext`;
 3. declarative providers run in deterministic caller-supplied order;
-4. every provider appends operations to one shared `ContainerDefinitionBuilder`;
+4. Foundation, Kernel, and Worker providers append operations to one shared `ContainerDefinitionBuilder`;
 5. the shared builder produces one complete immutable definition set;
 6. source mode applies that set exactly once through `ContainerBuilder::applyDefinitions(...)`;
-7. Foundation and Kernel `register()` methods do not maintain parallel runtime wiring;
-8. Kernel compile-host services remain outside the Kernel runtime contribution;
+7. Foundation, Kernel, and Worker `register()` methods do not maintain parallel runtime wiring;
+8. Kernel compile-host services and runtime-only seeds remain outside runtime definition contributions;
 9. service, alias, and parameter collisions use later-wins behavior;
 10. duplicate tag pairs use first-wins behavior;
-11. source runtime closures exist only inside the adapter;
-12. compile mode consumes the same provider `define()` contributions;
-13. production artifact-only boot consumes the resulting compiled artifact and does not run providers as a fallback.
+11. source-container factory closures created for definition application exist only inside the Foundation adapter;
+12. Worker execution callbacks, including the PCNTL child runner and task-work callback, are created only during runtime service construction or execution and never enter canonical definitions;
+13. Worker source mode consumes `WorkerServiceProvider::define()`;
+14. compilation orchestration that selects complete provider-produced definitions consumes the same provider contribution;
+15. the production artifact-compilation path does not consume complete provider-produced definition sets;
+16. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
 
 ## Cross-references
 
@@ -1547,3 +1892,5 @@ When a declarative runtime provider contributes canonical container definitions:
 - [Config Merge Order](./config-merge-order.md)
 - [Kernel Bootstrap Phase A](../adr/ADR-0023-kernel-bootstrap-phase-a.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [ADR-0017: Worker manager and application worker](../adr/ADR-0017-worker-manager-application-worker.md)
+- [Worker Architecture](../architecture/worker.md)

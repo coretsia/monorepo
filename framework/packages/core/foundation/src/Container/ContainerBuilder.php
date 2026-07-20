@@ -233,9 +233,7 @@ final class ContainerBuilder
             $this->definitionProviderBuilder === null
             && $this->declarativeDefinitionsApplied
         ) {
-            throw new ContainerException(
-                'container-definition-set-already-applied',
-            );
+            throw new ContainerException('container-definition-set-already-applied');
         }
     }
 

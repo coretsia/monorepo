@@ -34,9 +34,10 @@ use Coretsia\Kernel\Module\Exception\ModuleResolutionException;
 use Psr\Log\LoggerInterface;
 
 /**
- * Kernel-owned ModulePlan resolution entrypoint.
+ * Kernel-owned module resolution entrypoint.
  *
- * This class is the single orchestration brain for ModulePlan resolution.
+ * This class is the single orchestration brain for producing one installed
+ * manifest and its resolved ModulePlan from the same discovery snapshot.
  *
  * Single-choice module-selection inputs:
  *
@@ -101,6 +102,12 @@ final readonly class ModulePlanResolver
 
     public function resolve(BootstrapConfig $bootstrapConfig): ModulePlan
     {
+        return $this->resolveResolution($bootstrapConfig)->plan();
+    }
+
+    public function resolveResolution(
+        BootstrapConfig $bootstrapConfig,
+    ): ModuleResolution {
         $startedAt = $this->safeStartTimer();
 
         try {
@@ -123,7 +130,9 @@ final readonly class ModulePlanResolver
             $preset = $presetLoader->load($bootstrapConfig->preset());
 
             /*
-             * Composer installed metadata discovery only.
+             * Composer installed metadata is read exactly once for this module
+             * resolution run. The same manifest snapshot is used for graph
+             * resolution and subsequent compile-time provider planning.
              */
             $manifest = $this->manifestReader->read();
 
@@ -144,11 +153,17 @@ final readonly class ModulePlanResolver
                 outcome: self::OUTCOME_SUCCESS,
             );
 
-            return $plan;
+            return new ModuleResolution(
+                manifest: $manifest,
+                plan: $plan,
+            );
         } catch (ModuleResolutionException $exception) {
             $outcome = self::outcomeForException($exception);
 
-            $this->logResolutionFailure($exception, $bootstrapConfig);
+            $this->logResolutionFailure(
+                $exception,
+                $bootstrapConfig,
+            );
 
             $this->emitResolutionSummaryForStartedAt(
                 startedAt: $startedAt,

@@ -68,9 +68,10 @@ final class AppBuilder
             preset: self::PRESET_MICRO,
         );
 
-        $modulePlan = self::modulePlanResolver(
+        $moduleResolution = self::modulePlanResolver(
             manifest: self::microFixtureManifest(),
-        )->resolve($bootstrapConfig);
+        )->resolveResolution($bootstrapConfig);
+        $modulePlan = $moduleResolution->plan();
 
         self::compileRuntimeArtifacts(
             testCase: $testCase,
@@ -112,7 +113,7 @@ final class AppBuilder
         try {
             self::modulePlanResolver(
                 manifest: self::microFixtureManifest(),
-            )->resolve($bootstrapConfig);
+            )->resolveResolution($bootstrapConfig);
         } catch (ModuleRequiredMissingException $exception) {
             TestCase::assertSame(
                 ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING,
@@ -169,9 +170,10 @@ final class AppBuilder
             preset: $presetName,
         );
 
-        $modulePlan = self::modulePlanResolver(
+        $moduleResolution = self::modulePlanResolver(
             manifest: self::microFixtureManifest(),
-        )->resolve($bootstrapConfig);
+        )->resolveResolution($bootstrapConfig);
+        $modulePlan = $moduleResolution->plan();
 
         return new AppBuilderModulePlanResult(
             skeletonRoot: $skeletonRoot,

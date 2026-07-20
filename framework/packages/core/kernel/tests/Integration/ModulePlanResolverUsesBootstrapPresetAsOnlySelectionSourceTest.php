@@ -99,18 +99,17 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
             "<?php\nthrow new \\RuntimeException('app-local-modules-php-must-not-be-read');\n",
         );
 
-        $manifestReader = self::manifestReader(
-            self::manifest([
-                self::descriptor('core.foundation'),
-                self::descriptor(
-                    'core.kernel',
-                    requires: [
-                        'core.foundation',
-                    ],
-                ),
-                self::descriptor('platform.http'),
-            ]),
-        );
+        $manifest = self::manifest([
+            self::descriptor('core.foundation'),
+            self::descriptor(
+                'core.kernel',
+                requires: [
+                    'core.foundation',
+                ],
+            ),
+            self::descriptor('platform.http'),
+        ]);
+        $manifestReader = self::manifestReader($manifest);
 
         $meter = self::meter();
 
@@ -120,12 +119,18 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
             meter: $meter,
         );
 
-        $plan = $resolver->resolve(
+        $resolution = $resolver->resolveResolution(
             self::bootstrapConfig(
                 skeletonRoot: $skeletonRoot,
                 preset: 'express',
                 appTarget: 'worker',
             ),
+        );
+        $plan = $resolution->plan();
+
+        self::assertSame(
+            $manifest,
+            $resolution->manifest(),
         );
 
         self::assertSame('express', $plan->preset());

@@ -69,6 +69,7 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -85,9 +86,10 @@ use Psr\Log\LoggerInterface;
 /**
  * Kernel DI wiring entrypoint.
  *
- * This provider registers Kernel-owned runtime, Bootstrap Phase A, and module
- * plan services without changing provider ordering semantics. ContainerBuilder
- * still preserves the exact caller-supplied provider order.
+ * This provider registers Kernel-owned runtime, Bootstrap Phase A,
+ * module-resolution, and provider-plan services without changing
+ * provider ordering semantics. ContainerBuilder still preserves
+ * the exact caller-supplied provider order.
  *
  * Wiring decisions:
  *
@@ -213,15 +215,15 @@ final class KernelServiceProvider implements
         );
 
         /*
-         * Register ModulePlan services.
+         * Register module-resolution and provider-plan services.
          *
-         * These bindings are factories only. They do not resolve ModulePlan, do
-         * not read Composer installed metadata, do not read preset files, do not
-         * scan filesystem paths, and do not create FilesystemModePresetLoader
-         * during provider registration.
+         * These bindings are factories only. They do not resolve ModuleResolution,
+         * ModulePlan, or ContainerProviderPlan, do not read Composer installed metadata,
+         * do not read preset files, do not scan filesystem paths, and do not create
+         * FilesystemModePresetLoader during provider registration.
          *
          * FilesystemModePresetLoader is intentionally created only through
-         * ModePresetLoaderFactory::createFor() during ModulePlanResolver::resolve()
+         * ModePresetLoaderFactory::createFor() during ModulePlanResolver::resolveResolution()
          * for the current BootstrapConfig.
          */
         $builder->factory(
@@ -278,6 +280,11 @@ final class KernelServiceProvider implements
             static fn (Container $container): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
                 container: $container,
             ),
+        );
+
+        $builder->factory(
+            ContainerProviderPlanResolver::class,
+            static fn (Container $_container): ContainerProviderPlanResolver => KernelServiceFactory::containerProviderPlanResolver(),
         );
 
         /*

@@ -22,7 +22,7 @@ owner: core/contracts
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, and deterministic module descriptor ordering.
+This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, deterministic module descriptor ordering, runtime module dependency metadata, and ordered compile-time provider metadata.
 
 This document governs contracts introduced by epic `1.70.0` under:
 
@@ -81,9 +81,19 @@ extra.coretsia.requires
 extra.coretsia.conflicts
 ```
 
-These fields are Composer metadata inputs for runtime module graph resolution.
+Composer runtime module metadata MAY additionally provide compile-time container provider metadata through:
 
-They are not module identity inputs.
+```text
+extra.coretsia.providers
+```
+
+`providers` is not module identity input and is not a module graph edge.
+
+`extra.coretsia.requires` and `extra.coretsia.conflicts` are Composer metadata inputs for runtime module graph resolution.
+
+`extra.coretsia.providers` is compile-time provider-planning metadata.
+
+None of these fields is a module identity input.
 
 Only fields explicitly defined by the descriptor exported shape MAY be exported by `ModuleDescriptor::toArray()`.
 
@@ -217,6 +227,72 @@ Runtime dependency metadata MUST NOT expose:
 - environment-specific values;
 - secrets or PII.
 
+## Runtime container provider metadata
+
+The canonical Composer metadata field for compile-time container providers is:
+
+```text
+extra.coretsia.providers
+```
+
+This field is optional.
+
+Missing `extra.coretsia.providers` is equivalent to an empty list.
+
+When present, the value MUST:
+
+- be a PHP/JSON list;
+- contain only strings;
+- contain only non-empty safe single-line FQCN values;
+- contain only values of at most 512 bytes;
+- use non-leading-backslash class names;
+- preserve declaration order;
+- reject duplicate provider classes within that module's provider list using
+  case-insensitive ASCII class-name identity.
+
+Provider class values MUST NOT contain:
+
+- leading or trailing whitespace;
+- CR or LF;
+- control characters;
+- filesystem paths;
+- `::`;
+- callable-array shapes;
+- service instances;
+- closures;
+- Composer package names.
+
+The canonical location for a non-empty normalized provider list is:
+
+```text
+ModuleDescriptor::metadata()['providers']
+```
+
+A missing or explicitly empty provider list MAY be represented by an absent `providers` metadata key and MUST be consumed as an empty list.
+
+The list order is semantic.
+
+Therefore:
+
+- provider classes MUST NOT be sorted;
+- provider classes MUST NOT be treated as a string set;
+- duplicate collapse MUST NOT silently change the list;
+- duplicate provider classes within one module's provider list MUST fail deterministic manifest validation;
+- duplicate provider classes across different enabled modules are not a manifest-shape failure and MUST be rejected later by Kernel provider-plan resolution.
+
+This differs intentionally from:
+
+```text
+metadata.requires
+metadata.conflicts
+```
+
+which are canonical module-id sets and remain duplicate-collapsed and sorted by byte-order `strcmp`.
+
+Provider metadata does not authorize contracts code to load classes, instantiate providers, inspect interfaces, or execute provider definitions.
+
+Class existence, instantiability, declarative-provider compatibility, global duplicate detection, and module/provider plan ordering are Kernel-owned compile-time policies defined by ADR-0024.
+
 ## Kernel ModulePlan output invariants
 
 Kernel-owned `ModulePlan` output is artifact-ready resolved module graph state.
@@ -242,6 +318,21 @@ disabled ∩ optionalMissing
 A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
 
 `topologicalOrder` and `modules` are derived from enabled modules only. They MUST NOT contain disabled modules or optional-missing modules.
+
+`ModulePlan` MUST NOT contain or export:
+
+- `metadata.providers`;
+- provider class lists;
+- provider instances;
+- provider-order indexes;
+- `ContainerProviderPlan`;
+- the full installed `ModuleManifest`.
+
+Provider metadata remains available through the installed manifest contained by Kernel-owned `ModuleResolution`.
+
+Provider planning consumes that `ModuleResolution` at compile time.
+
+The contracts-level `ModulePlan` shape MUST NOT be expanded merely to carry compile-time provider-planning context.
 
 Detailed graph-resolution ordering, conflict classification, optional-missing behavior, and ModulePlan construction policy are owned by:
 
@@ -276,16 +367,23 @@ kind
 moduleClass
 ```
 
-Runtime module graph metadata is intentionally not part of the Phase 0 package-index lock-source shape.
+Runtime module graph metadata and compile-time provider metadata are intentionally not part of the Phase 0 package-index lock-source shape.
 
-Composer metadata MAY provide runtime graph metadata through:
+Composer metadata MAY provide runtime graph and provider metadata through:
 
 ```text
 extra.coretsia.requires
 extra.coretsia.conflicts
+extra.coretsia.providers
 ```
 
-When a runtime manifest reader consumes those Composer fields, it MUST normalize them into `ModuleDescriptor.metadata()` as deterministic descriptor metadata.
+When a runtime manifest reader consumes those Composer fields, it MUST normalize them into `ModuleDescriptor.metadata()`.
+
+The canonical semantics are:
+
+- `requires`: duplicate-collapsed and `strcmp`-sorted module-id set;
+- `conflicts`: duplicate-collapsed and `strcmp`-sorted module-id set;
+- `providers`: duplicate-free declaration-ordered FQCN list.
 
 A future package-index owner MAY promote runtime graph metadata into tooling output, but until a future SSoT explicitly does so, the Phase 0 package-index shape remains unchanged.
 
@@ -383,6 +481,18 @@ Runtime module dependency metadata, when provided by a manifest reader, MUST be 
 requires
 conflicts
 ```
+
+Compile-time provider metadata, when provided by a manifest reader, MUST be stored under:
+
+```text
+providers
+```
+
+`metadata.providers` MUST be a declaration-ordered list of safe provider FQCN strings.
+
+Missing `metadata.providers` MUST be treated as an empty provider list by its Kernel planning owner.
+
+The `providers` metadata key MUST NOT affect module identity, module selection, dependency closure, conflict detection, or `ModulePlan` exported shape.
 
 `metadata.requires` MUST be a deterministic list of module id strings.
 
@@ -535,6 +645,14 @@ Allowed metadata value types are:
 - list of allowed metadata values
 - map with string keys and allowed metadata values
 
+Recursive metadata normalization MUST:
+
+- sort map keys by byte-order `strcmp`;
+- preserve list element order exactly;
+- never sort a list merely because its elements are strings.
+
+This distinction is required because some lists are canonical sets while other lists carry semantic declaration order.
+
 Descriptor metadata MUST NOT contain:
 
 - floating-point values
@@ -554,6 +672,22 @@ conflicts
 ```
 
 their values MUST be lists of valid module id strings.
+
+When descriptor metadata contains:
+
+```text
+providers
+```
+
+its value MUST be a list of safe provider FQCN strings.
+
+For `providers`:
+
+- declaration order is semantic;
+- list order MUST be preserved;
+- sorting is forbidden;
+- duplicates are invalid;
+- the list MUST NOT contain provider instances or callable values.
 
 These lists are stable string sets:
 
@@ -713,6 +847,20 @@ ModuleDescriptor.metadata()['conflicts']
 
 as deterministic lists of module id strings.
 
+When a manifest reader implementation consumes Composer provider metadata, it MUST normalize `extra.coretsia.providers` as an ordered provider list.
+
+When the normalized list is non-empty, it MUST be stored under:
+
+```text
+ModuleDescriptor.metadata()['providers']
+```
+
+A missing or explicitly empty provider list MAY be represented by an absent `providers` metadata key and MUST be consumed as an empty list.
+
+Provider declaration order MUST be preserved exactly.
+
+The manifest reader MUST NOT sort provider FQCNs.
+
 Manifest reader contracts MUST NOT expose Composer raw payloads.
 
 Manifest reader contracts MUST NOT expose Composer install paths.
@@ -740,6 +888,20 @@ This ordering MUST be stable across:
 - different Composer repository ordering
 - different process locales
 
+Manifest descriptor ordering and nested provider-list ordering are independent.
+
+The manifest MUST expose module descriptors in module-id order.
+
+Within each descriptor:
+
+```text
+metadata.providers
+```
+
+MUST retain the original declared provider order.
+
+Sorting manifest modules MUST NOT reorder provider lists.
+
 ## Metadata-only discovery
 
 Module discovery is metadata-only from the perspective of contracts.
@@ -753,7 +915,7 @@ Contracts define the shape and port semantics. They do not define or require:
 - Kernel boot sequence
 - module lifecycle execution
 
-The Kernel owner package is responsible for implementing concrete module discovery later.
+The Kernel owner package implements concrete Composer-backed module discovery while the contracts-level port remains discovery-source-neutral.
 
 Kernel-owned Composer metadata discovery MAY read installed Composer metadata.
 
@@ -768,6 +930,7 @@ Kernel-owned Composer metadata discovery MAY normalize runtime graph metadata fr
 ```text
 extra.coretsia.requires
 extra.coretsia.conflicts
+extra.coretsia.providers
 ```
 
 into descriptor metadata keys:
@@ -775,7 +938,10 @@ into descriptor metadata keys:
 ```text
 requires
 conflicts
+providers
 ```
+
+Kernel-owned Composer discovery MUST preserve `providers` list order and MUST continue canonical sorting only for `requires` and `conflicts`.
 
 Kernel-owned Composer metadata discovery MUST NOT expose Composer raw payloads, Composer install paths, filesystem layout, secrets, or PII through `ModuleDescriptor`, `ModuleManifest`, diagnostics, or generated ModulePlan inputs.
 
@@ -844,6 +1010,20 @@ Descriptor and manifest metadata MUST NOT expose Composer install paths.
 
 Runtime graph metadata stored under `requires` and `conflicts` MUST contain only module id strings.
 
+Compile-time provider metadata stored under `providers` MUST contain only safe provider FQCN strings.
+
+Provider metadata MUST NOT contain:
+
+- provider objects;
+- callable values;
+- constructor arguments;
+- config values;
+- filesystem paths;
+- env values;
+- secrets;
+- endpoints;
+- runtime payloads.
+
 Secret-backed runtime behavior belongs to runtime owner packages, not to contracts descriptors.
 
 ## Non-goals
@@ -861,3 +1041,9 @@ This SSoT does not define:
 - CLI debug command behavior
 - HTTP behavior
 - PSR-7 integration
+- Kernel `ModuleResolution` implementation
+- `ContainerProviderPlan` implementation
+- provider class loading or reflection
+- provider instantiation
+- provider definition execution
+- production artifact compiler orchestration

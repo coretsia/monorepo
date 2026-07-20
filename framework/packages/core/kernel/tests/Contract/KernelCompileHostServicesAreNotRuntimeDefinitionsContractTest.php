@@ -68,6 +68,7 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -100,6 +101,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         ModePresetLoaderFactory::class,
         ModuleGraphResolver::class,
         ModulePlanResolver::class,
+        ContainerProviderPlanResolver::class,
         ConfigNamespaceGuard::class,
         DirectiveProcessor::class,
         ConfigMerger::class,

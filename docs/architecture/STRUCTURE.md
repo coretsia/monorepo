@@ -431,13 +431,13 @@ Here is a simple “law”:
 
 Mini permission matrix:
 
-| From \ To    | Core | Platform |  Integrations |      DevTools | Enterprise |
-|--------------|-----:|---------:|--------------:|--------------:|-----------:|
-| Core         |    ✅ |        ❌ |             ❌ |             ❌ |          ❌ |
-| Platform     |    ✅ |       ✅* |             ❌ |             ❌ |          ❌ |
-| Integrations |    ✅ |        ✅ |             ✅ |             ❌ |          ❌ |
-| DevTools     |    ✅ |        ✅ | ✅ (sometimes) |             ✅ |          ❌ |
-| Enterprise   |    ✅ |        ✅ |             ✅ | ✅ (sometimes) |          ✅ |
+| From \ To    | Core | Platform |   Integrations |       DevTools | Enterprise |
+|--------------|-----:|---------:|---------------:|---------------:|-----------:|
+| Core         |   ✅ |       ❌ |             ❌ |             ❌ |         ❌ |
+| Platform     |   ✅ |      ✅* |             ❌ |             ❌ |         ❌ |
+| Integrations |   ✅ |       ✅ |             ✅ |             ❌ |         ❌ |
+| DevTools     |   ✅ |       ✅ | ✅ (sometimes) |             ✅ |         ❌ |
+| Enterprise   |   ✅ |       ✅ |             ✅ | ✅ (sometimes) |         ✅ |
 
 - Platform→Platform is allowed only when dependency-safe (kernel must not pull http/db etc.)
 - Platform never pulls DevTools/Enterprise

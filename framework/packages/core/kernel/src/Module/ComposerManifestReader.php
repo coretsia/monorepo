@@ -53,6 +53,12 @@ use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
  * - extra.coretsia.requires;
  * - extra.coretsia.conflicts.
  *
+ * Compile-time provider metadata is read from:
+ *
+ * - extra.coretsia.providers.
+ *
+ * Provider class list order is preserved exactly as declared.
+ *
  * Composer package-level require/conflict are installation/build constraints
  * and are intentionally ignored by this reader.
  *
@@ -140,11 +146,9 @@ final readonly class ComposerManifestReader implements ManifestReaderInterface
             ),
         );
 
-        $providers = $this->readOptionalSafeStringList(
+        $providers = $this->readOrderedProviderClassList(
+            moduleId: $moduleId,
             value: $coretsia['providers'] ?? null,
-            invalid: static fn (): ModuleManifestInvalidException => ModuleManifestInvalidException::providersInvalid(
-                $moduleId
-            ),
         );
 
         $defaultsConfigPath = $this->readOptionalDefaultsConfigPath($moduleId, $coretsia['defaultsConfigPath'] ?? null);
@@ -275,36 +279,42 @@ final readonly class ComposerManifestReader implements ManifestReaderInterface
     /**
      * @return list<non-empty-string>
      */
-    private function readOptionalSafeStringList(
+    private function readOrderedProviderClassList(
+        ModuleId $moduleId,
         mixed $value,
-        \Closure $invalid,
     ): array {
         if ($value === null) {
             return [];
         }
 
         if (!\is_array($value) || !\array_is_list($value)) {
-            throw $invalid();
+            throw ModuleManifestInvalidException::providersInvalid($moduleId);
         }
 
-        $set = [];
+        $providers = [];
+        $seen = [];
 
-        foreach ($value as $item) {
-            if (!\is_string($item) || !self::isSafeSingleLineString($item)) {
-                throw $invalid();
+        foreach ($value as $providerClass) {
+            if (
+                !\is_string($providerClass)
+                || !self::isSafeSingleLineString($providerClass)
+                || !self::isProviderClassName($providerClass)
+            ) {
+                throw ModuleManifestInvalidException::providersInvalid($moduleId);
             }
 
-            $set[$item] = true;
+            $providerKey = \strtolower($providerClass);
+
+            if (isset($seen[$providerKey])) {
+                throw ModuleManifestInvalidException::providersInvalid($moduleId);
+            }
+
+            $seen[$providerKey] = true;
+            $providers[] = $providerClass;
         }
 
-        $values = \array_keys($set);
-
-        \usort(
-            $values,
-            static fn (string $a, string $b): int => \strcmp($a, $b),
-        );
-
-        return $values;
+        /** @var list<non-empty-string> $providers */
+        return $providers;
     }
 
     /**
@@ -441,6 +451,16 @@ final readonly class ComposerManifestReader implements ManifestReaderInterface
         return self::hasNoUnsafeControlCharacters($value)
             && !\str_contains($value, "\r")
             && !\str_contains($value, "\n");
+    }
+
+    private static function isProviderClassName(
+        string $providerClass,
+    ): bool {
+        return \preg_match(
+            '/\A(?:[A-Za-z_][A-Za-z0-9_]*\\\\)+'
+                . '[A-Za-z_][A-Za-z0-9_]*\z/D',
+            $providerClass,
+        ) === 1;
     }
 
     private static function isSafeRelativePathString(string $value): bool

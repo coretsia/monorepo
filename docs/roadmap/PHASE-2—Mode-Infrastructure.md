@@ -290,11 +290,13 @@ composer: "coretsia/core-kernel"
 kind: runtime
 module_id: "core.kernel"
 
-goal: "Надати platform/cli стабільні kernel-owned операції (validate/debug/compile/hash/verify) без дублювання алгоритмів у CLI."
+goal: "Надати platform/cli стабільні kernel-owned операції (config validate/debug/compile/hash, module debug, cache verify) без дублювання алгоритмів у CLI."
 provides:
 - "Kernel-owned Ops façade: high-level deterministic operations over existing kernel services"
 - "Stable result DTOs (json-like) safe for platform rendering (no raw values/secrets/abs paths)"
 - "Single source of truth for cache:verify/config compile flows"
+- "Single module-resolution snapshot for every module-aware Kernel operation"
+- "Kernel-owned provider planning from ModuleResolution without repeated Composer manifest discovery"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -312,14 +314,33 @@ ssot_refs:
 
 #### Preconditions (MUST)
 
-- Kernel artifacts pipeline exists and is wired:
-  - `ConfigKernel` (Phase 1) available for validate/debug flows
-  - Artifact builders/writer available for compile flow
-  - `CacheVerifier` available for verify flow
-  - `FingerprintCalculator` available for hash flow
-- Mode truth is kernel-owned and callable:
-  - `kernel.modes.*` defaults exist
-  - `Coretsia\Contracts\Module\ModePresetLoaderInterface` is available and can load `mode`
+- Kernel operation dependencies exist and are wired:
+  - `ConfigKernel` is available for validate/debug flows;
+  - artifact builders and `ArtifactCompiler` are available for compile flow;
+  - `CacheVerifier` is available for verify flow;
+  - `FingerprintCalculator` is available for hash flow.
+
+- Canonical module-resolution and provider-planning primitives exist:
+  - `Coretsia\Kernel\Module\ModulePlanResolver::resolveResolution()`;
+  - `Coretsia\Kernel\Module\ModuleResolution`;
+  - `Coretsia\Kernel\Container\Provider\ContainerProviderPlan`;
+  - `Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver`.
+
+- `ModuleResolution` contains the installed manifest and resolved `ModulePlan` produced by one discovery run.
+
+- `ContainerProviderPlanResolver` consumes `ModuleResolution` and preserves:
+  - `ModulePlan::topologicalOrder()`;
+  - module-declared provider order.
+
+- Mode truth is Kernel-owned and callable:
+  - `kernel.modes.*` defaults exist;
+  - `Coretsia\Contracts\Module\ModePresetLoaderInterface` can load the selected mode.
+
+- Kernel source/operations-host boot is available:
+  - it can resolve compile-host services without existing generated artifacts;
+  - `config:compile`, `config:hash`, and `cache:verify` MUST NOT require an already-existing `container.php` or `config.php`;
+  - it remains separate from artifact-only application runtime boot;
+  - it MUST NOT become an implicit source fallback for HTTP or Worker production runtime.
 - Compiled container runtime is present:
   - kernel services are resolvable from compiled container (artifact-only production boot policy preserved)
 
@@ -341,6 +362,66 @@ ssot_refs:
     - `framework/packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
   - this epic MUST NOT introduce unrelated `core/contracts` surface beyond the Kernel Ops port
 
+### Kernel operations orchestration ownership (MUST)
+
+`platform/cli` is a transport and presentation layer for Kernel operations.
+
+CLI command classes and `CliKernelFacade` MUST NOT directly orchestrate module resolution, provider planning, container definition collection, config compilation, artifact compilation, fingerprint calculation, or cache verification.
+
+Canonical command-side flow:
+
+```text
+DebugModulesCommand
+ConfigValidateCommand
+ConfigDebugCommand
+ConfigCompileCommand
+ConfigHashCommand
+CacheVerifyCommand
+    -> CliKernelFacade
+    -> Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+```
+
+Canonical Kernel-side operation flow:
+
+```text
+KernelOpsFacade
+    -> BootstrapConfigResolver
+    -> ModulePlanResolver::resolveResolution()
+    -> ModuleResolution
+    -> ContainerProviderPlanResolver::resolve(ModuleResolution)
+    -> ordered ContainerProviderPlan
+    -> EnvRepositoryBuilder / ConfigKernel as required
+    -> operation-specific Kernel component
+    -> safe OpsResult
+```
+
+Operation-specific ownership:
+
+```text
+validateConfig() -> ConfigKernel validation
+debugConfig()    -> ConfigKernel safe explain output
+debugModules()   -> safe ModuleResolution summary
+compileConfig()  -> ArtifactCompiler
+hashConfig()     -> FingerprintCalculator
+verifyCache()    -> CacheVerifier
+```
+
+For one invocation of any mode-aware Kernel operation:
+
+- `ModulePlanResolver::resolveResolution()` MUST be invoked at most once;
+- `ModulePlanResolver::resolve()` MUST NOT be used because it discards the installed manifest snapshot;
+- `ManifestReaderInterface::read()` MUST NOT be invoked again after `resolveResolution()` returns;
+- `ContainerProviderPlanResolver` MUST receive the same `ModuleResolution` instance;
+- the same `ModuleResolution::plan()` MUST be supplied to all downstream work;
+- provider definitions MUST be collected in `ContainerProviderPlan` order;
+- `ModuleResolution` and `ContainerProviderPlan` MUST remain compile-time values and MUST NOT be exported into artifacts;
+- `ModulePlan` MUST NOT contain provider class lists;
+- `KernelOpsInterface` and `OpsResult` MUST NOT expose `ModuleResolution`, `ContainerProviderPlan`, provider instances, raw Composer metadata, raw config/env values, or absolute paths.
+
+`ArtifactCompiler`, `FingerprintCalculator`, and `CacheVerifier` remain lower-level Kernel services. They receive already-resolved operation inputs and MUST NOT depend on `ModulePlanResolver`, `ManifestReaderInterface`, `ComposerManifestReader`, or `ContainerProviderPlanResolver`.
+
+Kernel Ops results MUST be safe by construction. `core/kernel` MUST NOT depend on `platform/redaction` or `SensitiveDataRedactorInterface` to make an unsafe `OpsResult` suitable for CLI rendering.
+
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
@@ -353,8 +434,14 @@ Forbidden:
 
 ### Entry points / integration points (MUST)
 
-- Public service for platform/cli:
-  - resolved from compiled container; no stdout/stderr; deterministic exceptions/codes
+- Public Kernel operations service for `platform/cli`:
+  - resolved from the Kernel source/operations host container;
+  - registered as compile-host wiring by `KernelServiceProvider::register()`;
+  - MUST NOT enter canonical runtime definitions produced by `KernelServiceProvider::define()`;
+  - MUST NOT be exported into compiled container artifacts;
+  - exposes only `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`;
+  - performs no stdout/stderr writes;
+  - exposes deterministic safe exceptions and result DTOs.
 
 ### Deliverables (MUST)
 
@@ -367,6 +454,7 @@ Forbidden:
     - [ ] `compileConfig(string $mode): OpsResult`
     - [ ] `hashConfig(string $mode): OpsResult`
     - [ ] `verifyCache(string $mode): OpsResult`
+    - [ ] `debugModules(string $mode): OpsResult`
 
 - [ ] `framework/packages/core/contracts/src/Kernel/Ops/OpsResult.php`
   - [ ] Immutable DTO / readonly:
@@ -387,12 +475,45 @@ Forbidden:
   - [ ] MUST delegate to existing kernel components (ConfigKernel, artifact builders/writer, CacheVerifier, FingerprintCalculator)
   - [ ] MUST NOT print; MUST NOT leak raw config/env values; MUST NOT leak absolute paths
   - [ ] Results MUST be json-like (no floats; no objects/resources)
+  - [ ] MUST own Kernel-side orchestration for:
+    - [ ] `validateConfig()`
+    - [ ] `debugConfig()`
+    - [ ] `debugModules()`
+    - [ ] `compileConfig()`
+    - [ ] `hashConfig()`
+    - [ ] `verifyCache()`
+  - [ ] module-aware operations MUST use `ModulePlanResolver::resolveResolution()`
+  - [ ] MUST NOT use `ModulePlanResolver::resolve()` for module-aware operations because it discards the installed manifest snapshot
+  - [ ] MUST invoke `resolveResolution()` at most once per operation
+  - [ ] MUST pass the returned `ModuleResolution` directly to `ContainerProviderPlanResolver`
+  - [ ] MUST NOT invoke `ManifestReaderInterface::read()` after `resolveResolution()` returns
+  - [ ] MUST use the same `ModuleResolution::plan()` instance throughout the complete operation
+  - [ ] MUST collect provider definitions in `ContainerProviderPlan` order
+  - [ ] MUST NOT expose `ModuleResolution`, `ContainerProviderPlan`, provider instances, raw Composer metadata, or absolute paths through `KernelOpsInterface` or `OpsResult`
+
+- [ ] Lower-level Kernel operation services:
+  - [ ] `ArtifactCompiler` MUST receive already-resolved operation inputs
+  - [ ] `FingerprintCalculator` MUST receive already-resolved operation inputs
+  - [ ] `CacheVerifier` MUST receive already-resolved operation inputs
+  - [ ] none of these services may depend on:
+    - [ ] `ModulePlanResolver`
+    - [ ] `ManifestReaderInterface`
+    - [ ] `ComposerManifestReader`
+    - [ ] `ContainerProviderPlanResolver`
 
 #### Modifies
 
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
-  - [ ] register `KernelOpsFacade`
-  - [ ] bind `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class` → `KernelOpsFacade::class` (explicit binding; no interface autowire)
+  - [ ] register `KernelOpsFacade` as compile-host/source-operations wiring
+  - [ ] bind `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class` to `KernelOpsFacade::class`
+  - [ ] registration and binding MUST remain in `register()`
+  - [ ] `KernelOpsFacade` MUST NOT be contributed by `define()`
+  - [ ] `KernelOpsFacade` and `KernelOpsInterface` MUST NOT enter the canonical runtime definition graph
+
+- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [ ] add deterministic construction for `KernelOpsFacade`
+  - [ ] wire explicit Kernel operation dependencies
+  - [ ] factory construction MUST NOT execute module resolution, config compilation, fingerprint calculation, artifact writing, or cache verification
 
 ### Tests (MUST)
 
@@ -405,12 +526,69 @@ Forbidden:
       - [ ] maps are recursively key-sorted (`strcmp`) by the producer (kernel), lists preserve order
   - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeDoesNotLeakAbsolutePathsTest.php`
   - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeImplementsContractsPortTest.php` *(new; verifies interface + exception type path)*
+- Integration:
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCompileUsesSingleModuleResolutionSnapshotTest.php`
+    - [ ] `resolveResolution()` is called exactly once
+    - [ ] `resolve()` is not called
+    - [ ] Composer manifest is read exactly once
+    - [ ] the returned `ModuleResolution` is passed to `ContainerProviderPlanResolver`
+    - [ ] the same `ModulePlan` instance is supplied to downstream compilation
+    - [ ] no second manifest read occurs during provider definition collection
+    - [ ] `ArtifactCompiler` does not resolve module services itself
+
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHashUsesSingleModuleResolutionSnapshotTest.php`
+    - [ ] one module-resolution snapshot is used for the complete hash operation
+    - [ ] no second manifest read occurs
+    - [ ] `FingerprintCalculator` does not resolve modules itself
+
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCacheVerifyUsesSingleModuleResolutionSnapshotTest.php`
+    - [ ] `resolveResolution()` is called exactly once
+    - [ ] Composer manifest is read exactly once
+    - [ ] provider planning consumes the returned snapshot
+    - [ ] the same plan is supplied to verification inputs
+    - [ ] `CacheVerifier` does not resolve modules itself
+
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugModulesUsesSingleModuleResolutionSnapshotTest.php`
+
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsValidateConfigUsesSingleModuleResolutionSnapshotTest.php`
+    - [ ] one `ModuleResolution` is used for the complete validation operation
+    - [ ] Composer manifest is read exactly once
+    - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
+    - [ ] no provider or manifest discovery is repeated
+
+  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugConfigUsesSingleModuleResolutionSnapshotTest.php`
+    - [ ] one `ModuleResolution` is used for the complete debug operation
+    - [ ] Composer manifest is read exactly once
+    - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
+    - [ ] safe explain output does not expose raw config or env values
+
+- Contract:
+  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOpsFacadeIsCompileHostOnlyContractTest.php`
+    - [ ] source container contains `KernelOpsFacade`
+    - [ ] source container binds `KernelOpsInterface`
+    - [ ] Kernel runtime definitions contain neither service id
+    - [ ] generated definition descriptors contain neither service id
+
+  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOperationServicesDoNotResolveModulesContractTest.php`
+    - [ ] `ArtifactCompiler` does not depend on module-resolution services
+    - [ ] `FingerprintCalculator` does not depend on module-resolution services
+    - [ ] `CacheVerifier` does not depend on module-resolution services
+    - [ ] none references:
+      - [ ] `ModulePlanResolver`
+      - [ ] `ManifestReaderInterface`
+      - [ ] `ComposerManifestReader`
+      - [ ] `ContainerProviderPlanResolver`
 
 ### DoD (MUST)
 
 - [ ] platform/cli can call ops without re-implementing kernel algorithms
 - [ ] ops results are deterministic, json-like, safe for rendering
 - [ ] no stdout/stderr, no secrets, no absolute paths
+- [ ] the Kernel ops implementation invokes `ModulePlanResolver::resolveResolution()` at most once per operation
+- [ ] the Kernel ops implementation does not call `ManifestReaderInterface::read()` after receiving `ModuleResolution`
+- [ ] provider planning consumes the same `ModuleResolution` instance
+- [ ] `ModuleResolution` and `ContainerProviderPlan` never cross the `KernelOpsInterface` boundary
+- [ ] `ArtifactCompiler`, `FingerprintCalculator`, and `CacheVerifier` do not depend on module-resolution services
 
 ---
 
@@ -530,6 +708,12 @@ Platform implementation:
 - [ ] `framework/packages/platform/redaction/composer.json`
 - [ ] `framework/packages/platform/redaction/src/Module/RedactionModule.php`
 - [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+  - [ ] implements `ServiceProviderInterface`
+  - [ ] implements `ContainerDefinitionProviderInterface`
+  - [ ] `register()` delegates through `ContainerBuilder::registerDefinitionProvider($this)`
+  - [ ] `define()` is the single source of redactor/classifier wiring
+  - [ ] definitions contain no closures, provider instances, runtime objects, filesystem paths, or env references
+
 - [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceFactory.php`
 - [ ] `framework/packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
 - [ ] `framework/packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
@@ -545,7 +729,10 @@ Docs:
 Tests:
 - [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
 - [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
-- [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `framework/packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
+  - [ ] provider contribution contains only canonical declarative operations
+  - [ ] no definition contains closures or runtime object instances
+  - [ ] source-mode application resolves the same default redactor binding
 - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
 - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
 - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
@@ -846,7 +1033,10 @@ All tests MUST assert that raw fixture values do not appear in returned redacted
 - Contract:
   - [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
   - [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
-  - [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
+    - [ ] provider contribution contains only canonical declarative operations
+    - [ ] no definition contains closures or runtime object instances
+    - [ ] source-mode application resolves the same default redactor binding
   - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
   - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
 - Unit:
@@ -867,8 +1057,8 @@ All tests MUST assert that raw fixture values do not appear in returned redacted
 - [ ] No config/env disable toggle exists.
 - [ ] Redaction output is deterministic.
 - [ ] Redaction output never contains raw sensitive fixture values.
-- [ ] `platform/errors` no longer owns a duplicate baseline sensitive-key/value policy.
-- [ ] `platform/validation` can consume the redaction port instead of implementing local redaction logic.
+- [ ] roadmap and SSoT requirements for future `platform/errors` and `platform/validation` packages point to this shared redaction boundary.
+- [ ] future packages MUST NOT introduce a second baseline sensitive-key or sensitive-value policy.
 - [ ] Future packages (`platform/database`, `platform/mail`, `platform/uploads`, `platform/session`, `platform/auth`, `platform/security`, `platform/secrets`, `integrations/secrets-*`) have a single redaction boundary to depend on.
 - [ ] Docs updated:
   - [ ] `docs/ssot/sensitive-data-redaction.md`
@@ -888,7 +1078,7 @@ All tests MUST assert that raw fixture values do not appear in returned redacted
 
 ---
 
-### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops façade (MUST) [IMPL]
+### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops consumption (MUST) [IMPL]
 
 ---
 type: package
@@ -904,13 +1094,14 @@ module_id: "platform.cli"
 goal: "`coretsia config:compile --mode=express` і `coretsia cache:verify --mode=express` працюють детерміновано, а `coretsia doctor` не витікає секретів і не друкує non-deterministic шум."
 provides:
 - "Command discovery SSoT: DI tag `cli.command` + deterministic tag order from Foundation TagRegistry"
-- 'Kernel ops consumption: validate/debug/compile/hash/verify via contracts port `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` (kernel provides implementation; no duplication in CLI)'
+- 'Kernel ops consumption: config validate/debug/compile/hash, module debug, and cache verify via `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`'
 - "Mode-aware ops without CLI-owned mode state (`--mode` is explicit override input only)"
 - "Safe output (deterministic JSON/table/plain) + redaction (no secrets/PII)"
 - "Reserved names implemented (`help`, `list`) and enforced"
 - "Container-backed external command discovery: tagged package commands such as worker:* are discoverable and dispatchable through the CLI catalog when their package is enabled."
 
-tags_introduced: []          # uses existing reserved tag(s)
+tags_introduced:
+- "cli.command"
 config_roots_introduced: []  # `cli` root exists (owner platform/cli)
 artifacts_introduced: []     # no CLI-owned artifacts in this epic
 adr: "docs/adr/ADR-0031-cli-tag-first-command-catalog.md"
@@ -946,17 +1137,17 @@ ssot_refs:
   - `framework/packages/platform/cli/config/cli.php` (subtree file)
   - `framework/packages/platform/cli/config/rules.php`
   - kernel mode defaults/allowed exist under `kernel.modes.*`
-  - kernel compiled container + TagRegistry ordering is cemented (Foundation)
+  - Foundation declarative definition application and TagRegistry ordering are cemented
+  - Kernel source/operations-host boot can run before generated artifacts exist
+  - artifact-only application runtime boot remains separate from CLI operations boot
 
 - Required contracts / ports (exact FQCNs):
   - `Coretsia\Contracts\Cli\Input\InputInterface`
   - `Coretsia\Contracts\Cli\Output\OutputInterface`
   - `Coretsia\Contracts\Cli\Command\CommandInterface`
   - `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
-  - `Coretsia\Contracts\Module\ModePresetLoaderInterface`
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
-  - `Coretsia\Contracts\Config\ConfigValidatorInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
@@ -974,6 +1165,25 @@ ssot_refs:
 
 > **Policy (single-choice):** `platform/cli` MUST consume kernel operations ONLY via `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` and MUST NOT reference any `Coretsia\Kernel\Ops\*` symbols. Other `Coretsia\Kernel\*` public APIs MAY be used only where required by this epic’s declared compile-time dependency on `core/kernel` (boot/UoW runtime orchestration), but MUST NOT duplicate kernel algorithms.
 
+### Kernel operations consumption boundary (MUST)
+
+`platform/cli` is a transport, command-routing, and presentation layer.
+
+Canonical flow:
+
+```text
+CLI command
+    -> CliKernelFacade
+    -> Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+    -> safe OpsResult
+```
+
+CLI commands, `CliKernelFacade`, providers, catalog services, runners, formatters, and renderers MUST NOT orchestrate or resolve Kernel compile-time internals.
+
+Module resolution, provider planning, config compilation, artifact compilation, fingerprint calculation, and cache verification are owned by epic 2.25.0.
+
+`OpsResult` is already safe by construction. CLI redaction is defense in depth for CLI-owned output and diagnostics; it MUST NOT be used to sanitize raw Kernel config, env, Composer metadata, or artifact payloads.
+
 ### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
@@ -989,6 +1199,19 @@ Forbidden:
 - external console frameworks / parsers
 - filesystem scanning for discovery (commands/workflows)
 
+- direct use from `platform/cli` production source of:
+  - `Coretsia\Kernel\Module\ModulePlanResolver`
+  - `Coretsia\Kernel\Module\ModuleResolution`
+  - `Coretsia\Kernel\Container\Provider\ContainerProviderPlan`
+  - `Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver`
+  - `Coretsia\Contracts\Module\ManifestReaderInterface`
+  - `Coretsia\Kernel\Module\ComposerManifestReader`
+  - `Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler`
+  - `Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator`
+  - `Coretsia\Kernel\Artifacts\Verifier\CacheVerifier`
+
+These symbols belong to Kernel-side operation orchestration. Their presence in CLI commands, `CliKernelFacade`, providers, runners, catalog services, formatters, or renderers is an architecture violation.
+
 - Integration tests MAY enable `platform.worker` only through a composed test fixture/app.
 - `platform/cli` production source MUST NOT import `Coretsia\Platform\Worker\*`.
 
@@ -999,6 +1222,14 @@ Forbidden:
 - Monorepo canonical wrappers (Prelude compliance):
   - repo-root `coretsia` and `framework/bin/coretsia` MUST remain the canonical entrypoints
   - wrappers MAY delegate to `vendor/bin/coretsia` but MUST be CWD-independent
+
+- CLI operations-host boot:
+  - `bin/coretsia` MUST NOT require an existing compiled-container artifact;
+  - `config:compile`, `config:hash`, and `cache:verify` MUST work when `container.php` does not yet exist;
+  - CLI boots a Kernel source/operations host, not the application production runtime container;
+  - external provider composition MUST use Kernel-owned provider-planning services and MUST NOT be implemented through CLI-owned Composer reads;
+  - this source operations host MUST NOT become a fallback for HTTP or Worker production runtime;
+  - `doctor` remains the only ultra-early command allowed before Kernel operations-host boot.
 
 - Commands:
   - `coretsia doctor`
@@ -1221,13 +1452,32 @@ Catalog:
 
 Kernel ops adapter:
 - [ ] `framework/packages/platform/cli/src/Kernel/CliKernelFacade.php`
-  - [ ] MUST depend on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` (NOT `Coretsia\Kernel\Ops\KernelOpsFacade`)
-  - [ ] MUST NOT implement hashing/verify algorithms locally
-  - [ ] MUST surface only safe `OpsResult` data to presentation layer
+  - [ ] MUST depend only on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` for Kernel operations
+  - [ ] MUST NOT import or resolve the concrete Kernel implementation
+  - [ ] MUST NOT depend on:
+    - [ ] `ModulePlanResolver`
+    - [ ] `ModuleResolution`
+    - [ ] `ContainerProviderPlan`
+    - [ ] `ContainerProviderPlanResolver`
+    - [ ] `ManifestReaderInterface`
+    - [ ] `ComposerManifestReader`
+    - [ ] `ArtifactCompiler`
+    - [ ] `FingerprintCalculator`
+    - [ ] `CacheVerifier`
+  - [ ] MUST NOT implement module resolution, provider planning, compilation, hashing, or verification algorithms locally
+  - [ ] MUST make exactly one Kernel ops call for one requested operation
+  - [ ] MUST surface only safe contracts-level `OpsResult` data to the presentation layer
+  - [ ] MUST NOT expose compile-time Kernel value objects to commands, formatters, or output renderers
 
-Mode resolver:
+Mode input resolver:
 - [ ] `framework/packages/platform/cli/src/Mode/ModeResolver.php`
-  - [ ] validates via kernel-owned truth (prefer `ModePresetLoaderInterface->load($mode)`)
+  - [ ] reads only the explicit `--mode` option and command mode policy
+  - [ ] validates only that the supplied token is a non-empty safe mode token
+  - [ ] MUST NOT load mode presets
+  - [ ] MUST NOT read Kernel mode config
+  - [ ] MUST NOT depend on `ModePresetLoaderInterface`
+  - [ ] allowed/default mode validation belongs to `KernelOpsInterface`
+  - [ ] passes the explicit mode override unchanged to `CliKernelFacade`
 
 Runner + diagnostics:
 - [ ] `framework/packages/platform/cli/src/Runner/CommandRunner.php`
@@ -1259,23 +1509,55 @@ Built-in commands:
 - [ ] `framework/packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
   - [ ] Stateless orchestrator; any per-run diagnostics collection MUST be local (if extracted into a service collector → that collector becomes resettable).
 
-- [ ] `framework/packages/platform/cli/src/Command/DebugModulesCommand.php` — prints module plan/manifest summary
-  - [ ] Stateless orchestrator; no memoization of module plan across runs.
+- [ ] `framework/packages/platform/cli/src/Command/DebugModulesCommand.php`
+  - [ ] prints only the safe module summary returned through `CliKernelFacade` / `KernelOpsInterface`
+  - [ ] delegates exactly one `debugModules()` operation
+  - [ ] MUST NOT resolve `ModulePlan`, read Composer metadata, or construct `ModuleResolution` directly
+  - [ ] MUST NOT print provider class names unless the Kernel ops result explicitly exposes them as safe diagnostic identifiers
+  - [ ] stateless; no memoization of manifest, module plan, or provider plan across runs
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigValidateCommand.php` — kernel validate only (mode aware)
-  - [ ] Stateless; delegates to kernel; mode is explicit input only.
+- [ ] `framework/packages/platform/cli/src/Command/ConfigValidateCommand.php`
+  - [ ] delegates exactly one `validateConfig()` operation
+  - [ ] passes the selected mode only as explicit input
+  - [ ] consumes only the returned safe `OpsResult`
+  - [ ] MUST NOT resolve ConfigKernel or module services directly
+  - [ ] stateless; no cached validation result
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigDebugCommand.php` — explain trace + redacted value/summary (mode aware)
-  - [ ] Stateless; no cached traces; redaction is per payload.
+- [ ] `framework/packages/platform/cli/src/Command/ConfigDebugCommand.php`
+  - [ ] delegates exactly one `debugConfig()` operation
+  - [ ] passes the selected mode only as explicit input
+  - [ ] consumes only safe explain metadata returned in `OpsResult`
+  - [ ] MUST NOT receive raw config or env values
+  - [ ] MUST NOT run ConfigKernel or redaction over raw Kernel values locally
+  - [ ] stateless; no cached explain traces
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigCompileCommand.php` — delegates compile artifacts to kernel (mode aware)
-  - [ ] Stateless; no CLI-owned artifact/cache state.
+- [ ] `framework/packages/platform/cli/src/Command/ConfigCompileCommand.php`
+  - [ ] delegates exactly one compile operation to `CliKernelFacade` / `KernelOpsInterface`
+  - [ ] passes the selected mode only as explicit operation input
+  - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
+  - [ ] MUST NOT read Composer metadata
+  - [ ] MUST NOT resolve or construct `ContainerProviderPlan`
+  - [ ] MUST NOT collect container definitions
+  - [ ] MUST NOT invoke `ArtifactCompiler` directly
+  - [ ] stateless; no CLI-owned module, provider, artifact, or cache state
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigHashCommand.php` — prints kernel fingerprint for selected mode (no new cache)
-  - [ ] Stateless; no fingerprint caching.
+- [ ] `framework/packages/platform/cli/src/Command/ConfigHashCommand.php`
+  - [ ] delegates exactly one hash operation to `CliKernelFacade` / `KernelOpsInterface`
+  - [ ] passes the selected mode only as explicit operation input
+  - [ ] MUST NOT resolve modules or calculate fingerprints locally
+  - [ ] MUST NOT invoke `FingerprintCalculator` directly
+  - [ ] prints only the safe fingerprint result returned by Kernel
+  - [ ] stateless; no manifest, module-plan, provider-plan, or fingerprint cache
 
-- [ ] `framework/packages/platform/cli/src/Command/CacheVerifyCommand.php` — delegates verify to kernel (mode aware; uses kernel dirty reasons)
-  - [ ] Stateless; reports kernel results; no local “last verify outcome”.
+- [ ] `framework/packages/platform/cli/src/Command/CacheVerifyCommand.php`
+  - [ ] delegates exactly one verification operation to `CliKernelFacade` / `KernelOpsInterface`
+  - [ ] passes the selected mode only as explicit operation input
+  - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
+  - [ ] MUST NOT read Composer metadata
+  - [ ] MUST NOT construct or resolve `ContainerProviderPlan`
+  - [ ] MUST NOT invoke `CacheVerifier` directly
+  - [ ] reports only safe Kernel dirty reasons
+  - [ ] stateless; no local manifest, module plan, provider plan, cache state, or last verification outcome
 
 Tag owner constants:
 - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
@@ -1332,17 +1614,40 @@ Tests:
   - [ ] worker command service ids are discovered through generic `cli.command`
   - [ ] `platform/cli` production source still does not import `Coretsia\Platform\Worker\*`
 
+- [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotReferenceKernelCompileInternalsContractTest.php`
+  - [ ] scans `framework/packages/platform/cli/src`
+  - [ ] rejects imports and FQCN references to:
+    - [ ] `ModulePlanResolver`
+    - [ ] `ModuleResolution`
+    - [ ] `ContainerProviderPlan`
+    - [ ] `ContainerProviderPlanResolver`
+    - [ ] `ManifestReaderInterface`
+    - [ ] `ComposerManifestReader`
+    - [ ] `ArtifactCompiler`
+    - [ ] `FingerprintCalculator`
+    - [ ] `CacheVerifier`
+  - [ ] allows only `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` as the Kernel operation boundary
+
 #### Modifies
 
 - [ ] `framework/packages/platform/cli/composer.json`
   - [ ] MUST declare `"bin": ["bin/coretsia"]`
 
 - [ ] `framework/packages/platform/cli/src/Provider/CliServiceProvider.php`
+  - [ ] implements `ServiceProviderInterface`
+  - [ ] implements `ContainerDefinitionProviderInterface`
+  - [ ] `register()` delegates through `ContainerBuilder::registerDefinitionProvider($this)`
+  - [ ] `define()` is the single source of CLI runtime services, aliases, required services, and command tags
+  - [ ] definitions contain no closures, command instances, container instances, filesystem paths, env references, or raw argv values
+  - [ ] declares required external services:
+    - [ ] `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+    - [ ] `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
   - [ ] MUST register `CliKernelFacade` with explicit dependency on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class`
   - [ ] MUST NOT import/reference any `Coretsia\Kernel\Ops\*` symbols anywhere; kernel ops are consumed only via `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
   - [ ] MUST register app/runner/catalog/services
   - [ ] MUST tag all built-in commands with `ReservedTags::CLI_COMMAND` + deterministic meta
-  - [ ] MUST register `RedactionEngine`
+  - [ ] MUST consume the externally provided `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - [ ] MUST NOT bind or implement that interface inside `platform/cli`
   - [ ] MUST register built-in command services
   - [ ] MUST tag all built-in commands with `ReservedTags::CLI_COMMAND`
   - [ ] MUST tag built-in commands using command class constants:
@@ -1367,6 +1672,7 @@ Tests:
 - [ ] `framework/packages/platform/cli/config/cli.php`
   - [ ] MUST NOT contain `cli.mode.*`
   - [ ] MUST NOT contain `cli.commands` registry list
+  - [ ] MUST NOT contain `cli.redaction.*`
   - [ ] keys (baseline):
     - [ ] `cli.enabled` = true
     - [ ] `cli.commands.overrides` = []
@@ -1374,14 +1680,13 @@ Tests:
     - [ ] `cli.output.adaptive.mapping.interactive` = 'table'
     - [ ] `cli.output.adaptive.mapping.ci` = 'json'
     - [ ] `cli.output.adaptive.mapping.default` = 'plain'
-    - [ ] `cli.redaction.enabled` = true
-    - [ ] `cli.redaction.patterns` = ['/password/i','/secret/i','/token/i','/key/i']
     - [ ] `cli.uow.enabled` = true
 
 - [ ] `framework/packages/platform/cli/config/rules.php`
   - [ ] MUST return a plain declarative ruleset array.
   - [ ] MUST declare rules that make ConfigValidator fail deterministically if:
     - [ ] any `cli.mode.*` exists
+    - [ ] any `cli.redaction.*` key exists
     - [ ] `cli.commands` exists AND is a list (legacy registry list)
     - [ ] `cli.commands` exists AND contains any key other than `overrides`
   - [ ] MUST declare rules for overrides shape:
@@ -1443,7 +1748,10 @@ Tests:
   - [ ] `framework/packages/platform/cli/tests/Unit/ModeResolverTest.php`
   - [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
   - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/RedactionEngineTest.php`
+  - [ ] `framework/packages/platform/cli/tests/Unit/OutputFormatterUsesSensitiveDataRedactorTest.php`
+    - [ ] formatter receives `SensitiveDataRedactorInterface`
+    - [ ] no CLI-local classifier or pattern registry is constructed
+    - [ ] raw sensitive fixture values do not reach rendered output
   - [ ] `framework/packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
 
 - Contract:
@@ -1461,7 +1769,35 @@ Tests:
   - [ ] `framework/packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
   - [ ] `framework/packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
   - [ ] `framework/packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php` *(rename from …FacadeTest)*
+    - [ ] asserts exactly one `KernelOpsInterface` compile call
+    - [ ] asserts the selected mode is passed as explicit input
+    - [ ] asserts the command does not resolve any Kernel compile-time service
+    - [ ] asserts no Composer metadata reader is touched by CLI
+    - [ ] asserts no artifact compiler is resolved by CLI
+
   - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php` *(rename from …FacadeTest)*
+    - [ ] asserts exactly one `KernelOpsInterface` verify call
+    - [ ] asserts the selected mode is passed as explicit input
+    - [ ] asserts the command does not resolve any Kernel compile-time service
+    - [ ] asserts no Composer metadata reader is touched by CLI
+    - [ ] asserts no cache verifier is resolved by CLI
+
+- [ ] `framework/packages/platform/cli/tests/Integration/DebugModulesDelegatesToKernelOpsPortTest.php`
+  - [ ] exactly one `debugModules()` call
+  - [ ] no module-resolution service is resolved by CLI
+
+  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigValidateDelegatesToKernelOpsPortTest.php`
+    - [ ] exactly one `validateConfig()` call
+    - [ ] no ConfigKernel or module-resolution service is resolved by CLI
+
+  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigDebugDelegatesToKernelOpsPortTest.php`
+    - [ ] exactly one `debugConfig()` call
+    - [ ] only safe `OpsResult` data reaches output
+
+  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigHashDelegatesToKernelOpsPortTest.php`
+    - [ ] exactly one `hashConfig()` call
+    - [ ] no fingerprint or module-resolution service is resolved by CLI
+
   - [ ] `framework/packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
     - [ ] proves commands from an enabled non-CLI package are discovered through `cli.command`
     - [ ] MUST NOT rely on filesystem scanning
@@ -1481,11 +1817,15 @@ Tests:
 
 - [ ] `cli.command` is the only discovery SSoT; consumer does not re-sort
 - [ ] CLI delegates ops ONLY to `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` (no algorithm duplication in CLI)
+- [ ] no `platform/cli` production class imports or resolves Kernel module-resolution, provider-planning, artifact-compiler, fingerprint, or cache-verifier internals
+- [ ] debug-modules/validate/debug/compile/hash/verify commands make exactly one Kernel ops call per execution
 - [ ] Mode truth is kernel-owned; no `cli.mode.*`
 - [ ] Rules reject legacy registry keys deterministically
 - [ ] Reserved built-in names `help` and `list` are both implemented and protected from tagged-service collisions
 - [ ] Observability complies with allowlist (no forbidden labels)
-- [ ] Redaction enabled by default; tests prove no leaks
+- [ ] CLI output consumes the shared `SensitiveDataRedactorInterface`
+- [ ] no `cli.redaction.*` toggle, pattern list, classifier, or engine exists
+- [ ] tests prove that raw sensitive values do not reach rendered output
 - [ ] Determinism: rerun `config:compile` produces no diff in kernel artifacts
 - [ ] `config:debug`
   - [ ] MUST consume safe ConfigKernel explain output.
@@ -1499,7 +1839,8 @@ Tests:
     - [ ] directive names;
     - [ ] validation status;
     - [ ] `hash(value)` / `len(value)` when provided by upstream metadata.
-  - [ ] MUST NOT compute raw-value hash/len from unsafe sources unless the CLI redaction policy explicitly allows it.
+  - [ ] MUST NOT compute raw-value hash/len from unsafe sources.
+  - [ ] hash/len MAY be rendered only when already supplied by a safe Kernel `OpsResult` or by the shared redaction port under its owner policy.
 - [ ] `cache:verify` reports clean after rerunning `config:compile` without input changes.
   - [ ] MUST delegate to `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
   - [ ] MUST NOT duplicate Kernel cache verification algorithms in CLI.

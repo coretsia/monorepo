@@ -247,7 +247,9 @@ The selected semantics are:
 - later alias definition wins for the same alias id;
 - later parameter definition wins for the same parameter name;
 - first tag registration wins for the same `(tag, serviceId)` pair;
-- provider order remains caller-supplied and significant.
+- source-registration provider order remains caller-supplied and significant;
+- compile-time provider order remains orchestration-supplied and significant;
+- neither order may be inferred by sorting provider FQCNs.
 
 `requiredServiceIds()` is not part of operation ordering. It is exported as a deduplicated `strcmp`-sorted set.
 
@@ -585,6 +587,7 @@ Bootstrap Phase A services
 dotenv loaders
 Composer metadata readers
 ModulePlanResolver
+ContainerProviderPlanResolver
 ConfigKernel
 artifact builders
 ArtifactCompiler
@@ -638,6 +641,86 @@ Only Kernel runtime services belong in the Kernel provider contribution.
 
 Compile-host services may produce or validate runtime artifacts, but they are not runtime graph definitions and must not appear in the provider-produced runtime descriptor stream.
 
+### Decision 14: Compile-time provider planning consumes one ModuleResolution
+
+Kernel compile-time provider planning uses:
+
+```text
+Coretsia\Kernel\Module\ModuleResolution
+Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver
+Coretsia\Kernel\Container\Provider\ContainerProviderPlan
+```
+
+`ModuleResolution` contains the installed `ModuleManifest` and resolved `ModulePlan` produced by one module-resolution run.
+
+`ContainerProviderPlanResolver` MUST consume that value directly.
+
+At the current integration state, `ContainerProviderPlanResolver` is implemented and registered as a Kernel compile-host service.
+
+No current production artifact-compilation path invokes it to collect provider-produced `ContainerDefinitionSet` values.
+
+It MUST NOT:
+
+- read Composer installed metadata independently;
+- invoke `ManifestReaderInterface::read()`;
+- rerun module graph resolution;
+- add provider class lists to `ModulePlan`;
+- infer provider order from FQCN sorting;
+- create provider instances;
+- invoke provider `define()` methods.
+
+The provider plan order is:
+
+```text
+ModulePlan::topologicalOrder()
+    -> ModuleDescriptor::metadata()['providers'] declaration order
+```
+
+Each immutable plan entry contains:
+
+```text
+moduleId
+providerClass
+moduleOrder
+providerOrder
+```
+
+The plan stores class names only.
+
+It never stores provider instances.
+
+The resolver validates:
+
+- provider FQCN shape;
+- provider FQCN length of at most 512 bytes;
+- class existence;
+- exact reflected class identity;
+- class instantiability;
+- `ContainerDefinitionProviderInterface` implementation;
+- case-insensitive global provider-class uniqueness across enabled modules.
+
+`ModuleResolution` and `ContainerProviderPlan` are Kernel compile-time values.
+
+They are not:
+
+- canonical definition operations;
+- runtime services;
+- runtime seed values;
+- generated artifact payloads;
+- fingerprint inputs.
+
+Provider planning and provider definition collection are separate stages.
+
+The existence of a valid `ContainerProviderPlan` does not mean that production artifact compilation currently consumes provider-produced `ContainerDefinitionSet` values.
+
+When compilation orchestration explicitly collects provider-produced definitions, it MUST:
+
+1. use provider classes in `ContainerProviderPlan` order;
+2. instantiate no provider before its ordered collection step;
+3. invoke the same `define()` implementations used by source mode;
+4. preserve one shared definition builder and one final definition set;
+5. avoid any second Composer manifest read.
+
 ## Consequences
 
 ### Positive consequences
@@ -683,7 +766,9 @@ $builder->register(
 
 `ContainerBuilder` owns creation of the shared definition builder and definition context for that batch.
 
-Provider order remains caller-supplied and significant.
+In source registration, provider order remains caller-supplied and significant.
+
+When module-aware compile-time composition explicitly invokes provider planning, provider order is supplied by `ContainerProviderPlan` and is significant.
 
 Foundation, Kernel, and Worker contributions are built into one complete definition set and applied once.
 
@@ -691,12 +776,16 @@ Kernel compile-host factories are registered by `KernelServiceProvider::register
 
 Compilation orchestration that selects provider-produced definitions MUST consume the same `define()` contributions used by source mode.
 
-The active boundary is:
+The current boundary is:
 
 - Worker source mode consumes the Worker provider contribution;
 - Worker definitions are closure-free and valid as provider-produced compiler input;
+- Kernel exposes an available provider-planning capability through compile-host wiring;
+- when provider-plan resolution is explicitly invoked, it may include `WorkerServiceProvider` when that provider is declared by an enabled module;
+- provider-plan resolution does not instantiate Worker providers or collect Worker definitions;
+- no current production artifact-compilation path invokes provider-plan resolution to collect Worker definitions;
 - production artifact compilation continues to use its currently approved input path and does not consume complete provider-produced definition sets;
-- documentation and tests must not claim that Worker provider-plan compilation is active.
+- documentation and tests must distinguish the available provider-planning capability from production provider-definition compilation, which is not currently active.
 
 Artifact-only runtime boot must consume the compiled artifact and must not run definition providers as a fallback.
 
@@ -765,6 +854,13 @@ This decision should be locked by tests covering:
 - identical definitions produce identical descriptor streams;
 - nested deterministic maps are `strcmp`-sorted;
 - operation order is preserved;
+- Composer-declared provider order is preserved;
+- provider order is not derived from FQCN sorting;
+- module order equals `ModulePlan::topologicalOrder()`;
+- provider planning consumes the same manifest/plan resolution snapshot;
+- provider-plan resolution creates no provider instances;
+- duplicate provider classes fail deterministically;
+- classes that do not implement `ContainerDefinitionProviderInterface` fail deterministically;
 - required service ids are deduplicated and `strcmp`-sorted;
 - later service, alias, and parameter definitions win;
 - first duplicate tag registration wins;
@@ -806,6 +902,17 @@ framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinit
 framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 ```
 
+The required module-resolution and provider-plan test files are:
+
+```text
+framework/packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
+framework/packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+```
+
 The required Worker lazy-resolution and runtime-seed test files are:
 
 ```text
@@ -833,6 +940,12 @@ Tests must also prove:
 - a second declarative set fails before builder mutation;
 - Kernel compile-host service ids do not appear in the Kernel runtime definition stream;
 - mandatory and possible container-owned graph lookups resolved through `ContainerInterface` have matching required-service declarations;
+- one module-resolution run reads the installed manifest exactly once;
+- `resolve()` delegates through `resolveResolution()->plan()`;
+- `ModuleResolution` contains the exact manifest supplied to graph resolution;
+- `ContainerProviderPlan` contains class names and ordering metadata only;
+- `ModulePlan` remains free of provider class lists;
+- provider planning does not imply production compiler consumption of provider-produced definition sets;
 - optional mode-dependent preflight lookups remain outside unconditional required-service declarations.
 
 ## Related SSoT
@@ -842,10 +955,12 @@ Tests must also prove:
 - `docs/ssot/compiled-container.md`
 - `docs/ssot/json-like-runtime-values.md`
 - `docs/ssot/artifacts.md`
+- `docs/ssot/modules-and-manifests.md`
 
 ## Related ADRs
 
 - `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
 - `docs/adr/ADR-0017-worker-manager-application-worker.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
+- `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`

@@ -39,19 +39,34 @@ The current integration state is:
 ```text
 Foundation source runtime application
     -> actively consumes provider-owned canonical definitions
+    -> uses caller-supplied declarative provider order
+
+Kernel compile-time provider-planning capability
+    -> resolver is registered as a compile-host service
+    -> when explicitly invoked, consumes one ModuleResolution
+    -> uses ModulePlan topological module order
+    -> preserves module-declared provider order
+    -> produces ContainerProviderPlan without provider instances
+    -> is not currently invoked by production artifact compilation
 
 Kernel production container compilation
     -> continues to use its currently approved input path
+    -> does not consume complete provider-produced definition sets
 
 provider-produced compiler input
     -> canonical compiler input when explicitly selected
+    -> collection order is supplied by ContainerProviderPlan
     -> not selected by production artifact compilation
 
 artifact-only runtime boot
     -> consumes the currently approved compiled artifact
 ```
 
-The canonical model must be suitable for Kernel container compilation, but production compilation consumes it only when compilation orchestration explicitly selects complete provider-produced definition sets.
+The canonical model must be suitable for Kernel container compilation.
+
+Current production artifact compilation does not consume complete provider-produced definition sets.
+
+A compilation orchestration MAY consume such a set only when that input is selected explicitly.
 
 Artifact-only runtime boot must not execute definition providers or use the source model as a production fallback.
 
@@ -84,6 +99,7 @@ This document owns:
 - source-runtime application semantics;
 - one-complete-set application policy;
 - declarative provider batch aggregation semantics;
+- consumption of an externally resolved provider order during declarative definition collection;
 - declarative provider adapter semantics;
 - Foundation, Kernel, and Worker runtime contribution boundaries;
 - the Kernel compile-host/runtime-graph separation law;
@@ -98,6 +114,12 @@ This document does not own:
 - Kernel `DefinitionGraph` shape;
 - artifact-only boot failure taxonomy;
 - artifact production orchestration;
+- module resolution;
+- installed manifest discovery;
+- `ModuleResolution`;
+- module-provider ordering policy;
+- `ContainerProviderPlan` construction;
+- provider class discovery and reflection validation;
 - fingerprint behavior;
 - cache verification behavior;
 - global config merge semantics;
@@ -162,6 +184,53 @@ framework/packages/core/foundation/src/Container/Exception/ContainerDefinitionIn
 
 These implementation points do not change this document's authority boundary.
 
+## Kernel compile-time provider-planning boundary
+
+The Foundation canonical definition model does not discover or order module providers.
+
+Kernel-owned compile-time provider planning is represented by:
+
+```text
+framework/packages/core/kernel/src/Module/ModuleResolution.php
+framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlan.php
+framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
+```
+
+These classes are not part of the Foundation canonical model.
+
+They provide ordered compile-time input to orchestration that chooses to collect provider-produced definitions.
+
+The canonical order is:
+
+```text
+ModulePlan topological order
+    -> declared provider order within each module
+```
+
+Provider FQCN sorting is forbidden.
+
+`ContainerProviderPlan` stores no provider instances and no definition operations.
+
+It contains only ordered provider identity records:
+
+```text
+moduleId
+providerClass
+moduleOrder
+providerOrder
+```
+
+Provider planning MUST consume one `ModuleResolution` and MUST NOT perform a second manifest read.
+
+The ordering and snapshot policy is owned by:
+
+```text
+docs/adr/ADR-0024-kernel-module-plan-resolution.md
+docs/ssot/modules-and-manifests.md
+```
+
+This document owns only how an already-ordered provider sequence contributes to one canonical definition builder.
+
 ## Canonical provider SPI (MUST)
 
 The canonical provider SPI is:
@@ -176,11 +245,12 @@ interface ContainerDefinitionProviderInterface
 }
 ```
 
-A provider MUST be deterministic for the same:
+A provider MUST produce the same contribution for the same:
 
 - provider implementation state;
-- caller-supplied provider order;
 - already-compiled Phase-B config snapshot.
+
+The complete combined definition result additionally depends on the exact orchestration-supplied provider sequence.
 
 A provider MUST NOT:
 
@@ -199,6 +269,12 @@ A provider MUST NOT:
 - emit stdout or stderr.
 
 Provider implementations MAY be invoked by source-mode and compile-mode orchestration.
+
+Source-mode orchestration supplies provider order directly through the registration call.
+
+Compile-mode orchestration that uses module composition supplies provider order through `ContainerProviderPlan`.
+
+Neither path may sort provider FQCNs.
 
 The same provider implementation MUST be used by both modes whenever the provider implements the declarative SPI.
 
@@ -347,6 +423,7 @@ Bootstrap Phase A services
 dotenv loaders
 Composer metadata readers
 ModulePlanResolver
+ContainerProviderPlanResolver
 ConfigKernel
 artifact builders
 ArtifactCompiler
@@ -357,6 +434,10 @@ ContainerCompiler
 ```
 
 Compile-host services MUST NOT appear in the Kernel runtime descriptor stream.
+
+`ModuleResolution` and `ContainerProviderPlan` are per-operation compile-time values produced by those services.
+
+They MUST NOT appear in the Kernel runtime descriptor stream.
 
 Kernel source-host orchestration MAY additionally register a factory for:
 
@@ -1018,9 +1099,13 @@ parameter collision          -> later wins
 tag duplicate pair           -> first wins
 ```
 
-Provider order is caller-supplied and significant.
+Provider order is orchestration-supplied and significant.
 
-The model MUST NOT infer a provider order from provider FQCNs.
+For source registration, it is the exact caller-supplied registration order.
+
+For module-aware compile-time collection, it is the exact `ContainerProviderPlan` order.
+
+The Foundation model MUST NOT infer provider order from provider FQCNs, manifest map order, Composer package order, or filesystem order.
 
 The model MUST NOT globally sort providers or operations.
 
@@ -1599,6 +1684,22 @@ Production boot MUST NOT run declarative providers as a fallback when the compil
 
 The Kernel compiler may consume complete provider-produced definition sets only when compilation orchestration explicitly selects that input.
 
+Kernel exposes an available provider-planning capability through compile-host wiring.
+
+Provider-plan resolution is explicitly invoked only by orchestration that requires an ordered `ContainerProviderPlan`.
+
+Current production artifact compilation does not invoke this capability.
+
+A resolved `ContainerProviderPlan`:
+
+- identifies and orders declarative provider classes;
+- contains no provider instances;
+- contains no definition operations;
+- does not by itself alter the production artifact compiler input;
+- does not authorize a second Composer metadata read.
+
+When provider-produced definitions are selected as compiler input, collection MUST consume the existing plan order and the same `ModuleResolution` snapshot.
+
 ### Current Worker compilation boundary (MUST)
 
 `WorkerServiceProvider::define()` provides the canonical closure-free Worker runtime contribution.
@@ -1609,9 +1710,11 @@ The current boundary is:
 
 - source mode applies the Worker provider contribution;
 - the Worker contribution remains valid compiler input when compilation orchestration explicitly selects provider-produced definitions;
+- when provider-plan resolution is explicitly invoked, it may resolve and order `WorkerServiceProvider` without instantiating it;
+- provider-plan resolution does not mean that Worker definitions have been collected or compiled;
 - production artifact compilation continues to use its currently approved input path;
 - artifact-only boot does not execute Worker providers as a fallback;
-- documentation and tests MUST describe the actual production compiler input path.
+- documentation and tests MUST distinguish provider-plan resolution from provider-definition compilation and from artifact-only runtime boot.
 
 Any compilation orchestration that consumes Worker provider definitions MUST use the same `WorkerServiceProvider::define()` contribution rather than a parallel Worker descriptor source.
 
@@ -1623,7 +1726,9 @@ Any compilation orchestration that consumes Worker provider definitions MUST use
 - This document does not require every `ServiceProviderInterface` implementation to implement `ContainerDefinitionProviderInterface`.
 - This document does not make provider execution part of artifact-only runtime boot.
 - This document does not validate final required-service completeness.
-- This document does not define module-provider ordering.
+- This document does not own module-provider ordering; it consumes the order resolved under ADR-0024 when compile-time orchestration supplies one.
+- This document does not define `ModuleResolution` or `ContainerProviderPlan` construction.
+- This document does not instantiate providers during provider-plan resolution.
 - This document does not define config merge order.
 - This document does not define config provenance.
 - This document does not define tag identifier ownership rows.
@@ -1689,6 +1794,45 @@ $container = (new ContainerBuilder($compiledConfig))
 All three providers contribute to one shared definition builder in deterministic caller-supplied order.
 
 The complete definition set is built and applied once.
+
+### Consuming an ordered provider plan in compile mode
+
+The following is the required conditional flow for an orchestration operation that explicitly selects provider-produced definitions.
+
+It does not describe the current production artifact-compilation input path.
+
+Such an orchestration begins with:
+
+```text
+ModuleResolution
+    -> ContainerProviderPlanResolver
+    -> ContainerProviderPlan
+```
+
+The orchestration layer then processes provider classes in exact plan order.
+
+For every planned provider class, it must:
+
+1. instantiate the provider only at its ordered collection step;
+2. invoke the canonical `define()` contribution;
+3. append operations to one shared `ContainerDefinitionBuilder`;
+4. preserve the supplied `moduleOrder` and `providerOrder` sequence.
+
+After all planned providers contribute, orchestration calls:
+
+```php
+$completeSet = $definitions->build();
+```
+
+exactly once.
+
+It MUST NOT:
+
+- sort `ContainerProviderPlan::providerClasses()`;
+- build one definition set per provider;
+- reread Composer metadata;
+- rerun `ModulePlanResolver`;
+- place provider objects into `ContainerDefinitionSet`.
 
 ### Combining already-built definition sets
 
@@ -1797,6 +1941,17 @@ framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierP
 framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
+Kernel module-resolution and provider-plan behavior MUST additionally be locked by:
+
+```text
+framework/packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
+framework/packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
+framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+```
+
 Foundation, Kernel, and Worker provider integration SHOULD additionally be locked by:
 
 ```text
@@ -1848,6 +2003,16 @@ Additional tests SHOULD cover:
 - one final build and application for a provider batch;
 - mixed provider-registration mode rejection before execution;
 - second declarative application rejection before mutation;
+- one installed-manifest read per module-resolution run;
+- `ModuleResolution` manifest/plan snapshot identity;
+- topological module order in `ContainerProviderPlan`;
+- declared provider order within each module;
+- no provider FQCN sorting;
+- no provider instances in `ContainerProviderPlan`;
+- duplicate provider rejection;
+- non-definition-provider rejection;
+- `ContainerProviderPlanResolver` remaining outside runtime definitions;
+- `ModulePlan` remaining free of provider metadata;
 - Foundation runtime service parity;
 - Kernel runtime service parity;
 - Worker runtime service parity;
@@ -1878,9 +2043,17 @@ When a declarative runtime provider contributes canonical container definitions:
 11. source-container factory closures created for definition application exist only inside the Foundation adapter;
 12. Worker execution callbacks, including the PCNTL child runner and task-work callback, are created only during runtime service construction or execution and never enter canonical definitions;
 13. Worker source mode consumes `WorkerServiceProvider::define()`;
-14. compilation orchestration that selects complete provider-produced definitions consumes the same provider contribution;
-15. the production artifact-compilation path does not consume complete provider-produced definition sets;
-16. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
+14. module-aware compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
+15. provider planning uses module topological order followed by declared provider order and creates no provider instances;
+16. compilation orchestration that selects complete provider-produced definitions consumes provider classes in that plan order and invokes the same canonical provider contributions;
+17. the production artifact-compilation path does not consume complete provider-produced definition sets;
+18. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
+
+Steps 1–13 describe the active source-runtime definition flow.
+
+Steps 14–16 apply only when a module-aware compile-time operation explicitly invokes provider planning and selects provider-produced definitions.
+
+The current production artifact-compilation path does not perform steps 14–16.
 
 ## Cross-references
 
@@ -1894,3 +2067,5 @@ When a declarative runtime provider contributes canonical container definitions:
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
 - [ADR-0017: Worker manager and application worker](../adr/ADR-0017-worker-manager-application-worker.md)
 - [Worker Architecture](../architecture/worker.md)
+- [Modules and Manifests](./modules-and-manifests.md)
+- [ADR-0024: Kernel Module Plan Resolution](../adr/ADR-0024-kernel-module-plan-resolution.md)

@@ -647,6 +647,9 @@ Coretsia/
 │   │   │       │   │   │   ├── ContainerArtifactInvalidException.php
 │   │   │       │   │   │   ├── ContainerArtifactMissingException.php
 │   │   │       │   │   │   └── ContainerCompileFailedException.php
+│   │   │       │   │   ├── Provider/
+│   │   │       │   │   │   ├── ContainerProviderPlan.php
+│   │   │       │   │   │   └── ContainerProviderPlanResolver.php
 │   │   │       │   │   ├── CompiledContainerFactory.php
 │   │   │       │   │   └── ContainerCompiler.php
 │   │   │       │   ├── Module/
@@ -673,6 +676,7 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlan.php
 │   │   │       │   │   ├── ModulePlanEntry.php
 │   │   │       │   │   ├── ModulePlanResolver.php
+│   │   │       │   │   ├── ModuleResolution.php
 │   │   │       │   │   └── TopologicalSorter.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── KernelServiceFactory.php
@@ -708,6 +712,7 @@ Coretsia/
 │   │   │       │   │   ├── ArrayConfigRepositoryContractTest.php
 │   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
 │   │   │       │   │   ├── CompiledContainerIsDeterministicTest.php
+│   │   │       │   │   ├── ComposerManifestReaderPreservesProviderOrderContractTest.php
 │   │   │       │   │   ├── ContainerArtifactHeaderShapeContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   ├── FingerprintCalculatorStableInputContractTest.php
@@ -804,6 +809,10 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
+│   │   │       │   │   ├── ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanRejectsDuplicateProviderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanUsesTopologicalModuleOrderTest.php
 │   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
 │   │   │       │   │   ├── FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 │   │   │       │   │   ├── FingerprintIgnoresSkeletonVarTest.php
@@ -842,6 +851,7 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php
 │   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
 │   │   │       │   │   ├── ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php
+│   │   │       │   │   ├── ModuleResolutionContainsManifestAndPlanTest.php
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php

@@ -65,6 +65,7 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -242,7 +243,7 @@ final class KernelServiceFactory
      *
      * FilesystemModePresetLoader MUST NOT be registered globally. It is created
      * only by ModePresetLoaderFactory::createFor() for the current
-     * BootstrapConfig during ModulePlanResolver::resolve().
+     * BootstrapConfig during ModulePlanResolver::resolveResolution().
      */
     public static function modePresetLoaderFactory(
         ContainerInterface $container,
@@ -336,6 +337,17 @@ final class KernelServiceFactory
             logger: $logger,
             modulesConfig: self::modulesConfig($kernelConfig),
         );
+    }
+
+    /**
+     * Creates the compile-time container provider plan resolver.
+     *
+     * This factory performs construction only. It does not resolve modules,
+     * read Composer metadata, load provider classes, or instantiate providers.
+     */
+    public static function containerProviderPlanResolver(): ContainerProviderPlanResolver
+    {
+        return new ContainerProviderPlanResolver();
     }
 
     /**

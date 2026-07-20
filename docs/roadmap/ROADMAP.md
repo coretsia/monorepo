@@ -127,7 +127,7 @@
 ### 2.20.0 Kernel fixtures for mode presets (SHOULD) [IMPL]
 ### 2.25.0 Kernel ops façade for CLI (MUST) [IMPL]
 ### 2.27.0 Sensitive data redaction boundary (MUST) [CONTRACTS+IMPL+DOC]
-### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops façade (MUST) [IMPL]
+### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops consumption (MUST) [IMPL]
 ### 2.40.0 Platform CLI: Workflows + Advanced UX (SHOULD) [IMPL]
 ### 2.50.0 Front Controller stub + deterministic smoke (MUST) [IMPL]
 ### 2.60.0 Devtools CLI-spikes: migrate to tag-first `cli.command` (MUST) [IMPL]

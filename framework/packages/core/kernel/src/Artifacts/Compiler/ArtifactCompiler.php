@@ -230,6 +230,7 @@ final readonly class ArtifactCompiler
         $fingerprintInput = $this->fingerprintInputBuilder->build(
             bootstrapConfig: $bootstrapConfig,
             modulePlan: $modulePlan,
+            containerGraph: $containerGraph,
             env: $env,
             kernelConfig: $kernelConfig,
             compiledConfig: $compiledConfig,

@@ -54,6 +54,7 @@ This document owns only compiled-container-specific rules for:
 - compiled alias schema;
 - compiled tag schema;
 - canonical definition-set-to-definition-graph compile semantics;
+- linkage between the canonical compiled `DefinitionGraph`, Kernel artifact fingerprint identity, and REAL `container@1` payload construction;
 - production graph-completeness semantics;
 - compiled-container closure/callable rejection semantics;
 - compiled-container runtime boot semantics;
@@ -257,6 +258,17 @@ For one graph compilation, `RuntimeContainerGraphCompiler` MUST:
 9. validate final graph completeness;
 10. return one `DefinitionGraph`.
 
+The returned `DefinitionGraph` is immutable operation output.
+
+Within one artifact compilation or cache verification operation, that exact graph MUST be reused for:
+
+```text
+container-graph fingerprint bucket construction
+REAL container@1 payload construction
+```
+
+The caller MUST NOT compile a replacement graph between those two uses.
+
 `ContainerCompiler` owns low-level deterministic `ContainerDefinitionSet`-to-`DefinitionGraph` normalization.
 
 Its public input MUST be:
@@ -327,6 +339,29 @@ The exported graph shape MUST be:
     'tags' => <tag discovery map>,
 ]
 ```
+
+`DefinitionGraph::toArray()` is also the canonical graph representation used for graph fingerprint identity.
+
+The graph fingerprint path MUST hash the complete canonical exported shape.
+
+It MUST therefore cover semantic values contained by the graph, including:
+
+- service type;
+- service class;
+- factory class;
+- factory service id;
+- factory method;
+- constructor/factory arguments;
+- service references;
+- parameter references;
+- class references;
+- shared lifecycle flag;
+- parameter values;
+- alias targets;
+- tag membership;
+- effective tag priority.
+
+The graph representation MUST NOT contain filesystem paths, runtime instances, provider instances, runtime seeds, or process-specific object identity.
 
 ## Service Definition Schema (MUST)
 
@@ -890,7 +925,22 @@ required-service-invalid
 
 `ArtifactCompiler` and `CacheVerifier` MUST use the same `RuntimeContainerGraphCompiler` path.
 
-`CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
+Both operations MUST use this ordering:
+
+```text
+compiled Phase-B config
+  -> RuntimeContainerGraphCompiler
+  -> DefinitionGraph
+  -> ConfigFingerprintInputBuilder
+  -> FingerprintCalculator
+  -> artifact envelope construction
+```
+
+`ConfigFingerprintInputBuilder` MUST receive the graph before fingerprint calculation.
+
+`CompiledContainerBuilder` MUST receive the same graph after fingerprint calculation and owns wrapping its payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
+
+Neither operation may compile or substitute a second graph between fingerprint input construction and REAL `container@1` envelope construction.
 
 `CompiledContainerBuilder` MUST build the REAL `container@1` payload shape defined by this document.
 
@@ -913,6 +963,60 @@ compiled = true
 - emit stdout or stderr.
 
 Fingerprint calculation, artifact writing, artifact path policy, and cache verification linkage are owned by `docs/ssot/artifacts-and-fingerprint.md`.
+
+## Container Graph Fingerprint Linkage (MUST)
+
+The canonical compiled `DefinitionGraph` MUST participate in Kernel artifact fingerprint identity.
+
+The detailed graph-bucket schema and fingerprint-input ownership are defined by:
+
+```text
+docs/ssot/artifacts-and-fingerprint.md
+```
+
+This document defines only the compiled-container linkage requirements.
+
+The graph fingerprint bucket MUST be derived from:
+
+```text
+DefinitionGraph::toArray()
+  -> stable JSON encoding
+  -> SHA-256
+```
+
+The fingerprint input MUST contain safe graph identity and bounded summary counts, not the raw graph payload.
+
+Provider-plan metadata and provider class names MUST NOT be added as separate graph fingerprint fields.
+
+Class and factory identities already contained by canonical graph service definitions remain covered by the graph hash.
+
+The graph bucket MUST NOT contain:
+
+- filesystem paths;
+- source paths;
+- artifact paths;
+- provider instances;
+- runtime service instances;
+- runtime container instances;
+- runtime seeds;
+- process-specific object identity.
+
+Any semantic change to the canonical graph MUST change Kernel artifact fingerprint identity.
+
+At minimum, fingerprint coverage MUST detect changes to:
+
+- service class;
+- factory class;
+- factory method;
+- service reference;
+- parameter value;
+- alias target;
+- effective tag priority;
+- shared lifecycle flag.
+
+Repeated graph compilation that produces the same canonical exported graph MUST produce the same graph fingerprint identity.
+
+The exact graph used for graph fingerprint construction MUST be the graph wrapped by `CompiledContainerBuilder` into the expected or produced REAL `container@1` envelope.
 
 ## Existing Artifact Validation Semantics (MUST)
 
@@ -1203,6 +1307,8 @@ safe key paths
 - This document does not define artifact registry rows.
 - This document does not define Kernel artifact production orchestration.
 - This document does not define Kernel fingerprint input construction.
+- This document does not own the `containerGraph` bucket schema; that schema is owned by `docs/ssot/artifacts-and-fingerprint.md`.
+- This authority boundary does not make graph-to-fingerprint linkage optional.
 - This document does not define Kernel fingerprint exclusions.
 - This document does not define Kernel cache verification classification.
 - This document does not define the global observability metrics catalog.
@@ -1234,6 +1340,11 @@ framework/packages/core/kernel/src/Container/CompiledContainerFactory.php
 framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php
 framework/packages/core/kernel/src/Container/Definition/ParameterBag.php
 framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/ContainerGraphFingerprintBucketBuilder.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php
+framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
 framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php
 framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
 framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php

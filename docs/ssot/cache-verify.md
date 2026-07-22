@@ -63,6 +63,10 @@ Those rules remain owned by their canonical SSoT documents.
 ## Invariants (MUST)
 
 - Cache verification MUST be deterministic for the same logical inputs and existing artifact bytes.
+- Cache verification MUST compile the expected runtime container graph before calculating the current artifact fingerprint.
+- The current fingerprint MUST include the safe deterministic `containerGraph` bucket.
+- The same compiled `DefinitionGraph` MUST be used for both current fingerprint construction and expected REAL `container@1` construction.
+- Cache verification MUST use the same `RuntimeContainerGraphCompiler` production path as artifact production.
 - Cache verification MUST classify each expected Kernel artifact independently.
 - Cache verification MUST return a deterministic aggregate outcome.
 - Cache verification MUST NOT write artifacts.
@@ -98,10 +102,10 @@ The artifact `routes@1` is not verified by Kernel cache verification because `ro
 
 Cache verification consumes already-supplied resolved inputs.
 
-The verifier may receive:
+The verifier receives:
 
 - resolved `BootstrapConfig`;
-- resolved `ModulePlan`;
+- one resolved `ModuleResolution`;
 - `EnvRepositoryInterface`;
 - Kernel config subtree;
 - explicit package default source candidates;
@@ -111,10 +115,21 @@ The verifier may receive:
 - explicit env overlay mappings;
 - mode preset source candidates.
 
+The verifier derives the current `ModulePlan` only through:
+
+```php
+$moduleResolution->plan()
+```
+
+The verifier produces the expected runtime `DefinitionGraph` internally through `RuntimeContainerGraphCompiler`.
+
+A raw descriptor iterable and a caller-supplied replacement `DefinitionGraph` are not supported verifier inputs.
+
 Cache verification MUST NOT:
 
 - resolve `BootstrapConfig`;
-- resolve `ModulePlan`;
+- perform a second module resolution;
+- replace the `ModulePlan` contained in the supplied `ModuleResolution`;
 - build `EnvRepositoryInterface`;
 - run Bootstrap Phase A;
 - run module discovery;
@@ -126,21 +141,36 @@ Cache verification MUST NOT:
 
 Cache verification follows this semantic sequence:
 
-1. Run `ConfigKernel::compile(...)` for the supplied resolved inputs.
-2. Build deterministic fingerprint input through `ConfigFingerprintInputBuilder`.
-3. Calculate the current fingerprint through `FingerprintCalculator`.
-4. Build expected Kernel artifact envelopes in memory.
-5. Dump expected artifact bytes in memory.
-6. Resolve expected Kernel artifact paths.
-7. For each expected artifact:
-   - check whether the existing file exists;
-   - read existing bytes and returned PHP array;
-   - validate existing envelope/header/payload schema;
-   - compare stored fingerprint with the current fingerprint;
-   - compare existing normalized bytes with expected bytes.
-8. Return safe deterministic per-artifact results and aggregate counts.
+1. Derive the current `ModulePlan` from the supplied `ModuleResolution`.
+2. Run `ConfigKernel::compile(...)` for the supplied resolved inputs.
+3. Compile one canonical runtime `DefinitionGraph` through `RuntimeContainerGraphCompiler`.
+4. Build deterministic fingerprint input through `ConfigFingerprintInputBuilder`, including the safe `containerGraph` bucket derived from that graph.
+5. Calculate the current graph-bound fingerprint through `FingerprintCalculator`.
+6. Build expected Kernel artifact envelopes in memory.
+7. Build the expected REAL `container@1` envelope from the same `DefinitionGraph` used in step 4.
+8. Dump expected artifact bytes in memory.
+9. Resolve expected Kernel artifact paths.
+10. For each expected artifact:
+    - check whether the existing file exists;
+    - read existing bytes and returned PHP array;
+    - validate existing envelope/header/payload schema;
+    - compare stored fingerprint with the current graph-bound fingerprint;
+    - compare existing normalized bytes with expected bytes.
+11. Return safe deterministic per-artifact results and aggregate counts.
 
 Cache verification MUST NOT write expected artifacts to disk during verification.
+
+Cache verification MUST NOT compile another graph after fingerprint construction.
+
+The semantic ordering MUST remain:
+
+```text
+compiled config
+  -> container graph
+  -> fingerprint input
+  -> fingerprint
+  -> expected envelopes
+```
 
 ## Existing Artifact Read Semantics (MUST)
 
@@ -294,6 +324,10 @@ Rationale:
 - the artifact is structurally valid;
 - it was produced for different logical inputs;
 - regeneration is required.
+
+A semantic compiled-container graph change is a logical-input change.
+
+Therefore, when the existing artifact was produced for a different service class, factory identity, reference, parameter, alias target, tag priority, or shared lifecycle flag, its stored fingerprint MUST differ from the current graph-bound fingerprint and the artifact MUST be classified as dirty.
 
 ## Byte Comparison Semantics (MUST)
 
@@ -486,9 +520,25 @@ Artifact production:
 - does not decide cache clean/dirty/invalid state;
 - does not read existing generated artifacts for reuse.
 
+Artifact production and cache verification MUST share:
+
+- the supplied `ModuleResolution` semantics;
+- Phase-B config compilation semantics;
+- `RuntimeContainerGraphCompiler`;
+- `ContainerGraphFingerprintBucketBuilder`;
+- `ConfigFingerprintInputBuilder`;
+- `FingerprintCalculator`;
+- Kernel artifact builders.
+
+They MUST independently execute the same deterministic pipeline for their operation, but neither may use an alternative graph-production or graph-fingerprint algorithm.
+
 ## Observability Semantics (MUST)
 
 Cache verification observability is best-effort and non-semantic.
+
+Safe observability metadata MAY identify `containerGraph` as a fingerprint bucket name.
+
+It MUST NOT expose the raw `DefinitionGraph`, raw service definitions, raw parameters, provider instances, runtime instances, or graph source paths.
 
 Observability failures MUST NOT alter verification classification, result data, or exception precedence.
 
@@ -551,5 +601,6 @@ Provider registration MUST NOT:
 - [SSoT Index](./INDEX.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Kernel Artifacts and Fingerprint Behavior](./artifacts-and-fingerprint.md)
+- [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

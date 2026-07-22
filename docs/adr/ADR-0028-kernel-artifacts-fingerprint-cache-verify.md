@@ -24,7 +24,11 @@ Amended by the compiled-container work in epic `1.340.0`.
 
 Amended by the Bootstrap Phase A artifact cache directory refactor.
 
+Amended by the G2 production runtime graph and container-graph fingerprint integration.
+
 Artifact location is now resolved before ConfigKernel Phase B and is consumed through `BootstrapConfig::artifactsCacheDir()`.
+
+The artifact fingerprint now binds the canonical compiled `DefinitionGraph` used to produce the REAL `container@1` artifact.
 
 The original `container@1` transitional stub decision is no longer current: Kernel-produced `container@1` artifacts now use the REAL compiled-container payload shape emitted through `ContainerCompiler` and `CompiledContainerBuilder`.
 
@@ -198,26 +202,37 @@ Kernel cache verification is owned by `CacheVerifier`.
 
 This separation prevents a verification operation from silently changing the state it reports.
 
-## Decision 4: Build expected artifacts from narrow builder services
+## Decision 4: Build expected artifacts and graph identity through narrow services
 
-Kernel artifact payload/envelope production is split across narrow services:
+Kernel artifact graph compilation, fingerprint construction, payload/envelope production, byte emission, and writing are split across narrow services:
 
 ```text
+RuntimeContainerGraphCompiler
+ContainerCompiler
+ContainerGraphCompletenessValidator
+ContainerGraphFingerprintBucketBuilder
+ConfigFingerprintInputBuilder
+FingerprintCalculator
 ModuleManifestBuilder
 CompiledConfigBuilder
 CompiledContainerBuilder
-ContainerCompiler
 ArtifactEnvelopeFactory
 StablePhpArrayDumper
 ArtifactWriter
 ArtifactPathResolver
 ```
 
-`ContainerCompiler` owns deterministic descriptor-to-`DefinitionGraph` compilation for REAL `container@1` artifacts.
+`RuntimeContainerGraphCompiler` owns production provider-definition collection, ordered definition-set merging, low-level graph compilation, and final graph-completeness validation.
 
-`CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope.
+`ContainerCompiler` owns deterministic normalization of one ordered `ContainerDefinitionSet` into one canonical `DefinitionGraph`.
 
-The builders produce Kernel artifact envelopes for the Kernel-owned artifact identities.
+`ContainerGraphFingerprintBucketBuilder` owns construction of the safe deterministic fingerprint bucket for that graph.
+
+`ConfigFingerprintInputBuilder` owns inclusion of the graph bucket in the complete Kernel fingerprint input.
+
+`CompiledContainerBuilder` owns wrapping the same compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope.
+
+The artifact builders produce Kernel artifact envelopes for the Kernel-owned artifact identities.
 
 `ArtifactEnvelopeFactory` is the Kernel service responsible for assembling Kernel artifact envelopes.
 
@@ -225,21 +240,30 @@ The builders produce Kernel artifact envelopes for the Kernel-owned artifact ide
 
 `ArtifactWriter` writes deterministic artifact files.
 
-This split keeps envelope construction, byte emission, path resolution, and file writing independently testable.
+This split keeps graph production, graph identity, fingerprint construction, envelope construction, byte emission, path resolution, and file writing independently testable.
 
 ## Decision 5: Use REAL compiled-container semantics for `container@1`
 
 Kernel artifact production now materializes `container@1` as a REAL compiled-container artifact.
 
-The `container@1` payload is produced from explicit descriptor-based container input:
+The `container@1` payload is produced from canonical provider definitions selected through one `ModuleResolution`:
 
 ```text
-container descriptors
-  -> ContainerCompiler
-  -> DefinitionGraph
+ModuleResolution + compiled Phase-B config
+  -> RuntimeContainerGraphCompiler
+      -> ContainerProviderPlanResolver
+      -> ordered provider definitions
+      -> ContainerDefinitionSet::merge(...)
+      -> ContainerCompiler
+      -> DefinitionGraph
+      -> ContainerGraphCompletenessValidator
   -> CompiledContainerBuilder
   -> container@1 envelope
 ```
+
+Production callers do not supply a raw descriptor iterable.
+
+The same canonical `DefinitionGraph` produced by this flow is also bound into the artifact fingerprint before artifact envelopes are built.
 
 The REAL `container@1` payload uses:
 
@@ -266,20 +290,86 @@ compiled = false
 
 The REAL compiled-container payload remains compatible with `container@1`; no `container@2` schema version is introduced by this decision.
 
-## Decision 6: Build fingerprint input from already-resolved Kernel inputs
+## Decision 6: Bind the compiled container graph into fingerprint input
 
 Fingerprint input construction is owned by `ConfigFingerprintInputBuilder`.
 
-The builder consumes already-resolved inputs such as:
+The builder consumes already-resolved or already-produced inputs:
 
 - `BootstrapConfig`;
 - `ModulePlan`;
+- the canonical compiled runtime `DefinitionGraph`;
 - `ConfigKernel::compile(...)` result;
 - explicit config source candidate arrays;
 - `EnvRepositoryInterface` source metadata;
 - Kernel config subtree.
 
-It must not resolve BootstrapConfig, resolve ModulePlan, re-run config discovery, re-run module discovery, re-run env loading, scan arbitrary package directories, scan arbitrary app targets, or enumerate arbitrary dotenv files.
+The supplied `DefinitionGraph` must be the exact graph returned by `RuntimeContainerGraphCompiler` for the current artifact operation.
+
+`ConfigFingerprintInputBuilder` delegates graph identity construction to:
+
+```text
+ContainerGraphFingerprintBucketBuilder
+```
+
+The graph bucket has the following safe deterministic shape:
+
+```php
+[
+    'schemaVersion' => 1,
+    'sha256' => '<lowercase sha256>',
+    'serviceCount' => int,
+    'aliasCount' => int,
+    'parameterCount' => int,
+    'tagCount' => int,
+]
+```
+
+`ContainerGraphFingerprintBucketBuilder` must:
+
+1. obtain the canonical graph representation through `DefinitionGraph::toArray()`;
+2. encode that representation through canonical stable JSON encoding;
+3. calculate SHA-256 over the stable JSON bytes;
+4. expose only bounded safe summary counts.
+
+The summary counts mean:
+
+- `serviceCount` — number of canonical service definitions;
+- `aliasCount` — number of canonical aliases;
+- `parameterCount` — number of canonical parameters;
+- `tagCount` — number of canonical tag names, not the total number of tag registrations.
+
+The raw graph is not duplicated inside fingerprint input. Fingerprint input contains only the safe graph bucket.
+
+Provider-plan metadata and provider class names must not be added as separate fingerprint fields.
+
+Class and factory identities already present inside canonical service definitions remain semantic graph data and are therefore covered by the graph SHA-256.
+
+The graph bucket must not contain:
+
+- provider instances;
+- runtime service instances;
+- runtime containers;
+- runtime seeds;
+- filesystem paths;
+- artifact paths;
+- source paths;
+- process-specific object identity.
+
+Any semantic graph change must change artifact fingerprint identity, including changes to:
+
+- service class;
+- factory class;
+- factory method;
+- service reference;
+- parameter value;
+- alias target;
+- effective tag priority;
+- shared lifecycle flag.
+
+Two graph compilations producing the same canonical `DefinitionGraph::toArray()` value must produce the same graph bucket and the same artifact fingerprint.
+
+`ConfigFingerprintInputBuilder` must not resolve `BootstrapConfig`, resolve `ModulePlan`, compile the container graph, re-run config discovery, re-run module discovery, re-run env loading, scan arbitrary package directories, scan arbitrary app targets, or enumerate arbitrary dotenv files.
 
 Fingerprint input must not contain:
 
@@ -404,15 +494,28 @@ It does not read files directly, write artifacts, resolve boot/module/config inp
 Cache verification uses the following semantic sequence:
 
 1. compile config for the supplied resolved inputs;
-2. build deterministic fingerprint input;
-3. calculate current fingerprint;
-4. build expected Kernel artifact envelopes in memory, including the REAL `container@1` envelope through `ContainerCompiler` and `CompiledContainerBuilder`;
-5. dump expected deterministic artifact bytes in memory;
-6. resolve expected artifact paths;
-7. read existing artifacts;
-8. validate existing artifact envelope/header/payload schema;
-9. compare stored fingerprint to current fingerprint;
-10. compare LF-normalized existing bytes to expected bytes.
+2. compile one production runtime container graph through `RuntimeContainerGraphCompiler`;
+3. build deterministic fingerprint input, including the container-graph bucket;
+4. calculate the current fingerprint;
+5. build expected Kernel artifact envelopes in memory, including the REAL `container@1` envelope from the same compiled `DefinitionGraph`;
+6. dump expected deterministic artifact bytes in memory;
+7. resolve expected artifact paths;
+8. read existing artifacts;
+9. validate existing artifact envelope/header/payload schema;
+10. compare stored fingerprint to the current graph-bound fingerprint;
+11. compare LF-normalized existing bytes to expected bytes.
+
+The graph must not be recompiled between fingerprint construction and expected `container@1` envelope construction.
+
+`ArtifactCompiler` and `CacheVerifier` must use the same production graph-compilation and graph-fingerprint sequence:
+
+```text
+compiled config
+  -> container graph
+  -> fingerprint input
+  -> fingerprint
+  -> artifact envelopes
+```
 
 Cache verification does not use mtimes, ctimes, permissions, owners, inode ids, device ids, directory entry order, or filesystem traversal order as cache semantics.
 
@@ -528,7 +631,9 @@ Verification result data must not include:
 
 ## Decision 17: Register artifact/fingerprint/container-compile/cache services as factories only
 
-`KernelServiceProvider` registers artifact, fingerprint, compiler, and verifier services as factories only.
+`KernelServiceProvider` registers artifact, fingerprint, graph-bucket, compiler, and verifier services as factories only.
+
+This includes `ContainerGraphFingerprintBucketBuilder`, which is a compile-host service and must not enter the compiled runtime graph.
 
 Registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
 
@@ -689,6 +794,14 @@ Changing the package fallback itself remains a fingerprinted config-source chang
 
 Fingerprint calculation is explicit, safe, and independent from generated artifact files.
 
+The artifact fingerprint now covers the canonical compiled runtime container graph.
+
+Semantic changes to compiled services, factories, references, parameters, aliases, tags, or lifecycle flags invalidate all Kernel artifacts through the shared artifact fingerprint.
+
+Compiler and verifier use the same graph-production and graph-fingerprint path.
+
+The same canonical `DefinitionGraph` is used for both fingerprint identity and the REAL `container@1` payload.
+
 Cache verification can report `clean`, `dirty`, and `invalid` without mutating the cache.
 
 Cold-cache missing artifacts are handled as dirty rather than invalid.
@@ -712,6 +825,10 @@ Artifact cache relocation supports only portable, bounded, `skeletonRoot`-relati
 Absolute paths and output locations inside source, config, public, dependency, or repository-owned roots are rejected.
 
 Verification depends on the same deterministic builders used by production.
+
+Any semantic compiled-container graph change invalidates the complete Kernel-owned artifact set because all Kernel artifact envelopes share one graph-bound fingerprint.
+
+Graph fingerprint stability therefore depends on the canonical stability of `DefinitionGraph::toArray()` and stable JSON encoding.
 
 A malformed existing artifact is invalid rather than silently ignored.
 
@@ -760,9 +877,12 @@ This ADR does not define:
 - `framework/packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
 - `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php`
 - `framework/packages/core/kernel/src/Container/ContainerCompiler.php`
+- `framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php`
+- `framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php`
 - `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
 - `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
+- `framework/packages/core/kernel/src/Artifacts/Fingerprint/ContainerGraphFingerprintBucketBuilder.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php`
 - `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php`

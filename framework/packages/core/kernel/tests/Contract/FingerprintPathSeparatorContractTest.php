@@ -23,10 +23,12 @@ use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Env\EnvValue;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 
@@ -79,9 +81,12 @@ final class FingerprintPathSeparatorContractTest extends TestCase
      */
     private static function buildInputWithBackslashPaths(): array
     {
-        return new ConfigFingerprintInputBuilder()->build(
+        return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
+        )->build(
             bootstrapConfig: self::bootstrapConfig(),
             modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: [

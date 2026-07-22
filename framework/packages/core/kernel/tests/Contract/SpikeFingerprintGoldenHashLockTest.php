@@ -22,8 +22,10 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -33,13 +35,14 @@ final class SpikeFingerprintGoldenHashLockTest extends TestCase
     {
         $input = [
             'schemaVersion' => 1,
+            'containerGraph' => self::containerGraphBucket(),
             'fixture' => 'repo_min',
             'paths' => self::expectedRepoMinPaths(),
             'trackedEnv' => self::trackedEnvAllowlist(),
         ];
 
         self::assertSame(
-            '4be9f7ebb2b9dadd7c19abbf5127e1fc91c9fcc716a958c610740c894c47e3b8',
+            '5f1c5e91a2f9b05c52ef11c7fceaf14afe23d787500f7a7936ea3eef9859b064',
             self::calculator()->calculate($input),
         );
     }
@@ -50,12 +53,37 @@ final class SpikeFingerprintGoldenHashLockTest extends TestCase
             'trackedEnv' => self::trackedEnvAllowlist(),
             'paths' => self::expectedRepoMinPaths(),
             'fixture' => 'repo_min',
+            'containerGraph' => [
+                'tagCount' => 0,
+                'sha256' => self::containerGraphBucket()['sha256'],
+                'serviceCount' => 0,
+                'schemaVersion' => ContainerGraphFingerprintBucketBuilder::SCHEMA_VERSION,
+                'parameterCount' => 0,
+                'aliasCount' => 0,
+            ],
             'schemaVersion' => 1,
         ];
 
         self::assertSame(
-            '4be9f7ebb2b9dadd7c19abbf5127e1fc91c9fcc716a958c610740c894c47e3b8',
+            '5f1c5e91a2f9b05c52ef11c7fceaf14afe23d787500f7a7936ea3eef9859b064',
             self::calculator()->calculate($input),
+        );
+    }
+
+    /**
+     * @return array{
+     *     schemaVersion: int,
+     *     sha256: string,
+     *     serviceCount: int,
+     *     aliasCount: int,
+     *     parameterCount: int,
+     *     tagCount: int
+     * }
+     */
+    private static function containerGraphBucket(): array
+    {
+        return new ContainerGraphFingerprintBucketBuilder()->build(
+            DefinitionGraph::empty(),
         );
     }
 

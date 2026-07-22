@@ -587,6 +587,7 @@ Coretsia/
 │   │   │       │   │   │   └── JsonFloatForbiddenException.php
 │   │   │       │   │   ├── Fingerprint/
 │   │   │       │   │   │   ├── ConfigFingerprintInputBuilder.php
+│   │   │       │   │   │   ├── ContainerGraphFingerprintBucketBuilder.php
 │   │   │       │   │   │   ├── DeterministicFileLister.php
 │   │   │       │   │   │   ├── FingerprintCalculator.php
 │   │   │       │   │   │   └── FingerprintExplainer.php
@@ -804,6 +805,7 @@ Coretsia/
 │   │   │       │   │   ├── CompiledContainerPreservesLaterBindingOverridesTest.php
 │   │   │       │   │   ├── CompiledContainerPreservesTagDedupeFirstWinsTest.php
 │   │   │       │   │   ├── CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php
+│   │   │       │   │   ├── CompilerAndVerifierUseSameGraphFingerprintTest.php
 │   │   │       │   │   ├── ComposerManifestReaderDoesNotLeakPathsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsOnlyComposerMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php
@@ -816,8 +818,10 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
+│   │   │       │   │   ├── ContainerGraphChangesFingerprintTest.php
 │   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsMissingParameterReferenceTest.php
 │   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsServiceAliasIdCollisionTest.php
+│   │   │       │   │   ├── ContainerGraphFingerprintIsStableTest.php
 │   │   │       │   │   ├── ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
 │   │   │       │   │   ├── ContainerProviderPlanRejectsDuplicateProviderTest.php
 │   │   │       │   │   ├── ContainerProviderPlanRejectsNonDefinitionProviderTest.php

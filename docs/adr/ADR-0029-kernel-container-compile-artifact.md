@@ -59,6 +59,10 @@ docs/ssot/cache-verify.md
 
 Foundation container ordering, binding collision behavior, tag ordering, and tag dedupe semantics remain Foundation-owned and are referenced by compiled-container semantics rather than redefined here.
 
+The canonical compiled `DefinitionGraph` is also part of Kernel artifact fingerprint identity.
+
+Graph-to-fingerprint construction remains owned by `docs/ssot/artifacts-and-fingerprint.md`; this ADR records the required linkage between the compiled graph, the shared artifact fingerprint, and the REAL `container@1` envelope.
+
 ## Decision
 
 ### Decision 1: Keep `container@1` in this epic
@@ -146,6 +150,21 @@ ModuleResolution + compiled Phase-B config
   -> container@1 artifact envelope
 ```
 
+After completeness validation, the resulting `DefinitionGraph` has two required consumers:
+
+```text
+DefinitionGraph
+  -> ContainerGraphFingerprintBucketBuilder
+  -> ConfigFingerprintInputBuilder
+  -> FingerprintCalculator
+
+DefinitionGraph
+  -> CompiledContainerBuilder
+  -> container@1 artifact envelope
+```
+
+Both consumers must receive the same canonical graph produced for the current operation.
+
 `ArtifactCompiler` and `CacheVerifier` must accept `ModuleResolution` and must not accept a raw descriptor iterable.
 
 `RuntimeContainerGraphCompiler` owns production provider-plan resolution, ordered provider instantiation, definition collection, ordered set merging, low-level graph compilation, and final graph-completeness validation.
@@ -216,7 +235,15 @@ Factory behavior is represented through deterministic schema data such as class 
 
 Factory behavior is not represented by serialized PHP callables or closures.
 
-This decision does not require the compiled graph to enter fingerprint input. Graph-to-fingerprint linkage remains owned by the subsequent fingerprint integration decision.
+The compiled graph must enter fingerprint input through `ContainerGraphFingerprintBucketBuilder`.
+
+The builder hashes the canonical `DefinitionGraph::toArray()` representation through stable JSON encoding and SHA-256, and exposes only safe bounded structural counts.
+
+Provider-plan metadata and provider class names are not added as separate fingerprint fields. Class and factory identities already present in canonical graph service definitions remain covered by the graph hash.
+
+Filesystem paths, runtime instances, provider instances, and runtime seeds must not enter the graph fingerprint bucket.
+
+The exact graph used to calculate the artifact fingerprint must also be passed to `CompiledContainerBuilder`; production compilation must not compile a second graph after fingerprint calculation.
 
 Producer acceptance of an external runtime-seed reference does not by itself prove that artifact-only runtime boot already materializes that seed. Artifact-only runtime seed construction remains a separate runtime integration responsibility.
 
@@ -329,6 +356,10 @@ Failure diagnostics must not expose:
 - Missing or invalid `container.php` artifacts fail hard instead of silently switching to a different runtime construction mode.
 - Production graph input is collected automatically from enabled declarative module providers through one `ModuleResolution` snapshot instead of being supplied manually as a descriptor stream.
 - Artifact compilation and cache verification use the same production runtime-graph compiler.
+- The canonical production runtime graph is included in the shared Kernel artifact fingerprint.
+- The same `DefinitionGraph` determines both artifact fingerprint identity and the REAL `container@1` payload.
+- Semantic graph changes cannot leave `module-manifest.php`, `config.php`, or `container.php` falsely fingerprint-clean.
+- Repeated compilation of the same canonical graph produces the same graph bucket and fingerprint.
 - Incomplete runtime graphs fail before artifact write or expected-artifact comparison.
 - Service definitions, aliases, parameters, and tags are represented as artifact schema data.
 - The compiled container can be validated by schema semantics rather than PHP object identity.
@@ -344,6 +375,8 @@ Failure diagnostics must not expose:
 - Every enabled provider selected for production graph compilation must implement `ContainerDefinitionProviderInterface` and produce definitions that pass final graph-completeness validation.
 - Descriptor export remains necessary inside the low-level normalizer, but it is no longer a production caller responsibility.
 - Runtime closures and raw PHP callable arrays cannot cross into the compiled graph.
+- Any semantic graph change invalidates the complete Kernel-owned artifact set through the shared graph-bound fingerprint.
+- Changes to canonical graph serialization or graph-bucket schema intentionally change fingerprint identity and require corresponding golden-hash updates.
 
 ### Operational consequences
 
@@ -424,6 +457,18 @@ This decision should be locked by tests covering:
 - production compilation resolves enabled providers from one `ModuleResolution`;
 - provider definitions are collected in exact provider-plan order and merged without re-sorting;
 - `ArtifactCompiler` and `CacheVerifier` use `RuntimeContainerGraphCompiler` and expose no raw descriptor iterable;
+- `ArtifactCompiler` and `CacheVerifier` include the graph produced by `RuntimeContainerGraphCompiler` in fingerprint input;
+- compiler and verifier produce the same graph-bound fingerprint for the same resolved inputs;
+- repeated canonical graph compilation produces the same graph SHA-256 and artifact fingerprint;
+- the exact graph used for fingerprint construction is also used to build the expected REAL `container@1` envelope;
+- service class changes change the fingerprint;
+- factory class changes change the fingerprint;
+- factory method changes change the fingerprint;
+- service reference changes change the fingerprint;
+- parameter changes change the fingerprint;
+- alias target changes change the fingerprint;
+- effective tag priority changes change the fingerprint;
+- shared lifecycle flag changes change the fingerprint;
 - incomplete graphs fail before artifact write or expected-artifact comparison;
 - canonical definition input rejects closures and callable payloads before artifact write;
 - unresolved service, parameter, factory-service, alias, tag, and required-service edges fail deterministically;

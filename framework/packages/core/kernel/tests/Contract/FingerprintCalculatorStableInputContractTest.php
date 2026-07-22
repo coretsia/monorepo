@@ -95,6 +95,22 @@ final class FingerprintCalculatorStableInputContractTest extends TestCase
         );
     }
 
+    public function testContainerGraphShaAffectsFingerprint(): void
+    {
+        $calculator = self::calculator($this);
+        $first = self::fingerprintInputFixture();
+        $second = self::fingerprintInputFixture();
+
+        $second['containerGraph'] = self::containerGraphBucket(
+            \str_repeat('d', 64),
+        );
+
+        self::assertNotSame(
+            $calculator->calculate($first),
+            $calculator->calculate($second),
+        );
+    }
+
     public function testListOrderAffectsFingerprint(): void
     {
         $calculator = self::calculator($this);
@@ -149,6 +165,9 @@ final class FingerprintCalculatorStableInputContractTest extends TestCase
                 'envSourcePolicy' => 'strict_dotenv',
                 'preset' => 'micro',
             ],
+            'containerGraph' => self::containerGraphBucket(
+                \str_repeat('c', 64),
+            ),
             'compiledConfig' => [
                 'roots' => [
                     'custom',
@@ -196,6 +215,28 @@ final class FingerprintCalculatorStableInputContractTest extends TestCase
                     ],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     schemaVersion: int,
+     *     sha256: string,
+     *     serviceCount: int,
+     *     aliasCount: int,
+     *     parameterCount: int,
+     *     tagCount: int
+     * }
+     */
+    private static function containerGraphBucket(string $sha256): array
+    {
+        return [
+            'schemaVersion' => 1,
+            'sha256' => $sha256,
+            'serviceCount' => 3,
+            'aliasCount' => 1,
+            'parameterCount' => 2,
+            'tagCount' => 1,
         ];
     }
 

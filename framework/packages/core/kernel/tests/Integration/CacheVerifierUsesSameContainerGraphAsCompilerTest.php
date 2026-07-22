@@ -61,21 +61,21 @@ final class CacheVerifierUsesSameContainerGraphAsCompilerTest extends TestCase
 
             self::assertSame('dirty', $changed['outcome']);
             self::assertSame(
-                'changed',
+                'fingerprint_mismatch',
                 self::artifactReason(
                     artifacts: $changed['artifacts'],
                     basename: 'container.php',
                 ),
             );
             self::assertSame(
-                'ok',
+                'fingerprint_mismatch',
                 self::artifactReason(
                     artifacts: $changed['artifacts'],
                     basename: 'config.php',
                 ),
             );
             self::assertSame(
-                'ok',
+                'fingerprint_mismatch',
                 self::artifactReason(
                     artifacts: $changed['artifacts'],
                     basename: 'module-manifest.php',

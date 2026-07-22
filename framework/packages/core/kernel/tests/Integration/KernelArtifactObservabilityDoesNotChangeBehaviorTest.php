@@ -31,6 +31,7 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
@@ -391,6 +392,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         return new CacheVerifier(
             configKernel: self::configKernel(),
             fingerprintInputBuilder: new ConfigFingerprintInputBuilder(
+                containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
                 payloadNormalizer: new PayloadNormalizer(),
                 fileLister: new DeterministicFileLister(),
             ),

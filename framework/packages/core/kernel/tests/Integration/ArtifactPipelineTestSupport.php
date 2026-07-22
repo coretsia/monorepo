@@ -37,6 +37,7 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
@@ -61,6 +62,7 @@ use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
@@ -352,17 +354,21 @@ final class ArtifactPipelineTestSupport
     public static function fingerprintForCurrentConfig(
         TestCase $testCase,
         string $skeletonRoot,
+        ?ModuleResolution $moduleResolution = null,
         string $artifactsCacheDir = 'var/cache',
     ): string {
         $bootstrapConfig = self::bootstrapConfig(
             skeletonRoot: $skeletonRoot,
             artifactsCacheDir: $artifactsCacheDir,
         );
+        $moduleResolution ??= self::moduleResolution();
+        $modulePlan = $moduleResolution->plan();
+        $env = self::envRepository();
 
         $compiled = self::configKernel($testCase)->compile(
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: self::modulePlan(),
-            env: self::envRepository(),
+            modulePlan: $modulePlan,
+            env: $env,
             packageDefaultSources: [],
             packageRuleSources: [],
             splitRoots: [],
@@ -371,10 +377,16 @@ final class ArtifactPipelineTestSupport
             explain: false,
         );
 
+        $containerGraph = self::runtimeContainerGraphCompiler($testCase)->compile(
+            moduleResolution: $moduleResolution,
+            compiledConfig: $compiled['config'],
+        );
+
         $input = self::fingerprintInputBuilder()->build(
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: self::modulePlan(),
-            env: self::envRepository(),
+            modulePlan: $modulePlan,
+            containerGraph: $containerGraph,
+            env: $env,
             kernelConfig: self::kernelConfig(),
             compiledConfig: $compiled,
             packageDefaultSources: [],
@@ -385,6 +397,18 @@ final class ArtifactPipelineTestSupport
         );
 
         return self::fingerprintCalculator($testCase)->calculate($input);
+    }
+
+    public static function fingerprintForContainerGraph(
+        TestCase $testCase,
+        DefinitionGraph $containerGraph,
+    ): string {
+        return self::fingerprintCalculator($testCase)->calculate([
+            'schemaVersion' => 1,
+            'containerGraph' => new ContainerGraphFingerprintBucketBuilder()->build(
+                $containerGraph,
+            ),
+        ]);
     }
 
     /**
@@ -585,6 +609,7 @@ final class ArtifactPipelineTestSupport
     private static function fingerprintInputBuilder(): ConfigFingerprintInputBuilder
     {
         return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
             payloadNormalizer: new PayloadNormalizer(),
             fileLister: new DeterministicFileLister(),
         );

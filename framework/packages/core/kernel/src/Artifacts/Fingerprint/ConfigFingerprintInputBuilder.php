@@ -26,6 +26,7 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 
 /**
@@ -36,6 +37,7 @@ use Coretsia\Kernel\Module\ModulePlan;
  *
  * - resolved BootstrapConfig;
  * - resolved ModulePlan;
+ * - compiled runtime container DefinitionGraph;
  * - ConfigKernel::compile(...) result;
  * - the same explicit source candidate arrays passed to ConfigKernel::compile(...);
  * - EnvRepositoryInterface source metadata needed for env-overlay provenance;
@@ -45,6 +47,7 @@ use Coretsia\Kernel\Module\ModulePlan;
  *
  * - resolve BootstrapConfig;
  * - re-run ModulePlan resolution;
+ * - compile the runtime container graph;
  * - re-run preset resolution;
  * - re-run config discovery;
  * - re-run env loading;
@@ -103,6 +106,7 @@ final readonly class ConfigFingerprintInputBuilder
     private const string SENSITIVE_KEY_PATTERN = '/(?<![A-Za-z0-9])(?:authorization|bearer|cookie|session|token|secret|password|passwd|credential|api[_-]?key|access[_-]?key|private[_-]?key|dsn|sql|raw|payload|stacktrace|trace|email|phone|username|fullname|userid|tenantid)(?![A-Za-z0-9])/i';
 
     public function __construct(
+        private ContainerGraphFingerprintBucketBuilder $containerGraphBucketBuilder,
         private PayloadNormalizer $payloadNormalizer = new PayloadNormalizer(),
         private DeterministicFileLister $fileLister = new DeterministicFileLister(),
     ) {
@@ -189,6 +193,7 @@ final readonly class ConfigFingerprintInputBuilder
     public function build(
         BootstrapConfig $bootstrapConfig,
         ModulePlan $modulePlan,
+        DefinitionGraph $containerGraph,
         EnvRepositoryInterface $env,
         array $kernelConfig,
         array $compiledConfig,
@@ -256,6 +261,9 @@ final readonly class ConfigFingerprintInputBuilder
                 'skeletonIgnorePrefixes' => $configuredSkeletonIgnorePrefixes,
             ],
             'modulePlan' => self::modulePlanIdentity($modulePlan),
+            'containerGraph' => $this->containerGraphBucketBuilder->build(
+                $containerGraph,
+            ),
             'compiledConfig' => [
                 'roots' => self::compiledConfigRoots($compiledConfig[self::KEY_CONFIG]),
                 'valueFingerprints' => $this->compiledConfigValueFingerprints($compiledConfig[self::KEY_CONFIG]),
@@ -283,6 +291,7 @@ final readonly class ConfigFingerprintInputBuilder
                     'bootstrap',
                     'fingerprintPolicy',
                     'modulePlan',
+                    'containerGraph',
                     'compiledConfig',
                     'sourceCandidates',
                     'splitRoots',

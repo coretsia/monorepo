@@ -38,6 +38,7 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
@@ -646,6 +647,18 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the deterministic compiled-container graph fingerprint bucket
+     * builder.
+     *
+     * This factory performs construction only. It does not compile a graph or
+     * calculate an artifact fingerprint during provider registration.
+     */
+    public static function containerGraphFingerprintBucketBuilder(): ContainerGraphFingerprintBucketBuilder
+    {
+        return new ContainerGraphFingerprintBucketBuilder();
+    }
+
+    /**
      * Creates the deterministic fingerprint input builder.
      *
      * This factory performs wiring only. It does not resolve BootstrapConfig,
@@ -666,7 +679,17 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
+        $containerGraphBucketBuilder = self::artifactService(
+            $container,
+            ContainerGraphFingerprintBucketBuilder::class,
+        );
+
+        if (!$containerGraphBucketBuilder instanceof ContainerGraphFingerprintBucketBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
         return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: $containerGraphBucketBuilder,
             payloadNormalizer: $payloadNormalizer,
             fileLister: $fileLister,
         );

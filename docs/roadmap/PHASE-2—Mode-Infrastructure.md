@@ -1104,7 +1104,7 @@ tags_introduced:
 - "cli.command"
 config_roots_introduced: []  # `cli` root exists (owner platform/cli)
 artifacts_introduced: []     # no CLI-owned artifacts in this epic
-adr: "docs/adr/ADR-0031-cli-tag-first-command-catalog.md"
+adr: "docs/adr/ADR-0032-cli-tag-first-command-catalog.md"
 ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/modes.md"
@@ -1563,7 +1563,7 @@ Tag owner constants:
 - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] `CLI_COMMAND = 'cli.command'`
 
-- [ ] `docs/adr/ADR-0031-cli-tag-first-command-catalog.md`
+- [ ] `docs/adr/ADR-0032-cli-tag-first-command-catalog.md`
   - [ ] MUST capture:
     - [ ] tag-first discovery via `cli.command`
     - [ ] reserved built-in command names (`help`, `list`)
@@ -1699,7 +1699,7 @@ Tests:
   - [ ] MUST include: Observability / Errors / Security-Redaction / Mode usage / Determinism / Providing CLI commands
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0031-cli-tag-first-command-catalog.md`
+  - [ ] `docs/adr/ADR-0032-cli-tag-first-command-catalog.md`
 
 ### Cross-cutting (MUST)
 

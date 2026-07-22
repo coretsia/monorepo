@@ -44,6 +44,7 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
@@ -449,6 +450,13 @@ final class KernelServiceProvider implements
             static fn (
                 Container $_container
             ): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(),
+        );
+
+        $builder->factory(
+            ContainerGraphFingerprintBucketBuilder::class,
+            static fn (
+                Container $_container
+            ): ContainerGraphFingerprintBucketBuilder => KernelServiceFactory::containerGraphFingerprintBucketBuilder(),
         );
 
         $builder->factory(

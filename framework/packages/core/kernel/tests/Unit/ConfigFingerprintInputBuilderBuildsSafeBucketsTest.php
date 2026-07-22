@@ -23,10 +23,14 @@ use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Env\EnvValue;
+use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
+use Coretsia\Kernel\Container\Definition\ServiceDefinition;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 
@@ -102,6 +106,34 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
         self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', $input['modulePlan']['hash']);
     }
 
+    public function testIncludesSafeContainerGraphBucketAndObservabilityBucketName(): void
+    {
+        $input = self::buildInput();
+        $graph = self::containerGraph();
+
+        self::assertSame(
+            [
+                'aliasCount' => 1,
+                'parameterCount' => 1,
+                'schemaVersion' => ContainerGraphFingerprintBucketBuilder::SCHEMA_VERSION,
+                'serviceCount' => 2,
+                'sha256' => \hash(
+                    'sha256',
+                    StableJsonEncoder::encodeStable(
+                        $graph->toArray(),
+                    ),
+                ),
+                'tagCount' => 1,
+            ],
+            $input['containerGraph'],
+        );
+
+        self::assertContains(
+            'containerGraph',
+            $input['observabilityMetadata']['bucketNames'],
+        );
+    }
+
     public function testDoesNotIncludeRawConfigOrEnvValues(): void
     {
         $input = self::buildInput();
@@ -118,11 +150,14 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
      */
     private static function buildInput(): array
     {
-        $builder = new ConfigFingerprintInputBuilder();
+        $builder = new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
+        );
 
         return $builder->build(
             bootstrapConfig: self::bootstrapConfig(),
             modulePlan: self::modulePlan(),
+            containerGraph: self::containerGraph(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: self::compiledConfig(),
@@ -145,6 +180,36 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
             explicitRuleSources: [],
             modePresetSourceCandidates: [],
         );
+    }
+
+    private static function containerGraph(): DefinitionGraph
+    {
+        return DefinitionGraph::empty()
+            ->withService(
+                ServiceDefinition::class(
+                    id: 'kernel.test.graph.alpha',
+                    class: \stdClass::class,
+                ),
+            )
+            ->withService(
+                ServiceDefinition::class(
+                    id: 'kernel.test.graph.beta',
+                    class: \ArrayObject::class,
+                ),
+            )
+            ->withAlias(
+                alias: 'kernel.test.graph.alias',
+                serviceId: 'kernel.test.graph.alpha',
+            )
+            ->withParameter(
+                name: 'kernel.test.graph.parameter',
+                value: 'safe-value',
+            )
+            ->withTag(
+                tag: 'kernel.test.graph',
+                serviceId: 'kernel.test.graph.alpha',
+                priority: 25,
+            );
     }
 
     private static function bootstrapConfig(): BootstrapConfig

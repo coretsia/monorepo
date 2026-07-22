@@ -53,7 +53,8 @@ This document owns only compiled-container-specific rules for:
 - compiled parameter bag schema;
 - compiled alias schema;
 - compiled tag schema;
-- descriptor-to-definition-graph compile semantics;
+- canonical definition-set-to-definition-graph compile semantics;
+- production graph-completeness semantics;
 - compiled-container closure/callable rejection semantics;
 - compiled-container runtime boot semantics;
 - compiled-container missing/invalid artifact failure semantics;
@@ -233,13 +234,46 @@ Lists preserve caller-supplied order when list order is semantic.
 
 ## Compile Input Semantics (MUST)
 
-Compiled-container input MUST be descriptor-based and closure-free.
+Production compiled-container input MUST be canonical, provider-produced, and closure-free.
 
-`ContainerCompiler` owns deterministic descriptor-to-`DefinitionGraph` compilation.
+`ArtifactCompiler` and `CacheVerifier` MUST receive one `ModuleResolution` and MUST NOT receive a raw container descriptor iterable.
 
-The descriptor stream order is caller-owned and semantically significant.
+Both production operations MUST obtain their graph through:
 
-`ContainerCompiler` MUST NOT globally re-sort providers, modules, or descriptors before applying binding collision semantics.
+```text
+RuntimeContainerGraphCompiler
+```
+
+For one graph compilation, `RuntimeContainerGraphCompiler` MUST:
+
+1. create one `ContainerDefinitionContext` from the already-compiled Phase-B config;
+2. resolve one `ContainerProviderPlan` from the supplied `ModuleResolution`;
+3. process provider classes in exact plan order;
+4. instantiate each provider only at its ordered collection step;
+5. invoke the provider's canonical `define()` method;
+6. build one immutable `ContainerDefinitionSet` per provider;
+7. merge those sets in exact plan order;
+8. delegate the merged set to `ContainerCompiler`;
+9. validate final graph completeness;
+10. return one `DefinitionGraph`.
+
+`ContainerCompiler` owns low-level deterministic `ContainerDefinitionSet`-to-`DefinitionGraph` normalization.
+
+Its public input MUST be:
+
+```php
+public function compile(
+    ContainerDefinitionSet $definitions,
+): DefinitionGraph;
+```
+
+`ContainerDefinitionSet::toDescriptorStream()` is a private normalization detail inside `ContainerCompiler`.
+
+It is not a production caller API.
+
+Provider-plan order, definition-set order, and definition-operation order are semantically significant.
+
+`RuntimeContainerGraphCompiler` and `ContainerCompiler` MUST NOT globally re-sort providers, modules, definition sets, or definition operations before applying binding collision semantics.
 
 Compiled-container compile semantics MUST preserve the Foundation binding collision policy:
 
@@ -255,7 +289,10 @@ Compiled-container compile semantics MUST preserve the Foundation binding collis
 - write artifacts;
 - calculate fingerprints;
 - resolve `BootstrapConfig`;
+- resolve `ModuleResolution`;
 - resolve `ModulePlan`;
+- discover or instantiate providers;
+- validate final graph completeness;
 - run provider-based runtime boot;
 - instantiate runtime services while compiling the graph;
 - emit stdout or stderr;
@@ -348,7 +385,7 @@ shared = false
 
 `shared = false` means the runtime Foundation container resolves the service on every `Container::get($id)` call and MUST NOT store the resolved value in the resolved-instance cache.
 
-The default compile-side lifecycle for service definitions is `shared = true` unless the descriptor explicitly defines otherwise.
+The default compile-side lifecycle for service definitions is `shared = true` unless the canonical service definition explicitly selects otherwise.
 
 The compiled `shared` field applies only to compiled service definitions.
 
@@ -501,17 +538,24 @@ A service reference argument MUST use exactly this shape:
 ]
 ```
 
-The referenced id MUST be a known compiled service id, known compiled alias id, or allowed reserved runtime support id.
+The referenced id MUST be a known compiled service id, known compiled alias id, or canonical external runtime-seed service id.
 
-The reserved runtime support ids are:
+The canonical external runtime-seed service ids are:
 
 ```text
 Coretsia\Foundation\Container\Container
 Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-Compiled service and alias definitions MUST NOT define or shadow reserved runtime support ids.
+Compiled service and alias definitions MUST NOT define or shadow canonical external runtime-seed service ids.
+
+Producer acceptance of a runtime-seed reference establishes only graph completeness against the canonical allowlist.
+
+A graph that references such a seed is bootable only when artifact-only runtime boot supplies the corresponding runtime object. Producer completeness does not itself establish that runtime materialization.
 
 ### Parameter Reference (MUST)
 
@@ -606,11 +650,11 @@ Alias ids MUST NOT equal their target ids.
 
 Alias ids MUST NOT conflict with compiled service ids.
 
-Alias ids MUST NOT define or shadow reserved runtime support service ids.
+Alias ids MUST NOT define or shadow canonical external runtime-seed service ids.
 
 Alias targets MUST point to known compiled service ids or known compiled alias ids.
 
-Alias targets MUST NOT point to reserved runtime support service ids.
+Alias targets MUST NOT point to canonical external runtime-seed service ids.
 
 ## Alias Lifecycle Rule for Compiled Aliases (MUST)
 
@@ -661,6 +705,14 @@ priority
 ```
 
 The `id` field MUST be a deterministic service id string.
+
+The `id` field MUST resolve to a compiled graph service or to a compiled alias chain that terminates in a compiled graph service.
+
+A tagged service id MUST NOT resolve to a canonical external runtime seed.
+
+A tagged service id MUST NOT reference a compile-host service.
+
+A tagged alias chain MUST NOT be cyclic.
 
 The `priority` field MUST be an integer.
 
@@ -737,9 +789,106 @@ Diagnostics for compile failures MUST NOT expose:
 - throwable messages;
 - previous throwable messages.
 
+## Production Graph Completeness Semantics (MUST)
+
+`RuntimeContainerGraphCompiler` MUST validate the final compiled graph through:
+
+```text
+ContainerGraphCompletenessValidator
+```
+
+Completeness validation MUST run:
+
+- after all ordered provider definition sets have been merged;
+- after `ContainerCompiler` has produced one `DefinitionGraph`;
+- before `ArtifactCompiler` writes any artifact;
+- before `CacheVerifier` compares expected artifacts with existing bytes.
+
+External-reference contexts are:
+
+```text
+service argument references
+required service ids
+```
+
+An external-reference context MAY resolve to:
+
+- a compiled service;
+- a compiled alias chain terminating in a compiled service;
+- a canonical external runtime-seed service id.
+
+Graph-owned binding contexts are:
+
+```text
+alias targets
+service-method factory service ids
+tagged service ids
+```
+
+A graph-owned binding context MUST resolve to:
+
+- a compiled service; or
+- a compiled alias chain terminating in a compiled service.
+
+A graph-owned binding context MUST NOT resolve to a runtime seed.
+
+Completeness validation MUST reject:
+
+- missing service references;
+- missing parameter references;
+- missing service-method factory services;
+- missing alias targets;
+- alias cycles;
+- missing tagged services;
+- tagged runtime seeds;
+- tagged compile-host services;
+- unsatisfied required service ids;
+- service and alias bindings using the same id;
+- service or alias bindings that define runtime-seed ids;
+- compile-host service bindings or references;
+- service constructions whose class is a compile-host service.
+
+Definition and completeness failures MUST use:
+
+```text
+CORETSIA_CONTAINER_DEFINITION_INVALID
+container-definition-invalid
+```
+
+The bounded reasons are:
+
+```text
+definition-invalid
+reference-invalid
+provider-invalid
+required-service-invalid
+```
+
+Binding collisions with reserved runtime seeds or compile-host ids use:
+
+```text
+definition-invalid
+```
+
+Missing or invalid references use:
+
+```text
+reference-invalid
+```
+
+Unsatisfied required-service declarations use:
+
+```text
+required-service-invalid
+```
+
 ## Artifact Production Linkage (MUST)
 
-`ContainerCompiler` owns descriptor-to-`DefinitionGraph` compilation.
+`RuntimeContainerGraphCompiler` owns production provider-definition collection, ordered set merging, low-level graph compilation, and graph-completeness validation.
+
+`ContainerCompiler` owns only deterministic normalization of one ordered `ContainerDefinitionSet` into one `DefinitionGraph`.
+
+`ArtifactCompiler` and `CacheVerifier` MUST use the same `RuntimeContainerGraphCompiler` path.
 
 `CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
 
@@ -985,6 +1134,11 @@ Provider registration MUST NOT:
 - run `ConfigKernel::compile(...)`;
 - resolve `BootstrapConfig`;
 - resolve `ModulePlan`;
+- resolve `ModuleResolution`;
+- resolve `ContainerProviderPlan`;
+- instantiate definition providers;
+- invoke provider `define()` methods;
+- compile or validate a runtime graph;
 - build `EnvRepositoryInterface`;
 - run module discovery;
 - run runtime providers as a fallback;
@@ -1062,6 +1216,7 @@ safe key paths
 - This document does not require cache verification during normal provider registration.
 - This document does not allow automatic runtime fallback when `container.php` is missing or invalid.
 - This document does not preserve the `1.330.0` stub payload as a supported production runtime format.
+- Producer acceptance of canonical runtime-seed references does not by itself claim that artifact-only boot already materializes every allowed seed.
 - This document does not introduce `container@2`.
 
 ## Implementation Linkage
@@ -1070,6 +1225,11 @@ Canonical implementation points include:
 
 ```text
 framework/packages/core/kernel/src/Container/ContainerCompiler.php
+framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
+framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
+framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
+framework/packages/core/kernel/src/Module/ModuleResolution.php
 framework/packages/core/kernel/src/Container/CompiledContainerFactory.php
 framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php
 framework/packages/core/kernel/src/Container/Definition/ParameterBag.php
@@ -1093,6 +1253,8 @@ These implementation points do not change this document's authority boundary.
 - [Cache Verification Behavior](./cache-verify.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
+- [Canonical Runtime Container Definitions](./runtime-container-definitions.md)
+- [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
 - [Reset Tags and Long-Running Runtime Reset Semantics](./reset-tags.md)
 - [DTO Policy](./dto-policy.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

@@ -22,6 +22,7 @@ use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
@@ -38,10 +39,11 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
-use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModuleResolution;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -121,7 +123,7 @@ final readonly class CacheVerifier
         private FingerprintCalculator $fingerprintCalculator,
         private ModuleManifestBuilder $moduleManifestBuilder,
         private CompiledConfigBuilder $compiledConfigBuilder,
-        private ContainerCompiler $containerCompiler,
+        private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
         private CompiledContainerBuilder $compiledContainerBuilder,
         private StablePhpArrayDumper $phpArrayDumper,
         private PhpArtifactReader $artifactReader,
@@ -180,7 +182,6 @@ final readonly class CacheVerifier
      *     sourceId?: string|null,
      *     precedence?: int|null
      * }> $modePresetSourceCandidates
-     * @param iterable<array<string, mixed>> $containerDescriptors Descriptor-based, closure-free compiled-container input.
      *
      * @return array{
      *     schemaVersion: int,
@@ -215,6 +216,7 @@ final readonly class CacheVerifier
      * }
      *
      * @throws ConfigInvalidException
+     * @throws ContainerDefinitionInvalidException
      * @throws ContainerCompileFailedException
      * @throws JsonFloatForbiddenException
      * @throws ArtifactPayloadInvalidException
@@ -224,7 +226,7 @@ final readonly class CacheVerifier
      */
     public function verify(
         BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
+        ModuleResolution $moduleResolution,
         EnvRepositoryInterface $env,
         array $kernelConfig,
         array $packageDefaultSources,
@@ -233,8 +235,8 @@ final readonly class CacheVerifier
         array $explicitRuleSources = [],
         array $explicitEnvOverlayMappings = [],
         array $modePresetSourceCandidates = [],
-        iterable $containerDescriptors = [],
     ): array {
+        $modulePlan = $moduleResolution->plan();
         $startedAt = $this->safeStartTimer();
         $span = $this->safeStartSpan();
 
@@ -254,6 +256,11 @@ final readonly class CacheVerifier
                 explain: false,
             );
 
+            $containerGraph = $this->runtimeContainerGraphCompiler->compile(
+                moduleResolution: $moduleResolution,
+                compiledConfig: $compiledConfig['config'],
+            );
+
             $fingerprintInput = $this->fingerprintInputBuilder->build(
                 bootstrapConfig: $bootstrapConfig,
                 modulePlan: $modulePlan,
@@ -268,8 +275,6 @@ final readonly class CacheVerifier
             );
 
             $currentFingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
-
-            $containerGraph = $this->containerCompiler->compile($containerDescriptors);
 
             $expectedArtifacts = $this->expectedArtifacts(
                 bootstrapConfig: $bootstrapConfig,

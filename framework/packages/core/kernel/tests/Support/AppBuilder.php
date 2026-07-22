@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
@@ -35,7 +36,9 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolution;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Tests\Integration\ArtifactPipelineTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -77,7 +80,7 @@ final class AppBuilder
             testCase: $testCase,
             skeletonRoot: $skeletonRoot,
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: $modulePlan,
+            moduleResolution: $moduleResolution,
             presetName: self::PRESET_MICRO,
         );
 
@@ -235,7 +238,7 @@ final class AppBuilder
         TestCase $testCase,
         string $skeletonRoot,
         BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
+        ModuleResolution $moduleResolution,
         string $presetName,
     ): void {
         ArtifactPipelineTestSupport::writeRootConfig(
@@ -245,7 +248,7 @@ final class AppBuilder
 
         ArtifactPipelineTestSupport::artifactCompiler($testCase)->compile(
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: $modulePlan,
+            moduleResolution: $moduleResolution,
             env: ArtifactPipelineTestSupport::envRepository(),
             kernelConfig: self::kernelConfig(),
             packageDefaultSources: [],
@@ -254,7 +257,6 @@ final class AppBuilder
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: self::frameworkModePresetSourceCandidates($presetName),
-            containerDescriptors: [],
         );
     }
 
@@ -390,6 +392,7 @@ final class AppBuilder
             moduleClass: null,
             capabilities: [],
             metadata: [
+                'providers' => self::providers($moduleId),
                 'requires' => self::requires($moduleId),
                 'conflicts' => [],
             ],
@@ -403,6 +406,24 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'coretsia/core-kernel',
             self::MODULE_PLATFORM_CLI => 'coretsia/platform-cli',
             self::MODULE_PLATFORM_HTTP => 'coretsia/platform-http',
+            default => throw new \LogicException('app-builder-fixture-module-unknown'),
+        };
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private static function providers(string $moduleId): array
+    {
+        return match ($moduleId) {
+            self::MODULE_CORE_FOUNDATION => [
+                FoundationServiceProvider::class,
+            ],
+            self::MODULE_CORE_KERNEL => [
+                KernelServiceProvider::class,
+            ],
+            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_HTTP => [],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }

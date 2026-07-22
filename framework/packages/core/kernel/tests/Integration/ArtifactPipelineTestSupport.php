@@ -21,10 +21,14 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Env\EnvValue;
+use Coretsia\Contracts\Module\ModuleDescriptor;
+use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Container;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
@@ -56,13 +60,21 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Tests\Fixtures\ContainerDefinitionProviderFixture;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 final class ArtifactPipelineTestSupport
 {
+    private const string MODULE_FIXTURE = 'core.fixture';
+
     private function __construct()
     {
     }
@@ -142,7 +154,17 @@ final class ArtifactPipelineTestSupport
     public static function defaultConfig(string $value = 'safe-value'): array
     {
         return [
+            'foundation' => [
+                'reset' => [
+                    'priority' => [
+                        'enabled' => false,
+                    ],
+                ],
+            ],
             'custom' => [
+                'container_fixture' => [
+                    'value' => ContainerDefinitionProviderFixture::PARAMETER_VALUE,
+                ],
                 'feature' => [
                     'value' => $value,
                 ],
@@ -150,6 +172,12 @@ final class ArtifactPipelineTestSupport
             'kernel' => [
                 'boot' => [
                     'default_env' => 'prod',
+                ],
+                'uow' => [
+                    'attributes' => [
+                        'max_depth' => 10,
+                        'max_keys' => 200,
+                    ],
                 ],
             ],
         ];
@@ -191,15 +219,53 @@ final class ArtifactPipelineTestSupport
 
     public static function modulePlan(): ModulePlan
     {
-        return new ModulePlan(
-            app: 'web',
-            preset: 'default',
-            enabled: [],
-            disabled: [],
-            optionalMissing: [],
-            topologicalOrder: [],
-            modules: [],
-            warnings: [],
+        return self::moduleResolution()->plan();
+    }
+
+    /**
+     * @param list<class-string<ContainerDefinitionProviderInterface>> $providerClasses
+     */
+    public static function moduleResolution(
+        array $providerClasses = [
+            ContainerDefinitionProviderFixture::class,
+        ],
+    ): ModuleResolution {
+        $moduleId = ModuleId::fromString(self::MODULE_FIXTURE);
+        $composerName = 'coretsia/core-kernel-test-fixture';
+        $manifest = new ModuleManifest([
+            new ModuleDescriptor(
+                id: $moduleId,
+                composerName: $composerName,
+                packageKind: 'runtime',
+                moduleClass: null,
+                capabilities: [],
+                metadata: [
+                    'providers' => $providerClasses,
+                ],
+            ),
+        ]);
+
+        return new ModuleResolution(
+            manifest: $manifest,
+            plan: new ModulePlan(
+                app: 'web',
+                preset: 'default',
+                enabled: [
+                    $moduleId,
+                ],
+                disabled: [],
+                optionalMissing: [],
+                topologicalOrder: [
+                    $moduleId,
+                ],
+                modules: [
+                    new ModulePlanEntry(
+                        moduleId: $moduleId,
+                        composerName: $composerName,
+                    ),
+                ],
+                warnings: [],
+            ),
         );
     }
 
@@ -230,23 +296,23 @@ final class ArtifactPipelineTestSupport
 
     /**
      * @param array<string,mixed> $config
-     * @param iterable<array<string, mixed>> $containerDescriptors
      */
     public static function compileArtifacts(
         TestCase $testCase,
         string $skeletonRoot,
         array $config,
-        iterable $containerDescriptors = [],
+        ?ModuleResolution $moduleResolution = null,
         string $artifactsCacheDir = 'var/cache',
     ): array {
         self::writeRootConfig($skeletonRoot, $config);
+        $moduleResolution ??= self::moduleResolution();
 
         return self::artifactCompiler($testCase)->compile(
             bootstrapConfig: self::bootstrapConfig(
                 skeletonRoot: $skeletonRoot,
                 artifactsCacheDir: $artifactsCacheDir,
             ),
-            modulePlan: self::modulePlan(),
+            moduleResolution: $moduleResolution,
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             packageDefaultSources: [],
@@ -255,25 +321,23 @@ final class ArtifactPipelineTestSupport
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: [],
-            containerDescriptors: $containerDescriptors,
         );
     }
 
-    /**
-     * @param iterable<array<string, mixed>> $containerDescriptors
-     */
     public static function verifyArtifacts(
         TestCase $testCase,
         string $skeletonRoot,
-        iterable $containerDescriptors = [],
+        ?ModuleResolution $moduleResolution = null,
         string $artifactsCacheDir = 'var/cache',
     ): array {
+        $moduleResolution ??= self::moduleResolution();
+
         return self::cacheVerifier($testCase)->verify(
             bootstrapConfig: self::bootstrapConfig(
                 skeletonRoot: $skeletonRoot,
                 artifactsCacheDir: $artifactsCacheDir,
             ),
-            modulePlan: self::modulePlan(),
+            moduleResolution: $moduleResolution,
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             packageDefaultSources: [],
@@ -282,7 +346,6 @@ final class ArtifactPipelineTestSupport
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: [],
-            containerDescriptors: $containerDescriptors,
         );
     }
 
@@ -432,7 +495,7 @@ final class ArtifactPipelineTestSupport
             fingerprintCalculator: self::fingerprintCalculator($testCase),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            containerCompiler: self::containerCompiler($testCase),
+            runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler($testCase),
             compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
             artifactWriter: self::artifactWriter($testCase),
             pathResolver: new ArtifactPathResolver(),
@@ -470,7 +533,7 @@ final class ArtifactPipelineTestSupport
             fingerprintCalculator: self::fingerprintCalculator($testCase),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            containerCompiler: self::containerCompiler($testCase),
+            runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler($testCase),
             compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
             phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
             artifactReader: new PhpArtifactReader(),
@@ -535,6 +598,16 @@ final class ArtifactPipelineTestSupport
             meter: self::meter(),
             logger: self::logger(),
             stopwatch: new Stopwatch(),
+        );
+    }
+
+    public static function runtimeContainerGraphCompiler(
+        TestCase $testCase,
+    ): RuntimeContainerGraphCompiler {
+        return new RuntimeContainerGraphCompiler(
+            providerPlanResolver: new ContainerProviderPlanResolver(),
+            containerCompiler: self::containerCompiler($testCase),
+            completenessValidator: new ContainerGraphCompletenessValidator(),
         );
     }
 

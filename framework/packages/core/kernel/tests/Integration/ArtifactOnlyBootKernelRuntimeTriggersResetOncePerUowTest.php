@@ -20,26 +20,19 @@ namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
-use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
-use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Context\ContextStore;
-use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
-use Coretsia\Foundation\Id\UlidGenerator;
-use Coretsia\Foundation\Observability\Metrics\NoopMeter;
-use Coretsia\Foundation\Observability\Tracing\NoopTracer;
-use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Tag\ReservedTags;
-use Coretsia\Foundation\Tag\TagRegistry;
-use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Kernel\Runtime\Hook\HookInvoker;
+use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\UnitOfWorkType;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends TestCase
 {
@@ -52,7 +45,11 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: self::containerDescriptors(),
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    FoundationServiceProvider::class,
+                    KernelServiceProvider::class,
+                    ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowProvider::class,
+                ]),
             );
 
             $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
@@ -119,222 +116,61 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
         }
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function containerDescriptors(): array
-    {
-        return [
-            [
-                'kind' => 'parameter',
-                'name' => 'reset.tag',
-                'value' => ReservedTags::KERNEL_RESET,
-            ],
-            [
-                'kind' => 'parameter',
-                'name' => 'kernel.uow.attributes.max_depth',
-                'value' => 10,
-            ],
-            [
-                'kind' => 'parameter',
-                'name' => 'kernel.uow.attributes.max_keys',
-                'value' => 200,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ContextStore::class,
-                'class' => ContextStore::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => Stopwatch::class,
-                'class' => Stopwatch::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => UlidGenerator::class,
-                'class' => UlidGenerator::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => CorrelationIdGenerator::class,
-                'class' => CorrelationIdGenerator::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => UlidGenerator::class,
-                        'type' => 'service',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => IdGeneratorInterface::class,
-                'class' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowIdGenerator::class,
-                'shared' => true,
-                'arguments' => [
-                    '01ARZ3NDEKTSV4RRFFQ69G5FAV',
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => CorrelationIdProviderInterface::class,
-                'class' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowCorrelationIdProvider::class,
-                'shared' => true,
-                'arguments' => [
-                    '01B7X3NDEKTSV4RRFFQ69G5FAV',
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => LoggerInterface::class,
-                'class' => NullLogger::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => TracerPortInterface::class,
-                'class' => NoopTracer::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => MeterPortInterface::class,
-                'class' => NoopMeter::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
-                'class' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
-                'class' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => ContextStore::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
-                        'type' => 'service',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ResetOrchestrator::class,
-                'class' => ResetOrchestrator::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => ContainerInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => TagRegistry::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'name' => 'reset.tag',
-                        'type' => 'parameter',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => HookInvoker::class,
-                'class' => HookInvoker::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => ContainerInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => TagRegistry::class,
-                        'type' => 'service',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => KernelRuntime::class,
-                'class' => KernelRuntime::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => ContextStore::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => ResetOrchestrator::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => Stopwatch::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => IdGeneratorInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => CorrelationIdProviderInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => CorrelationIdGenerator::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => HookInvoker::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => LoggerInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => TracerPortInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => MeterPortInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'name' => 'kernel.uow.attributes.max_depth',
-                        'type' => 'parameter',
-                    ],
-                    [
-                        'name' => 'kernel.uow.attributes.max_keys',
-                        'type' => 'parameter',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => ReservedTags::KERNEL_RESET,
-                'serviceId' => ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
-                'priority' => 0,
-                'meta' => [],
-            ],
-        ];
-    }
-
     private static function assertBaseContextKeysAreAbsent(ContextStore $contextStore): void
     {
         self::assertFalse($contextStore->has(ContextKeys::CORRELATION_ID));
         self::assertFalse($contextStore->has(ContextKeys::UOW_ID));
         self::assertFalse($contextStore->has(ContextKeys::UOW_TYPE));
+    }
+}
+
+final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowProvider implements ContainerDefinitionProviderInterface
+{
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $definitions
+            ->classService(
+                ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
+                ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
+            )
+            ->classService(
+                id: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
+                class: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
+                arguments: [
+                    ContainerValueReference::service(ContextStore::class),
+                    ContainerValueReference::service(
+                        ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class,
+                    ),
+                ],
+            )
+            ->classService(
+                id: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowIdGenerator::class,
+                class: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowIdGenerator::class,
+                arguments: [
+                    '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                ],
+            )
+            ->alias(
+                IdGeneratorInterface::class,
+                ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowIdGenerator::class,
+            )
+            ->classService(
+                id: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowCorrelationIdProvider::class,
+                class: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowCorrelationIdProvider::class,
+                arguments: [
+                    '01B7X3NDEKTSV4RRFFQ69G5FAV',
+                ],
+            )
+            ->alias(
+                CorrelationIdProviderInterface::class,
+                ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowCorrelationIdProvider::class,
+            )
+            ->tag(
+                tag: ReservedTags::KERNEL_RESET,
+                serviceId: ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowResetService::class,
+            );
     }
 }
 

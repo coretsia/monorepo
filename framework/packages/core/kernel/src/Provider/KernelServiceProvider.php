@@ -69,7 +69,9 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -183,19 +185,25 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             BootstrapConfigResolver::class,
-            static fn (Container $container): BootstrapConfigResolver => KernelServiceFactory::bootstrapConfigResolver(
+            static fn (
+                Container $container
+            ): BootstrapConfigResolver => KernelServiceFactory::bootstrapConfigResolver(
                 container: $container,
             ),
         );
 
         $builder->factory(
             DotenvLoader::class,
-            static fn (Container $_container): DotenvLoader => KernelServiceFactory::dotenvLoader(),
+            static fn (
+                Container $_container
+            ): DotenvLoader => KernelServiceFactory::dotenvLoader(),
         );
 
         $builder->factory(
             EnvRepositoryBuilder::class,
-            static fn (Container $container): EnvRepositoryBuilder => KernelServiceFactory::envRepositoryBuilder(
+            static fn (
+                Container $container
+            ): EnvRepositoryBuilder => KernelServiceFactory::envRepositoryBuilder(
                 container: $container,
             ),
         );
@@ -209,7 +217,9 @@ final class KernelServiceProvider implements
          */
         $builder->factory(
             RuntimePathContext::class,
-            static fn (Container $container): RuntimePathContext => KernelServiceFactory::runtimePathContext(
+            static fn (
+                Container $container
+            ): RuntimePathContext => KernelServiceFactory::runtimePathContext(
                 container: $container,
             ),
         );
@@ -262,7 +272,9 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             ModePresetLoaderFactory::class,
-            static fn (Container $container): ModePresetLoaderFactory => KernelServiceFactory::modePresetLoaderFactory(
+            static fn (
+                Container $container
+            ): ModePresetLoaderFactory => KernelServiceFactory::modePresetLoaderFactory(
                 container: $container,
                 packageRoot: $kernelPackageRoot,
             ),
@@ -270,21 +282,27 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             ModuleGraphResolver::class,
-            static fn (Container $container): ModuleGraphResolver => KernelServiceFactory::moduleGraphResolver(
+            static fn (
+                Container $container
+            ): ModuleGraphResolver => KernelServiceFactory::moduleGraphResolver(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ModulePlanResolver::class,
-            static fn (Container $container): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
+            static fn (
+                Container $container
+            ): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ContainerProviderPlanResolver::class,
-            static fn (Container $_container): ContainerProviderPlanResolver => KernelServiceFactory::containerProviderPlanResolver(),
+            static fn (
+                Container $_container
+            ): ContainerProviderPlanResolver => KernelServiceFactory::containerProviderPlanResolver(),
         );
 
         /*
@@ -298,38 +316,50 @@ final class KernelServiceProvider implements
          */
         $builder->factory(
             ConfigNamespaceGuard::class,
-            static fn (Container $container): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
+            static fn (
+                Container $container
+            ): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
                 container: $container,
             ),
         );
 
         $builder->factory(
             DirectiveProcessor::class,
-            static fn (Container $container): DirectiveProcessor => KernelServiceFactory::directiveProcessor(
+            static fn (
+                Container $container
+            ): DirectiveProcessor => KernelServiceFactory::directiveProcessor(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ConfigMerger::class,
-            static fn (Container $container): ConfigMerger => KernelServiceFactory::configMerger(
+            static fn (
+                Container $container
+            ): ConfigMerger => KernelServiceFactory::configMerger(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ConfigRulesLoader::class,
-            static fn (Container $_container): ConfigRulesLoader => KernelServiceFactory::configRulesLoader(),
+            static fn (
+                Container $_container
+            ): ConfigRulesLoader => KernelServiceFactory::configRulesLoader(),
         );
 
         $builder->factory(
             ConfigValidator::class,
-            static fn (Container $_container): ConfigValidator => KernelServiceFactory::configValidator(),
+            static fn (
+                Container $_container
+            ): ConfigValidator => KernelServiceFactory::configValidator(),
         );
 
         $builder->factory(
             ConfigExplainer::class,
-            static fn (Container $_container): ConfigExplainer => KernelServiceFactory::configExplainer(),
+            static fn (
+                Container $_container
+            ): ConfigExplainer => KernelServiceFactory::configExplainer(),
         );
 
         $builder->factory(
@@ -343,7 +373,9 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             SkeletonConfigLoader::class,
-            static fn (Container $container): SkeletonConfigLoader => KernelServiceFactory::skeletonConfigLoader(
+            static fn (
+                Container $container
+            ): SkeletonConfigLoader => KernelServiceFactory::skeletonConfigLoader(
                 container: $container,
             ),
         );
@@ -357,7 +389,9 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             ConfigKernel::class,
-            static fn (Container $container): ConfigKernel => KernelServiceFactory::configKernel(
+            static fn (
+                Container $container
+            ): ConfigKernel => KernelServiceFactory::configKernel(
                 container: $container,
             ),
         );
@@ -380,26 +414,34 @@ final class KernelServiceProvider implements
          */
         $builder->factory(
             PayloadNormalizer::class,
-            static fn (Container $_container): PayloadNormalizer => KernelServiceFactory::artifactPayloadNormalizer(),
+            static fn (
+                Container $_container
+            ): PayloadNormalizer => KernelServiceFactory::artifactPayloadNormalizer(),
         );
 
         $builder->factory(
             StablePhpArrayDumper::class,
-            static fn (Container $container): StablePhpArrayDumper => KernelServiceFactory::stablePhpArrayDumper(
+            static fn (
+                Container $container
+            ): StablePhpArrayDumper => KernelServiceFactory::stablePhpArrayDumper(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactEnvelopeFactory::class,
-            static fn (Container $container): ArtifactEnvelopeFactory => KernelServiceFactory::artifactEnvelopeFactory(
+            static fn (
+                Container $container
+            ): ArtifactEnvelopeFactory => KernelServiceFactory::artifactEnvelopeFactory(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactPathResolver::class,
-            static fn (Container $_container): ArtifactPathResolver => KernelServiceFactory::artifactPathResolver(),
+            static fn (
+                Container $_container
+            ): ArtifactPathResolver => KernelServiceFactory::artifactPathResolver(),
         );
 
         $builder->factory(
@@ -420,33 +462,43 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             FingerprintExplainer::class,
-            static fn (Container $_container): FingerprintExplainer => KernelServiceFactory::fingerprintExplainer(),
+            static fn (
+                Container $_container
+            ): FingerprintExplainer => KernelServiceFactory::fingerprintExplainer(),
         );
 
         $builder->factory(
             FingerprintCalculator::class,
-            static fn (Container $container): FingerprintCalculator => KernelServiceFactory::fingerprintCalculator(
+            static fn (
+                Container $container
+            ): FingerprintCalculator => KernelServiceFactory::fingerprintCalculator(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactWriter::class,
-            static fn (Container $container): ArtifactWriter => KernelServiceFactory::artifactWriter(
+            static fn (
+                Container $container
+            ): ArtifactWriter => KernelServiceFactory::artifactWriter(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ModuleManifestBuilder::class,
-            static fn (Container $container): ModuleManifestBuilder => KernelServiceFactory::moduleManifestBuilder(
+            static fn (
+                Container $container
+            ): ModuleManifestBuilder => KernelServiceFactory::moduleManifestBuilder(
                 container: $container,
             ),
         );
 
         $builder->factory(
             CompiledConfigBuilder::class,
-            static fn (Container $container): CompiledConfigBuilder => KernelServiceFactory::compiledConfigBuilder(
+            static fn (
+                Container $container
+            ): CompiledConfigBuilder => KernelServiceFactory::compiledConfigBuilder(
                 container: $container,
             ),
         );
@@ -462,7 +514,9 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             PhpArtifactReader::class,
-            static fn (Container $_container): PhpArtifactReader => KernelServiceFactory::phpArtifactReader(),
+            static fn (
+                Container $_container
+            ): PhpArtifactReader => KernelServiceFactory::phpArtifactReader(),
         );
 
         $builder->factory(
@@ -483,21 +537,43 @@ final class KernelServiceProvider implements
 
         $builder->factory(
             ContainerCompiler::class,
-            static fn (Container $container): ContainerCompiler => KernelServiceFactory::containerCompiler(
+            static fn (
+                Container $container
+            ): ContainerCompiler => KernelServiceFactory::containerCompiler(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ContainerGraphCompletenessValidator::class,
+            static fn (
+                Container $_container
+            ): ContainerGraphCompletenessValidator => KernelServiceFactory::containerGraphCompletenessValidator(),
+        );
+
+        $builder->factory(
+            RuntimeContainerGraphCompiler::class,
+            static fn (
+                Container $container
+            ): RuntimeContainerGraphCompiler => KernelServiceFactory::runtimeContainerGraphCompiler(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactCompiler::class,
-            static fn (Container $container): ArtifactCompiler => KernelServiceFactory::artifactCompiler(
+            static fn (
+                Container $container
+            ): ArtifactCompiler => KernelServiceFactory::artifactCompiler(
                 container: $container,
             ),
         );
 
         $builder->factory(
             CacheVerifier::class,
-            static fn (Container $container): CacheVerifier => KernelServiceFactory::cacheVerifier(
+            static fn (
+                Container $container
+            ): CacheVerifier => KernelServiceFactory::cacheVerifier(
                 container: $container,
             ),
         );

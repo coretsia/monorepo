@@ -651,7 +651,10 @@ Coretsia/
 │   │   │       │   │   │   ├── ContainerProviderPlan.php
 │   │   │       │   │   │   └── ContainerProviderPlanResolver.php
 │   │   │       │   │   ├── CompiledContainerFactory.php
-│   │   │       │   │   └── ContainerCompiler.php
+│   │   │       │   │   ├── ContainerCompiler.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidator.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompiler.php
+│   │   │       │   │   └── RuntimeContainerSeedIds.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ModePresetInvalidException.php
@@ -769,8 +772,11 @@ Coretsia/
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
 │   │   │       │   ├── Fixtures/
+│   │   │       │   │   ├── ContainerDefinitionProviderFixture.php
+│   │   │       │   │   ├── IncompleteContainerDefinitionProviderFixture.php
 │   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ArtifactCompilerUsesProductionContainerGraphTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
@@ -788,6 +794,7 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
+│   │   │       │   │   ├── CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 │   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
 │   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
 │   │   │       │   │   ├── CompiledConfigKeepsUserOwnedRootsTest.php
@@ -809,6 +816,8 @@ Coretsia/
 │   │   │       │   │   ├── ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsMissingParameterReferenceTest.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsServiceAliasIdCollisionTest.php
 │   │   │       │   │   ├── ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
 │   │   │       │   │   ├── ContainerProviderPlanRejectsDuplicateProviderTest.php
 │   │   │       │   │   ├── ContainerProviderPlanRejectsNonDefinitionProviderTest.php
@@ -855,6 +864,10 @@ Coretsia/
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerUsesProviderPlanTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
 │   │   │       │   │   ├── RuntimeEntrypointGuardPreventsRuntimeStartTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php

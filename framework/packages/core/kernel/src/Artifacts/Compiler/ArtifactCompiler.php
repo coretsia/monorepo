@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Artifacts\Compiler;
 
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
@@ -33,10 +34,11 @@ use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
-use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModuleResolution;
 
 /**
  * Orchestrates Kernel-owned artifact generation.
@@ -111,7 +113,7 @@ final readonly class ArtifactCompiler
         private FingerprintCalculator $fingerprintCalculator,
         private ModuleManifestBuilder $moduleManifestBuilder,
         private CompiledConfigBuilder $compiledConfigBuilder,
-        private ContainerCompiler $containerCompiler,
+        private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
         private CompiledContainerBuilder $compiledContainerBuilder,
         private ArtifactWriter $artifactWriter,
         private ArtifactPathResolver $pathResolver,
@@ -164,7 +166,6 @@ final readonly class ArtifactCompiler
      *     sourceId?: string|null,
      *     precedence?: int|null
      * }> $modePresetSourceCandidates
-     * @param iterable<array<string, mixed>> $containerDescriptors Descriptor-based, closure-free compiled-container input.
      *
      * @return array{
      *     schemaVersion: int,
@@ -187,12 +188,13 @@ final readonly class ArtifactCompiler
      * @throws ArtifactPathInvalidException
      * @throws ArtifactWriteFailedException
      * @throws ConfigInvalidException
+     * @throws ContainerDefinitionInvalidException
      * @throws ContainerCompileFailedException
      * @throws JsonFloatForbiddenException
      */
     public function compile(
         BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
+        ModuleResolution $moduleResolution,
         EnvRepositoryInterface $env,
         array $kernelConfig,
         array $packageDefaultSources,
@@ -201,8 +203,8 @@ final readonly class ArtifactCompiler
         array $explicitRuleSources = [],
         array $explicitEnvOverlayMappings = [],
         array $modePresetSourceCandidates = [],
-        iterable $containerDescriptors = [],
     ): array {
+        $modulePlan = $moduleResolution->plan();
         /*
          * Exactly one ConfigKernel::compile(...) invocation per artifact compile
          * operation. ArtifactCompiler must not compile config again in builders,
@@ -220,6 +222,11 @@ final readonly class ArtifactCompiler
             explain: false,
         );
 
+        $containerGraph = $this->runtimeContainerGraphCompiler->compile(
+            moduleResolution: $moduleResolution,
+            compiledConfig: $compiledConfig['config'],
+        );
+
         $fingerprintInput = $this->fingerprintInputBuilder->build(
             bootstrapConfig: $bootstrapConfig,
             modulePlan: $modulePlan,
@@ -234,8 +241,6 @@ final readonly class ArtifactCompiler
         );
 
         $fingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
-
-        $containerGraph = $this->containerCompiler->compile($containerDescriptors);
 
         $writes = [
             $this->writeModuleManifest(

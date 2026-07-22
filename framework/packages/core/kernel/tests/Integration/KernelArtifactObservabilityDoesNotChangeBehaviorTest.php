@@ -53,7 +53,9 @@ use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\ContainerCompiler;
-use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -125,7 +127,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::failingLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($this->skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -268,7 +270,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::noopLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($this->skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -310,7 +312,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::failingLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -363,6 +365,22 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         );
     }
 
+    private static function runtimeContainerGraphCompiler(
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
+    ): RuntimeContainerGraphCompiler {
+        return new RuntimeContainerGraphCompiler(
+            providerPlanResolver: new ContainerProviderPlanResolver(),
+            containerCompiler: self::containerCompiler(
+                tracer: $tracer,
+                meter: $meter,
+                logger: $logger,
+            ),
+            completenessValidator: new ContainerGraphCompletenessValidator(),
+        );
+    }
+
     private static function cacheVerifier(
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
@@ -383,7 +401,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             ),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            containerCompiler: self::containerCompiler(
+            runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler(
                 tracer: $tracer,
                 meter: $meter,
                 logger: $logger,
@@ -435,20 +453,6 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,
-        );
-    }
-
-    private static function modulePlan(): ModulePlan
-    {
-        return new ModulePlan(
-            app: 'web',
-            preset: 'default',
-            enabled: [],
-            disabled: [],
-            optionalMissing: [],
-            topologicalOrder: [],
-            modules: [],
-            warnings: [],
         );
     }
 

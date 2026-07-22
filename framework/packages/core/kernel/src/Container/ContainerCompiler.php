@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Container;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Definition\ServiceDefinition;
@@ -30,16 +31,18 @@ use Psr\Log\LoggerInterface;
 /**
  * Kernel-owned deterministic compiled-container graph compiler.
  *
- * This compiler consumes explicit descriptor-based, closure-free container
- * input and produces a deterministic DefinitionGraph suitable for
- * `container@1` compiled payload emission.
+ * This compiler consumes one ordered canonical ContainerDefinitionSet and
+ * produces a deterministic DefinitionGraph suitable for `container@1` compiled
+ * payload emission.
  *
- * Input order is caller-owned and semantically significant.
+ * Definition operation order is caller-owned and semantically significant.
+ * Conversion to a closure-free descriptor stream is a private normalization
+ * detail.
  *
- * The compiler MUST preserve the caller-supplied deterministic provider/module
- * order exactly as represented by the descriptor stream. It MUST NOT globally
- * sort providers, modules, or descriptors before applying binding-collision
- * semantics.
+ * The compiler MUST preserve the supplied deterministic provider/module order
+ * exactly as represented by the definition operation stream. It MUST NOT
+ * globally sort providers, modules, or operations before applying
+ * binding-collision semantics.
  *
  * Binding collision semantics intentionally match Foundation ContainerBuilder:
  *
@@ -123,25 +126,26 @@ final readonly class ContainerCompiler
     }
 
     /**
-     * Compiles a deterministic descriptor stream into a DefinitionGraph.
+     * Compiles one ordered canonical definition set into a DefinitionGraph.
      *
-     * The iterable order is authoritative and MUST already represent the
-     * caller-owned deterministic provider/module order. This method never
-     * re-sorts the descriptor stream before applying override semantics.
-     *
-     * @param iterable<array<string, mixed>> $descriptors
+     * Definition operation order is authoritative and MUST already represent
+     * deterministic provider/module order. This method never re-sorts
+     * definition operations before applying override semantics.
      *
      * @throws ContainerCompileFailedException
      */
-    public function compile(iterable $descriptors): DefinitionGraph
-    {
+    public function compile(
+        ContainerDefinitionSet $definitions,
+    ): DefinitionGraph {
         $startedAt = $this->safeStartTimer();
         $span = $this->safeStartSpan();
 
         $outcome = self::OUTCOME_FAILURE;
 
         try {
-            $graph = self::compileDescriptors($descriptors);
+            $graph = self::compileDescriptors(
+                $definitions->toDescriptorStream(),
+            );
 
             self::assertCompiledGraphSafe($graph);
 

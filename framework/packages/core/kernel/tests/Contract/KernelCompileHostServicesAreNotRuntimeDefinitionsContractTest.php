@@ -29,6 +29,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionKind;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
@@ -68,7 +69,11 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
+use Coretsia\Kernel\Container\Definition\ServiceDefinition;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -128,6 +133,8 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         ArtifactSchemaValidator::class,
         CompiledContainerFactory::class,
         ContainerCompiler::class,
+        ContainerGraphCompletenessValidator::class,
+        RuntimeContainerGraphCompiler::class,
         ArtifactCompiler::class,
         CacheVerifier::class,
     ];
@@ -171,6 +178,34 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 $serviceId,
                 $runtimeDefinitions->requiredServiceIds(),
             );
+        }
+    }
+
+    public function testCompletenessValidatorRejectsEveryCompileHostServiceBinding(): void
+    {
+        $validator = new ContainerGraphCompletenessValidator();
+
+        foreach (self::COMPILE_HOST_SERVICE_IDS as $serviceId) {
+            try {
+                $validator->validate(
+                    graph: DefinitionGraph::empty()->withService(
+                        ServiceDefinition::class(
+                            id: $serviceId,
+                            class: \stdClass::class,
+                        ),
+                    ),
+                    definitions: ContainerDefinitionSet::empty(),
+                );
+
+                self::fail(
+                    'Expected compile-host service binding to be rejected.',
+                );
+            } catch (ContainerDefinitionInvalidException $exception) {
+                self::assertSame(
+                    ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
+                    $exception->reason(),
+                );
+            }
         }
     }
 

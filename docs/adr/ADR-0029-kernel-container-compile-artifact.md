@@ -125,25 +125,38 @@ The SSoT owns:
 - missing/invalid artifact failure semantics;
 - unsupported stub rejection semantics.
 
-### Decision 4: Use descriptor-based, closure-free compile input
+### Decision 4: Compile the production graph from canonical provider definitions
 
-Compiled-container input is descriptor-based and closure-free.
+Production compiled-container input is provider-produced, canonical, and closure-free.
 
-The selected compile model is:
+The selected production compile model is:
 
 ```text
-descriptor stream
-  -> ContainerCompiler
-  -> DefinitionGraph
+ModuleResolution + compiled Phase-B config
+  -> RuntimeContainerGraphCompiler
+      -> ContainerProviderPlanResolver
+      -> provider instances in ContainerProviderPlan order
+      -> one ContainerDefinitionBuilder per provider
+      -> one ordered ContainerDefinitionSet per provider
+      -> ContainerDefinitionSet::merge(...)
+      -> ContainerCompiler
+      -> DefinitionGraph
+      -> ContainerGraphCompletenessValidator
   -> CompiledContainerBuilder
   -> container@1 artifact envelope
 ```
 
-`ContainerCompiler` consumes explicit deterministic descriptors and produces a deterministic `DefinitionGraph`.
+`ArtifactCompiler` and `CacheVerifier` must accept `ModuleResolution` and must not accept a raw descriptor iterable.
 
-The descriptor stream order is caller-owned and semantically significant.
+`RuntimeContainerGraphCompiler` owns production provider-plan resolution, ordered provider instantiation, definition collection, ordered set merging, low-level graph compilation, and final graph-completeness validation.
 
-`ContainerCompiler` must not globally sort providers, modules, or descriptors before applying binding collision semantics.
+Each planned provider is instantiated only at its ordered collection step and contributes through the same `define()` implementation used by source mode.
+
+`ContainerCompiler` remains the low-level deterministic normalizer. Its public input is one ordered `ContainerDefinitionSet`. Conversion through `ContainerDefinitionSet::toDescriptorStream()` is a private normalization detail.
+
+Provider-plan order, merged definition-operation order, and set order are semantically significant.
+
+Neither `RuntimeContainerGraphCompiler` nor `ContainerCompiler` may globally sort providers, modules, definition sets, or definition operations before applying binding collision semantics.
 
 The compiled graph must preserve Foundation-aligned semantics:
 
@@ -152,6 +165,33 @@ The compiled graph must preserve Foundation-aligned semantics:
 - later parameter binding overrides earlier parameter binding for the same parameter name;
 - tag duplicate handling remains first-wins per `(tag, serviceId)`;
 - tag discovery order remains `priority DESC, id ASC`.
+
+Before the graph can be written or used as expected cache state, `ContainerGraphCompletenessValidator` must reject:
+
+- unresolved service references;
+- unresolved parameter references;
+- unresolved factory-service references;
+- aliases that are cyclic or do not terminate in a graph-defined service;
+- tagged service ids that do not resolve to graph-defined services;
+- unsatisfied required service ids;
+- service and alias bindings that use the same id;
+- runtime-seed ids defined or shadowed by graph services or aliases;
+- compile-host service ids present in runtime graph topology.
+
+The canonical external runtime-seed service-id allowlist is:
+
+```text
+Coretsia\Foundation\Container\Container
+Psr\Container\ContainerInterface
+Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+Runtime seeds may satisfy service argument references and required-service declarations.
+
+Runtime seeds must not be alias targets, service-method factory services, or tagged services.
 
 The compiled graph must contain deterministic schema data only.
 
@@ -175,6 +215,10 @@ It must not contain:
 Factory behavior is represented through deterministic schema data such as class references, service ids, method names, service references, parameter references, and scalar/list/map arguments.
 
 Factory behavior is not represented by serialized PHP callables or closures.
+
+This decision does not require the compiled graph to enter fingerprint input. Graph-to-fingerprint linkage remains owned by the subsequent fingerprint integration decision.
+
+Producer acceptance of an external runtime-seed reference does not by itself prove that artifact-only runtime boot already materializes that seed. Artifact-only runtime seed construction remains a separate runtime integration responsibility.
 
 ### Decision 5: Use artifact-only production runtime boot
 
@@ -283,7 +327,9 @@ Failure diagnostics must not expose:
 - `container@1` keeps a stable artifact identity while replacing the transitional stub semantics with the first REAL compiled-container payload.
 - Production runtime boot becomes explicit and deterministic.
 - Missing or invalid `container.php` artifacts fail hard instead of silently switching to a different runtime construction mode.
-- Compiled-container input is constrained to deterministic descriptor data instead of runtime closures or PHP callable payloads.
+- Production graph input is collected automatically from enabled declarative module providers through one `ModuleResolution` snapshot instead of being supplied manually as a descriptor stream.
+- Artifact compilation and cache verification use the same production runtime-graph compiler.
+- Incomplete runtime graphs fail before artifact write or expected-artifact comparison.
 - Service definitions, aliases, parameters, and tags are represented as artifact schema data.
 - The compiled container can be validated by schema semantics rather than PHP object identity.
 - The compiled container remains compatible with the global artifact envelope and registry law.
@@ -295,7 +341,8 @@ Failure diagnostics must not expose:
 - A cold cache without generated artifacts is no longer a valid production runtime boot state.
 - Provider-based fallback is intentionally unavailable in production paths covered by this epic.
 - Developer-mode fallback, if ever needed, must be designed explicitly in a later epic/ADR.
-- Compile input must be transformed into deterministic descriptors before it can become a compiled artifact.
+- Every enabled provider selected for production graph compilation must implement `ContainerDefinitionProviderInterface` and produce definitions that pass final graph-completeness validation.
+- Descriptor export remains necessary inside the low-level normalizer, but it is no longer a production caller responsibility.
 - Runtime closures and raw PHP callable arrays cannot cross into the compiled graph.
 
 ### Operational consequences
@@ -340,7 +387,7 @@ Closures, anonymous functions, callable objects, raw callable arrays, reflection
 
 They are not suitable for stable artifact bytes, schema validation, or safe diagnostics.
 
-The selected design uses descriptor-based, closure-free compile input.
+The selected design uses provider-produced canonical definition sets. Descriptor export remains an internal closure-free normalization detail of `ContainerCompiler`.
 
 ### Alternative 4: Re-run providers as a production runtime fallback
 
@@ -374,7 +421,13 @@ This decision should be locked by tests covering:
 - runtime boot does not run module discovery;
 - runtime boot does not run provider fallback;
 - runtime boot does not compile a new container;
-- descriptor-based compile input rejects closures and callable payloads before artifact write;
+- production compilation resolves enabled providers from one `ModuleResolution`;
+- provider definitions are collected in exact provider-plan order and merged without re-sorting;
+- `ArtifactCompiler` and `CacheVerifier` use `RuntimeContainerGraphCompiler` and expose no raw descriptor iterable;
+- incomplete graphs fail before artifact write or expected-artifact comparison;
+- canonical definition input rejects closures and callable payloads before artifact write;
+- unresolved service, parameter, factory-service, alias, tag, and required-service edges fail deterministically;
+- runtime seed overrides and compile-host leakage fail before artifact write;
 - compiled aliases remain non-shared delegation wrappers;
 - service definition `shared` lifecycle is preserved;
 - Foundation tag ordering and first-wins dedupe are preserved.
@@ -382,6 +435,7 @@ This decision should be locked by tests covering:
 ## Related SSoT
 
 - `docs/ssot/compiled-container.md`
+- `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/artifacts.md`
 - `docs/ssot/artifacts-and-fingerprint.md`
 - `docs/ssot/cache-verify.md`
@@ -395,6 +449,7 @@ This decision should be locked by tests covering:
 - `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 - `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
 - `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
 
 ## Related epic
 

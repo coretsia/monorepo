@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use PHPUnit\Framework\TestCase;
@@ -30,22 +31,20 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
 {
     public function testDuplicateTagRegistrationUsesFirstWinsSemantics(): void
     {
-        $graph = self::compiler()->compile([
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.beta',
-                'priority' => 10,
-                'meta' => [],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.beta',
-                'priority' => 999,
-                'meta' => [],
-            ],
-        ]);
+        $definitions = new ContainerDefinitionBuilder()
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.beta',
+                priority: 10,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.beta',
+                priority: 999,
+            )
+            ->build();
+
+        $graph = self::compiler()->compile($definitions);
 
         $payload = $graph->toArray();
 
@@ -65,36 +64,30 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
 
     public function testTagExportUsesPriorityDescendingThenServiceIdAscendingOrder(): void
     {
-        $graph = self::compiler()->compile([
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.beta',
-                'priority' => 10,
-                'meta' => [],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.gamma',
-                'priority' => 50,
-                'meta' => [],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.alpha',
-                'priority' => 10,
-                'meta' => [],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.gamma',
-                'priority' => -100,
-                'meta' => [],
-            ],
-        ]);
+        $definitions = new ContainerDefinitionBuilder()
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.beta',
+                priority: 10,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.gamma',
+                priority: 50,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.alpha',
+                priority: 10,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.gamma',
+                priority: -100,
+            )
+            ->build();
+
+        $graph = self::compiler()->compile($definitions);
 
         $payload = $graph->toArray();
 
@@ -122,17 +115,18 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
 
     public function testTagMetadataIsAcceptedAtCompileInputButNotEmittedInCompiledPayload(): void
     {
-        $graph = self::compiler()->compile([
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'test.reset.alpha',
-                'priority' => 1,
-                'meta' => [
+        $definitions = new ContainerDefinitionBuilder()
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'test.reset.alpha',
+                priority: 1,
+                meta: [
                     'safe_flag' => true,
                 ],
-            ],
-        ]);
+            )
+            ->build();
+
+        $graph = self::compiler()->compile($definitions);
 
         $payload = $graph->toArray();
 

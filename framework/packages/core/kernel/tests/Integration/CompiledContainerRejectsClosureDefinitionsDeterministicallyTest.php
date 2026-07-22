@@ -21,6 +21,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
@@ -29,7 +31,7 @@ use Psr\Log\NullLogger;
 
 final class CompiledContainerRejectsClosureDefinitionsDeterministicallyTest extends TestCase
 {
-    public function testRejectsClosureDescriptorValueWithDeterministicFailure(): void
+    public function testRejectsClosureCanonicalDefinitionValueWithDeterministicFailure(): void
     {
         $absolutePath = \sys_get_temp_dir()
             . '/coretsia-closure-leak-'
@@ -44,37 +46,34 @@ final class CompiledContainerRejectsClosureDefinitionsDeterministicallyTest exte
         };
 
         try {
-            self::compiler()->compile([
-                [
-                    'kind' => 'service.class',
-                    'id' => CompiledContainerRejectsClosureDefinitionsSubject::class,
-                    'class' => CompiledContainerRejectsClosureDefinitionsSubject::class,
-                    'arguments' => [
-                        $closure,
-                    ],
+            new ContainerDefinitionBuilder()->classService(
+                id: CompiledContainerRejectsClosureDefinitionsSubject::class,
+                class: CompiledContainerRejectsClosureDefinitionsSubject::class,
+                arguments: [
+                    $closure,
                 ],
-            ]);
+            );
 
             self::fail('Expected compiled-container closure definition failure.');
-        } catch (ContainerCompileFailedException $exception) {
+        } catch (ContainerDefinitionInvalidException $exception) {
             self::assertSame(
-                ContainerCompileFailedException::ERROR_CODE,
+                ContainerDefinitionInvalidException::ERROR_CODE,
                 $exception->errorCode(),
             );
             self::assertSame(
-                ContainerCompileFailedException::MESSAGE_TOKEN,
+                ContainerDefinitionInvalidException::MESSAGE_TOKEN,
                 $exception->messageToken(),
             );
             self::assertSame(
-                ContainerCompileFailedException::REASON_CLOSURE_DEFINITION,
+                ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
                 $exception->reason(),
             );
             self::assertSame(
-                'CORETSIA_CONTAINER_COMPILE_FAILED: container-compile-failed',
+                'CORETSIA_CONTAINER_DEFINITION_INVALID: container-definition-invalid',
                 $exception->getMessage(),
             );
 
-            self::assertSafeCompileFailureMessage(
+            self::assertSafeFailureMessage(
                 exception: $exception,
                 absolutePath: $absolutePath,
                 rawConfigValue: $rawConfigValue,
@@ -83,22 +82,23 @@ final class CompiledContainerRejectsClosureDefinitionsDeterministicallyTest exte
         }
     }
 
-    public function testRejectsRawCallableArrayDescriptorValueWithDeterministicFailure(): void
+    public function testRejectsRawCallableArrayDuringLowLevelNormalization(): void
     {
-        try {
-            self::compiler()->compile([
-                [
-                    'kind' => 'service.class',
-                    'id' => CompiledContainerRejectsClosureDefinitionsSubject::class,
-                    'class' => CompiledContainerRejectsClosureDefinitionsSubject::class,
-                    'arguments' => [
-                        [
-                            CompiledContainerRejectsClosureDefinitionsCallableTarget::class,
-                            'make',
-                        ],
+        $definitions = new ContainerDefinitionBuilder()
+            ->classService(
+                id: CompiledContainerRejectsClosureDefinitionsSubject::class,
+                class: CompiledContainerRejectsClosureDefinitionsSubject::class,
+                arguments: [
+                    [
+                        CompiledContainerRejectsClosureDefinitionsCallableTarget::class,
+                        'make',
                     ],
                 ],
-            ]);
+            )
+            ->build();
+
+        try {
+            self::compiler()->compile($definitions);
 
             self::fail('Expected compiled-container raw callable definition failure.');
         } catch (ContainerCompileFailedException $exception) {
@@ -128,8 +128,8 @@ final class CompiledContainerRejectsClosureDefinitionsDeterministicallyTest exte
         }
     }
 
-    private static function assertSafeCompileFailureMessage(
-        ContainerCompileFailedException $exception,
+    private static function assertSafeFailureMessage(
+        \Throwable $exception,
         string $absolutePath,
         string $rawConfigValue,
         string $sourceSnippet,

@@ -40,33 +40,27 @@ The current integration state is:
 Foundation source runtime application
     -> actively consumes provider-owned canonical definitions
     -> uses caller-supplied declarative provider order
-
-Kernel compile-time provider-planning capability
-    -> resolver is registered as a compile-host service
-    -> when explicitly invoked, consumes one ModuleResolution
-    -> uses ModulePlan topological module order
-    -> preserves module-declared provider order
-    -> produces ContainerProviderPlan without provider instances
-    -> is not currently invoked by production artifact compilation
+    -> applies one shared definition set once
 
 Kernel production container compilation
-    -> continues to use its currently approved input path
-    -> does not consume complete provider-produced definition sets
+    -> accepts one ModuleResolution
+    -> compiles Phase-B config
+    -> resolves one ContainerProviderPlan
+    -> collects canonical provider definitions in plan order
+    -> merges ordered provider definition sets
+    -> compiles and validates one DefinitionGraph
 
-provider-produced compiler input
-    -> canonical compiler input when explicitly selected
-    -> collection order is supplied by ContainerProviderPlan
-    -> not selected by production artifact compilation
+Kernel cache verification
+    -> rebuilds the expected graph through the same production path
 
 artifact-only runtime boot
-    -> consumes the currently approved compiled artifact
+    -> consumes the approved compiled artifact
+    -> does not run definition providers as fallback
 ```
 
-The canonical model must be suitable for Kernel container compilation.
+The canonical model is the active production graph input model.
 
-Current production artifact compilation does not consume complete provider-produced definition sets.
-
-A compilation orchestration MAY consume such a set only when that input is selected explicitly.
+Production callers do not manually assemble or pass raw descriptor streams.
 
 Artifact-only runtime boot must not execute definition providers or use the source model as a production fallback.
 
@@ -100,6 +94,8 @@ This document owns:
 - one-complete-set application policy;
 - declarative provider batch aggregation semantics;
 - consumption of an externally resolved provider order during declarative definition collection;
+- production collection of ordered provider definition sets;
+- the canonical definition-model side of final graph-completeness validation;
 - declarative provider adapter semantics;
 - Foundation, Kernel, and Worker runtime contribution boundaries;
 - the Kernel compile-host/runtime-graph separation law;
@@ -144,7 +140,9 @@ It MUST NOT be moved to `core/kernel`.
 
 Foundation source providers must be able to describe Foundation DI wiring without depending on Kernel.
 
-Kernel MAY depend on and consume the Foundation model or its exported descriptor stream.
+Kernel MAY depend on and consume the Foundation canonical model.
+
+The exported descriptor stream is an internal normalization adapter and is not a production caller API.
 
 Foundation MUST NOT depend on Kernel to define or apply the canonical model.
 
@@ -180,6 +178,15 @@ The canonical definition-validation exception is:
 
 ```text
 framework/packages/core/foundation/src/Container/Exception/ContainerDefinitionInvalidException.php
+```
+
+The Kernel production definition-collection and completeness integration points are:
+
+```text
+framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
+framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
+framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+framework/packages/core/kernel/src/Container/ContainerCompiler.php
 ```
 
 These implementation points do not change this document's authority boundary.
@@ -229,7 +236,7 @@ docs/adr/ADR-0024-kernel-module-plan-resolution.md
 docs/ssot/modules-and-manifests.md
 ```
 
-This document owns only how an already-ordered provider sequence contributes to one canonical definition builder.
+This document owns how an already-ordered provider sequence contributes through the canonical definition model, including source-mode shared-builder aggregation and compile-mode per-provider definition-set collection followed by ordered merge.
 
 ## Canonical provider SPI (MUST)
 
@@ -430,14 +437,17 @@ ArtifactCompiler
 fingerprint services
 CacheVerifier
 artifact readers and writers
+CompiledContainerFactory
 ContainerCompiler
+ContainerGraphCompletenessValidator
+RuntimeContainerGraphCompiler
 ```
 
-Compile-host services MUST NOT appear in the Kernel runtime descriptor stream.
+Compile-host services MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
 `ModuleResolution` and `ContainerProviderPlan` are per-operation compile-time values produced by those services.
 
-They MUST NOT appear in the Kernel runtime descriptor stream.
+They MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
 Kernel source-host orchestration MAY additionally register a factory for:
 
@@ -1456,7 +1466,18 @@ A required service id MAY refer to:
 - a service defined by another provider contribution in the complete set;
 - an allowed external runtime seed.
 
-The currently allowed Worker external runtime seeds are:
+The canonical production external runtime-seed service-id allowlist is:
+
+```text
+Coretsia\Foundation\Container\Container
+Psr\Container\ContainerInterface
+Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+The Worker contribution currently relies on this subset:
 
 ```text
 ConfigRepositoryInterface
@@ -1479,6 +1500,38 @@ The source `ContainerDefinitionApplier` does not validate final required-service
 Completeness validation belongs to a final graph/runtime-seed-aware validator.
 
 Compiler or orchestration code MUST NOT silently discard required ids.
+
+### Production graph-completeness integration (MUST)
+
+The source `ContainerDefinitionApplier` does not validate final graph completeness.
+
+Kernel production graph compilation MUST validate completeness after all provider definition sets have been merged and normalized into one `DefinitionGraph`.
+
+The final validator is:
+
+```text
+Coretsia\Kernel\Container\ContainerGraphCompletenessValidator
+```
+
+Service argument references and required-service declarations MAY resolve to:
+
+- a graph-defined service;
+- a graph-defined alias terminating in a graph-defined service;
+- a canonical external runtime-seed service id.
+
+Alias targets, service-method factory service ids, and tagged service ids MUST resolve only to graph-owned services or aliases terminating in graph-owned services.
+
+Runtime seeds MUST NOT be used as alias targets, service-method factory services, or tagged services.
+
+The final validator MUST additionally reject:
+
+- missing parameter references;
+- alias cycles;
+- service and alias bindings using the same id;
+- runtime-seed overrides;
+- compile-host service leakage.
+
+Incomplete provider graphs MUST fail before artifact write or expected-artifact comparison.
 
 ## Source-runtime adapter (MUST)
 
@@ -1672,9 +1725,26 @@ The canonical model and source adapter define source-runtime application.
 
 Foundation, Kernel, and Worker source-runtime wiring uses provider-owned canonical definitions.
 
-Production artifact compilation continues to use its existing input path and does not consume complete provider-produced definition sets.
+Production artifact compilation also consumes provider-owned canonical definitions.
 
-Other `ServiceProviderInterface` implementations MAY remain imperative when they do not implement `ContainerDefinitionProviderInterface`.
+The active production path is:
+
+```text
+ModuleResolution + compiled Phase-B config
+    -> RuntimeContainerGraphCompiler
+    -> ContainerProviderPlanResolver
+    -> ordered provider definition collection
+    -> ordered ContainerDefinitionSet merge
+    -> ContainerCompiler
+    -> DefinitionGraph
+    -> ContainerGraphCompletenessValidator
+```
+
+`ArtifactCompiler` and `CacheVerifier` MUST use this same graph-production path.
+
+Neither operation may accept a raw descriptor iterable.
+
+Other `ServiceProviderInterface` implementations MAY remain imperative when they do not implement `ContainerDefinitionProviderInterface`, but an imperative-only provider cannot enter a production `ContainerProviderPlan`.
 
 The canonical model is not a second production runtime boot path.
 
@@ -1682,41 +1752,37 @@ Production artifact-only runtime boot MUST continue to follow `docs/ssot/compile
 
 Production boot MUST NOT run declarative providers as a fallback when the compiled artifact is missing or invalid.
 
-The Kernel compiler may consume complete provider-produced definition sets only when compilation orchestration explicitly selects that input.
-
-Kernel exposes an available provider-planning capability through compile-host wiring.
-
-Provider-plan resolution is explicitly invoked only by orchestration that requires an ordered `ContainerProviderPlan`.
-
-Current production artifact compilation does not invoke this capability.
-
 A resolved `ContainerProviderPlan`:
 
 - identifies and orders declarative provider classes;
 - contains no provider instances;
 - contains no definition operations;
-- does not by itself alter the production artifact compiler input;
 - does not authorize a second Composer metadata read.
 
-When provider-produced definitions are selected as compiler input, collection MUST consume the existing plan order and the same `ModuleResolution` snapshot.
+`RuntimeContainerGraphCompiler` owns provider instantiation and definition collection after provider planning.
 
-### Current Worker compilation boundary (MUST)
+Collection MUST consume the existing plan order and the same `ModuleResolution` snapshot.
+
+### Active Worker compilation boundary (MUST)
 
 `WorkerServiceProvider::define()` provides the canonical closure-free Worker runtime contribution.
 
-Production artifact compilation does not consume complete provider-produced definition sets.
+When `WorkerServiceProvider` is declared by an enabled module, production artifact compilation MUST:
 
-The current boundary is:
+- resolve it through `ContainerProviderPlanResolver`;
+- instantiate it only at its ordered collection step;
+- invoke its canonical `define()` implementation;
+- merge its definition set with the other enabled provider sets;
+- validate the final graph before artifact write.
+
+The active boundary is:
 
 - source mode applies the Worker provider contribution;
-- the Worker contribution remains valid compiler input when compilation orchestration explicitly selects provider-produced definitions;
-- when provider-plan resolution is explicitly invoked, it may resolve and order `WorkerServiceProvider` without instantiating it;
-- provider-plan resolution does not mean that Worker definitions have been collected or compiled;
-- production artifact compilation continues to use its currently approved input path;
-- artifact-only boot does not execute Worker providers as a fallback;
-- documentation and tests MUST distinguish provider-plan resolution from provider-definition compilation and from artifact-only runtime boot.
-
-Any compilation orchestration that consumes Worker provider definitions MUST use the same `WorkerServiceProvider::define()` contribution rather than a parallel Worker descriptor source.
+- production compile mode consumes the same Worker provider contribution;
+- provider-plan resolution itself does not instantiate providers;
+- `RuntimeContainerGraphCompiler` performs ordered provider execution;
+- artifact-only boot does not execute Worker providers as fallback;
+- no parallel Worker descriptor source is allowed.
 
 ## Non-goals / Clarifications (MUST)
 
@@ -1725,7 +1791,7 @@ Any compilation orchestration that consumes Worker provider definitions MUST use
 - This document does not define Kernel `DefinitionGraph` internals.
 - This document does not require every `ServiceProviderInterface` implementation to implement `ContainerDefinitionProviderInterface`.
 - This document does not make provider execution part of artifact-only runtime boot.
-- This document does not validate final required-service completeness.
+- The Foundation source adapter does not validate final required-service completeness; Kernel production graph compilation does.
 - This document does not own module-provider ordering; it consumes the order resolved under ADR-0024 when compile-time orchestration supplies one.
 - This document does not define `ModuleResolution` or `ContainerProviderPlan` construction.
 - This document does not instantiate providers during provider-plan resolution.
@@ -1797,42 +1863,51 @@ The complete definition set is built and applied once.
 
 ### Consuming an ordered provider plan in compile mode
 
-The following is the required conditional flow for an orchestration operation that explicitly selects provider-produced definitions.
-
-It does not describe the current production artifact-compilation input path.
-
-Such an orchestration begins with:
+Production compilation begins with:
 
 ```text
-ModuleResolution
+ModuleResolution + compiled Phase-B config
+    -> RuntimeContainerGraphCompiler
     -> ContainerProviderPlanResolver
     -> ContainerProviderPlan
 ```
 
-The orchestration layer then processes provider classes in exact plan order.
+The orchestration layer processes provider classes in exact plan order.
 
 For every planned provider class, it must:
 
 1. instantiate the provider only at its ordered collection step;
-2. invoke the canonical `define()` contribution;
-3. append operations to one shared `ContainerDefinitionBuilder`;
-4. preserve the supplied `moduleOrder` and `providerOrder` sequence.
+2. create one fresh `ContainerDefinitionBuilder`;
+3. invoke the canonical `define()` contribution with the shared compiled-config context;
+4. build one immutable provider definition set;
+5. append that set to the ordered provider-set list.
 
-After all planned providers contribute, orchestration calls:
+After all planned providers contribute, orchestration merges the sets:
 
 ```php
-$completeSet = $definitions->build();
+$completeSet = ContainerDefinitionSet::merge(
+    ...$providerDefinitionSets,
+);
 ```
 
-exactly once.
+It then delegates:
+
+```text
+complete ContainerDefinitionSet
+    -> ContainerCompiler
+    -> DefinitionGraph
+    -> ContainerGraphCompletenessValidator
+```
 
 It MUST NOT:
 
 - sort `ContainerProviderPlan::providerClasses()`;
-- build one definition set per provider;
+- reorder provider definition sets before merge;
+- apply provider sets independently;
 - reread Composer metadata;
 - rerun `ModulePlanResolver`;
-- place provider objects into `ContainerDefinitionSet`.
+- place provider objects into `ContainerDefinitionSet`;
+- bypass final completeness validation.
 
 ### Combining already-built definition sets
 
@@ -1848,7 +1923,7 @@ $containerBuilder->applyDefinitions($completeSet);
 
 Set order and operation order are preserved.
 
-Normal source provider registration SHOULD prefer one shared builder instead of producing one set per provider.
+Source provider registration SHOULD prefer one shared builder. Production compile orchestration intentionally builds one immutable set per planned provider and merges those sets in plan order.
 
 ### Preserving alias target lifecycle
 
@@ -1952,6 +2027,17 @@ framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDup
 framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
 ```
 
+Kernel production runtime-graph compilation MUST additionally be locked by:
+
+```text
+framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerUsesProviderPlanTest.php
+framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
+framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
+framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactCompilerUsesProductionContainerGraphTest.php
+framework/packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerGraphAsCompilerTest.php
+```
+
 Foundation, Kernel, and Worker provider integration SHOULD additionally be locked by:
 
 ```text
@@ -2021,8 +2107,12 @@ Additional tests SHOULD cover:
 - lazy selection of only the canonical task-factory service;
 - `RuntimePathContext::class` remaining visible as a required service id;
 - runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
-- production artifact compilation not consuming complete provider-produced definition sets;
-- Kernel compile-host ids being absent from the runtime descriptor stream;
+- production artifact compilation consuming complete provider-produced definition sets;
+- compile and verify using the same graph-production path;
+- incomplete graphs failing before artifact write or expected-artifact comparison;
+- runtime seed overrides failing deterministically;
+- missing service, parameter, factory-service, alias, tag, and required-service edges failing deterministically;
+- Kernel compile-host ids being absent from runtime definition operations and compiled graph topology;
 - mandatory and possible container-owned graph lookups resolved through `ContainerInterface` having matching required-service declarations;
 - optional mode-dependent preflight lookups remaining outside unconditional required-service declarations.
 
@@ -2043,17 +2133,20 @@ When a declarative runtime provider contributes canonical container definitions:
 11. source-container factory closures created for definition application exist only inside the Foundation adapter;
 12. Worker execution callbacks, including the PCNTL child runner and task-work callback, are created only during runtime service construction or execution and never enter canonical definitions;
 13. Worker source mode consumes `WorkerServiceProvider::define()`;
-14. module-aware compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
+14. production compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
 15. provider planning uses module topological order followed by declared provider order and creates no provider instances;
-16. compilation orchestration that selects complete provider-produced definitions consumes provider classes in that plan order and invokes the same canonical provider contributions;
-17. the production artifact-compilation path does not consume complete provider-produced definition sets;
-18. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
+16. `RuntimeContainerGraphCompiler` instantiates providers in plan order and invokes the same canonical provider contributions;
+17. one immutable definition set is built per provider and all sets are merged in exact plan order;
+18. `ContainerCompiler` produces one deterministic `DefinitionGraph`;
+19. `ContainerGraphCompletenessValidator` rejects incomplete runtime topology before artifact write or expected-artifact comparison;
+20. `ArtifactCompiler` and `CacheVerifier` use the same graph-production path;
+21. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
 
 Steps 1–13 describe the active source-runtime definition flow.
 
-Steps 14–16 apply only when a module-aware compile-time operation explicitly invokes provider planning and selects provider-produced definitions.
+Steps 14–20 describe the active production graph-compilation flow.
 
-The current production artifact-compilation path does not perform steps 14–16.
+Step 21 remains the separate artifact-only runtime boot boundary.
 
 ## Cross-references
 

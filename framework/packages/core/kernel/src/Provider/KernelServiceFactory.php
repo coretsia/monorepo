@@ -65,7 +65,9 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -857,6 +859,65 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the production runtime container graph completeness validator.
+     *
+     * This factory performs construction only. It does not inspect a graph,
+     * resolve modules, instantiate providers, read config, or compile container
+     * definitions.
+     */
+    public static function containerGraphCompletenessValidator(): ContainerGraphCompletenessValidator
+    {
+        return new ContainerGraphCompletenessValidator();
+    }
+
+    /**
+     * Creates the production runtime container graph compiler.
+     *
+     * This factory performs wiring only. It does not resolve modules, instantiate
+     * providers, produce definitions, compile a graph, or validate completeness
+     * during construction.
+     */
+    public static function runtimeContainerGraphCompiler(
+        ContainerInterface $container,
+    ): RuntimeContainerGraphCompiler {
+        $providerPlanResolver = self::artifactService(
+            $container,
+            ContainerProviderPlanResolver::class,
+        );
+
+        if (!$providerPlanResolver instanceof ContainerProviderPlanResolver) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $containerCompiler = self::artifactService(
+            $container,
+            ContainerCompiler::class,
+        );
+
+        if (!$containerCompiler instanceof ContainerCompiler) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $completenessValidator = self::artifactService(
+            $container,
+            ContainerGraphCompletenessValidator::class,
+        );
+
+        if (
+            !$completenessValidator
+                instanceof ContainerGraphCompletenessValidator
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new RuntimeContainerGraphCompiler(
+            providerPlanResolver: $providerPlanResolver,
+            containerCompiler: $containerCompiler,
+            completenessValidator: $completenessValidator,
+        );
+    }
+
+    /**
      * Builds the production runtime Foundation container through compiled-artifact
      * boot only.
      *
@@ -952,9 +1013,9 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
+        $runtimeContainerGraphCompiler = self::artifactService($container, RuntimeContainerGraphCompiler::class);
 
-        if (!$containerCompiler instanceof ContainerCompiler) {
+        if (!$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -982,7 +1043,7 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            containerCompiler: $containerCompiler,
+            runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
             compiledContainerBuilder: $compiledContainerBuilder,
             artifactWriter: $artifactWriter,
             pathResolver: $pathResolver,
@@ -1029,9 +1090,9 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
+        $runtimeContainerGraphCompiler = self::artifactService($container, RuntimeContainerGraphCompiler::class);
 
-        if (!$containerCompiler instanceof ContainerCompiler) {
+        if (!$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -1071,7 +1132,7 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            containerCompiler: $containerCompiler,
+            runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
             compiledContainerBuilder: $compiledContainerBuilder,
             phpArrayDumper: $phpArrayDumper,
             artifactReader: $artifactReader,

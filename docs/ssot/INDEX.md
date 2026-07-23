@@ -72,6 +72,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 
 ## Runtime Invariants
 
+- [Artifact Generations](./artifact-generations.md) — owner: core/kernel — ssotVersion: 1 — scope: artifacts,atomic,determinism,generations,publication,storage
 - [Artifacts and Fingerprint Behavior](./artifacts-and-fingerprint.md) — owner: core/kernel — ssotVersion: 1 — scope: artifacts,determinism,fingerprint,kernel,production
 - [Cache Verification Semantics](./cache-verify.md) — owner: core/kernel — ssotVersion: 1 — scope: artifacts,cache,kernel,verification
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md) — owner: core/kernel — ssotVersion: 1 — scope: artifacts,boot,compile,container,kernel,payload,runtime

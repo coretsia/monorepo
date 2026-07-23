@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Artifacts\Verifier;
 
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
 
 /**
  * Validates parsed Kernel-owned PHP artifact schemas.
@@ -31,13 +32,14 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
  * - artifact-specific payload schemas for:
  *   - module-manifest@1;
  *   - config@1;
- *   - container@1.
+ *   - container@1;
+ *   - artifact-generation@1.
  *
  * This class intentionally does not:
  *
  * - read files;
  * - include PHP artifacts;
- * - compare bytes;
+ * - compare declared generation metadata with filesystem artifact bytes;
  * - calculate fingerprints;
  * - build expected artifacts;
  * - construct ArtifactHeader objects for validation;
@@ -55,6 +57,7 @@ final readonly class ArtifactSchemaValidator
     private const int SCHEMA_VERSION_MODULE_MANIFEST = 1;
     private const int SCHEMA_VERSION_CONFIG = 1;
     private const int SCHEMA_VERSION_CONTAINER = 1;
+    private const int SCHEMA_VERSION_ARTIFACT_GENERATION = 1;
 
     private const int MAX_SAFE_STRING_BYTES = 512;
     private const int MAX_CONTAINER_GRAPH_DEPTH = 32;
@@ -159,6 +162,23 @@ final readonly class ArtifactSchemaValidator
     ];
 
     /**
+     * @var list<string>
+     */
+    private const array ARTIFACT_GENERATION_PAYLOAD_KEYS = [
+        'artifacts',
+        'generationId',
+        'schemaVersion',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const array ARTIFACT_GENERATION_ENTRY_KEYS = [
+        'bytes',
+        'sha256',
+    ];
+
+    /**
      * Validates any Kernel-owned artifact envelope.
      *
      * @param array<int|string, mixed> $envelope
@@ -177,8 +197,22 @@ final readonly class ArtifactSchemaValidator
 
         $name = $header['name'];
         $schemaVersion = $header['schemaVersion'];
+        $fingerprint = $header['fingerprint'];
 
-        if (!\is_string($name) || !\is_int($schemaVersion)) {
+        if (
+            !\is_string($name)
+            || !\is_int($schemaVersion)
+            || !\is_string($fingerprint)
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_HEADER_INVALID,
+            );
+        }
+
+        if (
+            $name === ArtifactEnvelopeFactory::ARTIFACT_GENERATION
+            && \array_key_exists('requires', $header)
+        ) {
             throw ArtifactInvalidException::withReason(
                 ArtifactInvalidException::REASON_HEADER_INVALID,
             );
@@ -196,6 +230,11 @@ final readonly class ArtifactSchemaValidator
             ArtifactEnvelopeFactory::ARTIFACT_CONTAINER => $this->validateContainerPayload(
                 payload: $payload,
                 schemaVersion: $schemaVersion,
+            ),
+            ArtifactEnvelopeFactory::ARTIFACT_GENERATION => $this->validateArtifactGenerationPayload(
+                payload: $payload,
+                schemaVersion: $schemaVersion,
+                headerFingerprint: $fingerprint,
             ),
             default => throw ArtifactInvalidException::withReason(
                 ArtifactInvalidException::REASON_NAME_MISMATCH,
@@ -817,6 +856,106 @@ final readonly class ArtifactSchemaValidator
                         ArtifactInvalidException::REASON_SCHEMA_INVALID,
                     );
                 }
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @throws ArtifactInvalidException
+     */
+    private function validateArtifactGenerationPayload(
+        array $payload,
+        int $schemaVersion,
+        string $headerFingerprint,
+    ): void {
+        if (
+            $schemaVersion
+            !== self::SCHEMA_VERSION_ARTIFACT_GENERATION
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_VERSION_MISMATCH,
+            );
+        }
+
+        self::assertExactMapKeys(
+            $payload,
+            self::ARTIFACT_GENERATION_PAYLOAD_KEYS,
+        );
+        self::assertMapKeysSortedByByteOrder($payload);
+
+        $generationId = $payload['generationId'];
+
+        if (
+            !\is_string($generationId)
+            || \preg_match(
+                self::HASH_PATTERN,
+                $generationId,
+            ) !== 1
+            || \preg_match(
+                self::HASH_PATTERN,
+                $headerFingerprint,
+            ) !== 1
+            || $headerFingerprint !== $generationId
+            || ($payload['schemaVersion'] ?? null)
+            !== self::SCHEMA_VERSION_ARTIFACT_GENERATION
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        $artifacts = $payload['artifacts'];
+
+        if (
+            !\is_array($artifacts)
+            || \array_is_list($artifacts)
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        self::assertExactMapKeys(
+            $artifacts,
+            [
+                ArtifactGeneration::CONFIG_BASENAME,
+                ArtifactGeneration::CONTAINER_BASENAME,
+                ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+            ],
+        );
+        self::assertMapKeysSortedByByteOrder($artifacts);
+
+        foreach ($artifacts as $basename => $entry) {
+            if (
+                !\is_string($basename)
+                || !\is_array($entry)
+                || \array_is_list($entry)
+            ) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+
+            self::assertExactMapKeys(
+                $entry,
+                self::ARTIFACT_GENERATION_ENTRY_KEYS,
+            );
+            self::assertMapKeysSortedByByteOrder($entry);
+
+            if (
+                !\is_int($entry['bytes'])
+                || $entry['bytes'] < 1
+                || !\is_string($entry['sha256'])
+                || \preg_match(
+                    self::HASH_PATTERN,
+                    $entry['sha256'],
+                ) !== 1
+            ) {
+                throw ArtifactInvalidException::withReason(
+                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
             }
         }
     }

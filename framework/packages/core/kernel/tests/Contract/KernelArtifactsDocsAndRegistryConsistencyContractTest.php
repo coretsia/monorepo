@@ -186,9 +186,18 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
 
     public function testCompiledContainerReusesExistingKernelArtifactPathPolicy(): void
     {
-        $pathResolver = self::kernelSource('src/Artifacts/Paths/ArtifactPathResolver.php');
-        $artifactCompiler = self::kernelSource('src/Artifacts/Compiler/ArtifactCompiler.php');
-        $cacheVerifier = self::kernelSource('src/Artifacts/Verifier/CacheVerifier.php');
+        $pathResolver = self::kernelSource(
+            'src/Artifacts/Paths/ArtifactPathResolver.php',
+        );
+        $artifactGeneration = self::kernelSource(
+            'src/Artifacts/Generation/ArtifactGeneration.php',
+        );
+        $artifactCompiler = self::kernelSource(
+            'src/Artifacts/Compiler/ArtifactCompiler.php',
+        );
+        $cacheVerifier = self::kernelSource(
+            'src/Artifacts/Verifier/CacheVerifier.php',
+        );
 
         self::assertStringContainsString(
             '$bootstrapConfig->artifactsCacheDir()',
@@ -204,10 +213,18 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             '$kernelConfig',
             $pathResolver,
         );
+
         self::assertStringContainsString(
-            "public const string CONTAINER_BASENAME = 'container.php';",
+            'public const string CONTAINER_BASENAME'
+            . ' = ArtifactGeneration::CONTAINER_BASENAME;',
             $pathResolver,
         );
+
+        self::assertStringContainsString(
+            "public const string CONTAINER_BASENAME = 'container.php';",
+            $artifactGeneration,
+        );
+
         self::assertStringContainsString(
             'public function containerPath(',
             $pathResolver,
@@ -217,6 +234,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             '$this->pathResolver->containerPath($bootstrapConfig)',
             $artifactCompiler,
         );
+
         self::assertStringContainsString(
             'basename: ArtifactPathResolver::CONTAINER_BASENAME',
             $artifactCompiler,
@@ -226,6 +244,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             '$this->pathResolver->containerPath($bootstrapConfig)',
             $cacheVerifier,
         );
+
         self::assertStringContainsString(
             'basename: ArtifactPathResolver::CONTAINER_BASENAME',
             $cacheVerifier,

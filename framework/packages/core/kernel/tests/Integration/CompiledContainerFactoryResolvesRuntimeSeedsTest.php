@@ -52,25 +52,25 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 $root,
                 'container.php',
             );
-            $configPayload =
-                ArtifactPipelineTestSupport::configPayloadFromArtifact(
-                    $root,
-                );
-            $moduleManifestEnvelope =
-                ArtifactPipelineTestSupport::artifactEnvelope(
-                    $root,
-                    'module-manifest.php',
-                );
-            $moduleManifestPayload =
-                $moduleManifestEnvelope['payload'] ?? null;
+            $configPayload = ArtifactPipelineTestSupport::configPayloadFromArtifact(
+                $root,
+            );
+            $moduleManifestEnvelope = ArtifactPipelineTestSupport::artifactEnvelope(
+                $root,
+                'module-manifest.php',
+            );
+
+            $moduleManifestPayload = $moduleManifestEnvelope['payload'] ?? null;
 
             self::assertIsArray($moduleManifestPayload);
 
+            $input = new ArtifactRuntimeInput(
+                skeletonRoot: $root,
+                artifactRoot: \dirname($containerPath),
+            );
+
             $seeds = new ArtifactRuntimeSeedFactory()->create(
-                input: new ArtifactRuntimeInput(
-                    skeletonRoot: $root,
-                    artifactRoot: \dirname($containerPath),
-                ),
+                input: $input,
                 configPayload: $configPayload,
                 moduleManifestPayload: $moduleManifestPayload,
             );
@@ -100,19 +100,21 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 $moduleResolution->plan()->toArray(),
                 $modulePlan->toArray(),
             );
-            self::assertSame($root, $paths->skeletonRoot());
             self::assertSame(
-                \dirname($containerPath),
+                $input->skeletonRoot(),
+                $paths->skeletonRoot(),
+            );
+            self::assertSame(
+                $input->artifactRoot(),
                 $paths->artifactRoot(),
             );
 
-            $container =
-                ArtifactPipelineTestSupport::compiledContainerFactory()
-                    ->build(
-                        containerArtifactPath: $containerPath,
-                        configPayload: $configPayload,
-                        seeds: $seeds,
-                    );
+            $container = ArtifactPipelineTestSupport::compiledContainerFactory()
+                ->build(
+                    containerArtifactPath: $containerPath,
+                    configPayload: $configPayload,
+                    seeds: $seeds,
+                );
 
             self::assertSame(
                 $config,

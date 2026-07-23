@@ -24,8 +24,6 @@ Amended by the compiled-container work in epic `1.340.0`.
 
 Amended by the Bootstrap Phase A artifact cache directory refactor.
 
-Amended by the G2 production runtime graph and container-graph fingerprint integration.
-
 Artifact location is now resolved before ConfigKernel Phase B and is consumed through `BootstrapConfig::artifactsCacheDir()`.
 
 The artifact fingerprint now binds the canonical compiled `DefinitionGraph` used to produce the REAL `container@1` artifact.

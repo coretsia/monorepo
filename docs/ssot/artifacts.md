@@ -133,21 +133,59 @@ Registry table columns are single-choice:
 
 Path shape records the stable owner-defined artifact basename family. It does not grant ownership to contracts packages and does not imply that filesystem location is globally shared across owners.
 
-| artifact name     | schemaVersion | owner package_id   | path shape                                 | notes                                                                                                                                                                                |
-|-------------------|--------------:|--------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `container`       |           `1` | `core/kernel`      | `container.<owner-defined-encoding>`       | Compiled container artifact.                                                                                                                                                         |
-| `config`          |           `1` | `core/kernel`      | `config.<owner-defined-encoding>`          | Compiled config artifact. FUTURE: may be introduced later.                                                                                                                           |
-| `module-manifest` |           `1` | `core/kernel`      | `module-manifest.<owner-defined-encoding>` | ModulePlan-derived enabled/disabled/optionalMissing + deterministic topo order; envelope `{ "_meta", "payload" }`; no timestamps or absolute paths. FUTURE: may be introduced later. |
-| `routes`          |           `1` | `platform/routing` | `routes.<owner-defined-encoding>`          | Route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. FUTURE: may be introduced later.                              |
+| artifact name         | schemaVersion | owner package_id   | path shape                                     | notes                                                                                                                                                                                  |
+|-----------------------|--------------:|--------------------|------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `artifact-generation` |           `1` | `core/kernel`      | `generation-manifest.<owner-defined-encoding>` | Immutable generation manifest for exact `config`, `container`, and `module-manifest` artifact bytes; generation id equals the shared artifact fingerprint; no paths and no `requires`. |
+| `container`           |           `1` | `core/kernel`      | `container.<owner-defined-encoding>`           | Compiled container artifact.                                                                                                                                                           |
+| `config`              |           `1` | `core/kernel`      | `config.<owner-defined-encoding>`              | Compiled config artifact.                                                                                                                                                              |
+| `module-manifest`     |           `1` | `core/kernel`      | `module-manifest.<owner-defined-encoding>`     | ModulePlan-derived enabled/disabled/optionalMissing + deterministic topo order; envelope `{ "_meta", "payload" }`; no timestamps or absolute paths.                                    |
+| `routes`              |           `1` | `platform/routing` | `routes.<owner-defined-encoding>`              | Route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. FUTURE: may be introduced later.                                |
 
-## Baseline Registry Entries Introduced by This Epic (MUST)
+## Canonical Registry Entries (MUST)
 
-This epic introduces the following canonical artifact identities:
+The registry contains the following canonical artifact identities:
 
+- `artifact-generation@1`
 - `container@1`
 - `config@1`
 - `module-manifest@1`
 - `routes@1`
+
+### `artifact-generation@1`
+
+The canonical owner is:
+
+```text
+core/kernel
+```
+
+Its canonical owner-defined PHP basename is:
+
+```text
+generation-manifest.php
+```
+
+Its payload and immutable generation storage law are owned by:
+
+```text
+docs/ssot/artifact-generations.md
+```
+
+The cache-control files:
+
+```text
+current
+generation.lock
+```
+
+are not artifacts.
+
+They MUST NOT:
+
+- use the artifact envelope;
+- be added to the artifact registry;
+- participate in artifact fingerprint identity;
+- be listed as members of `artifact-generation@1`.
 
 ## Artifact Payload Rule (MUST)
 
@@ -167,11 +205,12 @@ Artifact readers and consumers:
 ## Non-goals / Clarifications (MUST)
 
 - This registry defines the global artifact envelope and deterministic serialization law.
-- Owner-specific payload schemas may be detailed in later owner epics, but they MUST remain compatible with the global envelope and deterministic law defined here.
+- Owner-specific payload schemas may be detailed in owner-scoped SSoT documents, but they MUST remain compatible with the global envelope and deterministic law defined here.
 - Contracts packages do not gain ownership of artifact generation merely by exposing related contracts.
 - Artifact format law is global; payload semantics are owner-scoped.
 
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [Artifact Generations](./artifact-generations.md)
 - [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

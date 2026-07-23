@@ -19,40 +19,52 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Artifacts\Paths;
 
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationId;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 
 /**
- * Resolves Kernel-owned artifact output paths.
+ * Resolves the Kernel-owned artifact root and delegates immutable generation
+ * paths below that root.
  *
- * Artifact paths are derived exclusively from:
+ * Artifact-root ownership remains in this resolver. The root is derived
+ * exclusively from:
  *
  * - BootstrapConfig::skeletonRoot();
  * - BootstrapConfig::appTarget()->value;
- * - BootstrapConfig::artifactsCacheDir();
- * - a canonical Kernel-owned artifact basename.
+ * - BootstrapConfig::artifactsCacheDir().
  *
- * The artifact cache directory is resolved and validated during Bootstrap
- * Phase A. This resolver does not read Kernel config and does not resolve
- * bootstrap defaults or application overrides.
+ * The current production compiler still resolves the legacy flat artifact
+ * paths:
  *
- * Runtime behavior:
+ * - module-manifest.php;
+ * - config.php;
+ * - container.php.
  *
- * - artifacts are resolved under
- *   `<skeletonRoot>/<artifactsCacheDir>/<appTarget>/`;
- * - only Kernel-owned artifact basenames are accepted;
- * - `routes.php` is intentionally not accepted because `routes@1` is owned by
- *   platform/routing, not core/kernel;
- * - the final artifact path must remain under the resolved cache directory;
- * - ArtifactPathInvalidException messages never include configured path
- *   values or absolute resolved paths.
+ * Immutable generation-specific paths are delegated to
+ * ArtifactGenerationPathResolver:
+ *
+ * - generations/<generation-id>/;
+ * - generation artifact paths;
+ * - current;
+ * - generation.lock;
+ * - generations/.staging-<generation-id>-<random-suffix>.
+ *
+ * `current` and `generation.lock` are cache-control files, not artifacts.
+ * `routes.php` is intentionally not accepted because routes@1 is owned by
+ * platform/routing, not core/kernel.
+ *
+ * This resolver does not read or write files, select the current generation,
+ * calculate fingerprints, or include path values in diagnostics.
  *
  * @internal
  */
 final class ArtifactPathResolver
 {
-    public const string MODULE_MANIFEST_BASENAME = 'module-manifest.php';
-    public const string CONFIG_BASENAME = 'config.php';
-    public const string CONTAINER_BASENAME = 'container.php';
+    public const string MODULE_MANIFEST_BASENAME = ArtifactGeneration::MODULE_MANIFEST_BASENAME;
+    public const string CONFIG_BASENAME = ArtifactGeneration::CONFIG_BASENAME;
+    public const string CONTAINER_BASENAME = ArtifactGeneration::CONTAINER_BASENAME;
     private const int MAX_RELATIVE_PATH_BYTES = 512;
 
     /**
@@ -63,6 +75,11 @@ final class ArtifactPathResolver
         self::CONFIG_BASENAME => true,
         self::CONTAINER_BASENAME => true,
     ];
+
+    public function __construct(
+        private readonly ArtifactGenerationPathResolver $generationPathResolver = new ArtifactGenerationPathResolver(),
+    ) {
+    }
 
     public function moduleManifestPath(
         BootstrapConfig $bootstrapConfig,
@@ -178,20 +195,105 @@ final class ArtifactPathResolver
     }
 
     /**
-     * Resolves the absolute or caller-supplied-root-relative cache directory.
+     * Resolves the final artifact root owned by core/kernel.
+     *
+     * Production writing still uses the current flat layout until the
+     * generation publication pipeline is enabled.
+     *
+     * @throws ArtifactPathInvalidException
+     */
+    public function artifactRoot(
+        BootstrapConfig $bootstrapConfig,
+    ): string {
+        return self::joinPath(
+            self::normalizeSkeletonRoot(
+                $bootstrapConfig->skeletonRoot(),
+            ),
+            $this->relativeCacheDirectory($bootstrapConfig),
+        );
+    }
+
+    /**
+     * Backward-compatible artifact-root alias used by the current compiler,
+     * verifier, and runtime path construction.
      *
      * @throws ArtifactPathInvalidException
      */
     public function cacheDirectory(
         BootstrapConfig $bootstrapConfig,
     ): string {
-        return self::joinPath(
-            self::normalizeSkeletonRoot($bootstrapConfig->skeletonRoot()),
-            $this->relativeCacheDirectory($bootstrapConfig),
+        return $this->artifactRoot($bootstrapConfig);
+    }
+
+    public function generation(
+        BootstrapConfig $bootstrapConfig,
+        ArtifactGenerationId $generationId,
+    ): ArtifactGeneration {
+        return $this->generationPathResolver->generation(
+            artifactRoot: $this->artifactRoot($bootstrapConfig),
+            generationId: $generationId,
         );
     }
 
+    public function generationDirectory(
+        BootstrapConfig $bootstrapConfig,
+        ArtifactGenerationId $generationId,
+    ): string {
+        return $this->generationPathResolver
+            ->generationDirectory(
+                artifactRoot: $this->artifactRoot($bootstrapConfig),
+                generationId: $generationId,
+            );
+    }
+
+    public function currentGenerationPath(
+        BootstrapConfig $bootstrapConfig,
+    ): string {
+        return $this->generationPathResolver->currentPath(
+            $this->artifactRoot($bootstrapConfig),
+        );
+    }
+
+    public function generationLockPath(
+        BootstrapConfig $bootstrapConfig,
+    ): string {
+        return $this->generationPathResolver
+            ->generationLockPath(
+                $this->artifactRoot($bootstrapConfig),
+            );
+    }
+
+    public function stagingGenerationDirectory(
+        BootstrapConfig $bootstrapConfig,
+        ArtifactGenerationId $generationId,
+        string $randomSuffix,
+    ): string {
+        return $this->generationPathResolver
+            ->stagingDirectory(
+                artifactRoot: $this->artifactRoot($bootstrapConfig),
+                generationId: $generationId,
+                randomSuffix: $randomSuffix,
+            );
+    }
+
+    public function newStagingGenerationDirectory(
+        BootstrapConfig $bootstrapConfig,
+        ArtifactGenerationId $generationId,
+    ): string {
+        return $this->generationPathResolver
+            ->newStagingDirectory(
+                artifactRoot: $this->artifactRoot($bootstrapConfig),
+                generationId: $generationId,
+            );
+    }
+
     /**
+     * Returns the canonical basenames supported by the current flat-layout
+     * compiler and verifier.
+     *
+     * generation-manifest.php is generation-scoped and MUST NOT be resolved as a
+     * flat artifact below the artifact root.
+     *
      * @return list<non-empty-string>
      */
     public static function canonicalBasenames(): array

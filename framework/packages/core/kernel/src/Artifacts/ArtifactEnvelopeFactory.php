@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Artifacts;
 
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationId;
 use Coretsia\Kernel\Artifacts\Header\ArtifactHeader;
 
 /**
@@ -60,10 +61,12 @@ final readonly class ArtifactEnvelopeFactory
     public const string ARTIFACT_MODULE_MANIFEST = 'module-manifest';
     public const string ARTIFACT_CONFIG = 'config';
     public const string ARTIFACT_CONTAINER = 'container';
+    public const string ARTIFACT_GENERATION = 'artifact-generation';
 
     public const int SCHEMA_VERSION_MODULE_MANIFEST = 1;
     public const int SCHEMA_VERSION_CONFIG = 1;
     public const int SCHEMA_VERSION_CONTAINER = 1;
+    public const int SCHEMA_VERSION_ARTIFACT_GENERATION = 1;
 
     private const string GENERATOR = 'core/kernel/artifacts';
 
@@ -148,6 +151,40 @@ final readonly class ArtifactEnvelopeFactory
     }
 
     /**
+     * Creates an `artifact-generation@1` canonical artifact envelope.
+     *
+     * The generation fingerprint is also the generation id and therefore must
+     * be a lowercase 64-character SHA-256 value.
+     *
+     * `artifact-generation@1` has no `requires` extension point. Its header and
+     * payload have one canonical representation for a generation id.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array{
+     *     _meta: array<string, mixed>,
+     *     payload: array<string, mixed>
+     * }
+     *
+     * @throws JsonFloatForbiddenException
+     * @throws ArtifactPayloadInvalidException
+     */
+    public function artifactGeneration(
+        string $fingerprint,
+        array $payload,
+    ): array {
+        $generationId = ArtifactGenerationId::fromString($fingerprint);
+
+        return $this->createEnvelope(
+            name: self::ARTIFACT_GENERATION,
+            schemaVersion: self::SCHEMA_VERSION_ARTIFACT_GENERATION,
+            fingerprint: $generationId->value(),
+            payload: $payload,
+            requires: null,
+        );
+    }
+
+    /**
      * @param array<string, mixed> $payload
      * @param array<string, mixed>|null $requires
      *
@@ -194,6 +231,7 @@ final readonly class ArtifactEnvelopeFactory
             self::ARTIFACT_MODULE_MANIFEST => self::SCHEMA_VERSION_MODULE_MANIFEST,
             self::ARTIFACT_CONFIG => self::SCHEMA_VERSION_CONFIG,
             self::ARTIFACT_CONTAINER => self::SCHEMA_VERSION_CONTAINER,
+            self::ARTIFACT_GENERATION => self::SCHEMA_VERSION_ARTIFACT_GENERATION,
             default => null,
         };
 

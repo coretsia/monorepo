@@ -60,6 +60,7 @@ Coretsia/
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
 │   │   ├── ADR-0030-canonical-runtime-container-definitions.md
+│   │   ├── ADR-0031-atomic-artifact-generations.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -128,6 +129,7 @@ Coretsia/
 │   │   └── ROADMAP.md
 │   └── ssot/
 │       ├── INDEX.md
+│       ├── artifact-generations.md
 │       ├── artifacts-and-fingerprint.md
 │       ├── artifacts.md
 │       ├── cache-verify.md
@@ -591,6 +593,13 @@ Coretsia/
 │   │   │       │   │   │   ├── DeterministicFileLister.php
 │   │   │       │   │   │   ├── FingerprintCalculator.php
 │   │   │       │   │   │   └── FingerprintExplainer.php
+│   │   │       │   │   ├── Generation/
+│   │   │       │   │   │   ├── ArtifactGeneration.php
+│   │   │       │   │   │   ├── ArtifactGenerationId.php
+│   │   │       │   │   │   ├── ArtifactGenerationManifestBuilder.php
+│   │   │       │   │   │   ├── ArtifactGenerationManifestValidator.php
+│   │   │       │   │   │   ├── ArtifactGenerationPathResolver.php
+│   │   │       │   │   │   └── ArtifactPublicationSet.php
 │   │   │       │   │   ├── Header/
 │   │   │       │   │   │   └── ArtifactHeader.php
 │   │   │       │   │   ├── Paths/
@@ -718,6 +727,7 @@ Coretsia/
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── ArrayConfigRepositoryContractTest.php
+│   │   │       │   │   ├── ArtifactGenerationManifestShapeContractTest.php
 │   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
 │   │   │       │   │   ├── CompiledContainerIsDeterministicTest.php
 │   │   │       │   │   ├── ComposerManifestReaderPreservesProviderOrderContractTest.php
@@ -783,12 +793,14 @@ Coretsia/
 │   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ArtifactCompilerUsesProductionContainerGraphTest.php
+│   │   │       │   │   ├── ArtifactGenerationManifestValidatorRejectsExtraArtifactTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactPipelineUsesConfiguredCacheDirTest.php
+│   │   │       │   │   ├── ArtifactPublicationSetRejectsMixedFingerprintsTest.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootExpressPresetTest.php
@@ -894,6 +906,8 @@ Coretsia/
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliCommandsTest.php
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
 │   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
+│   │   │       │       ├── ArtifactGenerationIdValidationTest.php
+│   │   │       │       ├── ArtifactGenerationPathResolverTest.php
 │   │   │       │       ├── ArtifactPathResolverUsesBootstrapAppTargetTest.php
 │   │   │       │       ├── BootstrapArtifactsCacheDirValidationTest.php
 │   │   │       │       ├── ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php

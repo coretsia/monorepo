@@ -188,7 +188,7 @@ docs/ssot/di-tags-and-middleware-ordering.md
 
 ## Canonical runtime container definitions follow-up note
 
-Work item `G2-01` introduces a Foundation-owned canonical in-memory runtime container-definition model.
+Coretsia defines a Foundation-owned canonical in-memory runtime container-definition model.
 
 The architectural decision is recorded by:
 

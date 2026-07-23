@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Container;
 
+use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Exception\ContainerException;
@@ -28,6 +29,8 @@ use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException;
+use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -116,6 +119,7 @@ final readonly class CompiledContainerFactory
     public function build(
         string $containerArtifactPath,
         array $configPayload,
+        RuntimeContainerSeedSet $seeds,
     ): Container {
         if ($containerArtifactPath === '' || !@\is_file($containerArtifactPath)) {
             throw ContainerArtifactMissingException::missing();
@@ -140,6 +144,7 @@ final readonly class CompiledContainerFactory
             return self::buildRuntimeContainer(
                 payload: $payload,
                 runtimeConfig: $runtimeConfig,
+                seeds: $seeds,
             );
         } catch (ContainerArtifactInvalidException $exception) {
             throw $exception;
@@ -261,6 +266,7 @@ final readonly class CompiledContainerFactory
     private static function buildRuntimeContainer(
         array $payload,
         array $runtimeConfig,
+        RuntimeContainerSeedSet $seeds,
     ): Container {
         /** @var array<string, string> $aliases */
         $aliases = $payload[self::PAYLOAD_KEY_ALIASES];
@@ -299,12 +305,20 @@ final readonly class CompiledContainerFactory
             aliases: $aliases,
         );
 
+        $seedInstances = self::runtimeSeedInstances($seeds);
         $tagRegistry = self::tagRegistryFromPayload($tags);
 
         $builder = new ContainerBuilder(
             config: $runtimeConfig,
             tagRegistry: $tagRegistry,
         );
+
+        foreach ($seedInstances as $seedId => $seedInstance) {
+            $builder->instance(
+                id: $seedId,
+                instance: $seedInstance,
+            );
+        }
 
         foreach ($services as $serviceId => $definition) {
             if (!\is_string($serviceId) || !\is_array($definition) || \array_is_list($definition)) {
@@ -902,6 +916,50 @@ final readonly class CompiledContainerFactory
     }
 
     /**
+     * @return array<class-string, object>
+     *
+     * @throws ContainerArtifactInvalidException
+     */
+    private static function runtimeSeedInstances(
+        RuntimeContainerSeedSet $seeds,
+    ): array {
+        $instances = $seeds->instances();
+        $ids = $seeds->ids();
+        $instanceIds = \array_keys($instances);
+        $expectedIds = RuntimeContainerSeedIds::entrypointOwned();
+
+        \sort($ids, \SORT_STRING);
+        \sort($instanceIds, \SORT_STRING);
+        \sort($expectedIds, \SORT_STRING);
+
+        if (
+            $ids !== $expectedIds
+            || $instanceIds !== $expectedIds
+        ) {
+            throw ContainerArtifactInvalidException::withReason(
+                ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
+
+        foreach ($instances as $id => $instance) {
+            $valid = match ($id) {
+                ConfigRepositoryInterface::class => $instance instanceof ConfigRepositoryInterface,
+                ModulePlan::class => $instance instanceof ModulePlan,
+                RuntimePathContext::class => $instance instanceof RuntimePathContext,
+                default => false,
+            };
+
+            if (!$valid) {
+                throw ContainerArtifactInvalidException::withReason(
+                    ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+        }
+
+        return $instances;
+    }
+
+    /**
      * @param array<string, array<string, mixed>> $services
      * @param array<string, string> $aliases
      *
@@ -911,7 +969,7 @@ final readonly class CompiledContainerFactory
     {
         $known = [];
 
-        foreach (self::reservedRuntimeServiceIds() as $reservedId) {
+        foreach (RuntimeContainerSeedIds::all() as $reservedId) {
             $known[$reservedId] = true;
         }
 
@@ -931,15 +989,11 @@ final readonly class CompiledContainerFactory
     }
 
     /**
-     * @return list<string>
+     * @return list<class-string>
      */
     private static function reservedRuntimeServiceIds(): array
     {
-        return [
-            Container::class,
-            ContainerInterface::class,
-            TagRegistry::class,
-        ];
+        return RuntimeContainerSeedIds::all();
     }
 
     /**

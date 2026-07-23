@@ -22,6 +22,7 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 
 - `Coretsia\Kernel\Boot\AppTarget`
 - `Coretsia\Kernel\Boot\ArtifactRuntimeBooter`
+- `Coretsia\Kernel\Boot\ArtifactRuntimeInput`
 - `Coretsia\Kernel\Boot\BootstrapConfig`
 - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
 - `Coretsia\Kernel\Boot\BootstrapInput`

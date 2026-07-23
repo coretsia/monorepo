@@ -611,6 +611,8 @@ Coretsia/
 │   │   │       │   │   ├── AppTarget.php
 │   │   │       │   │   ├── ArrayEnvRepository.php
 │   │   │       │   │   ├── ArtifactRuntimeBooter.php
+│   │   │       │   │   ├── ArtifactRuntimeInput.php
+│   │   │       │   │   ├── ArtifactRuntimeSeedFactory.php
 │   │   │       │   │   ├── BootstrapArtifactsCacheDir.php
 │   │   │       │   │   ├── BootstrapConfig.php
 │   │   │       │   │   ├── BootstrapConfigResolver.php
@@ -655,7 +657,8 @@ Coretsia/
 │   │   │       │   │   ├── ContainerCompiler.php
 │   │   │       │   │   ├── ContainerGraphCompletenessValidator.php
 │   │   │       │   │   ├── RuntimeContainerGraphCompiler.php
-│   │   │       │   │   └── RuntimeContainerSeedIds.php
+│   │   │       │   │   ├── RuntimeContainerSeedIds.php
+│   │   │       │   │   └── RuntimeContainerSeedSet.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ModePresetInvalidException.php
@@ -678,6 +681,7 @@ Coretsia/
 │   │   │       │   │   ├── ModePresetSchemaValidator.php
 │   │   │       │   │   ├── ModuleGraphResolver.php
 │   │   │       │   │   ├── ModulePlan.php
+│   │   │       │   │   ├── ModulePlanArtifactHydrator.php
 │   │   │       │   │   ├── ModulePlanEntry.php
 │   │   │       │   │   ├── ModulePlanResolver.php
 │   │   │       │   │   ├── ModuleResolution.php
@@ -747,6 +751,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelServiceFactoryUnitOfWorkAttributeLimitsContractTest.php
 │   │   │       │   │   ├── ModePresetConstructorPolicyContractTest.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
+│   │   │       │   │   ├── ModulePlanArtifactHydratorContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php
 │   │   │       │   │   ├── ModulePlanSetInvariantsContractTest.php
@@ -802,6 +807,8 @@ Coretsia/
 │   │   │       │   │   ├── CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php
 │   │   │       │   │   ├── CompiledContainerFactoryBuildsContainerFromArtifactTest.php
 │   │   │       │   │   ├── CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryRejectsSeedOverrideTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryResolvesRuntimeSeedsTest.php
 │   │   │       │   │   ├── CompiledContainerPreservesLaterBindingOverridesTest.php
 │   │   │       │   │   ├── CompiledContainerPreservesTagDedupeFirstWinsTest.php
 │   │   │       │   │   ├── CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php
@@ -872,6 +879,7 @@ Coretsia/
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerUsesProviderPlanTest.php
+│   │   │       │   │   ├── RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
 │   │   │       │   │   ├── RuntimeEntrypointGuardPreventsRuntimeStartTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
@@ -1105,6 +1113,7 @@ Coretsia/
 │   │           │   │           └── modes/
 │   │           │   │               └── micro.php
 │   │           │   ├── Integration/
+│   │           │   │   ├── CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 │   │           │   │   ├── MaxRequestsTriggersRecycleTest.php
 │   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php

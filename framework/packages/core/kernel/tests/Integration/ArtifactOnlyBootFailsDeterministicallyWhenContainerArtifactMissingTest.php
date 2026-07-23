@@ -18,10 +18,15 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException;
+use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Provider\KernelServiceFactory;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 
 final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest extends TestCase
@@ -37,15 +42,28 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTe
         $container = $builder->build();
 
         $missingPath = self::missingContainerArtifactPath();
+        $runtimeConfig = self::runtimeConfigSnapshot();
+        $runtimeRoot = \dirname($missingPath);
+        $seeds = new RuntimeContainerSeedSet([
+            ConfigRepositoryInterface::class =>
+                new ArrayConfigRepository($runtimeConfig),
+            ModulePlan::class =>
+                ArtifactPipelineTestSupport::modulePlan(),
+            RuntimePathContext::class =>
+                new RuntimePathContext(
+                    skeletonRoot: $runtimeRoot,
+                    artifactRoot: $runtimeRoot,
+                ),
+        ]);
 
         try {
             KernelServiceFactory::productionRuntimeContainer(
                 container: $container,
                 containerArtifactPath: $missingPath,
                 configPayload: [
-                    'config' => self::runtimeConfigSnapshot(),
+                    'config' => $runtimeConfig,
                 ],
-                modulePlan: ArtifactPipelineTestSupport::modulePlan(),
+                seeds: $seeds,
             );
 
             self::fail('Expected missing compiled container artifact failure.');

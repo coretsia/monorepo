@@ -106,6 +106,18 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+This list is limited to Bootstrap Phase A.
+
+The separate artifact-only runtime entrypoint boundary may expose:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+Coretsia\Kernel\Boot\ArtifactRuntimeInput
+Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException
+```
+
+Those symbols do not extend Bootstrap Phase A and do not make artifact-only runtime boot part of Phase A resolution.
+
 Internal implementation helpers remain `@internal` and are not part of the public Kernel API.
 
 The internal Phase A implementation helpers are:
@@ -970,6 +982,109 @@ KernelRuntimeInterface alias
 
 Phase A or Phase B services must not be re-read by Kernel runtime factories.
 
+## Decision 17: Artifact-only runtime hydration is separate from Bootstrap Phase A
+
+Artifact-only runtime boot is a separate entrypoint boundary.
+
+It does not re-run Bootstrap Phase A and does not consume `BootstrapInput` or `BootstrapConfig` as runtime container seeds.
+
+The public entrypoint-owned artifact runtime input is:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeInput
+```
+
+`ArtifactRuntimeInput` carries only the normalized runtime path context required by the artifact-only entrypoint:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+It is an entrypoint input.
+
+It is not:
+
+- a Bootstrap Phase A result;
+- an artifact payload;
+- a provider definition;
+- a compiled graph value;
+- a fingerprint input.
+
+Artifact-only production runtime boot consumes explicit caller-resolved inputs:
+
+```text
+ArtifactRuntimeInput
+module-manifest@1
+config@1
+container@1
+```
+
+The artifact runtime hydration boundary creates exactly these entrypoint-owned runtime seeds:
+
+```text
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+The canonical hydration is:
+
+```text
+config@1 payload
+  -> ArrayConfigRepository
+  -> ConfigRepositoryInterface
+
+module-manifest@1 payload
+  -> ModulePlanArtifactHydrator
+  -> ModulePlan
+
+ArtifactRuntimeInput
+  -> RuntimePathContext
+```
+
+The three objects are carried through one exact immutable:
+
+```text
+RuntimeContainerSeedSet
+```
+
+Arbitrary runtime seed ids are forbidden.
+
+The explicit law is:
+
+```text
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+Runtime seed hydration must not:
+
+- resolve `BootstrapInput`;
+- resolve `BootstrapConfig`;
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- read source config files;
+- discover modules through Composer metadata;
+- resolve mode presets;
+- execute source providers;
+- compile a replacement container graph;
+- calculate fingerprints;
+- write or repair artifacts.
+
+`ArtifactRuntimeInput` and the resulting `RuntimePathContext` may carry normalized absolute runtime paths.
+
+Those paths must not be copied into:
+
+- canonical runtime definitions;
+- `DefinitionGraph`;
+- generated artifact payloads;
+- fingerprint input.
+
+Artifact paths remain explicit caller-resolved inputs.
+
+This decision does not introduce generation-directory discovery or current-generation selection into `ArtifactRuntimeBooter`.
+
 ## Consequences
 
 ### Positive
@@ -1016,6 +1131,12 @@ Present empty string remains distinct from missing env values.
 Safe `ConfigValueSource` metadata can explain source origin without leaking raw env values.
 
 Phase A boot code is isolated from runtime lifecycle/reset infrastructure.
+
+Artifact-only runtime boot does not re-run Bootstrap Phase A or ConfigKernel Phase B.
+
+`ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext` can be restored as runtime objects without source-provider execution.
+
+Absolute runtime path state remains outside generated artifacts, compiled graphs, and fingerprint input.
 
 The public API remains small.
 
@@ -1222,6 +1343,12 @@ This ADR does not introduce:
 
 - Bootstrap Phase A services in the compiled runtime definition graph;
 - Kernel compile-host services in the compiled runtime definition graph;
+- Bootstrap Phase A ownership of artifact-runtime seeds;
+- `BootstrapInput` or `BootstrapConfig` as compiled runtime container seeds;
+- artifact-runtime seed objects in generated artifact payloads;
+- artifact-runtime seed objects in fingerprint input;
+- generation-directory discovery in `ArtifactRuntimeBooter`;
+- current-generation selection in `ArtifactRuntimeBooter`;
 - public `Bootstrapper`;
 - public `BootstrapResult`;
 - new config roots;
@@ -1263,6 +1390,9 @@ framework/packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtif
 framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
+framework/packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
+framework/packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
+framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
 ```
 
 Verification must prove:
@@ -1313,7 +1443,14 @@ Verification must prove:
 - Bootstrap Phase A service ids are absent from the compiled runtime definition graph;
 - `KernelServiceProvider::define()` contributes only Kernel runtime services;
 - `KernelServiceProvider::register()` may register compile-host factories without duplicating Kernel runtime wiring;
-- Kernel runtime factories do not re-read Phase A or Phase B state.
+- Kernel runtime factories do not re-read Phase A or Phase B state;
+- artifact-only runtime hydration does not execute Bootstrap Phase A;
+- artifact-only runtime hydration does not execute ConfigKernel Phase B;
+- `ArtifactRuntimeInput` is an entrypoint input rather than an artifact payload;
+- artifact-only runtime hydration produces exactly `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+- runtime seed ids cannot be supplied arbitrarily;
+- absolute runtime path state is absent from generated artifacts, compiled graphs, and fingerprint input;
+- `ArtifactRuntimeBooter` does not discover or select a generation directory.
 
 ## Related SSoT
 

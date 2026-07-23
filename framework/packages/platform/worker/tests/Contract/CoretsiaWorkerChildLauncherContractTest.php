@@ -52,12 +52,33 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-config=var/cache/app/config.php',
             '--coretsia-worker-container=var/cache/app/container.php',
         ]);
 
         self::assertSame(1, $result['exit_code']);
         self::assertSame('', $result['stdout']);
+        self::assertFailure(
+            stderr: $result['stderr'],
+            reason: 'autoload-missing',
+        );
+    }
+
+    public function testLauncherAcceptsCoretsiaWorkerModuleManifestArg(): void
+    {
+        $result = $this->runLauncher([
+            '--coretsia-worker-index=0',
+            '--coretsia-worker-count=1',
+            '--coretsia-worker-max-requests=1',
+            '--coretsia-worker-task-type=queue',
+            '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
+            '--coretsia-worker-config=var/cache/app/config.php',
+            '--coretsia-worker-container=var/cache/app/container.php',
+        ]);
+
+        self::assertSame(1, $result['exit_code']);
         self::assertFailure(
             stderr: $result['stderr'],
             reason: 'autoload-missing',
@@ -72,6 +93,7 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-config=var/cache/app/config.php',
             '--coretsia-worker-container=var/cache/app/container.php',
         ]);
@@ -91,6 +113,7 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-config=var/cache/app/config.php',
             '--coretsia-worker-container=var/cache/app/container.php',
         ]);
@@ -110,9 +133,30 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-config=var/cache/app/config.php',
             '--coretsia-worker-container=var/cache/app/container.php',
             '--unknown=1',
+        ]);
+
+        self::assertSame(1, $result['exit_code']);
+        self::assertSame('', $result['stdout']);
+        self::assertFailure(
+            stderr: $result['stderr'],
+            reason: 'argv-invalid',
+        );
+    }
+
+    public function testLauncherRejectsMissingCoretsiaWorkerModuleManifestArg(): void
+    {
+        $result = $this->runLauncher([
+            '--coretsia-worker-index=0',
+            '--coretsia-worker-count=1',
+            '--coretsia-worker-max-requests=1',
+            '--coretsia-worker-task-type=queue',
+            '--coretsia-worker-driver=proc',
+            '--coretsia-worker-config=var/cache/app/config.php',
+            '--coretsia-worker-container=var/cache/app/container.php',
         ]);
 
         self::assertSame(1, $result['exit_code']);
@@ -131,6 +175,7 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-container=var/cache/app/container.php',
         ]);
 
@@ -150,6 +195,7 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             '--coretsia-worker-max-requests=1',
             '--coretsia-worker-task-type=queue',
             '--coretsia-worker-driver=proc',
+            '--coretsia-worker-module-manifest=var/cache/app/module-manifest.php',
             '--coretsia-worker-config=var/cache/app/config.php',
         ]);
 
@@ -193,9 +239,29 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
             'use Coretsia\\Kernel\\Boot\\ArtifactRuntimeBooter;',
             $source,
         );
+        self::assertStringContainsString(
+            'use Coretsia\\Kernel\\Boot\\ArtifactRuntimeInput;',
+            $source,
+        );
 
         self::assertStringContainsString(
             'new ArtifactRuntimeBooter()->boot(',
+            $source,
+        );
+        self::assertStringContainsString(
+            'input: new ArtifactRuntimeInput(',
+            $source,
+        );
+        self::assertStringContainsString(
+            'moduleManifestArtifactPath: $moduleManifestArtifactPath',
+            $source,
+        );
+        self::assertStringContainsString(
+            'configArtifactPath: $configArtifactPath',
+            $source,
+        );
+        self::assertStringContainsString(
+            'containerArtifactPath: $containerArtifactPath',
             $source,
         );
     }
@@ -376,8 +442,10 @@ final class CoretsiaWorkerChildLauncherContractTest extends TestCase
     {
         foreach (
             [
+                'var/cache/app/module-manifest.php',
                 'var/cache/app/config.php',
                 'var/cache/app/container.php',
+                '/var/cache/app/module-manifest.php',
                 '/var/cache/app/config.php',
                 '/var/cache/app/container.php',
                 'C:\\',

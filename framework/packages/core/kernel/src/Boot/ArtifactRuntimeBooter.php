@@ -30,17 +30,16 @@ use Psr\Container\ContainerInterface;
  * Public artifact-only production runtime boot facade.
  *
  * This class is the public boundary for building a runtime container from
- * Kernel-owned generated artifacts.
- *
- * It intentionally hides Kernel artifact/container implementation classes from
- * other packages. Callers provide already resolved artifact paths and receive a
- * PSR container.
+ * Kernel-owned generated artifacts and explicit entrypoint-owned runtime input.
+ * Artifact paths remain caller-resolved; generation-layout selection is not
+ * owned by this boundary.
  *
  * This class MUST NOT:
  *
  * - read source config files;
  * - run ConfigKernel;
  * - run module discovery;
+ * - read Composer metadata;
  * - run providers as fallback;
  * - compile a new container graph;
  * - calculate fingerprints;
@@ -54,15 +53,25 @@ final readonly class ArtifactRuntimeBooter
     /**
      * Builds a runtime container from Kernel-owned artifacts.
      *
+     * Artifact paths are explicit inputs. This method does not derive a
+     * generation directory or select a current generation.
+     *
      * @throws ArtifactRuntimeBootException
      */
     public function boot(
+        ArtifactRuntimeInput $input,
+        string $moduleManifestArtifactPath,
         string $configArtifactPath,
         string $containerArtifactPath,
     ): ContainerInterface {
         $reader = new PhpArtifactReader();
         $validator = new ArtifactSchemaValidator();
 
+        $moduleManifestPayload = self::readModuleManifestPayload(
+            reader: $reader,
+            validator: $validator,
+            moduleManifestArtifactPath: $moduleManifestArtifactPath,
+        );
         $configPayload = self::readConfigPayload(
             reader: $reader,
             validator: $validator,
@@ -70,18 +79,66 @@ final readonly class ArtifactRuntimeBooter
         );
 
         try {
-            $container = new CompiledContainerFactory(
+            $seeds = new ArtifactRuntimeSeedFactory()->create(
+                input: $input,
+                configPayload: $configPayload,
+                moduleManifestPayload: $moduleManifestPayload,
+            );
+        } catch (\InvalidArgumentException) {
+            throw ArtifactRuntimeBootException::moduleManifestArtifactInvalid();
+        } catch (\Throwable) {
+            throw ArtifactRuntimeBootException::runtimeContainerInvalid();
+        }
+
+        try {
+            return new CompiledContainerFactory(
                 artifactReader: $reader,
                 schemaValidator: $validator,
             )->build(
                 containerArtifactPath: $containerArtifactPath,
                 configPayload: $configPayload,
+                seeds: $seeds,
             );
         } catch (\Throwable) {
             throw ArtifactRuntimeBootException::containerArtifactInvalid();
         }
+    }
 
-        return $container;
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws ArtifactRuntimeBootException
+     */
+    private static function readModuleManifestPayload(
+        PhpArtifactReader $reader,
+        ArtifactSchemaValidator $validator,
+        string $moduleManifestArtifactPath,
+    ): array {
+        try {
+            $read = $reader->read($moduleManifestArtifactPath);
+            $envelope = $read['envelope'];
+
+            $validator->validateExpected(
+                envelope: $envelope,
+                expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
+                expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_MODULE_MANIFEST,
+            );
+
+            $payload = $envelope['payload'] ?? null;
+
+            if (!\is_array($payload) || \array_is_list($payload)) {
+                throw ArtifactRuntimeBootException::moduleManifestArtifactInvalid();
+            }
+
+            /** @var array<string, mixed> $payload */
+            return $payload;
+        } catch (ArtifactRuntimeBootException $exception) {
+            throw $exception;
+        } catch (ArtifactInvalidException) {
+            throw ArtifactRuntimeBootException::moduleManifestArtifactInvalid();
+        } catch (\Throwable) {
+            throw ArtifactRuntimeBootException::moduleManifestArtifactInvalid();
+        }
     }
 
     /**

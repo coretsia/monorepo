@@ -42,6 +42,8 @@ This document defines:
 - tag payload semantics;
 - closure/callable rejection semantics;
 - artifact-only runtime boot inputs;
+- runtime seed ownership and hydration semantics;
+- exact runtime seed-set semantics;
 - missing/invalid container artifact failure semantics.
 
 ## Authority Boundary (MUST)
@@ -590,7 +592,11 @@ Compiled service and alias definitions MUST NOT define or shadow canonical exter
 
 Producer acceptance of a runtime-seed reference establishes only graph completeness against the canonical allowlist.
 
-A graph that references such a seed is bootable only when artifact-only runtime boot supplies the corresponding runtime object. Producer completeness does not itself establish that runtime materialization.
+Container-owned runtime support instances are materialized by the Foundation container.
+
+Entrypoint-owned runtime seed instances are materialized by the artifact-only runtime hydration boundary and supplied through `RuntimeContainerSeedSet`.
+
+No runtime object instance is serialized into the service reference or compiled graph.
 
 ### Parameter Reference (MUST)
 
@@ -1059,40 +1065,191 @@ Existing artifact validation MUST reject:
 - tag entries not ordered by `priority DESC, id ASC`;
 - floats, objects, resources, closures, callable payloads, raw source snippets, raw env values, and other non-deterministic payload values.
 
+## Runtime Seed Ownership and Hydration (MUST)
+
+The canonical runtime-seed service-id allowlist contains two ownership categories.
+
+Container-owned runtime support ids are:
+
+```text
+Coretsia\Foundation\Container\Container
+Psr\Container\ContainerInterface
+Coretsia\Foundation\Tag\TagRegistry
+```
+
+These objects are materialized by Foundation container construction.
+
+They MUST NOT be included in `RuntimeContainerSeedSet`.
+
+Entrypoint-owned runtime seed ids are:
+
+```text
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+These objects MUST be materialized before compiled graph service factories are registered.
+
+The explicit law is:
+
+```text
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+The entrypoint-owned runtime seed set MUST be represented by:
+
+```text
+Coretsia\Kernel\Container\RuntimeContainerSeedSet
+```
+
+The seed set MUST contain exactly:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+The seed set MUST reject:
+
+- missing ids;
+- additional ids;
+- arbitrary ids;
+- list-shaped input;
+- non-object values;
+- objects that do not satisfy the corresponding service id.
+
+The canonical hydration is:
+
+```text
+config@1 payload.config
+  -> ArrayConfigRepository
+  -> ConfigRepositoryInterface
+
+module-manifest@1 payload
+  -> ModulePlanArtifactHydrator
+  -> ModulePlan
+
+ArtifactRuntimeInput
+  -> RuntimePathContext
+```
+
+`ModulePlanArtifactHydrator` MUST validate:
+
+- exact top-level keys;
+- exact module-entry keys;
+- exact warning keys;
+- schema version;
+- application target;
+- preset;
+- canonical module ids;
+- enabled, disabled, and optional-missing set invariants;
+- module entry identity;
+- required dependency closure;
+- enabled conflicts;
+- cycles;
+- canonical deterministic topological order;
+- warning identity;
+- canonical `ModulePlan` round-trip representation.
+
+`ModulePlanArtifactHydrator` MUST NOT:
+
+- read Composer metadata;
+- discover installed modules;
+- resolve mode presets;
+- read source files;
+- execute providers;
+- emit stdout or stderr.
+
+`ArtifactRuntimeInput` is entrypoint input.
+
+It is not an artifact payload.
+
+It carries:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+Those values may be normalized absolute runtime paths.
+
+They MUST NOT be copied into:
+
+- canonical provider definitions;
+- compiled descriptor values;
+- `DefinitionGraph`;
+- `container@1`;
+- `module-manifest@1`;
+- `config@1`;
+- graph fingerprint buckets;
+- complete fingerprint input.
+
 ## Artifact-Only Runtime Boot Inputs (MUST)
 
 Production runtime boot paths covered by compiled-container semantics MUST use artifact-only boot.
 
-The artifact-only runtime boot inputs are:
+The complete artifact-only runtime boot inputs are:
 
 ```text
+ArtifactRuntimeInput
+module-manifest@1
+config@1
 container@1
-already-read/validated config@1 payload
+```
+
+The public boot facade is:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+```
+
+Artifact paths MUST be explicit caller-resolved inputs.
+
+`ArtifactRuntimeBooter` MUST NOT derive a generation directory or select a current generation.
+
+`ArtifactRuntimeBooter` MUST:
+
+1. read and schema-validate `module-manifest@1`;
+2. read and schema-validate `config@1`;
+3. create the exact entrypoint-owned runtime seed set;
+4. pass the validated `config@1` payload and seed set to `CompiledContainerFactory`;
+5. build the runtime Foundation container from the REAL `container@1` artifact.
+
+`CompiledContainerFactory` MUST expose:
+
+```php
+public function build(
+    string $containerArtifactPath,
+    array $configPayload,
+    RuntimeContainerSeedSet $seeds,
+): Container;
 ```
 
 `CompiledContainerFactory` MUST read the `container@1` artifact through Kernel artifact reading infrastructure.
 
-`CompiledContainerFactory` MUST receive the `config@1` payload from the caller as an already-read and already-validated payload.
+`CompiledContainerFactory` MUST receive the `config@1` payload as already-read and already-validated input.
 
-`CompiledContainerFactory` MUST use the `config` field from the `config@1` payload as the runtime Foundation container config snapshot.
+`CompiledContainerFactory` MUST receive the exact entrypoint-owned runtime seed set from its caller.
 
-`CompiledContainerFactory` MUST NOT read source config files.
+`CompiledContainerFactory` MUST use the `config` field from `config@1` as the runtime Foundation container config snapshot.
 
-`CompiledContainerFactory` MUST NOT run source config discovery.
+Artifact-only runtime boot MUST NOT:
 
-`CompiledContainerFactory` MUST NOT run module discovery.
-
-`CompiledContainerFactory` MUST NOT run providers as an implicit fallback.
-
-`CompiledContainerFactory` MUST NOT compile a new container during production runtime boot.
-
-`CompiledContainerFactory` MUST NOT calculate fingerprints.
-
-`CompiledContainerFactory` MUST NOT write artifacts.
-
-`CompiledContainerFactory` MUST NOT mutate existing artifacts.
-
-`CompiledContainerFactory` MUST NOT emit stdout or stderr.
+- read source config files;
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- run source config discovery;
+- run Composer module discovery;
+- resolve mode presets;
+- run source providers as an implicit fallback;
+- compile a new container graph;
+- calculate fingerprints;
+- write artifacts;
+- mutate or repair artifacts;
+- emit stdout or stderr.
 
 Provider-based container construction remains allowed only for:
 
@@ -1104,23 +1261,56 @@ Any future developer-mode fallback requires a separate epic/ADR and MUST NOT be 
 
 ## Runtime Container Construction Semantics (MUST)
 
-Runtime container construction from `container@1` MUST be based only on deterministic compiled graph entries.
+Runtime container construction MUST combine deterministic compiled graph definitions with already-created runtime support objects.
 
-Compiled service definitions MUST be registered into the Foundation container as runtime factories using their compiled `shared` lifecycle value.
+The canonical construction order is:
+
+1. validate the REAL `container@1` payload;
+2. validate compiled service, alias, parameter, tag, and reference semantics;
+3. validate that compiled services and aliases do not define runtime seed ids;
+4. validate the exact `RuntimeContainerSeedSet`;
+5. create `TagRegistry` from the compiled tag payload;
+6. create `ContainerBuilder` with the compiled config snapshot;
+7. register entrypoint-owned runtime seed instances;
+8. register compiled service factories;
+9. register compiled aliases as non-shared delegation factories;
+10. register the runtime `TagRegistry` instance;
+11. build the Foundation container.
+
+Entrypoint-owned runtime seed instances MUST be registered before compiled service factories so compiled services may resolve:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+Compiled service definitions MUST be registered using their compiled `shared` lifecycle value.
 
 Compiled aliases MUST be registered as non-shared delegation factories.
 
-The runtime `TagRegistry` MUST be derived from the compiled `tags` payload and injected as a runtime support instance.
+The runtime `TagRegistry` MUST be derived from the compiled `tags` payload.
 
-Reserved runtime support ids MUST be available for service reference resolution where explicitly allowed:
+All canonical runtime seed ids MUST be available for service argument reference resolution where explicitly allowed:
 
 ```text
 Coretsia\Foundation\Container\Container
 Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-Compiled service ids and alias ids MUST NOT conflict with reserved runtime support ids.
+Compiled services and aliases MUST NOT define or shadow any canonical runtime seed id.
+
+Compiled alias targets MUST NOT point to runtime seed ids.
+
+Service-method factory services MUST NOT resolve to runtime seed ids.
+
+Tagged service ids MUST NOT resolve to runtime seed ids.
+
+The exact seed map and the object type associated with every entrypoint-owned seed id MUST be validated at the compiled-container hydration boundary.
 
 ## Missing Artifact Failure Semantics (MUST)
 
@@ -1322,7 +1512,7 @@ safe key paths
 - This document does not require cache verification during normal provider registration.
 - This document does not allow automatic runtime fallback when `container.php` is missing or invalid.
 - This document does not preserve the `1.330.0` stub payload as a supported production runtime format.
-- Producer acceptance of canonical runtime-seed references does not by itself claim that artifact-only boot already materializes every allowed seed.
+- Producer acceptance of canonical runtime-seed references does not serialize runtime objects; entrypoint-owned runtime seeds are materialized only by the artifact-only runtime hydration boundary.
 - This document does not introduce `container@2`.
 
 ## Implementation Linkage
@@ -1334,6 +1524,11 @@ framework/packages/core/kernel/src/Container/ContainerCompiler.php
 framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
 framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
 framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+framework/packages/core/kernel/src/Container/RuntimeContainerSeedSet.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php
+framework/packages/core/kernel/src/Module/ModulePlanArtifactHydrator.php
 framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
 framework/packages/core/kernel/src/Module/ModuleResolution.php
 framework/packages/core/kernel/src/Container/CompiledContainerFactory.php

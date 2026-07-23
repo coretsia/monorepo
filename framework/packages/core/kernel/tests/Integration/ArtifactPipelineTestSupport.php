@@ -47,6 +47,8 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
+use Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Config\ConfigKernel;
@@ -509,6 +511,31 @@ final class ArtifactPipelineTestSupport
         return $payload;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public static function moduleManifestPayloadFromArtifact(
+        string $skeletonRoot,
+    ): array {
+        $envelope = self::artifactEnvelope(
+            $skeletonRoot,
+            'module-manifest.php',
+        );
+
+        new ArtifactSchemaValidator()->validateExpected(
+            envelope: $envelope,
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
+            expectedSchemaVersion: 1,
+        );
+
+        $payload = $envelope['payload'] ?? null;
+
+        TestCase::assertIsArray($payload);
+
+        /** @var array<string, mixed> $payload */
+        return $payload;
+    }
+
     public static function artifactCompiler(TestCase $testCase): ArtifactCompiler
     {
         $envelopeFactory = self::envelopeFactory();
@@ -541,9 +568,29 @@ final class ArtifactPipelineTestSupport
         string $skeletonRoot,
         ?array $configPayload = null,
     ): Container {
+        $containerArtifactPath = self::artifactPath(
+            $skeletonRoot,
+            'container.php',
+        );
+        $configPayload ??= self::configPayloadFromArtifact(
+            $skeletonRoot,
+        );
+
+        $seeds = new ArtifactRuntimeSeedFactory()->create(
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: \dirname($containerArtifactPath),
+            ),
+            configPayload: $configPayload,
+            moduleManifestPayload: self::moduleManifestPayloadFromArtifact(
+                $skeletonRoot,
+            ),
+        );
+
         return self::compiledContainerFactory()->build(
-            containerArtifactPath: self::artifactPath($skeletonRoot, 'container.php'),
-            configPayload: $configPayload ?? self::configPayloadFromArtifact($skeletonRoot),
+            containerArtifactPath: $containerArtifactPath,
+            configPayload: $configPayload,
+            seeds: $seeds,
         );
     }
 

@@ -39,10 +39,16 @@ final class RuntimeContainerSeedIds
     /**
      * @var list<class-string>
      */
-    private const array IDS = [
+    private const array CONTAINER_OWNED_IDS = [
         Container::class,
         ContainerInterface::class,
         TagRegistry::class,
+    ];
+
+    /**
+     * @var list<class-string>
+     */
+    private const array ENTRYPOINT_OWNED_IDS = [
         ConfigRepositoryInterface::class,
         ModulePlan::class,
         RuntimePathContext::class,
@@ -57,6 +63,29 @@ final class RuntimeContainerSeedIds
      */
     public static function all(): array
     {
-        return self::IDS;
+        return [
+            ...self::CONTAINER_OWNED_IDS,
+            ...self::ENTRYPOINT_OWNED_IDS,
+        ];
+    }
+
+    /**
+     * Runtime support ids materialized by the Foundation container itself.
+     *
+     * @return list<class-string>
+     */
+    public static function containerOwned(): array
+    {
+        return self::CONTAINER_OWNED_IDS;
+    }
+
+    /**
+     * Runtime seed ids that must be supplied by artifact-runtime entrypoints.
+     *
+     * @return list<class-string>
+     */
+    public static function entrypointOwned(): array
+    {
+        return self::ENTRYPOINT_OWNED_IDS;
     }
 }

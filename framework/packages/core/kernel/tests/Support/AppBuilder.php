@@ -27,6 +27,7 @@ use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
@@ -89,6 +90,13 @@ final class AppBuilder
         $artifactPaths = ArtifactPipelineTestSupport::artifactPaths($skeletonRoot);
 
         $container = new ArtifactRuntimeBooter()->boot(
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: \dirname(
+                    $artifactPaths['container.php'],
+                ),
+            ),
+            moduleManifestArtifactPath: $artifactPaths['module-manifest.php'],
             configArtifactPath: $artifactPaths['config.php'],
             containerArtifactPath: $artifactPaths['container.php'],
         );

@@ -73,6 +73,7 @@ use Psr\Log\LoggerInterface;
  */
 final class WorkerServiceFactory
 {
+    private const string MODULE_MANIFEST_ARTIFACT_BASENAME = 'module-manifest.php';
     private const string CONFIG_ARTIFACT_BASENAME = 'config.php';
     private const string CONTAINER_ARTIFACT_BASENAME = 'container.php';
 
@@ -285,6 +286,10 @@ final class WorkerServiceFactory
             stateStore: $stateStore,
             controlChannel: $controlChannel,
             workerCommand: $this->procWorkerCommand($config),
+            moduleManifestArtifactPath: self::runtimeArtifactPath(
+                runtimePaths: $runtimePaths,
+                basename: self::MODULE_MANIFEST_ARTIFACT_BASENAME,
+            ),
             configArtifactPath: self::runtimeArtifactPath(
                 runtimePaths: $runtimePaths,
                 basename: self::CONFIG_ARTIFACT_BASENAME,

@@ -64,6 +64,7 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
                 '--coretsia-worker-max-requests=17',
                 '--coretsia-worker-task-type=queue',
                 '--coretsia-worker-driver=proc',
+                '--coretsia-worker-module-manifest=var/cache/worker/module-manifest.php',
                 '--coretsia-worker-config=var/cache/worker/config.php',
                 '--coretsia-worker-container=var/cache/worker/container.php',
             ],
@@ -158,6 +159,7 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
                 '--endpoint=tcp://10.20.30.40:9511',
                 '--token=secret-token',
             ],
+            moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
             configArtifactPath: 'var/cache/worker/config.php',
             containerArtifactPath: 'var/cache/worker/container.php',
         );
@@ -200,6 +202,7 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
                     "--token=secret-token\n",
                     '--endpoint=tcp://10.20.30.40:9511',
                 ],
+                moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
                 configArtifactPath: 'var/cache/worker/config.php',
                 containerArtifactPath: 'var/cache/worker/container.php',
             );
@@ -245,6 +248,7 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
                         '--coretsia-worker-max-requests=1000',
                         '--coretsia-worker-task-type=queue',
                         '--coretsia-worker-driver=proc',
+                        '--coretsia-worker-module-manifest=var/cache/worker/module-manifest.php',
                         '--coretsia-worker-config=var/cache/worker/config.php',
                         '--coretsia-worker-container=var/cache/worker/container.php',
                     ],
@@ -285,7 +289,10 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
         WorkerPoolSpec $spec,
         int $workerIndex,
     ): array {
-        $reflection = new \ReflectionMethod(ProcWorkerManagerDriver::class, 'workerCommand');
+        $reflection = new \ReflectionMethod(
+            ProcWorkerManagerDriver::class,
+            'workerCommand',
+        );
 
         /** @var list<non-empty-string> $command */
         $command = $reflection->invoke(
@@ -293,6 +300,7 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
             $baseCommand,
             $spec,
             $workerIndex,
+            'var/cache/worker/module-manifest.php',
             'var/cache/worker/config.php',
             'var/cache/worker/container.php',
         );
@@ -324,6 +332,9 @@ final class ProcWorkerManagerDriverSafetyContractTest extends TestCase
         self::assertStringNotContainsString('/usr/local/bin/php worker-entrypoint', $message);
         self::assertStringNotContainsString('/usr/local/bin/php', $message);
         self::assertStringNotContainsString('/srv/coretsia/runtime', $message);
+        self::assertStringNotContainsString('var/cache/worker/module-manifest.php', $message);
+        self::assertStringNotContainsString('var/cache/worker/config.php', $message);
+        self::assertStringNotContainsString('var/cache/worker/container.php', $message);
         self::assertStringNotContainsString('SUPER_SECRET_ENV_VALUE', $message);
         self::assertStringNotContainsString('--env=SUPER_SECRET_ENV_VALUE', $message);
         self::assertStringNotContainsString('10.20.30.40', $message);

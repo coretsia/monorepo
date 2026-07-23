@@ -69,6 +69,8 @@ If this document conflicts with any of the following, the SSoT or ADR wins:
 ```text
 docs/adr/ADR-0017-worker-manager-application-worker.md
 docs/adr/ADR-0030-canonical-runtime-container-definitions.md
+docs/adr/ADR-0029-kernel-container-compile-artifact.md
+docs/ssot/compiled-container.md
 docs/adr/ADR-0027-runtime-driver-guard.md
 docs/ssot/config-roots.md
 docs/ssot/observability.md
@@ -258,13 +260,24 @@ QueueTaskFactory
 HttpTaskFactory
 ```
 
-The allowed external runtime seeds are:
+The allowed entrypoint-owned external runtime seeds are:
 
 ```text
 ConfigRepositoryInterface
 ModulePlan
 RuntimePathContext
 ```
+
+These objects are materialized by the artifact-only runtime entrypoint and supplied to the compiled container through the exact Kernel-owned `RuntimeContainerSeedSet`.
+
+The explicit law is:
+
+```text
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+Worker definitions may reference these service ids, but Worker providers must not define, instantiate, serialize, tag, or shadow the seed objects.
 
 The remaining required ids must be defined by the complete runtime graph.
 
@@ -571,7 +584,7 @@ The process-driver factory methods receive runtime filesystem roots through `Run
 
 `WorkerServiceFactory::pcntlWorkerManagerDriver(...)` extracts the normalized skeleton root and passes it to `PcntlWorkerManagerDriver`.
 
-`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives the concrete compiled `config.php` and `container.php` paths only from `RuntimePathContext::artifactRoot()`.
+`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives the concrete `module-manifest.php`, `config.php`, and `container.php` paths only from `RuntimePathContext::artifactRoot()`.
 
 The concrete process drivers do not receive `RuntimePathContext` or `BootstrapConfig`.
 
@@ -594,6 +607,122 @@ Process drivers must not:
 Process command construction for the `proc` driver is argv-vector based.
 
 It must not construct an untrusted shell string.
+
+## Proc child artifact-only boot boundary
+
+The `proc` driver starts a fresh PHP child process.
+
+Unlike a forked `pcntl` child, the proc child does not inherit the already-built in-memory runtime container.
+
+The master therefore passes three skeleton-root-relative artifact paths:
+
+```text
+module-manifest.php
+config.php
+container.php
+```
+
+The canonical child argv fields are:
+
+```text
+--coretsia-worker-module-manifest=<relative-path>
+--coretsia-worker-config=<relative-path>
+--coretsia-worker-container=<relative-path>
+```
+
+Every artifact argument must:
+
+- be non-empty;
+- be skeleton-root-relative;
+- use `/` separators;
+- reject whitespace;
+- reject NUL and control characters;
+- reject URI schemes;
+- reject absolute Unix paths;
+- reject absolute Windows paths;
+- reject empty path segments;
+- reject `.` and `..` segments;
+- reject `@`-prefixed segments.
+
+The child process uses its working directory as the explicit normalized skeleton root.
+
+It resolves the three validated relative artifact paths against that skeleton root.
+
+The child then creates:
+
+```text
+ArtifactRuntimeInput(
+    skeletonRoot,
+    artifactRoot
+)
+```
+
+where `artifactRoot` is derived from the already explicit `container.php` path.
+
+This derivation is not generation discovery and does not select a current generation.
+
+The child invokes:
+
+```text
+ArtifactRuntimeBooter
+```
+
+with:
+
+```text
+ArtifactRuntimeInput
+module-manifest.php
+config.php
+container.php
+```
+
+The Kernel artifact hydration boundary restores:
+
+```text
+config@1
+  -> ArrayConfigRepository
+  -> ConfigRepositoryInterface
+
+module-manifest@1
+  -> ModulePlanArtifactHydrator
+  -> ModulePlan
+
+ArtifactRuntimeInput
+  -> RuntimePathContext
+```
+
+These three objects form the exact entrypoint-owned runtime seed set.
+
+The proc child artifact-only boot path must not:
+
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- read source config files;
+- read Composer metadata;
+- discover modules;
+- resolve presets;
+- execute source providers;
+- compile a replacement graph;
+- calculate fingerprints;
+- write or repair artifacts;
+- discover a generation directory;
+- select a current generation.
+
+After the compiled container is built, the child resolves:
+
+```text
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+```
+
+from that container.
+
+The child validates that the received worker arguments match `WorkerPoolSpec` before starting the application-worker loop.
+
+All child boot failures must remain deterministic and redacted.
+
+Raw artifact paths, absolute paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages must not appear in public child diagnostics.
 
 ## Application worker boundary
 
@@ -832,7 +961,22 @@ Configured relative Worker paths must:
 - reject absolute Unix paths;
 - reject absolute Windows drive paths.
 
-These relative config values are distinct from the runtime roots carried by:
+These relative config values are distinct from both:
+
+- proc-child artifact path arguments;
+- runtime roots carried by `RuntimePathContext`.
+
+The proc-child artifact path arguments are launcher-owned, skeleton-root-relative runtime inputs:
+
+```text
+module-manifest.php
+config.php
+container.php
+```
+
+They are not Worker config values and are not generated artifact payload fields.
+
+The runtime roots are carried by:
 
 ```text
 RuntimePathContext
@@ -1182,6 +1326,16 @@ docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/ssot/runtime-container-definitions.md
 ```
 
+Changing proc-child artifact paths, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
+
+```text
+docs/architecture/worker.md
+docs/adr/ADR-0029-kernel-container-compile-artifact.md
+docs/ssot/compiled-container.md
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+```
+
 Changing worker process ownership, manager/application-worker boundaries, state schema, task factory visibility, or process driver extension policy requires updating:
 
 ```text
@@ -1231,5 +1385,7 @@ docs/ssot/observability.md
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
+- [Compiled Container SSoT](../ssot/compiled-container.md)
+- [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
 - [Canonical Runtime Container Definitions SSoT](../ssot/runtime-container-definitions.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)

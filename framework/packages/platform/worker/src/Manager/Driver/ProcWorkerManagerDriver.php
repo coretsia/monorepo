@@ -52,7 +52,7 @@ final class ProcWorkerManagerDriver implements WorkerManagerDriverInterface
     private readonly array $workerCommand;
 
     private readonly string $skeletonRoot;
-
+    private readonly string $moduleManifestArtifactPath;
     private readonly string $configArtifactPath;
     private readonly string $containerArtifactPath;
 
@@ -69,11 +69,16 @@ final class ProcWorkerManagerDriver implements WorkerManagerDriverInterface
         private readonly WorkerStateStore $stateStore,
         private readonly WorkerSocketServer $controlChannel,
         array $workerCommand,
+        string $moduleManifestArtifactPath,
         string $configArtifactPath,
         string $containerArtifactPath,
     ) {
         $this->skeletonRoot = self::normalizeSkeletonRoot($skeletonRoot);
         $this->workerCommand = self::normalizeWorkerCommand($workerCommand);
+        $this->moduleManifestArtifactPath = self::normalizeRelativePath(
+            relativePath: $moduleManifestArtifactPath,
+            reason: 'proc-worker-module-manifest-artifact-path-invalid',
+        );
         $this->configArtifactPath = self::normalizeRelativePath(
             relativePath: $configArtifactPath,
             reason: 'proc-worker-config-artifact-path-invalid',
@@ -111,6 +116,7 @@ final class ProcWorkerManagerDriver implements WorkerManagerDriverInterface
                         baseCommand: $this->workerCommand,
                         spec: $spec,
                         workerIndex: $workerIndex,
+                        moduleManifestArtifactPath: $this->moduleManifestArtifactPath,
                         configArtifactPath: $this->configArtifactPath,
                         containerArtifactPath: $this->containerArtifactPath,
                     ),
@@ -181,6 +187,7 @@ final class ProcWorkerManagerDriver implements WorkerManagerDriverInterface
         array $baseCommand,
         WorkerPoolSpec $spec,
         int $workerIndex,
+        string $moduleManifestArtifactPath,
         string $configArtifactPath,
         string $containerArtifactPath,
     ): array {
@@ -195,6 +202,7 @@ final class ProcWorkerManagerDriver implements WorkerManagerDriverInterface
             '--coretsia-worker-max-requests=' . $spec->maxRequests(),
             '--coretsia-worker-task-type=' . $spec->taskType(),
             '--coretsia-worker-driver=' . self::DRIVER_PROC,
+            '--coretsia-worker-module-manifest=' . $moduleManifestArtifactPath,
             '--coretsia-worker-config=' . $configArtifactPath,
             '--coretsia-worker-container=' . $containerArtifactPath,
         ];

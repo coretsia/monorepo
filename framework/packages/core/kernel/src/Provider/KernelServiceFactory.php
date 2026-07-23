@@ -69,6 +69,7 @@ use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
+use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -948,7 +949,8 @@ final class KernelServiceFactory
      *
      * - the resolved container.php artifact path;
      * - an already-read and already-validated config@1 payload;
-     * - the resolved ModulePlan for the same runtime config snapshot.
+     * - the exact entrypoint-owned runtime seed set for the same artifact
+     *   snapshot.
      *
      * This method intentionally does not read source config files, run source
      * config discovery, run module discovery, register runtime providers as a
@@ -964,8 +966,8 @@ final class KernelServiceFactory
      * decision and MUST NOT be implied here.
      *
      * @param non-empty-string $containerArtifactPath
-     * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
-     * @param ModulePlan $modulePlan Already-resolved ModulePlan for this runtime boot.
+     * @param array<string, mixed> $configPayload Already-read/validated config@1
+     *     payload.
      *
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
      * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
@@ -974,9 +976,17 @@ final class KernelServiceFactory
         ContainerInterface $container,
         string $containerArtifactPath,
         array $configPayload,
-        ModulePlan $modulePlan,
+        RuntimeContainerSeedSet $seeds,
     ): FoundationContainer {
         $config = self::runtimeConfigFromConfigPayload($configPayload);
+        $seedInstances = $seeds->instances();
+        $modulePlan = $seedInstances[ModulePlan::class] ?? null;
+
+        if (!$modulePlan instanceof ModulePlan) {
+            throw new ContainerException(
+                'kernel-runtime-seed-set-invalid',
+            );
+        }
 
         self::assertRuntimeEntrypointCompatible(
             container: $container,
@@ -987,12 +997,15 @@ final class KernelServiceFactory
         $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
 
         if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
+            throw new ContainerException(
+                'kernel-artifacts-dependency-invalid',
+            );
         }
 
         return $compiledContainerFactory->build(
             containerArtifactPath: $containerArtifactPath,
             configPayload: $configPayload,
+            seeds: $seeds,
         );
     }
 

@@ -167,6 +167,7 @@ final class ProcWorkerManagerDriverSupportTest extends TestCase
                 'php',
                 'bin/coretsia-worker',
             ],
+            moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
             configArtifactPath: 'var/cache/worker/config.php',
             containerArtifactPath: 'var/cache/worker/container.php',
         );
@@ -186,6 +187,7 @@ final class ProcWorkerManagerDriverSupportTest extends TestCase
                 ),
                 controlChannel: new WorkerSocketServer(),
                 workerCommand: $workerCommand,
+                moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
                 configArtifactPath: 'var/cache/worker/config.php',
                 containerArtifactPath: 'var/cache/worker/container.php',
             );

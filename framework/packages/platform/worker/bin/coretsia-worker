@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
@@ -88,6 +89,7 @@ function coretsia_worker_child_throw(string $reason): never
  *     max_requests: int,
  *     task_type: string,
  *     driver: string,
+ *     module_manifest: string,
  *     config: string,
  *     container: string
  * }
@@ -138,6 +140,7 @@ function coretsia_worker_child_parse_args(array $argv): array
         'coretsia-worker-max-requests',
         'coretsia-worker-task-type',
         'coretsia-worker-driver',
+        'coretsia-worker-module-manifest',
         'coretsia-worker-config',
         'coretsia-worker-container',
     ];
@@ -159,6 +162,7 @@ function coretsia_worker_child_parse_args(array $argv): array
     $maxRequests = coretsia_worker_child_positive_int($values['coretsia-worker-max-requests']);
     $taskType = $values['coretsia-worker-task-type'];
     $driver = $values['coretsia-worker-driver'];
+    $moduleManifest = $values['coretsia-worker-module-manifest'];
     $config = $values['coretsia-worker-config'];
     $container = $values['coretsia-worker-container'];
 
@@ -171,6 +175,10 @@ function coretsia_worker_child_parse_args(array $argv): array
     }
 
     if ($driver !== 'proc') {
+        coretsia_worker_child_throw('argv-invalid');
+    }
+
+    if (!coretsia_worker_child_is_relative_safe_path($moduleManifest)) {
         coretsia_worker_child_throw('argv-invalid');
     }
 
@@ -188,6 +196,7 @@ function coretsia_worker_child_parse_args(array $argv): array
         'max_requests' => $maxRequests,
         'task_type' => $taskType,
         'driver' => $driver,
+        'module_manifest' => $moduleManifest,
         'config' => $config,
         'container' => $container,
     ];
@@ -317,11 +326,19 @@ function coretsia_worker_child_require_autoload(string $skeletonRoot): void
 }
 
 function coretsia_worker_child_boot_container(
+    string $skeletonRoot,
+    string $artifactRoot,
+    string $moduleManifestArtifactPath,
     string $configArtifactPath,
     string $containerArtifactPath,
 ): ContainerInterface {
     try {
         return new ArtifactRuntimeBooter()->boot(
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: $artifactRoot,
+            ),
+            moduleManifestArtifactPath: $moduleManifestArtifactPath,
             configArtifactPath: $configArtifactPath,
             containerArtifactPath: $containerArtifactPath,
         );
@@ -352,8 +369,10 @@ function coretsia_worker_child_service(ContainerInterface $container, string $id
     return $service;
 }
 
-function coretsia_worker_child_assert_runtime_entrypoint_allowed(ContainerInterface $container, WorkerPoolSpec $spec): void
-{
+function coretsia_worker_child_assert_runtime_entrypoint_allowed(
+    ContainerInterface $container,
+    WorkerPoolSpec $spec
+): void {
     try {
         /** @var WorkerRuntimeEntrypointGuard $guard */
         $guard = coretsia_worker_child_service($container, WorkerRuntimeEntrypointGuard::class);
@@ -385,6 +404,7 @@ function coretsia_worker_child_assert_runtime_entrypoint_allowed(ContainerInterf
  *     max_requests: int,
  *     task_type: string,
  *     driver: string,
+ *     module_manifest: string,
  *     config: string,
  *     container: string
  * } $args
@@ -420,6 +440,11 @@ try {
 
     coretsia_worker_child_require_autoload($skeletonRoot);
 
+    $moduleManifestArtifactPath = coretsia_worker_child_resolve_relative_path(
+        skeletonRoot: $skeletonRoot,
+        relativePath: $args['module_manifest'],
+    );
+
     $configArtifactPath = coretsia_worker_child_resolve_relative_path(
         skeletonRoot: $skeletonRoot,
         relativePath: $args['config'],
@@ -431,6 +456,9 @@ try {
     );
 
     $container = coretsia_worker_child_boot_container(
+        skeletonRoot: $skeletonRoot,
+        artifactRoot: \dirname($containerArtifactPath),
+        moduleManifestArtifactPath: $moduleManifestArtifactPath,
         configArtifactPath: $configArtifactPath,
         containerArtifactPath: $containerArtifactPath,
     );

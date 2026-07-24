@@ -1563,4 +1563,3 @@ These implementation points do not change this document's authority boundary.
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
 - [Reset Tags and Long-Running Runtime Reset Semantics](./reset-tags.md)
 - [DTO Policy](./dto-policy.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

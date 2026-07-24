@@ -86,6 +86,18 @@ final readonly class PhpArtifactReader
     }
 
     /**
+     * Reads exact existing artifact bytes without newline normalization.
+     *
+     * @param non-empty-string $path
+     *
+     * @throws ArtifactInvalidException
+     */
+    public function readExactBytes(string $path): string
+    {
+        return $this->readRawBytes($path);
+    }
+
+    /**
      * Reads and LF-normalizes existing artifact bytes.
      *
      * @param non-empty-string $path

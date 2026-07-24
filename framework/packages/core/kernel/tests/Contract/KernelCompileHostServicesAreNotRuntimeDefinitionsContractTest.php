@@ -48,6 +48,13 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -121,6 +128,13 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         PayloadNormalizer::class,
         StablePhpArrayDumper::class,
         ArtifactEnvelopeFactory::class,
+        ArtifactGenerationPathResolver::class,
+        ArtifactGenerationManifestBuilder::class,
+        ArtifactGenerationManifestValidator::class,
+        ArtifactGenerationLock::class,
+        ArtifactGenerationValidator::class,
+        ArtifactGenerationPublisher::class,
+        ArtifactGenerationLocator::class,
         ArtifactPathResolver::class,
         DeterministicFileLister::class,
         ConfigFingerprintInputBuilder::class,

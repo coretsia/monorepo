@@ -48,10 +48,8 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 moduleResolution: $moduleResolution,
             );
 
-            $containerPath = ArtifactPipelineTestSupport::artifactPath(
-                $root,
-                'container.php',
-            );
+            $generation = ArtifactPipelineTestSupport::currentGeneration($root);
+            $containerPath = $generation->containerPath();
             $configPayload = ArtifactPipelineTestSupport::configPayloadFromArtifact(
                 $root,
             );
@@ -66,7 +64,7 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
 
             $input = new ArtifactRuntimeInput(
                 skeletonRoot: $root,
-                artifactRoot: \dirname($containerPath),
+                artifactRoot: $generation->generationDirectory(),
             );
 
             $seeds = new ArtifactRuntimeSeedFactory()->create(

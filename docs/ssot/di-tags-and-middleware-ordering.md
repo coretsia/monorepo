@@ -703,4 +703,3 @@ When a runtime consumer needs services registered under a DI tag:
 - [Config Roots Registry](./config-roots.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

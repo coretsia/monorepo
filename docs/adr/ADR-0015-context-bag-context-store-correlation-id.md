@@ -875,7 +875,3 @@ Verification MUST prove:
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/uow-and-reset-contracts.md`
-
-## Related epic
-
-- `1.210.0 Foundation: ContextBag + ContextStore + CorrelationId`

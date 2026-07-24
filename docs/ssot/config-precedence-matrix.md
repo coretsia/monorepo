@@ -740,4 +740,3 @@ This document does not define:
 - [Config Directives Examples](./config-directives.md)
 - [Config Merge Order](./config-merge-order.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

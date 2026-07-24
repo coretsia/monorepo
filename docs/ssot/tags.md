@@ -165,4 +165,3 @@ A new tag is not complete unless both artifacts exist.
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

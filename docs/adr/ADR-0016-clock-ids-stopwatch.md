@@ -970,7 +970,3 @@ Verification MUST prove:
 ## Related ADRs
 
 - `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
-
-## Related epic
-
-- `1.220.0 Foundation: Clock + IDs + Stopwatch`

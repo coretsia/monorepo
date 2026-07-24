@@ -170,4 +170,3 @@ Parallel placeholder notes are not a substitute for updating the canonical regis
 
 - [SSoT Index](./INDEX.md)
 - [Config and env SSoT](./config-and-env.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

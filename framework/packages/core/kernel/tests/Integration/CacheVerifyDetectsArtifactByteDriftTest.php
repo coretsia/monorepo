@@ -57,18 +57,27 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
         self::assertFalse($result['invalid']);
     }
 
-    public function testVerifyDetectsValidPhpByteDriftAsDirty(): void
+    public function testVerifyRejectsValidPhpByteDriftAsInvalidGeneration(): void
     {
         self::assertSame(
             'clean',
-            ArtifactPipelineTestSupport::verifyArtifacts($this, $this->skeletonRoot)['outcome'],
+            ArtifactPipelineTestSupport::verifyArtifacts(
+                $this,
+                $this->skeletonRoot,
+            )['outcome'],
         );
 
-        $path = ArtifactPipelineTestSupport::artifactPath($this->skeletonRoot, 'config.php');
+        $path = ArtifactPipelineTestSupport::currentArtifactPath(
+            skeletonRoot: $this->skeletonRoot,
+            basename: 'config.php',
+        );
         $bytes = \file_get_contents($path);
 
         self::assertIsString($bytes);
-        self::assertStringContainsString("<?php\n\nreturn", $bytes);
+        self::assertStringContainsString(
+            "<?php\n\nreturn",
+            $bytes,
+        );
 
         $mutated = \str_replace(
             "<?php\n\nreturn",
@@ -76,32 +85,17 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
             $bytes,
         );
 
-        self::assertNotSame($bytes, $mutated);
-
-        \file_put_contents($path, $mutated);
-
-        $result = ArtifactPipelineTestSupport::verifyArtifacts(
-            testCase: $this,
-            skeletonRoot: $this->skeletonRoot,
+        self::assertNotSame(
+            $bytes,
+            $mutated,
         );
-
-        self::assertSame('dirty', $result['outcome']);
-        self::assertFalse($result['clean']);
-        self::assertTrue($result['dirty']);
-        self::assertFalse($result['invalid']);
-        self::assertSame(1, $result['counts']['dirty_artifact_count']);
-
-        $configResult = self::artifactResult($result, 'config.php');
-
-        self::assertSame('dirty', $configResult['status']);
-        self::assertSame('changed', $configResult['reason']);
-    }
-
-    public function testVerifyDetectsInvalidPhpSyntaxAsInvalid(): void
-    {
-        $path = ArtifactPipelineTestSupport::artifactPath($this->skeletonRoot, 'config.php');
-
-        \file_put_contents($path, "<?php\nreturn [\n");
+        self::assertSame(
+            \strlen($mutated),
+            \file_put_contents(
+                $path,
+                $mutated,
+            ),
+        );
 
         $result = ArtifactPipelineTestSupport::verifyArtifacts(
             testCase: $this,
@@ -112,7 +106,51 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
         self::assertFalse($result['clean']);
         self::assertFalse($result['dirty']);
         self::assertTrue($result['invalid']);
-        self::assertSame(1, $result['counts']['invalid_artifact_count']);
+        self::assertSame(
+            0,
+            $result['counts']
+            ['dirty_artifact_count'],
+        );
+        self::assertSame(
+            4,
+            $result['counts']
+            ['invalid_artifact_count'],
+        );
+
+        $configResult = self::artifactResult($result, 'config.php');
+
+        self::assertSame('invalid', $configResult['status']);
+        self::assertSame('invalid', $configResult['reason']);
+    }
+
+    public function testVerifyDetectsInvalidPhpSyntaxAsInvalid(): void
+    {
+        $path = ArtifactPipelineTestSupport::currentArtifactPath($this->skeletonRoot, 'config.php');
+
+        $invalidBytes = "<?php\nreturn [\n";
+
+        self::assertSame(
+            \strlen($invalidBytes),
+            \file_put_contents(
+                $path,
+                $invalidBytes,
+            ),
+        );
+
+        $result = ArtifactPipelineTestSupport::verifyArtifacts(
+            testCase: $this,
+            skeletonRoot: $this->skeletonRoot,
+        );
+
+        self::assertSame('invalid', $result['outcome']);
+        self::assertFalse($result['clean']);
+        self::assertFalse($result['dirty']);
+        self::assertTrue($result['invalid']);
+        self::assertSame(
+            4,
+            $result['counts']
+            ['invalid_artifact_count'],
+        );
 
         $configResult = self::artifactResult($result, 'config.php');
 
@@ -122,7 +160,7 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
 
     public function testVerifyExplainDoesNotLeakRawPayloadValuesOrAbsolutePaths(): void
     {
-        $path = ArtifactPipelineTestSupport::artifactPath($this->skeletonRoot, 'config.php');
+        $path = ArtifactPipelineTestSupport::currentArtifactPath($this->skeletonRoot, 'config.php');
         $bytes = \file_get_contents($path);
 
         self::assertIsString($bytes);
@@ -141,6 +179,9 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
             skeletonRoot: $this->skeletonRoot,
         );
 
+        self::assertSame('invalid', $result['outcome']);
+        self::assertTrue($result['invalid']);
+
         $encoded = \json_encode($result, \JSON_THROW_ON_ERROR);
 
         self::assertStringNotContainsString('raw-payload-secret-value', $encoded);
@@ -153,11 +194,12 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
             [
                 [
                     'basename' => 'config.php',
-                    'path' => 'var/cache/web/config.php',
-                    'reason' => 'changed',
+                    'path' => 'var/cache/web/' . 'generations/current/' . 'config.php',
+                    'reason' => 'invalid',
                 ],
             ],
-            $configResult['explain']['entries'],
+            $configResult['explain']
+            ['entries'],
         );
     }
 

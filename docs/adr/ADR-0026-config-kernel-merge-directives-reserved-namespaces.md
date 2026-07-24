@@ -631,4 +631,3 @@ Future reserved work:
 - [Config Merge Order](../ssot/config-merge-order.md)
 - [Config Precedence Matrix](../ssot/config-precedence-matrix.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](../ssot/observability.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

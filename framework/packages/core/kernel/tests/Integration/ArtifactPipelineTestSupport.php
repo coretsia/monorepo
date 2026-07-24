@@ -40,6 +40,14 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -123,13 +131,23 @@ final class ArtifactPipelineTestSupport
 
     public static function removeTree(string $path): void
     {
-        if (!\is_dir($path)) {
+        if (\is_link($path)) {
+            self::removeFilesystemLink($path);
+
             return;
         }
 
-        $items = \scandir($path);
+        if (!\is_dir($path)) {
+            if (\file_exists($path)) {
+                @\unlink($path);
+            }
 
-        if ($items === false) {
+            return;
+        }
+
+        $items = @\scandir($path);
+
+        if (!\is_array($items)) {
             return;
         }
 
@@ -140,16 +158,35 @@ final class ArtifactPipelineTestSupport
 
             $itemPath = $path . '/' . $item;
 
-            if (\is_dir($itemPath) && !\is_link($itemPath)) {
+            if (\is_link($itemPath)) {
+                self::removeFilesystemLink($itemPath);
+
+                continue;
+            }
+
+            if (\is_dir($itemPath)) {
                 self::removeTree($itemPath);
 
                 continue;
             }
 
-            \unlink($itemPath);
+            @\unlink($itemPath);
         }
 
-        \rmdir($path);
+        @\rmdir($path);
+    }
+
+    private static function removeFilesystemLink(string $path): void
+    {
+        /*
+         * Unix-like systems remove filesystem symlinks through unlink().
+         * Windows requires rmdir() for directory symlinks and junctions.
+         */
+        if (@\unlink($path)) {
+            return;
+        }
+
+        @\rmdir($path);
     }
 
     /**
@@ -407,10 +444,85 @@ final class ArtifactPipelineTestSupport
     ): string {
         return self::fingerprintCalculator($testCase)->calculate([
             'schemaVersion' => 1,
-            'containerGraph' => new ContainerGraphFingerprintBucketBuilder()->build(
-                $containerGraph,
-            ),
+            'containerGraph' => new ContainerGraphFingerprintBucketBuilder()->build($containerGraph),
         ]);
+    }
+
+    public static function artifactRoot(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): string {
+        return \rtrim($skeletonRoot, '/\\') . '/' . $artifactsCacheDir . '/web';
+    }
+
+    public static function currentGeneration(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): ArtifactGeneration {
+        $generationPathResolver = new ArtifactGenerationPathResolver();
+        $schemaValidator = new ArtifactSchemaValidator();
+        $generationValidator = new ArtifactGenerationValidator(
+            artifactReader: new PhpArtifactReader(),
+            schemaValidator: $schemaValidator,
+            manifestValidator: new ArtifactGenerationManifestValidator($schemaValidator),
+        );
+        $generationLocator = new ArtifactGenerationLocator(
+            lock: new ArtifactGenerationLock($generationPathResolver),
+            pathResolver: $generationPathResolver,
+            validator: $generationValidator,
+        );
+
+        $generation = $generationLocator->locate(
+            self::artifactRoot(
+                skeletonRoot: $skeletonRoot,
+                artifactsCacheDir: $artifactsCacheDir,
+            ),
+        );
+
+        TestCase::assertInstanceOf(
+            ArtifactGeneration::class,
+            $generation,
+            'A current artifact generation must be selected.',
+        );
+
+        return $generation;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public static function currentArtifactPaths(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): array {
+        $generation = self::currentGeneration(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
+
+        return [
+            ArtifactGeneration::CONFIG_BASENAME => $generation->configPath(),
+            ArtifactGeneration::CONTAINER_BASENAME => $generation->containerPath(),
+            ArtifactGeneration::GENERATION_MANIFEST_BASENAME => $generation->generationManifestPath(),
+            ArtifactGeneration::MODULE_MANIFEST_BASENAME => $generation->moduleManifestPath(),
+        ];
+    }
+
+    public static function currentArtifactPath(
+        string $skeletonRoot,
+        string $basename,
+        string $artifactsCacheDir = 'var/cache',
+    ): string {
+        $paths = self::currentArtifactPaths(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
+
+        if (!isset($paths[$basename])) {
+            throw new \InvalidArgumentException('test-current-artifact-basename-invalid');
+        }
+
+        return $paths[$basename];
     }
 
     /**
@@ -420,7 +532,7 @@ final class ArtifactPipelineTestSupport
         string $skeletonRoot,
         string $artifactsCacheDir = 'var/cache',
     ): array {
-        $paths = self::artifactPaths(
+        $paths = self::currentArtifactPaths(
             skeletonRoot: $skeletonRoot,
             artifactsCacheDir: $artifactsCacheDir,
         );
@@ -446,10 +558,7 @@ final class ArtifactPipelineTestSupport
         string $skeletonRoot,
         string $artifactsCacheDir = 'var/cache',
     ): array {
-        $directory = \rtrim($skeletonRoot, '/\\')
-            . '/'
-            . $artifactsCacheDir
-            . '/web';
+        $directory = \rtrim($skeletonRoot, '/\\') . '/' . $artifactsCacheDir . '/web';
 
         return [
             'config.php' => $directory . '/config.php',
@@ -478,9 +587,55 @@ final class ArtifactPipelineTestSupport
     /**
      * @return array<string, mixed>
      */
-    public static function artifactEnvelope(string $skeletonRoot, string $basename): array
-    {
-        $read = new PhpArtifactReader()->read(self::artifactPath($skeletonRoot, $basename));
+    public static function artifactEnvelope(
+        string $skeletonRoot,
+        string $basename,
+    ): array {
+        return self::artifactEnvelopeFromPath(
+            self::currentArtifactPath(
+                skeletonRoot: $skeletonRoot,
+                basename: $basename,
+            ),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function configPayloadFromArtifact(
+        string $skeletonRoot,
+    ): array {
+        return self::artifactPayloadFromPath(
+            path: self::currentArtifactPath(
+                skeletonRoot: $skeletonRoot,
+                basename: ArtifactGeneration::CONFIG_BASENAME,
+            ),
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONFIG,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function moduleManifestPayloadFromArtifact(
+        string $skeletonRoot,
+    ): array {
+        return self::artifactPayloadFromPath(
+            path: self::currentArtifactPath(
+                skeletonRoot: $skeletonRoot,
+                basename: ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+            ),
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function artifactEnvelopeFromPath(
+        string $path,
+    ): array {
+        $read = new PhpArtifactReader()->read($path);
 
         TestCase::assertIsArray($read['envelope']);
 
@@ -493,38 +648,15 @@ final class ArtifactPipelineTestSupport
     /**
      * @return array<string, mixed>
      */
-    public static function configPayloadFromArtifact(string $skeletonRoot): array
-    {
-        $envelope = self::artifactEnvelope($skeletonRoot, 'config.php');
-
-        new ArtifactSchemaValidator()->validateExpected(
-            envelope: $envelope,
-            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONFIG,
-            expectedSchemaVersion: 1,
-        );
-
-        $payload = $envelope['payload'] ?? null;
-
-        TestCase::assertIsArray($payload);
-
-        /** @var array<string, mixed> $payload */
-        return $payload;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public static function moduleManifestPayloadFromArtifact(
-        string $skeletonRoot,
+    private static function artifactPayloadFromPath(
+        string $path,
+        string $expectedName,
     ): array {
-        $envelope = self::artifactEnvelope(
-            $skeletonRoot,
-            'module-manifest.php',
-        );
+        $envelope = self::artifactEnvelopeFromPath($path);
 
         new ArtifactSchemaValidator()->validateExpected(
             envelope: $envelope,
-            expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
+            expectedName: $expectedName,
             expectedSchemaVersion: 1,
         );
 
@@ -539,6 +671,9 @@ final class ArtifactPipelineTestSupport
     public static function artifactCompiler(TestCase $testCase): ArtifactCompiler
     {
         $envelopeFactory = self::envelopeFactory();
+        $phpArrayDumper = new StablePhpArrayDumper(
+            new PayloadNormalizer(),
+        );
 
         return new ArtifactCompiler(
             configKernel: self::configKernel($testCase),
@@ -548,8 +683,36 @@ final class ArtifactPipelineTestSupport
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
             runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler($testCase),
             compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
-            artifactWriter: self::artifactWriter($testCase),
+            phpArrayDumper: $phpArrayDumper,
+            generationPublisher: self::artifactGenerationPublisher(
+                testCase: $testCase,
+                envelopeFactory: $envelopeFactory,
+                phpArrayDumper: $phpArrayDumper,
+            ),
             pathResolver: new ArtifactPathResolver(),
+        );
+    }
+
+    private static function artifactGenerationPublisher(
+        TestCase $testCase,
+        ArtifactEnvelopeFactory $envelopeFactory,
+        StablePhpArrayDumper $phpArrayDumper,
+    ): ArtifactGenerationPublisher {
+        $generationPathResolver = new ArtifactGenerationPathResolver();
+        $schemaValidator = new ArtifactSchemaValidator();
+        $generationValidator = new ArtifactGenerationValidator(
+            artifactReader: new PhpArtifactReader(),
+            schemaValidator: $schemaValidator,
+            manifestValidator: new ArtifactGenerationManifestValidator($schemaValidator),
+        );
+
+        return new ArtifactGenerationPublisher(
+            artifactWriter: self::artifactWriter($testCase),
+            phpArrayDumper: $phpArrayDumper,
+            manifestBuilder: new ArtifactGenerationManifestBuilder($envelopeFactory),
+            validator: $generationValidator,
+            lock: new ArtifactGenerationLock($generationPathResolver),
+            pathResolver: $generationPathResolver,
         );
     }
 
@@ -567,24 +730,29 @@ final class ArtifactPipelineTestSupport
     public static function runtimeContainerFromArtifacts(
         string $skeletonRoot,
         ?array $configPayload = null,
+        ?ArtifactGeneration $generation = null,
     ): Container {
-        $containerArtifactPath = self::artifactPath(
-            $skeletonRoot,
-            'container.php',
+        $generation ??= self::currentGeneration($skeletonRoot);
+
+        $containerArtifactPath = $generation->containerPath();
+
+        $configPayload ??= self::artifactPayloadFromPath(
+            path: $generation->configPath(),
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONFIG,
         );
-        $configPayload ??= self::configPayloadFromArtifact(
-            $skeletonRoot,
+
+        $moduleManifestPayload = self::artifactPayloadFromPath(
+            path: $generation->moduleManifestPath(),
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
         );
 
         $seeds = new ArtifactRuntimeSeedFactory()->create(
             input: new ArtifactRuntimeInput(
                 skeletonRoot: $skeletonRoot,
-                artifactRoot: \dirname($containerArtifactPath),
+                artifactRoot: $generation->generationDirectory(),
             ),
             configPayload: $configPayload,
-            moduleManifestPayload: self::moduleManifestPayloadFromArtifact(
-                $skeletonRoot,
-            ),
+            moduleManifestPayload: $moduleManifestPayload,
         );
 
         return self::compiledContainerFactory()->build(
@@ -597,6 +765,17 @@ final class ArtifactPipelineTestSupport
     public static function cacheVerifier(TestCase $testCase): CacheVerifier
     {
         $envelopeFactory = self::envelopeFactory();
+        $phpArrayDumper = new StablePhpArrayDumper(
+            new PayloadNormalizer(),
+        );
+        $artifactReader = new PhpArtifactReader();
+        $schemaValidator = new ArtifactSchemaValidator();
+        $generationPathResolver = new ArtifactGenerationPathResolver();
+        $generationValidator = new ArtifactGenerationValidator(
+            artifactReader: $artifactReader,
+            schemaValidator: $schemaValidator,
+            manifestValidator: new ArtifactGenerationManifestValidator($schemaValidator),
+        );
 
         return new CacheVerifier(
             configKernel: self::configKernel($testCase),
@@ -606,9 +785,14 @@ final class ArtifactPipelineTestSupport
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
             runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler($testCase),
             compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
-            phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
-            artifactReader: new PhpArtifactReader(),
-            schemaValidator: new ArtifactSchemaValidator(),
+            phpArrayDumper: $phpArrayDumper,
+            generationManifestBuilder: new ArtifactGenerationManifestBuilder($envelopeFactory),
+            generationLocator: new ArtifactGenerationLocator(
+                lock: new ArtifactGenerationLock($generationPathResolver),
+                pathResolver: $generationPathResolver,
+                validator: $generationValidator,
+            ),
+            artifactReader: $artifactReader,
             pathResolver: new ArtifactPathResolver(),
             tracer: self::tracer($testCase),
             meter: self::meter(),

@@ -213,4 +213,3 @@ Artifact readers and consumers:
 
 - [SSoT Index](./INDEX.md)
 - [Artifact Generations](./artifact-generations.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

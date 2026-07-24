@@ -41,9 +41,9 @@ docs/ssot/cache-verify.md
 
 ## Goal
 
-A single Kernel-owned SSoT defines the final immutable generation storage model before the production artifact writer is migrated.
+A single Kernel-owned SSoT defines the active immutable generation storage, publication, location, and validation model.
 
-The model must ensure that:
+The model ensures that:
 
 - one generation id identifies one complete Kernel artifact publication set;
 - finalized generation contents are immutable;
@@ -51,7 +51,9 @@ The model must ensure that:
 - staging randomness remains outside semantic identity;
 - generation paths remain outside artifacts and diagnostics;
 - mutable publication control state is not misclassified as generated artifact data;
-- the existing production compiler can remain on the flat layout until a later explicit migration.
+- production publication activates one complete generation through one locked pointer replacement;
+- concurrent publishers cannot expose mixed artifact outputs;
+- cache verification reads one selected immutable generation.
 
 ## Authority Boundary (MUST)
 
@@ -72,7 +74,12 @@ This document owns:
 - `current` classification;
 - `generation.lock` classification;
 - immutable finalized-generation policy;
-- current production writer boundary before generation-aware publication is activated.
+- active generation publication protocol;
+- shared/exclusive generation lock semantics;
+- current-pointer encoding and replacement semantics;
+- existing-generation reuse rules;
+- current generation location and validation semantics;
+- production publication and verification boundary, excluding runtime consumption semantics.
 
 This document MUST NOT redefine:
 
@@ -88,10 +95,11 @@ This document MUST NOT redefine:
 - cache verification outcome classification;
 - compiled-container runtime boot semantics;
 - Bootstrap Phase A artifact-cache-directory resolution;
-- generation retention policy;
-- garbage collection policy;
-- stale staging cleanup implementation;
-- operating-system lock implementation.
+- generation retention count or policy;
+- finalized-generation garbage collection;
+- background stale-generation cleanup;
+- artifact-only runtime hydration semantics;
+- Worker child boot semantics.
 
 ## Invariants (MUST)
 
@@ -112,7 +120,14 @@ This document MUST NOT redefine:
 - `generation.lock` MUST be classified as a cache-control file.
 - `current` and `generation.lock` MUST NOT be registered as artifacts.
 - Generation path diagnostics MUST NOT expose path values.
-- The production compiler MUST remain on the existing flat layout until generation-aware publication is explicitly activated.
+- Production compilation MUST publish only through `ArtifactGenerationPublisher`.
+- Production compilation MUST NOT dual-write the legacy flat layout.
+- The selected generation MUST change only through locked replacement of `current`.
+- Readers MUST locate and validate `current` while holding the shared generation lock.
+- The publisher MUST finalize, reuse, and switch `current` while holding the exclusive generation lock.
+- An existing generation MUST NOT be reused unless it is valid and exactly byte-identical to the staged generation.
+- Cache verification MUST include all four finalized generation files.
+- Artifact-only runtime and Worker generation-root consumption are outside this SSoT.
 
 ## Terminology
 
@@ -234,7 +249,7 @@ supplied bytes
 MUST exactly equal:
 
 ```text
-StablePhpArrayDumper::dumpStableEnvelope(envelope)
+StablePhpArrayDumper::dumpEnvelope(envelope)
 ```
 
 An empty byte string is invalid.
@@ -555,13 +570,22 @@ Generation-specific path derivation MUST be delegated to:
 ArtifactGenerationPathResolver
 ```
 
-The legacy flat-layout methods remain available until generation-aware publication is explicitly activated:
+Production compilation and cache verification MUST use:
 
 ```text
-module-manifest.php
-config.php
-container.php
+artifactRoot()
 ```
+
+as the boundary between Bootstrap-owned root resolution and generation-owned path resolution.
+
+Generation-specific paths MUST be resolved only through `ArtifactGenerationPathResolver`.
+
+Legacy flat-artifact path methods belong only to the explicit-path runtime compatibility surface and are not part of generation publication or verification:
+
+- `ArtifactCompiler` MUST NOT use them for production publication;
+- `CacheVerifier` MUST NOT use them for persisted generation lookup;
+- they MUST NOT be treated as the active production storage model;
+- `generation-manifest.php` MUST NOT be added to their basename allowlist.
 
 The compatibility method:
 
@@ -570,8 +594,6 @@ cacheDirectory()
 ```
 
 continues to return the artifact root.
-
-The generation manifest basename MUST NOT be added to the legacy flat-layout basename allowlist.
 
 ## `artifact-generation@1` Identity (MUST)
 
@@ -913,7 +935,51 @@ The schema validator validates declared metadata shape and values.
 
 It does not read filesystem artifacts or compare declared metadata with persisted files.
 
-That later byte-to-file comparison belongs to publication verification or runtime selection work.
+Filesystem identity and byte-to-file comparison are owned by `ArtifactGenerationValidator`.
+
+## `ArtifactGenerationValidator` Boundary (MUST)
+
+`ArtifactGenerationValidator` validates one complete staged or finalized generation.
+
+It MUST validate:
+
+- generation directory identity;
+- the immediate `generations` parent directory;
+- staging-name identity when validating staging;
+- finalized basename equality with the generation id;
+- absence of generation-directory and parent-directory symlink substitution;
+- the exact four required generation files;
+- absence of file symlink substitution;
+- regular readable file semantics;
+- the canonical `artifact-generation@1` envelope;
+- equality of manifest `generationId` and generation id;
+- exact declared runtime artifact byte lengths;
+- exact runtime artifact SHA-256 values;
+- expected runtime artifact names;
+- expected runtime artifact schema versions;
+- equality of every runtime envelope fingerprint with the generation id;
+- equality of the generation-manifest envelope fingerprint with the generation id.
+
+The exact required finalized files are:
+
+```text
+config.php
+container.php
+generation-manifest.php
+module-manifest.php
+```
+
+No additional directory entry is allowed.
+
+The generation manifest records hashes for exactly the three runtime artifacts and does not hash itself.
+
+The validator MUST NOT:
+
+- repair a generation;
+- mutate a generation;
+- select `current`;
+- calculate a replacement fingerprint;
+- expose filesystem paths in exceptions.
 
 ## Cache-Control Files (MUST)
 
@@ -950,7 +1016,27 @@ It MUST NOT select a generation by storing:
 
 It MUST NOT affect generation fingerprint or generated artifact bytes.
 
-The exact byte encoding and atomic replacement mechanism remain deferred to the generation-aware writer implementation.
+The exact pointer bytes are:
+
+```text
+<generation-id>\n
+```
+
+The file MUST contain exactly:
+
+- 64 lowercase hexadecimal generation-id bytes;
+- one final LF byte;
+- no other bytes.
+
+`current` MUST be read only while the shared generation lock is held.
+
+`current` MUST be replaced only while the exclusive generation lock is held.
+
+The pointer replacement source MUST be a fully written durable same-directory temporary file.
+
+`current` MUST NOT be a symlink.
+
+A successful `current` replacement is the publication commit point.
 
 ### `generation.lock`
 
@@ -973,30 +1059,159 @@ It MUST NOT:
 
 Its contents and filesystem metadata are non-semantic operational state.
 
-## Target Publication Protocol (MUST When Activated)
+The lock file is persistent.
 
-A later generation-aware production writer MUST:
+It MUST NOT be removed between operations.
 
-1. obtain one validated immutable publication set;
-2. build one canonical `artifact-generation@1` envelope;
-3. resolve one unique staging directory;
-4. materialize the three runtime artifacts in staging;
-5. materialize `generation-manifest.php` in staging;
-6. validate the complete staged generation;
-7. finalize the directory under `generations/<generation-id>`;
-8. update `current` only after finalization succeeds;
-9. coordinate conflicting publication attempts through `generation.lock`;
-10. avoid exposing a partial generation as selected.
+The lock API is:
 
-The final publication implementation MUST NOT mutate finalized generation contents.
+```php
+public function shared(string $artifactRoot, Closure $operation): mixed;
+public function exclusive(string $artifactRoot, Closure $operation): mixed;
+```
 
-Exact operating-system lock APIs, rename primitives, retry behavior, stale staging cleanup, and existing-generation reuse remain deferred to the generation-aware writer implementation.
+Shared lock users include:
 
-## Current Production Boundary (MUST)
+```text
+ArtifactGenerationLocator
+CacheVerifier through ArtifactGenerationLocator
+```
 
-The generation model defined by this document is final target infrastructure.
+The exclusive lock user is:
 
-Until generation-aware publication is explicitly activated, the production compiler continues to write:
+```text
+ArtifactGenerationPublisher
+```
+
+Lock acquisition, unlock, and close failures MUST use:
+
+```text
+CORETSIA_ARTIFACT_GENERATION_PUBLISH_FAILED: lock-failed
+```
+
+The exception MUST NOT contain the artifact root, lock path, OS warning text, or previous throwable message.
+
+## Active Publication Protocol (MUST)
+
+`ArtifactGenerationPublisher` owns the active production publication protocol.
+
+The protocol is:
+
+1. receive one validated immutable `ArtifactPublicationSet`;
+2. resolve one unique staging directory;
+3. write `module-manifest.php` as exact bytes;
+4. write `config.php` as exact bytes;
+5. write `container.php` as exact bytes;
+6. fully write, flush, `fsync()`, and close every runtime artifact handle;
+7. derive the canonical `artifact-generation@1` envelope;
+8. write `generation-manifest.php` as exact bytes;
+9. fully write, flush, `fsync()`, and close its handle;
+10. validate the complete staged generation;
+11. acquire the exclusive generation lock;
+12. resolve `generations/<generation-id>`;
+13. if it exists, validate it and require exact equality of all four staged and finalized files;
+14. otherwise rename staging to the finalized directory;
+15. validate the finalized generation;
+16. write a durable temporary `current` pointer;
+17. replace `current` while the exclusive lock remains held;
+18. release the lock;
+19. clean handled staging and pointer-temporary state;
+20. leave previous finalized generations in place.
+
+The publication protocol MUST NOT:
+
+- write production flat artifacts;
+- dual-write flat and generation layouts;
+- mutate a finalized generation;
+- activate staging;
+- activate an invalid generation;
+- reuse an existing generation with different bytes;
+- repair an invalid finalized generation in place;
+- delete the previous finalized generation after a successful switch.
+
+Existing-generation reuse requires exact equality of:
+
+```text
+module-manifest.php
+config.php
+container.php
+generation-manifest.php
+```
+
+A matching directory name without valid and equal contents is a generation conflict.
+
+## Publication Failure Reasons (MUST)
+
+Publication failures use:
+
+```text
+CORETSIA_ARTIFACT_GENERATION_PUBLISH_FAILED
+```
+
+Allowed safe reasons are exactly:
+
+```text
+lock-failed
+staging-create-failed
+write-failed
+sync-failed
+generation-invalid
+generation-conflict
+pointer-write-failed
+pointer-switch-failed
+cleanup-failed
+```
+
+No failure message may contain paths, ids, temporary names, raw bytes, OS warning text, or previous throwable messages.
+
+## Current Generation Location (MUST)
+
+`ArtifactGenerationLocator` owns current-generation location.
+
+It MUST:
+
+1. acquire the shared generation lock;
+2. resolve `<artifact-root>/current`;
+3. reject a symlinked pointer;
+4. return `null` when the pointer does not exist;
+5. require one regular readable pointer file;
+6. read exact pointer bytes;
+7. require exactly `<64 lowercase hex>\n`;
+8. construct the selected `ArtifactGeneration`;
+9. validate the complete selected generation;
+10. return it only after validation succeeds.
+
+It MUST NOT:
+
+- repair `current`;
+- repair generations;
+- fall back to another generation;
+- scan for a newest generation;
+- select staging;
+- compile replacement artifacts.
+
+## Production Publication and Verification Boundary (MUST)
+
+Production compilation writes only immutable generations.
+
+Production cache verification reads only the generation selected through `current`.
+
+The active production boundary is:
+
+```text
+ArtifactCompiler
+  -> ArtifactPublicationSet
+  -> ArtifactGenerationPublisher
+  -> generations/<generation-id>
+  -> current
+
+CacheVerifier
+  -> ArtifactGenerationLocator
+  -> ArtifactGenerationValidator
+  -> selected immutable generation
+```
+
+Production compilation MUST NOT create:
 
 ```text
 <artifact-root>/module-manifest.php
@@ -1004,28 +1219,17 @@ Until generation-aware publication is explicitly activated, the production compi
 <artifact-root>/container.php
 ```
 
-The production compiler MUST NOT yet write:
+as active flat production artifacts.
 
-```text
-<artifact-root>/generations/
-<artifact-root>/current
-<artifact-root>/generation.lock
-```
+Generation-aware runtime consumption is outside this SSoT.
 
-The production compiler MUST NOT introduce dual-write behavior.
+Under this authority boundary:
 
-`ArtifactRuntimeBooter` continues to receive explicit artifact paths.
+- `ArtifactRuntimeBooter` is not required to read `current`;
+- Worker artifact-root input semantics are not defined;
+- runtime hydration from one located generation is not defined.
 
-Before generation-aware runtime selection is explicitly activated, it MUST NOT:
-
-- read `current`;
-- discover generation directories;
-- select a generation;
-- scan `generations/`;
-- fall back from one generation to another;
-- compile replacement artifacts.
-
-The generation classes are final target infrastructure and MUST NOT be treated as disposable transitional adapters.
+The generation classes are production infrastructure governed by this SSoT.
 
 ## Diagnostics and Redaction (MUST)
 
@@ -1064,6 +1268,15 @@ artifact-generation-staging-suffix-generation-failed
 artifact-publication-set-envelope-invalid
 artifact-publication-set-fingerprint-mismatch
 artifact-publication-set-bytes-invalid
+lock-failed
+staging-create-failed
+write-failed
+sync-failed
+generation-invalid
+generation-conflict
+pointer-write-failed
+pointer-switch-failed
+cleanup-failed
 ```
 
 The reason token is diagnostic identity.
@@ -1138,23 +1351,63 @@ The test suite MUST cover at least:
 - invalid hash rejection;
 - `requires` header rejection.
 
-### Current production boundary
+### Publication protocol
 
-- the current production compiler still resolves legacy flat artifact paths;
-- `generation-manifest.php` is not accepted by the flat-layout basename resolver;
-- production runtime boot does not discover or select generation directories.
+- first runtime artifact write failure;
+- second runtime artifact write failure;
+- third runtime artifact write failure;
+- generation-manifest write failure;
+- durable flush failure;
+- durable sync failure;
+- final-directory rename failure;
+- current-pointer temporary write failure;
+- current-pointer switch failure;
+- exclusive-lock acquisition failure;
+- previous `current` remains selected for failures before pointer commit;
+- previous finalized generation remains valid;
+- incomplete generation is never selected;
+- handled staging state is removed;
+- mixed generation outputs are absent.
+
+### Existing-generation reuse
+
+- valid identical generation reuse;
+- exact equality of all four generation files;
+- same generation id with different runtime bytes is rejected;
+- same generation id with different manifest bytes is rejected;
+- invalid existing generation is rejected as a conflict.
+
+### Locator and validator
+
+- exact `<64 lowercase hex>\n` pointer acceptance;
+- malformed pointer rejection;
+- pointer symlink rejection;
+- generation-directory symlink rejection;
+- `generations` parent symlink rejection;
+- artifact-file symlink rejection;
+- unexpected file rejection;
+- missing required file rejection;
+- manifest hash mismatch rejection;
+- manifest byte-length mismatch rejection;
+- artifact fingerprint mismatch rejection.
+
+### Production publication and verification boundary
+
+- production compiler does not write active flat artifacts;
+- active state changes through `current`;
+- cache verification includes all four finalized generation files;
+- concurrent publishers never expose mixed artifact generations;
+- production runtime generation discovery remains outside this SSoT.
 
 ## Non-goals / Clarifications (MUST)
 
-- This document does not activate the generation-aware production writer.
-- This document does not define generation retention count.
-- This document does not define generation garbage collection.
-- This document does not define stale staging cleanup timing.
-- This document does not define crash-recovery implementation.
-- This document does not define operating-system lock primitives.
-- This document does not define current-file byte encoding.
+- This document does not define generation retention count or policy.
+- This document does not define finalized-generation garbage collection.
+- This document does not define crash recovery beyond handled-operation semantics.
 - This document does not define cross-process retry timing.
-- This document does not define runtime generation discovery.
+- This document does not define background stale-staging cleanup.
+- This document does not define artifact-only runtime generation discovery or hydration.
+- This document does not define Worker generation-root consumption.
 - This document does not redefine artifact cache directory configuration.
 - This document does not redefine Bootstrap Phase A.
 - This document does not redefine fingerprint input.
@@ -1170,15 +1423,25 @@ The test suite MUST cover at least:
 ## Implementation Mapping
 
 ```text
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationId.php
+framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php
+framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+framework/packages/core/kernel/src/Artifacts/Exception/ArtifactGenerationPublishException.php
 framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGeneration.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPathResolver.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationId.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLock.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLocator.php
 framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestBuilder.php
 framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestValidator.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPathResolver.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPublisher.php
+framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationValidator.php
 framework/packages/core/kernel/src/Artifacts/Generation/ArtifactPublicationSet.php
-framework/packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php
 framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php
+framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
 framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
+framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+framework/packages/core/kernel/src/Provider/KernelServiceFactory.php
+framework/packages/core/kernel/src/Provider/KernelServiceProvider.php
 ```
 
 These implementation points do not change this document's authority boundary.
@@ -1193,4 +1456,3 @@ These implementation points do not change this document's authority boundary.
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](../adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)
 - [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
 - [ADR-0031: Atomic Artifact Generations](../adr/ADR-0031-atomic-artifact-generations.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

@@ -813,7 +813,3 @@ This ADR does not implement:
 - `docs/ssot/config-roots.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/artifacts.md`
-
-## Related epic
-
-- `1.180.0 Contracts: Secrets port`

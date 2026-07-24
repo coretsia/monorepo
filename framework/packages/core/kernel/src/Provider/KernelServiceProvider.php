@@ -48,6 +48,13 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -446,6 +453,13 @@ final class KernelServiceProvider implements
         );
 
         $builder->factory(
+            ArtifactGenerationPathResolver::class,
+            static fn (
+                Container $_container
+            ): ArtifactGenerationPathResolver => KernelServiceFactory::artifactGenerationPathResolver(),
+        );
+
+        $builder->factory(
             DeterministicFileLister::class,
             static fn (
                 Container $_container
@@ -532,6 +546,60 @@ final class KernelServiceProvider implements
             static fn (
                 Container $_container
             ): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(),
+        );
+
+        $builder->factory(
+            ArtifactGenerationManifestBuilder::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationManifestBuilder => KernelServiceFactory::artifactGenerationManifestBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationManifestValidator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationManifestValidator => KernelServiceFactory::artifactGenerationManifestValidator(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationLock::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationLock => KernelServiceFactory::artifactGenerationLock(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationValidator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationValidator => KernelServiceFactory::artifactGenerationValidator(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationPublisher::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationPublisher => KernelServiceFactory::artifactGenerationPublisher(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationLocator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationLocator => KernelServiceFactory::artifactGenerationLocator(
+                container: $container,
+            ),
         );
 
         $builder->factory(

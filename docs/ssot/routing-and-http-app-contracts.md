@@ -1044,4 +1044,3 @@ This SSoT does not define:
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Errors Boundary SSoT](./errors-boundary.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

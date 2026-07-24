@@ -34,7 +34,8 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
                 config: ArtifactPipelineTestSupport::defaultConfig(),
             );
 
-            $containerPath = ArtifactPipelineTestSupport::artifactPath($root, 'container.php');
+            $generation = ArtifactPipelineTestSupport::currentGeneration($root);
+            $containerPath = $generation->containerPath();
 
             ArtifactPipelineTestSupport::writePhpReturn(
                 path: $containerPath,
@@ -42,7 +43,10 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
             );
 
             try {
-                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                    skeletonRoot: $root,
+                    generation: $generation,
+                );
 
                 self::fail('Expected legacy stub compiled-container artifact failure.');
             } catch (ContainerArtifactInvalidException $exception) {
@@ -87,7 +91,8 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
                 config: ArtifactPipelineTestSupport::defaultConfig(),
             );
 
-            $containerPath = ArtifactPipelineTestSupport::artifactPath($root, 'container.php');
+            $generation = ArtifactPipelineTestSupport::currentGeneration($root);
+            $containerPath = $generation->containerPath();
 
             ArtifactPipelineTestSupport::writePhpReturn(
                 path: $containerPath,
@@ -95,7 +100,10 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
             );
 
             try {
-                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                    skeletonRoot: $root,
+                    generation: $generation,
+                );
 
                 self::fail('Expected invalid compiled-container artifact failure.');
             } catch (ContainerArtifactInvalidException $exception) {
@@ -139,7 +147,8 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
                 config: ArtifactPipelineTestSupport::defaultConfig(),
             );
 
-            $containerPath = ArtifactPipelineTestSupport::artifactPath($root, 'container.php');
+            $generation = ArtifactPipelineTestSupport::currentGeneration($root);
+            $containerPath = $generation->containerPath();
             $secretPath = $root . '/secret/source.php';
 
             \file_put_contents(
@@ -150,7 +159,10 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
             );
 
             try {
-                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+                ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                    skeletonRoot: $root,
+                    generation: $generation,
+                );
 
                 self::fail('Expected read-failed compiled-container artifact failure.');
             } catch (ContainerArtifactInvalidException $exception) {

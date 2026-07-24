@@ -20,77 +20,30 @@ namespace Coretsia\Kernel\Artifacts\Compiler;
 
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
-use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
+use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
-use Coretsia\Kernel\Artifacts\Exception\ArtifactWriteFailedException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactPublicationSet;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
+use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
-use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
-use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModuleResolution;
 
 /**
- * Orchestrates Kernel-owned artifact generation.
- *
- * ArtifactCompiler is the compile-side orchestration boundary for Kernel-owned
- * artifacts:
- *
- * - module-manifest.php;
- * - config.php;
- * - container.php.
- *
- * `container.php` uses the same Kernel artifact path policy as the other
- * Kernel-owned artifacts. Artifact paths are resolved by ArtifactPathResolver from the
- * BootstrapConfig::artifactsCacheDir() Phase A value; this compiler does not
- * introduce container-specific artifact path configuration.
- *
- * Fingerprint exclusion policy remains owned by ConfigFingerprintInputBuilder
- * and FingerprintCalculator. Compiled-container compiler/builder/runtime boot
- * services do not read `kernel.fingerprint.*` configuration directly.
- *
- * It receives already resolved Phase A / module inputs and explicit config
- * source candidate arrays. It invokes ConfigKernel::compile(...) exactly once
- * per compile operation, builds deterministic fingerprint input through
- * ConfigFingerprintInputBuilder, calculates the fingerprint through
- * FingerprintCalculator, builds canonical envelopes through artifact builders,
- * and writes artifacts through ArtifactWriter.
- *
- * This compiler intentionally does not:
- *
- * - resolve BootstrapConfig;
- * - resolve ModulePlan;
- * - build EnvRepositoryInterface;
- * - discover config files;
- * - re-run config compile internally;
- * - calculate fingerprint input ad hoc;
- * - write files directly;
- * - read existing artifacts;
- * - verify cache clean/dirty state;
- * - reuse existing compiled config artifacts;
- * - emit artifact write metrics;
- * - emit fingerprint calculation metrics;
- * - depend on platform/cli;
- * - print stdout/stderr;
- * - invoke reset lifecycle;
- * - start UnitOfWork.
- *
- * Reuse policy:
- *
- * Current compile-side behavior always rebuilds and rewrites Kernel-owned
- * artifacts. It therefore never reuses an existing compiled config or compiled
- * container artifact without a verified matching fingerprint. Stored-fingerprint
- * comparison and clean/dirty/invalid decisions belong to CacheVerifier.
+ * Compiles one complete Kernel artifact set and publishes it as one immutable
+ * generation.
  *
  * @internal
  */
@@ -115,15 +68,14 @@ final readonly class ArtifactCompiler
         private CompiledConfigBuilder $compiledConfigBuilder,
         private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
         private CompiledContainerBuilder $compiledContainerBuilder,
-        private ArtifactWriter $artifactWriter,
+        private StablePhpArrayDumper $phpArrayDumper,
+        private ArtifactGenerationPublisher $generationPublisher,
         private ArtifactPathResolver $pathResolver,
     ) {
     }
 
     /**
-     * Compiles and writes all Kernel-owned artifacts.
-     *
-     * @param array<string,mixed> $kernelConfig Kernel config subtree.
+     * @param array<string,mixed> $kernelConfig
      * @param list<array{
      *     root: string,
      *     packageId: string,
@@ -186,7 +138,7 @@ final readonly class ArtifactCompiler
      *
      * @throws ArtifactPayloadInvalidException
      * @throws ArtifactPathInvalidException
-     * @throws ArtifactWriteFailedException
+     * @throws ArtifactGenerationPublishException
      * @throws ConfigInvalidException
      * @throws ContainerDefinitionInvalidException
      * @throws ContainerCompileFailedException
@@ -243,139 +195,102 @@ final readonly class ArtifactCompiler
 
         $fingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
 
-        $writes = [
-            $this->writeModuleManifest(
-                bootstrapConfig: $bootstrapConfig,
-                modulePlan: $modulePlan,
-                fingerprint: $fingerprint,
-            ),
-            $this->writeCompiledConfig(
-                bootstrapConfig: $bootstrapConfig,
-                compiledConfig: $compiledConfig,
-                fingerprint: $fingerprint,
-            ),
-            $this->writeCompiledContainer(
-                bootstrapConfig: $bootstrapConfig,
-                fingerprint: $fingerprint,
-                containerGraph: $containerGraph,
-            ),
-        ];
-
-        return self::compileResult($writes);
-    }
-
-    /**
-     * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     * @throws ArtifactWriteFailedException
-     */
-    private function writeModuleManifest(
-        BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
-        string $fingerprint,
-    ): array {
-        $envelope = $this->moduleManifestBuilder->build(
+        $moduleManifestEnvelope = $this->moduleManifestBuilder->build(
             modulePlan: $modulePlan,
             fingerprint: $fingerprint,
         );
 
-        return self::writeResult(
-            name: self::ARTIFACT_MODULE_MANIFEST,
-            write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig),
-                relativePath: $this->pathResolver->relativePath(
-                    bootstrapConfig: $bootstrapConfig,
-                    basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
-                ),
-                envelope: $envelope,
-            ),
-        );
-    }
-
-    /**
-     * @param array<string,mixed> $compiledConfig
-     *
-     * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     * @throws ArtifactWriteFailedException
-     */
-    private function writeCompiledConfig(
-        BootstrapConfig $bootstrapConfig,
-        array $compiledConfig,
-        string $fingerprint,
-    ): array {
-        $envelope = $this->compiledConfigBuilder->build(
+        $configEnvelope = $this->compiledConfigBuilder->build(
             compiledConfig: $compiledConfig,
             fingerprint: $fingerprint,
         );
 
-        return self::writeResult(
-            name: self::ARTIFACT_CONFIG,
-            write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->configPath($bootstrapConfig),
-                relativePath: $this->pathResolver->relativePath(
-                    bootstrapConfig: $bootstrapConfig,
-                    basename: ArtifactPathResolver::CONFIG_BASENAME,
-                ),
-                envelope: $envelope,
-            ),
-        );
-    }
-
-    /**
-     * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     * @throws ArtifactWriteFailedException
-     */
-    private function writeCompiledContainer(
-        BootstrapConfig $bootstrapConfig,
-        string $fingerprint,
-        DefinitionGraph $containerGraph,
-    ): array {
-        $envelope = $this->compiledContainerBuilder->build(
+        $containerEnvelope = $this->compiledContainerBuilder->build(
             graph: $containerGraph,
             fingerprint: $fingerprint,
         );
 
-        return self::writeResult(
-            name: self::ARTIFACT_CONTAINER,
-            write: $this->artifactWriter->writePhpEnvelope(
-                targetPath: $this->pathResolver->containerPath($bootstrapConfig),
-                relativePath: $this->pathResolver->relativePath(
-                    bootstrapConfig: $bootstrapConfig,
-                    basename: ArtifactPathResolver::CONTAINER_BASENAME,
-                ),
-                envelope: $envelope,
+        $publicationSet = new ArtifactPublicationSet(
+            moduleManifestEnvelope: $moduleManifestEnvelope,
+            moduleManifestBytes: $this->phpArrayDumper->dumpEnvelope(
+                $moduleManifestEnvelope,
             ),
+            configEnvelope: $configEnvelope,
+            configBytes: $this->phpArrayDumper->dumpEnvelope(
+                $configEnvelope,
+            ),
+            containerEnvelope: $containerEnvelope,
+            containerBytes: $this->phpArrayDumper->dumpEnvelope(
+                $containerEnvelope,
+            ),
+        );
+
+        $this->generationPublisher->publish(
+            artifactRoot: $this->pathResolver->artifactRoot($bootstrapConfig),
+            publicationSet: $publicationSet,
+        );
+
+        return self::compileResult(
+            artifacts: [
+                self::artifactResult(
+                    bootstrapConfig: $bootstrapConfig,
+                    pathResolver: $this->pathResolver,
+                    name: self::ARTIFACT_MODULE_MANIFEST,
+                    basename: ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+                    bytes: $publicationSet->moduleManifestBytes(),
+                ),
+                self::artifactResult(
+                    bootstrapConfig: $bootstrapConfig,
+                    pathResolver: $this->pathResolver,
+                    name: self::ARTIFACT_CONFIG,
+                    basename: ArtifactGeneration::CONFIG_BASENAME,
+                    bytes: $publicationSet->configBytes(),
+                ),
+                self::artifactResult(
+                    bootstrapConfig: $bootstrapConfig,
+                    pathResolver: $this->pathResolver,
+                    name: self::ARTIFACT_CONTAINER,
+                    basename: ArtifactGeneration::CONTAINER_BASENAME,
+                    bytes: $publicationSet->containerBytes(),
+                ),
+            ],
         );
     }
 
     /**
-     * @param array{basename: non-empty-string, bytes: int, path: non-empty-string} $write
-     *
-     * @return array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}
+     * @return array{
+     *     name: non-empty-string,
+     *     basename: non-empty-string,
+     *     path: non-empty-string,
+     *     bytes: int
+     * }
      */
-    private static function writeResult(string $name, array $write): array
-    {
+    private static function artifactResult(
+        BootstrapConfig $bootstrapConfig,
+        ArtifactPathResolver $pathResolver,
+        string $name,
+        string $basename,
+        string $bytes,
+    ): array {
         return [
             'name' => self::safeArtifactName($name),
-            'basename' => self::safeBasename($write['basename']),
-            'path' => self::safeRelativePath($write['path']),
-            'bytes' => self::safeCount($write['bytes']),
+            'basename' => self::safeBasename($basename),
+            'path' => self::safeRelativePath(
+                $pathResolver->relativeCacheDirectory($bootstrapConfig)
+                . '/generations/current/'
+                . $basename,
+            ),
+            'bytes' => self::safeCount(\strlen($bytes)),
         ];
     }
 
     /**
-     * @param list<array{name: non-empty-string, basename: non-empty-string, path: non-empty-string, bytes: int}> $writes
+     * @param list<array{
+     *     name: non-empty-string,
+     *     basename: non-empty-string,
+     *     path: non-empty-string,
+     *     bytes: int
+     * }> $artifacts
      *
      * @return array{
      *     schemaVersion: int,
@@ -394,21 +309,24 @@ final readonly class ArtifactCompiler
      *     }
      * }
      */
-    private static function compileResult(array $writes): array
+    private static function compileResult(array $artifacts): array
     {
         \usort(
-            $writes,
-            static function (array $left, array $right): int {
-                return \strcmp($left['path'], $right['path'])
-                    ?: \strcmp($left['name'], $right['name'])
-                        ?: \strcmp($left['basename'], $right['basename']);
-            },
+            $artifacts,
+            static fn (array $left, array $right): int => \strcmp(
+                $left['path'],
+                $right['path'],
+            )
+                ?: \strcmp($left['name'], $right['name'])
+                    ?: \strcmp($left['basename'], $right['basename']),
         );
 
         $writtenBytes = 0;
 
-        foreach ($writes as $write) {
-            $writtenBytes = self::safeCount($writtenBytes + $write['bytes']);
+        foreach ($artifacts as $artifact) {
+            $writtenBytes = self::safeCount(
+                $writtenBytes + $artifact['bytes'],
+            );
         }
 
         return [
@@ -416,9 +334,9 @@ final readonly class ArtifactCompiler
             'rebuilt' => true,
             'reused' => false,
             'reason' => self::REASON_REBUILT,
-            'artifacts' => $writes,
+            'artifacts' => $artifacts,
             'counts' => [
-                'artifact_count' => self::safeCount(\count($writes)),
+                'artifact_count' => self::safeCount(\count($artifacts)),
                 'written_byte_count' => $writtenBytes,
             ],
         ];
@@ -443,9 +361,9 @@ final readonly class ArtifactCompiler
     private static function safeBasename(string $basename): string
     {
         return match ($basename) {
-            ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
-            ArtifactPathResolver::CONFIG_BASENAME,
-            ArtifactPathResolver::CONTAINER_BASENAME => $basename,
+            ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+            ArtifactGeneration::CONFIG_BASENAME,
+            ArtifactGeneration::CONTAINER_BASENAME => $basename,
             default => throw new \InvalidArgumentException('artifact-compiler-basename-invalid'),
         };
     }

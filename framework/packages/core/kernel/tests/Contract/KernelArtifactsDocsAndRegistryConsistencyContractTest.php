@@ -184,7 +184,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         self::assertArrayNotHasKey('artifacts', $rules['keys']);
     }
 
-    public function testCompiledContainerReusesExistingKernelArtifactPathPolicy(): void
+    public function testCompiledContainerUsesGenerationAwareKernelArtifactPathPolicy(): void
     {
         $pathResolver = self::kernelSource(
             'src/Artifacts/Paths/ArtifactPathResolver.php',
@@ -226,26 +226,78 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
 
         self::assertStringContainsString(
-            'public function containerPath(',
+            'public function artifactRoot(',
             $pathResolver,
         );
 
         self::assertStringContainsString(
-            '$this->pathResolver->containerPath($bootstrapConfig)',
+            'artifactRoot: '
+            . '$this->pathResolver->artifactRoot($bootstrapConfig),',
             $artifactCompiler,
         );
 
         self::assertStringContainsString(
+            'basename: ArtifactGeneration::CONTAINER_BASENAME',
+            $artifactCompiler,
+        );
+
+        self::assertStringContainsString(
+            '$pathResolver->relativeCacheDirectory($bootstrapConfig)',
+            $artifactCompiler,
+        );
+
+        self::assertStringContainsString(
+            ". '/generations/current/'",
+            $artifactCompiler,
+        );
+
+        self::assertStringNotContainsString(
+            '$this->pathResolver->containerPath($bootstrapConfig)',
+            $artifactCompiler,
+        );
+
+        self::assertStringNotContainsString(
             'basename: ArtifactPathResolver::CONTAINER_BASENAME',
             $artifactCompiler,
         );
 
         self::assertStringContainsString(
-            '$this->pathResolver->containerPath($bootstrapConfig)',
+            '$this->generationLocator->locate(',
             $cacheVerifier,
         );
 
         self::assertStringContainsString(
+            '$this->pathResolver->artifactRoot($bootstrapConfig)',
+            $cacheVerifier,
+        );
+
+        self::assertStringContainsString(
+            'basename: ArtifactGeneration::CONTAINER_BASENAME',
+            $cacheVerifier,
+        );
+
+        self::assertStringContainsString(
+            '$this->pathResolver->relativeCacheDirectory($bootstrapConfig)',
+            $cacheVerifier,
+        );
+
+        self::assertStringContainsString(
+            ". '/generations/current/'",
+            $cacheVerifier,
+        );
+
+        self::assertStringContainsString(
+            'ArtifactGeneration::CONTAINER_BASENAME'
+            . ' => $currentGeneration->containerPath()',
+            $cacheVerifier,
+        );
+
+        self::assertStringNotContainsString(
+            '$this->pathResolver->containerPath($bootstrapConfig)',
+            $cacheVerifier,
+        );
+
+        self::assertStringNotContainsString(
             'basename: ArtifactPathResolver::CONTAINER_BASENAME',
             $cacheVerifier,
         );

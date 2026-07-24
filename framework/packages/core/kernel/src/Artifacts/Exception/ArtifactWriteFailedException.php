@@ -48,6 +48,13 @@ final class ArtifactWriteFailedException extends \RuntimeException
     public const string REASON_TEMP_FILE_RENAME_FAILED = 'artifact-temp-file-rename-failed';
     public const string REASON_TEMP_FILE_CLEANUP_FAILED = 'artifact-temp-file-cleanup-failed';
     public const string REASON_FINAL_BYTES_INVALID = 'artifact-final-bytes-invalid';
+    public const string REASON_DURABLE_FILE_OPEN_FAILED = 'artifact-durable-file-open-failed';
+    public const string REASON_DURABLE_FILE_WRITE_FAILED = 'artifact-durable-file-write-failed';
+    public const string REASON_DURABLE_FILE_FLUSH_FAILED = 'artifact-durable-file-flush-failed';
+    public const string REASON_DURABLE_FILE_SYNC_FAILED = 'artifact-durable-file-sync-failed';
+    public const string REASON_DURABLE_FILE_CLOSE_FAILED = 'artifact-durable-file-close-failed';
+    public const string REASON_TEMP_FILE_NAME_INVALID = 'artifact-temp-file-name-invalid';
+    public const string REASON_TARGET_REPLACE_FAILED = 'artifact-target-replace-failed';
 
     /**
      * @var array<string, true>
@@ -61,6 +68,13 @@ final class ArtifactWriteFailedException extends \RuntimeException
         self::REASON_TEMP_FILE_RENAME_FAILED => true,
         self::REASON_TEMP_FILE_CLEANUP_FAILED => true,
         self::REASON_FINAL_BYTES_INVALID => true,
+        self::REASON_DURABLE_FILE_OPEN_FAILED => true,
+        self::REASON_DURABLE_FILE_WRITE_FAILED => true,
+        self::REASON_DURABLE_FILE_FLUSH_FAILED => true,
+        self::REASON_DURABLE_FILE_SYNC_FAILED => true,
+        self::REASON_DURABLE_FILE_CLOSE_FAILED => true,
+        self::REASON_TEMP_FILE_NAME_INVALID => true,
+        self::REASON_TARGET_REPLACE_FAILED => true,
     ];
 
     private function __construct(

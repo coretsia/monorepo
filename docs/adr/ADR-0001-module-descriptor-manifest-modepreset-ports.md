@@ -210,7 +210,3 @@ This ADR does not implement:
 
 - `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/modes.md`
-
-## Related epic
-
-- `1.70.0 Contracts: Module / Descriptor / Manifest + ModePreset ports`

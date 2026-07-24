@@ -38,16 +38,16 @@ final class ArtifactPipelineUsesConfiguredCacheDirTest extends TestCase
                 artifactsCacheDir: $artifactsCacheDir,
             );
 
-            $paths = ArtifactPipelineTestSupport::artifactPaths(
+            $paths = ArtifactPipelineTestSupport::currentArtifactPaths(
                 skeletonRoot: $skeletonRoot,
                 artifactsCacheDir: $artifactsCacheDir,
             );
 
             self::assertSame(
                 [
-                    'var/artifacts_cache/web/config.php',
-                    'var/artifacts_cache/web/container.php',
-                    'var/artifacts_cache/web/module-manifest.php',
+                    'var/artifacts_cache/web/' . 'generations/current/' . 'config.php',
+                    'var/artifacts_cache/web/' . 'generations/current/' . 'container.php',
+                    'var/artifacts_cache/web/' . 'generations/current/' . 'module-manifest.php',
                 ],
                 \array_column(
                     $compileResult['artifacts'],
@@ -55,15 +55,33 @@ final class ArtifactPipelineUsesConfiguredCacheDirTest extends TestCase
                 ),
             );
 
+            self::assertSame(
+                [
+                    'config.php',
+                    'container.php',
+                    'generation-manifest.php',
+                    'module-manifest.php',
+                ],
+                \array_keys($paths),
+            );
+
             foreach ($paths as $path) {
                 self::assertFileExists($path);
             }
 
-            foreach (
-                ArtifactPipelineTestSupport::artifactPaths($skeletonRoot) as $defaultPath
-            ) {
-                self::assertFileDoesNotExist($defaultPath);
-            }
+            $configuredArtifactRoot =
+                ArtifactPipelineTestSupport::artifactRoot(
+                    skeletonRoot: $skeletonRoot,
+                    artifactsCacheDir: $artifactsCacheDir,
+                );
+
+            self::assertFileExists($configuredArtifactRoot . '/current');
+            self::assertFileExists($configuredArtifactRoot . '/generation.lock');
+            self::assertDirectoryExists($configuredArtifactRoot . '/generations');
+
+            self::assertDirectoryDoesNotExist(
+                ArtifactPipelineTestSupport::artifactRoot($skeletonRoot),
+            );
 
             $verifyResult = ArtifactPipelineTestSupport::verifyArtifacts(
                 testCase: $this,

@@ -396,7 +396,3 @@ This ADR does not implement:
 - `docs/ssot/config-and-env.md`
 - `docs/ssot/config-roots.md`
 - `docs/ssot/dto-policy.md`
-
-## Related epic
-
-- `1.80.0 Contracts: Config + Env + source tracking + directives invariants`

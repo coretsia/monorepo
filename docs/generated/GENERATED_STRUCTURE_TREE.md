@@ -581,6 +581,7 @@ Coretsia/
 │   │   │       │   │   ├── Compiler/
 │   │   │       │   │   │   └── ArtifactCompiler.php
 │   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ArtifactGenerationPublishException.php
 │   │   │       │   │   │   ├── ArtifactInvalidException.php
 │   │   │       │   │   │   ├── ArtifactPathInvalidException.php
 │   │   │       │   │   │   ├── ArtifactPayloadInvalidException.php
@@ -596,9 +597,13 @@ Coretsia/
 │   │   │       │   │   ├── Generation/
 │   │   │       │   │   │   ├── ArtifactGeneration.php
 │   │   │       │   │   │   ├── ArtifactGenerationId.php
+│   │   │       │   │   │   ├── ArtifactGenerationLocator.php
+│   │   │       │   │   │   ├── ArtifactGenerationLock.php
 │   │   │       │   │   │   ├── ArtifactGenerationManifestBuilder.php
 │   │   │       │   │   │   ├── ArtifactGenerationManifestValidator.php
 │   │   │       │   │   │   ├── ArtifactGenerationPathResolver.php
+│   │   │       │   │   │   ├── ArtifactGenerationPublisher.php
+│   │   │       │   │   │   ├── ArtifactGenerationValidator.php
 │   │   │       │   │   │   └── ArtifactPublicationSet.php
 │   │   │       │   │   ├── Header/
 │   │   │       │   │   │   └── ArtifactHeader.php
@@ -793,7 +798,12 @@ Coretsia/
 │   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
 │   │   │       │   │   ├── ArtifactCompilerUsesProductionContainerGraphTest.php
+│   │   │       │   │   ├── ArtifactGenerationLocatorRejectsHashMismatchTest.php
+│   │   │       │   │   ├── ArtifactGenerationLocatorRejectsSymlinkTest.php
 │   │   │       │   │   ├── ArtifactGenerationManifestValidatorRejectsExtraArtifactTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherLeavesPreviousCurrentOnFailureTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherRejectsIncompleteGenerationTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherReusesIdenticalGenerationTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
@@ -812,6 +822,7 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
+│   │   │       │   │   ├── CacheVerifierDetectsDirtyGenerationTest.php
 │   │   │       │   │   ├── CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 │   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
 │   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
@@ -831,6 +842,7 @@ Coretsia/
 │   │   │       │   │   ├── ComposerManifestReaderRejectsDuplicateModuleIdsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderSortsModulesDeterministicallyTest.php
+│   │   │       │   │   ├── ConcurrentArtifactCompilationPublishesCompleteGenerationTest.php
 │   │   │       │   │   ├── ConfigAggregateAndSplitFilesMergeOrderTest.php
 │   │   │       │   │   ├── ConfigEnvironmentSpecificOverlaysPrecedenceTest.php
 │   │   │       │   │   ├── ConfigExplainReturnsStableSourceTypesTest.php

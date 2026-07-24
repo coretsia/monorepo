@@ -59,7 +59,7 @@ final class ArtifactsRerunNoDiffTest extends TestCase
         self::assertSame($firstBytes, $secondBytes);
     }
 
-    public function testArtifactCompileWritesOnlyKernelOwnedArtifacts(): void
+    public function testArtifactCompileWritesOnlyKernelOwnedGenerationFiles(): void
     {
         $result = ArtifactPipelineTestSupport::compileArtifacts(
             testCase: $this,
@@ -77,11 +77,16 @@ final class ArtifactsRerunNoDiffTest extends TestCase
             [
                 'config.php',
                 'container.php',
+                'generation-manifest.php',
                 'module-manifest.php',
             ],
             \array_keys(ArtifactPipelineTestSupport::artifactBytes($this->skeletonRoot)),
         );
 
+        self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/config.php');
+        self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/container.php');
+        self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/module-manifest.php');
+        self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/generation-manifest.php');
         self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/routes.php');
     }
 }

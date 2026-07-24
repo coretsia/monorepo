@@ -942,7 +942,3 @@ Verification must prove:
 - `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 - `docs/adr/ADR-0016-clock-ids-stopwatch.md`
 - `docs/adr/ADR-0019-enhanced-reset-long-running.md`
-
-## Related epic
-
-- `1.270.0 Kernel: UnitOfWork Shapes Pack (Context + Result + Outcome + SSoT invariants)`

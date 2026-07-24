@@ -542,7 +542,3 @@ This ADR does not implement:
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/dto-policy.md`
-
-## Related epic
-
-- `1.130.0 Contracts: Validation ports`

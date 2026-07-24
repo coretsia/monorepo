@@ -1809,7 +1809,3 @@ This ADR does not implement:
 - `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
 - `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
-
-## Related epic
-
-- `1.200.0 Foundation: DI Container + Tags + DeterministicOrder + Reset orchestration`

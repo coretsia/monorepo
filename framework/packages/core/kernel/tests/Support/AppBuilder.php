@@ -85,16 +85,20 @@ final class AppBuilder
             presetName: self::PRESET_MICRO,
         );
 
-        self::assertRuntimeArtifactsExist($skeletonRoot);
+        $generation = ArtifactPipelineTestSupport::currentGeneration($skeletonRoot);
 
-        $artifactPaths = ArtifactPipelineTestSupport::artifactPaths($skeletonRoot);
+        $artifactPaths = [
+            'module-manifest.php' => $generation->moduleManifestPath(),
+            'config.php' => $generation->configPath(),
+            'container.php' => $generation->containerPath(),
+        ];
+
+        self::assertRuntimeArtifactsExist($artifactPaths);
 
         $container = new ArtifactRuntimeBooter()->boot(
             input: new ArtifactRuntimeInput(
                 skeletonRoot: $skeletonRoot,
-                artifactRoot: \dirname(
-                    $artifactPaths['container.php'],
-                ),
+                artifactRoot: $generation->generationDirectory(),
             ),
             moduleManifestArtifactPath: $artifactPaths['module-manifest.php'],
             configArtifactPath: $artifactPaths['config.php'],
@@ -268,8 +272,12 @@ final class AppBuilder
         );
     }
 
-    private static function assertRuntimeArtifactsExist(string $skeletonRoot): void
-    {
+    /**
+     * @param array<string, string> $artifactPaths
+     */
+    private static function assertRuntimeArtifactsExist(
+        array $artifactPaths,
+    ): void {
         foreach (
             [
                 'module-manifest.php',
@@ -277,9 +285,13 @@ final class AppBuilder
                 'container.php',
             ] as $basename
         ) {
-            $path = ArtifactPipelineTestSupport::artifactPath($skeletonRoot, $basename);
+            $path =
+                $artifactPaths[$basename] ?? null;
 
-            if (!\is_file($path)) {
+            if (
+                !\is_string($path)
+                || !\is_file($path)
+            ) {
                 throw new \LogicException('app-builder-runtime-artifact-missing');
             }
         }

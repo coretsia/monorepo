@@ -562,7 +562,3 @@ This ADR does not implement:
 - `docs/ssot/observability.md`
 - `docs/ssot/dto-policy.md`
 - `docs/ssot/artifacts.md`
-
-## Related epic
-
-- `1.110.0 Contracts: Routing + HttpApp ports`

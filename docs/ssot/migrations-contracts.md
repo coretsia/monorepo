@@ -1016,4 +1016,3 @@ This SSoT does not define:
 - [Config Roots Registry](./config-roots.md)
 - [Tag Registry](./tags.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

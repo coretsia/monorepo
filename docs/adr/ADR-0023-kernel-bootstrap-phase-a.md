@@ -106,6 +106,18 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+This list is limited to Bootstrap Phase A.
+
+The separate artifact-only runtime entrypoint boundary may expose:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+Coretsia\Kernel\Boot\ArtifactRuntimeInput
+Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException
+```
+
+Those symbols do not extend Bootstrap Phase A and do not make artifact-only runtime boot part of Phase A resolution.
+
 Internal implementation helpers remain `@internal` and are not part of the public Kernel API.
 
 The internal Phase A implementation helpers are:
@@ -527,7 +539,7 @@ skeleton/apps/<appTarget>/config/**
 
 Module enable/disable composition is not handled by Phase A.
 
-Module composition is owned by the ModulePlan epic and is resolved from preset files plus composer metadata.
+Module composition is owned by ModulePlan resolution and is resolved from preset files plus Composer metadata.
 
 Override values must not appear in exception messages.
 
@@ -890,7 +902,7 @@ The current design keeps public API stable and minimal:
 - internal builder returns `EnvRepositoryInterface`;
 - entrypoint/platform owners compose these services explicitly.
 
-A future owner epic may introduce a public bootstrap orchestration facade only if an actual platform entrypoint contract requires it.
+A public bootstrap orchestration facade may be introduced only if an actual platform entrypoint contract requires it.
 
 For the current CLI use case, command owners can orchestrate explicit DI services without requiring a public `Bootstrapper` type.
 
@@ -902,6 +914,175 @@ coretsia cache:verify
 ```
 
 may invoke the relevant boot/config services through DI while keeping Phase A resolution and env snapshot boundaries unchanged.
+
+## Decision 16: Phase A and Kernel compile-host services are not runtime graph definitions
+
+`KernelServiceProvider` has two distinct wiring responsibilities:
+
+```text
+source compile-host registration
+canonical runtime definition contribution
+```
+
+Source compile-host registration remains in:
+
+```php
+KernelServiceProvider::register(...)
+```
+
+Canonical Kernel runtime contribution is owned by:
+
+```php
+KernelServiceProvider::define(...)
+```
+
+Bootstrap Phase A services are compile-host services.
+
+They may be registered as source-container factories so bootstrap, configuration compilation, module planning, artifact compilation, and verification can execute.
+
+They must not be contributed to the canonical runtime definition graph.
+
+The explicit law is:
+
+```text
+Kernel compile-host services are not part of the compiled runtime
+container definition graph.
+```
+
+The exclusion applies to:
+
+```text
+BootstrapOverridesLoader
+BootstrapConfigResolver
+DotenvLoader
+EnvRepositoryBuilder
+Composer metadata readers
+ModulePlanResolver
+ConfigKernel
+artifact builders
+ArtifactCompiler
+fingerprint services
+CacheVerifier
+artifact readers and writers
+ContainerCompiler
+```
+
+These services may construct, compile, write, read, or verify runtime artifacts.
+
+They are not runtime services consumed by the compiled application container.
+
+`KernelServiceProvider::define()` is limited to Kernel runtime definitions such as:
+
+```text
+RuntimeEntrypointGuard
+HookInvoker
+KernelRuntime
+KernelRuntimeInterface alias
+```
+
+Phase A or Phase B services must not be re-read by Kernel runtime factories.
+
+## Decision 17: Artifact-only runtime boot is separate from Bootstrap Phase A
+
+Artifact-only runtime boot is a separate entrypoint boundary.
+
+It does not re-run Bootstrap Phase A and does not consume `BootstrapInput` or `BootstrapConfig` as runtime container seeds.
+
+The public entrypoint-owned input is:
+
+```text
+Coretsia\Kernel\Boot\ArtifactRuntimeInput
+```
+
+`ArtifactRuntimeInput` carries only:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+`artifactRoot` is the final Kernel artifact root containing:
+
+```text
+generations/
+current
+generation.lock
+```
+
+It does not carry individual `module-manifest.php`, `config.php`, `container.php`, or `generation-manifest.php` paths.
+
+The canonical artifact-only boot flow is:
+
+```text
+ArtifactRuntimeInput
+  -> ArtifactGenerationLocator
+  -> current
+  -> one validated ArtifactGeneration
+  -> exact read of all four generation files
+  -> generation manifest, byte-length, SHA-256, schema, and fingerprint validation
+  -> ArrayConfigRepository
+  -> ModulePlan
+  -> RuntimePathContext
+  -> RuntimeContainerSeedSet
+  -> CompiledContainerFactory::buildFromEnvelope(...)
+  -> ContainerInterface
+```
+
+`ArtifactRuntimeBooter` owns current-generation selection for artifact-only runtime boot.
+
+It MUST:
+
+1. locate `current` through `ArtifactGenerationLocator`;
+2. require one valid selected generation;
+3. read the exact bytes and envelopes of all four generation files;
+4. validate `artifact-generation@1`;
+5. require every artifact envelope fingerprint to equal the selected generation id;
+6. hydrate `ConfigRepositoryInterface` from `config@1`;
+7. hydrate `ModulePlan` from `module-manifest@1`;
+8. create `RuntimePathContext` from `ArtifactRuntimeInput`;
+9. create the exact `RuntimeContainerSeedSet`;
+10. build the runtime container from the already-read `container@1` envelope.
+
+The exact entrypoint-owned runtime seeds are:
+
+```text
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+The explicit law is:
+
+```text
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+Artifact-only runtime boot MUST NOT:
+
+- resolve `BootstrapInput`;
+- resolve `BootstrapConfig`;
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- read source config files;
+- discover modules through Composer metadata;
+- resolve mode presets;
+- execute source providers;
+- compile a replacement container graph;
+- calculate fingerprints;
+- write or repair artifacts;
+- accept caller-selected individual artifact paths.
+
+`ArtifactRuntimeInput` and the resulting `RuntimePathContext` may carry normalized absolute runtime roots.
+
+Those paths MUST NOT be copied into:
+
+- canonical runtime definitions;
+- `DefinitionGraph`;
+- generated artifact payloads;
+- fingerprint input.
+
+The caller resolves only the artifact root. Generation selection and generation-specific path resolution remain internal to the artifact-only runtime boundary.
 
 ## Consequences
 
@@ -950,19 +1131,25 @@ Safe `ConfigValueSource` metadata can explain source origin without leaking raw 
 
 Phase A boot code is isolated from runtime lifecycle/reset infrastructure.
 
+Artifact-only runtime boot does not re-run Bootstrap Phase A or ConfigKernel Phase B.
+
+`ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext` can be restored as runtime objects without source-provider execution.
+
+Absolute runtime path state remains outside generated artifacts, compiled graphs, and fingerprint input.
+
 The public API remains small.
 
 ### Negative / trade-offs
 
 There is no one-call public bootstrap facade.
 
-Entrypoints or platform packages must compose the resolver and builder through DI until a future owner epic introduces a justified orchestration facade.
+Entrypoints or platform packages must compose the resolver and builder through DI because no public bootstrap orchestration facade is defined.
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
 `BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, and `artifactsCacheDir`.
 
-Other bootstrap inputs require explicit entrypoint input or future owner epics.
+Other bootstrap inputs require explicit entrypoint input or an explicit extension of the Bootstrap Phase A contract.
 
 Artifact cache relocation is limited to a portable, bounded, `skeletonRoot`-relative generated-output directory.
 
@@ -1065,7 +1252,7 @@ EnvRepositoryInterface
 
 A public `BootstrapResult` would aggregate those objects into a second public result shape, which would create another object to version, preserve, and keep in sync.
 
-A future owner epic may introduce a result wrapper only if there is concrete public API pressure from platform entrypoints.
+A result wrapper may be introduced only if concrete public API pressure from platform entrypoints justifies an additional public result shape.
 
 ### Alternative 8: Treat staging as production-like by default
 
@@ -1153,6 +1340,14 @@ Phase A only prepares minimal boot inputs and env snapshots for later owners.
 
 This ADR does not introduce:
 
+- Bootstrap Phase A services in the compiled runtime definition graph;
+- Kernel compile-host services in the compiled runtime definition graph;
+- Bootstrap Phase A ownership of artifact-runtime seeds;
+- `BootstrapInput` or `BootstrapConfig` as compiled runtime container seeds;
+- artifact-runtime seed objects in generated artifact payloads;
+- artifact-runtime seed objects in fingerprint input;
+- Bootstrap Phase A ownership of current-generation selection;
+- Bootstrap Phase A ownership of artifact-generation validation or runtime hydration;
 - public `Bootstrapper`;
 - public `BootstrapResult`;
 - new config roots;
@@ -1181,6 +1376,7 @@ Expected verification includes:
 
 ```text
 framework/packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php
@@ -1193,6 +1389,13 @@ framework/packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtif
 framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
 framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
+framework/packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
+framework/packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
+framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsMixedGenerationTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesModulePlanTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesConfigRepositoryTest.php
 ```
 
 Verification must prove:
@@ -1238,7 +1441,22 @@ Verification must prove:
 - source metadata does not contain raw system env values;
 - source metadata does not contain absolute skeleton roots;
 - Boot source does not depend on runtime lifecycle/reset services;
-- Kernel boot/runtime/provider source does not write to stdout or stderr.
+- Kernel boot/runtime/provider source does not write to stdout or stderr;
+- Kernel compile-host services are absent from the canonical runtime definition stream;
+- Bootstrap Phase A service ids are absent from the compiled runtime definition graph;
+- `KernelServiceProvider::define()` contributes only Kernel runtime services;
+- `KernelServiceProvider::register()` may register compile-host factories without duplicating Kernel runtime wiring;
+- Kernel runtime factories do not re-read Phase A or Phase B state;
+- artifact-only runtime hydration does not execute Bootstrap Phase A;
+- artifact-only runtime hydration does not execute ConfigKernel Phase B;
+- `ArtifactRuntimeInput` is an entrypoint input rather than an artifact payload;
+- artifact-only runtime hydration produces exactly `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+- runtime seed ids cannot be supplied arbitrarily;
+- absolute runtime path state is absent from generated artifacts, compiled graphs, and fingerprint input;
+- `ArtifactRuntimeBooter` accepts only an artifact root and cannot accept caller-selected individual artifact paths;
+- `ArtifactRuntimeBooter` selects `current` through `ArtifactGenerationLocator`;
+- artifact-only runtime reads and validates all four files from one selected generation;
+- mixed-generation runtime input cannot be constructed through the public boot API.
 
 ## Related SSoT
 
@@ -1247,8 +1465,9 @@ Verification must prove:
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
+- `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/artifacts-and-fingerprint.md`
 
-## Related epic
+## Related ADR
 
-- `1.290.0 Kernel Bootstrap Phase A`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

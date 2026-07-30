@@ -15124,7 +15124,7 @@ Docs:
     - [x] alias points to target
     - [x] container->get(alias) twice returns different objects
 - Foundation Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/Container/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
+  - [x] `framework/packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
     - [x] factory shared=false returns different objects across get()
     - [x] factory shared=true returns same object across get()
 
@@ -17066,7 +17066,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerServiceProviderTaskFactorySelectionTest.php`
+- [x] `framework/packages/platform/worker/tests/Unit/WorkerServiceFactoryTaskFactoryBoundaryTest.php`
   - [x] queue mode resolves `QueueTaskFactory`
   - [x] queue mode does not resolve `HttpTaskFactory`
   - [x] http mode resolves `HttpTaskFactory`

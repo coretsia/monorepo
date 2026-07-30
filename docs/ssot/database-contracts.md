@@ -1419,4 +1419,3 @@ This SSoT does not define:
 - [DTO Policy](./dto-policy.md)
 - [Config Roots Registry](./config-roots.md)
 - [Tag Registry](./tags.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

@@ -26,6 +26,7 @@ use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
@@ -67,6 +68,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertInstanceOf(HookInvoker::class, $hooks);
         self::assertInstanceOf(KernelRuntime::class, $runtimePort);
         self::assertInstanceOf(KernelRuntimeInterface::class, $runtimePort);
+        self::assertSame($runtime, $runtimePort);
         self::assertInstanceOf(RuntimeEntrypointGuard::class, $entrypointGuard);
     }
 
@@ -146,9 +148,12 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
     public function testProviderDoesNotStartUnitOfWorkOrTriggerResetDuringRegistrationBuildOrResolution(): void
     {
         $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-        $builder = self::builder($resetSpy, self::validConfig());
+        $builder = self::builder(self::validConfig());
 
-        new FoundationServiceProvider()->register($builder);
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
 
         $builder->instance(
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
@@ -158,10 +163,6 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             ReservedTags::KERNEL_RESET,
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
         );
-
-        self::assertSame(0, $resetSpy->resetCount());
-
-        new KernelServiceProvider()->register($builder);
 
         self::assertSame(0, $resetSpy->resetCount());
 
@@ -180,6 +181,92 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
 
         self::assertSame(0, $resetSpy->resetCount());
         self::assertBaseContextKeysAreAbsent($contextStore);
+    }
+
+    public function testKernelRuntimeReportsMissingFoundationDependencyDeterministically(): void
+    {
+        $config = self::validConfig();
+        $config['foundation']['container']['autowire_concrete'] = false;
+        $config['foundation']['container']['allow_reflection_for_concrete'] = false;
+
+        $builder = self::builder($config);
+        $builder->register(new KernelServiceProvider());
+
+        $container = $builder->build();
+
+        try {
+            $container->get(KernelRuntime::class);
+        } catch (ContainerException $exception) {
+            self::assertSame(
+                'kernel-runtime-dependency-not-found',
+                $exception->getMessage(),
+            );
+
+            return;
+        }
+
+        self::fail('Expected Kernel runtime dependency resolution to fail deterministically.');
+    }
+
+    public function testKernelRuntimeRejectsInvalidRuntimeDependencyTypeDeterministically(): void
+    {
+        $builder = self::builder(self::validConfig());
+
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+        $builder->instance(
+            Stopwatch::class,
+            new \stdClass(),
+        );
+
+        $container = $builder->build();
+
+        try {
+            $container->get(KernelRuntime::class);
+        } catch (ContainerException $exception) {
+            self::assertSame(
+                'kernel-runtime-dependency-invalid',
+                $exception->getMessage(),
+            );
+
+            return;
+        }
+
+        self::fail('Expected Kernel runtime dependency type validation to fail deterministically.');
+    }
+
+    public function testKernelRuntimePreservesResetConfigFailurePrecedence(): void
+    {
+        $config = self::validConfig();
+        $config['foundation']['reset']['priority']['enabled'] = 'invalid';
+
+        $builder = self::builder($config);
+
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+        $builder->instance(
+            Stopwatch::class,
+            new \stdClass(),
+        );
+
+        $container = $builder->build();
+
+        try {
+            $container->get(KernelRuntime::class);
+        } catch (ContainerException $exception) {
+            self::assertSame(
+                'foundation-reset-priority-enabled-invalid',
+                $exception->getMessage(),
+            );
+
+            return;
+        }
+
+        self::fail('Expected reset configuration validation to fail before later Kernel dependency validation.');
     }
 
     public function testKernelRuntimeUsesConfiguredUnitOfWorkAttributeMaxDepthThroughDi(): void
@@ -282,9 +369,12 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy,
         array $config,
     ): Container {
-        $builder = self::builder($resetSpy, $config);
+        $builder = self::builder($config);
 
-        new FoundationServiceProvider()->register($builder);
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
 
         $builder->instance(
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
@@ -295,8 +385,6 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             KernelServiceProviderWiresKernelRuntimeResetSpy::class,
         );
 
-        new KernelServiceProvider()->register($builder);
-
         return $builder->build();
     }
 
@@ -304,7 +392,6 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
      * @param array<string, mixed> $config
      */
     private static function builder(
-        KernelServiceProviderWiresKernelRuntimeResetSpy $resetSpy,
         array $config,
     ): ContainerBuilder {
         return new ContainerBuilder(config: $config);

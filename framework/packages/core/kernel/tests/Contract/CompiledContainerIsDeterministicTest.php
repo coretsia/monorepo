@@ -21,6 +21,9 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
@@ -35,15 +38,15 @@ final class CompiledContainerIsDeterministicTest extends TestCase
 {
     public function testIdenticalCompiledContainerInputsProduceIdenticalContainerArtifactBytes(): void
     {
-        $first = self::containerBytes(self::containerDescriptors());
-        $second = self::containerBytes(self::containerDescriptors());
+        $first = self::containerBytes(self::containerDefinitions());
+        $second = self::containerBytes(self::containerDefinitions());
 
         self::assertSame($first, $second);
     }
 
     public function testCompiledContainerPayloadUsesDeterministicMapOrdering(): void
     {
-        $envelope = self::containerEnvelope(self::containerDescriptors());
+        $envelope = self::containerEnvelope(self::containerDefinitions());
         $payload = $envelope['payload'] ?? null;
 
         self::assertIsArray($payload);
@@ -98,7 +101,7 @@ final class CompiledContainerIsDeterministicTest extends TestCase
 
     public function testCompiledContainerArtifactBytesAreNarrowAndStable(): void
     {
-        $bytes = self::containerBytes(self::containerDescriptors());
+        $bytes = self::containerBytes(self::containerDefinitions());
 
         self::assertStringStartsWith("<?php\n\nreturn [\n", $bytes);
         self::assertStringEndsWith("\n", $bytes);
@@ -121,13 +124,12 @@ final class CompiledContainerIsDeterministicTest extends TestCase
     }
 
     /**
-     * @param iterable<array<string, mixed>> $descriptors
-     *
      * @return array<string, mixed>
      */
-    private static function containerEnvelope(iterable $descriptors): array
-    {
-        $graph = self::compiler()->compile($descriptors);
+    private static function containerEnvelope(
+        ContainerDefinitionSet $definitions,
+    ): array {
+        $graph = self::compiler()->compile($definitions);
 
         $envelope = self::builder()->build(
             graph: $graph,
@@ -143,12 +145,12 @@ final class CompiledContainerIsDeterministicTest extends TestCase
         return $envelope;
     }
 
-    /**
-     * @param iterable<array<string, mixed>> $descriptors
-     */
-    private static function containerBytes(iterable $descriptors): string
-    {
-        return self::dumper()->dumpEnvelope(self::containerEnvelope($descriptors));
+    private static function containerBytes(
+        ContainerDefinitionSet $definitions,
+    ): string {
+        return self::dumper()->dumpEnvelope(
+            self::containerEnvelope($definitions),
+        );
     }
 
     private static function compiler(): ContainerCompiler
@@ -173,92 +175,74 @@ final class CompiledContainerIsDeterministicTest extends TestCase
         return new StablePhpArrayDumper(new PayloadNormalizer());
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function containerDescriptors(): array
+    private static function containerDefinitions(): ContainerDefinitionSet
     {
-        return [
-            [
-                'kind' => 'parameter',
-                'name' => 'zeta',
-                'value' => 'last',
-            ],
-            [
-                'kind' => 'parameters',
-                'values' => [
-                    'nested' => [
-                        'z' => 3,
-                        'a' => 1,
-                    ],
-                    'alpha' => 'first',
+        return new ContainerDefinitionBuilder()
+            ->parameter(
+                'zeta',
+                'last',
+            )
+            ->parameter(
+                'nested',
+                [
+                    'z' => 3,
+                    'a' => 1,
                 ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'Coretsia\\Tests\\Fixture\\BetaService',
-                'class' => 'Coretsia\\Tests\\Fixture\\BetaService',
-                'shared' => false,
-                'arguments' => [
-                    [
-                        'name' => 'alpha',
-                        'type' => 'parameter',
-                    ],
+            )
+            ->parameter(
+                'alpha',
+                'first',
+            )
+            ->classService(
+                id: 'Coretsia\Tests\Fixture\BetaService',
+                class: 'Coretsia\Tests\Fixture\BetaService',
+                arguments: [
+                    ContainerValueReference::parameter('alpha'),
                 ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'Coretsia\\Tests\\Fixture\\AlphaService',
-                'class' => 'Coretsia\\Tests\\Fixture\\AlphaService',
-                'arguments' => [
-                    [
-                        'id' => 'Coretsia\\Tests\\Fixture\\BetaService',
-                        'type' => 'service',
-                    ],
+                shared: false,
+            )
+            ->classService(
+                id: 'Coretsia\Tests\Fixture\AlphaService',
+                class: 'Coretsia\Tests\Fixture\AlphaService',
+                arguments: [
+                    ContainerValueReference::service(
+                        'Coretsia\Tests\Fixture\BetaService',
+                    ),
                 ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'Coretsia\\Tests\\Fixture\\FactoryService',
-                'class' => 'Coretsia\\Tests\\Fixture\\FactoryService',
-            ],
-            [
-                'kind' => 'service.factory.class-method',
-                'id' => 'Coretsia\\Tests\\Fixture\\GammaService',
-                'factoryClass' => 'Coretsia\\Tests\\Fixture\\GammaFactory',
-                'method' => 'make',
-                'arguments' => [
-                    [
-                        'class' => 'Coretsia\\Tests\\Fixture\\GammaService',
-                        'type' => 'class',
-                    ],
+            )
+            ->classService(
+                'Coretsia\Tests\Fixture\FactoryService',
+                'Coretsia\Tests\Fixture\FactoryService',
+            )
+            ->classMethodFactory(
+                id: 'Coretsia\Tests\Fixture\GammaService',
+                factoryClass: CompiledContainerIsDeterministicFactory::class,
+                method: 'make',
+                arguments: [
+                    ContainerValueReference::class(
+                        'Coretsia\Tests\Fixture\GammaService',
+                    ),
                 ],
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'gamma.alias',
-                'serviceId' => 'Coretsia\\Tests\\Fixture\\GammaService',
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'alpha.alias',
-                'serviceId' => 'Coretsia\\Tests\\Fixture\\AlphaService',
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'Coretsia\\Tests\\Fixture\\BetaService',
-                'priority' => 10,
-                'meta' => [],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => 'Coretsia\\Tests\\Fixture\\AlphaService',
-                'priority' => 20,
-                'meta' => [],
-            ],
-        ];
+            )
+            ->alias(
+                'gamma.alias',
+                'Coretsia\Tests\Fixture\GammaService',
+            )
+            ->alias(
+                'alpha.alias',
+                'Coretsia\Tests\Fixture\AlphaService',
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'Coretsia\Tests\Fixture\BetaService',
+                priority: 10,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: 'Coretsia\Tests\Fixture\AlphaService',
+                priority: 20,
+            )
+            ->build();
     }
 
     private static function fingerprint(): string
@@ -341,5 +325,13 @@ final class CompiledContainerIsDeterministicTest extends TestCase
             {
             }
         };
+    }
+}
+
+final class CompiledContainerIsDeterministicFactory
+{
+    public static function make(string $class): object
+    {
+        return new \stdClass();
     }
 }

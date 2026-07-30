@@ -26,22 +26,25 @@ It intentionally does not redefine the global artifact envelope, artifact header
 
 ## Goal
 
-A single Kernel-owned SSoT defines how `core/kernel` produces, fingerprints, writes, reads, validates, and verifies Kernel-owned artifacts without duplicating the global artifact registry or envelope law.
+A single Kernel-owned SSoT defines how `core/kernel` builds, fingerprints, publishes, reads, validates, and verifies Kernel-owned immutable artifact generations without duplicating the global artifact registry, generation SSoT, or envelope law.
 
 ## Authority Boundary (MUST)
 
 This document owns only Kernel-side behavior for:
 
 - Kernel artifact production orchestration;
+- linkage from artifact compilation to immutable generation publication;
+- linkage from cache verification to current-generation location and validation;
 - Kernel artifact output path policy;
 - Kernel artifact builder responsibilities;
 - Kernel fingerprint input construction;
 - Kernel fingerprint exclusion policy;
 - Kernel cache verification linkage;
-- Kernel artifact/fingerprint/container-compile/cache service wiring constraints.
+- Kernel artifact/fingerprint/container-compile/generation/cache service wiring constraints.
 
 This document MUST NOT redefine:
 
+- immutable generation layout and pointer schema owned by `docs/ssot/artifact-generations.md`;
 - the canonical artifact envelope shape;
 - canonical artifact header fields;
 - canonical artifact registry rows;
@@ -59,6 +62,11 @@ Those rules remain owned by their canonical SSoT documents.
 - Kernel artifact production MUST NOT redefine header semantics.
 - Kernel artifact production MUST NOT add registry rows in this document.
 - Kernel artifact production MUST NOT produce artifacts owned by other packages.
+- Production artifact compilation MUST publish one immutable generation.
+- Production artifact compilation MUST NOT independently write the three active flat artifacts.
+- The active generation MUST change only through the generation publication protocol.
+- Cache verification MUST locate and validate the selected immutable generation.
+- Artifact-only runtime and proc Worker children MUST consume one generation selected through `current` from the same canonical artifact root.
 - `routes@1` MUST NOT be produced by `core/kernel`; it is owned by `platform/routing`.
 - Kernel artifacts MUST be deterministic and rerun-no-diff for the same logical inputs.
 - Kernel artifact location MUST be resolved during Bootstrap Phase A.
@@ -69,62 +77,102 @@ Those rules remain owned by their canonical SSoT documents.
 - Changing `kernel.boot.default_artifacts_cache_dir` in package config is also a fingerprinted config-source change and MAY therefore change the fingerprint through normal config provenance.
 - Kernel artifacts MUST NOT embed timestamps, absolute paths, hostnames, usernames, process ids, raw env values, secrets, PII, raw payloads, raw SQL, stack traces, mtimes, permissions, owners, or filesystem-order-dependent bytes.
 - Kernel fingerprint input MUST be safe, deterministic, and derived only from already-resolved Kernel inputs.
-- Kernel cache verification MUST compare deterministic expected artifacts against existing artifacts without mutating artifact files.
+- Kernel fingerprint input MUST include a safe deterministic bucket for the canonical compiled runtime `DefinitionGraph`.
+- The container-graph bucket MUST be derived from `DefinitionGraph::toArray()`, stable JSON encoding, and SHA-256.
+- The raw compiled graph MUST NOT be duplicated inside fingerprint input.
+- `ArtifactCompiler` and `CacheVerifier` MUST obtain the graph through the same `RuntimeContainerGraphCompiler` production path.
+- The same canonical `DefinitionGraph` MUST be used for both fingerprint construction and REAL `container@1` envelope construction within one operation.
+- Any semantic compiled-container graph change MUST change artifact fingerprint identity.
+- Repeated compilation producing the same canonical graph MUST produce the same graph bucket and artifact fingerprint.
+- Kernel cache verification MUST compare the expected generation against the selected immutable generation without mutating cache state.
 
 ## Kernel-Owned Artifact Set (MUST)
 
-This document may reference Kernel-owned artifact identities already defined by `docs/ssot/artifacts.md`:
+The runtime publication set references these Kernel-owned identities:
 
-- `module-manifest@1`
-- `config@1`
-- `container@1`
+```text
+module-manifest@1
+config@1
+container@1
+```
 
-This document does not redefine their registry rows.
+Their basenames are:
 
-Kernel artifact production in this epic materializes the following PHP artifact basenames:
+```text
+module-manifest.php
+config.php
+container.php
+```
 
-- `module-manifest.php`
-- `config.php`
-- `container.php`
+A finalized generation additionally contains:
 
-The basename `routes.php` is intentionally not a Kernel artifact basename.
+```text
+artifact-generation@1
+```
+
+with basename:
+
+```text
+generation-manifest.php
+```
+
+The generation manifest is derived from the three-artifact runtime publication set.
+
+It is not a fourth input member of `ArtifactPublicationSet`.
+
+The finalized generation therefore contains exactly four generated files.
+
+`routes@1` and `routes.php` remain owned by `platform/routing`.
 
 ## Artifact Output Path Policy (MUST)
 
-Kernel artifact output paths are derived exclusively from:
+The Kernel artifact root is derived exclusively from:
 
 - `BootstrapConfig::skeletonRoot()`;
 - `BootstrapConfig::artifactsCacheDir()`;
-- `BootstrapConfig::appTarget()->value`;
-- the canonical Kernel artifact basename.
+- `BootstrapConfig::appTarget()->value`.
 
-The canonical absolute shape is:
-
-```text
-<skeletonRoot>/<artifactsCacheDir>/<appTarget>/<artifact-basename>
-```
-
-The canonical skeleton-relative shape is:
+The canonical artifact-root shape is:
 
 ```text
-<artifactsCacheDir>/<appTarget>/<artifact-basename>
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>
 ```
 
-With the package fallback, the default paths are:
+The canonical skeleton-relative artifact-root shape is:
 
 ```text
-var/cache/web/module-manifest.php
-var/cache/web/config.php
-var/cache/web/container.php
+<artifactsCacheDir>/<appTarget>
 ```
 
-With an application override, valid paths may instead be:
+Generation paths below that root are owned by `ArtifactGenerationPathResolver`.
+
+The active production layout is:
 
 ```text
-var/artifacts_cache/web/module-manifest.php
-var/artifacts_cache/web/config.php
-var/artifacts_cache/web/container.php
+<artifact-root>/
+├─ generations/
+│  └─ <generation-id>/
+│     ├─ module-manifest.php
+│     ├─ config.php
+│     ├─ container.php
+│     └─ generation-manifest.php
+├─ current
+└─ generation.lock
 ```
+
+With the package fallback, the default artifact root is:
+
+```text
+var/cache/web
+```
+
+With an application override, it may instead be:
+
+```text
+var/artifacts_cache/web
+```
+
+Production compilation MUST NOT materialize the three runtime files directly below that root.
 
 ### Bootstrap Phase A Resolution (MUST)
 
@@ -250,31 +298,44 @@ The stricter portable artifact-root domain is validated by Bootstrap Phase A thr
 
 ### `ArtifactPathResolver` Boundary (MUST)
 
-`ArtifactPathResolver` consumes only the already resolved:
+`ArtifactPathResolver` consumes the already resolved `BootstrapConfig`.
+
+It exposes only root-level derivation:
 
 ```text
-BootstrapConfig::artifactsCacheDir()
+relativeCacheDirectory()
+artifactRoot()
 ```
 
-It MUST:
+`relativeCacheDirectory()` derives:
 
-- accept only Kernel-owned artifact basenames;
-- reject `routes.php`;
-- construct paths under `<skeletonRoot>/<artifactsCacheDir>/<appTarget>/`;
-- enforce a maximum final skeleton-relative artifact path length of 512 bytes;
-- ensure the final artifact path remains under the resolved artifact cache directory;
-- keep `ArtifactPathInvalidException` diagnostics stable and safe.
+```text
+<artifactsCacheDir>/<appTarget>
+```
 
-It MUST NOT:
+`artifactRoot()` joins that relative root to the normalized `BootstrapConfig::skeletonRoot()`.
 
+The bounded portable cache-directory domain MUST already have been validated by Bootstrap Phase A before `ArtifactPathResolver` is called.
+
+Generation-specific path derivation MUST be delegated to:
+
+```text
+ArtifactGenerationPathResolver
+```
+
+`ArtifactPathResolver` MUST NOT:
+
+- expose flat `module-manifest.php`, `config.php`, or `container.php` path helpers;
+- expose generation-specific artifact paths;
 - read Kernel config;
-- read `kernel.boot.default_artifacts_cache_dir`;
+- re-read `kernel.boot.default_artifacts_cache_dir`;
 - read `skeleton/config/app.php`;
-- resolve bootstrap defaults;
-- resolve application overrides;
+- resolve defaults or overrides;
 - read files;
 - write files;
-- validate artifact envelope schemas;
+- locate `current`;
+- select a generation;
+- validate generation contents;
 - calculate fingerprints.
 
 ## Artifact Production Responsibilities (MUST)
@@ -283,31 +344,82 @@ Kernel artifact production is split into narrow services.
 
 ### `ArtifactCompiler`
 
-`ArtifactCompiler` owns Kernel artifact production orchestration.
+`ArtifactCompiler` owns deterministic expected-publication construction and the safe operation result for the generation actually published or reused.
 
 It MUST:
 
-- call `ConfigKernel` once for the supplied compile inputs;
-- build the deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
-- calculate the fingerprint through `FingerprintCalculator`;
-- compile descriptor-based container input through `ContainerCompiler`;
-- build expected Kernel artifact envelopes through Kernel artifact builders;
-- build the REAL `container@1` envelope through `CompiledContainerBuilder`;
-- resolve Kernel artifact paths through `ArtifactPathResolver`;
-- write Kernel artifacts through `ArtifactWriter`;
-- return only safe summary data.
+- receive one resolved `ModuleResolution`;
+- derive the current `ModulePlan`;
+- call `ConfigKernel::compile(...)` exactly once;
+- immediately inspect `$compiledConfig['validation']` returned by that call;
+- when validation is failed, throw `ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`;
+- treat that check only as an assertion over the validation result already produced by `ConfigKernel`;
+- perform the validation assertion before runtime-container graph compilation, fingerprint-input construction, fingerprint calculation, artifact envelope construction, or publication;
+- compile one production runtime `DefinitionGraph`;
+- pass that graph to `ConfigFingerprintInputBuilder`;
+- calculate the graph-bound fingerprint;
+- build the three runtime envelopes only after fingerprint calculation;
+- build the REAL `container@1` envelope from the same graph;
+- dump all three envelopes to canonical exact bytes;
+- create one `ArtifactPublicationSet`;
+- resolve the artifact root through `ArtifactPathResolver`;
+- delegate filesystem publication to `ArtifactGenerationPublisher`;
+- capture the `ArtifactGeneration` returned by `ArtifactGenerationPublisher::publish()`;
+- return one safe summary of that published or reused generation.
 
 It MUST NOT:
 
-- read existing generated artifacts;
-- decide cache clean/dirty state;
-- reuse existing artifact files;
+- invoke `ConfigValidator` or otherwise perform config validation again;
+- catch or downgrade the `ConfigInvalidException` produced by the validation assertion;
+- independently call flat production artifact writes;
+- write `module-manifest.php`, `config.php`, or `container.php` directly below the artifact root;
+- read `current`;
+- locate the selected generation;
+- decide cache clean/dirty/invalid state;
+- repair finalized generations;
 - emit stdout or stderr;
-- expose raw config values, raw env values, secrets, absolute paths, or raw payload bytes;
+- expose raw config, env, payload, or filesystem path data;
+- expose absolute or relative filesystem paths in its result;
+- invent or hardcode publication reuse state;
 - trigger reset orchestration;
-- discover container providers or modules implicitly;
-- use provider fallback for `container.php`;
+- accept a raw container descriptor iterable;
+- compile another graph between fingerprint and `container@1` construction;
 - start or complete a UnitOfWork.
+
+The `ArtifactCompiler` result shape is exactly:
+
+```php
+[
+    'schemaVersion' => 1,
+    'generationId' => '<lowercase-sha256>',
+    'artifacts' => [
+        [
+            'identity' => 'module-manifest@1',
+            'basename' => 'module-manifest.php',
+        ],
+        [
+            'identity' => 'config@1',
+            'basename' => 'config.php',
+        ],
+        [
+            'identity' => 'container@1',
+            'basename' => 'container.php',
+        ],
+        [
+            'identity' => 'artifact-generation@1',
+            'basename' => 'generation-manifest.php',
+        ],
+    ],
+]
+```
+
+The artifact list MUST contain exactly those four entries in that order.
+
+Each artifact entry MUST contain exactly `identity` and `basename`.
+
+The compile result MUST NOT contain `rebuilt`, `reused`, `reason`, `counts`, `bytes`, or `path`.
+
+`generation-manifest.php` remains derived and written by `ArtifactGenerationPublisher`. Its presence in the compile result reports the complete finalized or reused generation; it does not make the manifest a fourth input member of `ArtifactPublicationSet`.
 
 ### Kernel Artifact Builders
 
@@ -330,7 +442,11 @@ The Kernel artifact builders are:
 - `CompiledConfigBuilder`
 - `CompiledContainerBuilder`
 
-`ContainerCompiler` is not an artifact builder. It owns descriptor-to-`DefinitionGraph` compilation for REAL `container@1` artifacts. `CompiledContainerBuilder` receives the compiled `DefinitionGraph` and wraps its deterministic payload in the canonical Kernel artifact envelope.
+`ContainerCompiler` is not an artifact builder. It owns deterministic normalization of one ordered `ContainerDefinitionSet` into one canonical `DefinitionGraph`.
+
+`RuntimeContainerGraphCompiler` owns production provider-plan resolution, provider-definition collection, ordered set merging, low-level graph compilation, and final graph-completeness validation.
+
+`CompiledContainerBuilder` receives the compiled `DefinitionGraph` and wraps its deterministic payload in the canonical Kernel artifact envelope.
 
 `CompiledContainerBuilder` MUST emit a REAL `container@1` payload.
 
@@ -405,22 +521,75 @@ It MUST NOT:
 
 ### `ArtifactWriter`
 
-`ArtifactWriter` owns Kernel artifact file writing.
+`ArtifactWriter` owns narrow per-file write primitives.
 
-It MUST:
+Its existing deterministic PHP artifact API MAY continue to normalize text output according to the canonical artifact serialization law.
 
-- write deterministic PHP artifact bytes produced by `StablePhpArrayDumper`;
-- normalize output to LF-only bytes with exactly one final newline;
-- perform atomic per-file writes;
-- clean up temporary files on write failure where possible;
-- keep diagnostics safe and stable.
+Its generation-publication internal API MUST support:
 
-It MUST NOT:
+```text
+writeDurableFile
+writeDurableTemporaryFile
+replaceDurableFile
+```
 
+Generation publication primitives MUST:
+
+- accept explicit target paths;
+- write exact supplied bytes without text normalization;
+- reject an already existing durable-file target;
+- require an existing non-symlink target directory;
+- support a caller-controlled validated temporary basename;
+- return the exact written byte count;
+- write the complete byte string;
+- call `fflush()`;
+- call `fsync()`;
+- validate file close;
+- clean partial temporary state where possible;
+- perform same-directory pointer replacement;
+- restore the previous target when fallback replacement fails and restoration succeeds;
+- keep diagnostics safe and deterministic.
+
+`ArtifactWriter` MUST NOT:
+
+- own cross-file generation publication;
+- calculate generation ids;
+- build generation manifests;
+- acquire generation locks;
+- validate generations;
+- select `current`;
 - calculate fingerprints;
-- validate artifact schemas;
-- read existing generated artifacts for cache verification;
-- expose absolute paths or raw artifact payloads in diagnostics.
+- expose absolute paths or raw artifact payloads.
+
+Cross-file transaction ownership belongs to `ArtifactGenerationPublisher`.
+
+### Generation Publication Services
+
+`ArtifactPublicationSet` binds the three runtime envelopes and exact canonical bytes to one generation id.
+
+`ArtifactGenerationManifestBuilder` derives `artifact-generation@1`.
+
+`ArtifactGenerationValidator` validates staged and finalized generation filesystem units.
+
+`ArtifactGenerationLock` provides persistent shared/exclusive process coordination.
+
+`ArtifactGenerationPublisher` owns staging, validation, finalization, reuse, pointer writing, pointer replacement, and handled cleanup.
+
+`ArtifactGenerationLocator` owns shared-lock current generation location and validation.
+
+`ArtifactGenerationPathResolver` owns all paths below the artifact root.
+
+### Artifact-Only Runtime Consumption Linkage
+
+`ArtifactRuntimeBooter` consumes the final artifact root through `ArtifactRuntimeInput`.
+
+It MUST locate `current` through `ArtifactGenerationLocator`, read exact snapshots for all four selected-generation files, validate generation metadata and fingerprints, and build runtime state only from that selected generation.
+
+It MUST NOT accept independent artifact paths or invoke `CacheVerifier`.
+
+Detailed runtime seed hydration and compiled-container construction remain owned by `docs/ssot/compiled-container.md`.
+
+Proc Worker artifact-root handoff semantics remain owned by `docs/architecture/worker.md`.
 
 ### `StablePhpArrayDumper`
 
@@ -443,28 +612,41 @@ It MUST NOT:
 
 ### `PhpArtifactReader`
 
-`PhpArtifactReader` owns safe reading and parsing of existing Kernel PHP artifact files for cache verification.
+`PhpArtifactReader` owns safe artifact byte reading and PHP artifact parsing.
 
-It MUST:
+Its exact snapshot API MUST:
 
-- read existing artifact bytes;
-- LF-normalize read bytes for byte comparison;
-- parse PHP-returned arrays using isolated include behavior;
-- reject emitted output from artifact files;
-- convert read/include/parse failures into deterministic safe reason tokens.
+1. reject symlinks and non-regular or unreadable files;
+2. read the file bytes once;
+3. parse the returned artifact envelope from those exact bytes;
+4. reject emitted output;
+5. return both exact bytes and the parsed envelope;
+6. use deterministic read, evaluation, parse, output, and return-type failure reasons.
 
-It MUST NOT:
+The canonical exact snapshot shape is:
 
-- resolve artifact paths;
-- build expected artifacts;
-- validate artifact schemas;
+```text
+bytes
+envelope
+```
+
+`ArtifactGenerationValidator` and `ArtifactRuntimeBooter` MUST use `PhpArtifactReader::readExact(...)` so schema validation and byte/hash validation operate on the same byte snapshot.
+
+`CacheVerifier` MUST use `PhpArtifactReader::readExactBytes(...)` for persisted-byte comparison after `ArtifactGenerationLocator` has validated the selected generation.
+
+LF-normalized reader APIs MAY remain for compatibility, but they MUST NOT participate in generation validation, artifact-only runtime boot, or generation-aware clean/dirty classification.
+
+`PhpArtifactReader` MUST NOT:
+
+- resolve artifact or generation paths;
+- locate `current`;
+- validate artifact schema;
 - calculate fingerprints;
-- compare expected and current bytes;
-- emit logs, spans, metrics, stdout, or stderr.
+- expose raw artifact bytes in diagnostics.
 
 ### `ArtifactSchemaValidator`
 
-`ArtifactSchemaValidator` owns validation of existing artifact envelope/header/payload schemas for Kernel cache verification.
+`ArtifactSchemaValidator` owns validation of existing artifact envelope/header/payload schemas for generation validation, cache verification, artifact-only runtime boot, and compiled-container hydration.
 
 It MUST validate existing artifacts by:
 
@@ -525,10 +707,11 @@ Duplicate service ids inside the same tag list MUST be rejected.
 
 `ConfigFingerprintInputBuilder` owns construction of deterministic safe fingerprint input for Kernel artifacts.
 
-It consumes only already-resolved inputs:
+It consumes only already-resolved or already-produced inputs:
 
 - resolved `BootstrapConfig`;
 - resolved `ModulePlan`;
+- canonical compiled runtime `DefinitionGraph`;
 - `ConfigKernel::compile(...)` result;
 - explicit source candidate arrays supplied to `ConfigKernel`;
 - `EnvRepositoryInterface` source metadata;
@@ -538,6 +721,9 @@ It MUST NOT:
 
 - resolve `BootstrapConfig`;
 - resolve `ModulePlan`;
+- resolve `ModuleResolution`;
+- compile or recompile the runtime container graph;
+- instantiate container definition providers;
 - re-run preset resolution;
 - re-run config discovery;
 - re-run config merging;
@@ -577,6 +763,106 @@ Raw value influence MAY be represented only through safe deterministic metadata 
 - safe key path;
 - safe count.
 
+## Container Graph Fingerprint Bucket (MUST)
+
+`ContainerGraphFingerprintBucketBuilder` owns deterministic safe identity construction for one compiled runtime `DefinitionGraph`.
+
+Its public operation is:
+
+```php
+/**
+ * @return array{
+ *     schemaVersion: int,
+ *     sha256: string,
+ *     serviceCount: int,
+ *     aliasCount: int,
+ *     parameterCount: int,
+ *     tagCount: int
+ * }
+ */
+public function build(DefinitionGraph $graph): array;
+```
+
+The builder MUST:
+
+1. obtain the canonical graph representation through `DefinitionGraph::toArray()`;
+2. stable-JSON-encode that canonical representation;
+3. calculate lowercase SHA-256 over the stable JSON bytes;
+4. expose only bounded safe structural counts.
+
+The bucket MUST have exactly this semantic shape:
+
+```php
+[
+    'schemaVersion' => 1,
+    'sha256' => '<lowercase 64-character sha256>',
+    'serviceCount' => int,
+    'aliasCount' => int,
+    'parameterCount' => int,
+    'tagCount' => int,
+]
+```
+
+Count semantics are:
+
+- `serviceCount` equals the number of entries in the canonical `services` map;
+- `aliasCount` equals the number of entries in the canonical `aliases` map;
+- `parameterCount` equals the number of entries in the canonical `parameters` map;
+- `tagCount` equals the number of canonical tag names in the `tags` map.
+
+`tagCount` does not mean the total number of tagged-service registrations.
+
+All counts MUST be bounded safe non-negative integers.
+
+The graph bucket MUST NOT include:
+
+- the raw graph payload;
+- provider-plan entries;
+- provider class names as separate metadata;
+- provider instances;
+- runtime service instances;
+- runtime container instances;
+- runtime seeds;
+- source paths;
+- artifact paths;
+- filesystem paths;
+- process-specific object identity.
+
+Provider-plan metadata is not semantic graph identity after definitions have been compiled.
+
+Provider class names are not independently fingerprinted. Class names and factory class identities that occur inside canonical service definitions remain covered because they are part of `DefinitionGraph::toArray()`.
+
+The following semantic changes MUST change the graph SHA-256 and the complete Kernel artifact fingerprint:
+
+- service class;
+- factory class;
+- factory method;
+- service reference;
+- parameter value;
+- alias target;
+- effective tag priority;
+- shared lifecycle flag.
+
+Inputs that compile to the same canonical `DefinitionGraph::toArray()` value MUST produce the same graph bucket regardless of non-semantic insertion or source-object identity differences.
+
+`ConfigFingerprintInputBuilder` MUST include the resulting bucket under:
+
+```text
+containerGraph
+```
+
+The raw `DefinitionGraph` MUST NOT be included as another fingerprint-input bucket.
+
+`observabilityMetadata.bucketNames` MUST include:
+
+```text
+containerGraph
+```
+
+Observability metadata MAY expose the safe bucket name, SHA-256, and bounded counts where allowed by the observability SSoT.
+
+Observability MUST NOT expose the raw graph, raw service definitions, raw parameters, provider instances, runtime instances, or paths.
+
 ## Fingerprint Coverage (MUST)
 
 Kernel artifact fingerprints MUST cover deterministic identity and provenance inputs needed to decide whether Kernel artifacts are current.
@@ -585,6 +871,7 @@ Fingerprint input MUST include safe deterministic representation of:
 
 - Bootstrap identity;
 - ModulePlan identity;
+- canonical compiled runtime container graph identity through the `containerGraph` bucket;
 - compiled config roots;
 - compiled config value fingerprints;
 - config source metadata;
@@ -597,6 +884,18 @@ Fingerprint input MUST include safe deterministic representation of:
 - env overlay mappings;
 - env source metadata;
 - fingerprint policy.
+
+The container-graph bucket binds all three Kernel-owned artifact envelopes to the canonical runtime graph used to build the REAL `container@1` payload.
+
+A graph semantic change therefore invalidates:
+
+```text
+module-manifest.php
+config.php
+container.php
+```
+
+through their shared artifact fingerprint, even when config and module selection remain unchanged.
 
 `Bootstrap identity` includes semantic bootstrap selections such as app target, environment, preset, debug mode, and env source policy.
 
@@ -744,6 +1043,9 @@ It MUST NOT:
 It MAY expose safe metadata such as:
 
 - bucket names;
+- the `containerGraph` bucket name;
+- the safe container-graph SHA-256;
+- bounded container-graph service, alias, parameter, and tag counts;
 - safe key paths;
 - safe relative paths;
 - safe source types;
@@ -761,6 +1063,10 @@ It MUST NOT expose:
 - secrets;
 - absolute paths;
 - raw payloads;
+- raw `DefinitionGraph` payloads;
+- raw compiled service definitions;
+- raw compiled parameter values;
+- provider or runtime instances;
 - raw SQL;
 - throwable messages;
 - stack traces;
@@ -770,64 +1076,122 @@ Fingerprint explain output is diagnostic metadata only. It MUST NOT change finge
 
 ## Cache Verification Behavior (MUST)
 
-`CacheVerifier` owns Kernel artifact cache verification.
+`CacheVerifier` owns generation-aware Kernel cache verification.
 
 It MUST:
 
-- compute the current deterministic fingerprint input from already-supplied resolved inputs;
-- calculate the current fingerprint;
-- compile descriptor-based container input through `ContainerCompiler`;
-- build expected Kernel artifact envelopes in memory, including the REAL `container@1` envelope through `CompiledContainerBuilder`;
-- dump expected artifact bytes in memory;
-- resolve expected artifact paths;
-- read existing artifact bytes and returned arrays;
-- validate existing artifact schema;
-- compare stored artifact fingerprint to current fingerprint;
-- compare expected bytes to existing normalized bytes;
-- return safe clean/dirty/invalid/failure summary data.
+- receive one resolved `ModuleResolution`;
+- derive the current `ModulePlan`;
+- run `ConfigKernel::compile(...)` exactly once;
+- immediately inspect `$compiledConfig['validation']` returned by that call;
+- when validation is failed, throw `ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`;
+- treat that check only as an assertion over the validation result already produced by `ConfigKernel`;
+- perform the validation assertion before runtime-container graph compilation, fingerprint-input construction, fingerprint calculation, current-generation location, artifact reads, or artifact comparisons;
+- compile one production runtime `DefinitionGraph`;
+- build graph-bound fingerprint input;
+- calculate the expected generation id;
+- build the expected three runtime envelopes;
+- build the expected REAL `container@1` from the same graph;
+- dump the three exact runtime artifact byte strings;
+- create the expected `ArtifactPublicationSet`;
+- derive the expected generation manifest and exact bytes;
+- locate `current` through `ArtifactGenerationLocator`;
+- classify absent `current` as missing;
+- classify invalid `current` or selected generation as invalid;
+- compare selected and expected generation ids;
+- compare all four exact byte strings;
+- return `expectedGenerationId` and nullable `currentGenerationId` with the safe clean/dirty/invalid result.
 
 It MUST NOT:
 
+- invoke `ConfigValidator` or otherwise perform config validation again;
+- catch or downgrade the `ConfigInvalidException` produced by the validation assertion;
 - write artifacts;
 - repair artifacts;
-- mutate existing artifact files;
+- mutate finalized generations;
+- replace `current`;
 - update mtimes;
-- rely on file mtimes, permissions, or owners for clean/dirty decisions;
-- expose absolute paths, raw artifact payloads, raw config values, raw env values, or secrets.
+- convert generation lock failures into invalid-cache state;
+- compile a second graph between fingerprint and expected `container@1`;
+- rely on mtimes, permissions, owners, or directory order;
+- expose absolute paths, raw artifacts, raw config, raw env, or secrets.
 
 ### Verification Outcomes (MUST)
 
-Missing expected artifact files are dirty.
+An absent `current` pointer is dirty with reason `missing`.
 
-Unreadable, invalid PHP, invalid envelope, invalid header, or invalid payload artifacts are invalid.
+An invalid pointer or invalid selected generation is invalid.
 
-Stored fingerprint mismatch is dirty.
+A valid selected generation whose generation id differs from the expected generation id is dirty with reason `fingerprint_mismatch`.
 
-Byte mismatch is dirty.
+A selected generation file whose exact bytes differ from expected bytes is dirty with reason `changed`.
 
-Only exact schema-valid artifacts with matching stored fingerprint and matching deterministic bytes are clean.
+Only a valid selected generation with the expected generation id and exact bytes for all four finalized files is fully clean.
+
+Generation lock failure is an operation failure.
 
 ## Compiler and Verifier Boundary (MUST)
 
-`ArtifactCompiler` and `CacheVerifier` are intentionally separate.
+`ArtifactCompiler` and `CacheVerifier` remain intentionally separate.
 
 `ArtifactCompiler`:
 
-- writes expected Kernel artifacts;
-- does not read existing generated artifacts;
-- does not decide cache clean/dirty state.
+- builds one expected three-artifact publication set;
+- delegates publication to `ArtifactGenerationPublisher`;
+- captures the returned `ArtifactGeneration`;
+- reports the complete four-file published-generation summary without filesystem paths or synthetic reuse state;
+- does not decide cache state.
 
 `CacheVerifier`:
 
-- reads existing Kernel artifacts;
-- builds expected artifacts in memory;
-- does not write artifacts.
+- rebuilds the expected publication set and generation manifest;
+- locates and validates the selected generation;
+- reports the rebuilt expected generation id and nullable selected current generation id;
+- does not write or repair cache state.
 
-Neither service may trigger reset orchestration or UnitOfWork lifecycle.
+`ArtifactGenerationPublisher` MAY read a content-addressed existing generation only for validated exact reuse.
+
+`CacheVerifier` MUST NOT call publisher or writer methods.
+
+Neither compiler nor verifier may trigger reset orchestration or UnitOfWork lifecycle.
+
+Both services use:
+
+```text
+ConfigKernel::compile(...)
+  -> RuntimeContainerGraphCompiler::compile(...)
+  -> ConfigFingerprintInputBuilder::build(...)
+  -> FingerprintCalculator::calculate(...)
+  -> runtime artifact envelope construction
+  -> exact byte emission
+  -> ArtifactPublicationSet
+```
+
+For one operation, the graph passed into fingerprint construction MUST be the same graph passed into `CompiledContainerBuilder`.
+
+Neither service may rebuild, mutate, substitute, or independently normalize another graph between those uses.
 
 ## Provider and Factory Wiring (MUST)
 
-Kernel provider/factory wiring MUST register artifact, fingerprint, compiler, and verifier services as factories only.
+Kernel provider/factory wiring MUST register artifact, fingerprint, generation, compiler, and verifier services as factories only.
+
+`ContainerGraphFingerprintBucketBuilder` MUST be registered as a compile-host factory service and passed into `ConfigFingerprintInputBuilder`.
+
+It MUST NOT be part of canonical runtime provider definitions or the compiled runtime graph.
+
+Generation factory services include:
+
+```text
+ArtifactGenerationPathResolver
+ArtifactGenerationManifestBuilder
+ArtifactGenerationManifestValidator
+ArtifactGenerationLock
+ArtifactGenerationValidator
+ArtifactGenerationPublisher
+ArtifactGenerationLocator
+```
+
+Resolving or registering these factories MUST NOT create directories, acquire locks, publish generations, read `current`, validate persisted generations, or run cache verification.
 
 Provider/factory wiring MUST NOT:
 
@@ -862,6 +1226,10 @@ Default real-vs-Noop binding is owned by the application/foundation composition 
 ## Observability Linkage (MUST)
 
 Artifact, fingerprint, container compilation, and cache verification observability MUST comply with the canonical observability naming, metric catalog, label allowlist, and redaction law.
+
+Safe fingerprint-input observability metadata MUST list `containerGraph` as a fingerprint bucket name.
+
+The presence of that bucket name is diagnostic metadata only and MUST NOT create an alternative fingerprint calculation path.
 
 This document does not own the global metrics catalog.
 
@@ -943,6 +1311,10 @@ This document does not redefine config root ownership.
 - This document does not define config root ownership.
 - This document does not make artifact generation part of runtime request lifecycle.
 - This document does not require generated artifacts to be read during normal Kernel runtime service registration.
+- This document defines only the linkage from the canonical artifact root to one selected runtime generation.
+- Detailed runtime seed hydration and compiled-container construction are owned by `docs/ssot/compiled-container.md`.
+- Detailed Worker launcher and process lifecycle semantics are owned by `docs/architecture/worker.md`.
+- This document does not define generation retention or garbage collection.
 - `container@1` is not a deterministic stub artifact in current Kernel artifact production.
 - Kernel-produced `container@1` artifacts use the REAL compiled-container payload shape: `kind = compiled` and `compiled = true`.
 - Stub container payloads (`kind = stub`, `compiled = false`) are invalid for current Kernel-produced `container@1` artifacts.
@@ -951,6 +1323,7 @@ This document does not redefine config root ownership.
 
 - [SSoT Index](./INDEX.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
+- [Artifact Generations](./artifact-generations.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
 - [Cache Verification Behavior](./cache-verify.md)
 - [Config Roots Registry](./config-roots.md)
@@ -958,4 +1331,4 @@ This document does not redefine config root ownership.
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Kernel Bootstrap Phase A ADR](../adr/ADR-0023-kernel-bootstrap-phase-a.md)
 - [Kernel Artifacts, Fingerprint, and Cache Verification ADR](../adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)
+- [Atomic Artifact Generations ADR](../adr/ADR-0031-atomic-artifact-generations.md)

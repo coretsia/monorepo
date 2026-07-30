@@ -18,12 +18,25 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Id\CorrelationIdGenerator;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
+use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
+use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
@@ -31,9 +44,17 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -56,6 +77,9 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -65,13 +89,17 @@ use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
+use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Kernel DI wiring entrypoint.
  *
- * This provider registers Kernel-owned runtime, Bootstrap Phase A, and module
- * plan services without changing provider ordering semantics. ContainerBuilder
- * still preserves the exact caller-supplied provider order.
+ * This provider registers Kernel-owned runtime, Bootstrap Phase A,
+ * module-resolution, and provider-plan services without changing
+ * provider ordering semantics. ContainerBuilder still preserves
+ * the exact caller-supplied provider order.
  *
  * Wiring decisions:
  *
@@ -125,22 +153,28 @@ use Coretsia\Kernel\Runtime\KernelRuntime;
  * a ModulePlan, must not compile config, and must not start a UnitOfWork during
  * registration.
  */
-final class KernelServiceProvider implements ServiceProviderInterface
+final class KernelServiceProvider implements
+    ServiceProviderInterface,
+    ContainerDefinitionProviderInterface
 {
+    private const string PARAM_UOW_ATTRIBUTES_MAX_DEPTH = 'kernel.uow.attributes.max_depth';
+    private const string PARAM_UOW_ATTRIBUTES_MAX_KEYS = 'kernel.uow.attributes.max_keys';
+
     public function register(ContainerBuilder $builder): void
     {
-        $kernelConfig = $builder->configRoot('kernel');
-        $kernelPackageRoot = \dirname(__DIR__, 2);
+        $builder->assertDefinitionProviderRegistrationAllowed();
 
         /*
-         * Preserve the existing Kernel-owned config validation behavior.
+         * Fail closed before compile-host registrations mutate the builder.
          *
-         * This validates only the UnitOfWork attributes defensive limits and
-         * does not construct runtime lifecycle state.
+         * `define()` remains the single runtime wiring source and repeats the same
+         * deterministic validation while producing canonical parameter operations.
          */
-        KernelServiceFactory::unitOfWorkAttributeLimits($kernelConfig);
+        KernelServiceFactory::unitOfWorkAttributeLimits(
+            $builder->configRoot('kernel'),
+        );
 
-        $tagRegistry = $builder->tagRegistry();
+        $kernelPackageRoot = \dirname(__DIR__, 2);
 
         /*
          * Register Bootstrap Phase A services.
@@ -159,33 +193,55 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             BootstrapConfigResolver::class,
-            static fn (Container $container): BootstrapConfigResolver => KernelServiceFactory::bootstrapConfigResolver(
+            static fn (
+                Container $container
+            ): BootstrapConfigResolver => KernelServiceFactory::bootstrapConfigResolver(
                 container: $container,
             ),
         );
 
         $builder->factory(
             DotenvLoader::class,
-            static fn (Container $_container): DotenvLoader => KernelServiceFactory::dotenvLoader(),
+            static fn (
+                Container $_container
+            ): DotenvLoader => KernelServiceFactory::dotenvLoader(),
         );
 
         $builder->factory(
             EnvRepositoryBuilder::class,
-            static fn (Container $container): EnvRepositoryBuilder => KernelServiceFactory::envRepositoryBuilder(
+            static fn (
+                Container $container
+            ): EnvRepositoryBuilder => KernelServiceFactory::envRepositoryBuilder(
                 container: $container,
             ),
         );
 
         /*
-         * Register ModulePlan services.
+         * Register the source-host runtime path seed.
          *
-         * These bindings are factories only. They do not resolve ModulePlan, do
-         * not read Composer installed metadata, do not read preset files, do not
-         * scan filesystem paths, and do not create FilesystemModePresetLoader
-         * during provider registration.
+         * RuntimePathContext is derived from an already-resolved BootstrapConfig.
+         * It is not a Bootstrap Phase A result and does not enter Kernel runtime
+         * definitions.
+         */
+        $builder->factory(
+            RuntimePathContext::class,
+            static fn (
+                Container $container
+            ): RuntimePathContext => KernelServiceFactory::runtimePathContext(
+                container: $container,
+            ),
+        );
+
+        /*
+         * Register module-resolution and provider-plan services.
+         *
+         * These bindings are factories only. They do not resolve ModuleResolution,
+         * ModulePlan, or ContainerProviderPlan, do not read Composer installed metadata,
+         * do not read preset files, do not scan filesystem paths, and do not create
+         * FilesystemModePresetLoader during provider registration.
          *
          * FilesystemModePresetLoader is intentionally created only through
-         * ModePresetLoaderFactory::createFor() during ModulePlanResolver::resolve()
+         * ModePresetLoaderFactory::createFor() during ModulePlanResolver::resolveResolution()
          * for the current BootstrapConfig.
          */
         $builder->factory(
@@ -224,7 +280,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             ModePresetLoaderFactory::class,
-            static fn (Container $container): ModePresetLoaderFactory => KernelServiceFactory::modePresetLoaderFactory(
+            static fn (
+                Container $container
+            ): ModePresetLoaderFactory => KernelServiceFactory::modePresetLoaderFactory(
                 container: $container,
                 packageRoot: $kernelPackageRoot,
             ),
@@ -232,16 +290,27 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             ModuleGraphResolver::class,
-            static fn (Container $container): ModuleGraphResolver => KernelServiceFactory::moduleGraphResolver(
+            static fn (
+                Container $container
+            ): ModuleGraphResolver => KernelServiceFactory::moduleGraphResolver(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ModulePlanResolver::class,
-            static fn (Container $container): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
+            static fn (
+                Container $container
+            ): ModulePlanResolver => KernelServiceFactory::modulePlanResolver(
                 container: $container,
             ),
+        );
+
+        $builder->factory(
+            ContainerProviderPlanResolver::class,
+            static fn (
+                Container $_container
+            ): ContainerProviderPlanResolver => KernelServiceFactory::containerProviderPlanResolver(),
         );
 
         /*
@@ -255,38 +324,50 @@ final class KernelServiceProvider implements ServiceProviderInterface
          */
         $builder->factory(
             ConfigNamespaceGuard::class,
-            static fn (Container $container): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
+            static fn (
+                Container $container
+            ): ConfigNamespaceGuard => KernelServiceFactory::configNamespaceGuard(
                 container: $container,
             ),
         );
 
         $builder->factory(
             DirectiveProcessor::class,
-            static fn (Container $container): DirectiveProcessor => KernelServiceFactory::directiveProcessor(
+            static fn (
+                Container $container
+            ): DirectiveProcessor => KernelServiceFactory::directiveProcessor(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ConfigMerger::class,
-            static fn (Container $container): ConfigMerger => KernelServiceFactory::configMerger(
+            static fn (
+                Container $container
+            ): ConfigMerger => KernelServiceFactory::configMerger(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ConfigRulesLoader::class,
-            static fn (Container $_container): ConfigRulesLoader => KernelServiceFactory::configRulesLoader(),
+            static fn (
+                Container $_container
+            ): ConfigRulesLoader => KernelServiceFactory::configRulesLoader(),
         );
 
         $builder->factory(
             ConfigValidator::class,
-            static fn (Container $_container): ConfigValidator => KernelServiceFactory::configValidator(),
+            static fn (
+                Container $_container
+            ): ConfigValidator => KernelServiceFactory::configValidator(),
         );
 
         $builder->factory(
             ConfigExplainer::class,
-            static fn (Container $_container): ConfigExplainer => KernelServiceFactory::configExplainer(),
+            static fn (
+                Container $_container
+            ): ConfigExplainer => KernelServiceFactory::configExplainer(),
         );
 
         $builder->factory(
@@ -300,7 +381,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             SkeletonConfigLoader::class,
-            static fn (Container $container): SkeletonConfigLoader => KernelServiceFactory::skeletonConfigLoader(
+            static fn (
+                Container $container
+            ): SkeletonConfigLoader => KernelServiceFactory::skeletonConfigLoader(
                 container: $container,
             ),
         );
@@ -314,7 +397,9 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             ConfigKernel::class,
-            static fn (Container $container): ConfigKernel => KernelServiceFactory::configKernel(
+            static fn (
+                Container $container
+            ): ConfigKernel => KernelServiceFactory::configKernel(
                 container: $container,
             ),
         );
@@ -337,32 +422,55 @@ final class KernelServiceProvider implements ServiceProviderInterface
          */
         $builder->factory(
             PayloadNormalizer::class,
-            static fn (Container $_container): PayloadNormalizer => KernelServiceFactory::artifactPayloadNormalizer(),
+            static fn (
+                Container $_container
+            ): PayloadNormalizer => KernelServiceFactory::artifactPayloadNormalizer(),
         );
 
         $builder->factory(
             StablePhpArrayDumper::class,
-            static fn (Container $container): StablePhpArrayDumper => KernelServiceFactory::stablePhpArrayDumper(
+            static fn (
+                Container $container
+            ): StablePhpArrayDumper => KernelServiceFactory::stablePhpArrayDumper(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactEnvelopeFactory::class,
-            static fn (Container $container): ArtifactEnvelopeFactory => KernelServiceFactory::artifactEnvelopeFactory(
+            static fn (
+                Container $container
+            ): ArtifactEnvelopeFactory => KernelServiceFactory::artifactEnvelopeFactory(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactPathResolver::class,
-            static fn (Container $_container): ArtifactPathResolver => KernelServiceFactory::artifactPathResolver(),
+            static fn (
+                Container $_container
+            ): ArtifactPathResolver => KernelServiceFactory::artifactPathResolver(),
+        );
+
+        $builder->factory(
+            ArtifactGenerationPathResolver::class,
+            static fn (
+                Container $_container
+            ): ArtifactGenerationPathResolver => KernelServiceFactory::artifactGenerationPathResolver(),
         );
 
         $builder->factory(
             DeterministicFileLister::class,
-            static fn (Container $_container): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(
-            ),
+            static fn (
+                Container $_container
+            ): DeterministicFileLister => KernelServiceFactory::deterministicFileLister(),
+        );
+
+        $builder->factory(
+            ContainerGraphFingerprintBucketBuilder::class,
+            static fn (
+                Container $_container
+            ): ContainerGraphFingerprintBucketBuilder => KernelServiceFactory::containerGraphFingerprintBucketBuilder(),
         );
 
         $builder->factory(
@@ -376,33 +484,43 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             FingerprintExplainer::class,
-            static fn (Container $_container): FingerprintExplainer => KernelServiceFactory::fingerprintExplainer(),
+            static fn (
+                Container $_container
+            ): FingerprintExplainer => KernelServiceFactory::fingerprintExplainer(),
         );
 
         $builder->factory(
             FingerprintCalculator::class,
-            static fn (Container $container): FingerprintCalculator => KernelServiceFactory::fingerprintCalculator(
+            static fn (
+                Container $container
+            ): FingerprintCalculator => KernelServiceFactory::fingerprintCalculator(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactWriter::class,
-            static fn (Container $container): ArtifactWriter => KernelServiceFactory::artifactWriter(
+            static fn (
+                Container $container
+            ): ArtifactWriter => KernelServiceFactory::artifactWriter(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ModuleManifestBuilder::class,
-            static fn (Container $container): ModuleManifestBuilder => KernelServiceFactory::moduleManifestBuilder(
+            static fn (
+                Container $container
+            ): ModuleManifestBuilder => KernelServiceFactory::moduleManifestBuilder(
                 container: $container,
             ),
         );
 
         $builder->factory(
             CompiledConfigBuilder::class,
-            static fn (Container $container): CompiledConfigBuilder => KernelServiceFactory::compiledConfigBuilder(
+            static fn (
+                Container $container
+            ): CompiledConfigBuilder => KernelServiceFactory::compiledConfigBuilder(
                 container: $container,
             ),
         );
@@ -418,12 +536,69 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             PhpArtifactReader::class,
-            static fn (Container $_container): PhpArtifactReader => KernelServiceFactory::phpArtifactReader(),
+            static fn (
+                Container $_container
+            ): PhpArtifactReader => KernelServiceFactory::phpArtifactReader(),
         );
 
         $builder->factory(
             ArtifactSchemaValidator::class,
-            static fn (Container $_container): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(
+            static fn (
+                Container $_container
+            ): ArtifactSchemaValidator => KernelServiceFactory::artifactSchemaValidator(),
+        );
+
+        $builder->factory(
+            ArtifactGenerationManifestBuilder::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationManifestBuilder => KernelServiceFactory::artifactGenerationManifestBuilder(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationManifestValidator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationManifestValidator => KernelServiceFactory::artifactGenerationManifestValidator(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationLock::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationLock => KernelServiceFactory::artifactGenerationLock(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationValidator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationValidator => KernelServiceFactory::artifactGenerationValidator(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationPublisher::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationPublisher => KernelServiceFactory::artifactGenerationPublisher(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ArtifactGenerationLocator::class,
+            static fn (
+                Container $container
+            ): ArtifactGenerationLocator => KernelServiceFactory::artifactGenerationLocator(
+                container: $container,
             ),
         );
 
@@ -438,70 +613,106 @@ final class KernelServiceProvider implements ServiceProviderInterface
 
         $builder->factory(
             ContainerCompiler::class,
-            static fn (Container $container): ContainerCompiler => KernelServiceFactory::containerCompiler(
+            static fn (
+                Container $container
+            ): ContainerCompiler => KernelServiceFactory::containerCompiler(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            ContainerGraphCompletenessValidator::class,
+            static fn (
+                Container $_container
+            ): ContainerGraphCompletenessValidator => KernelServiceFactory::containerGraphCompletenessValidator(),
+        );
+
+        $builder->factory(
+            RuntimeContainerGraphCompiler::class,
+            static fn (
+                Container $container
+            ): RuntimeContainerGraphCompiler => KernelServiceFactory::runtimeContainerGraphCompiler(
                 container: $container,
             ),
         );
 
         $builder->factory(
             ArtifactCompiler::class,
-            static fn (Container $container): ArtifactCompiler => KernelServiceFactory::artifactCompiler(
+            static fn (
+                Container $container
+            ): ArtifactCompiler => KernelServiceFactory::artifactCompiler(
                 container: $container,
             ),
         );
 
         $builder->factory(
             CacheVerifier::class,
-            static fn (Container $container): CacheVerifier => KernelServiceFactory::cacheVerifier(
-                container: $container,
-            ),
-        );
-
-        /*
-         * Register Kernel runtime services.
-         *
-         * These bindings are factories only. They do not run runtime driver detection,
-         * inspect runtime config, resolve ModulePlan, enumerate hooks, trigger reset,
-         * start a UnitOfWork, execute runtime lifecycle, or emit stdout/stderr during
-         * provider registration.
-         *
-         * RuntimeEntrypointGuard is the canonical production/runtime-adapter boundary
-         * and must be invoked after config and ModulePlan are resolved and before
-         * runtime container or KernelRuntime execution starts.
-         */
-        $builder->factory(
-            RuntimeEntrypointGuard::class,
             static fn (
-                Container $_container
-            ): RuntimeEntrypointGuard => KernelServiceFactory::runtimeEntrypointGuard(),
-        );
-
-        $builder->factory(
-            HookInvoker::class,
-            static fn (Container $container): HookInvoker => KernelServiceFactory::hookInvoker(
-                container: $container,
-                tagRegistry: $tagRegistry,
-            ),
-        );
-
-        $builder->factory(
-            KernelRuntime::class,
-            static fn (Container $container): KernelRuntime => KernelServiceFactory::kernelRuntime(
+                Container $container
+            ): CacheVerifier => KernelServiceFactory::cacheVerifier(
                 container: $container,
             ),
         );
 
-        $builder->factory(
-            KernelRuntimeInterface::class,
-            static function (Container $container): KernelRuntimeInterface {
-                $runtime = $container->get(KernelRuntime::class);
+        $builder->registerDefinitionProvider($this);
+    }
 
-                if (!$runtime instanceof KernelRuntimeInterface) {
-                    throw new ContainerException('kernel-runtime-interface-binding-invalid');
-                }
-
-                return $runtime;
-            },
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $attributeLimits = KernelServiceFactory::unitOfWorkAttributeLimits(
+            $context->configRoot('kernel'),
         );
+
+        $definitions
+            ->parameter(
+                self::PARAM_UOW_ATTRIBUTES_MAX_DEPTH,
+                $attributeLimits['maxDepth'],
+            )
+            ->parameter(
+                self::PARAM_UOW_ATTRIBUTES_MAX_KEYS,
+                $attributeLimits['maxKeys'],
+            )
+            ->requireService(ContainerInterface::class)
+            ->requireService(TagRegistry::class)
+            ->requireService(ContextAccessorInterface::class)
+            ->requireService(ResetOrchestrator::class)
+            ->requireService(Stopwatch::class)
+            ->requireService(IdGeneratorInterface::class)
+            ->requireService(CorrelationIdProviderInterface::class)
+            ->requireService(CorrelationIdGenerator::class)
+            ->requireService(HookInvoker::class)
+            ->requireService(LoggerInterface::class)
+            ->requireService(TracerPortInterface::class)
+            ->requireService(MeterPortInterface::class)
+            ->classMethodFactory(
+                id: RuntimeEntrypointGuard::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'runtimeEntrypointGuard',
+            )
+            ->classMethodFactory(
+                id: HookInvoker::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'hookInvoker',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(TagRegistry::class),
+                ],
+            )
+            ->classMethodFactory(
+                id: KernelRuntime::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'kernelRuntime',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::parameter(self::PARAM_UOW_ATTRIBUTES_MAX_DEPTH),
+                    ContainerValueReference::parameter(self::PARAM_UOW_ATTRIBUTES_MAX_KEYS),
+                ],
+            )
+            ->alias(
+                KernelRuntimeInterface::class,
+                KernelRuntime::class,
+            );
     }
 }

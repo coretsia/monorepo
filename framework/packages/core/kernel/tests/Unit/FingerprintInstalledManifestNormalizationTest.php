@@ -23,9 +23,11 @@ use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Env\EnvValue;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 
@@ -36,6 +38,7 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
         $input = self::builder()->build(
             bootstrapConfig: self::bootstrapConfig(),
             modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: self::compiledConfig(),
@@ -76,6 +79,7 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
         $input = self::builder()->build(
             bootstrapConfig: self::bootstrapConfig(),
             modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: self::compiledConfig(),
@@ -107,7 +111,9 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
 
     private static function builder(): ConfigFingerprintInputBuilder
     {
-        return new ConfigFingerprintInputBuilder();
+        return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
+        );
     }
 
     private static function bootstrapConfig(): BootstrapConfig

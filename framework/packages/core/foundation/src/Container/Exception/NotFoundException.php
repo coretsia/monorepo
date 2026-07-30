@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Foundation\Container\Exception;
 
+use Coretsia\Foundation\Container\Internal\ContainerServiceIdPolicy;
 use Psr\Container\NotFoundExceptionInterface;
 
 /**
@@ -42,8 +43,12 @@ final class NotFoundException extends ContainerException implements NotFoundExce
             throw new \InvalidArgumentException('container-service-id-empty');
         }
 
-        if (\trim($serviceId) !== $serviceId || \preg_match('/\s/u', $serviceId) === 1) {
+        if (ContainerServiceIdPolicy::hasForbiddenCharactersOrInvalidUtf8($serviceId)) {
             throw new \InvalidArgumentException('container-service-id-whitespace-forbidden');
+        }
+
+        if (!ContainerServiceIdPolicy::isValid($serviceId)) {
+            throw new \InvalidArgumentException('container-service-id-invalid');
         }
 
         $this->serviceId = $serviceId;

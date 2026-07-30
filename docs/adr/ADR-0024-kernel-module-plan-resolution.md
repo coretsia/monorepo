@@ -42,10 +42,12 @@ The Kernel therefore needs one orchestration point that combines:
 
 - selected preset from `BootstrapConfig`;
 - preset loading from skeleton override or framework default files;
-- Composer installed metadata discovery;
+- one Composer installed metadata discovery run;
 - module graph resolution;
 - topological sorting;
+- one immutable resolution snapshot containing the installed manifest and resolved `ModulePlan`;
 - stable exported `ModulePlan` shape;
+- compile-time provider planning from the same resolution snapshot;
 - safe diagnostics and observability.
 
 ## Decision
@@ -56,18 +58,65 @@ Kernel module plan resolution is owned by:
 Coretsia\Kernel\Module\ModulePlanResolver
 ```
 
-`ModulePlanResolver` is the single orchestration entrypoint for creating a `ModulePlan`.
+`ModulePlanResolver` is the single orchestration entrypoint for one Kernel module-resolution run.
+
+Its canonical APIs are:
+
+```php
+public function resolveResolution(
+    BootstrapConfig $bootstrapConfig,
+): ModuleResolution;
+
+public function resolve(
+    BootstrapConfig $bootstrapConfig,
+): ModulePlan;
+```
+
+`resolveResolution()` is the canonical orchestration API.
 
 It coordinates:
 
-1. discovery source validation;
-2. mode preset loading;
+1. discovery-source validation;
+2. mode-preset loading;
 3. preset schema validation through the loader path;
-4. Composer installed metadata discovery through `ManifestReaderInterface`;
-5. graph resolution through `ModuleGraphResolver`;
+4. exactly one Composer installed metadata read through `ManifestReaderInterface`;
+5. graph resolution through `ModuleGraphResolver` using that manifest;
 6. topological ordering through the graph resolver / sorter path;
 7. stable `ModulePlan` construction;
-8. safe logs and metrics.
+8. immutable `ModuleResolution` construction from that same manifest and plan;
+9. safe logs and metrics.
+
+`resolve()` is a compatibility accessor and MUST be implemented only as:
+
+```php
+return $this->resolveResolution($bootstrapConfig)->plan();
+```
+
+Kernel compile-time orchestration that requires the installed manifest after module resolution MUST use `resolveResolution()`.
+
+It MUST NOT call `resolve()` and then read the installed manifest again.
+
+## Compile-time consumer boundary
+
+Direct invocation of `ModulePlanResolver::resolveResolution()` belongs to Kernel-owned compile-time operation orchestration.
+
+CLI command classes, HTTP runtime code, database runtime code, and other transport or adapter layers MUST NOT invoke `ModulePlanResolver` directly.
+
+Lower-level compilation services MUST receive already-resolved operation inputs. In particular, `ArtifactCompiler`, `FingerprintCalculator`, and `CacheVerifier` MUST NOT:
+
+- invoke `ModulePlanResolver`;
+- invoke `ContainerProviderPlanResolver`;
+- invoke `ManifestReaderInterface::read()`;
+- reconstruct `ModuleResolution`;
+- independently discover module providers.
+
+The compile-time orchestration owner MUST:
+
+1. invoke `resolveResolution()` at most once for one operation;
+2. pass the returned `ModuleResolution` directly to `ContainerProviderPlanResolver`;
+3. reuse the same `ModuleResolution::plan()` for all downstream work belonging to that operation.
+
+At the current integration state, the module-resolution and provider-plan resolvers are available as compile-host services. Production artifact compilation does not yet collect provider-produced definitions from `ContainerProviderPlan`.
 
 ## Resolution inputs
 
@@ -170,6 +219,37 @@ ModuleDescriptor::metadata()['conflicts']
 ```
 
 Missing `requires` and `conflicts` metadata are treated as empty deterministic lists.
+
+Compile-time container provider metadata is read only from:
+
+```text
+extra.coretsia.providers
+```
+
+Missing `providers` metadata is treated as an empty list.
+
+When present, `extra.coretsia.providers` MUST:
+
+- be a list;
+- contain only non-empty safe non-leading-backslash FQCN strings;
+- contain only FQCN strings of at most 512 bytes;
+- preserve Composer-declared list order;
+- reject duplicate provider classes within the same module declaration;
+- remain unsorted.
+
+Duplicate provider classes within one declaration are compared using case-insensitive ASCII class-name identity.
+
+Provider FQCN order is semantic metadata. It MUST NOT be normalized as a string set and MUST NOT be sorted by `strcmp`.
+
+A non-empty normalized value is stored in:
+
+```text
+ModuleDescriptor::metadata()['providers']
+```
+
+Missing and explicitly empty provider lists MAY omit the `providers` metadata key and MUST be consumed as an empty list.
+
+`requires` and `conflicts` remain canonical string sets and continue to use duplicate collapse and byte-order `strcmp` sorting.
 
 ## Mode preset loading
 
@@ -394,6 +474,10 @@ Warning ordering is deterministic and defined by the warning canonical sort key.
 - `overridesPath`;
 - absolute paths;
 - provider class lists;
+- provider-order indexes;
+- `ContainerProviderPlan`;
+- `ModuleResolution`;
+- installed-manifest provider metadata intended only for compile-time provider planning;
 - raw Composer payloads;
 - raw preset payloads;
 - raw config payloads;
@@ -402,6 +486,124 @@ Warning ordering is deterministic and defined by the warning canonical sort key.
 - closures;
 - resources;
 - filesystem handles.
+
+## ModuleResolution snapshot
+
+One successful module-resolution run returns:
+
+```text
+Coretsia\Kernel\Module\ModuleResolution
+```
+
+`ModuleResolution` is an immutable compile-time value containing:
+
+```text
+ModuleManifest manifest
+ModulePlan plan
+```
+
+The canonical accessors are:
+
+```php
+public function manifest(): ModuleManifest;
+public function plan(): ModulePlan;
+```
+
+Both values MUST originate from the same invocation of `ModulePlanResolver::resolveResolution()`.
+
+The manifest MUST be the exact installed manifest supplied to `ModuleGraphResolver` when producing the contained plan.
+
+`ModuleResolution` MUST NOT:
+
+- be exported into an artifact;
+- become part of `ModulePlan`;
+- be retained by runtime services;
+- be placed in the runtime container definition graph;
+- expose raw Composer payloads;
+- introduce a second manifest discovery run.
+
+`ModulePlan` remains the artifact-ready resolved module graph value.
+
+`ModuleResolution` is compile-time orchestration context around that plan; it is not an extension of the `ModulePlan` artifact shape.
+
+## Compile-time container provider plan
+
+Compile-time container provider planning is owned by:
+
+```text
+Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver
+```
+
+It consumes:
+
+```text
+ModuleResolution
+```
+
+and returns:
+
+```text
+Coretsia\Kernel\Container\Provider\ContainerProviderPlan
+```
+
+The resolver MUST process modules in exact:
+
+```text
+ModulePlan::topologicalOrder()
+```
+
+For every enabled module in that order, it MUST:
+
+1. find the corresponding `ModuleDescriptor` in `ModuleResolution::manifest()`;
+2. read `ModuleDescriptor::metadata()['providers']`;
+3. preserve that module's declared provider order;
+4. validate every provider FQCN;
+5. require the provider class to exist;
+6. require the reflected class name to match the declared FQCN;
+7. require the class to be instantiable;
+8. require the class to implement `ContainerDefinitionProviderInterface`;
+9. reject a provider class declared more than once across the complete enabled module plan, using case-insensitive ASCII class-name identity.
+
+The returned plan is an immutable ordered list of entries with exact fields:
+
+```text
+moduleId
+providerClass
+moduleOrder
+providerOrder
+```
+
+`moduleOrder` is the zero-based index from `ModulePlan::topologicalOrder()`.
+
+`providerOrder` is the zero-based index from the module's declared `metadata.providers` list.
+
+The resulting order is therefore:
+
+```text
+module topological order
+    -> declared provider order within each module
+```
+
+The following are forbidden:
+
+- sorting providers by FQCN;
+- reconstructing provider order from manifest module ordering;
+- using Composer package declaration order as module order;
+- creating provider instances while resolving the plan;
+- storing provider instances in `ContainerProviderPlan`;
+- extending `ModulePlan` with provider class lists.
+
+`ContainerProviderPlan` and `ModuleResolution` are compile-time values.
+
+Neither value is an artifact payload or runtime graph service definition.
+
+Failures surfaced through `ContainerProviderPlanResolver::resolve(ModuleResolution)` are mapped to the safe container-definition failure reason:
+
+```text
+provider-invalid
+```
+
+Direct invariant violations during internal `ContainerProviderPlan` construction are caught by the resolver and converted to that public failure boundary.
 
 ## Failure precedence
 
@@ -531,44 +733,80 @@ Log context MUST NOT contain:
 
 ## Provider and factory wiring
 
-Kernel provider wiring registers module-plan services as factories only.
+Kernel provider wiring registers module-resolution and provider-planning services as compile-host factories only.
+
+The registered compile-host services include:
+
+```text
+ManifestReaderInterface
+ComposerManifestReader
+ModePresetLoaderFactory
+ModuleGraphResolver
+ModulePlanResolver
+ContainerProviderPlanResolver
+```
 
 Provider registration MUST NOT:
 
+- resolve `ModuleResolution`;
 - resolve `ModulePlan`;
+- resolve `ContainerProviderPlan`;
 - read Composer installed metadata;
 - read preset files;
 - scan filesystem paths;
 - create `FilesystemModePresetLoader`;
+- load provider classes;
+- instantiate definition providers;
+- collect provider definitions;
 - bind `ModePresetLoaderInterface` globally;
 - bind `FilesystemModePresetLoader` globally.
 
-`FilesystemModePresetLoader` is BootstrapConfig-specific and MUST be created only through:
+`FilesystemModePresetLoader` is `BootstrapConfig`-specific and MUST be created only through:
 
 ```text
 ModePresetLoaderFactory::createFor(BootstrapConfig)
 ```
 
-`ModulePlanResolver` MAY be a shared service.
+during:
 
-Per-resolution freshness applies to:
+```text
+ModulePlanResolver::resolveResolution()
+```
+
+`ModulePlanResolver` and `ContainerProviderPlanResolver` MAY be shared, stateless compile-host services.
+
+Per-operation freshness applies to:
 
 - `FilesystemModePresetLoader`;
 - loaded preset objects;
-- resolved `ModulePlan`.
+- installed `ModuleManifest`;
+- resolved `ModulePlan`;
+- `ModuleResolution`;
+- `ContainerProviderPlan`.
 
-Shared resolver/factory services MUST NOT retain:
+Shared resolver and factory services MUST NOT retain:
 
 - `BootstrapConfig`;
 - loaded presets;
+- installed manifest snapshots;
 - resolved plans;
-- Composer metadata snapshots.
+- `ModuleResolution`;
+- `ContainerProviderPlan`;
+- provider instances.
+
+`ContainerProviderPlanResolver` construction performs no module resolution, Composer metadata read, class loading, provider validation, or provider instantiation.
+
+Those actions occur only when its `resolve(ModuleResolution)` method is explicitly invoked by compile-time orchestration.
 
 ## Consequences
 
 Positive consequences:
 
 - Module plan resolution has one Kernel-owned orchestration point.
+- One module-resolution run exposes both the installed manifest and its resolved plan without a second Composer metadata read.
+- Compile-time provider planning consumes that same resolution snapshot.
+- Module topological order and module-declared provider order remain separate, explicit ordering dimensions.
+- Provider planning does not require extending the artifact-ready `ModulePlan` shape.
 - Runtime discovery is metadata-only and does not depend on monorepo layout.
 - Split packages can keep deterministic module planning behavior.
 - Mode preset overrides are explicit and non-merged.
@@ -584,13 +822,20 @@ Trade-offs:
 - Preset overrides replace framework defaults instead of merging with them.
 - Application targets cannot customize module selection directly; they must select a preset through Bootstrap Phase A.
 - `FilesystemModePresetLoader` cannot be registered as a global service because it depends on a resolved `BootstrapConfig`.
+- Compile-time orchestration that needs provider metadata must retain `ModuleResolution` for the duration of the operation instead of retaining only `ModulePlan`.
+- Provider classes are validated during provider-plan resolution, so enabled modules with missing, non-instantiable, or non-declarative providers fail before provider definition collection.
+- Provider order cannot be canonicalized by sorting FQCNs because declaration order is semantic.
 
 ## Non-goals
 
 This ADR does not define:
 
 - module boot lifecycle;
-- service provider execution order;
+- provider instance construction;
+- execution of provider `define()` methods;
+- collection or merging of provider-produced `ContainerDefinitionSet` values;
+- selection of provider-produced definitions as the active production artifact-compiler input;
+- runtime service-provider lifecycle;
 - config Phase B merge;
 - artifact writing;
 - CLI command UX;
@@ -609,13 +854,11 @@ Detailed conflict, required-missing, optional-missing, and cycle failure policy 
 - `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/modes.md`
 - `docs/ssot/config-roots.md`
+- `docs/ssot/runtime-container-definitions.md`
 
 ## Related ADRs
 
 - `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
 - `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
-
-## Related epic
-
-- `1.310.0 Kernel: Module Plan (discovery + presets + graph + policies)`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

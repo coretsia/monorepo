@@ -26,8 +26,11 @@ use Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface;
 use Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Clock\SystemClock;
-use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
@@ -47,127 +50,183 @@ use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Psr\Clock\ClockInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Foundation DI wiring entrypoint.
+ * Foundation runtime DI definition provider.
  *
- * This provider registers Foundation-owned runtime services without changing
- * provider ordering semantics. `ContainerBuilder` still preserves the exact
- * caller-supplied provider order.
+ * `define()` is the single source of Foundation runtime wiring for source-mode
+ * container application and future compiled-container contribution.
+ *
+ * `register()` does not maintain a parallel imperative runtime graph. It only
+ * delegates this provider to the ContainerBuilder declarative adapter.
  *
  * Wiring decisions:
  *
- * - `TagRegistry` is registered as the exact builder-owned instance;
- * - `PriorityResetOrchestrator` is created through `FoundationServiceFactory`;
- * - `ResetOrchestrator` remains the stable public reset entrypoint and is
- *   created through `FoundationServiceFactory`;
- * - noop observability and logging ports are registered as explicit instances
- *   so they remain resolvable without relying on concrete-class autowiring;
- * - Foundation clock/id/stopwatch services are registered as explicit
- *   instances so they remain resolvable without relying on concrete-class
- *   autowiring;
- * - `SystemClock` is the baseline runtime `ClockInterface` binding;
- * - `FrozenClock` is test/support infrastructure and is not registered as the
- *   default runtime clock binding by this provider;
- * - `IdGeneratorInterface` is selected only by `foundation.ids.default`;
- * - `foundation.ids.default` does not affect correlation id generation;
- * - context and correlation services are registered as explicit instances so
- *   they remain resolvable without relying on concrete-class autowiring;
- * - `ContextStore` is registered once and the context accessor binding points
- *   to the same object instance;
- * - `ContextStore` is tagged with the effective Foundation reset discovery tag
- *   and with the fixed `kernel.stateful` enforcement marker;
+ * - `TagRegistry` is a builder-owned source-runtime seed and is not emitted as
+ *   a canonical provider definition;
+ * - runtime service definitions are shared by default;
+ * - `SystemClock` is the baseline `ClockInterface` target;
+ * - `FrozenClock` remains test/support infrastructure and is not registered;
+ * - `IdGeneratorInterface` aliases the configured shared ULID or UUID target;
+ * - `foundation.ids.default` does not affect correlation-id generation;
+ * - `ContextAccessorInterface` aliases the shared `ContextStore`;
+ * - correlation services remain ULID-backed;
+ * - noop logging and observability implementations are defined directly under
+ *   their public port/interface service IDs;
+ * - reset orchestrators are represented through public static class-method
+ *   factories; container-resolved dependencies are declared through
+ *   `requireService()`;
+ * - `ContextStore` is tagged with the effective Foundation reset tag and the
+ *   fixed `kernel.stateful` enforcement tag;
  * - `DeterministicOrder` is not registered because it is a stateless static
- *   utility and the epic marks service registration for it as optional.
+ *   utility.
  *
- * This provider must not emit stdout/stderr, must not use tooling-only
- * packages, and must not introduce static mutable snapshots.
+ * This provider must not emit stdout/stderr, use tooling-only packages, read
+ * filesystem or environment sources, resolve services, start runtime
+ * lifecycle, or introduce static mutable snapshots during definition
+ * production.
  */
-final class FoundationServiceProvider implements ServiceProviderInterface
+final class FoundationServiceProvider implements
+    ServiceProviderInterface,
+    ContainerDefinitionProviderInterface
 {
+    private const string PARAM_FOUNDATION_CONFIG = 'foundation.config';
+
     public function register(ContainerBuilder $builder): void
     {
-        $tagRegistry = $builder->tagRegistry();
+        $builder->assertDefinitionProviderRegistrationAllowed();
+
         $foundationConfig = $builder->configRoot('foundation');
+
+        FoundationServiceFactory::effectiveResetTag($foundationConfig);
+        FoundationServiceFactory::defaultIdGeneratorServiceId($foundationConfig);
+
+        $builder->registerDefinitionProvider($this);
+    }
+
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $foundationConfig = $context->configRoot('foundation');
         $effectiveResetTag = FoundationServiceFactory::effectiveResetTag($foundationConfig);
+        $defaultIdGeneratorServiceId = FoundationServiceFactory::defaultIdGeneratorServiceId($foundationConfig);
+        $foundationConfigReference = ContainerValueReference::parameter(self::PARAM_FOUNDATION_CONFIG);
 
-        $contextStore = new ContextStore();
-
-        $clock = new SystemClock();
-        $stopwatch = new Stopwatch();
-
-        $ulids = new UlidGenerator();
-        $uuids = new UuidGenerator();
-        $defaultIds = FoundationServiceFactory::defaultIdGenerator(
-            foundationConfig: $foundationConfig,
-            ulids: $ulids,
-            uuids: $uuids,
-        );
-
-        $correlationIds = new CorrelationIdGenerator($ulids);
-        $correlationIdProvider = new CorrelationIdProvider($contextStore);
-
-        $logger = new NoopLogger();
-        $tracer = new NoopTracer();
-        $meter = new NoopMeter();
-        $errorReporter = new NoopErrorReporter();
-        $profiler = new NoopProfiler();
-        $contextPropagation = new NoopContextPropagation();
-
-        $builder->instance(TagRegistry::class, $tagRegistry);
-
-        $builder->instance(SystemClock::class, $clock);
-        $builder->instance(ClockInterface::class, $clock);
-        $builder->instance(Stopwatch::class, $stopwatch);
-
-        $builder->instance(UlidGenerator::class, $ulids);
-        $builder->instance(UuidGenerator::class, $uuids);
-        $builder->instance(IdGeneratorInterface::class, $defaultIds);
-
-        $builder->instance(ContextStore::class, $contextStore);
-        $builder->instance(ContextAccessorInterface::class, $contextStore);
-
-        $builder->instance(CorrelationIdGenerator::class, $correlationIds);
-        $builder->instance(CorrelationIdProvider::class, $correlationIdProvider);
-        $builder->instance(CorrelationIdProviderInterface::class, $correlationIdProvider);
-
-        $builder->tag($effectiveResetTag, ContextStore::class);
-        $builder->tag(ReservedTags::KERNEL_STATEFUL, ContextStore::class);
-
-        $builder->instance(LoggerInterface::class, $logger);
-        $builder->instance(TracerPortInterface::class, $tracer);
-        $builder->instance(MeterPortInterface::class, $meter);
-        $builder->instance(ErrorReporterPortInterface::class, $errorReporter);
-        $builder->instance(ProfilerPortInterface::class, $profiler);
-        $builder->instance(ContextPropagationInterface::class, $contextPropagation);
-
-        $builder->factory(
-            PriorityResetOrchestrator::class,
-            static fn (
-                Container $container
-            ): PriorityResetOrchestrator => FoundationServiceFactory::priorityResetOrchestrator(
-                container: $container,
-                tagRegistry: $tagRegistry,
-                foundationConfig: $foundationConfig,
-                stopwatch: $stopwatch,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
-
-        $builder->factory(
-            ResetOrchestrator::class,
-            static fn (Container $container): ResetOrchestrator => FoundationServiceFactory::resetOrchestrator(
-                container: $container,
-                tagRegistry: $tagRegistry,
-                foundationConfig: $foundationConfig,
-                stopwatch: $stopwatch,
-                tracer: $tracer,
-                meter: $meter,
-                logger: $logger,
-            ),
-        );
+        $definitions
+            ->parameter(
+                self::PARAM_FOUNDATION_CONFIG,
+                $foundationConfig,
+            )
+            ->requireService(ContainerInterface::class)
+            ->requireService(TagRegistry::class)
+            ->requireService(Stopwatch::class)
+            ->requireService(TracerPortInterface::class)
+            ->requireService(MeterPortInterface::class)
+            ->requireService(LoggerInterface::class)
+            ->classService(
+                SystemClock::class,
+                SystemClock::class,
+            )
+            ->alias(
+                ClockInterface::class,
+                SystemClock::class,
+            )
+            ->classService(
+                Stopwatch::class,
+                Stopwatch::class,
+            )
+            ->classService(
+                UlidGenerator::class,
+                UlidGenerator::class,
+            )
+            ->classService(
+                UuidGenerator::class,
+                UuidGenerator::class,
+            )
+            ->alias(
+                IdGeneratorInterface::class,
+                $defaultIdGeneratorServiceId,
+            )
+            ->classService(
+                ContextStore::class,
+                ContextStore::class,
+            )
+            ->alias(
+                ContextAccessorInterface::class,
+                ContextStore::class,
+            )
+            ->classService(
+                id: CorrelationIdGenerator::class,
+                class: CorrelationIdGenerator::class,
+                arguments: [
+                    ContainerValueReference::service(UlidGenerator::class),
+                ],
+            )
+            ->classService(
+                id: CorrelationIdProvider::class,
+                class: CorrelationIdProvider::class,
+                arguments: [
+                    ContainerValueReference::service(ContextAccessorInterface::class),
+                ],
+            )
+            ->alias(
+                CorrelationIdProviderInterface::class,
+                CorrelationIdProvider::class,
+            )
+            ->tag(
+                $effectiveResetTag,
+                ContextStore::class,
+            )
+            ->tag(
+                ReservedTags::KERNEL_STATEFUL,
+                ContextStore::class,
+            )
+            ->classService(
+                id: LoggerInterface::class,
+                class: NoopLogger::class,
+            )
+            ->classService(
+                id: TracerPortInterface::class,
+                class: NoopTracer::class,
+            )
+            ->classService(
+                id: MeterPortInterface::class,
+                class: NoopMeter::class,
+            )
+            ->classService(
+                id: ErrorReporterPortInterface::class,
+                class: NoopErrorReporter::class,
+            )
+            ->classService(
+                id: ProfilerPortInterface::class,
+                class: NoopProfiler::class,
+            )
+            ->classService(
+                id: ContextPropagationInterface::class,
+                class: NoopContextPropagation::class,
+            )
+            ->classMethodFactory(
+                id: PriorityResetOrchestrator::class,
+                factoryClass: FoundationServiceFactory::class,
+                method: 'priorityResetOrchestrator',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(TagRegistry::class),
+                    $foundationConfigReference,
+                ],
+            )
+            ->classMethodFactory(
+                id: ResetOrchestrator::class,
+                factoryClass: FoundationServiceFactory::class,
+                method: 'resetOrchestrator',
+                arguments: [
+                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(TagRegistry::class),
+                    $foundationConfigReference,
+                ],
+            );
     }
 }

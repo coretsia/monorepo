@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -37,20 +38,28 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
+use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
-use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\ConfigMerger;
 use Coretsia\Kernel\Config\ConfigRulesLoader;
@@ -63,18 +72,20 @@ use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
-use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -171,6 +182,30 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates runtime-only path context from an already-resolved BootstrapConfig.
+     *
+     * This factory does not execute Bootstrap Phase A, read the filesystem, or
+     * include runtime paths in generated artifacts or fingerprint input.
+     */
+    public static function runtimePathContext(
+        ContainerInterface $container,
+    ): RuntimePathContext {
+        $bootstrapConfig = self::bootService(
+            $container,
+            BootstrapConfig::class,
+        );
+
+        if (!$bootstrapConfig instanceof BootstrapConfig) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return new RuntimePathContext(
+            skeletonRoot: $bootstrapConfig->skeletonRoot(),
+            artifactRoot: new ArtifactPathResolver()->artifactRoot($bootstrapConfig),
+        );
+    }
+
+    /**
      * Creates the Composer installed metadata provider.
      *
      * This factory performs construction only. It does not read Composer
@@ -215,7 +250,7 @@ final class KernelServiceFactory
      *
      * FilesystemModePresetLoader MUST NOT be registered globally. It is created
      * only by ModePresetLoaderFactory::createFor() for the current
-     * BootstrapConfig during ModulePlanResolver::resolve().
+     * BootstrapConfig during ModulePlanResolver::resolveResolution().
      */
     public static function modePresetLoaderFactory(
         ContainerInterface $container,
@@ -312,6 +347,17 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the compile-time container provider plan resolver.
+     *
+     * This factory performs construction only. It does not resolve modules,
+     * read Composer metadata, load provider classes, or instantiate providers.
+     */
+    public static function containerProviderPlanResolver(): ContainerProviderPlanResolver
+    {
+        return new ContainerProviderPlanResolver();
+    }
+
+    /**
      * Creates the Kernel config namespace guard.
      *
      * The forbidden top-level roots are read from the already-built Kernel config
@@ -332,10 +378,7 @@ final class KernelServiceFactory
                 forbiddenTopLevelRoots: self::forbiddenTopLevelRoots($kernelConfig),
             );
         } catch (\InvalidArgumentException $exception) {
-            throw new ContainerException(
-                'kernel-config-forbidden-top-level-roots-invalid',
-                $exception,
-            );
+            throw new ContainerException('kernel-config-forbidden-top-level-roots-invalid', $exception);
         }
     }
 
@@ -594,6 +637,17 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the immutable artifact-generation path resolver.
+     *
+     * This factory performs construction only. It does not inspect or mutate the
+     * filesystem during provider registration.
+     */
+    public static function artifactGenerationPathResolver(): ArtifactGenerationPathResolver
+    {
+        return new ArtifactGenerationPathResolver();
+    }
+
+    /**
      * Creates the deterministic declared-input file lister.
      *
      * This factory performs construction only. It does not list files during
@@ -602,6 +656,18 @@ final class KernelServiceFactory
     public static function deterministicFileLister(): DeterministicFileLister
     {
         return new DeterministicFileLister();
+    }
+
+    /**
+     * Creates the deterministic compiled-container graph fingerprint bucket
+     * builder.
+     *
+     * This factory performs construction only. It does not compile a graph or
+     * calculate an artifact fingerprint during provider registration.
+     */
+    public static function containerGraphFingerprintBucketBuilder(): ContainerGraphFingerprintBucketBuilder
+    {
+        return new ContainerGraphFingerprintBucketBuilder();
     }
 
     /**
@@ -625,7 +691,17 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
+        $containerGraphBucketBuilder = self::artifactService(
+            $container,
+            ContainerGraphFingerprintBucketBuilder::class,
+        );
+
+        if (!$containerGraphBucketBuilder instanceof ContainerGraphFingerprintBucketBuilder) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
         return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: $containerGraphBucketBuilder,
             payloadNormalizer: $payloadNormalizer,
             fileLister: $fileLister,
         );
@@ -772,6 +848,186 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the artifact-generation manifest builder.
+     */
+    public static function artifactGenerationManifestBuilder(
+        ContainerInterface $container,
+    ): ArtifactGenerationManifestBuilder {
+        $envelopeFactory = self::artifactService(
+            $container,
+            ArtifactEnvelopeFactory::class,
+        );
+
+        if (!$envelopeFactory instanceof ArtifactEnvelopeFactory) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationManifestBuilder(
+            envelopeFactory: $envelopeFactory,
+        );
+    }
+
+    /**
+     * Creates the artifact-generation manifest validator.
+     */
+    public static function artifactGenerationManifestValidator(
+        ContainerInterface $container,
+    ): ArtifactGenerationManifestValidator {
+        $schemaValidator = self::artifactService(
+            $container,
+            ArtifactSchemaValidator::class,
+        );
+
+        if (!$schemaValidator instanceof ArtifactSchemaValidator) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationManifestValidator(
+            schemaValidator: $schemaValidator,
+        );
+    }
+
+    /**
+     * Creates the persistent shared/exclusive artifact-generation lock.
+     */
+    public static function artifactGenerationLock(
+        ContainerInterface $container,
+    ): ArtifactGenerationLock {
+        $pathResolver = self::artifactService(
+            $container,
+            ArtifactGenerationPathResolver::class,
+        );
+
+        if (!$pathResolver instanceof ArtifactGenerationPathResolver) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationLock(
+            pathResolver: $pathResolver,
+        );
+    }
+
+    /**
+     * Creates the immutable artifact-generation validator.
+     */
+    public static function artifactGenerationValidator(
+        ContainerInterface $container,
+    ): ArtifactGenerationValidator {
+        $artifactReader = self::artifactService(
+            $container,
+            PhpArtifactReader::class,
+        );
+        $schemaValidator = self::artifactService(
+            $container,
+            ArtifactSchemaValidator::class,
+        );
+        $manifestValidator = self::artifactService(
+            $container,
+            ArtifactGenerationManifestValidator::class,
+        );
+
+        if (
+            !$artifactReader instanceof PhpArtifactReader
+            || !$schemaValidator instanceof ArtifactSchemaValidator
+            || !$manifestValidator instanceof ArtifactGenerationManifestValidator
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationValidator(
+            artifactReader: $artifactReader,
+            schemaValidator: $schemaValidator,
+            manifestValidator: $manifestValidator,
+        );
+    }
+
+    /**
+     * Creates the atomic immutable-generation publisher.
+     */
+    public static function artifactGenerationPublisher(
+        ContainerInterface $container,
+    ): ArtifactGenerationPublisher {
+        $artifactWriter = self::artifactService(
+            $container,
+            ArtifactWriter::class,
+        );
+        $phpArrayDumper = self::artifactService(
+            $container,
+            StablePhpArrayDumper::class,
+        );
+        $manifestBuilder = self::artifactService(
+            $container,
+            ArtifactGenerationManifestBuilder::class,
+        );
+        $validator = self::artifactService(
+            $container,
+            ArtifactGenerationValidator::class,
+        );
+        $lock = self::artifactService(
+            $container,
+            ArtifactGenerationLock::class,
+        );
+        $pathResolver = self::artifactService(
+            $container,
+            ArtifactGenerationPathResolver::class,
+        );
+
+        if (
+            !$artifactWriter instanceof ArtifactWriter
+            || !$phpArrayDumper instanceof StablePhpArrayDumper
+            || !$manifestBuilder instanceof ArtifactGenerationManifestBuilder
+            || !$validator instanceof ArtifactGenerationValidator
+            || !$lock instanceof ArtifactGenerationLock
+            || !$pathResolver instanceof ArtifactGenerationPathResolver
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationPublisher(
+            artifactWriter: $artifactWriter,
+            phpArrayDumper: $phpArrayDumper,
+            manifestBuilder: $manifestBuilder,
+            validator: $validator,
+            lock: $lock,
+            pathResolver: $pathResolver,
+        );
+    }
+
+    /**
+     * Creates the shared-lock current-generation locator.
+     */
+    public static function artifactGenerationLocator(
+        ContainerInterface $container,
+    ): ArtifactGenerationLocator {
+        $lock = self::artifactService(
+            $container,
+            ArtifactGenerationLock::class,
+        );
+        $pathResolver = self::artifactService(
+            $container,
+            ArtifactGenerationPathResolver::class,
+        );
+        $validator = self::artifactService(
+            $container,
+            ArtifactGenerationValidator::class,
+        );
+
+        if (
+            !$lock instanceof ArtifactGenerationLock
+            || !$pathResolver instanceof ArtifactGenerationPathResolver
+            || !$validator instanceof ArtifactGenerationValidator
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new ArtifactGenerationLocator(
+            lock: $lock,
+            pathResolver: $pathResolver,
+            validator: $validator,
+        );
+    }
+
+    /**
      * Creates the compiled-container runtime factory.
      *
      * This factory performs wiring only. It does not read container.php, read
@@ -779,22 +1035,19 @@ final class KernelServiceFactory
      * compile a new container graph, calculate fingerprints, write artifacts,
      * mutate artifacts, or emit stdout/stderr during provider registration.
      */
-    public static function compiledContainerFactory(ContainerInterface $container): CompiledContainerFactory
-    {
-        $artifactReader = self::artifactService($container, PhpArtifactReader::class);
-
-        if (!$artifactReader instanceof PhpArtifactReader) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $schemaValidator = self::artifactService($container, ArtifactSchemaValidator::class);
+    public static function compiledContainerFactory(
+        ContainerInterface $container,
+    ): CompiledContainerFactory {
+        $schemaValidator = self::artifactService(
+            $container,
+            ArtifactSchemaValidator::class,
+        );
 
         if (!$schemaValidator instanceof ArtifactSchemaValidator) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
         return new CompiledContainerFactory(
-            artifactReader: $artifactReader,
             schemaValidator: $schemaValidator,
         );
     }
@@ -818,58 +1071,61 @@ final class KernelServiceFactory
     }
 
     /**
-     * Builds the production runtime Foundation container through compiled-artifact
-     * boot only.
+     * Creates the production runtime container graph completeness validator.
      *
-     * The caller MUST provide:
-     *
-     * - the resolved container.php artifact path;
-     * - an already-read and already-validated config@1 payload;
-     * - the resolved ModulePlan for the same runtime config snapshot.
-     *
-     * This method intentionally does not read source config files, run source
-     * config discovery, run module discovery, register runtime providers as a
-     * fallback, compile a new container graph, calculate fingerprints, write
-     * artifacts, mutate artifacts, or emit stdout/stderr.
-     *
-     * Missing container.php is surfaced by CompiledContainerFactory as:
-     *
-     *     CORETSIA_CONTAINER_ARTIFACT_MISSING: container-artifact-missing
-     *
-     * There is deliberately no implicit non-artifact fallback in this production
-     * runtime path. Any future developer-mode fallback requires a separate
-     * epic/ADR and MUST NOT be implied here.
-     *
-     * @param non-empty-string $containerArtifactPath
-     * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
-     * @param ModulePlan $modulePlan Already-resolved ModulePlan for this runtime boot.
-     *
-     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
-     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
+     * This factory performs construction only. It does not inspect a graph,
+     * resolve modules, instantiate providers, read config, or compile container
+     * definitions.
      */
-    public static function productionRuntimeContainer(
-        ContainerInterface $container,
-        string $containerArtifactPath,
-        array $configPayload,
-        ModulePlan $modulePlan,
-    ): FoundationContainer {
-        $config = self::runtimeConfigFromConfigPayload($configPayload);
+    public static function containerGraphCompletenessValidator(): ContainerGraphCompletenessValidator
+    {
+        return new ContainerGraphCompletenessValidator();
+    }
 
-        self::assertRuntimeEntrypointCompatible(
-            container: $container,
-            config: $config,
-            modulePlan: $modulePlan,
+    /**
+     * Creates the production runtime container graph compiler.
+     *
+     * This factory performs wiring only. It does not resolve modules, instantiate
+     * providers, produce definitions, compile a graph, or validate completeness
+     * during construction.
+     */
+    public static function runtimeContainerGraphCompiler(
+        ContainerInterface $container,
+    ): RuntimeContainerGraphCompiler {
+        $providerPlanResolver = self::artifactService(
+            $container,
+            ContainerProviderPlanResolver::class,
         );
 
-        $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
-
-        if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
+        if (!$providerPlanResolver instanceof ContainerProviderPlanResolver) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
-        return $compiledContainerFactory->build(
-            containerArtifactPath: $containerArtifactPath,
-            configPayload: $configPayload,
+        $containerCompiler = self::artifactService(
+            $container,
+            ContainerCompiler::class,
+        );
+
+        if (!$containerCompiler instanceof ContainerCompiler) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        $completenessValidator = self::artifactService(
+            $container,
+            ContainerGraphCompletenessValidator::class,
+        );
+
+        if (
+            !$completenessValidator
+                instanceof ContainerGraphCompletenessValidator
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new RuntimeContainerGraphCompiler(
+            providerPlanResolver: $providerPlanResolver,
+            containerCompiler: $containerCompiler,
+            completenessValidator: $completenessValidator,
         );
     }
 
@@ -881,59 +1137,62 @@ final class KernelServiceFactory
      * artifacts, read artifacts, verify cache, trigger reset, or start a
      * UnitOfWork during provider registration.
      */
-    public static function artifactCompiler(ContainerInterface $container): ArtifactCompiler
-    {
-        $configKernel = self::configService($container, ConfigKernel::class);
+    public static function artifactCompiler(
+        ContainerInterface $container,
+    ): ArtifactCompiler {
+        $configKernel = self::configService(
+            $container,
+            ConfigKernel::class,
+        );
+        $fingerprintInputBuilder = self::artifactService(
+            $container,
+            ConfigFingerprintInputBuilder::class,
+        );
+        $fingerprintCalculator = self::artifactService(
+            $container,
+            FingerprintCalculator::class,
+        );
+        $moduleManifestBuilder = self::artifactService(
+            $container,
+            ModuleManifestBuilder::class,
+        );
+        $compiledConfigBuilder = self::artifactService(
+            $container,
+            CompiledConfigBuilder::class,
+        );
+        $runtimeContainerGraphCompiler = self::artifactService(
+            $container,
+            RuntimeContainerGraphCompiler::class,
+        );
+        $compiledContainerBuilder = self::artifactService(
+            $container,
+            CompiledContainerBuilder::class,
+        );
+        $phpArrayDumper = self::artifactService(
+            $container,
+            StablePhpArrayDumper::class,
+        );
+        $generationPublisher = self::artifactService(
+            $container,
+            ArtifactGenerationPublisher::class,
+        );
+        $pathResolver = self::artifactService(
+            $container,
+            ArtifactPathResolver::class,
+        );
 
-        if (!$configKernel instanceof ConfigKernel) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $fingerprintInputBuilder = self::artifactService($container, ConfigFingerprintInputBuilder::class);
-
-        if (!$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $fingerprintCalculator = self::artifactService($container, FingerprintCalculator::class);
-
-        if (!$fingerprintCalculator instanceof FingerprintCalculator) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $moduleManifestBuilder = self::artifactService($container, ModuleManifestBuilder::class);
-
-        if (!$moduleManifestBuilder instanceof ModuleManifestBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $compiledConfigBuilder = self::artifactService($container, CompiledConfigBuilder::class);
-
-        if (!$compiledConfigBuilder instanceof CompiledConfigBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
-
-        if (!$containerCompiler instanceof ContainerCompiler) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $compiledContainerBuilder = self::artifactService($container, CompiledContainerBuilder::class);
-
-        if (!$compiledContainerBuilder instanceof CompiledContainerBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $artifactWriter = self::artifactService($container, ArtifactWriter::class);
-
-        if (!$artifactWriter instanceof ArtifactWriter) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $pathResolver = self::artifactService($container, ArtifactPathResolver::class);
-
-        if (!$pathResolver instanceof ArtifactPathResolver) {
+        if (
+            !$configKernel instanceof ConfigKernel
+            || !$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder
+            || !$fingerprintCalculator instanceof FingerprintCalculator
+            || !$moduleManifestBuilder instanceof ModuleManifestBuilder
+            || !$compiledConfigBuilder instanceof CompiledConfigBuilder
+            || !$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler
+            || !$compiledContainerBuilder instanceof CompiledContainerBuilder
+            || !$phpArrayDumper instanceof StablePhpArrayDumper
+            || !$generationPublisher instanceof ArtifactGenerationPublisher
+            || !$pathResolver instanceof ArtifactPathResolver
+        ) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -943,9 +1202,10 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            containerCompiler: $containerCompiler,
+            runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
             compiledContainerBuilder: $compiledContainerBuilder,
-            artifactWriter: $artifactWriter,
+            phpArrayDumper: $phpArrayDumper,
+            generationPublisher: $generationPublisher,
             pathResolver: $pathResolver,
         );
     }
@@ -958,71 +1218,72 @@ final class KernelServiceFactory
      * artifacts, validate artifacts, compare bytes, run cache verification,
      * trigger reset, or start a UnitOfWork during provider registration.
      */
-    public static function cacheVerifier(ContainerInterface $container): CacheVerifier
-    {
-        $configKernel = self::configService($container, ConfigKernel::class);
+    public static function cacheVerifier(
+        ContainerInterface $container,
+    ): CacheVerifier {
+        $configKernel = self::configService(
+            $container,
+            ConfigKernel::class,
+        );
+        $fingerprintInputBuilder = self::artifactService(
+            $container,
+            ConfigFingerprintInputBuilder::class,
+        );
+        $fingerprintCalculator = self::artifactService(
+            $container,
+            FingerprintCalculator::class,
+        );
+        $moduleManifestBuilder = self::artifactService(
+            $container,
+            ModuleManifestBuilder::class,
+        );
+        $compiledConfigBuilder = self::artifactService(
+            $container,
+            CompiledConfigBuilder::class,
+        );
+        $runtimeContainerGraphCompiler = self::artifactService(
+            $container,
+            RuntimeContainerGraphCompiler::class,
+        );
+        $compiledContainerBuilder = self::artifactService(
+            $container,
+            CompiledContainerBuilder::class,
+        );
+        $phpArrayDumper = self::artifactService(
+            $container,
+            StablePhpArrayDumper::class,
+        );
+        $generationManifestBuilder = self::artifactService(
+            $container,
+            ArtifactGenerationManifestBuilder::class,
+        );
+        $generationLocator = self::artifactService(
+            $container,
+            ArtifactGenerationLocator::class,
+        );
+        $artifactReader = self::artifactService(
+            $container,
+            PhpArtifactReader::class,
+        );
+        $pathResolver = self::artifactService(
+            $container,
+            ArtifactPathResolver::class,
+        );
 
-        if (!$configKernel instanceof ConfigKernel) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $fingerprintInputBuilder = self::artifactService($container, ConfigFingerprintInputBuilder::class);
-
-        if (!$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $fingerprintCalculator = self::artifactService($container, FingerprintCalculator::class);
-
-        if (!$fingerprintCalculator instanceof FingerprintCalculator) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $moduleManifestBuilder = self::artifactService($container, ModuleManifestBuilder::class);
-
-        if (!$moduleManifestBuilder instanceof ModuleManifestBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $compiledConfigBuilder = self::artifactService($container, CompiledConfigBuilder::class);
-
-        if (!$compiledConfigBuilder instanceof CompiledConfigBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $containerCompiler = self::artifactService($container, ContainerCompiler::class);
-
-        if (!$containerCompiler instanceof ContainerCompiler) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $compiledContainerBuilder = self::artifactService($container, CompiledContainerBuilder::class);
-
-        if (!$compiledContainerBuilder instanceof CompiledContainerBuilder) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $phpArrayDumper = self::artifactService($container, StablePhpArrayDumper::class);
-
-        if (!$phpArrayDumper instanceof StablePhpArrayDumper) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $artifactReader = self::artifactService($container, PhpArtifactReader::class);
-
-        if (!$artifactReader instanceof PhpArtifactReader) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $schemaValidator = self::artifactService($container, ArtifactSchemaValidator::class);
-
-        if (!$schemaValidator instanceof ArtifactSchemaValidator) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $pathResolver = self::artifactService($container, ArtifactPathResolver::class);
-
-        if (!$pathResolver instanceof ArtifactPathResolver) {
+        if (
+            !$configKernel instanceof ConfigKernel
+            || !$fingerprintInputBuilder instanceof ConfigFingerprintInputBuilder
+            || !$fingerprintCalculator instanceof FingerprintCalculator
+            || !$moduleManifestBuilder instanceof ModuleManifestBuilder
+            || !$compiledConfigBuilder instanceof CompiledConfigBuilder
+            || !$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler
+            || !$compiledContainerBuilder instanceof CompiledContainerBuilder
+            || !$phpArrayDumper instanceof StablePhpArrayDumper
+            || !$generationManifestBuilder instanceof ArtifactGenerationManifestBuilder
+            || !$generationLocator instanceof ArtifactGenerationLocator
+            || !$artifactReader instanceof PhpArtifactReader
+            || !$pathResolver instanceof ArtifactPathResolver
+        ) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
@@ -1032,11 +1293,12 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             moduleManifestBuilder: $moduleManifestBuilder,
             compiledConfigBuilder: $compiledConfigBuilder,
-            containerCompiler: $containerCompiler,
+            runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
             compiledContainerBuilder: $compiledContainerBuilder,
             phpArrayDumper: $phpArrayDumper,
+            generationManifestBuilder: $generationManifestBuilder,
+            generationLocator: $generationLocator,
             artifactReader: $artifactReader,
-            schemaValidator: $schemaValidator,
             pathResolver: $pathResolver,
             tracer: self::tracer($container),
             meter: self::meter($container),
@@ -1058,32 +1320,6 @@ final class KernelServiceFactory
     }
 
     /**
-     * Asserts that a production runtime entrypoint may start.
-     *
-     * @param array<string, mixed> $config Already-read/validated merged config tree.
-     */
-    public static function assertRuntimeEntrypointCompatible(
-        ContainerInterface $container,
-        array $config,
-        ModulePlan $modulePlan,
-    ): void {
-        $guard = self::service($container, RuntimeEntrypointGuard::class);
-
-        if (!$guard instanceof RuntimeEntrypointGuard) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
-        }
-
-        $guard->assertEntrypointAllowed(
-            config: new ArrayConfigRepository($config),
-            modulePlan: $modulePlan,
-            runtimeDriverContributions: RuntimeDriverContributions::fromDrivers(
-                httpDrivers: [],
-                backgroundDrivers: [],
-            ),
-        );
-    }
-
-    /**
      * Creates the Kernel hook invoker.
      *
      * The supplied TagRegistry MUST be the builder-owned registry instance so
@@ -1100,16 +1336,18 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the KernelRuntime orchestrator from already-registered services.
+     * Creates the KernelRuntime orchestrator from already-registered runtime
+     * services and already-validated UnitOfWork attribute limits.
      *
-     * This method reads only the already-built Kernel config snapshot needed for
-     * UnitOfWork attribute defensive limits. It does not enumerate hooks, does
-     * not trigger reset, and does not start a UoW.
+     * Runtime dependencies are resolved in the same deterministic order as the
+     * previous source-runtime wiring. This method does not read Phase A or
+     * Phase B state, enumerate hooks, trigger reset, or start a UnitOfWork.
      */
-    public static function kernelRuntime(ContainerInterface $container): KernelRuntime
-    {
-        $attributeLimits = self::unitOfWorkAttributeLimits(self::kernelConfig($container));
-
+    public static function kernelRuntime(
+        ContainerInterface $container,
+        int $attributesMaxDepth,
+        int $attributesMaxKeys,
+    ): KernelRuntime {
         return new KernelRuntime(
             contextStore: self::contextStore($container),
             resetOrchestrator: self::resetOrchestrator($container),
@@ -1121,8 +1359,8 @@ final class KernelServiceFactory
             logger: self::logger($container),
             tracer: self::tracer($container),
             meter: self::meter($container),
-            attributesMaxDepth: $attributeLimits['maxDepth'],
-            attributesMaxKeys: $attributeLimits['maxKeys'],
+            attributesMaxDepth: $attributesMaxDepth,
+            attributesMaxKeys: $attributesMaxKeys,
         );
     }
 
@@ -1197,9 +1435,13 @@ final class KernelServiceFactory
         return $maxKeys;
     }
 
-    private static function contextStore(ContainerInterface $container): ContextStore
-    {
-        $service = self::service($container, ContextStore::class);
+    private static function contextStore(
+        ContainerInterface $container,
+    ): ContextStore {
+        $service = self::service(
+            $container,
+            ContextAccessorInterface::class,
+        );
 
         if (!$service instanceof ContextStore) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1208,9 +1450,13 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function resetOrchestrator(ContainerInterface $container): ResetOrchestrator
-    {
-        $service = self::service($container, ResetOrchestrator::class);
+    private static function resetOrchestrator(
+        ContainerInterface $container,
+    ): ResetOrchestrator {
+        $service = self::service(
+            $container,
+            ResetOrchestrator::class,
+        );
 
         if (!$service instanceof ResetOrchestrator) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1230,9 +1476,13 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function uowIds(ContainerInterface $container): IdGeneratorInterface
-    {
-        $service = self::service($container, IdGeneratorInterface::class);
+    private static function uowIds(
+        ContainerInterface $container,
+    ): IdGeneratorInterface {
+        $service = self::service(
+            $container,
+            IdGeneratorInterface::class,
+        );
 
         if (!$service instanceof IdGeneratorInterface) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1241,9 +1491,13 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function correlationIdProvider(ContainerInterface $container): CorrelationIdProviderInterface
-    {
-        $service = self::service($container, CorrelationIdProviderInterface::class);
+    private static function correlationIdProvider(
+        ContainerInterface $container,
+    ): CorrelationIdProviderInterface {
+        $service = self::service(
+            $container,
+            CorrelationIdProviderInterface::class,
+        );
 
         if (!$service instanceof CorrelationIdProviderInterface) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1252,9 +1506,13 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function correlationIds(ContainerInterface $container): CorrelationIdGenerator
-    {
-        $service = self::service($container, CorrelationIdGenerator::class);
+    private static function correlationIds(
+        ContainerInterface $container,
+    ): CorrelationIdGenerator {
+        $service = self::service(
+            $container,
+            CorrelationIdGenerator::class,
+        );
 
         if (!$service instanceof CorrelationIdGenerator) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1263,9 +1521,13 @@ final class KernelServiceFactory
         return $service;
     }
 
-    private static function hooks(ContainerInterface $container): HookInvoker
-    {
-        $service = self::service($container, HookInvoker::class);
+    private static function hooks(
+        ContainerInterface $container,
+    ): HookInvoker {
+        $service = self::service(
+            $container,
+            HookInvoker::class,
+        );
 
         if (!$service instanceof HookInvoker) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
@@ -1296,10 +1558,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-config-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-config-dependency-not-found', $throwable);
         }
 
         if (!$service instanceof LoggerInterface) {
@@ -1320,10 +1579,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-module-plan-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-module-plan-dependency-not-found', $throwable);
         }
 
         if (!$service instanceof LoggerInterface) {
@@ -1368,10 +1624,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-boot-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-boot-dependency-not-found', $throwable);
         }
     }
 
@@ -1388,10 +1641,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-runtime-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-runtime-dependency-not-found', $throwable);
         }
     }
 
@@ -1408,10 +1658,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-module-plan-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-module-plan-dependency-not-found', $throwable);
         }
     }
 
@@ -1428,10 +1675,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-config-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-config-dependency-not-found', $throwable);
         }
     }
 
@@ -1448,10 +1692,7 @@ final class KernelServiceFactory
         } catch (ContainerException $exception) {
             throw $exception;
         } catch (\Throwable $throwable) {
-            throw new ContainerException(
-                'kernel-artifacts-dependency-not-found',
-                $throwable,
-            );
+            throw new ContainerException('kernel-artifacts-dependency-not-found', $throwable);
         }
     }
 
@@ -1639,26 +1880,5 @@ final class KernelServiceFactory
     private static function isMapArray(array $value): bool
     {
         return $value === [] || !\array_is_list($value);
-    }
-
-    /**
-     * @param array<string, mixed> $configPayload
-     *
-     * @return array<string, mixed>
-     */
-    private static function runtimeConfigFromConfigPayload(array $configPayload): array
-    {
-        if (!\array_key_exists('config', $configPayload)) {
-            throw new ContainerException('kernel-runtime-config-payload-invalid');
-        }
-
-        $config = $configPayload['config'];
-
-        if (!\is_array($config) || \array_is_list($config)) {
-            throw new ContainerException('kernel-runtime-config-payload-invalid');
-        }
-
-        /** @var array<string, mixed> $config */
-        return $config;
     }
 }

@@ -30,6 +30,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
@@ -37,6 +38,7 @@ use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Config\ConfigValidator;
+use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -219,9 +221,12 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
      */
     private static function fingerprintInputForConfig(array $config): array
     {
-        return new ConfigFingerprintInputBuilder()->build(
+        return new ConfigFingerprintInputBuilder(
+            containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
+        )->build(
             bootstrapConfig: self::bootstrapConfig(),
             modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: self::compiledConfig($config),

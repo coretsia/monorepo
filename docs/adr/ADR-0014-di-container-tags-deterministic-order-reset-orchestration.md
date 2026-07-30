@@ -186,6 +186,53 @@ Canonical live policy for definition lifecycle is owned by:
 docs/ssot/di-tags-and-middleware-ordering.md
 ```
 
+## Canonical runtime container definitions follow-up note
+
+Coretsia defines a Foundation-owned canonical in-memory runtime container-definition model.
+
+The architectural decision is recorded by:
+
+```text
+docs/adr/ADR-0030-canonical-runtime-container-definitions.md
+```
+
+Canonical live policy is owned by:
+
+```text
+docs/ssot/runtime-container-definitions.md
+```
+
+The declarative model introduces:
+
+```text
+ContainerDefinitionProviderInterface
+ContainerDefinitionContext
+ContainerDefinitionBuilder
+ContainerDefinitionSet
+ContainerDefinitionKind
+ContainerServiceDefinition
+ContainerValueReference
+ContainerDefinitionApplier
+```
+
+The model preserves Foundation runtime semantics while making them available to both source-mode application and Kernel compilation:
+
+- provider order remains caller-supplied and significant;
+- service-definition collisions use later-wins behavior;
+- alias collisions use later-wins behavior;
+- parameter collisions use later-wins behavior;
+- duplicate `(tag, serviceId)` registrations use first-wins behavior;
+- definitions remain shared by default unless explicitly non-shared;
+- canonical aliases are non-shared delegation wrappers and do not alter target lifecycle.
+
+Existing imperative `ServiceProviderInterface` providers remain supported during staged migration.
+
+The declarative SPI does not replace or modify the existing imperative provider-order policy, collision policy, `ServiceProviderInterface`, reset orchestration, middleware discovery, or tag ownership.
+
+This follow-up does not change the Kernel-owned `container@1` artifact schema or production artifact-only boot behavior.
+
+Historical wording in this ADR that describes only imperative provider registration should be read as the original `1.200.0` baseline, not as excluding the later Foundation declarative definition SPI.
+
 ## Context
 
 Epic `1.200.0` introduces the `core/foundation` runtime package under:
@@ -1744,6 +1791,7 @@ This ADR does not implement:
 ## Related SSoT
 
 - `docs/ssot/di-tags-and-middleware-ordering.md`
+- `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/reset-tags.md`
 - `docs/ssot/config-roots.md`
@@ -1760,7 +1808,4 @@ This ADR does not implement:
 - `docs/adr/ADR-0002-config-env-source-tracking-directives-invariants.md`
 - `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
 - `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
-
-## Related epic
-
-- `1.200.0 Foundation: DI Container + Tags + DeterministicOrder + Reset orchestration`
+- `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

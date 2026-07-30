@@ -776,7 +776,3 @@ These tests are expected to verify:
 
 - `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
 - `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
-
-## Related epic
-
-- `1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7)`

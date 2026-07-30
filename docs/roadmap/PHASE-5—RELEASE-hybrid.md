@@ -37,12 +37,14 @@ tags_introduced: []
 config_roots_introduced: ["secrets"]
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0053-secrets-resolver-platform.md"
+adr: "docs/adr/ADR-0056-secrets-resolver-platform.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
 - "docs/ssot/config-and-env.md"
 ---
+
+- [ ] update `5.10.0 platform/secrets` to consume shared redaction boundary and remove package-local `src/Security/Redaction.php`.
 
 ### Dependencies (MUST)
 
@@ -123,7 +125,7 @@ N/A
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0053-secrets-resolver-platform.md`
+  - [ ] `docs/adr/ADR-0056-secrets-resolver-platform.md`
 - [ ] `docs/ssot/config-roots.md` — add root row for `secrets` (owner `platform/secrets`, defaults `framework/packages/platform/secrets/config/secrets.php`, rules `framework/packages/platform/secrets/config/rules.php`)
 
 #### Package skeleton (if type=package)
@@ -237,7 +239,7 @@ N/A
 - [ ] Determinism: same ref inputs produce same outputs; no random ids in logs/spans
 - [ ] Docs updated:
   - [ ] `framework/packages/platform/secrets/README.md`
-  - [ ] `docs/adr/ADR-0053-secrets-resolver-platform.md`
+  - [ ] `docs/adr/ADR-0056-secrets-resolver-platform.md`
 - [ ] Ref parsing errors deterministic (`CORETSIA_SECRETS_INVALID_REF`) and contain no raw ref or values
 - [ ] No secret values appear in any outputs (tests prove)
 - [ ] Non-goals / out of scope
@@ -287,7 +289,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0058-authorization-engines-rbac-rebac.md"
+adr: "docs/adr/ADR-0061-authorization-engines-rbac-rebac.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
@@ -372,7 +374,7 @@ Forbidden:
 - [ ] `framework/packages/platform/auth/src/Provider/AuthServiceProvider.php` — register/select authorization engine by config
 - [ ] `framework/packages/platform/auth/README.md` — document RBAC vs REBAC switch + max_depth rail
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0058-authorization-engines-rbac-rebac.md`
+  - [ ] `docs/adr/ADR-0061-authorization-engines-rbac-rebac.md`
 
 #### Package skeleton (if type=package)
 
@@ -449,7 +451,7 @@ N/A
 - [ ] max_depth enforced
 - [ ] README documents RBAC vs REBAC switch
 - [ ] ADR updated:
-  - [ ] `docs/adr/ADR-0058-authorization-engines-rbac-rebac.md`
+  - [ ] `docs/adr/ADR-0061-authorization-engines-rbac-rebac.md`
 - [ ] Non-goals / out of scope
   - [ ] Зовнішнє сховище графа (DB/Redis) — Phase 6+
   - [ ] Використання relation/tuple як metric label (заборонено)
@@ -490,11 +492,13 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0065-events-ports-sync-deferred.md"
+adr: "docs/adr/ADR-0068-events-ports-sync-deferred.md"
 ssot_refs:
 - docs/ssot/observability-and-errors.md   # json-like policy + float forbidden norms
 - docs/ssot/uow-and-reset-contracts.md    # UoW-friendly / hook boundary context
 ---
+
+- [ ] update `5.30.0 Contracts: Events` to reference the shared redaction boundary for event payload diagnostics.
 
 ### Dependencies (MUST)
 
@@ -548,7 +552,7 @@ N/A
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0065-events-ports-sync-deferred.md`
+  - [ ] `docs/adr/ADR-0068-events-ports-sync-deferred.md`
 
 #### Package skeleton (if type=package)
 
@@ -626,7 +630,7 @@ N/A
 - [ ] Determinism: VO shapes stable; json-like payload enforced by tests
 - [ ] Docs updated:
   - [ ] README (optional)
-  - [ ] ADR `docs/adr/ADR-0065-events-ports-sync-deferred.md` exists and explains ports + “no subscribers, use tags” rule
+  - [ ] ADR `docs/adr/ADR-0068-events-ports-sync-deferred.md` exists and explains ports + “no subscribers, use tags” rule
 - [ ] Solves:
   - [ ] Зацементувати format-neutral contracts для events (sync dispatch + deferred queue), придатні для HTTP/CLI/Queue/Scheduler UoW
   - [ ] Забезпечити json-like payload policy і заборонити “event subscriber monolith” (канон: listeners через DI tag у `platform/events`)
@@ -671,7 +675,7 @@ config_roots_introduced:
 - "events"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0066-events-sync-dispatcher-deferred-queue.md"
+adr: "docs/adr/ADR-0069-events-sync-dispatcher-deferred-queue.md"
 ssot_refs:
 - docs/ssot/tags.md
 - docs/ssot/config-roots.md
@@ -679,6 +683,8 @@ ssot_refs:
 - docs/ssot/uow-outcome-policy.md
 - docs/ssot/stateful-services.md
 ---
+
+- [ ] update `5.40.0 coretsia/events` to consume `SensitiveDataRedactorInterface` for event payload summaries and dispatcher diagnostics.
 
 ### Dependencies (MUST)
 
@@ -773,7 +779,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0066-events-sync-dispatcher-deferred-queue.md`
+  - [ ] `docs/adr/ADR-0069-events-sync-dispatcher-deferred-queue.md`
 - [ ] `docs/ssot/tags.md` — add rows:
   - [ ] `events.listener` | owner `platform/events` | purpose: deterministic listener discovery (TagRegistry order: priority DESC, id ASC)
 - [ ] `docs/ssot/config-roots.md` — add rows:
@@ -911,7 +917,7 @@ N/A
 - [ ] Determinism: listener order deterministic; flush semantics stable; rerun tests stable
 - [ ] Docs updated:
   - [ ] README + `docs/architecture/events.md` complete (tag names, deferred semantics, redaction)
-  - [ ] ADR `docs/adr/ADR-0066-events-sync-dispatcher-deferred-queue.md`
+  - [ ] ADR `docs/adr/ADR-0069-events-sync-dispatcher-deferred-queue.md`
 - [ ] Solves:
   - [ ] Reference `EventDispatcherInterface` реалізація (sync dispatch) з deterministic listener discovery через DI tag
   - [ ] Deferred queue, яка flush’иться тільки після `UnitOfWorkResult.outcome=success` через kernel after_uow hook
@@ -953,6 +959,8 @@ ssot_refs:
 - docs/ssot/uow-outcome-policy.md
 - docs/ssot/tags.md
 ---
+
+- [ ] update `5.50.0 Deferred events semantics` to define safe payload diagnostics for deferred/flushed events.
 
 ### Dependencies (MUST)
 
@@ -1078,13 +1086,15 @@ config_roots_introduced:
 - "queue"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0068-queue-core-sync-driver.md"
+adr: "docs/adr/ADR-0071-queue-core-sync-driver.md"
 ssot_refs:
 - docs/ssot/config-roots.md
 - docs/ssot/observability.md
 - docs/ssot/stateful-services.md
 - docs/ssot/uow-outcome-policy.md
 ---
+
+- [ ] update `5.60.0 coretsia/queue` to consume `SensitiveDataRedactorInterface` for job payloads, retry diagnostics, dead-letter summaries, and worker logs.
 
 ### Dependencies (MUST)
 
@@ -1185,7 +1195,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0068-queue-core-sync-driver.md`
+  - [ ] `docs/adr/ADR-0071-queue-core-sync-driver.md`
 - [ ] `docs/ssot/config-roots.md` — add rows:
   - [ ] `queue`  | owner `platform/queue`  | defaults `framework/packages/platform/queue/config/queue.php`  | rules `framework/packages/platform/queue/config/rules.php`
 
@@ -1324,7 +1334,7 @@ N/A
 - [ ] Determinism: serializer stable; worker decisions stable
 - [ ] Docs updated:
   - [ ] README + `docs/architecture/queue.md` complete
-  - [ ] ADR `docs/adr/ADR-0068-queue-core-sync-driver.md`
+  - [ ] ADR `docs/adr/ADR-0071-queue-core-sync-driver.md`
 - [ ] Solves:
   - [ ] Надати reference queue runtime: sync driver + worker loop, який обгортає кожен job у KernelRuntime UoW
   - [ ] Забезпечити deterministic serialization (stable JSON), retry/backoff policy, і “never leak payload” policy
@@ -1372,6 +1382,8 @@ artifacts_introduced: []
 adr: none
 ssot_refs: []
 ---
+
+- [ ] update `5.70.0 coretsia/queue DB driver` to consume `SensitiveDataRedactorInterface` for persisted job diagnostics and DB-backed queue failures.
 
 ### Dependencies (MUST)
 
@@ -1556,6 +1568,8 @@ ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
 ---
+
+- [ ] update `5.80.0 coretsia/queue CLI commands` to consume the shared redaction boundary for queue:* command output.
 
 ### Dependencies (MUST)
 
@@ -1784,11 +1798,13 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0069-commandbus-scheduler-ports.md"
+adr: "docs/adr/ADR-0072-commandbus-scheduler-ports.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
 ---
+
+- [ ] update `5.90.0 Contracts: CommandBus + Scheduler` to reference the shared redaction boundary for command/schedule diagnostics.
 
 ### Dependencies (MUST)
 
@@ -1846,7 +1862,7 @@ N/A
 - [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
 - [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRunnerInterface.php`
 - [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRunReport.php`
-- [ ] `docs/adr/ADR-0069-commandbus-scheduler-ports.md` — documents “LockFactory reuse” + “format-neutral scheduler”
+- [ ] `docs/adr/ADR-0072-commandbus-scheduler-ports.md` — documents “LockFactory reuse” + “format-neutral scheduler”
 
 Scheduler tag-based registry contract (cemented)
 - Tag-based registries MUST tag *typed* services, not ad-hoc VOs.
@@ -1856,7 +1872,7 @@ Scheduler tag-based registry contract (cemented)
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0069-commandbus-scheduler-ports.md`
+  - [ ] `docs/adr/ADR-0072-commandbus-scheduler-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -1965,12 +1981,14 @@ config_roots_introduced:
 - "cqrs"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0070-command-bus-middleware-pipeline.md"
+adr: "docs/adr/ADR-0073-command-bus-middleware-pipeline.md"
 ssot_refs:
 - "docs/ssot/config-and-env.md"
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
 ---
+
+- [ ] update `5.100.0 coretsia/cqrs` to consume `SensitiveDataRedactorInterface` for command/query payload summaries.
 
 ### Dependencies (MUST)
 
@@ -2051,7 +2069,7 @@ N/A
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0070-command-bus-middleware-pipeline.md`
+  - [ ] `docs/adr/ADR-0073-command-bus-middleware-pipeline.md`
 
 #### Package skeleton (if type=package)
 
@@ -2221,12 +2239,14 @@ config_roots_introduced:
 - "scheduler"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0071-scheduler-registry-schedule-run.md"
+adr: "docs/adr/ADR-0074-scheduler-registry-schedule-run.md"
 ssot_refs:
 - "docs/ssot/config-and-env.md"
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
 ---
+
+- [ ] update `5.110.0 coretsia/scheduler` to consume `SensitiveDataRedactorInterface` for schedule payloads, command args, and run diagnostics.
 
 ### Dependencies (MUST)
 
@@ -2333,7 +2353,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0071-scheduler-registry-schedule-run.md`
+  - [ ] `docs/adr/ADR-0074-scheduler-registry-schedule-run.md`
 
 #### Package skeleton (if type=package)
 

@@ -35,6 +35,8 @@ final class KernelArtifactServicesRegisterAsFactoriesOnlyTest extends TestCase
                 'CompiledConfigBuilder::class',
                 'CompiledContainerBuilder::class',
                 'ContainerCompiler::class',
+                'ContainerGraphCompletenessValidator::class',
+                'RuntimeContainerGraphCompiler::class',
                 'ArtifactCompiler::class',
                 'ConfigFingerprintInputBuilder::class',
                 'DeterministicFileLister::class',

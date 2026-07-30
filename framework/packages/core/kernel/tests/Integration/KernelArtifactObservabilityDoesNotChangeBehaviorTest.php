@@ -31,8 +31,15 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
+use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -53,7 +60,9 @@ use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\ContainerCompiler;
-use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -125,7 +134,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::failingLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($this->skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -157,18 +166,13 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         self::assertFalse($clean['dirty']);
         self::assertFalse($clean['invalid']);
 
-        $path = ArtifactPipelineTestSupport::artifactPath($this->skeletonRoot, 'config.php');
-        $bytes = \file_get_contents($path);
-
-        self::assertIsString($bytes);
-
-        \file_put_contents(
-            $path,
-            \str_replace(
-                "<?php\n\nreturn",
-                "<?php\n\n/* drift */\nreturn",
-                $bytes,
-            ),
+        /*
+         * Change a logical fingerprint input while retaining one
+         * structurally valid selected generation.
+         */
+        ArtifactPipelineTestSupport::writeRootConfig(
+            skeletonRoot: $this->skeletonRoot,
+            config: ArtifactPipelineTestSupport::defaultConfig('observability-dirty-value'),
         );
 
         $dirty = self::verifyWithFailingObservability($this->skeletonRoot);
@@ -178,7 +182,24 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         self::assertTrue($dirty['dirty']);
         self::assertFalse($dirty['invalid']);
 
-        \file_put_contents($path, "<?php\nreturn [\n");
+        /*
+         * Resolve the physical selected-generation path while the
+         * generation is still valid, then corrupt that generation.
+         */
+        $configPath = ArtifactPipelineTestSupport::currentArtifactPath(
+            skeletonRoot: $this->skeletonRoot,
+            basename: 'config.php',
+        );
+
+        $invalidBytes = "<?php\nreturn [\n";
+
+        self::assertSame(
+            \strlen($invalidBytes),
+            \file_put_contents(
+                $configPath,
+                $invalidBytes,
+            ),
+        );
 
         $invalid = self::verifyWithFailingObservability($this->skeletonRoot);
 
@@ -268,7 +289,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::noopLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($this->skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -310,7 +331,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             logger: self::failingLogger(),
         )->verify(
             bootstrapConfig: self::bootstrapConfig($skeletonRoot),
-            modulePlan: self::modulePlan(),
+            moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
             packageDefaultSources: [],
@@ -363,17 +384,44 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
         );
     }
 
+    private static function runtimeContainerGraphCompiler(
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
+    ): RuntimeContainerGraphCompiler {
+        return new RuntimeContainerGraphCompiler(
+            providerPlanResolver: new ContainerProviderPlanResolver(),
+            containerCompiler: self::containerCompiler(
+                tracer: $tracer,
+                meter: $meter,
+                logger: $logger,
+            ),
+            completenessValidator: new ContainerGraphCompletenessValidator(),
+        );
+    }
+
     private static function cacheVerifier(
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
         LoggerInterface $logger,
     ): CacheVerifier {
-        $envelopeFactory = new ArtifactEnvelopeFactory(new PayloadNormalizer());
+        $payloadNormalizer = new PayloadNormalizer();
+        $envelopeFactory = new ArtifactEnvelopeFactory($payloadNormalizer);
+        $phpArrayDumper = new StablePhpArrayDumper($payloadNormalizer);
+        $artifactReader = new PhpArtifactReader();
+        $schemaValidator = new ArtifactSchemaValidator();
+        $generationPathResolver = new ArtifactGenerationPathResolver();
+        $generationValidator = new ArtifactGenerationValidator(
+            artifactReader: $artifactReader,
+            schemaValidator: $schemaValidator,
+            manifestValidator: new ArtifactGenerationManifestValidator($schemaValidator),
+        );
 
         return new CacheVerifier(
             configKernel: self::configKernel(),
             fingerprintInputBuilder: new ConfigFingerprintInputBuilder(
-                payloadNormalizer: new PayloadNormalizer(),
+                containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
+                payloadNormalizer: $payloadNormalizer,
                 fileLister: new DeterministicFileLister(),
             ),
             fingerprintCalculator: self::fingerprintCalculator(
@@ -383,15 +431,20 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             ),
             moduleManifestBuilder: new ModuleManifestBuilder($envelopeFactory),
             compiledConfigBuilder: new CompiledConfigBuilder($envelopeFactory),
-            containerCompiler: self::containerCompiler(
+            runtimeContainerGraphCompiler: self::runtimeContainerGraphCompiler(
                 tracer: $tracer,
                 meter: $meter,
                 logger: $logger,
             ),
             compiledContainerBuilder: new CompiledContainerBuilder($envelopeFactory),
-            phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
-            artifactReader: new PhpArtifactReader(),
-            schemaValidator: new ArtifactSchemaValidator(),
+            phpArrayDumper: $phpArrayDumper,
+            generationManifestBuilder: new ArtifactGenerationManifestBuilder($envelopeFactory),
+            generationLocator: new ArtifactGenerationLocator(
+                lock: new ArtifactGenerationLock($generationPathResolver),
+                pathResolver: $generationPathResolver,
+                validator: $generationValidator,
+            ),
+            artifactReader: $artifactReader,
             pathResolver: new ArtifactPathResolver(),
             tracer: $tracer,
             meter: $meter,
@@ -435,20 +488,6 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             skeletonRoot: $skeletonRoot,
-        );
-    }
-
-    private static function modulePlan(): ModulePlan
-    {
-        return new ModulePlan(
-            app: 'web',
-            preset: 'default',
-            enabled: [],
-            disabled: [],
-            optionalMissing: [],
-            topologicalOrder: [],
-            modules: [],
-            warnings: [],
         );
     }
 

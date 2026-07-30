@@ -68,7 +68,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         );
 
         try {
-            $resolver->resolve(
+            $resolver->resolveResolution(
                 self::bootstrapConfig(
                     skeletonRoot: $this->tempRoot . '/skeleton',
                     preset: 'missing',
@@ -103,7 +103,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         );
 
         try {
-            $resolver->resolve(
+            $resolver->resolveResolution(
                 self::bootstrapConfig(
                     skeletonRoot: $this->tempRoot . '/skeleton',
                     preset: 'micro',
@@ -142,7 +142,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
 
         $this->expectException(ModuleManifestInvalidException::class);
 
-        $resolver->resolve(
+        $resolver->resolveResolution(
             self::bootstrapConfig(
                 skeletonRoot: $this->tempRoot . '/skeleton',
                 preset: 'micro',
@@ -184,7 +184,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         );
 
         try {
-            $resolver->resolve(
+            $resolver->resolveResolution(
                 self::bootstrapConfig(
                     skeletonRoot: $this->tempRoot . '/skeleton',
                     preset: 'micro',
@@ -242,7 +242,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         );
 
         try {
-            $resolver->resolve(
+            $resolver->resolveResolution(
                 self::bootstrapConfig(
                     skeletonRoot: $this->tempRoot . '/skeleton',
                     preset: 'micro',
@@ -304,7 +304,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         );
 
         try {
-            $resolver->resolve(
+            $resolver->resolveResolution(
                 self::bootstrapConfig(
                     skeletonRoot: $this->tempRoot . '/skeleton',
                     preset: 'micro',

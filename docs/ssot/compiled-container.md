@@ -42,7 +42,9 @@ This document defines:
 - tag payload semantics;
 - closure/callable rejection semantics;
 - artifact-only runtime boot inputs;
-- missing/invalid container artifact failure semantics.
+- runtime seed ownership and hydration semantics;
+- exact runtime seed-set semantics;
+- artifact-runtime boot failure semantics after generation selection.
 
 ## Authority Boundary (MUST)
 
@@ -53,11 +55,13 @@ This document owns only compiled-container-specific rules for:
 - compiled parameter bag schema;
 - compiled alias schema;
 - compiled tag schema;
-- descriptor-to-definition-graph compile semantics;
+- canonical definition-set-to-definition-graph compile semantics;
+- linkage between the canonical compiled `DefinitionGraph`, Kernel artifact fingerprint identity, and REAL `container@1` payload construction;
+- production graph-completeness semantics;
 - compiled-container closure/callable rejection semantics;
 - compiled-container runtime boot semantics;
-- compiled-container missing/invalid artifact failure semantics;
-- unsupported `1.330.0` transitional stub payload rejection semantics.
+- compiled-container validation and runtime-hydration failure semantics;
+- unsupported transitional stub payload rejection semantics.
 
 This document MUST NOT redefine:
 
@@ -99,7 +103,7 @@ This document MUST NOT add, remove, rename, or redefine artifact registry rows.
 
 ## `container@1` Schema Evolution Note (MUST)
 
-The `1.330.0` `container@1` payload was a transitional deterministic stub used to reserve and materialize the `container.php` artifact slot before REAL compiled-container semantics existed.
+An earlier `container@1` form was a transitional deterministic stub used to reserve and materialize the `container.php` artifact slot before REAL compiled-container semantics existed.
 
 The transitional stub shape was:
 
@@ -108,7 +112,7 @@ kind = stub
 compiled = false
 ```
 
-That transitional payload is no longer a supported production runtime container format.
+That payload is not a supported production runtime container format.
 
 Current Kernel-produced `container@1` artifacts MUST use REAL compiled-container semantics:
 
@@ -233,13 +237,57 @@ Lists preserve caller-supplied order when list order is semantic.
 
 ## Compile Input Semantics (MUST)
 
-Compiled-container input MUST be descriptor-based and closure-free.
+Production compiled-container input MUST be canonical, provider-produced, and closure-free.
 
-`ContainerCompiler` owns deterministic descriptor-to-`DefinitionGraph` compilation.
+`ArtifactCompiler` and `CacheVerifier` MUST receive one `ModuleResolution` and MUST NOT receive a raw container descriptor iterable.
 
-The descriptor stream order is caller-owned and semantically significant.
+Both production operations MUST obtain their graph through:
 
-`ContainerCompiler` MUST NOT globally re-sort providers, modules, or descriptors before applying binding collision semantics.
+```text
+RuntimeContainerGraphCompiler
+```
+
+For one graph compilation, `RuntimeContainerGraphCompiler` MUST:
+
+1. create one `ContainerDefinitionContext` from the already-compiled Phase-B config;
+2. resolve one `ContainerProviderPlan` from the supplied `ModuleResolution`;
+3. process provider classes in exact plan order;
+4. instantiate each provider only at its ordered collection step;
+5. invoke the provider's canonical `define()` method;
+6. build one immutable `ContainerDefinitionSet` per provider;
+7. merge those sets in exact plan order;
+8. delegate the merged set to `ContainerCompiler`;
+9. validate final graph completeness;
+10. return one `DefinitionGraph`.
+
+The returned `DefinitionGraph` is immutable operation output.
+
+Within one artifact compilation or cache verification operation, that exact graph MUST be reused for:
+
+```text
+container-graph fingerprint bucket construction
+REAL container@1 payload construction
+```
+
+The caller MUST NOT compile a replacement graph between those two uses.
+
+`ContainerCompiler` owns low-level deterministic `ContainerDefinitionSet`-to-`DefinitionGraph` normalization.
+
+Its public input MUST be:
+
+```php
+public function compile(
+    ContainerDefinitionSet $definitions,
+): DefinitionGraph;
+```
+
+`ContainerDefinitionSet::toDescriptorStream()` is a private normalization detail inside `ContainerCompiler`.
+
+It is not a production caller API.
+
+Provider-plan order, definition-set order, and definition-operation order are semantically significant.
+
+`RuntimeContainerGraphCompiler` and `ContainerCompiler` MUST NOT globally re-sort providers, modules, definition sets, or definition operations before applying binding collision semantics.
 
 Compiled-container compile semantics MUST preserve the Foundation binding collision policy:
 
@@ -255,7 +303,10 @@ Compiled-container compile semantics MUST preserve the Foundation binding collis
 - write artifacts;
 - calculate fingerprints;
 - resolve `BootstrapConfig`;
+- resolve `ModuleResolution`;
 - resolve `ModulePlan`;
+- discover or instantiate providers;
+- validate final graph completeness;
 - run provider-based runtime boot;
 - instantiate runtime services while compiling the graph;
 - emit stdout or stderr;
@@ -290,6 +341,29 @@ The exported graph shape MUST be:
     'tags' => <tag discovery map>,
 ]
 ```
+
+`DefinitionGraph::toArray()` is also the canonical graph representation used for graph fingerprint identity.
+
+The graph fingerprint path MUST hash the complete canonical exported shape.
+
+It MUST therefore cover semantic values contained by the graph, including:
+
+- service type;
+- service class;
+- factory class;
+- factory service id;
+- factory method;
+- constructor/factory arguments;
+- service references;
+- parameter references;
+- class references;
+- shared lifecycle flag;
+- parameter values;
+- alias targets;
+- tag membership;
+- effective tag priority.
+
+The graph representation MUST NOT contain filesystem paths, runtime instances, provider instances, runtime seeds, or process-specific object identity.
 
 ## Service Definition Schema (MUST)
 
@@ -348,7 +422,7 @@ shared = false
 
 `shared = false` means the runtime Foundation container resolves the service on every `Container::get($id)` call and MUST NOT store the resolved value in the resolved-instance cache.
 
-The default compile-side lifecycle for service definitions is `shared = true` unless the descriptor explicitly defines otherwise.
+The default compile-side lifecycle for service definitions is `shared = true` unless the canonical service definition explicitly selects otherwise.
 
 The compiled `shared` field applies only to compiled service definitions.
 
@@ -501,17 +575,28 @@ A service reference argument MUST use exactly this shape:
 ]
 ```
 
-The referenced id MUST be a known compiled service id, known compiled alias id, or allowed reserved runtime support id.
+The referenced id MUST be a known compiled service id, known compiled alias id, or canonical external runtime-seed service id.
 
-The reserved runtime support ids are:
+The canonical external runtime-seed service ids are:
 
 ```text
 Coretsia\Foundation\Container\Container
 Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-Compiled service and alias definitions MUST NOT define or shadow reserved runtime support ids.
+Compiled service and alias definitions MUST NOT define or shadow canonical external runtime-seed service ids.
+
+Producer acceptance of a runtime-seed reference establishes only graph completeness against the canonical allowlist.
+
+Container-owned runtime support instances are materialized by the Foundation container.
+
+Entrypoint-owned runtime seed instances are materialized by the artifact-only runtime hydration boundary and supplied through `RuntimeContainerSeedSet`.
+
+No runtime object instance is serialized into the service reference or compiled graph.
 
 ### Parameter Reference (MUST)
 
@@ -584,7 +669,7 @@ compiled_config
 
 The parameter bag may contain intentionally selected deterministic parameter values, but it is not the canonical runtime config snapshot.
 
-Runtime config snapshot ownership remains with the already-read and already-validated `config@1` payload.
+Runtime config snapshot ownership remains with the seeded `ConfigRepositoryInterface`, which is hydrated from the already-read and schema-validated `config@1` payload before `CompiledContainerFactory` is called.
 
 ## Alias Schema (MUST)
 
@@ -606,11 +691,11 @@ Alias ids MUST NOT equal their target ids.
 
 Alias ids MUST NOT conflict with compiled service ids.
 
-Alias ids MUST NOT define or shadow reserved runtime support service ids.
+Alias ids MUST NOT define or shadow canonical external runtime-seed service ids.
 
 Alias targets MUST point to known compiled service ids or known compiled alias ids.
 
-Alias targets MUST NOT point to reserved runtime support service ids.
+Alias targets MUST NOT point to canonical external runtime-seed service ids.
 
 ## Alias Lifecycle Rule for Compiled Aliases (MUST)
 
@@ -661,6 +746,14 @@ priority
 ```
 
 The `id` field MUST be a deterministic service id string.
+
+The `id` field MUST resolve to a compiled graph service or to a compiled alias chain that terminates in a compiled graph service.
+
+A tagged service id MUST NOT resolve to a canonical external runtime seed.
+
+A tagged service id MUST NOT reference a compile-host service.
+
+A tagged alias chain MUST NOT be cyclic.
 
 The `priority` field MUST be an integer.
 
@@ -737,11 +830,123 @@ Diagnostics for compile failures MUST NOT expose:
 - throwable messages;
 - previous throwable messages.
 
+## Production Graph Completeness Semantics (MUST)
+
+`RuntimeContainerGraphCompiler` MUST validate the final compiled graph through:
+
+```text
+ContainerGraphCompletenessValidator
+```
+
+Completeness validation MUST run:
+
+- after all ordered provider definition sets have been merged;
+- after `ContainerCompiler` has produced one `DefinitionGraph`;
+- before `ArtifactCompiler` writes any artifact;
+- before `CacheVerifier` compares expected artifacts with existing bytes.
+
+External-reference contexts are:
+
+```text
+service argument references
+required service ids
+```
+
+An external-reference context MAY resolve to:
+
+- a compiled service;
+- a compiled alias chain terminating in a compiled service;
+- a canonical external runtime-seed service id.
+
+Graph-owned binding contexts are:
+
+```text
+alias targets
+service-method factory service ids
+tagged service ids
+```
+
+A graph-owned binding context MUST resolve to:
+
+- a compiled service; or
+- a compiled alias chain terminating in a compiled service.
+
+A graph-owned binding context MUST NOT resolve to a runtime seed.
+
+Completeness validation MUST reject:
+
+- missing service references;
+- missing parameter references;
+- missing service-method factory services;
+- missing alias targets;
+- alias cycles;
+- missing tagged services;
+- tagged runtime seeds;
+- tagged compile-host services;
+- unsatisfied required service ids;
+- service and alias bindings using the same id;
+- service or alias bindings that define runtime-seed ids;
+- compile-host service bindings or references;
+- service constructions whose class is a compile-host service.
+
+Definition and completeness failures MUST use:
+
+```text
+CORETSIA_CONTAINER_DEFINITION_INVALID
+container-definition-invalid
+```
+
+The bounded reasons are:
+
+```text
+definition-invalid
+reference-invalid
+provider-invalid
+required-service-invalid
+```
+
+Binding collisions with reserved runtime seeds or compile-host ids use:
+
+```text
+definition-invalid
+```
+
+Missing or invalid references use:
+
+```text
+reference-invalid
+```
+
+Unsatisfied required-service declarations use:
+
+```text
+required-service-invalid
+```
+
 ## Artifact Production Linkage (MUST)
 
-`ContainerCompiler` owns descriptor-to-`DefinitionGraph` compilation.
+`RuntimeContainerGraphCompiler` owns production provider-definition collection, ordered set merging, low-level graph compilation, and graph-completeness validation.
 
-`CompiledContainerBuilder` owns wrapping the compiled `DefinitionGraph` payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
+`ContainerCompiler` owns only deterministic normalization of one ordered `ContainerDefinitionSet` into one `DefinitionGraph`.
+
+`ArtifactCompiler` and `CacheVerifier` MUST use the same `RuntimeContainerGraphCompiler` path.
+
+Both operations MUST use this ordering:
+
+```text
+compiled Phase-B config
+  -> RuntimeContainerGraphCompiler
+  -> DefinitionGraph
+  -> ConfigFingerprintInputBuilder
+  -> FingerprintCalculator
+  -> artifact envelope construction
+```
+
+`ConfigFingerprintInputBuilder` MUST receive the graph before fingerprint calculation.
+
+`CompiledContainerBuilder` MUST receive the same graph after fingerprint calculation and owns wrapping its payload in the canonical Kernel artifact envelope through `ArtifactEnvelopeFactory`.
+
+Neither operation may compile or substitute a second graph between fingerprint input construction and REAL `container@1` envelope construction.
 
 `CompiledContainerBuilder` MUST build the REAL `container@1` payload shape defined by this document.
 
@@ -764,6 +969,60 @@ compiled = true
 - emit stdout or stderr.
 
 Fingerprint calculation, artifact writing, artifact path policy, and cache verification linkage are owned by `docs/ssot/artifacts-and-fingerprint.md`.
+
+## Container Graph Fingerprint Linkage (MUST)
+
+The canonical compiled `DefinitionGraph` MUST participate in Kernel artifact fingerprint identity.
+
+The detailed graph-bucket schema and fingerprint-input ownership are defined by:
+
+```text
+docs/ssot/artifacts-and-fingerprint.md
+```
+
+This document defines only the compiled-container linkage requirements.
+
+The graph fingerprint bucket MUST be derived from:
+
+```text
+DefinitionGraph::toArray()
+  -> stable JSON encoding
+  -> SHA-256
+```
+
+The fingerprint input MUST contain safe graph identity and bounded summary counts, not the raw graph payload.
+
+Provider-plan metadata and provider class names MUST NOT be added as separate graph fingerprint fields.
+
+Class and factory identities already contained by canonical graph service definitions remain covered by the graph hash.
+
+The graph bucket MUST NOT contain:
+
+- filesystem paths;
+- source paths;
+- artifact paths;
+- provider instances;
+- runtime service instances;
+- runtime container instances;
+- runtime seeds;
+- process-specific object identity.
+
+Any semantic change to the canonical graph MUST change Kernel artifact fingerprint identity.
+
+At minimum, fingerprint coverage MUST detect changes to:
+
+- service class;
+- factory class;
+- factory method;
+- service reference;
+- parameter value;
+- alias target;
+- effective tag priority;
+- shared lifecycle flag.
+
+Repeated graph compilation that produces the same canonical exported graph MUST produce the same graph fingerprint identity.
+
+The exact graph used for graph fingerprint construction MUST be the graph wrapped by `CompiledContainerBuilder` into the expected or produced REAL `container@1` envelope.
 
 ## Existing Artifact Validation Semantics (MUST)
 
@@ -806,60 +1065,11 @@ Existing artifact validation MUST reject:
 - tag entries not ordered by `priority DESC, id ASC`;
 - floats, objects, resources, closures, callable payloads, raw source snippets, raw env values, and other non-deterministic payload values.
 
-## Artifact-Only Runtime Boot Inputs (MUST)
+## Runtime Seed Ownership and Hydration (MUST)
 
-Production runtime boot paths covered by compiled-container semantics MUST use artifact-only boot.
+The canonical runtime-seed service-id allowlist contains two ownership categories.
 
-The artifact-only runtime boot inputs are:
-
-```text
-container@1
-already-read/validated config@1 payload
-```
-
-`CompiledContainerFactory` MUST read the `container@1` artifact through Kernel artifact reading infrastructure.
-
-`CompiledContainerFactory` MUST receive the `config@1` payload from the caller as an already-read and already-validated payload.
-
-`CompiledContainerFactory` MUST use the `config` field from the `config@1` payload as the runtime Foundation container config snapshot.
-
-`CompiledContainerFactory` MUST NOT read source config files.
-
-`CompiledContainerFactory` MUST NOT run source config discovery.
-
-`CompiledContainerFactory` MUST NOT run module discovery.
-
-`CompiledContainerFactory` MUST NOT run providers as an implicit fallback.
-
-`CompiledContainerFactory` MUST NOT compile a new container during production runtime boot.
-
-`CompiledContainerFactory` MUST NOT calculate fingerprints.
-
-`CompiledContainerFactory` MUST NOT write artifacts.
-
-`CompiledContainerFactory` MUST NOT mutate existing artifacts.
-
-`CompiledContainerFactory` MUST NOT emit stdout or stderr.
-
-Provider-based container construction remains allowed only for:
-
-- compile-time artifact production;
-- test scaffolding;
-- explicitly documented non-production paths outside this SSoT.
-
-Any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied by this document.
-
-## Runtime Container Construction Semantics (MUST)
-
-Runtime container construction from `container@1` MUST be based only on deterministic compiled graph entries.
-
-Compiled service definitions MUST be registered into the Foundation container as runtime factories using their compiled `shared` lifecycle value.
-
-Compiled aliases MUST be registered as non-shared delegation factories.
-
-The runtime `TagRegistry` MUST be derived from the compiled `tags` payload and injected as a runtime support instance.
-
-Reserved runtime support ids MUST be available for service reference resolution where explicitly allowed:
+Container-owned runtime support ids are:
 
 ```text
 Coretsia\Foundation\Container\Container
@@ -867,67 +1077,321 @@ Psr\Container\ContainerInterface
 Coretsia\Foundation\Tag\TagRegistry
 ```
 
-Compiled service ids and alias ids MUST NOT conflict with reserved runtime support ids.
+These objects are materialized by Foundation container construction.
 
-## Missing Artifact Failure Semantics (MUST)
+They MUST NOT be included in `RuntimeContainerSeedSet`.
 
-If the required `container.php` artifact is missing during artifact-only runtime boot, runtime boot MUST fail deterministically.
-
-Missing artifact failure MUST use:
+Entrypoint-owned runtime seed ids are:
 
 ```text
-CORETSIA_CONTAINER_ARTIFACT_MISSING
-container-artifact-missing
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-The missing artifact exception MUST NOT expose:
+These objects MUST be materialized before compiled graph service factories are registered.
 
-- the missing filesystem path;
-- absolute paths;
-- configured path strings;
-- OS error messages;
-- stack traces;
-- filesystem details;
-- previous throwable messages.
-
-## Invalid Artifact Failure Semantics (MUST)
-
-If `container.php` exists but cannot be accepted as a production REAL `container@1` artifact, runtime boot MUST fail deterministically.
-
-Invalid artifact failure MUST use:
+The explicit law is:
 
 ```text
-CORETSIA_CONTAINER_ARTIFACT_INVALID
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+The entrypoint-owned runtime seed set MUST be represented by:
+
+```text
+Coretsia\Kernel\Container\RuntimeContainerSeedSet
+```
+
+The seed set MUST contain exactly:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+The seed set MUST reject:
+
+- missing ids;
+- additional ids;
+- arbitrary ids;
+- list-shaped input;
+- non-object values;
+- objects that do not satisfy the corresponding service id.
+
+The canonical hydration is:
+
+```text
+config@1 payload.config
+  -> ArrayConfigRepository
+  -> ConfigRepositoryInterface
+
+module-manifest@1 payload
+  -> ModulePlanArtifactHydrator
+  -> ModulePlan
+
+ArtifactRuntimeInput
+  -> RuntimePathContext
+```
+
+`ModulePlanArtifactHydrator` MUST validate:
+
+- exact top-level keys;
+- exact module-entry keys;
+- exact warning keys;
+- schema version;
+- application target;
+- preset;
+- canonical module ids;
+- enabled, disabled, and optional-missing set invariants;
+- module entry identity;
+- required dependency closure;
+- enabled conflicts;
+- cycles;
+- canonical deterministic topological order;
+- warning identity;
+- canonical `ModulePlan` round-trip representation.
+
+`ModulePlanArtifactHydrator` MUST NOT:
+
+- read Composer metadata;
+- discover installed modules;
+- resolve mode presets;
+- read source files;
+- execute providers;
+- emit stdout or stderr.
+
+`ArtifactRuntimeInput` is entrypoint input.
+
+It is not an artifact payload.
+
+It carries:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+Those values may be normalized absolute runtime paths.
+
+They MUST NOT be copied into:
+
+- canonical provider definitions;
+- compiled descriptor values;
+- `DefinitionGraph`;
+- `container@1`;
+- `module-manifest@1`;
+- `config@1`;
+- graph fingerprint buckets;
+- complete fingerprint input.
+
+## Artifact-Only Runtime Boot Inputs (MUST)
+
+Production runtime boot paths covered by compiled-container semantics MUST use artifact-only boot.
+
+The complete public input is:
+
+```text
+ArtifactRuntimeInput
+  skeletonRoot
+  artifactRoot
+```
+
+`artifactRoot` identifies the final Kernel artifact root containing:
+
+```text
+generations/
+current
+generation.lock
+```
+
+The public boot facade is:
+
+```php
+public function boot(
+    ArtifactRuntimeInput $input,
+): ContainerInterface;
+```
+
+`ArtifactRuntimeBooter` MUST:
+
+1. locate `current` through `ArtifactGenerationLocator`;
+2. require one valid selected `ArtifactGeneration`;
+3. read exact bytes and envelopes for `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`;
+4. validate `module-manifest@1`, `config@1`, `container@1`, and `artifact-generation@1`;
+5. require generation-manifest byte-length and SHA-256 metadata to match the exact runtime artifact bytes;
+6. require every artifact envelope fingerprint to equal the selected generation id;
+7. hydrate `ArrayConfigRepository` and expose it as `ConfigRepositoryInterface`;
+8. hydrate one canonical `ModulePlan`;
+9. create `RuntimePathContext`;
+10. create the exact `RuntimeContainerSeedSet`;
+11. build the runtime Foundation container from the already-read `container@1` envelope.
+
+`ArtifactRuntimeBooter` MUST NOT accept caller-selected individual artifact paths.
+
+`CompiledContainerFactory` MUST expose:
+
+```php
+public function buildFromEnvelope(
+    array $containerEnvelope,
+    RuntimeContainerSeedSet $seeds,
+): Container;
+```
+
+`CompiledContainerFactory` MUST:
+
+- receive an already-read `container@1` envelope;
+- validate the REAL compiled-container payload;
+- receive the exact entrypoint-owned runtime seed set;
+- obtain the Foundation container config snapshot from the seeded `ConfigRepositoryInterface`;
+- build the runtime container without filesystem reads.
+
+`CompiledContainerFactory` MUST NOT:
+
+- receive a container artifact path;
+- receive a separate config payload;
+- read `module-manifest@1`, `config@1`, or `container@1` from the filesystem;
+- run source providers;
+- compile a replacement graph.
+
+Artifact-only runtime boot MUST NOT:
+
+- read source config files;
+- run ConfigKernel Phase B;
+- run module discovery;
+- read Composer metadata;
+- run source providers as fallback;
+- compile a replacement graph;
+- calculate fingerprints;
+- write or repair artifacts.
+
+Provider-based container construction MAY remain available only for:
+
+- compile-time artifact production;
+- test scaffolding;
+- explicitly documented non-production paths outside this SSoT.
+
+Any future developer-mode fallback requires a separate ADR and MUST NOT be implied by this document.
+
+## Runtime Container Construction Semantics (MUST)
+
+Runtime container construction MUST combine deterministic compiled graph definitions with already-created runtime support objects.
+
+The canonical construction order is:
+
+1. validate the REAL `container@1` payload;
+2. validate compiled service, alias, parameter, tag, and reference semantics;
+3. validate that compiled services and aliases do not define runtime seed ids;
+4. validate the exact `RuntimeContainerSeedSet`;
+5. obtain the compiled config snapshot from the seeded `ConfigRepositoryInterface`;
+6. create `TagRegistry` from the compiled tag payload;
+7. create `ContainerBuilder` with that config snapshot;
+8. register entrypoint-owned runtime seed instances;
+9. register compiled service factories;
+10. register compiled aliases as non-shared delegation factories;
+11. register the runtime `TagRegistry` instance;
+12. build the Foundation container.
+
+Entrypoint-owned runtime seed instances MUST be registered before compiled service factories so compiled services may resolve:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+Compiled service definitions MUST be registered using their compiled `shared` lifecycle value.
+
+Compiled aliases MUST be registered as non-shared delegation factories.
+
+The runtime `TagRegistry` MUST be derived from the compiled `tags` payload.
+
+All canonical runtime seed ids MUST be available for service argument reference resolution where explicitly allowed:
+
+```text
+Coretsia\Foundation\Container\Container
+Psr\Container\ContainerInterface
+Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+Compiled services and aliases MUST NOT define or shadow any canonical runtime seed id.
+
+Compiled alias targets MUST NOT point to runtime seed ids.
+
+Service-method factory services MUST NOT resolve to runtime seed ids.
+
+Tagged service ids MUST NOT resolve to runtime seed ids.
+
+The exact seed map and the object type associated with every entrypoint-owned seed id MUST be validated at the compiled-container hydration boundary.
+
+## Artifact-Runtime Failure Semantics (MUST)
+
+The public artifact-runtime boot exception is:
+
+```text
+CORETSIA_ARTIFACT_RUNTIME_BOOT_FAILED: reason-token
+```
+
+The stable public reasons are:
+
+```text
+artifact-runtime-boot-generation-invalid
+artifact-runtime-boot-module-manifest-artifact-invalid
+artifact-runtime-boot-container-artifact-invalid
+artifact-runtime-boot-runtime-container-invalid
+```
+
+`artifact-runtime-boot-generation-invalid` MUST cover selected-generation failures and config-repository hydration failures, including:
+
+- absent, malformed, unreadable, or symlinked `current`;
+- invalid generation directory or generation file path state;
+- missing, unreadable, or symlinked generation files;
+- invalid artifact envelope or schema in the selected generation;
+- invalid `artifact-generation@1`;
+- generation-manifest byte-length or SHA-256 mismatch;
+- artifact envelope fingerprint mismatch;
+- a schema-valid `config@1` payload that cannot hydrate `ArrayConfigRepository`.
+
+`artifact-runtime-boot-module-manifest-artifact-invalid` MUST cover a schema-valid `module-manifest@1` payload that cannot hydrate one canonical `ModulePlan`.
+
+`artifact-runtime-boot-container-artifact-invalid` MUST cover an already-read, generation-valid REAL `container@1` envelope that cannot build the runtime Foundation container.
+
+`artifact-runtime-boot-runtime-container-invalid` MUST cover unexpected failure while creating the exact runtime seed set.
+
+`ContainerArtifactInvalidException` is an internal compiled-container validation exception.
+
+Its stable internal reasons MAY distinguish:
+
+```text
 container-artifact-invalid
+container-artifact-envelope-invalid
+container-artifact-header-invalid
+container-artifact-payload-invalid
+container-artifact-schema-invalid
+container-artifact-schema-version-invalid
+container-artifact-legacy-stub
+container-artifact-non-compiled
 ```
 
-Invalid artifact failure covers:
+`ArtifactRuntimeBooter` MUST map compiled-container construction failure to the public `artifact-runtime-boot-container-artifact-invalid` reason.
 
-- unreadable artifacts;
-- read failures;
-- non-array PHP return values;
-- invalid envelope shape;
-- invalid header semantics;
-- wrong artifact name;
-- wrong schema version;
-- invalid payload shape;
-- schema-invalid REAL payload data;
-- unsupported `1.330.0` transitional stub payloads;
-- non-REAL `container@1` payloads.
+Artifact-runtime diagnostics MUST NOT expose:
 
-Invalid artifact diagnostics MUST NOT expose:
-
-- absolute paths;
-- raw artifact payloads;
+- artifact roots;
+- generation or artifact paths;
+- raw artifact bytes or payloads;
 - raw config values;
 - raw env values;
 - PHP warning text;
+- OS error messages;
 - closure dumps;
 - source snippets;
-- OS error messages;
 - stack traces;
-- object dumps;
-- filesystem details;
 - throwable messages;
 - previous throwable messages.
 
@@ -985,6 +1449,11 @@ Provider registration MUST NOT:
 - run `ConfigKernel::compile(...)`;
 - resolve `BootstrapConfig`;
 - resolve `ModulePlan`;
+- resolve `ModuleResolution`;
+- resolve `ContainerProviderPlan`;
+- instantiate definition providers;
+- invoke provider `define()` methods;
+- compile or validate a runtime graph;
 - build `EnvRepositoryInterface`;
 - run module discovery;
 - run runtime providers as a fallback;
@@ -1049,6 +1518,8 @@ safe key paths
 - This document does not define artifact registry rows.
 - This document does not define Kernel artifact production orchestration.
 - This document does not define Kernel fingerprint input construction.
+- This document does not own the `containerGraph` bucket schema; that schema is owned by `docs/ssot/artifacts-and-fingerprint.md`.
+- This authority boundary does not make graph-to-fingerprint linkage optional.
 - This document does not define Kernel fingerprint exclusions.
 - This document does not define Kernel cache verification classification.
 - This document does not define the global observability metrics catalog.
@@ -1061,7 +1532,8 @@ safe key paths
 - This document does not make artifact generation part of runtime request lifecycle.
 - This document does not require cache verification during normal provider registration.
 - This document does not allow automatic runtime fallback when `container.php` is missing or invalid.
-- This document does not preserve the `1.330.0` stub payload as a supported production runtime format.
+- This document does not preserve the transitional stub payload as a supported production runtime format.
+- Producer acceptance of canonical runtime-seed references does not serialize runtime objects; entrypoint-owned runtime seeds are materialized only by the artifact-only runtime hydration boundary.
 - This document does not introduce `container@2`.
 
 ## Implementation Linkage
@@ -1070,10 +1542,27 @@ Canonical implementation points include:
 
 ```text
 framework/packages/core/kernel/src/Container/ContainerCompiler.php
+framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
+framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
+framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+framework/packages/core/kernel/src/Container/RuntimeContainerSeedSet.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php
+framework/packages/core/kernel/src/Module/ModulePlanArtifactHydrator.php
+framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
+framework/packages/core/kernel/src/Module/ModuleResolution.php
 framework/packages/core/kernel/src/Container/CompiledContainerFactory.php
+framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php
 framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php
 framework/packages/core/kernel/src/Container/Definition/ParameterBag.php
 framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/ContainerGraphFingerprintBucketBuilder.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php
+framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php
+framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
 framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php
 framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
 framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
@@ -1093,6 +1582,7 @@ These implementation points do not change this document's authority boundary.
 - [Cache Verification Behavior](./cache-verify.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
+- [Canonical Runtime Container Definitions](./runtime-container-definitions.md)
+- [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
 - [Reset Tags and Long-Running Runtime Reset Semantics](./reset-tags.md)
 - [DTO Policy](./dto-policy.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

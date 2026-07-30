@@ -1292,7 +1292,3 @@ Verification MUST prove:
 
 - `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 - `docs/adr/ADR-0016-clock-ids-stopwatch.md`
-
-## Related epic
-
-- `1.250.0 Enhanced Reset Mechanism for Long-Running Services`

@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Container;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Definition\ServiceDefinition;
@@ -30,16 +31,18 @@ use Psr\Log\LoggerInterface;
 /**
  * Kernel-owned deterministic compiled-container graph compiler.
  *
- * This compiler consumes explicit descriptor-based, closure-free container
- * input and produces a deterministic DefinitionGraph suitable for
- * `container@1` compiled payload emission.
+ * This compiler consumes one ordered canonical ContainerDefinitionSet and
+ * produces a deterministic DefinitionGraph suitable for `container@1` compiled
+ * payload emission.
  *
- * Input order is caller-owned and semantically significant.
+ * Definition operation order is caller-owned and semantically significant.
+ * Conversion to a closure-free descriptor stream is a private normalization
+ * detail.
  *
- * The compiler MUST preserve the caller-supplied deterministic provider/module
- * order exactly as represented by the descriptor stream. It MUST NOT globally
- * sort providers, modules, or descriptors before applying binding-collision
- * semantics.
+ * The compiler MUST preserve the supplied deterministic provider/module order
+ * exactly as represented by the definition operation stream. It MUST NOT
+ * globally sort providers, modules, or operations before applying
+ * binding-collision semantics.
  *
  * Binding collision semantics intentionally match Foundation ContainerBuilder:
  *
@@ -87,6 +90,9 @@ final readonly class ContainerCompiler
     private const string DESCRIPTOR_PARAMETER = 'parameter';
     private const string DESCRIPTOR_PARAMETERS = 'parameters';
     private const string DESCRIPTOR_TAG = 'tag';
+    private const string REF_SERVICE = 'service';
+    private const string REF_PARAMETER = 'parameter';
+    private const string FACTORY_SERVICE_METHOD = 'service-method';
 
     private const string SPAN_CONTAINER_COMPILE = 'kernel.container_compile';
 
@@ -123,25 +129,26 @@ final readonly class ContainerCompiler
     }
 
     /**
-     * Compiles a deterministic descriptor stream into a DefinitionGraph.
+     * Compiles one ordered canonical definition set into a DefinitionGraph.
      *
-     * The iterable order is authoritative and MUST already represent the
-     * caller-owned deterministic provider/module order. This method never
-     * re-sorts the descriptor stream before applying override semantics.
-     *
-     * @param iterable<array<string, mixed>> $descriptors
+     * Definition operation order is authoritative and MUST already represent
+     * deterministic provider/module order. This method never re-sorts
+     * definition operations before applying override semantics.
      *
      * @throws ContainerCompileFailedException
      */
-    public function compile(iterable $descriptors): DefinitionGraph
-    {
+    public function compile(
+        ContainerDefinitionSet $definitions,
+    ): DefinitionGraph {
         $startedAt = $this->safeStartTimer();
         $span = $this->safeStartSpan();
 
         $outcome = self::OUTCOME_FAILURE;
 
         try {
-            $graph = self::compileDescriptors($descriptors);
+            $graph = self::compileDescriptors(
+                $definitions->toDescriptorStream(),
+            );
 
             self::assertCompiledGraphSafe($graph);
 
@@ -697,6 +704,222 @@ final readonly class ContainerCompiler
         }
 
         self::assertCompiledGraphValue($payload, 0);
+        self::assertCompiledGraphReferencesValid($payload);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @throws ContainerCompileFailedException
+     */
+    private static function assertCompiledGraphReferencesValid(
+        array $payload,
+    ): void {
+        /** @var array<string, array<string, mixed>> $services */
+        $services = $payload['services'];
+
+        /** @var array<string, string> $aliases */
+        $aliases = $payload['aliases'];
+
+        /** @var array<string, mixed> $parameters */
+        $parameters = $payload['parameters'];
+
+        $runtimeSeedIds = self::stringSet(
+            RuntimeContainerSeedIds::all(),
+        );
+
+        $knownServiceIds = $runtimeSeedIds;
+
+        foreach ($services as $serviceId => $definition) {
+            if (
+                !\is_string($serviceId)
+                || !\is_array($definition)
+                || \array_is_list($definition)
+            ) {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+
+            $knownServiceIds[$serviceId] = true;
+        }
+
+        foreach ($aliases as $alias => $target) {
+            if (
+                !\is_string($alias)
+                || !\is_string($target)
+                || isset($runtimeSeedIds[$target])
+            ) {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+
+            $knownServiceIds[$alias] = true;
+        }
+
+        foreach ($aliases as $target) {
+            if (!isset($knownServiceIds[$target])) {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+        }
+
+        $knownParameterNames = self::stringSet(
+            \array_keys($parameters),
+        );
+
+        foreach ($services as $definition) {
+            self::assertKnownReferencesInCompiledValue(
+                value: $definition['arguments'] ?? null,
+                knownServiceIds: $knownServiceIds,
+                knownParameterNames: $knownParameterNames,
+                depth: 0,
+            );
+
+            self::assertFactoryServiceReferenceValid(
+                definition: $definition,
+                knownServiceIds: $knownServiceIds,
+                runtimeSeedIds: $runtimeSeedIds,
+            );
+        }
+    }
+
+    /**
+     * @param array<string, true> $knownServiceIds
+     * @param array<string, true> $knownParameterNames
+     *
+     * @throws ContainerCompileFailedException
+     */
+    private static function assertKnownReferencesInCompiledValue(
+        mixed $value,
+        array $knownServiceIds,
+        array $knownParameterNames,
+        int $depth,
+    ): void {
+        if ($depth > self::MAX_DESCRIPTOR_DEPTH) {
+            throw ContainerCompileFailedException::withReason(
+                ContainerCompileFailedException::REASON_GRAPH_INVALID,
+            );
+        }
+
+        if (!\is_array($value)) {
+            return;
+        }
+
+        if (
+            \array_keys($value) === ['id', 'type']
+            && ($value['type'] ?? null) === self::REF_SERVICE
+        ) {
+            $serviceId = $value['id'] ?? null;
+
+            if (
+                !\is_string($serviceId)
+                || !isset($knownServiceIds[$serviceId])
+            ) {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+
+            return;
+        }
+
+        if (
+            \array_keys($value) === ['name', 'type']
+            && ($value['type'] ?? null) === self::REF_PARAMETER
+        ) {
+            $parameterName = $value['name'] ?? null;
+
+            if (
+                !\is_string($parameterName)
+                || !isset($knownParameterNames[$parameterName])
+            ) {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+
+            return;
+        }
+
+        foreach ($value as $item) {
+            self::assertKnownReferencesInCompiledValue(
+                value: $item,
+                knownServiceIds: $knownServiceIds,
+                knownParameterNames: $knownParameterNames,
+                depth: $depth + 1,
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     * @param array<string, true> $knownServiceIds
+     * @param array<string, true> $runtimeSeedIds
+     *
+     * @throws ContainerCompileFailedException
+     */
+    private static function assertFactoryServiceReferenceValid(
+        array $definition,
+        array $knownServiceIds,
+        array $runtimeSeedIds,
+    ): void {
+        $construction = $definition['construction'] ?? null;
+
+        if (!\is_array($construction) || \array_is_list($construction)) {
+            return;
+        }
+
+        $factory = $construction['factory'] ?? null;
+
+        if (!\is_array($factory) || \array_is_list($factory)) {
+            return;
+        }
+
+        if (
+            ($factory['kind'] ?? null)
+            !== self::FACTORY_SERVICE_METHOD
+        ) {
+            return;
+        }
+
+        $serviceId = $factory['service'] ?? null;
+
+        if (
+            !\is_string($serviceId)
+            || !isset($knownServiceIds[$serviceId])
+            || isset($runtimeSeedIds[$serviceId])
+        ) {
+            throw ContainerCompileFailedException::withReason(
+                ContainerCompileFailedException::REASON_GRAPH_INVALID,
+            );
+        }
+    }
+
+    /**
+     * @param list<string> $values
+     *
+     * @return array<string, true>
+     *
+     * @throws ContainerCompileFailedException
+     */
+    private static function stringSet(array $values): array
+    {
+        $set = [];
+
+        foreach ($values as $value) {
+            if (!\is_string($value) || $value === '') {
+                throw ContainerCompileFailedException::withReason(
+                    ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                );
+            }
+
+            $set[$value] = true;
+        }
+
+        return $set;
     }
 
     /**

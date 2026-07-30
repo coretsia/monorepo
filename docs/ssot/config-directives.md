@@ -1079,4 +1079,3 @@ framework/packages/core/kernel/src/Config/ConfigMerger.php
 - [Config Merge Order](./config-merge-order.md)
 - [Config Precedence Matrix](./config-precedence-matrix.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

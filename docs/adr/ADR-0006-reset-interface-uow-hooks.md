@@ -531,7 +531,3 @@ This ADR does not implement:
 
 - `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
 - `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
-
-## Related epic
-
-- `1.120.0 Contracts: ResetInterface + UoW hooks`

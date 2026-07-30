@@ -30,6 +30,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
 {
@@ -85,6 +86,11 @@ final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
         $meter = new PriorityResetFailsFastOnFirstServiceExceptionFakeMeter();
         $logger = new PriorityResetFailsFastOnFirstServiceExceptionFakeLogger();
 
+        $services[Stopwatch::class] = new Stopwatch();
+        $services[TracerPortInterface::class] = $tracer;
+        $services[MeterPortInterface::class] = $meter;
+        $services[LoggerInterface::class] = $logger;
+
         $orchestrator = FoundationServiceFactory::resetOrchestrator(
             container: new PriorityResetFailsFastOnFirstServiceExceptionContainer($services),
             tagRegistry: $tagRegistry,
@@ -99,10 +105,6 @@ final class PriorityResetFailsFastOnFirstServiceExceptionTest extends TestCase
                     ],
                 ],
             ],
-            stopwatch: new Stopwatch(),
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
         );
 
         self::assertTrue($orchestrator->priorityEnabled());

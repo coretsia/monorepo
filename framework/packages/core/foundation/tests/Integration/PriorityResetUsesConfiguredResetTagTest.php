@@ -33,6 +33,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class PriorityResetUsesConfiguredResetTagTest extends TestCase
 {
@@ -113,13 +114,13 @@ final class PriorityResetUsesConfiguredResetTagTest extends TestCase
                 'service.alpha' => $customAlpha,
                 'service.beta' => $customBeta,
                 'service.kernel_only' => $kernelOnly,
+                Stopwatch::class => new Stopwatch(),
+                TracerPortInterface::class => $tracer,
+                MeterPortInterface::class => $meter,
+                LoggerInterface::class => $logger,
             ]),
             tagRegistry: $runtimeTagRegistry,
             foundationConfig: $foundationConfig,
-            stopwatch: new Stopwatch(),
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
         );
 
         self::assertInstanceOf(ResetOrchestrator::class, $resetOrchestrator);

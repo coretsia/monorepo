@@ -613,4 +613,3 @@ This document does not add reset logging payload fields beyond the reset summary
 
 - [SSoT Index](./INDEX.md)
 - [Observability and errors](./observability-and-errors.md) — reset observability safety policy, sanitized reset exception recording, and summary-only reset logs/metrics/spans.
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

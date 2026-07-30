@@ -964,4 +964,3 @@ This SSoT does not define:
 - [UnitOfWork Outcome Policy SSoT](./uow-outcome-policy.md)
 - [UnitOfWork Shapes SSoT](./uow-shapes.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

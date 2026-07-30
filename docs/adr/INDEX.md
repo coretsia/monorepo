@@ -63,6 +63,8 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0027: Runtime driver and entrypoint guard](./ADR-0027-runtime-driver-guard.md) — owner: core/kernel — adrVersion: 1 — scope: guard,kernel,matrix,runtime,runtime-drivers
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](./ADR-0028-kernel-artifacts-fingerprint-cache-verify.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,cache-verify,fingerprint,kernel
 - [ADR-0029: Kernel compiled container artifact](./ADR-0029-kernel-container-compile-artifact.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,boot,container,kernel,runtime
+- [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime
+- [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
 
 ## Cross-references
 

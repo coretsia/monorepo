@@ -18,6 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use PHPUnit\Framework\TestCase;
 
 final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest extends TestCase
@@ -31,14 +34,9 @@ final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest ext
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: [
-                    [
-                        'kind' => 'service.class',
-                        'id' => CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class,
-                        'class' => CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class,
-                        'shared' => false,
-                    ],
-                ],
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    CompiledContainerFactoryPreservesNonSharedServiceDefinitionsProvider::class,
+                ]),
             );
 
             $envelope = ArtifactPipelineTestSupport::artifactEnvelope($root, 'container.php');
@@ -66,7 +64,9 @@ final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest ext
                 'The container artifact service definition must preserve shared=false.',
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $first = $container->get(CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class);
             $second = $container->get(CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class);
@@ -87,6 +87,20 @@ final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest ext
         } finally {
             ArtifactPipelineTestSupport::removeTree($root);
         }
+    }
+}
+
+final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsProvider implements ContainerDefinitionProviderInterface
+{
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $definitions->classService(
+            id: CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class,
+            class: CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class,
+            shared: false,
+        );
     }
 }
 

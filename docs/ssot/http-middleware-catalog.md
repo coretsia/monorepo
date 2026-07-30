@@ -1037,4 +1037,3 @@ This SSoT does not define:
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [Packaging strategy](../architecture/PACKAGING.md)
 - [Phase 0 dependency table](../roadmap/phase0/00_2-dependency-table.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

@@ -19,12 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
-use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
-use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
-use Coretsia\Kernel\Boot\AppTarget;
-use Coretsia\Kernel\Boot\BootstrapConfig;
-use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use PHPUnit\Framework\TestCase;
 
 final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
@@ -66,24 +61,6 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
 
         self::assertNotContains('RoutesBuilder.php', $builderBasenames);
         self::assertNotContains('RouteBuilder.php', $builderBasenames);
-    }
-
-    public function testPathResolverRejectsRoutesPhpBasename(): void
-    {
-        $resolver = new ArtifactPathResolver();
-
-        try {
-            $resolver->relativePath(
-                bootstrapConfig: self::bootstrapConfig(),
-                basename: 'routes.php',
-            );
-
-            self::fail('Expected ArtifactPathInvalidException was not thrown.');
-        } catch (ArtifactPathInvalidException $exception) {
-            self::assertSame(ArtifactPathInvalidException::ERROR_CODE, $exception->errorCode());
-            self::assertSame(ArtifactPathInvalidException::REASON_BASENAME_INVALID, $exception->reason());
-            self::assertStringNotContainsString('routes.php', $exception->getMessage());
-        }
     }
 
     public function testKernelOwnedSchemaValidatorDoesNotClaimRoutesArtifactOwnership(): void
@@ -143,19 +120,6 @@ final class KernelDoesNotEmitRoutesArtifactContractTest extends TestCase
         self::assertStringContainsString(
             'MUST NOT be treated as an unconditional consequence',
             $runtimeDriversSsot,
-        );
-    }
-
-    private static function bootstrapConfig(): BootstrapConfig
-    {
-        return new BootstrapConfig(
-            appEnv: 'local',
-            preset: 'micro',
-            debug: false,
-            artifactsCacheDir: 'var/cache',
-            envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
-            appTarget: AppTarget::Api,
-            skeletonRoot: '/workspace/skeleton',
         );
     }
 

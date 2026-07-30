@@ -22,58 +22,38 @@ use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
+use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
-use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationId;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder;
+use Coretsia\Kernel\Artifacts\Generation\ArtifactPublicationSet;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
-use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
+use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModuleResolution;
 use Psr\Log\LoggerInterface;
 
 /**
- * Verifies Kernel-owned compiled artifact cache state.
- *
- * CacheVerifier rebuilds expected Kernel-owned artifacts in memory and compares
- * them with existing artifact files:
- *
- * - module-manifest.php;
- * - config.php;
- * - container.php.
- *
- * It computes the current deterministic fingerprint input through
- * ConfigFingerprintInputBuilder, calculates the current fingerprint through
- * FingerprintCalculator, rebuilds expected envelopes through artifact builders,
- * dumps expected PHP artifact bytes through StablePhpArrayDumper, reads existing
- * artifacts through PhpArtifactReader, validates existing schemas through
- * ArtifactSchemaValidator, and compares content bytes only.
- *
- * This verifier intentionally does not:
- *
- * - write artifacts;
- * - depend on platform/cli;
- * - print stdout/stderr;
- * - invoke ResetOrchestrator;
- * - start UnitOfWork;
- * - use mtimes/ctimes/permissions/owners as cache semantics;
- * - emit artifact write metrics;
- * - emit fingerprint calculate metrics;
- * - expose raw payloads, raw config values, raw env values, absolute paths,
- *   fingerprints, PHP warning text, stack traces, or previous throwable
- *   messages in result/log/span data.
+ * Rebuilds the expected artifact generation in memory and verifies the exact
+ * immutable generation selected by the current pointer.
  *
  * @internal
  */
@@ -91,10 +71,7 @@ final readonly class CacheVerifier
     private const string ARTIFACT_MODULE_MANIFEST = 'module-manifest';
     private const string ARTIFACT_CONFIG = 'config';
     private const string ARTIFACT_CONTAINER = 'container';
-
-    private const int SCHEMA_VERSION_MODULE_MANIFEST = 1;
-    private const int SCHEMA_VERSION_CONFIG = 1;
-    private const int SCHEMA_VERSION_CONTAINER = 1;
+    private const string ARTIFACT_GENERATION = 'artifact-generation';
 
     private const string OUTCOME_CLEAN = 'clean';
     private const string OUTCOME_DIRTY = 'dirty';
@@ -121,11 +98,12 @@ final readonly class CacheVerifier
         private FingerprintCalculator $fingerprintCalculator,
         private ModuleManifestBuilder $moduleManifestBuilder,
         private CompiledConfigBuilder $compiledConfigBuilder,
-        private ContainerCompiler $containerCompiler,
+        private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
         private CompiledContainerBuilder $compiledContainerBuilder,
         private StablePhpArrayDumper $phpArrayDumper,
+        private ArtifactGenerationManifestBuilder $generationManifestBuilder,
+        private ArtifactGenerationLocator $generationLocator,
         private PhpArtifactReader $artifactReader,
-        private ArtifactSchemaValidator $schemaValidator,
         private ArtifactPathResolver $pathResolver,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
@@ -135,9 +113,7 @@ final readonly class CacheVerifier
     }
 
     /**
-     * Verifies Kernel-owned artifact cache state.
-     *
-     * @param array<string,mixed> $kernelConfig Kernel config subtree.
+     * @param array<string,mixed> $kernelConfig
      * @param list<array{
      *     root: string,
      *     packageId: string,
@@ -180,7 +156,6 @@ final readonly class CacheVerifier
      *     sourceId?: string|null,
      *     precedence?: int|null
      * }> $modePresetSourceCandidates
-     * @param iterable<array<string, mixed>> $containerDescriptors Descriptor-based, closure-free compiled-container input.
      *
      * @return array{
      *     schemaVersion: int,
@@ -188,6 +163,8 @@ final readonly class CacheVerifier
      *     clean: bool,
      *     dirty: bool,
      *     invalid: bool,
+     *     expectedGenerationId: non-empty-string,
+     *     currentGenerationId: non-empty-string|null,
      *     artifacts: list<array{
      *         name: non-empty-string,
      *         basename: non-empty-string,
@@ -215,16 +192,15 @@ final readonly class CacheVerifier
      * }
      *
      * @throws ConfigInvalidException
+     * @throws ContainerDefinitionInvalidException
      * @throws ContainerCompileFailedException
      * @throws JsonFloatForbiddenException
      * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     * @throws \InvalidArgumentException when deterministic expected data cannot
-     *                                   be safely represented.
+     * @throws ArtifactGenerationPublishException
      */
     public function verify(
         BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
+        ModuleResolution $moduleResolution,
         EnvRepositoryInterface $env,
         array $kernelConfig,
         array $packageDefaultSources,
@@ -233,8 +209,8 @@ final readonly class CacheVerifier
         array $explicitRuleSources = [],
         array $explicitEnvOverlayMappings = [],
         array $modePresetSourceCandidates = [],
-        iterable $containerDescriptors = [],
     ): array {
+        $modulePlan = $moduleResolution->plan();
         $startedAt = $this->safeStartTimer();
         $span = $this->safeStartSpan();
 
@@ -254,9 +230,21 @@ final readonly class CacheVerifier
                 explain: false,
             );
 
+            if ($compiledConfig['validation']->isFailure()) {
+                throw ConfigInvalidException::fromValidationResult(
+                    $compiledConfig['validation'],
+                );
+            }
+
+            $containerGraph = $this->runtimeContainerGraphCompiler->compile(
+                moduleResolution: $moduleResolution,
+                compiledConfig: $compiledConfig['config'],
+            );
+
             $fingerprintInput = $this->fingerprintInputBuilder->build(
                 bootstrapConfig: $bootstrapConfig,
                 modulePlan: $modulePlan,
+                containerGraph: $containerGraph,
                 env: $env,
                 kernelConfig: $kernelConfig,
                 compiledConfig: $compiledConfig,
@@ -267,28 +255,51 @@ final readonly class CacheVerifier
                 modePresetSourceCandidates: $modePresetSourceCandidates,
             );
 
-            $currentFingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
+            $fingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);
 
-            $containerGraph = $this->containerCompiler->compile($containerDescriptors);
-
-            $expectedArtifacts = $this->expectedArtifacts(
+            $expected = $this->expectedGeneration(
                 bootstrapConfig: $bootstrapConfig,
                 modulePlan: $modulePlan,
                 compiledConfig: $compiledConfig,
-                fingerprint: $currentFingerprint,
+                fingerprint: $fingerprint,
                 containerGraph: $containerGraph,
             );
 
-            $artifactResults = [];
+            try {
+                $currentGeneration = $this->generationLocator->locate(
+                    $this->pathResolver->artifactRoot($bootstrapConfig),
+                );
+            } catch (ArtifactInvalidException) {
+                $currentGeneration = false;
+            }
 
-            foreach ($expectedArtifacts as $expectedArtifact) {
-                $artifactResults[] = $this->verifyArtifact(
-                    expectedArtifact: $expectedArtifact,
-                    currentFingerprint: $currentFingerprint,
+            if ($currentGeneration === false) {
+                $artifactResults = self::uniformArtifactResults(
+                    expectedArtifacts: $expected['artifacts'],
+                    status: self::STATUS_INVALID,
+                    reason: self::REASON_INVALID,
+                );
+            } elseif ($currentGeneration === null) {
+                $artifactResults = self::uniformArtifactResults(
+                    expectedArtifacts: $expected['artifacts'],
+                    status: self::STATUS_DIRTY,
+                    reason: self::REASON_MISSING,
+                );
+            } else {
+                $artifactResults = $this->verifyLocatedGeneration(
+                    expectedArtifacts: $expected['artifacts'],
+                    expectedGenerationId: $expected['generationId'],
+                    currentGeneration: $currentGeneration,
                 );
             }
 
-            $result = self::result($artifactResults);
+            $result = self::result(
+                artifacts: $artifactResults,
+                expectedGenerationId: $expected['generationId'],
+                currentGenerationId: $currentGeneration instanceof ArtifactGeneration
+                    ? $currentGeneration->generationId()
+                    : null,
+            );
             $outcome = $result['outcome'];
 
             return $result;
@@ -309,281 +320,225 @@ final readonly class CacheVerifier
     /**
      * @param array<string,mixed> $compiledConfig
      *
-     * @return list<array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * }>
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
+     * @return array{
+     *     generationId: ArtifactGenerationId,
+     *     artifacts: list<array{
+     *         name: non-empty-string,
+     *         basename: non-empty-string,
+     *         path: non-empty-string,
+     *         expectedBytes: string
+     *     }>
+     * }
      */
-    private function expectedArtifacts(
+    private function expectedGeneration(
         BootstrapConfig $bootstrapConfig,
         ModulePlan $modulePlan,
         array $compiledConfig,
         string $fingerprint,
         DefinitionGraph $containerGraph,
     ): array {
-        return [
-            $this->expectedModuleManifest(
-                bootstrapConfig: $bootstrapConfig,
-                modulePlan: $modulePlan,
-                fingerprint: $fingerprint,
-            ),
-            $this->expectedConfig(
-                bootstrapConfig: $bootstrapConfig,
-                compiledConfig: $compiledConfig,
-                fingerprint: $fingerprint,
-            ),
-            $this->expectedContainer(
-                bootstrapConfig: $bootstrapConfig,
-                fingerprint: $fingerprint,
-                containerGraph: $containerGraph,
-            ),
-        ];
-    }
-
-    /**
-     * @return array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * }
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     */
-    private function expectedModuleManifest(
-        BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
-        string $fingerprint,
-    ): array {
-        $envelope = $this->moduleManifestBuilder->build(
+        $moduleManifestEnvelope = $this->moduleManifestBuilder->build(
             modulePlan: $modulePlan,
             fingerprint: $fingerprint,
         );
 
-        return $this->expectedArtifact(
-            name: self::ARTIFACT_MODULE_MANIFEST,
-            basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
-            schemaVersion: self::SCHEMA_VERSION_MODULE_MANIFEST,
-            targetPath: $this->pathResolver->moduleManifestPath($bootstrapConfig),
-            relativePath: $this->pathResolver->relativePath(
-                bootstrapConfig: $bootstrapConfig,
-                basename: ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
-            ),
-            envelope: $envelope,
-        );
-    }
-
-    /**
-     * @param array<string,mixed> $compiledConfig
-     *
-     * @return array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * }
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     */
-    private function expectedConfig(
-        BootstrapConfig $bootstrapConfig,
-        array $compiledConfig,
-        string $fingerprint,
-    ): array {
-        $envelope = $this->compiledConfigBuilder->build(
+        $configEnvelope = $this->compiledConfigBuilder->build(
             compiledConfig: $compiledConfig,
             fingerprint: $fingerprint,
         );
 
-        return $this->expectedArtifact(
-            name: self::ARTIFACT_CONFIG,
-            basename: ArtifactPathResolver::CONFIG_BASENAME,
-            schemaVersion: self::SCHEMA_VERSION_CONFIG,
-            targetPath: $this->pathResolver->configPath($bootstrapConfig),
-            relativePath: $this->pathResolver->relativePath(
-                bootstrapConfig: $bootstrapConfig,
-                basename: ArtifactPathResolver::CONFIG_BASENAME,
-            ),
-            envelope: $envelope,
-        );
-    }
-
-    /**
-     * @return array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * }
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
-     */
-    private function expectedContainer(
-        BootstrapConfig $bootstrapConfig,
-        string $fingerprint,
-        DefinitionGraph $containerGraph,
-    ): array {
-        $envelope = $this->compiledContainerBuilder->build(
+        $containerEnvelope = $this->compiledContainerBuilder->build(
             graph: $containerGraph,
             fingerprint: $fingerprint,
         );
 
-        return $this->expectedArtifact(
-            name: self::ARTIFACT_CONTAINER,
-            basename: ArtifactPathResolver::CONTAINER_BASENAME,
-            schemaVersion: self::SCHEMA_VERSION_CONTAINER,
-            targetPath: $this->pathResolver->containerPath($bootstrapConfig),
-            relativePath: $this->pathResolver->relativePath(
-                bootstrapConfig: $bootstrapConfig,
-                basename: ArtifactPathResolver::CONTAINER_BASENAME,
-            ),
-            envelope: $envelope,
+        $publicationSet = new ArtifactPublicationSet(
+            moduleManifestEnvelope: $moduleManifestEnvelope,
+            moduleManifestBytes: $this->phpArrayDumper->dumpEnvelope($moduleManifestEnvelope),
+            configEnvelope: $configEnvelope,
+            configBytes: $this->phpArrayDumper->dumpEnvelope($configEnvelope),
+            containerEnvelope: $containerEnvelope,
+            containerBytes: $this->phpArrayDumper->dumpEnvelope($containerEnvelope),
         );
-    }
 
-    /**
-     * @param array<int|string,mixed> $envelope
-     *
-     * @return array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * }
-     *
-     * @throws JsonFloatForbiddenException
-     * @throws ArtifactPayloadInvalidException
-     */
-    private function expectedArtifact(
-        string $name,
-        string $basename,
-        int $schemaVersion,
-        string $targetPath,
-        string $relativePath,
-        array $envelope,
-    ): array {
+        $generationManifestBytes = $this->phpArrayDumper->dumpEnvelope(
+            $this->generationManifestBuilder->build($publicationSet),
+        );
+
         return [
-            'name' => self::safeArtifactName($name),
-            'basename' => self::safeBasename($basename),
-            'path' => self::safeRelativePath($relativePath),
-            'targetPath' => self::safeTargetPathForInternalUseOnly($targetPath),
-            'expectedBytes' => self::normalizeBytes($this->phpArrayDumper->dumpEnvelope($envelope)),
-            'schemaVersion' => $schemaVersion,
+            'generationId' => $publicationSet->generationId(),
+            'artifacts' => [
+                $this->expectedArtifact(
+                    bootstrapConfig: $bootstrapConfig,
+                    name: self::ARTIFACT_MODULE_MANIFEST,
+                    basename: ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+                    bytes: $publicationSet->moduleManifestBytes(),
+                ),
+                $this->expectedArtifact(
+                    bootstrapConfig: $bootstrapConfig,
+                    name: self::ARTIFACT_CONFIG,
+                    basename: ArtifactGeneration::CONFIG_BASENAME,
+                    bytes: $publicationSet->configBytes(),
+                ),
+                $this->expectedArtifact(
+                    bootstrapConfig: $bootstrapConfig,
+                    name: self::ARTIFACT_CONTAINER,
+                    basename: ArtifactGeneration::CONTAINER_BASENAME,
+                    bytes: $publicationSet->containerBytes(),
+                ),
+                $this->expectedArtifact(
+                    bootstrapConfig: $bootstrapConfig,
+                    name: self::ARTIFACT_GENERATION,
+                    basename: ArtifactGeneration::GENERATION_MANIFEST_BASENAME,
+                    bytes: $generationManifestBytes,
+                ),
+            ],
         ];
     }
 
     /**
-     * @param array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
-     * } $expectedArtifact
-     *
      * @return array{
      *     name: non-empty-string,
      *     basename: non-empty-string,
      *     path: non-empty-string,
-     *     status: non-empty-string,
-     *     reason: non-empty-string,
-     *     expectedBytes: int,
-     *     existingBytes: int|null,
-     *     explain: array{
-     *         schemaVersion: int,
-     *         entries: list<array{
-     *             basename: non-empty-string,
-     *             path: non-empty-string,
-     *             reason: non-empty-string
-     *         }>
-     *     }
+     *     expectedBytes: string
      * }
      */
-    private function verifyArtifact(
-        array $expectedArtifact,
-        string $currentFingerprint,
+    private function expectedArtifact(
+        BootstrapConfig $bootstrapConfig,
+        string $name,
+        string $basename,
+        string $bytes,
     ): array {
-        if (!@\file_exists($expectedArtifact['targetPath'])) {
-            return self::artifactResult(
+        return [
+            'name' => self::safeArtifactName($name),
+            'basename' => self::safeBasename($basename),
+            'path' => self::safeRelativePath(
+                $this->pathResolver->relativeCacheDirectory($bootstrapConfig)
+                . '/generations/current/'
+                . $basename,
+            ),
+            'expectedBytes' => $bytes,
+        ];
+    }
+
+    /**
+     * @param list<array{
+     *     name: non-empty-string,
+     *     basename: non-empty-string,
+     *     path: non-empty-string,
+     *     expectedBytes: string
+     * }> $expectedArtifacts
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function verifyLocatedGeneration(
+        array $expectedArtifacts,
+        ArtifactGenerationId $expectedGenerationId,
+        ArtifactGeneration $currentGeneration,
+    ): array {
+        $generationMismatch = !$currentGeneration
+            ->generationId()
+            ->equals($expectedGenerationId);
+
+        $currentPaths = [
+            ArtifactGeneration::MODULE_MANIFEST_BASENAME => $currentGeneration->moduleManifestPath(),
+            ArtifactGeneration::CONFIG_BASENAME => $currentGeneration->configPath(),
+            ArtifactGeneration::CONTAINER_BASENAME => $currentGeneration->containerPath(),
+            ArtifactGeneration::GENERATION_MANIFEST_BASENAME => $currentGeneration->generationManifestPath(),
+        ];
+
+        $results = [];
+
+        foreach ($expectedArtifacts as $expectedArtifact) {
+            $currentPath = $currentPaths[$expectedArtifact['basename']] ?? null;
+
+            if (!\is_string($currentPath)) {
+                $results[] = self::artifactResult(
+                    expectedArtifact: $expectedArtifact,
+                    status: self::STATUS_INVALID,
+                    reason: self::REASON_INVALID,
+                    existingBytes: null,
+                );
+
+                continue;
+            }
+
+            try {
+                $currentBytes = $this->artifactReader->readExactBytes(
+                    $currentPath,
+                );
+            } catch (\Throwable) {
+                $results[] = self::artifactResult(
+                    expectedArtifact: $expectedArtifact,
+                    status: self::STATUS_INVALID,
+                    reason: self::REASON_INVALID,
+                    existingBytes: null,
+                );
+
+                continue;
+            }
+
+            if ($generationMismatch) {
+                $results[] = self::artifactResult(
+                    expectedArtifact: $expectedArtifact,
+                    status: self::STATUS_DIRTY,
+                    reason: self::REASON_FINGERPRINT_MISMATCH,
+                    existingBytes: \strlen($currentBytes),
+                );
+
+                continue;
+            }
+
+            if ($currentBytes !== $expectedArtifact['expectedBytes']) {
+                $results[] = self::artifactResult(
+                    expectedArtifact: $expectedArtifact,
+                    status: self::STATUS_DIRTY,
+                    reason: self::REASON_CHANGED,
+                    existingBytes: \strlen($currentBytes),
+                );
+
+                continue;
+            }
+
+            $results[] = self::artifactResult(
                 expectedArtifact: $expectedArtifact,
-                status: self::STATUS_DIRTY,
-                reason: self::REASON_MISSING,
+                status: self::STATUS_CLEAN,
+                reason: self::REASON_OK,
+                existingBytes: \strlen($currentBytes),
+            );
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param list<array{
+     *     name: non-empty-string,
+     *     basename: non-empty-string,
+     *     path: non-empty-string,
+     *     expectedBytes: string
+     * }> $expectedArtifacts
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function uniformArtifactResults(
+        array $expectedArtifacts,
+        string $status,
+        string $reason,
+    ): array {
+        $results = [];
+
+        foreach ($expectedArtifacts as $expectedArtifact) {
+            $results[] = self::artifactResult(
+                expectedArtifact: $expectedArtifact,
+                status: $status,
+                reason: $reason,
                 existingBytes: null,
             );
         }
 
-        try {
-            $existing = $this->artifactReader->read($expectedArtifact['targetPath']);
-            $this->schemaValidator->validateExpected(
-                envelope: $existing['envelope'],
-                expectedName: $expectedArtifact['name'],
-                expectedSchemaVersion: $expectedArtifact['schemaVersion'],
-            );
-        } catch (ArtifactInvalidException) {
-            return self::artifactResult(
-                expectedArtifact: $expectedArtifact,
-                status: self::STATUS_INVALID,
-                reason: self::REASON_INVALID,
-                existingBytes: null,
-            );
-        } catch (\Throwable) {
-            return self::artifactResult(
-                expectedArtifact: $expectedArtifact,
-                status: self::STATUS_INVALID,
-                reason: self::REASON_INVALID,
-                existingBytes: null,
-            );
-        }
-
-        $storedFingerprint = self::storedFingerprint($existing['envelope']);
-
-        if ($storedFingerprint !== $currentFingerprint) {
-            return self::artifactResult(
-                expectedArtifact: $expectedArtifact,
-                status: self::STATUS_DIRTY,
-                reason: self::REASON_FINGERPRINT_MISMATCH,
-                existingBytes: self::safeCount(\strlen($existing['bytes'])),
-            );
-        }
-
-        if (self::normalizeBytes($existing['bytes']) !== $expectedArtifact['expectedBytes']) {
-            return self::artifactResult(
-                expectedArtifact: $expectedArtifact,
-                status: self::STATUS_DIRTY,
-                reason: self::REASON_CHANGED,
-                existingBytes: self::safeCount(\strlen($existing['bytes'])),
-            );
-        }
-
-        return self::artifactResult(
-            expectedArtifact: $expectedArtifact,
-            status: self::STATUS_CLEAN,
-            reason: self::REASON_OK,
-            existingBytes: self::safeCount(\strlen($existing['bytes'])),
-        );
+        return $results;
     }
 
     /**
@@ -591,9 +546,7 @@ final readonly class CacheVerifier
      *     name: non-empty-string,
      *     basename: non-empty-string,
      *     path: non-empty-string,
-     *     targetPath: non-empty-string,
-     *     expectedBytes: string,
-     *     schemaVersion: int
+     *     expectedBytes: string
      * } $expectedArtifact
      *
      * @return array{
@@ -675,71 +628,23 @@ final readonly class CacheVerifier
     }
 
     /**
-     * @param array<int|string,mixed> $envelope
-     */
-    private static function storedFingerprint(array $envelope): ?string
-    {
-        $meta = $envelope['_meta'] ?? null;
-
-        if (!\is_array($meta)) {
-            return null;
-        }
-
-        $fingerprint = $meta['fingerprint'] ?? null;
-
-        if (!\is_string($fingerprint)) {
-            return null;
-        }
-
-        return $fingerprint;
-    }
-
-    /**
-     * @param list<array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     status: non-empty-string,
-     *     reason: non-empty-string,
-     *     expectedBytes: int,
-     *     existingBytes: int|null,
-     *     explain: array<string,mixed>
-     * }> $artifacts
+     * @param list<array<string,mixed>> $artifacts
      *
-     * @return array{
-     *     schemaVersion: int,
-     *     outcome: non-empty-string,
-     *     clean: bool,
-     *     dirty: bool,
-     *     invalid: bool,
-     *     artifacts: list<array{
-     *         name: non-empty-string,
-     *         basename: non-empty-string,
-     *         path: non-empty-string,
-     *         status: non-empty-string,
-     *         reason: non-empty-string,
-     *         expectedBytes: int,
-     *         existingBytes: int|null,
-     *         explain: array<string,mixed>
-     *     }>,
-     *     counts: array{
-     *         expected_artifact_count: int,
-     *         existing_artifact_count: int,
-     *         missing_artifact_count: int,
-     *         dirty_artifact_count: int,
-     *         invalid_artifact_count: int
-     *     }
-     * }
+     * @return array<string, mixed>
      */
-    private static function result(array $artifacts): array
-    {
+    private static function result(
+        array $artifacts,
+        ArtifactGenerationId $expectedGenerationId,
+        ?ArtifactGenerationId $currentGenerationId,
+    ): array {
         \usort(
             $artifacts,
-            static function (array $left, array $right): int {
-                return \strcmp($left['path'], $right['path'])
-                    ?: \strcmp($left['name'], $right['name'])
-                        ?: \strcmp($left['basename'], $right['basename']);
-            },
+            static fn (array $left, array $right): int => \strcmp(
+                $left['path'],
+                $right['path'],
+            )
+                ?: \strcmp($left['name'], $right['name'])
+                    ?: \strcmp($left['basename'], $right['basename']),
         );
 
         $counts = self::counts($artifacts);
@@ -758,6 +663,8 @@ final readonly class CacheVerifier
             'clean' => $outcome === self::OUTCOME_CLEAN,
             'dirty' => $outcome === self::OUTCOME_DIRTY,
             'invalid' => $outcome === self::OUTCOME_INVALID,
+            'expectedGenerationId' => $expectedGenerationId->value(),
+            'currentGenerationId' => $currentGenerationId?->value(),
             'artifacts' => $artifacts,
             'counts' => $counts,
         ];
@@ -1054,11 +961,6 @@ final readonly class CacheVerifier
         return \array_keys($reasons);
     }
 
-    private static function normalizeBytes(string $bytes): string
-    {
-        return \str_replace(["\r\n", "\r"], "\n", $bytes);
-    }
-
     /**
      * @return non-empty-string
      */
@@ -1067,7 +969,8 @@ final readonly class CacheVerifier
         return match ($name) {
             self::ARTIFACT_MODULE_MANIFEST,
             self::ARTIFACT_CONFIG,
-            self::ARTIFACT_CONTAINER => $name,
+            self::ARTIFACT_CONTAINER,
+            self::ARTIFACT_GENERATION => $name,
             default => throw new \InvalidArgumentException('cache-verifier-artifact-name-invalid'),
         };
     }
@@ -1078,9 +981,10 @@ final readonly class CacheVerifier
     private static function safeBasename(string $basename): string
     {
         return match ($basename) {
-            ArtifactPathResolver::MODULE_MANIFEST_BASENAME,
-            ArtifactPathResolver::CONFIG_BASENAME,
-            ArtifactPathResolver::CONTAINER_BASENAME => $basename,
+            ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+            ArtifactGeneration::CONFIG_BASENAME,
+            ArtifactGeneration::CONTAINER_BASENAME,
+            ArtifactGeneration::GENERATION_MANIFEST_BASENAME => $basename,
             default => throw new \InvalidArgumentException('cache-verifier-basename-invalid'),
         };
     }
@@ -1113,18 +1017,6 @@ final readonly class CacheVerifier
         }
 
         return $normalized;
-    }
-
-    /**
-     * @return non-empty-string
-     */
-    private static function safeTargetPathForInternalUseOnly(string $targetPath): string
-    {
-        if ($targetPath === '') {
-            throw new \InvalidArgumentException('cache-verifier-target-path-invalid');
-        }
-
-        return $targetPath;
     }
 
     private static function safeStatus(string $status): string

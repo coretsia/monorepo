@@ -28,6 +28,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class ResetOrderingIsLocaleIndependentTest extends TestCase
 {
@@ -176,6 +177,11 @@ final class ResetOrderingIsLocaleIndependentTest extends TestCase
             ['priority' => 10, 'group' => 'a-rail'],
         );
 
+        $services[Stopwatch::class] = new Stopwatch();
+        $services[TracerPortInterface::class] = $tracer;
+        $services[MeterPortInterface::class] = $meter;
+        $services[LoggerInterface::class] = $logger;
+
         return FoundationServiceFactory::resetOrchestrator(
             container: new ResetOrderingIsLocaleIndependentContainer($services),
             tagRegistry: $tagRegistry,
@@ -190,10 +196,6 @@ final class ResetOrderingIsLocaleIndependentTest extends TestCase
                     ],
                 ],
             ],
-            stopwatch: new Stopwatch(),
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
         );
     }
 

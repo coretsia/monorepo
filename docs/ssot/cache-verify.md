@@ -28,7 +28,7 @@ It intentionally does not redefine the global artifact envelope, artifact header
 
 ## Goal
 
-A single SSoT defines Kernel cache verification semantics so cache state decisions are deterministic, safe, reproducible, and independent from filesystem metadata such as mtimes, permissions, and owners.
+A single SSoT defines generation-aware Kernel cache verification semantics so cache state decisions are deterministic, safe, reproducible, concurrency-safe, and independent from filesystem metadata such as mtimes, permissions, and owners.
 
 ## Authority Boundary (MUST)
 
@@ -37,6 +37,9 @@ This document owns only Kernel cache verification semantics for existing Kernel-
 This document owns:
 
 - verification input/output semantics;
+- current-generation location linkage;
+- selected-generation validation linkage;
+- generation-level missing, invalid, stale, and exact-byte semantics;
 - per-artifact clean/dirty/invalid classification;
 - verification outcome precedence;
 - missing artifact semantics;
@@ -58,12 +61,30 @@ This document MUST NOT redefine:
 - global observability metrics catalog;
 - ownership of non-Kernel artifacts.
 
-Those rules remain owned by their canonical SSoT documents.
+The canonical artifact envelope, artifact header fields, artifact registry rows, and global deterministic serialization law remain owned by:
+
+```text
+docs/ssot/artifacts.md
+```
+
+All other excluded rules remain owned by their respective canonical SSoT documents.
 
 ## Invariants (MUST)
 
 - Cache verification MUST be deterministic for the same logical inputs and existing artifact bytes.
-- Cache verification MUST classify each expected Kernel artifact independently.
+- Cache verification MUST compile the expected runtime container graph before calculating the current artifact fingerprint.
+- The current fingerprint MUST include the safe deterministic `containerGraph` bucket.
+- The same compiled `DefinitionGraph` MUST be used for both current fingerprint construction and expected REAL `container@1` construction.
+- Cache verification MUST use the same `RuntimeContainerGraphCompiler` production path as artifact production.
+- Cache verification MUST locate the selected generation through `ArtifactGenerationLocator`.
+- Current-generation location MUST occur under the shared generation lock.
+- The selected generation MUST pass `ArtifactGenerationValidator` before comparison.
+- Cache verification MUST include `generation-manifest.php`.
+- Generation byte comparison MUST use exact persisted bytes without newline normalization.
+- Lock failure MUST remain an operation failure and MUST NOT be converted into an invalid-cache result.
+- Cache verification MUST return one result entry for each of the four finalized generation files.
+- Missing current state, invalid selected state, and generation-id mismatch MAY produce uniform classifications across all four entries.
+- Exact byte drift is classified per generation file.
 - Cache verification MUST return a deterministic aggregate outcome.
 - Cache verification MUST NOT write artifacts.
 - Cache verification MUST NOT repair artifacts.
@@ -74,34 +95,45 @@ Those rules remain owned by their canonical SSoT documents.
 - Cache verification MUST use safe relative artifact paths in public result data.
 - Cache verification MUST treat observability as best-effort and non-semantic.
 
-## Expected Kernel Artifact Set (MUST)
+## Expected Kernel Generation Set (MUST)
 
-Kernel cache verification verifies the Kernel-owned artifact files materialized by Kernel artifact production.
+Kernel cache verification verifies the immutable generation selected by:
 
-The expected artifact basenames are:
+```text
+<artifact-root>/current
+```
 
-- `module-manifest.php`
-- `config.php`
-- `container.php`
+The expected finalized generation basenames are exactly:
 
-The expected artifact identities are references to registry entries owned by `docs/ssot/artifacts.md`:
+```text
+module-manifest.php
+config.php
+container.php
+generation-manifest.php
+```
 
-- `module-manifest@1`
-- `config@1`
-- `container@1`
+Each expected basename MUST be interpreted through the canonical artifact identity and schema assignment defined by:
 
-This document does not redefine those registry rows.
+```text
+docs/ssot/artifacts.md
+```
 
-The artifact `routes@1` is not verified by Kernel cache verification because `routes@1` is owned by `platform/routing`.
+This document references those canonical assignments only to define the verification set. It does not restate or redefine artifact registry rows.
+
+The expected in-memory publication input contains the three runtime artifacts.
+
+The expected generation manifest is derived from that publication set.
+
+`routes@1` is not verified by Kernel cache verification because it is owned by `platform/routing`.
 
 ## Verification Inputs (MUST)
 
 Cache verification consumes already-supplied resolved inputs.
 
-The verifier may receive:
+The verifier receives:
 
 - resolved `BootstrapConfig`;
-- resolved `ModulePlan`;
+- one resolved `ModuleResolution`;
 - `EnvRepositoryInterface`;
 - Kernel config subtree;
 - explicit package default source candidates;
@@ -111,10 +143,21 @@ The verifier may receive:
 - explicit env overlay mappings;
 - mode preset source candidates.
 
+The verifier derives the current `ModulePlan` only through:
+
+```php
+$moduleResolution->plan()
+```
+
+The verifier produces the expected runtime `DefinitionGraph` internally through `RuntimeContainerGraphCompiler`.
+
+A raw descriptor iterable and a caller-supplied replacement `DefinitionGraph` are not supported verifier inputs.
+
 Cache verification MUST NOT:
 
 - resolve `BootstrapConfig`;
-- resolve `ModulePlan`;
+- perform a second module resolution;
+- replace the `ModulePlan` contained in the supplied `ModuleResolution`;
 - build `EnvRepositoryInterface`;
 - run Bootstrap Phase A;
 - run module discovery;
@@ -126,116 +169,162 @@ Cache verification MUST NOT:
 
 Cache verification follows this semantic sequence:
 
-1. Run `ConfigKernel::compile(...)` for the supplied resolved inputs.
-2. Build deterministic fingerprint input through `ConfigFingerprintInputBuilder`.
-3. Calculate the current fingerprint through `FingerprintCalculator`.
-4. Build expected Kernel artifact envelopes in memory.
-5. Dump expected artifact bytes in memory.
-6. Resolve expected Kernel artifact paths.
-7. For each expected artifact:
-   - check whether the existing file exists;
-   - read existing bytes and returned PHP array;
-   - validate existing envelope/header/payload schema;
-   - compare stored fingerprint with the current fingerprint;
-   - compare existing normalized bytes with expected bytes.
-8. Return safe deterministic per-artifact results and aggregate counts.
+1. derive the current `ModulePlan` from the supplied `ModuleResolution`;
+2. run `ConfigKernel::compile(...)` exactly once for the supplied resolved inputs;
+3. inspect `$compiledConfig['validation']` returned by that call;
+4. when validation is failed, throw `ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`;
+5. compile one canonical runtime `DefinitionGraph` through `RuntimeContainerGraphCompiler`;
+6. build deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
+7. calculate the expected graph-bound generation id through `FingerprintCalculator`;
+8. build the expected three runtime artifact envelopes;
+9. build the expected REAL `container@1` envelope from the same `DefinitionGraph`;
+10. dump the three expected exact runtime artifact byte strings;
+11. construct the expected `ArtifactPublicationSet`;
+12. derive and dump the expected `artifact-generation@1` envelope;
+13. locate `current` through `ArtifactGenerationLocator`;
+14. classify an absent pointer as missing;
+15. classify an invalid pointer or invalid selected generation as invalid;
+16. compare the selected generation id with the expected generation id;
+17. read and compare all four exact generation byte strings;
+18. return safe deterministic results, generation identity fields, and aggregate counts.
 
-Cache verification MUST NOT write expected artifacts to disk during verification.
+The validation assertion reuses the result from the single `ConfigKernel::compile(...)` invocation.
+
+`CacheVerifier` MUST NOT invoke `ConfigValidator` or otherwise perform config validation again.
+
+The validation assertion MUST occur before `RuntimeContainerGraphCompiler`, fingerprint-input construction, fingerprint calculation, current-generation location, artifact reads, or artifact comparisons.
+
+`CacheVerifier` MUST NOT catch or downgrade the resulting `ConfigInvalidException`.
+
+`ArtifactGenerationLocator` performs current pointer reading while holding the shared generation lock.
+
+`ArtifactGenerationValidator` validates the selected generation before `CacheVerifier` performs expected-byte comparison.
+
+Cache verification MUST NOT write expected artifacts to disk.
+
+Cache verification MUST NOT compile another graph after fingerprint construction.
+
+The semantic ordering remains:
+
+```text
+compiled config
+  -> container graph
+  -> fingerprint input
+  -> generation id
+  -> runtime envelopes
+  -> ArtifactPublicationSet
+  -> expected generation manifest
+  -> located selected generation
+  -> exact byte comparison
+```
 
 ## Existing Artifact Read Semantics (MUST)
 
-Existing PHP artifacts are read through a narrow artifact reader.
+Existing generation files are read through `PhpArtifactReader`.
 
-The reader MUST:
+For generation-aware verification the reader MUST support:
 
-- read existing artifact bytes;
-- normalize read bytes by converting CRLF and CR to LF;
-- parse the PHP-returned value in isolated include behavior;
-- reject artifact files that emit output;
-- reject non-array returned values;
-- convert filesystem/include/parse failures into deterministic safe reason tokens.
+- exact byte reads without CRLF/CR normalization;
+- PHP-returned array parsing by evaluating one already-read exact byte snapshot in an isolated scope;
+- rejection of artifact files that emit output;
+- rejection of non-array returned values;
+- deterministic conversion of filesystem/evaluation/parse failures.
+
+`CacheVerifier` uses exact-byte reads for comparison.
+
+LF-normalized reads are not part of generation-aware clean/dirty semantics.
 
 The reader MUST NOT:
 
-- validate artifact schemas;
+- resolve generation paths;
+- locate `current`;
+- validate generation or artifact schemas;
 - calculate fingerprints;
 - compare expected and existing bytes;
 - emit logs, spans, metrics, stdout, or stderr;
-- expose raw path strings, absolute paths, PHP warning text, emitted output, returned payloads, stack traces, or previous throwable messages.
+- expose raw paths, warning text, emitted output, returned payloads, stack traces, or previous throwable messages.
 
-Schema validation belongs to the artifact schema validator.
+Generation validation belongs to `ArtifactGenerationValidator`.
 
-Clean/dirty/invalid orchestration belongs to the cache verifier.
+Clean/dirty/invalid orchestration belongs to `CacheVerifier`.
 
 ## Schema Validation Semantics (MUST)
 
-Existing artifact schema validation MUST validate by:
+The selected generation MUST pass generation-level validation before expected-byte comparison.
 
-- canonical envelope structure;
-- canonical header semantics;
-- expected artifact name;
-- expected schema version;
-- Kernel-owned payload schema.
+Generation-level validation includes:
 
-Existing artifact schema validation MUST NOT rely on PHP class identity as the source of truth.
+- current pointer syntax and non-symlink status;
+- finalized directory identity;
+- exact required file set;
+- non-symlink regular file status;
+- `artifact-generation@1` schema;
+- manifest generation id;
+- declared byte lengths;
+- declared SHA-256 values;
+- runtime artifact names;
+- runtime artifact schema versions;
+- equality of all envelope fingerprints with the generation id.
 
-Invalid envelope, invalid header, invalid schema version, invalid artifact name, or invalid payload shape MUST classify the artifact as invalid.
+An invalid pointer or invalid selected generation produces an invalid cache result.
+
+The verifier MUST NOT downgrade structural or cryptographic generation invalidity to ordinary byte drift.
 
 ## Per-Artifact Statuses (MUST)
 
-Each expected artifact receives exactly one status:
+Each expected generation file receives exactly one status:
 
 - `clean`
 - `dirty`
 - `invalid`
 
-No other per-artifact status is allowed in the baseline verification result.
+No other per-file status is allowed in the verification result.
 
 ### `clean`
 
-An artifact is clean only when all of the following are true:
+An expected generation file is clean only when:
 
-- the expected artifact file exists;
-- the existing PHP artifact can be read;
-- the existing PHP artifact returns an array;
-- the existing artifact emits no output;
-- the existing envelope/header/payload schema is valid;
-- the stored artifact fingerprint equals the current fingerprint;
-- the existing LF-normalized bytes exactly equal the expected deterministic bytes.
+- `current` exists and is valid;
+- the selected generation is valid;
+- the selected generation id equals the expected generation id;
+- that file's exact persisted bytes equal its expected exact bytes.
 
 ### `dirty`
 
-An artifact is dirty when the existing artifact is safe to classify as out of date rather than structurally invalid.
+Dirty state represents a structurally valid cache that is absent, stale, or byte-drifted.
 
-Dirty reasons include:
+Dirty reasons are:
 
-- missing expected artifact file;
-- stored fingerprint mismatch;
-- deterministic byte mismatch.
+- `current` does not exist;
+- selected generation id differs from the expected generation id;
+- one selected generation file differs from its expected exact bytes.
 
-Dirty artifacts are candidates for regeneration by artifact production.
-
-Cache verification itself MUST NOT regenerate them.
+Cache verification itself MUST NOT regenerate or repair dirty state.
 
 ### `invalid`
 
-An artifact is invalid when the existing artifact exists or is attempted to be read but cannot be safely accepted as a valid artifact.
+Invalid state means `current` or the selected generation cannot be safely accepted.
 
-Invalid reasons include:
+Invalid causes include:
 
-- unreadable file;
-- invalid PHP artifact;
-- PHP include/read failure;
-- emitted output from artifact file;
-- non-array PHP return value;
-- invalid envelope;
-- invalid header;
-- invalid artifact name;
-- invalid schema version;
-- invalid payload schema;
-- any unexpected throwable during existing artifact read or schema validation.
+- malformed pointer bytes;
+- pointer symlink substitution;
+- unreadable pointer;
+- missing selected generation directory;
+- invalid generation directory identity;
+- generation or parent-directory symlink substitution;
+- missing or additional generation files;
+- artifact-file symlink substitution;
+- invalid PHP return behavior;
+- emitted output;
+- invalid generation manifest;
+- byte-length mismatch;
+- SHA-256 mismatch;
+- artifact identity mismatch;
+- schema-version mismatch;
+- envelope fingerprint mismatch.
 
-Invalid artifacts are not clean and are not merely cleanly out-of-date.
+Unexpected infrastructure failures that prevent a normal verification result, including generation-lock failure, remain operation failures rather than invalid-cache classifications.
 
 ## Per-Artifact Reasons (MUST)
 
@@ -249,72 +338,85 @@ Baseline per-artifact reasons are:
 
 Reason semantics:
 
-| Reason                 | Status    | Meaning                                                                        |
-|------------------------|-----------|--------------------------------------------------------------------------------|
-| `ok`                   | `clean`   | Existing artifact is schema-valid, fingerprint-matching, and byte-identical.   |
-| `missing`              | `dirty`   | Expected artifact file does not exist.                                         |
-| `changed`              | `dirty`   | Existing artifact bytes differ from expected deterministic bytes.              |
-| `fingerprint_mismatch` | `dirty`   | Existing artifact stores a fingerprint different from the current fingerprint. |
-| `invalid`              | `invalid` | Existing artifact cannot be safely accepted as a valid artifact.               |
+| Reason                 | Status    | Meaning                                                                |
+|------------------------|-----------|------------------------------------------------------------------------|
+| `ok`                   | `clean`   | Selected generation is expected and this file is exact-byte identical. |
+| `missing`              | `dirty`   | No current generation is selected.                                     |
+| `changed`              | `dirty`   | This selected generation file differs from expected exact bytes.       |
+| `fingerprint_mismatch` | `dirty`   | Selected valid generation id differs from the expected generation id.  |
+| `invalid`              | `invalid` | Current pointer or selected generation cannot be safely validated.     |
 
 No reason may expose raw exception text, raw PHP warning text, raw artifact payloads, raw paths, or absolute paths.
 
-## Missing Artifact Semantics (MUST)
+## Missing Current Generation Semantics (MUST)
 
-A missing expected artifact file MUST be classified as:
+When `<artifact-root>/current` does not exist, all four expected generation entries MUST be classified as:
 
 ```text
 status = dirty
 reason = missing
 ```
 
-A missing file is not invalid.
+An absent pointer is not invalid.
+
+The verifier MUST NOT scan `generations/` for a fallback generation.
+
+The verifier MUST NOT create `current`.
 
 Rationale:
 
-- missing generated cache artifacts are expected in cold-cache scenarios;
-- the correct remediation is artifact production;
-- verification does not write or repair artifacts.
+- cold caches may legitimately have no selected generation;
+- publication is the correct remediation;
+- verification does not write or repair cache state.
 
 ## Fingerprint Mismatch Semantics (MUST)
 
-After successful read and schema validation, the existing artifact header fingerprint is compared to the current fingerprint.
+After successful current-generation location and validation, the selected generation id is compared with the expected graph-bound generation id.
 
-If the stored fingerprint does not equal the current fingerprint, the artifact MUST be classified as:
+If they differ, all four expected generation entries MUST be classified as:
 
 ```text
 status = dirty
 reason = fingerprint_mismatch
 ```
 
-Fingerprint mismatch is not invalid when the existing artifact schema is valid.
+Generation-id mismatch is not invalid because the selected generation is structurally and cryptographically valid.
 
-Rationale:
+It was produced for different logical inputs and requires a new publication.
 
-- the artifact is structurally valid;
-- it was produced for different logical inputs;
-- regeneration is required.
+A semantic compiled-container graph change is a logical-input change and therefore changes the expected generation id.
 
 ## Byte Comparison Semantics (MUST)
 
-After successful read, schema validation, and fingerprint match, existing bytes are compared to expected bytes.
+Exact persisted bytes are compared only after:
 
-Both sides MUST be compared as LF-normalized bytes.
+- successful current pointer validation;
+- successful selected-generation validation;
+- selected generation-id equality with the expected generation id.
 
-If the bytes differ, the artifact MUST be classified as:
+Both sides MUST be compared as exact byte strings.
+
+No newline normalization is allowed.
+
+If one file differs, that file MUST be classified as:
 
 ```text
 status = dirty
 reason = changed
 ```
 
-Byte mismatch is not invalid when the existing artifact schema is valid.
+Exact comparison applies to:
 
-Rationale:
+```text
+module-manifest.php
+config.php
+container.php
+generation-manifest.php
+```
 
-- byte mismatch indicates artifact drift;
-- deterministic artifact production should restore rerun-no-diff bytes;
-- verification does not repair the artifact.
+A byte mismatch is not invalid after the selected generation has already passed generation validation.
+
+It represents deterministic drift relative to the rebuilt expected bytes.
 
 ## Filesystem Metadata Non-Semantics (MUST)
 
@@ -330,7 +432,7 @@ Cache verification MUST NOT use any of the following for clean/dirty/invalid cla
 - directory entry order;
 - filesystem traversal order.
 
-Only expected artifact presence, existing artifact readability/parsing, schema validity, stored fingerprint, and deterministic byte equality are semantic.
+Only current-pointer presence and validity, selected-generation validity, generation-id equality, and exact generation-file byte equality are cache-verification semantics.
 
 ## Aggregate Outcome Semantics (MUST)
 
@@ -349,13 +451,22 @@ Outcome precedence is:
 failure > invalid > dirty > clean
 ```
 
-For successfully completed verification over expected artifacts:
+For successfully completed verification over expected generation files:
 
 1. If any artifact is invalid, aggregate outcome MUST be `invalid`.
 2. Else if any artifact is dirty or missing, aggregate outcome MUST be `dirty`.
 3. Else aggregate outcome MUST be `clean`.
 
 `failure` is reserved for verification operation failure before a normal clean/dirty/invalid result can be safely completed.
+
+Generation-lock acquisition, unlock, or close failure is an operation failure.
+
+It MUST NOT be converted into:
+
+```text
+status = invalid
+reason = invalid
+```
 
 ## Boolean Result Flags (MUST)
 
@@ -387,11 +498,29 @@ invalid = true
 
 A normal completed verification result MUST NOT set multiple state flags to true.
 
+## Generation Identity Result Fields (MUST)
+
+Every completed verification result contains:
+
+- `expectedGenerationId` — the generation id rebuilt from the current resolved inputs;
+- `currentGenerationId` — the id of the valid generation selected through `current`, or `null`.
+
+`expectedGenerationId` MUST be a lowercase SHA-256 string.
+
+`currentGenerationId` MUST:
+
+- equal the selected valid generation id for a clean result;
+- preserve the selected valid generation id when it differs from `expectedGenerationId`;
+- be `null` when `current` is absent;
+- be `null` when the pointer or selected generation is invalid.
+
+The generation identity fields MUST NOT expose filesystem paths or raw fingerprint input.
+
 ## Counts (MUST)
 
 Verification result counts MUST be deterministic and safe.
 
-Baseline counts are:
+Result counts are:
 
 - `expected_artifact_count`
 - `existing_artifact_count`
@@ -410,15 +539,32 @@ Verification result data MAY include:
 - schema version;
 - aggregate outcome;
 - boolean state flags;
+- safe expected generation id;
+- nullable safe current generation id;
 - safe artifact name;
 - safe artifact basename;
 - safe skeleton-relative artifact path;
+- a stable logical current-generation diagnostic path;
 - safe status token;
 - safe reason token;
 - expected byte count;
 - existing byte count or null;
 - safe explain entries;
 - bounded counts.
+
+A result path of the form:
+
+```text
+<artifactsCacheDir>/<appTarget>/generations/current/<basename>
+```
+
+is a logical stable diagnostic identifier.
+
+It is not a physical filesystem path.
+
+`current` remains a pointer file, not a directory.
+
+Callers MUST NOT use verification result paths for runtime artifact loading.
 
 Verification result data MUST NOT include:
 
@@ -464,31 +610,59 @@ A non-clean artifact MAY include a safe explain entry with its basename, safe re
 
 ## Verification and Production Boundary (MUST)
 
-Cache verification and artifact production are separate responsibilities.
+Cache verification and artifact production remain separate responsibilities.
 
 Cache verification:
 
-- reads existing artifacts;
-- builds expected artifacts in memory;
-- compares fingerprints and bytes;
+- rebuilds the expected publication set and generation manifest in memory;
+- locates the selected generation under a shared lock;
+- validates the selected generation;
+- compares generation identity and exact bytes;
 - returns safe cache state.
 
 Cache verification MUST NOT:
 
 - write artifacts;
 - repair artifacts;
-- call artifact writer methods;
-- mutate existing artifact files.
+- mutate finalized generations;
+- replace `current`;
+- call artifact writer methods.
 
 Artifact production:
 
-- writes expected artifacts;
-- does not decide cache clean/dirty/invalid state;
-- does not read existing generated artifacts for reuse.
+- builds one `ArtifactPublicationSet`;
+- delegates publication to `ArtifactGenerationPublisher`;
+- may validate and read an existing content-addressed generation only for exact reuse;
+- does not decide cache clean/dirty/invalid state.
+
+Artifact production and cache verification share:
+
+- supplied `ModuleResolution` semantics;
+- Phase-B config compilation semantics;
+- `RuntimeContainerGraphCompiler`;
+- `ContainerGraphFingerprintBucketBuilder`;
+- `ConfigFingerprintInputBuilder`;
+- `FingerprintCalculator`;
+- Kernel runtime artifact builders;
+- `StablePhpArrayDumper`;
+- `ArtifactPublicationSet`;
+- `ArtifactGenerationManifestBuilder`.
+
+They execute the same deterministic expected-generation pipeline independently.
+
+Neither may use an alternative graph-production, fingerprint, envelope, or byte-emission algorithm.
+
+Artifact-only runtime boot MUST use `ArtifactGenerationLocator` and `ArtifactGenerationValidator` for current-generation selection and validation, but it MUST NOT invoke `CacheVerifier` or rebuild the expected generation.
+
+An absent or invalid current generation is a runtime boot failure at the artifact-runtime boundary; it is not a `dirty` cache result because runtime boot does not perform cache classification.
 
 ## Observability Semantics (MUST)
 
 Cache verification observability is best-effort and non-semantic.
+
+Safe observability metadata MAY identify `containerGraph` as a fingerprint bucket name.
+
+It MUST NOT expose the raw `DefinitionGraph`, raw service definitions, raw parameters, provider instances, runtime instances, or graph source paths.
 
 Observability failures MUST NOT alter verification classification, result data, or exception precedence.
 
@@ -514,7 +688,7 @@ This document does not own the global metrics catalog.
 
 ## Provider Registration Non-Semantics (MUST)
 
-Registering cache verification services in the provider MUST NOT run cache verification.
+Registering cache-verification and generation services in the provider MUST NOT locate, validate, publish, or verify a generation.
 
 Provider registration MUST NOT:
 
@@ -543,6 +717,7 @@ Provider registration MUST NOT:
 - This document does not define platform-owned artifact verification.
 - This document does not define `routes@1` verification.
 - This document does not define how artifact production is triggered.
+- This document does not define artifact-runtime boot failure taxonomy or Worker child boot semantics.
 - This document does not require cache verification during normal provider registration.
 - This document does not make filesystem mtimes, permissions, or owners semantic.
 
@@ -550,6 +725,7 @@ Provider registration MUST NOT:
 
 - [SSoT Index](./INDEX.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
+- [Artifact Generations](./artifact-generations.md)
 - [Kernel Artifacts and Fingerprint Behavior](./artifacts-and-fingerprint.md)
+- [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

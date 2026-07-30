@@ -48,7 +48,7 @@ final class CacheVerifyIgnoresMtimeAndPermissionsTest extends TestCase
     {
         self::assertClean();
 
-        foreach (ArtifactPipelineTestSupport::artifactPaths($this->skeletonRoot) as $path) {
+        foreach (ArtifactPipelineTestSupport::currentArtifactPaths($this->skeletonRoot) as $path) {
             self::assertTrue(\touch($path, \time() + 3600));
         }
 
@@ -59,13 +59,13 @@ final class CacheVerifyIgnoresMtimeAndPermissionsTest extends TestCase
     {
         self::assertClean();
 
-        foreach (ArtifactPipelineTestSupport::artifactPaths($this->skeletonRoot) as $path) {
+        foreach (ArtifactPipelineTestSupport::currentArtifactPaths($this->skeletonRoot) as $path) {
             @\chmod($path, 0600);
         }
 
         self::assertClean();
 
-        foreach (ArtifactPipelineTestSupport::artifactPaths($this->skeletonRoot) as $path) {
+        foreach (ArtifactPipelineTestSupport::currentArtifactPaths($this->skeletonRoot) as $path) {
             @\chmod($path, 0644);
         }
 
@@ -76,7 +76,7 @@ final class CacheVerifyIgnoresMtimeAndPermissionsTest extends TestCase
     {
         $before = ArtifactPipelineTestSupport::artifactBytes($this->skeletonRoot);
 
-        foreach (ArtifactPipelineTestSupport::artifactPaths($this->skeletonRoot) as $path) {
+        foreach (ArtifactPipelineTestSupport::currentArtifactPaths($this->skeletonRoot) as $path) {
             self::assertTrue(\touch($path, \time() + 7200));
             @\chmod($path, 0600);
         }

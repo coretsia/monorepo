@@ -21,6 +21,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use PHPUnit\Framework\TestCase;
@@ -30,52 +32,41 @@ final class CompiledContainerPreservesLaterBindingOverridesTest extends TestCase
 {
     public function testLaterServiceParameterAndAliasBindingsOverrideEarlierBindings(): void
     {
-        $graph = self::compiler()->compile([
-            [
-                'kind' => 'parameter',
-                'name' => 'override.value',
-                'value' => 'first',
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'test.override.service',
-                'class' => CompiledContainerPreservesLaterBindingOverridesFirstService::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'name' => 'override.value',
-                        'type' => 'parameter',
-                    ],
+        $definitions = new ContainerDefinitionBuilder()
+            ->parameter(
+                'override.value',
+                'first',
+            )
+            ->classService(
+                id: 'test.override.service',
+                class: CompiledContainerPreservesLaterBindingOverridesFirstService::class,
+                arguments: [
+                    ContainerValueReference::parameter('override.value'),
                 ],
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'test.override.alias',
-                'serviceId' => 'test.override.first',
-            ],
-            [
-                'kind' => 'parameter',
-                'name' => 'override.value',
-                'value' => 'second',
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'test.override.service',
-                'class' => CompiledContainerPreservesLaterBindingOverridesSecondService::class,
-                'shared' => false,
-                'arguments' => [
-                    [
-                        'name' => 'override.value',
-                        'type' => 'parameter',
-                    ],
+            )
+            ->alias(
+                'test.override.alias',
+                'test.override.first',
+            )
+            ->parameter(
+                'override.value',
+                'second',
+            )
+            ->classService(
+                id: 'test.override.service',
+                class: CompiledContainerPreservesLaterBindingOverridesSecondService::class,
+                arguments: [
+                    ContainerValueReference::parameter('override.value'),
                 ],
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'test.override.alias',
-                'serviceId' => 'test.override.service',
-            ],
-        ]);
+                shared: false,
+            )
+            ->alias(
+                'test.override.alias',
+                'test.override.service',
+            )
+            ->build();
+
+        $graph = self::compiler()->compile($definitions);
 
         $payload = $graph->toArray();
 
@@ -118,38 +109,34 @@ final class CompiledContainerPreservesLaterBindingOverridesTest extends TestCase
 
     public function testExportedGraphRemainsDeterministicallySortedAfterOverrides(): void
     {
-        $graph = self::compiler()->compile([
-            [
-                'kind' => 'service.class',
-                'id' => 'z.service',
-                'class' => CompiledContainerPreservesLaterBindingOverridesFirstService::class,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => 'a.service',
-                'class' => CompiledContainerPreservesLaterBindingOverridesSecondService::class,
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'z.alias',
-                'serviceId' => 'z.service',
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'a.alias',
-                'serviceId' => 'a.service',
-            ],
-            [
-                'kind' => 'parameter',
-                'name' => 'z.parameter',
-                'value' => 'z',
-            ],
-            [
-                'kind' => 'parameter',
-                'name' => 'a.parameter',
-                'value' => 'a',
-            ],
-        ]);
+        $definitions = new ContainerDefinitionBuilder()
+            ->classService(
+                'z.service',
+                CompiledContainerPreservesLaterBindingOverridesFirstService::class,
+            )
+            ->classService(
+                'a.service',
+                CompiledContainerPreservesLaterBindingOverridesSecondService::class,
+            )
+            ->alias(
+                'z.alias',
+                'z.service',
+            )
+            ->alias(
+                'a.alias',
+                'a.service',
+            )
+            ->parameter(
+                'z.parameter',
+                'z',
+            )
+            ->parameter(
+                'a.parameter',
+                'a',
+            )
+            ->build();
+
+        $graph = self::compiler()->compile($definitions);
 
         $payload = $graph->toArray();
 

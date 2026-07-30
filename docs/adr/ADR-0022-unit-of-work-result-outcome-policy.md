@@ -1190,7 +1190,3 @@ docs/ssot/uow-outcome-policy.md
 - `docs/adr/ADR-0016-clock-ids-stopwatch.md`
 - `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 - `docs/adr/ADR-0021-unit-of-work-context-shape.md`
-
-## Related epic
-
-- `1.270.0 Kernel: UnitOfWork Shapes Pack (Context + Result + Outcome + SSoT invariants)`

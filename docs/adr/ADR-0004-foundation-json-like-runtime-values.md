@@ -959,7 +959,3 @@ framework/packages/core/kernel/PUBLIC_API.md
 - `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 - `docs/adr/ADR-0021-unit-of-work-context-shape.md`
 - `docs/adr/ADR-0022-unit-of-work-result-outcome-policy.md`
-
-## Related epic
-
-- `1.275.0 Foundation: Json-like Runtime Value Normalization Primitive`

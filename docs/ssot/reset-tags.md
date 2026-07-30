@@ -1533,4 +1533,3 @@ This SSoT does not define:
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

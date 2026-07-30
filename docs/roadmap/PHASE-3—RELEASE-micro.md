@@ -41,7 +41,7 @@ config_roots_introduced:
 - "errors"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0031-platform-errors-errorhandler-exception-mapper.md"
+adr: "docs/adr/ADR-0033-platform-errors-errorhandler-exception-mapper.md"
 ssot_refs:
 - "docs/ssot/error-flow.md"
 - "docs/ssot/error-codes.md"
@@ -49,6 +49,8 @@ ssot_refs:
 - "docs/ssot/config-roots.md"
 - "docs/ssot/error-descriptor.md" # shape + extensions constraints
 ---
+
+- [ ] update `3.10.0 Platform errors` to consume `SensitiveDataRedactorInterface` instead of owning baseline sensitive-key/value policy.
 
 ### Dependencies (MUST)
 
@@ -170,7 +172,7 @@ Forbidden:
   - [ ] `docs/ssot/error-flow.md`
   - [ ] `docs/ssot/error-codes.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0031-platform-errors-errorhandler-exception-mapper.md`
+  - [ ] `docs/adr/ADR-0033-platform-errors-errorhandler-exception-mapper.md`
 - [ ] `docs/ssot/config-roots.md` — add root row for `errors` (owner `platform/errors`, defaults `framework/packages/platform/errors/config/errors.php`, rules `framework/packages/platform/errors/config/rules.php`)
 
 #### Package skeleton (if type=package)
@@ -314,10 +316,12 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0032-platform-logging-psr3.md"
+adr: "docs/adr/ADR-0035-platform-logging-psr3.md"
 ssot_refs:
 - "docs/ssot/logging-policy.md"
 ---
+
+- [ ] update `3.20.0 Platform logging` to consume `SensitiveDataRedactorInterface` for log record redaction.
 
 ### Dependencies (MUST)
 
@@ -429,7 +433,7 @@ Forbidden:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/logging-policy.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0032-platform-logging-psr3.md`
+  - [ ] `docs/adr/ADR-0035-platform-logging-psr3.md`
 
 #### Package skeleton (if type=package)
 
@@ -574,10 +578,12 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0033-platform-tracing-metrics-w3c-propagation.md"
+adr: "docs/adr/ADR-0036-platform-tracing-metrics-w3c-propagation.md"
 ssot_refs:
 - "docs/ssot/tracecontext.md"
 ---
+
+- [ ] update `3.30.0 Platform tracing baseline` to consume `SensitiveDataRedactorInterface` for span attribute summaries where redaction is needed.
 
 ### Dependencies (MUST)
 
@@ -686,7 +692,7 @@ Docs:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/tracecontext.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0033-platform-tracing-metrics-w3c-propagation.md`
+  - [ ] `docs/adr/ADR-0036-platform-tracing-metrics-w3c-propagation.md`
 
 #### Package skeleton (if type=package)
 
@@ -825,11 +831,13 @@ tags_introduced: []
 
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0033-platform-tracing-metrics-w3c-propagation.md"
+adr: "docs/adr/ADR-0036-platform-tracing-metrics-w3c-propagation.md"
 ssot_refs:
 - "docs/ssot/metrics-policy.md"
 - "docs/ssot/observability.md"
 ---
+
+- [ ] update `3.31.0 Platform metrics baseline` to clarify that redaction does not permit arbitrary metric labels; metrics remain allowlist-only.
 
 ### Dependencies (MUST)
 
@@ -945,7 +953,7 @@ Docs:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/metrics-policy.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0033-platform-tracing-metrics-w3c-propagation.md`
+  - [ ] `docs/adr/ADR-0036-platform-tracing-metrics-w3c-propagation.md`
 
 #### Package skeleton (if type=package)
 
@@ -1090,11 +1098,13 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0034-platform-problem-details-rfc7807.md"
+adr: "docs/adr/ADR-0037-platform-problem-details-rfc7807.md"
 ssot_refs:
 - "docs/ssot/error-descriptor.md"
 - "docs/ssot/tags.md"
 ---
+
+- [ ] update `3.40.0 Platform problem-details` to consume `SensitiveDataRedactorInterface` for safe `detail`, `extensions`, and debug/local-only diagnostics.
 
 ### Dependencies (MUST)
 
@@ -1209,7 +1219,7 @@ Normative:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0034-platform-problem-details-rfc7807.md`
+  - [ ] `docs/adr/ADR-0037-platform-problem-details-rfc7807.md`
 
 #### Package skeleton (if type=package)
 
@@ -1352,11 +1362,13 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0035-platform-http-runtime-pipeline-wiring.md"
+adr: "docs/adr/ADR-0038-platform-http-runtime-pipeline-wiring.md"
 ssot_refs:
 - "docs/ssot/http-middleware-wiring.md"
 - "docs/ssot/http-middleware-catalog.md"
 ---
+
+- [ ] update `3.50.0 Platform HTTP runtime` to consume `SensitiveDataRedactorInterface` for request/response diagnostic summaries and to forbid raw headers, cookies, body, query payloads, and authorization values.
 
 ### Dependencies (MUST)
 
@@ -1565,7 +1577,7 @@ Docs:
   - [ ] `docs/ssot/http-middleware-catalog.md`
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0035-platform-http-runtime-pipeline-wiring.md`
+  - [ ] `docs/adr/ADR-0038-platform-http-runtime-pipeline-wiring.md`
 
 - [ ] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php`
   - [ ] replace the temporary direct `platform.http` module-id check with the finalized HTTP runtime provider contract;
@@ -2107,7 +2119,7 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0036-requestid-correlationid-policy.md"
+adr: "docs/adr/ADR-0039-requestid-correlationid-policy.md"
 ssot_refs: []
 ---
 
@@ -2204,7 +2216,7 @@ Forbidden:
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RequestIdMiddleware` (system_pre 940)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `RequestIdMiddleware` (system_pre 940)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0036-requestid-correlationid-policy.md`
+  - [ ] `docs/adr/ADR-0039-requestid-correlationid-policy.md`
 
 #### Package skeleton (if type=package)
 
@@ -2333,7 +2345,7 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0037-response-hardening-headers-https.md"
+adr: "docs/adr/ADR-0040-response-hardening-headers-https.md"
 ssot_refs: []
 ---
 
@@ -2443,7 +2455,7 @@ Forbidden:
   - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
   - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0037-response-hardening-headers-https.md`
+  - [ ] `docs/adr/ADR-0040-response-hardening-headers-https.md`
 
 #### Package skeleton (if type=package)
 
@@ -2571,7 +2583,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0038-maintenance-mode-toggle.md"
+adr: "docs/adr/ADR-0041-maintenance-mode-toggle.md"
 ssot_refs: []
 ---
 
@@ -2700,7 +2712,7 @@ Slice boundary note (MUST):
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0038-maintenance-mode-toggle.md`
+  - [ ] `docs/adr/ADR-0041-maintenance-mode-toggle.md`
 
 #### Package skeleton (if type=package)
 
@@ -2843,7 +2855,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0039-system-route-table-reserved-map.md"
+adr: "docs/adr/ADR-0042-system-route-table-reserved-map.md"
 ssot_refs:
 - "docs/ssot/system-route-table.md"
 ---
@@ -2909,7 +2921,7 @@ N/A
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/system-route-table.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0039-system-route-table-reserved-map.md`
+  - [ ] `docs/adr/ADR-0042-system-route-table-reserved-map.md`
 
 #### Package skeleton (if type=package)
 
@@ -3015,7 +3027,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0040-reserved-path-matching-rules.md"
+adr: "docs/adr/ADR-0043-reserved-path-matching-rules.md"
 ssot_refs:
 - "docs/ssot/reserved-path-matching.md"
 ---
@@ -3079,7 +3091,7 @@ N/A
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/reserved-path-matching.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0040-reserved-path-matching-rules.md`
+  - [ ] `docs/adr/ADR-0043-reserved-path-matching-rules.md`
 
 #### Package skeleton (if type=package)
 
@@ -3403,6 +3415,8 @@ ssot_refs:
 - "docs/ssot/system-route-table.md"
 ---
 
+- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -3671,7 +3685,7 @@ config_roots_introduced:
 - "routing"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0041-platform-routing-compiled-routes.md"
+adr: "docs/adr/ADR-0044-platform-routing-compiled-routes.md"
 ssot_refs:
 - "docs/ssot/system-route-table.md"
 - "docs/ssot/reserved-path-matching.md"
@@ -3842,7 +3856,7 @@ Tests:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0041-platform-routing-compiled-routes.md`
+  - [ ] `docs/adr/ADR-0044-platform-routing-compiled-routes.md`
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/routing-artifact.md`
 - [ ] deptrac expectations updated: allow `platform/routing` → `platform/http` (compile-time) while keeping `platform/http` boundary intact
@@ -4033,7 +4047,7 @@ config_roots_introduced:
 - "http_app"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0042-platform-http-app-router-middleware-action-invoker.md"
+adr: "docs/adr/ADR-0045-platform-http-app-router-middleware-action-invoker.md"
 ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
@@ -4178,7 +4192,7 @@ Framework / E2E:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0042-platform-http-app-router-middleware-action-invoker.md`
+  - [ ] `docs/adr/ADR-0045-platform-http-app-router-middleware-action-invoker.md`
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
 - [ ] `docs/ssot/config-roots.md` — add row:
@@ -4528,7 +4542,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0043-cors-middleware.md"
+adr: "docs/adr/ADR-0046-cors-middleware.md"
 ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
@@ -4628,7 +4642,7 @@ Tests:
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `CorsMiddleware` (priority 840)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `CorsMiddleware` (priority 840)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0043-cors-middleware.md`
+  - [ ] `docs/adr/ADR-0046-cors-middleware.md`
 
 #### Package skeleton (if type=package)
 
@@ -4923,7 +4937,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0044-method-override-middleware.md"
+adr: "docs/adr/ADR-0047-method-override-middleware.md"
 ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 - "docs/ssot/http-method-override.md"
@@ -5033,7 +5047,7 @@ Tests:
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 820)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — ensure row (system_pre 820)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0044-method-override-middleware.md`
+  - [ ] `docs/adr/ADR-0047-method-override-middleware.md`
 
 #### Package skeleton (if type=package)
 
@@ -5180,7 +5194,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0045-content-negotiation-middleware.md"
+adr: "docs/adr/ADR-0048-content-negotiation-middleware.md"
 ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 - "docs/ssot/http-negotiation.md"
@@ -5297,7 +5311,7 @@ Tests:
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 810)
 - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — ensure row (system_pre 810)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0045-content-negotiation-middleware.md`
+  - [ ] `docs/adr/ADR-0048-content-negotiation-middleware.md`
 
 #### Package skeleton (if type=package)
 
@@ -5452,9 +5466,11 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0046-problem-details-html-renderer-error-pages.md"
+adr: "docs/adr/ADR-0049-problem-details-html-renderer-error-pages.md"
 ssot_refs: []
 ---
+
+- [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to consume `SensitiveDataRedactorInterface` for rendered diagnostics and local debug pages.
 
 ### Dependencies (MUST)
 
@@ -5555,7 +5571,7 @@ Tests:
 - [ ] `framework/packages/platform/problem-details/config/problem_details.php` — add/extend html renderer settings
 - [ ] `framework/packages/platform/problem-details/README.md` — selector rules + negotiation integration
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0046-problem-details-html-renderer-error-pages.md`
+  - [ ] `docs/adr/ADR-0049-problem-details-html-renderer-error-pages.md`
 
 #### Package skeleton (if type=package)
 
@@ -5696,6 +5712,8 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 - "docs/ssot/http-middleware-catalog.md"
 ---
+
+- [ ] update `3.200.0 HTTP Performance Benchmarking Harness` to ensure benchmark output does not include raw payloads, tokens, env values, or absolute local paths.
 
 ### Dependencies (MUST)
 

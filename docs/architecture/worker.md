@@ -24,6 +24,9 @@ It explains:
 - process model;
 - driver selection;
 - manager and application-worker boundaries;
+- declarative runtime container wiring;
+- lazy manager and task-factory resolution;
+- runtime path seed ownership;
 - UnitOfWork and reset discipline;
 - worker state ownership;
 - control transport behavior;
@@ -65,10 +68,14 @@ If this document conflicts with any of the following, the SSoT or ADR wins:
 
 ```text
 docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0030-canonical-runtime-container-definitions.md
+docs/adr/ADR-0029-kernel-container-compile-artifact.md
+docs/ssot/compiled-container.md
 docs/adr/ADR-0027-runtime-driver-guard.md
 docs/ssot/config-roots.md
 docs/ssot/observability.md
 docs/ssot/runtime-drivers.md
+docs/ssot/runtime-container-definitions.md
 docs/ssot/uow-and-reset-contracts.md
 ```
 
@@ -129,7 +136,7 @@ integrations/*
 
 The worker package may contribute CLI command services, but CLI discovery, catalog construction, binary dispatch, and command UX remain owned by `platform/cli`.
 
-The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain owned by later platform/runtime adapter epics.
+The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain outside `platform/worker` and are owned by platform/runtime adapters.
 
 ## Architecture components
 
@@ -139,6 +146,9 @@ The main worker architecture components are:
 WorkerModule
 WorkerServiceProvider
 WorkerServiceFactory
+WorkerManagerResolverInterface
+ContainerWorkerManagerResolver
+RuntimePathContext
 WorkerStartCommand
 WorkerStopCommand
 WorkerStatusCommand
@@ -163,7 +173,20 @@ The internal interfaces are package-local seams only:
 ```text
 Coretsia\Platform\Worker\Internal\WorkerManagerDriverInterface
 Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
+Coretsia\Platform\Worker\Internal\WorkerManagerResolverInterface
 ```
+
+`WorkerManagerResolverInterface` is the package-local seam between `WorkerStartCommand`, `ContainerWorkerManagerResolver`, and Worker tests.
+
+It preserves lazy `WorkerManager` resolution and is not a public framework extension point.
+
+`RuntimePathContext` is Kernel-owned runtime infrastructure:
+
+```text
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+It is not a Worker extension point and is not owned by `platform/worker`.
 
 The following helper is also package-internal:
 
@@ -175,7 +198,113 @@ It maps normalized Worker-owned task type state to the public Kernel `RuntimeDri
 
 It is not a public Worker extension point.
 
-They are not public framework extension points and must not be moved to `core/contracts`.
+`WorkerManagerDriverInterface`, `TaskFactoryInternalInterface`, `WorkerManagerResolverInterface`, and `WorkerRuntimeDriverContributions` are package-internal seams.
+
+They must not be treated as public framework extension points or moved to `core/contracts`.
+
+## Declarative container wiring
+
+`WorkerServiceProvider` implements:
+
+```text
+ServiceProviderInterface
+ContainerDefinitionProviderInterface
+```
+
+Its `define()` method is the only canonical source of Worker runtime wiring.
+
+Its `register()` method performs source-host validation and delegates the contribution through:
+
+```php
+$builder->registerDefinitionProvider($this);
+```
+
+It must not maintain a parallel imperative runtime graph.
+
+The Worker provider defines:
+
+```text
+WorkerServiceFactory
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+StableJsonEncoder
+StableJsonDecoder
+WorkerStateStore
+WorkerSocketServer
+QueueTaskFactory
+HttpTaskFactory
+TaskFactoryInternalInterface
+ApplicationWorker
+PcntlWorkerManagerDriver
+ProcWorkerManagerDriver
+WorkerManager
+ContainerWorkerManagerResolver
+WorkerManagerResolverInterface alias
+WorkerStartCommand
+WorkerStopCommand
+WorkerStatusCommand
+cli.command tags
+```
+
+Its required service ids are:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ApplicationWorker
+WorkerManager
+QueueTaskFactory
+HttpTaskFactory
+```
+
+The allowed entrypoint-owned external runtime seeds are:
+
+```text
+ConfigRepositoryInterface
+ModulePlan
+RuntimePathContext
+```
+
+These objects are materialized by the artifact-only runtime entrypoint and supplied to the compiled container through the exact Kernel-owned `RuntimeContainerSeedSet`.
+
+The explicit law is:
+
+```text
+Runtime seeds are entrypoint-owned runtime objects.
+They are not provider definitions, artifact payloads, or fingerprint inputs.
+```
+
+Worker definitions may reference these service ids, but Worker providers must not define, instantiate, serialize, tag, or shadow the seed objects.
+
+The remaining required ids must be defined by the complete runtime graph.
+
+`QueueTaskFactory` and `HttpTaskFactory` are required because task-factory selection resolves one of them internally through `ContainerInterface`.
+
+`WorkerManager` is required because `ContainerWorkerManagerResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerManager::class)` lookup.
+
+`RequestHandlerInterface` is not an unconditional required service. It is a mode-dependent HTTP preflight dependency and may be absent until HTTP task mode is actually validated.
+
+The Worker definition contribution contains no closures.
+
+The Foundation definition adapter may create source-container factory closures while applying canonical definitions.
+
+Worker runtime factories and services may create execution callbacks during runtime service construction or execution, after canonical definition production has completed, including:
+
+```text
+PcntlWorkerManagerDriver child runner
+task-work run callback
+```
+
+Neither adapter-created closures nor Worker runtime callbacks may enter canonical Worker definitions, descriptor values, generated artifact payload values, or fingerprint input.
+
+The Worker runtime graph does not depend on `BootstrapConfig`.
+
+Production artifact compilation does not consume the Worker provider contribution.
+
+Any compilation orchestration that selects provider-produced definitions must consume the same `WorkerServiceProvider::define()` contribution.
 
 ## Process model
 
@@ -190,6 +319,9 @@ worker:start command
   -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
        -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
        -> Kernel RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+  -> WorkerManagerResolverInterface::resolve()
+       -> ContainerWorkerManagerResolver
+       -> runtime container get(WorkerManager)
   -> WorkerManager::start(...)
   -> selected process driver
   -> master process state
@@ -356,8 +488,11 @@ http  -> http.worker
 ```text
 build WorkerPoolSpec
 → call WorkerRuntimeEntrypointGuard
-→ resolve and start WorkerManager
+→ call WorkerManagerResolverInterface::resolve()
+→ start WorkerManager
 ```
+
+Resolving the command service itself must not resolve `WorkerManager`, process drivers, `ApplicationWorker`, or the selected task factory.
 
 Worker callers must not:
 
@@ -380,6 +515,29 @@ CORETSIA_WORKER_START_FAILED: worker-invalid-state
 Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
 
 HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
+
+## Lazy WorkerManager resolution boundary
+
+`WorkerStartCommand` receives `WorkerManagerResolverInterface` instead of a closure factory or an eager `WorkerManager`.
+
+The canonical implementation is:
+
+```text
+ContainerWorkerManagerResolver
+```
+
+It stores only `ContainerInterface`.
+
+`resolve()`:
+
+1. requests `WorkerManager::class` from the active runtime container;
+2. validates the resolved type;
+3. returns the valid manager;
+4. maps container failures and invalid bindings to a safe deterministic Worker start failure.
+
+It must not expose service ids, container diagnostics, runtime paths, config values, environment values, or nested throwable messages.
+
+The resolver interface and implementation are package-internal and are not public Worker plugin APIs.
 
 ## Worker manager boundary
 
@@ -422,6 +580,16 @@ The `pcntl` driver owns fork-based process startup and graceful shutdown when se
 
 The `proc` driver owns `proc_open()` process startup and graceful shutdown when selected.
 
+The process-driver factory methods receive runtime filesystem roots through `RuntimePathContext`.
+
+`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` extracts the normalized skeleton root and passes it to `PcntlWorkerManagerDriver`.
+
+`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives one skeleton-root-relative artifact-root value from `RuntimePathContext::artifactRoot()`.
+
+An absolute artifact root MUST be a strict descendant of `RuntimePathContext::skeletonRoot()`; an equal root or an absolute root outside the skeleton fails deterministically. `ProcWorkerManagerDriver` then applies the canonical relative-safe lexical validation before storing the value.
+
+The concrete process drivers do not receive `RuntimePathContext` or `BootstrapConfig`.
+
 Process drivers may write stop flags, communicate over the control channel, and persist worker state through `WorkerStateStore`.
 
 Process drivers must not:
@@ -442,11 +610,129 @@ Process command construction for the `proc` driver is argv-vector based.
 
 It must not construct an untrusted shell string.
 
+## Proc child artifact-only boot boundary
+
+The `proc` driver starts a fresh PHP child process.
+
+Unlike a forked `pcntl` child, the proc child does not inherit the already-built in-memory runtime container.
+
+The master passes exactly one skeleton-root-relative Kernel artifact root.
+
+The canonical child argv field is:
+
+```text
+--coretsia-worker-artifact-root=<relative-safe-path>
+```
+
+The child argument parser uses an exact key allowlist.
+
+It MUST reject the legacy individual artifact arguments:
+
+```text
+--coretsia-worker-module-manifest
+--coretsia-worker-config
+--coretsia-worker-container
+```
+
+The artifact-root argument MUST:
+
+- be non-empty;
+- be skeleton-root-relative;
+- use `/` separators;
+- contain no whitespace;
+- contain no control bytes;
+- contain no empty segments;
+- contain no `.` or `..` segments;
+- contain no stream-wrapper syntax;
+- contain no absolute-path prefix;
+- contain no `@`-prefixed segment.
+
+The child process uses its working directory as the explicit normalized skeleton root.
+
+It resolves the validated relative artifact root against that skeleton root and creates:
+
+```php
+new ArtifactRuntimeInput(
+    skeletonRoot: $skeletonRoot,
+    artifactRoot: $artifactRoot,
+);
+```
+
+The child invokes:
+
+```text
+ArtifactRuntimeBooter
+```
+
+with that input only.
+
+`ArtifactRuntimeBooter` then:
+
+1. locates `current`;
+2. validates one selected generation;
+3. reads exact snapshots for all four generation files;
+4. validates generation metadata and fingerprints;
+5. hydrates `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+6. builds the compiled runtime container.
+
+These three objects form the exact entrypoint-owned runtime seed set.
+
+The proc child artifact-only boot path MUST NOT:
+
+- accept individual artifact paths;
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- read source config files;
+- read Composer module metadata;
+- discover modules;
+- resolve presets;
+- execute source providers;
+- compile a replacement graph;
+- calculate fingerprints;
+- write or repair artifacts;
+- scan `generations/` for a newest generation;
+- fall back to another generation.
+
+After the compiled container is built, the child resolves:
+
+```text
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
+ConfigRepositoryInterface
+ModulePlan
+ApplicationWorker
+```
+
+The child validates that the received worker arguments match `WorkerPoolSpec` before starting the application-worker loop.
+
+All child boot failures MUST remain deterministic and redacted.
+
+The launcher emits exactly two normalized STDERR lines on failure:
+
+```text
+CORETSIA_WORKER_CHILD_BOOT_FAILED
+<safe-reason>
+```
+
+Any `ArtifactRuntimeBooter` failure is collapsed to:
+
+```text
+runtime-container-boot-failed
+```
+
+The launcher MUST NOT forward the nested `ArtifactRuntimeBootException` reason or message.
+
+Raw artifact roots, generation paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages MUST NOT appear in public child diagnostics.
+
 ## Application worker boundary
 
 `ApplicationWorker` owns the child-process task loop.
 
 It processes tasks sequentially without restarting PHP between tasks.
+
+`WorkerServiceFactory::applicationWorker(...)` receives `RuntimePathContext` and passes the normalized value returned by `RuntimePathContext::skeletonRoot()` to `ApplicationWorker`.
+
+`ApplicationWorker` does not depend on `RuntimePathContext` or `BootstrapConfig`.
 
 The loop shape is:
 
@@ -462,7 +748,9 @@ while processed < worker.max_requests:
 
 The stop flag is checked only between tasks.
 
-The worker must not interrupt an in-flight task unless future cancellation semantics are explicitly introduced.
+The worker must not interrupt an in-flight task.
+
+In-flight task cancellation is outside the Worker runtime contract.
 
 Each task is executed by:
 
@@ -568,6 +856,35 @@ Only after compatibility passes may HTTP task mode require a resolvable:
 Psr\Http\Server\RequestHandlerInterface
 ```
 
+`WorkerServiceFactory::taskFactory(...)` performs lazy task-factory selection.
+
+It receives:
+
+```text
+WorkerPoolSpec
+ContainerInterface
+```
+
+It selects the canonical service id:
+
+```text
+queue -> QueueTaskFactory
+http  -> HttpTaskFactory
+```
+
+It resolves only the selected service.
+
+The resolved service must:
+
+- implement `TaskFactoryInternalInterface`;
+- return `true` from `supports($spec)`.
+
+Closure-based queue-task-factory and HTTP-task-factory constructor arguments are forbidden.
+
+Resolution or validation failures are mapped to safe deterministic Worker start failures.
+
+The task-body closure produced by a valid task factory remains runtime work and is not part of declarative container wiring.
+
 Request-handler preflight failures must be deterministic and safe.
 
 The worker package must not import `Coretsia\Platform\Http\*`.
@@ -624,23 +941,67 @@ The value must be a non-negative integer.
 
 ### Path safety
 
-Worker runtime paths must be skeleton-root-relative.
+Configured Worker-owned path values remain skeleton-root-relative configuration values.
 
-They must not be absolute paths.
-
-They must not contain:
+These include:
 
 ```text
-..
-skeleton/
-backslashes
-control characters
-whitespace
-://
-segments beginning with @
+worker.state_path
+worker.stop_flag_path
+worker.control.socket_path
 ```
 
-Worker paths must not be logged or exposed in public diagnostics.
+Configured relative Worker paths must:
+
+- be non-empty;
+- use normalized `/` separators;
+- reject NUL and control characters;
+- reject URI schemes;
+- reject parent traversal;
+- reject absolute Unix paths;
+- reject absolute Windows drive paths.
+
+These relative config values are distinct from both:
+
+- the proc-child artifact-root argument;
+- runtime roots carried by `RuntimePathContext`.
+
+The proc-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
+
+```text
+--coretsia-worker-artifact-root=<relative-safe-path>
+```
+
+It is not a Worker config value and is not a generated artifact payload field.
+
+The runtime roots are carried by:
+
+```text
+RuntimePathContext
+```
+
+`RuntimePathContext::skeletonRoot()` and `RuntimePathContext::artifactRoot()` may be normalized absolute runtime paths.
+
+The runtime context object and its path values must never be:
+
+- exposed in public diagnostics;
+- copied into canonical definition values;
+- emitted as descriptor field values;
+- serialized as generated artifact payload values;
+- included in fingerprint input;
+- inferred from Worker config by Worker runtime services.
+
+The service id:
+
+```text
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+may still appear in required-service declarations and typed service references.
+
+`RuntimePathContext` validation does not read the filesystem or resolve symlinks.
+
+All Worker path diagnostics remain redacted.
 
 ## State model and state file
 
@@ -946,12 +1307,34 @@ This architecture document does not define:
 - FrankenPHP integration;
 - public worker plugin APIs;
 - public task-source plugin APIs;
+- production artifact-compilation consumption of declarative provider definitions;
 - container artifact schema;
 - config merge implementation;
 - config validation implementation;
 - production observability exporter configuration.
 
 ## Required update path
+
+Changing Worker declarative container wiring, required-service declarations, lazy manager resolution, lazy task-factory selection, or runtime path seed policy requires updating:
+
+```text
+docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/architecture/worker.md
+docs/adr/ADR-0030-canonical-runtime-container-definitions.md
+docs/ssot/runtime-container-definitions.md
+```
+
+Changing the proc-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
+
+```text
+docs/architecture/worker.md
+docs/adr/ADR-0029-kernel-container-compile-artifact.md
+docs/ssot/compiled-container.md
+docs/ssot/artifact-generations.md
+docs/adr/ADR-0031-atomic-artifact-generations.md
+framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+```
 
 Changing worker process ownership, manager/application-worker boundaries, state schema, task factory visibility, or process driver extension policy requires updating:
 
@@ -1002,24 +1385,8 @@ docs/ssot/observability.md
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
-
-## Related implementation
-
-- `framework/packages/platform/worker/config/worker.php`
-- `framework/packages/platform/worker/config/rules.php`
-- `framework/packages/platform/worker/bin/coretsia-worker`
-- `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
-- `framework/packages/platform/worker/src/Manager/WorkerManager.php`
-- `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
-- `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
-- `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
-- `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`
-- `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
-- `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
-- `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
-- `framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php`
+- [Artifact Generations SSoT](../ssot/artifact-generations.md)
+- [Compiled Container SSoT](../ssot/compiled-container.md)
+- [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
+- [Canonical Runtime Container Definitions SSoT](../ssot/runtime-container-definitions.md)
+- [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)

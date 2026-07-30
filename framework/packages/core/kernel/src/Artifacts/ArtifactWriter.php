@@ -168,6 +168,134 @@ final readonly class ArtifactWriter
     }
 
     /**
+     * Writes exact bytes to an explicit new target and durably flushes the file.
+     *
+     * The target file must not already exist. The target directory must already
+     * exist and must not be a symlink.
+     *
+     * @return int Exact written byte count.
+     *
+     * @throws ArtifactWriteFailedException
+     */
+    public function writeDurableFile(
+        string $targetPath,
+        string $bytes,
+    ): int {
+        return $this->writeExactDurably(
+            targetPath: $targetPath,
+            bytes: $bytes,
+        );
+    }
+
+    /**
+     * Writes exact bytes to a caller-controlled temporary basename in the target
+     * directory and returns the exact temporary path for a later pointer switch.
+     *
+     * @return array{path: non-empty-string, bytes: int}
+     *
+     * @throws ArtifactWriteFailedException
+     */
+    public function writeDurableTemporaryFile(
+        string $targetPath,
+        string $temporaryBasename,
+        string $bytes,
+    ): array {
+        $targetDirectory = self::existingTargetDirectory($targetPath);
+        $temporaryBasename = self::safeTemporaryBasename($temporaryBasename);
+        $temporaryPath = $targetDirectory . '/' . $temporaryBasename;
+
+        $byteCount = $this->writeExactDurably(
+            targetPath: $temporaryPath,
+            bytes: $bytes,
+        );
+
+        return [
+            'path' => $temporaryPath,
+            'bytes' => $byteCount,
+        ];
+    }
+
+    /**
+     * Replaces a target with a fully written durable temporary file.
+     *
+     * On filesystems that cannot rename over an existing target, the method uses
+     * a same-directory backup while the caller holds the generation lock. If the
+     * new rename fails, it restores the previous target before reporting failure.
+     *
+     * @throws ArtifactWriteFailedException
+     */
+    public function replaceDurableFile(
+        string $temporaryPath,
+        string $targetPath,
+        string $backupBasename,
+    ): void {
+        $targetDirectory = self::existingTargetDirectory($targetPath);
+        $temporaryDirectory = self::targetDirectory($temporaryPath);
+
+        if (
+            !self::sameDirectory($temporaryDirectory, $targetDirectory)
+            || @\is_link($temporaryPath)
+            || !@\is_file($temporaryPath)
+        ) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        if (
+            @\is_link($targetPath)
+            || (@\file_exists($targetPath) && !@\is_file($targetPath))
+        ) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        if (@\rename($temporaryPath, $targetPath)) {
+            return;
+        }
+
+        if (!self::isRegularNonSymlinkFile($targetPath)) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        $backupBasename = self::safeTemporaryBasename($backupBasename);
+        $backupPath = $targetDirectory . '/' . $backupBasename;
+
+        if (@\file_exists($backupPath) || @\is_link($backupPath)) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        if (!@\rename($targetPath, $backupPath)) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        if (@\rename($temporaryPath, $targetPath)) {
+            @\unlink($backupPath);
+
+            return;
+        }
+
+        $restored = @\rename($backupPath, $targetPath);
+
+        if (!$restored) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+            );
+        }
+
+        throw ArtifactWriteFailedException::withReason(
+            ArtifactWriteFailedException::REASON_TARGET_REPLACE_FAILED,
+        );
+    }
+
+    /**
      * @throws ArtifactWriteFailedException
      */
     private function writeAtomically(string $targetPath, string $bytes): void
@@ -280,6 +408,134 @@ final readonly class ArtifactWriter
                 ArtifactWriteFailedException::REASON_TEMP_FILE_RENAME_FAILED,
             );
         }
+    }
+
+    /**
+     * @throws ArtifactWriteFailedException
+     */
+    private function writeExactDurably(
+        string $targetPath,
+        string $bytes,
+    ): int {
+        self::existingTargetDirectory($targetPath);
+
+        if (
+            $bytes === ''
+            || @\file_exists($targetPath)
+            || @\is_link($targetPath)
+        ) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_DURABLE_FILE_OPEN_FAILED,
+            );
+        }
+
+        $handle = @\fopen($targetPath, 'xb');
+
+        if (!\is_resource($handle)) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_DURABLE_FILE_OPEN_FAILED,
+            );
+        }
+
+        $failureReason = null;
+        $byteCount = \strlen($bytes);
+        $offset = 0;
+
+        try {
+            while ($offset < $byteCount) {
+                $written = @\fwrite(
+                    $handle,
+                    \substr($bytes, $offset),
+                );
+
+                if (!\is_int($written) || $written <= 0) {
+                    $failureReason =
+                        ArtifactWriteFailedException::REASON_DURABLE_FILE_WRITE_FAILED;
+
+                    break;
+                }
+
+                $offset += $written;
+            }
+
+            if ($failureReason === null && !@\fflush($handle)) {
+                $failureReason =
+                    ArtifactWriteFailedException::REASON_DURABLE_FILE_FLUSH_FAILED;
+            }
+
+            if ($failureReason === null && !@\fsync($handle)) {
+                $failureReason =
+                    ArtifactWriteFailedException::REASON_DURABLE_FILE_SYNC_FAILED;
+            }
+
+            if ($failureReason === null) {
+                @\chmod($targetPath, self::FILE_PERMISSIONS);
+            }
+        } finally {
+            $closed = @\fclose($handle);
+
+            if (!$closed && $failureReason === null) {
+                $failureReason =
+                    ArtifactWriteFailedException::REASON_DURABLE_FILE_CLOSE_FAILED;
+            }
+        }
+
+        if ($failureReason !== null || $offset !== $byteCount) {
+            if (
+                !@\unlink($targetPath)
+                && self::pathExistsOrIsLink($targetPath)
+            ) {
+                throw ArtifactWriteFailedException::withReason(
+                    ArtifactWriteFailedException::REASON_TEMP_FILE_CLEANUP_FAILED,
+                );
+            }
+
+            throw ArtifactWriteFailedException::withReason(
+                $failureReason
+                ?? ArtifactWriteFailedException::REASON_DURABLE_FILE_WRITE_FAILED,
+            );
+        }
+
+        return $byteCount;
+    }
+
+    /**
+     * @return non-empty-string
+     *
+     * @throws ArtifactWriteFailedException
+     */
+    private static function existingTargetDirectory(string $targetPath): string
+    {
+        $directory = self::targetDirectory($targetPath);
+
+        if (@\is_link($directory) || !@\is_dir($directory)) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_INVALID,
+            );
+        }
+
+        return $directory;
+    }
+
+    /**
+     * @return non-empty-string
+     *
+     * @throws ArtifactWriteFailedException
+     */
+    private static function safeTemporaryBasename(string $basename): string
+    {
+        if (
+            $basename === ''
+            || \strlen($basename) > 160
+            || \preg_match('/\A\.[a-z0-9][a-z0-9.-]*\z/', $basename) !== 1
+            || \str_contains($basename, '..')
+        ) {
+            throw ArtifactWriteFailedException::withReason(
+                ArtifactWriteFailedException::REASON_TEMP_FILE_NAME_INVALID,
+            );
+        }
+
+        return $basename;
     }
 
     private function safeStartTimer(): mixed
@@ -512,6 +768,18 @@ final readonly class ArtifactWriter
         }
 
         return $leftNormalized === $rightNormalized;
+    }
+
+    private static function isRegularNonSymlinkFile(
+        string $path,
+    ): bool {
+        return !@\is_link($path) && @\is_file($path);
+    }
+
+    private static function pathExistsOrIsLink(
+        string $path,
+    ): bool {
+        return @\file_exists($path) || @\is_link($path);
     }
 
     private static function cleanupTemporaryFile(string $temporaryPath): void

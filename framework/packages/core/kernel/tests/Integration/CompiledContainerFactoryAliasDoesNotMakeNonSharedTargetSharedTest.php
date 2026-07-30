@@ -18,6 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use PHPUnit\Framework\TestCase;
 
 final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest extends TestCase
@@ -31,19 +34,9 @@ final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest ex
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: [
-                    [
-                        'kind' => 'service.class',
-                        'id' => CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
-                        'class' => CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
-                        'shared' => false,
-                    ],
-                    [
-                        'kind' => 'alias',
-                        'alias' => 'test.non_shared.alias',
-                        'serviceId' => CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
-                    ],
-                ],
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedProvider::class,
+                ]),
             );
 
             $envelope = ArtifactPipelineTestSupport::artifactEnvelope($root, 'container.php');
@@ -76,7 +69,9 @@ final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest ex
                 'The compiled alias must point to the non-shared target service.',
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $first = $container->get('test.non_shared.alias');
             $second = $container->get('test.non_shared.alias');
@@ -97,6 +92,25 @@ final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest ex
         } finally {
             ArtifactPipelineTestSupport::removeTree($root);
         }
+    }
+}
+
+final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedProvider implements ContainerDefinitionProviderInterface
+{
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $definitions->classService(
+            id: CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
+            class: CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
+            shared: false,
+        );
+
+        $definitions->alias(
+            'test.non_shared.alias',
+            CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedSubject::class,
+        );
     }
 }
 

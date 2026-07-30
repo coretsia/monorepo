@@ -550,7 +550,3 @@ This ADR does not define:
 ## Related ADRs
 
 - `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-
-## Related epic
-
-- `1.310.0 Kernel: Module Plan (discovery + presets + graph + policies)`

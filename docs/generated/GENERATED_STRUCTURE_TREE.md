@@ -59,6 +59,8 @@ Coretsia/
 │   │   ├── ADR-0027-runtime-driver-guard.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
+│   │   ├── ADR-0030-canonical-runtime-container-definitions.md
+│   │   ├── ADR-0031-atomic-artifact-generations.md
 │   │   └── INDEX.md
 │   ├── architecture/
 │   │   ├── BRANDING.md
@@ -127,6 +129,7 @@ Coretsia/
 │   │   └── ROADMAP.md
 │   └── ssot/
 │       ├── INDEX.md
+│       ├── artifact-generations.md
 │       ├── artifacts-and-fingerprint.md
 │       ├── artifacts.md
 │       ├── cache-verify.md
@@ -158,6 +161,7 @@ Coretsia/
 │       ├── rate-limit-contracts.md
 │       ├── reset-tags.md
 │       ├── routing-and-http-app-contracts.md
+│       ├── runtime-container-definitions.md
 │       ├── runtime-drivers.md
 │       ├── secrets-contracts.md
 │       ├── stateful-services.md
@@ -379,9 +383,22 @@ Coretsia/
 │   │   │   │   │   │   ├── FrozenClock.php
 │   │   │   │   │   │   └── SystemClock.php
 │   │   │   │   │   ├── Container/
+│   │   │   │   │   │   ├── Definition/
+│   │   │   │   │   │   │   ├── ContainerDefinitionApplier.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionBuilder.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionContext.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionKind.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionProviderInterface.php
+│   │   │   │   │   │   │   ├── ContainerDefinitionSet.php
+│   │   │   │   │   │   │   ├── ContainerServiceDefinition.php
+│   │   │   │   │   │   │   └── ContainerValueReference.php
 │   │   │   │   │   │   ├── Exception/
+│   │   │   │   │   │   │   ├── ContainerDefinitionInvalidException.php
 │   │   │   │   │   │   │   ├── ContainerException.php
 │   │   │   │   │   │   │   └── NotFoundException.php
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   ├── ContainerDefinitionPolicy.php
+│   │   │   │   │   │   │   └── ContainerServiceIdPolicy.php
 │   │   │   │   │   │   ├── ConcreteClassAutowireResolver.php
 │   │   │   │   │   │   ├── Container.php
 │   │   │   │   │   │   ├── ContainerBuilder.php
@@ -440,6 +457,8 @@ Coretsia/
 │   │   │   │   │   │   ├── StableJsonDecoder.php
 │   │   │   │   │   │   └── StableJsonEncoder.php
 │   │   │   │   │   ├── Tag/
+│   │   │   │   │   │   ├── Internal/
+│   │   │   │   │   │   │   └── TagNamePolicy.php
 │   │   │   │   │   │   ├── ReservedTags.php
 │   │   │   │   │   │   ├── TagRegistry.php
 │   │   │   │   │   │   └── TaggedService.php
@@ -449,6 +468,8 @@ Coretsia/
 │   │   │   │   │       └── Stopwatch.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
+│   │   │   │   │   │   ├── ContainerDefinitionSetIsDeterministicContractTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSecretsContractTest.php
 │   │   │   │   │   │   ├── ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
@@ -476,11 +497,13 @@ Coretsia/
 │   │   │   │   │   │   ├── SystemClockReturnsUtcDateTimeImmutableContractTest.php
 │   │   │   │   │   │   └── UuidFormatContractTest.php
 │   │   │   │   │   ├── Integration/
-│   │   │   │   │   │   ├── Container/
-│   │   │   │   │   │   │   └── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContainerBuilderLaterBindingOverridesEarlierBindingTest.php
 │   │   │   │   │   │   ├── ContainerBuilderProviderOrderIsDeterministicTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesLaterBindingTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesSharedLifecycleTest.php
+│   │   │   │   │   │   ├── ContainerDefinitionApplierPreservesTagFirstWinsTest.php
 │   │   │   │   │   │   ├── ContainerDefinitionsAreSharedByDefaultTest.php
+│   │   │   │   │   │   ├── ContainerFactoryDefinitionsCanBeNonSharedTest.php
 │   │   │   │   │   │   ├── ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedKernelStatefulTest.php
 │   │   │   │   │   │   ├── ContextStoreIsTaggedWithEffectiveResetTagTest.php
@@ -501,6 +524,7 @@ Coretsia/
 │   │   │   │   │   │   ├── DefaultIdGeneratorResolvesFromConfigTest.php
 │   │   │   │   │   │   ├── FoundationClockAndStopwatchBindingsTest.php
 │   │   │   │   │   │   ├── FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+│   │   │   │   │   │   ├── FoundationProviderSourceDefinitionsParityTest.php
 │   │   │   │   │   │   ├── FoundationResolvesContextStoreBindingsTest.php
 │   │   │   │   │   │   ├── FoundationResolvesNoopObservabilityBindingsTest.php
 │   │   │   │   │   │   ├── PriorityResetBackCompatWhenDisabledTest.php
@@ -557,17 +581,29 @@ Coretsia/
 │   │   │       │   │   ├── Compiler/
 │   │   │       │   │   │   └── ArtifactCompiler.php
 │   │   │       │   │   ├── Exception/
+│   │   │       │   │   │   ├── ArtifactGenerationPublishException.php
 │   │   │       │   │   │   ├── ArtifactInvalidException.php
-│   │   │       │   │   │   ├── ArtifactPathInvalidException.php
 │   │   │       │   │   │   ├── ArtifactPayloadInvalidException.php
 │   │   │       │   │   │   ├── ArtifactWriteFailedException.php
 │   │   │       │   │   │   ├── FingerprintSymlinkForbiddenException.php
 │   │   │       │   │   │   └── JsonFloatForbiddenException.php
 │   │   │       │   │   ├── Fingerprint/
 │   │   │       │   │   │   ├── ConfigFingerprintInputBuilder.php
+│   │   │       │   │   │   ├── ContainerGraphFingerprintBucketBuilder.php
 │   │   │       │   │   │   ├── DeterministicFileLister.php
 │   │   │       │   │   │   ├── FingerprintCalculator.php
 │   │   │       │   │   │   └── FingerprintExplainer.php
+│   │   │       │   │   ├── Generation/
+│   │   │       │   │   │   ├── ArtifactGeneration.php
+│   │   │       │   │   │   ├── ArtifactGenerationId.php
+│   │   │       │   │   │   ├── ArtifactGenerationLocator.php
+│   │   │       │   │   │   ├── ArtifactGenerationLock.php
+│   │   │       │   │   │   ├── ArtifactGenerationManifestBuilder.php
+│   │   │       │   │   │   ├── ArtifactGenerationManifestValidator.php
+│   │   │       │   │   │   ├── ArtifactGenerationPathResolver.php
+│   │   │       │   │   │   ├── ArtifactGenerationPublisher.php
+│   │   │       │   │   │   ├── ArtifactGenerationValidator.php
+│   │   │       │   │   │   └── ArtifactPublicationSet.php
 │   │   │       │   │   ├── Header/
 │   │   │       │   │   │   └── ArtifactHeader.php
 │   │   │       │   │   ├── Paths/
@@ -588,6 +624,8 @@ Coretsia/
 │   │   │       │   │   ├── AppTarget.php
 │   │   │       │   │   ├── ArrayEnvRepository.php
 │   │   │       │   │   ├── ArtifactRuntimeBooter.php
+│   │   │       │   │   ├── ArtifactRuntimeInput.php
+│   │   │       │   │   ├── ArtifactRuntimeSeedFactory.php
 │   │   │       │   │   ├── BootstrapArtifactsCacheDir.php
 │   │   │       │   │   ├── BootstrapConfig.php
 │   │   │       │   │   ├── BootstrapConfigResolver.php
@@ -623,10 +661,16 @@ Coretsia/
 │   │   │       │   │   │   └── ServiceDefinition.php
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ContainerArtifactInvalidException.php
-│   │   │       │   │   │   ├── ContainerArtifactMissingException.php
 │   │   │       │   │   │   └── ContainerCompileFailedException.php
+│   │   │       │   │   ├── Provider/
+│   │   │       │   │   │   ├── ContainerProviderPlan.php
+│   │   │       │   │   │   └── ContainerProviderPlanResolver.php
 │   │   │       │   │   ├── CompiledContainerFactory.php
-│   │   │       │   │   └── ContainerCompiler.php
+│   │   │       │   │   ├── ContainerCompiler.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidator.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompiler.php
+│   │   │       │   │   ├── RuntimeContainerSeedIds.php
+│   │   │       │   │   └── RuntimeContainerSeedSet.php
 │   │   │       │   ├── Module/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ModePresetInvalidException.php
@@ -649,8 +693,10 @@ Coretsia/
 │   │   │       │   │   ├── ModePresetSchemaValidator.php
 │   │   │       │   │   ├── ModuleGraphResolver.php
 │   │   │       │   │   ├── ModulePlan.php
+│   │   │       │   │   ├── ModulePlanArtifactHydrator.php
 │   │   │       │   │   ├── ModulePlanEntry.php
 │   │   │       │   │   ├── ModulePlanResolver.php
+│   │   │       │   │   ├── ModuleResolution.php
 │   │   │       │   │   └── TopologicalSorter.php
 │   │   │       │   ├── Provider/
 │   │   │       │   │   ├── KernelServiceFactory.php
@@ -677,14 +723,17 @@ Coretsia/
 │   │   │       │       │   └── JsonLikeShapeNormalizer.php
 │   │   │       │       ├── KernelRuntime.php
 │   │   │       │       ├── Outcome.php
+│   │   │       │       ├── RuntimePathContext.php
 │   │   │       │       ├── UnitOfWorkContext.php
 │   │   │       │       ├── UnitOfWorkResult.php
 │   │   │       │       └── UnitOfWorkType.php
 │   │   │       ├── tests/
 │   │   │       │   ├── Contract/
 │   │   │       │   │   ├── ArrayConfigRepositoryContractTest.php
+│   │   │       │   │   ├── ArtifactGenerationManifestShapeContractTest.php
 │   │   │       │   │   ├── ArtifactsHeaderShapeContractTest.php
 │   │   │       │   │   ├── CompiledContainerIsDeterministicTest.php
+│   │   │       │   │   ├── ComposerManifestReaderPreservesProviderOrderContractTest.php
 │   │   │       │   │   ├── ContainerArtifactHeaderShapeContractTest.php
 │   │   │       │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
 │   │   │       │   │   ├── FingerprintCalculatorStableInputContractTest.php
@@ -697,6 +746,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php
 │   │   │       │   │   ├── KernelArtifactsRuntimeDependencyBoundaryContractTest.php
 │   │   │       │   │   ├── KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+│   │   │       │   │   ├── KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 │   │   │       │   │   ├── KernelConfigModuleStopwatchFailurePolicyContractTest.php
 │   │   │       │   │   ├── KernelConfigSubtreeShapeContractTest.php
 │   │   │       │   │   ├── KernelDoesNotEmitRoutesArtifactContractTest.php
@@ -714,6 +764,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelServiceFactoryUnitOfWorkAttributeLimitsContractTest.php
 │   │   │       │   │   ├── ModePresetConstructorPolicyContractTest.php
 │   │   │       │   │   ├── ModePresetExportShapeContractTest.php
+│   │   │       │   │   ├── ModulePlanArtifactHydratorContractTest.php
 │   │   │       │   │   ├── ModulePlanDoesNotExportFilesystemPathsContractTest.php
 │   │   │       │   │   ├── ModulePlanRecursiveKeyOrderContractTest.php
 │   │   │       │   │   ├── ModulePlanSetInvariantsContractTest.php
@@ -739,13 +790,30 @@ Coretsia/
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 │   │   │       │   │   └── UnitOfWorkResultShapeContractTest.php
+│   │   │       │   ├── Fixtures/
+│   │   │       │   │   ├── ContainerDefinitionProviderFixture.php
+│   │   │       │   │   ├── IncompleteContainerDefinitionProviderFixture.php
+│   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ArtifactCompilerInvalidConfigDoesNotBuildGraphOrPublishTest.php
+│   │   │       │   │   ├── ArtifactCompilerUsesProductionContainerGraphTest.php
+│   │   │       │   │   ├── ArtifactGenerationLocatorRejectsHashMismatchTest.php
+│   │   │       │   │   ├── ArtifactGenerationLocatorRejectsSymlinkTest.php
+│   │   │       │   │   ├── ArtifactGenerationManifestValidatorRejectsExtraArtifactTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherLeavesPreviousCurrentOnFailureTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherRejectsIncompleteGenerationTest.php
+│   │   │       │   │   ├── ArtifactGenerationPublisherReusesIdenticalGenerationTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootHydratesConfigRepositoryTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootHydratesModulePlanTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactPipelineUsesConfiguredCacheDirTest.php
+│   │   │       │   │   ├── ArtifactPublicationSetRejectsMixedFingerprintsTest.php
+│   │   │       │   │   ├── ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
+│   │   │       │   │   ├── ArtifactRuntimeBootRejectsMixedGenerationTest.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootExpressPresetTest.php
@@ -757,27 +825,42 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapSelectsExplicitAppTargetTest.php
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
+│   │   │       │   │   ├── CacheVerifierDetectsDirtyGenerationTest.php
+│   │   │       │   │   ├── CacheVerifierInvalidConfigDoesNotBuildGraphOrReadCurrentTest.php
+│   │   │       │   │   ├── CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 │   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
 │   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
 │   │   │       │   │   ├── CompiledConfigKeepsUserOwnedRootsTest.php
 │   │   │       │   │   ├── CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php
 │   │   │       │   │   ├── CompiledContainerFactoryBuildsContainerFromArtifactTest.php
 │   │   │       │   │   ├── CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryRejectsSeedOverrideTest.php
+│   │   │       │   │   ├── CompiledContainerFactoryResolvesRuntimeSeedsTest.php
 │   │   │       │   │   ├── CompiledContainerPreservesLaterBindingOverridesTest.php
 │   │   │       │   │   ├── CompiledContainerPreservesTagDedupeFirstWinsTest.php
 │   │   │       │   │   ├── CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php
+│   │   │       │   │   ├── CompilerAndVerifierUseSameGraphFingerprintTest.php
 │   │   │       │   │   ├── ComposerManifestReaderDoesNotLeakPathsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsOnlyComposerMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php
 │   │   │       │   │   ├── ComposerManifestReaderRejectsDuplicateModuleIdsTest.php
 │   │   │       │   │   ├── ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php
 │   │   │       │   │   ├── ComposerManifestReaderSortsModulesDeterministicallyTest.php
+│   │   │       │   │   ├── ConcurrentArtifactCompilationPublishesCompleteGenerationTest.php
 │   │   │       │   │   ├── ConfigAggregateAndSplitFilesMergeOrderTest.php
 │   │   │       │   │   ├── ConfigEnvironmentSpecificOverlaysPrecedenceTest.php
 │   │   │       │   │   ├── ConfigExplainReturnsStableSourceTypesTest.php
 │   │   │       │   │   ├── ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
 │   │   │       │   │   ├── ConfigExplainSmokeIntegrationTest.php
 │   │   │       │   │   ├── ConfigPrecedenceMatrixTest.php
+│   │   │       │   │   ├── ContainerGraphChangesFingerprintTest.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsMissingParameterReferenceTest.php
+│   │   │       │   │   ├── ContainerGraphCompletenessValidatorRejectsServiceAliasIdCollisionTest.php
+│   │   │       │   │   ├── ContainerGraphFingerprintIsStableTest.php
+│   │   │       │   │   ├── ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanRejectsDuplicateProviderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+│   │   │       │   │   ├── ContainerProviderPlanUsesTopologicalModuleOrderTest.php
 │   │   │       │   │   ├── EnvironmentOverlayProjectionTest.php
 │   │   │       │   │   ├── FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 │   │   │       │   │   ├── FingerprintIgnoresSkeletonVarTest.php
@@ -785,6 +868,7 @@ Coretsia/
 │   │   │       │   │   ├── KernelArtifactObservabilityDoesNotChangeBehaviorTest.php
 │   │   │       │   │   ├── KernelArtifactServicesDoNotUseResetOrUowTest.php
 │   │   │       │   │   ├── KernelArtifactServicesRegisterAsFactoriesOnlyTest.php
+│   │   │       │   │   ├── KernelProviderSourceDefinitionsParityTest.php
 │   │   │       │   │   ├── KernelRequiresFoundationInModulePlanTest.php
 │   │   │       │   │   ├── KernelRuntimeAlwaysResetsAfterUowTest.php
 │   │   │       │   │   ├── KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
@@ -815,9 +899,15 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php
 │   │   │       │   │   ├── ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php
 │   │   │       │   │   ├── ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php
+│   │   │       │   │   ├── ModuleResolutionContainsManifestAndPlanTest.php
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
+│   │   │       │   │   ├── RuntimeContainerGraphCompilerUsesProviderPlanTest.php
+│   │   │       │   │   ├── RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
 │   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
 │   │   │       │   │   ├── RuntimeEntrypointGuardPreventsRuntimeStartTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
@@ -832,6 +922,8 @@ Coretsia/
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliCommandsTest.php
 │   │   │       │       │   ├── ConfigValidatorRejectsInvalidCliOutputFormatTest.php
 │   │   │       │       │   └── ConfigValidatorRejectsUnknownCliKeysTest.php
+│   │   │       │       ├── ArtifactGenerationIdValidationTest.php
+│   │   │       │       ├── ArtifactGenerationPathResolverTest.php
 │   │   │       │       ├── ArtifactPathResolverUsesBootstrapAppTargetTest.php
 │   │   │       │       ├── BootstrapArtifactsCacheDirValidationTest.php
 │   │   │       │       ├── ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php
@@ -853,6 +945,7 @@ Coretsia/
 │   │   │       │       ├── RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest.php
 │   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
 │   │   │       │       ├── RuntimeDriverGuardResolvesRuntimeDriverContributionsTest.php
+│   │   │       │       ├── RuntimePathContextValidationTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
 │   │   │       ├── NOTICE
@@ -995,11 +1088,13 @@ Coretsia/
 │   │           │   ├── Internal/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
 │   │           │   │   ├── WorkerManagerDriverInterface.php
+│   │           │   │   ├── WorkerManagerResolverInterface.php
 │   │           │   │   └── WorkerRuntimeDriverContributions.php
 │   │           │   ├── Manager/
 │   │           │   │   ├── Driver/
 │   │           │   │   │   ├── PcntlWorkerManagerDriver.php
 │   │           │   │   │   └── ProcWorkerManagerDriver.php
+│   │           │   │   ├── ContainerWorkerManagerResolver.php
 │   │           │   │   └── WorkerManager.php
 │   │           │   ├── Module/
 │   │           │   │   └── WorkerModule.php
@@ -1030,8 +1125,9 @@ Coretsia/
 │   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
+│   │           │   │   ├── WorkerProviderDefinitionsContainNoClosuresContractTest.php
+│   │           │   │   ├── WorkerRuntimeArtifactPathContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
-│   │           │   │   ├── WorkerServiceProviderArtifactPathContractTest.php
 │   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
 │   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerStartCommandContractTest.php
@@ -1047,12 +1143,18 @@ Coretsia/
 │   │           │   │           └── modes/
 │   │           │   │               └── micro.php
 │   │           │   ├── Integration/
+│   │           │   │   ├── ArtifactOnlyWorkerContainerBootTest.php
+│   │           │   │   ├── CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+│   │           │   │   ├── CoretsiaWorkerChildBootsCurrentGenerationTest.php
 │   │           │   │   ├── MaxRequestsTriggersRecycleTest.php
 │   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
+│   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php
 │   │           │   │   ├── WorkerSocketServerTransportTest.php
-│   │           │   │   └── WorkerStateStoreFilesystemTest.php
+│   │           │   │   ├── WorkerStartCommandResolvesManagerLazilyTest.php
+│   │           │   │   ├── WorkerStateStoreFilesystemTest.php
+│   │           │   │   └── WorkerTaskFactorySelectsServiceLazilyTest.php
 │   │           │   └── Unit/
 │   │           │       ├── ApplicationWorkerTest.php
 │   │           │       ├── ProcWorkerManagerDriverSupportTest.php
@@ -1060,7 +1162,7 @@ Coretsia/
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
-│   │           │       ├── WorkerServiceProviderTaskFactorySelectionTest.php
+│   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php
 │   │           │       └── WorkerStateStoreStateFactoryTest.php
 │   │           ├── LICENSE
 │   │           ├── NOTICE

@@ -16,7 +16,7 @@
 
 `core/kernel` is the Kernel runtime package for the Coretsia Framework monorepo.
 
-Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic ModulePlan resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, Kernel-owned artifact production for `module-manifest.php`, `config.php`, and `container.php`, deterministic artifact fingerprint input construction and calculation, Kernel-owned cache verification for generated artifacts, public artifact-only production runtime boot facade, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic `ModulePlan` resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, canonical runtime-container graph compilation, atomic immutable artifact-generation publication, deterministic artifact fingerprint input construction and calculation, generation-aware cache verification, artifact-only production runtime boot from one validated current generation, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
 Out of scope: public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
@@ -141,14 +141,29 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator`
   - `Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer`
   - `Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationId`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher`
+  - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator`
   - `Coretsia\Kernel\Artifacts\Php\PhpArtifactReader`
   - `Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper`
   - `Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator`
   - `Coretsia\Kernel\Artifacts\Verifier\CacheVerifier`
-- Kernel-owned generated artifact basenames:
+  - `Coretsia\Kernel\Boot\ArtifactRuntimeInput`
+  - `Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory`
+  - `Coretsia\Kernel\Runtime\RuntimePathContext`
+  - `Coretsia\Kernel\Container\RuntimeContainerSeedSet`
+- Kernel-owned immutable-generation files:
   - `module-manifest.php`
   - `config.php`
   - `container.php`
+  - `generation-manifest.php`
+- Kernel-owned generation-root control files:
+  - `current`
+  - `generation.lock`
 - Kernel-owned artifact/fingerprint/container-compile/cache observability:
   - span: `kernel.artifacts_write`
   - span: `kernel.fingerprint_calculate`
@@ -159,7 +174,8 @@ This package provides the Kernel baseline runtime layer:
   - metrics: `kernel.container_compile_total`, `kernel.container_compile_duration_ms`
   - metrics: `kernel.cache_verify_total`, `kernel.cache_verify_duration_ms`
   - allowed metric label: `outcome`
-- Public artifact-only runtime boot facade:
+- Public artifact-only runtime boot boundary:
+  - `Coretsia\Kernel\Boot\ArtifactRuntimeInput`
   - `Coretsia\Kernel\Boot\ArtifactRuntimeBooter`
   - `Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException`
 - Kernel-owned deterministic ModulePlan resolution:
@@ -306,7 +322,7 @@ allow_system
 
 It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
 
-Kernel does not introduce public `Bootstrapper` or public `BootstrapResult` in this package. Entrypoint and platform owners compose the explicit Phase A services through DI until a future owner epic requires a stable public orchestration facade.
+Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package. Entrypoint and platform owners compose the explicit Phase A services through DI.
 
 ## ConfigKernel Phase B
 
@@ -424,17 +440,9 @@ docs/ssot/observability.md
 
 ## Kernel artifacts, fingerprint, and cache verification
 
-`core/kernel` owns Kernel-side artifact production, fingerprint behavior, and cache verification for Kernel-owned artifacts.
+`core/kernel` owns Kernel-side artifact production, immutable generation publication, generation selection, fingerprint behavior, and cache verification for Kernel-owned artifacts.
 
-The Kernel-owned artifact basenames are:
-
-```text
-module-manifest.php
-config.php
-container.php
-```
-
-Artifact path resolution consumes:
+The final artifact root is derived from:
 
 ```text
 BootstrapConfig::skeletonRoot()
@@ -442,26 +450,50 @@ BootstrapConfig::artifactsCacheDir()
 BootstrapConfig::appTarget()
 ```
 
-The default path shape is:
+The default artifact root is:
 
 ```text
-<skeletonRoot>/var/cache/<appTarget>/<artifact-basename>
+<skeletonRoot>/var/cache/<appTarget>
 ```
 
 A custom valid Bootstrap Phase A override may instead produce:
 
 ```text
-<skeletonRoot>/var/artifacts_cache/<appTarget>/<artifact-basename>
+<skeletonRoot>/var/artifacts_cache/<appTarget>
 ```
 
-`ArtifactCompiler` and `CacheVerifier` consume the same resolved `BootstrapConfig`, so they write and verify the same artifact location.
+`ArtifactPathResolver` owns only this final artifact root.
 
-The corresponding canonical artifact identities are:
+It does not resolve individual runtime artifact files.
+
+The production generation layout is:
+
+```text
+<artifact-root>/
+  current
+  generation.lock
+  generations/
+    <generation-id>/
+      module-manifest.php
+      config.php
+      container.php
+      generation-manifest.php
+```
+
+Generation-specific path ownership belongs to:
+
+```text
+Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver
+Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration
+```
+
+The Kernel-owned canonical artifact identities are:
 
 ```text
 module-manifest@1
 config@1
 container@1
+artifact-generation@1
 ```
 
 The canonical global artifact envelope, header fields, deterministic serialization law, and artifact registry are owned by:
@@ -476,13 +508,19 @@ Kernel-side artifact production and fingerprint behavior are owned by:
 docs/ssot/artifacts-and-fingerprint.md
 ```
 
+Immutable generation layout, publication, selection, and validation are owned by:
+
+```text
+docs/ssot/artifact-generations.md
+```
+
 Kernel cache verification semantics are owned by:
 
 ```text
 docs/ssot/cache-verify.md
 ```
 
-Compiled container payload shape and artifact-only runtime boot semantics are owned by:
+Compiled-container payload and artifact-only runtime boot semantics are owned by:
 
 ```text
 docs/ssot/compiled-container.md
@@ -490,31 +528,125 @@ docs/ssot/compiled-container.md
 
 `routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
 
-`ArtifactCompiler` owns Kernel artifact production orchestration. It builds deterministic fingerprint input, calculates the current fingerprint, compiles descriptor-based container input through `ContainerCompiler`, builds Kernel-owned artifact envelopes, builds the compiled `container@1` envelope through `CompiledContainerBuilder`, resolves artifact paths, and writes Kernel-owned artifacts through `ArtifactWriter`.
+`ArtifactCompiler` owns Kernel artifact production orchestration.
 
-`CacheVerifier` owns Kernel cache verification. It rebuilds expected Kernel artifacts in memory, rebuilds expected compiled `container@1` through `ContainerCompiler` and `CompiledContainerBuilder`, reads existing artifacts through `PhpArtifactReader`, validates existing artifact envelopes through `ArtifactSchemaValidator`, compares stored fingerprint to the current fingerprint, compares deterministic LF-normalized bytes, and returns safe clean/dirty/invalid summary data.
-
-Cache verification semantics are:
+Its production flow is:
 
 ```text
-missing artifact        → dirty
-fingerprint mismatch    → dirty
-byte mismatch           → dirty
-invalid PHP/envelope    → invalid
-invalid header/schema   → invalid
-valid fingerprint+bytes → clean
+one ConfigKernel::compile(...)
+→ assert the returned ConfigValidationResult
+→ canonical provider graph
+→ graph-bound fingerprint
+→ module-manifest@1
+→ config@1
+→ container@1
+→ ArtifactPublicationSet
+→ ArtifactGenerationPublisher
+→ staging generation directory
+→ write module-manifest.php, config.php, and container.php
+→ build and write generation-manifest.php as artifact-generation@1
+→ validate staging generation
+→ finalize or reuse immutable generation
+→ atomic current switch
+→ returned ArtifactGeneration
+→ safe four-file published-generation summary
+```
+
+`ArtifactCompiler` publishes only through `ArtifactGenerationPublisher`.
+
+It MUST NOT publish active flat artifacts directly under the artifact root.
+
+`ArtifactCompiler` calls `ConfigKernel::compile(...)` exactly once and immediately asserts the returned validation result.
+
+If validation failed, it throws `ConfigInvalidException::fromValidationResult(...)` before runtime-container graph compilation, fingerprint construction or calculation, artifact-envelope construction, or publication.
+
+This assertion reuses the `ConfigValidationResult` already produced by `ConfigKernel`. `ArtifactCompiler` MUST NOT invoke `ConfigValidator`, perform validation again, catch the resulting `ConfigInvalidException`, or downgrade it.
+
+`ArtifactCompiler` captures the `ArtifactGeneration` returned by `ArtifactGenerationPublisher::publish()` and returns a safe summary of the generation that was finalized or reused.
+
+The summary contains:
+
+```text
+schemaVersion = 1
+generationId = lowercase SHA-256
+module-manifest@1 → module-manifest.php
+config@1 → config.php
+container@1 → container.php
+artifact-generation@1 → generation-manifest.php
+```
+
+The four artifact entries expose only canonical identity and basename.
+
+The compile result MUST NOT expose absolute paths, relative paths, `generations/current/*` aliases, byte counts, reasons, or synthetic `rebuilt` / `reused` state.
+
+`ArtifactGenerationPublisher` writes the three runtime artifacts and generated manifest into one staging directory, validates the complete staging unit, atomically finalizes it or reuses an identical existing immutable generation, and atomically replaces `current`.
+
+Readers MUST NOT select a generation by scanning `generations/` for the newest directory.
+
+The authoritative selection boundary is:
+
+```text
+ArtifactGenerationLocator
+→ current
+→ ArtifactGeneration
+→ ArtifactGenerationValidator
+```
+
+`ArtifactGenerationValidator` validates:
+
+- selected generation paths;
+- all four required files;
+- non-symlink regular-file policy;
+- exact byte lengths;
+- exact SHA-256 hashes;
+- artifact envelope and schema validity;
+- generation-manifest membership;
+- envelope fingerprint equality with the selected generation id.
+
+`CacheVerifier` calls `ConfigKernel::compile(...)` exactly once and immediately asserts the returned validation result.
+
+If validation failed, it throws `ConfigInvalidException::fromValidationResult(...)` before runtime-container graph compilation, fingerprint construction or calculation, current-generation location, or artifact reads and comparisons.
+
+This assertion reuses the `ConfigValidationResult` already produced by `ConfigKernel`. `CacheVerifier` MUST NOT invoke `ConfigValidator`, perform validation again, catch the resulting `ConfigInvalidException`, or downgrade it.
+
+After successful validation, `CacheVerifier` rebuilds the expected generation in memory, locates and validates the current generation, compares generation identity, and compares all four exact persisted byte sequences.
+
+Every completed verification result preserves the `clean`, `dirty`, or `invalid` outcome and contains:
+
+```text
+expectedGenerationId = rebuilt expected generation id
+currentGenerationId = selected valid generation id or null
+```
+
+`currentGenerationId` is `null` when `current` is missing or when the pointer or selected generation is invalid.
+
+The verifier continues to report exactly four artifacts and may expose only bounded safe relative diagnostic paths. It MUST NOT expose absolute filesystem paths.
+
+Cache verification statuses are:
+
+```text
+clean
+dirty
+invalid
+```
+
+When no current generation exists, every expected generation file is reported as:
+
+```text
+status = dirty
+reason = missing
 ```
 
 Cache verification MUST NOT use mtimes, ctimes, permissions, owners, inode ids, directory ordering, or filesystem traversal order as cache semantics.
 
-The resolved artifact cache directory is always added to the effective fingerprint traversal exclusions.
+The resolved `BootstrapConfig::artifactsCacheDir()` is always added to the effective skeleton fingerprint traversal exclusions.
 
-It is not serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected output directory.
+It is not serialized into Bootstrap fingerprint identity or configured fingerprint policy solely because it is the selected generated-output directory.
 
 Therefore:
 
 ```text
-generated files under the current resolved artifactsCacheDir
+generated files under the resolved artifacts cache directory
 → do not affect fingerprint
 
 only the resolved BootstrapConfig::artifactsCacheDir() changes
@@ -536,15 +668,13 @@ The configured baseline:
 kernel.fingerprint.skeleton_ignore_prefixes
 ```
 
-contains only explicit operational/source exclusion policy such as:
+contains only explicit operational or source exclusion policy such as:
 
 ```text
 var/maintenance
 ```
 
-The mandatory generated-output exclusion covers only the current resolved artifact cache directory.
-
-After relocating artifacts, stale files under the previous directory should be removed. When that directory must remain and may appear under a fingerprinted skeleton-local directory candidate, it must be retained explicitly in:
+After relocating artifacts, stale files under the previous directory should be removed. When that directory must remain under a fingerprinted skeleton-local directory candidate, it must be retained explicitly in:
 
 ```text
 kernel.fingerprint.skeleton_ignore_prefixes
@@ -552,7 +682,7 @@ kernel.fingerprint.skeleton_ignore_prefixes
 
 ### Compiled container artifact
 
-`container.php` is the Kernel-owned `container@1` compiled container artifact.
+`container.php` is the Kernel-owned `container@1` compiled-container artifact stored inside one immutable generation.
 
 The `container@1` compiled payload uses this canonical payload shape:
 
@@ -565,35 +695,113 @@ services
 tags
 ```
 
-Container compilation is descriptor-based and closure-free. `ContainerCompiler` consumes explicit deterministic descriptor input and produces a deterministic `DefinitionGraph`. It MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
+Container compilation is based on the canonical Foundation-owned declarative definition model.
 
-Production runtime container construction is artifact-only. `CompiledContainerFactory` builds the runtime Foundation container from:
+The production graph flow is:
 
 ```text
-container@1
-already-read and already-validated config@1 payload
+enabled ModulePlan modules
+→ canonical provider plan
+→ one ContainerDefinitionBuilder
+→ one ContainerDefinitionSet
+→ RuntimeContainerGraphCompiler
+→ DefinitionGraph
+→ container@1
 ```
 
-Production runtime boot MUST NOT read source config files, run ConfigKernel, discover modules, compile a new container graph, write or repair artifacts, or silently fall back to provider-based container construction.
+`ContainerCompiler` consumes the deterministic graph representation and produces the compiled-container payload.
+
+It MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
+
+Production runtime container construction is artifact-only.
+
+The public input is:
+
+```php
+new ArtifactRuntimeInput(
+    skeletonRoot: $skeletonRoot,
+    artifactRoot: $artifactRoot,
+);
+```
+
+`ArtifactRuntimeInput` contains:
+
+```text
+skeletonRoot
+artifactRoot
+```
+
+It does not contain individual artifact paths.
+
+The public boot API is:
+
+```php
+public function boot(
+    ArtifactRuntimeInput $input,
+): ContainerInterface;
+```
+
+The canonical artifact-only runtime flow is:
+
+```text
+ArtifactRuntimeInput
+→ ArtifactGenerationLocator
+→ current
+→ one validated ArtifactGeneration
+→ exact read of module-manifest.php
+→ exact read of config.php
+→ exact read of container.php
+→ exact read of generation-manifest.php
+→ generation manifest, byte-length, SHA-256, schema, and fingerprint validation
+→ hydrate ArrayConfigRepository
+→ hydrate ModulePlan
+→ create RuntimePathContext
+→ create RuntimeContainerSeedSet
+→ CompiledContainerFactory::buildFromEnvelope(...)
+→ ContainerInterface
+```
+
+The exact entrypoint-owned runtime seeds are:
+
+```text
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+```
+
+`CompiledContainerFactory` receives:
+
+```php
+public function buildFromEnvelope(
+    array $containerEnvelope,
+    RuntimeContainerSeedSet $seeds,
+): Container;
+```
+
+It receives the already-read `container@1` envelope.
+
+It does not receive a container artifact path or a separate config payload.
+
+The Foundation container config snapshot is obtained from the seeded `ConfigRepositoryInterface`.
+
+Production runtime boot MUST NOT:
+
+- accept individual artifact paths;
+- combine files from different generations;
+- read source config files;
+- run Bootstrap Phase A;
+- run ConfigKernel Phase B;
+- discover modules;
+- read Composer module metadata;
+- execute source providers;
+- compile a new container graph;
+- calculate fingerprints;
+- write or repair artifacts;
+- silently fall back to provider-based container construction.
 
 `ArtifactRuntimeBooter` is the public artifact-only production runtime boot facade.
 
-It is the supported public Kernel boundary for runtime consumers that need to build a PSR container from already generated Kernel-owned artifacts.
-
-Callers provide already resolved artifact filesystem paths:
-
-```text
-config.php
-container.php
-```
-
-`ArtifactRuntimeBooter` reads and validates `config@1`, extracts the validated config payload, and delegates runtime container construction to Kernel-owned compiled-container internals.
-
-`ArtifactRuntimeBooter` currently performs artifact-only container boot from `config.php` and `container.php`.
-
-It does not currently run an absolute pre-container-build runtime entrypoint guard because `ModulePlan` is not available as a dedicated artifact in this boot path yet.
-
-The future `module-plan.php` artifact and pre-container entrypoint guard path are tracked only as a cleanup candidate and are not accepted runtime policy until promoted into a numbered epic, ADR, or SSoT update.
+It owns current-generation selection and consumed-snapshot validation for runtime boot.
 
 External packages MUST use:
 
@@ -623,7 +831,8 @@ read artifacts
 calculate fingerprints
 run cache verification
 compile container descriptors
-build a production runtime container from container.php
+select or boot an artifact generation
+hydrate artifact-runtime seeds
 resolve BootstrapConfig
 resolve ModulePlan
 build EnvRepositoryInterface
@@ -636,9 +845,11 @@ emit artifact/fingerprint/container-compile/cache metrics
 write artifact/fingerprint/container-compile/cache logs
 ```
 
-`KernelServiceFactory` artifact/fingerprint/container-compile/cache methods are construction/wiring methods only.
+`KernelServiceFactory` compile-host artifact, fingerprint, container-compile, generation, and cache methods are construction/wiring methods only.
 
-Factory methods MUST NOT write files, read generated artifacts, calculate fingerprints, run cache verification, resolve bootstrap/config/module plans, retain the container, retain mutable config snapshots, depend on `ResetOrchestrator`, or keep mutable runtime state.
+Factory methods MUST NOT publish or select generations, write files, read generated artifacts as runtime input, calculate fingerprints, run cache verification, resolve bootstrap/config/module plans eagerly, retain the container, retain mutable config snapshots, depend on `ResetOrchestrator`, or keep mutable runtime state.
+
+`ArtifactRuntimeBooter` and `ArtifactRuntimeSeedFactory` are not compiled runtime definitions. Artifact-only runtime constructs its generation-selection and seed-hydration helpers at the entrypoint boundary.
 
 Artifact/fingerprint/container-compile/cache services receive observability dependencies through public ports/interfaces only:
 
@@ -696,23 +907,37 @@ CORETSIA_CONTAINER_COMPILE_FAILED
 container-compile-failed
 ```
 
-Internal compiled-container artifact failures use:
+Internal compiled-container envelope failures use:
 
 ```text
-CORETSIA_CONTAINER_ARTIFACT_MISSING
-container-artifact-missing
 CORETSIA_CONTAINER_ARTIFACT_INVALID
 container-artifact-invalid
+container-artifact-envelope-invalid
+container-artifact-header-invalid
+container-artifact-payload-invalid
+container-artifact-schema-invalid
+container-artifact-schema-version-invalid
+container-artifact-legacy-stub
+container-artifact-non-compiled
 ```
 
-Public artifact-only runtime boot facade failures use:
+Public artifact-only runtime boot failures use:
 
 ```text
 CORETSIA_ARTIFACT_RUNTIME_BOOT_FAILED
-artifact-runtime-boot-config-artifact-invalid
+artifact-runtime-boot-generation-invalid
+artifact-runtime-boot-module-manifest-artifact-invalid
 artifact-runtime-boot-container-artifact-invalid
 artifact-runtime-boot-runtime-container-invalid
 ```
+
+`artifact-runtime-boot-generation-invalid` covers current-generation selection, generation file presence and readability, manifest metadata, artifact schema, byte/hash validation, envelope fingerprint validation, and config repository hydration failures.
+
+`artifact-runtime-boot-module-manifest-artifact-invalid` covers a schema-valid module manifest that cannot hydrate one canonical `ModulePlan`.
+
+`artifact-runtime-boot-container-artifact-invalid` covers a generation-valid container envelope that cannot build the runtime Foundation container.
+
+`artifact-runtime-boot-runtime-container-invalid` covers unexpected failure while creating the exact runtime seed set.
 
 `ArtifactRuntimeBooter` MUST NOT expose artifact paths, absolute paths, raw config values, raw artifact payloads, env values, secrets, tokens, headers, command lines, PHP warning text, filesystem details, previous throwable messages, or stack traces.
 
@@ -894,9 +1119,11 @@ Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard::assertEntrypointAllow
 
 Both methods use the same canonical matrix and module-compatibility policy. Callers MUST NOT invoke both methods for one entrypoint attempt.
 
-Kernel production boot paths MUST use this boundary whenever those three required inputs are available.
+Runtime entrypoints MUST use this boundary whenever they perform an entrypoint-specific runtime-driver compatibility check.
 
-The current `ArtifactRuntimeBooter` path does not yet have a dedicated `ModulePlan` artifact and therefore does not currently perform this pre-container entrypoint check. That limitation is documented in the artifact-only runtime boot section and MUST NOT be treated as an implicit fallback policy for runtime adapters.
+Artifact-only runtime boot hydrates `ConfigRepositoryInterface` and `ModulePlan` from the selected generation and makes both available as exact runtime seeds.
+
+`ArtifactRuntimeBooter` itself constructs the generation-backed runtime container. Entrypoint owners such as the Worker child resolve the hydrated `ConfigRepositoryInterface`, `ModulePlan`, and their owner-specific runtime inputs from that container, then invoke their public entrypoint guard before executing runtime work.
 
 Callers MUST NOT call `RuntimeDriverGuard` directly.
 
@@ -1401,13 +1628,19 @@ The resolved value is exposed through:
 BootstrapConfig::artifactsCacheDir()
 ```
 
-Kernel artifact paths use:
+The Kernel artifact root uses:
 
 ```text
-<skeletonRoot>/<artifactsCacheDir>/<appTarget>/<artifact-basename>
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>
 ```
 
-The directory must be a portable, bounded, `skeletonRoot`-relative dedicated generated-output root.
+Generation artifact files use:
+
+```text
+<skeletonRoot>/<artifactsCacheDir>/<appTarget>/generations/<generation-id>/<artifact-basename>
+```
+
+The configured `<artifactsCacheDir>` must be a portable, bounded, `skeletonRoot`-relative dedicated generated-output directory.
 
 Absolute paths, traversal, source/config roots, public roots, dependency roots, repository roots, Windows-invalid components, and unsafe path segments are rejected.
 
@@ -1452,9 +1685,9 @@ _internal
 
 `kernel` and `foundation` MUST NOT be listed as forbidden top-level roots because applications must be able to configure those roots.
 
-This package does not introduce generic json-like configuration.
+Kernel does not own generic json-like configuration.
 
-The following config keys MUST NOT be introduced by Kernel:
+The following config keys are not Kernel-owned:
 
 ```text
 kernel.json_like.*
@@ -1466,7 +1699,7 @@ Baseline json-like runtime value policy is owned by Foundation and is not config
 
 Both values MUST be integers greater than zero.
 
-This package does not introduce outcome mapping configuration.
+Kernel does not define outcome-mapping configuration.
 
 Outcome mapping is canonical policy, not runtime configuration.
 
@@ -2250,11 +2483,14 @@ Coretsia\Kernel\Boot\Exception\BootstrapException
 Artifact-only production runtime boot public API symbols are:
 
 ```text
+Coretsia\Kernel\Boot\ArtifactRuntimeInput
 Coretsia\Kernel\Boot\ArtifactRuntimeBooter
 Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException
 ```
 
 `ArtifactRuntimeBooter` is not a Bootstrap Phase A resolver and does not own bootstrap input resolution. It is a production runtime artifact boot facade for already generated Kernel-owned artifacts.
+
+`ArtifactRuntimeBooter` accepts one artifact root, selects `current`, validates one complete immutable generation, hydrates the exact runtime seeds, and builds the runtime container from the already-read `container@1` envelope.
 
 Runtime driver and entrypoint public API symbols are:
 
@@ -2317,6 +2553,10 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 - [Artifact Header and Schema Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)
 - [Kernel Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
 - [Kernel Cache Verification Semantics SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/cache-verify.md)
+- [Artifact Generations SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifact-generations.md)
+- [Canonical Runtime Container Definitions SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/runtime-container-definitions.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/compiled-container.md)
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md)
 - [ADR-0029: Kernel compiled container artifact](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0029-kernel-container-compile-artifact.md)
+- [ADR-0030: Canonical Runtime Container Definitions](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [ADR-0031: Atomic Artifact Generations](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0031-atomic-artifact-generations.md)

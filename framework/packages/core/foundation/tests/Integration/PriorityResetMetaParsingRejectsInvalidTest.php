@@ -31,6 +31,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class PriorityResetMetaParsingRejectsInvalidTest extends TestCase
 {
@@ -61,6 +62,10 @@ final class PriorityResetMetaParsingRejectsInvalidTest extends TestCase
         $orchestrator = FoundationServiceFactory::resetOrchestrator(
             container: new PriorityResetMetaParsingRejectsInvalidContainer([
                 'service.invalid' => $service,
+                Stopwatch::class => new Stopwatch(),
+                TracerPortInterface::class => $tracer,
+                MeterPortInterface::class => $meter,
+                LoggerInterface::class => $logger,
             ]),
             tagRegistry: $tagRegistry,
             foundationConfig: [
@@ -74,10 +79,6 @@ final class PriorityResetMetaParsingRejectsInvalidTest extends TestCase
                     ],
                 ],
             ],
-            stopwatch: new Stopwatch(),
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
         );
 
         self::assertTrue($orchestrator->priorityEnabled());

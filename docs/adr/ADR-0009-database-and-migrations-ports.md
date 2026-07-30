@@ -924,7 +924,3 @@ This ADR does not implement:
 - `docs/ssot/tags.md`
 - `docs/ssot/artifacts.md`
 - `docs/ssot/dto-policy.md`
-
-## Related epic
-
-- `1.150.0 Contracts: Database + Migrations ports`

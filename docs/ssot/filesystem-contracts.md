@@ -737,4 +737,3 @@ This SSoT does not define:
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)
 - [DTO Policy](./dto-policy.md)
-- [Phase 1 — Core roadmap](../roadmap/PHASE-1—CORE.md)

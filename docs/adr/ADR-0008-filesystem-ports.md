@@ -671,7 +671,3 @@ This ADR does not implement:
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/error-descriptor.md`
 - `docs/ssot/dto-policy.md`
-
-## Related epic
-
-- `1.140.0 Contracts: Filesystem ports`

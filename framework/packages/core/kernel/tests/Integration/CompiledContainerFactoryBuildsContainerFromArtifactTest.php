@@ -18,6 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Tag\TagRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -32,10 +36,14 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: self::containerDescriptors(),
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    CompiledContainerFactoryBuildsContainerFromArtifactProvider::class,
+                ]),
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $service = $container->get(CompiledContainerFactoryBuildsContainerFromArtifactService::class);
 
@@ -80,7 +88,7 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
         }
     }
 
-    public function testRuntimeContainerUsesAlreadyReadConfigPayloadSnapshot(): void
+    public function testCompiledContainerFactoryUsesAlreadyReadConfigPayloadSnapshot(): void
     {
         $root = ArtifactPipelineTestSupport::temporaryRoot('runtime-container-config-payload');
 
@@ -89,14 +97,16 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: self::containerDescriptors(),
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    CompiledContainerFactoryBuildsContainerFromArtifactProvider::class,
+                ]),
             );
 
             $configPayload = ArtifactPipelineTestSupport::configPayloadFromArtifact($root);
 
             self::assertArrayHasKey('config', $configPayload);
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
                 skeletonRoot: $root,
                 configPayload: $configPayload,
             );
@@ -112,88 +122,71 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
             ArtifactPipelineTestSupport::removeTree($root);
         }
     }
+}
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function containerDescriptors(): array
-    {
-        return [
-            [
-                'kind' => 'parameters',
-                'values' => [
-                    'dependency.value' => 'from-compiled-parameter',
-                    'runtime.message' => 'runtime-message',
+final class CompiledContainerFactoryBuildsContainerFromArtifactProvider implements ContainerDefinitionProviderInterface
+{
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $definitions
+            ->parameter(
+                'dependency.value',
+                'from-compiled-parameter',
+            )
+            ->parameter(
+                'runtime.message',
+                'runtime-message',
+            )
+            ->classService(
+                id: CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
+                class: CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
+                arguments: [
+                    ContainerValueReference::parameter('dependency.value'),
                 ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
-                'class' => CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
-                'arguments' => [
-                    [
-                        'name' => 'dependency.value',
-                        'type' => 'parameter',
-                    ],
+            )
+            ->classService(
+                CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
+                CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
+            )
+            ->classService(
+                id: CompiledContainerFactoryBuildsContainerFromArtifactService::class,
+                class: CompiledContainerFactoryBuildsContainerFromArtifactService::class,
+                arguments: [
+                    ContainerValueReference::service(
+                        CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
+                    ),
+                    ContainerValueReference::parameter('runtime.message'),
                 ],
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
-                'class' => CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => CompiledContainerFactoryBuildsContainerFromArtifactService::class,
-                'class' => CompiledContainerFactoryBuildsContainerFromArtifactService::class,
-                'arguments' => [
-                    [
-                        'id' => CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'name' => 'runtime.message',
-                        'type' => 'parameter',
-                    ],
+            )
+            ->classMethodFactory(
+                id: 'test.compiled.factory.class_product',
+                factoryClass: CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
+                method: 'makeClassProduct',
+                arguments: [
+                    ContainerValueReference::parameter('runtime.message'),
                 ],
-            ],
-            [
-                'kind' => 'service.factory.class-method',
-                'id' => 'test.compiled.factory.class_product',
-                'factoryClass' => CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
-                'method' => 'makeClassProduct',
-                'arguments' => [
-                    [
-                        'name' => 'runtime.message',
-                        'type' => 'parameter',
-                    ],
+            )
+            ->serviceMethodFactory(
+                id: 'test.compiled.factory.service_product',
+                factoryServiceId: CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
+                method: 'makeServiceProduct',
+                arguments: [
+                    ContainerValueReference::service(
+                        CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
+                    ),
                 ],
-            ],
-            [
-                'kind' => 'service.factory.service-method',
-                'id' => 'test.compiled.factory.service_product',
-                'factoryServiceId' => CompiledContainerFactoryBuildsContainerFromArtifactFactory::class,
-                'method' => 'makeServiceProduct',
-                'arguments' => [
-                    [
-                        'id' => CompiledContainerFactoryBuildsContainerFromArtifactDependency::class,
-                        'type' => 'service',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'alias',
-                'alias' => 'test.compiled.main',
-                'serviceId' => CompiledContainerFactoryBuildsContainerFromArtifactService::class,
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => 'kernel.reset',
-                'serviceId' => CompiledContainerFactoryBuildsContainerFromArtifactService::class,
-                'priority' => 50,
-                'meta' => [],
-            ],
-        ];
+            )
+            ->alias(
+                'test.compiled.main',
+                CompiledContainerFactoryBuildsContainerFromArtifactService::class,
+            )
+            ->tag(
+                tag: 'kernel.reset',
+                serviceId: CompiledContainerFactoryBuildsContainerFromArtifactService::class,
+                priority: 50,
+            );
     }
 }
 

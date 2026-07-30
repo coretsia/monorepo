@@ -23,9 +23,11 @@ use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
@@ -35,7 +37,9 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolution;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Tests\Integration\ArtifactPipelineTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -68,25 +72,32 @@ final class AppBuilder
             preset: self::PRESET_MICRO,
         );
 
-        $modulePlan = self::modulePlanResolver(
+        $moduleResolution = self::modulePlanResolver(
             manifest: self::microFixtureManifest(),
-        )->resolve($bootstrapConfig);
+        )->resolveResolution($bootstrapConfig);
+        $modulePlan = $moduleResolution->plan();
 
         self::compileRuntimeArtifacts(
             testCase: $testCase,
             skeletonRoot: $skeletonRoot,
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: $modulePlan,
+            moduleResolution: $moduleResolution,
             presetName: self::PRESET_MICRO,
         );
 
-        self::assertRuntimeArtifactsExist($skeletonRoot);
+        $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths(
+            $skeletonRoot,
+        );
 
-        $artifactPaths = ArtifactPipelineTestSupport::artifactPaths($skeletonRoot);
+        self::assertRuntimeArtifactsExist($artifactPaths);
 
         $container = new ArtifactRuntimeBooter()->boot(
-            configArtifactPath: $artifactPaths['config.php'],
-            containerArtifactPath: $artifactPaths['container.php'],
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot(
+                    $skeletonRoot,
+                ),
+            ),
         );
 
         return new AppBuilderBootResult(
@@ -112,7 +123,7 @@ final class AppBuilder
         try {
             self::modulePlanResolver(
                 manifest: self::microFixtureManifest(),
-            )->resolve($bootstrapConfig);
+            )->resolveResolution($bootstrapConfig);
         } catch (ModuleRequiredMissingException $exception) {
             TestCase::assertSame(
                 ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING,
@@ -169,9 +180,10 @@ final class AppBuilder
             preset: $presetName,
         );
 
-        $modulePlan = self::modulePlanResolver(
+        $moduleResolution = self::modulePlanResolver(
             manifest: self::microFixtureManifest(),
-        )->resolve($bootstrapConfig);
+        )->resolveResolution($bootstrapConfig);
+        $modulePlan = $moduleResolution->plan();
 
         return new AppBuilderModulePlanResult(
             skeletonRoot: $skeletonRoot,
@@ -189,7 +201,7 @@ final class AppBuilder
      */
     public static function artifactPaths(string $skeletonRoot): array
     {
-        return ArtifactPipelineTestSupport::artifactPaths($skeletonRoot);
+        return ArtifactPipelineTestSupport::currentArtifactPaths($skeletonRoot);
     }
 
     private static function temporarySkeletonRoot(string $name): string
@@ -233,7 +245,7 @@ final class AppBuilder
         TestCase $testCase,
         string $skeletonRoot,
         BootstrapConfig $bootstrapConfig,
-        ModulePlan $modulePlan,
+        ModuleResolution $moduleResolution,
         string $presetName,
     ): void {
         ArtifactPipelineTestSupport::writeRootConfig(
@@ -243,7 +255,7 @@ final class AppBuilder
 
         ArtifactPipelineTestSupport::artifactCompiler($testCase)->compile(
             bootstrapConfig: $bootstrapConfig,
-            modulePlan: $modulePlan,
+            moduleResolution: $moduleResolution,
             env: ArtifactPipelineTestSupport::envRepository(),
             kernelConfig: self::kernelConfig(),
             packageDefaultSources: [],
@@ -252,22 +264,30 @@ final class AppBuilder
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: self::frameworkModePresetSourceCandidates($presetName),
-            containerDescriptors: [],
         );
     }
 
-    private static function assertRuntimeArtifactsExist(string $skeletonRoot): void
-    {
+    /**
+     * @param array<string, string> $artifactPaths
+     */
+    private static function assertRuntimeArtifactsExist(
+        array $artifactPaths,
+    ): void {
         foreach (
             [
                 'module-manifest.php',
                 'config.php',
                 'container.php',
+                'generation-manifest.php',
             ] as $basename
         ) {
-            $path = ArtifactPipelineTestSupport::artifactPath($skeletonRoot, $basename);
+            $path =
+                $artifactPaths[$basename] ?? null;
 
-            if (!\is_file($path)) {
+            if (
+                !\is_string($path)
+                || !\is_file($path)
+            ) {
                 throw new \LogicException('app-builder-runtime-artifact-missing');
             }
         }
@@ -388,6 +408,7 @@ final class AppBuilder
             moduleClass: null,
             capabilities: [],
             metadata: [
+                'providers' => self::providers($moduleId),
                 'requires' => self::requires($moduleId),
                 'conflicts' => [],
             ],
@@ -401,6 +422,24 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'coretsia/core-kernel',
             self::MODULE_PLATFORM_CLI => 'coretsia/platform-cli',
             self::MODULE_PLATFORM_HTTP => 'coretsia/platform-http',
+            default => throw new \LogicException('app-builder-fixture-module-unknown'),
+        };
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private static function providers(string $moduleId): array
+    {
+        return match ($moduleId) {
+            self::MODULE_CORE_FOUNDATION => [
+                FoundationServiceProvider::class,
+            ],
+            self::MODULE_CORE_KERNEL => [
+                KernelServiceProvider::class,
+            ],
+            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_HTTP => [],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }

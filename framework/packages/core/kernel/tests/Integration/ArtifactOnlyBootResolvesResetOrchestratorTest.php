@@ -19,11 +19,14 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Runtime\ResetInterface;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
 
 final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
 {
@@ -36,10 +39,15 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
                 testCase: $this,
                 skeletonRoot: $root,
                 config: ArtifactPipelineTestSupport::defaultConfig(),
-                containerDescriptors: self::containerDescriptors(),
+                moduleResolution: ArtifactPipelineTestSupport::moduleResolution([
+                    FoundationServiceProvider::class,
+                    ArtifactOnlyBootResolvesResetOrchestratorProvider::class,
+                ]),
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                skeletonRoot: $root,
+            );
 
             self::assertTrue($container->has(ResetOrchestrator::class));
             self::assertTrue($container->has(TagRegistry::class));
@@ -67,52 +75,24 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
             ArtifactPipelineTestSupport::removeTree($root);
         }
     }
+}
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private static function containerDescriptors(): array
-    {
-        return [
-            [
-                'kind' => 'parameter',
-                'name' => 'reset.tag',
-                'value' => ReservedTags::KERNEL_RESET,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
-                'class' => ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
-                'shared' => true,
-            ],
-            [
-                'kind' => 'service.class',
-                'id' => ResetOrchestrator::class,
-                'class' => ResetOrchestrator::class,
-                'shared' => true,
-                'arguments' => [
-                    [
-                        'id' => ContainerInterface::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'id' => TagRegistry::class,
-                        'type' => 'service',
-                    ],
-                    [
-                        'name' => 'reset.tag',
-                        'type' => 'parameter',
-                    ],
-                ],
-            ],
-            [
-                'kind' => 'tag',
-                'tag' => ReservedTags::KERNEL_RESET,
-                'serviceId' => ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
-                'priority' => 100,
-                'meta' => [],
-            ],
-        ];
+final class ArtifactOnlyBootResolvesResetOrchestratorProvider implements ContainerDefinitionProviderInterface
+{
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        $definitions
+            ->classService(
+                ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
+                ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
+            )
+            ->tag(
+                tag: ReservedTags::KERNEL_RESET,
+                serviceId: ArtifactOnlyBootResolvesResetOrchestratorResetSpy::class,
+                priority: 100,
+            );
     }
 }
 

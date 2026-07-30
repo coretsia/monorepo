@@ -24,6 +24,7 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Module\ModuleResolution;
@@ -62,6 +63,11 @@ final class ArtifactOnlyWorkerContainerBootTest extends TestCase
             $expectedConfig = $configPayload['config'] ?? null;
 
             self::assertIsArray($expectedConfig);
+
+            $runtimeInput = new ArtifactRuntimeInput(
+                skeletonRoot: $root,
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot($root),
+            );
 
             $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
                 skeletonRoot: $root,
@@ -106,11 +112,11 @@ final class ArtifactOnlyWorkerContainerBootTest extends TestCase
                 $modulePlan->hasEnabledModule('platform.worker'),
             );
             self::assertSame(
-                $root,
+                $runtimeInput->skeletonRoot(),
                 $runtimePaths->skeletonRoot(),
             );
             self::assertSame(
-                ArtifactPipelineTestSupport::artifactRoot($root),
+                $runtimeInput->artifactRoot(),
                 $runtimePaths->artifactRoot(),
             );
 

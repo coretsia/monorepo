@@ -204,7 +204,7 @@ Implementations belong in owner packages such as:
 - `core/kernel`
 - `platform/cli`
 - `platform/http`
-- future platform or integration packages
+- additional platform or integration packages
 
 Implementation packages MAY depend on `core/contracts`.
 

@@ -49,6 +49,8 @@ ssot_refs:
 - "docs/ssot/context-keys.md"
 ---
 
+- [ ] update `6.10.0 platform/health` to consume `SensitiveDataRedactorInterface` for health-check failure summaries where checks may include backend/provider data.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -335,6 +337,8 @@ ssot_refs:
 - "docs/ssot/observability.md"
 - "docs/ssot/http-middleware-catalog.md"
 ---
+
+- [ ] update `6.20.0 platform/metrics` to clarify that redaction does not permit arbitrary metric labels or metric dumps.
 
 ### Dependencies (MUST)
 
@@ -844,6 +848,8 @@ ssot_refs:
 - "docs/ssot/config-roots.md"
 - "docs/ssot/observability.md"
 ---
+
+- [ ] update `6.30.0 platform/tracing` to consume `SensitiveDataRedactorInterface` for span/event attribute summaries.
 
 ### Dependencies (MUST)
 
@@ -1567,6 +1573,8 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
 
+- [ ] update `6.40.0 coretsia/observability` to aggregate observability with the shared redaction boundary and not define a second redaction model.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -1832,6 +1840,8 @@ ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/observability.md"
 ---
+
+- [ ] update `6.50.0 coretsia/profiling` to avoid leaking raw stack args, payloads, paths, env values, or secrets in profiler samples.
 
 ### Dependencies (MUST)
 
@@ -3352,6 +3362,8 @@ ssot_refs:
 - docs/ssot/modes.md
 ---
 
+- [ ] update `6.80.0 coretsia/features` to consume `SensitiveDataRedactorInterface` for experiment/analytics diagnostics.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -3628,6 +3640,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.90.0 coretsia/outbox` to consume `SensitiveDataRedactorInterface` for outgoing event/message payload summaries.
 
 ### Dependencies (MUST)
 
@@ -3910,6 +3924,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.100.0 coretsia/inbox` to consume `SensitiveDataRedactorInterface` for idempotency payloads and inbound message diagnostics.
 
 ### Dependencies (MUST)
 
@@ -4747,6 +4763,8 @@ adr: none
 ssot_refs: []
 ---
 
+- [ ] update `6.130.0 devtools/api-docs` to avoid exposing secrets/PII in generated examples or debug docs.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -5025,6 +5043,8 @@ ssot_refs: MUST include policy docs that this epic реально викорис
 - "docs/ssot/redaction.md"
 - "docs/ssot/tags.md" # якщо middleware slot taxonomy документується там)
 ---
+
+- [ ] update `6.140.0 devtools/dev-tools` to consume `SensitiveDataRedactorInterface` for debugbar/dev diagnostics.
 
 ### Dependencies (MUST)
 
@@ -5305,6 +5325,8 @@ ssot_refs: add minimum policy docs this epic touches:
 - "docs/ssot/redaction.md"
 - "docs/ssot/metrics-policy.md"
 ---
+
+- [ ] update `6.150.0 devtools/admin-panel` to consume `SensitiveDataRedactorInterface` for admin diagnostics and previews.
 
 ### Dependencies (MUST)
 
@@ -6700,6 +6722,8 @@ ssot_refs:
 - docs/ssot/observability.md
 - docs/ssot/observability-and-errors.md
 ---
+
+- [ ] update `6.170.0 coretsia/streaming` to consume `SensitiveDataRedactorInterface` for SSE/NDJSON diagnostics.
 
 ### Dependencies (MUST)
 
@@ -8189,6 +8213,8 @@ ssot_refs:
 - docs/ssot/metrics-policy.md
 - docs/ssot/config-and-env.md
 ---
+
+- [ ] update `6.230.0 coretsia/etl` to consume `SensitiveDataRedactorInterface` for pipeline row/payload diagnostics.
 
 ## Phase compliance addendum (MUST)
 
@@ -9821,6 +9847,8 @@ ssot_refs:
 - docs/ssot/metrics-policy.md
 ---
 
+- [ ] update `6.290.0 Database advanced: ORM + Transactions` to consume `SensitiveDataRedactorInterface` for model attributes, transactions, SQL, and binding diagnostics.
+
 ### Phase-1 cemented compliance addendum (MUST)
 
 #### Config root registry (MUST)
@@ -10103,7 +10131,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0074-bundles-feature-packs.md
+adr: docs/adr/ADR-0075-bundles-feature-packs.md
 ssot_refs:
 - docs/ssot/modules-and-manifests.md
 - docs/ssot/modes.md
@@ -10203,7 +10231,7 @@ Forbidden:
 - [ ] `framework/packages/core/kernel/resources/bundles/observability-full.php` — example framework default bundle
 - [ ] `framework/packages/core/kernel/resources/bundles/enterprise-baseline.php` — example framework default bundle
 - [ ] `docs/guides/bundles.md` — how bundles work + override rules + examples
-- [ ] `docs/adr/ADR-0074-bundles-feature-packs.md` — ADR covering preset format extension + determinism + compat
+- [ ] `docs/adr/ADR-0075-bundles-feature-packs.md` — ADR covering preset format extension + determinism + compat
 
 - [ ] `framework/packages/platform/cli/src/Command/BundlesListCommand.php` — prints available bundles
 - [ ] `framework/packages/platform/cli/src/Command/BundlesDebugCommand.php` — prints expanded modules + reasons
@@ -10216,7 +10244,7 @@ Forbidden:
 - [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — wire Bundle* services (if kernel uses central provider wiring)
 - [ ] `framework/packages/core/kernel/src/Module/*` integration points — connect expander/loader/validator into preset/module planning (where applicable)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0074-bundles-feature-packs.md`
+  - [ ] `docs/adr/ADR-0075-bundles-feature-packs.md`
 - [ ] `docs/ssot/modes.md` — document bundles field + precedence (skeleton override > framework)
 
 #### Package skeleton (if type=package)
@@ -10331,7 +10359,7 @@ N/A
   - [ ] unit + integration pass
   - [ ] CLI: `BundlesCommandsDoNotLeakSecretsTest.php` pass
 - [ ] Docs updated:
-  - [ ] ADR accepted: `docs/adr/ADR-0074-bundles-feature-packs.md`
+  - [ ] ADR accepted: `docs/adr/ADR-0075-bundles-feature-packs.md`
   - [ ] `docs/guides/bundles.md` complete and accurate
 - [ ] Problem solved:
   - [ ] Додає bundles/feature-packs як framework defaults (не skeleton defaults) для скорочення enable lists у presets
@@ -10373,9 +10401,11 @@ tags_introduced: []
 config_roots_introduced: ["sso_oidc"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0075-enterprise-sso-oidc-contracts.md
+adr: docs/adr/ADR-0076-enterprise-sso-oidc-contracts.md
 ssot_refs: []
 ---
+
+- [ ] update `6.310.0 Enterprise SSO: OIDC` to consume `SensitiveDataRedactorInterface` for tokens, claims, provider payloads, and auth diagnostics.
 
 ### Dependencies (MUST)
 
@@ -10476,7 +10506,7 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Sso/IdentityLinkRepositoryInterface.php` — link external subject → local identity id
 - [ ] `framework/packages/core/contracts/src/Sso/SsoException.php` — base deterministic exception for SSO domain
 
-- [ ] `docs/adr/ADR-0075-enterprise-sso-oidc-contracts.md` — ADR for new contracts + boundary
+- [ ] `docs/adr/ADR-0076-enterprise-sso-oidc-contracts.md` — ADR for new contracts + boundary
 
 - [ ] `framework/packages/enterprise/sso-oidc/src/Oidc/OidcProvider.php` — implements `SsoProviderInterface` using PSR-18
 - [ ] `framework/packages/enterprise/sso-oidc/src/Oidc/OidcProviderConfig.php` — deterministic config VO (issuer/clientId/redirectUri/scopes)
@@ -10493,7 +10523,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0075-enterprise-sso-oidc-contracts.md`
+  - [ ] `docs/adr/ADR-0076-enterprise-sso-oidc-contracts.md`
 
 #### Package skeleton (if type=package)
 
@@ -10633,7 +10663,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/sso-oidc/README.md`
   - [ ] `framework/packages/enterprise/sso-oidc/docs/oidc.md`
-  - [ ] ADR present (`docs/adr/ADR-0075-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0076-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Дає enterprise SSO через OIDC (login + callback) без вшивання vendor concretes у `core/contracts`
   - [ ] Узгоджує boundary: SSO провайдер → verified identity claims → link-to-local identity (без зміни `platform/auth` internals)
@@ -10683,6 +10713,8 @@ artifacts_introduced: []
 adr: none  # reuses SSO contracts from epic 6.310.0
 ssot_refs: []
 ---
+
+- [ ] update `6.320.0 Enterprise SSO: SAML` to consume `SensitiveDataRedactorInterface` for assertions, claims, certificates, provider payloads, and auth diagnostics.
 
 ### Dependencies (MUST)
 
@@ -10965,6 +10997,8 @@ adr: none
 ssot_refs: []
 ---
 
+- [ ] update `6.330.0 Enterprise: SCIM` to consume `SensitiveDataRedactorInterface` for user/group provisioning payloads.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -11224,9 +11258,11 @@ tags_introduced: ["tenancy.resolver"]
 config_roots_introduced: ["tenancy"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0076-enterprise-tenancy-contracts.md
+adr: docs/adr/ADR-0077-enterprise-tenancy-contracts.md
 ssot_refs: []
 ---
+
+- [ ] update `6.340.0 Enterprise Tenancy` to consume `SensitiveDataRedactorInterface` for tenant/user/account diagnostics.
 
 ### Dependencies (MUST)
 
@@ -11326,8 +11362,8 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Tenancy/TenantResolverInterface.php` — resolve tenant from request/context
 - [ ] `framework/packages/core/contracts/src/Tenancy/TenancyException.php` — deterministic codes
 
-- [ ] `docs/adr/ADR-0076-enterprise-tenancy-contracts.md` — ADR for tenancy contracts + boundary
-- [ ] `docs/adr/ADR-0032-enterprise-tenancy-contracts.md` — legacy ADR reference from prior draft (resolve/cleanup when spec locked)
+- [ ] `docs/adr/ADR-0077-enterprise-tenancy-contracts.md` — ADR for tenancy contracts + boundary
+- [ ] `docs/adr/ADR-0081-enterprise-tenancy-contracts.md` — legacy ADR reference from prior draft (resolve/cleanup when spec locked)
 
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/TenantResolverRegistry.php` — collects resolvers deterministically
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/Resolver/HostTenantResolver.php` — host-based
@@ -11346,7 +11382,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0076-enterprise-tenancy-contracts.md`
+  - [ ] `docs/adr/ADR-0077-enterprise-tenancy-contracts.md`
 - docs/ssot/tags.md — add `tenancy.resolver` row (owner enterprise/tenancy)
 
 #### Package skeleton (if type=package)
@@ -11485,7 +11521,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/tenancy/README.md`
   - [ ] `framework/packages/enterprise/tenancy/docs/tenancy.md`
-  - [ ] ADR present (`docs/adr/ADR-0076-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0077-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Додає multi-tenant контекст для HTTP UoW: детерміноване визначення tenant + запис `tenant_id` у ContextStore (safe id)
   - [ ] Дає pluggable resolvers (host/header/path/jwt_claim) з deterministic order і safety rails
@@ -11532,9 +11568,11 @@ tags_introduced: []
 config_roots_introduced: ["audit"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0077-enterprise-audit-contracts.md
+adr: docs/adr/ADR-0078-enterprise-audit-contracts.md
 ssot_refs: []
 ---
+
+- [ ] update `6.350.0 Enterprise Audit` to define how audit records use redacted summaries without destroying audit usefulness.
 
 ### Dependencies (MUST)
 
@@ -11633,7 +11671,7 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Audit/AuditReaderInterface.php` — read API for admin/devtools (filtered/paged)
 - [ ] `framework/packages/core/contracts/src/Audit/AuditException.php` — deterministic error codes
 
-- [ ] `docs/adr/ADR-0077-enterprise-audit-contracts.md` — ADR for audit contracts + boundary
+- [ ] `docs/adr/ADR-0078-enterprise-audit-contracts.md` — ADR for audit contracts + boundary
 
 - [ ] `framework/packages/enterprise/audit/database/migrations/2026_...._create_audit_log_table.php` — append-only table
 - [ ] `framework/packages/enterprise/audit/src/Audit/AuditBuffer.php` — in-memory buffer (implements ResetInterface)
@@ -11646,7 +11684,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0077-enterprise-audit-contracts.md`
+  - [ ] `docs/adr/ADR-0078-enterprise-audit-contracts.md`
 
 #### Package skeleton (if type=package)
 
@@ -11777,7 +11815,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/audit/README.md`
   - [ ] `framework/packages/enterprise/audit/docs/audit.md`
-  - [ ] ADR present (`docs/adr/ADR-0077-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-0078-...`) (+ legacy ADR reference resolved/removed if redundant)
 - [ ] Scope & intent (MUST)
   - [ ] Додає enterprise audit trail: append-only записи з safe context (correlation/request/tenant/actor ids) без payload/PII
   - [ ] Дає vendor-agnostic contracts ports/VO для аудиту (щоб devtools/admin-panel могли читати без прив’язки)
@@ -11829,6 +11867,8 @@ ssot_refs:
 - docs/ssot/config-roots.md  # root ownership cemented
 - docs/ssot/observability.md
 ---
+
+- [ ] update `6.360.0 Enterprise Compliance` to reference the shared redaction boundary for compliance-safe diagnostics.
 
 ### Dependencies (MUST)
 
@@ -12087,6 +12127,8 @@ ssot_refs:
 - docs/ssot/metrics-policy.md
 ---
 
+- [ ] update `6.370.0 integrations/secrets-vault` to consume `SensitiveDataRedactorInterface` for secret refs, Vault tokens, addresses, provider payloads, and backend errors.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -12289,6 +12331,8 @@ ssot_refs:
 - docs/ssot/tags.md
 ---
 
+- [ ] update `6.371.0 integrations/secrets-aws` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, AWS payloads, and backend errors.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -12484,6 +12528,8 @@ ssot_refs:
 - docs/ssot/tags.md
 ---
 
+- [ ] update `6.372.0 integrations/secrets-gcp` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, GCP payloads, and backend errors.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -12678,6 +12724,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.380.0 Webhooks` to consume `SensitiveDataRedactorInterface` for payloads, HMAC secrets, signatures, headers, retry diagnostics, and provider responses.
 
 ### Dependencies (MUST)
 
@@ -12960,7 +13008,7 @@ provides:
 - "Vendor-agnostic Search ports у `core/contracts` (apps + integrations)."
 - "`platform/search` facade: deterministic indexing plan + query execution via injected client(s)."
 - "CI-safe fake adapter + optional `search:reindex` command (no payload print)."
-- "ADR-0078 locking the boundary and invariants."
+- "ADR-0079 locking the boundary and invariants."
 
 tags_introduced:
 - "search.client"   # discovery of SearchClientInterface implementations
@@ -12969,7 +13017,7 @@ config_roots_introduced:
 - "search"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0078-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0079-search-ports-and-platform-search.md"
 ssot_refs:
 - "docs/ssot/config-and-env.md"
 - "docs/ssot/observability-and-errors.md"
@@ -12978,6 +13026,8 @@ ssot_refs:
 - "docs/ssot/config-roots.md"
 - "docs/ssot/observability.md"
 ---
+
+- [ ] update `6.390.0 Search` and `6.391.0`–`6.393.0` search integrations to consume `SensitiveDataRedactorInterface` for query payloads, indexed documents, provider payloads, and backend errors.
 
 ### Dependencies (MUST)
 
@@ -13088,7 +13138,7 @@ Platform facade + fake:
 - [ ] `framework/packages/platform/search/src/Console/SearchReindexCommand.php` — optional CLI entrypoint (no payload print)
 
 ADR:
-- [ ] `docs/adr/ADR-0078-search-ports-and-platform-search.md` — ADR (contracts ports + platform facade + fake)
+- [ ] `docs/adr/ADR-0079-search-ports-and-platform-search.md` — ADR (contracts ports + platform facade + fake)
 
 Tests (proof):
 - [ ] `framework/packages/core/contracts/tests/Contract/SearchContractsShapeContractTest.php` — contracts shape contract
@@ -13103,7 +13153,7 @@ Tests (proof):
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0078-search-ports-and-platform-search.md`
+  - [ ] `docs/adr/ADR-0079-search-ports-and-platform-search.md`
 
 #### Package skeleton (if type=package)
 
@@ -13251,7 +13301,7 @@ config_roots_introduced:
 - "search_elastic"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0078-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0079-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13446,7 +13496,7 @@ config_roots_introduced:
 - "search_opensearch"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0078-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0079-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13638,7 +13688,7 @@ config_roots_introduced:
 - "search_meilisearch"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0078-search-ports-and-platform-search.md"
+adr: "docs/adr/ADR-0079-search-ports-and-platform-search.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
@@ -13830,12 +13880,14 @@ config_roots_introduced:
 - "api_versioning"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0079-api-versioning-header-middleware.md"
+adr: "docs/adr/ADR-0080-api-versioning-header-middleware.md"
 ssot_refs:
 - docs/ssot/config-and-env.md
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.400.0 API versioning` to consume `SensitiveDataRedactorInterface` for header/request diagnostics.
 
 ### Dependencies (MUST)
 
@@ -13946,7 +13998,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0079-api-versioning-header-middleware.md`
+  - [ ] `docs/adr/ADR-0080-api-versioning-header-middleware.md`
 
 #### Package skeleton (if type=package)
 
@@ -14070,7 +14122,7 @@ N/A
 - [ ] Determinism: same headers + path → same rewrite
 - [ ] Docs updated:
   - [ ] `framework/packages/platform/api-versioning/README.md`
-  - [ ] `docs/adr/ADR-0079-api-versioning-header-middleware.md`
+  - [ ] `docs/adr/ADR-0080-api-versioning-header-middleware.md`
 - [ ] What problem this epic solves
   - [ ] Provide an optional, deterministic API versioning mechanism without changing contracts/kernel.
   - [ ] Support header-based version selection that rewrites request path before routing.
@@ -14120,6 +14172,8 @@ ssot_refs:
 - "docs/ssot/rate-limit-contracts.md"         # no high-cardinality leakage; no correlation_id in keys
 - "docs/ssot/http-middleware-catalog.md"      # placement + priority constraints (rate-limit in app_pre)
 ---
+
+- [ ] update `6.410.0 Rate limit advanced` to consume `SensitiveDataRedactorInterface` for identity keys, Redis keys, and tier diagnostics.
 
 ### Dependencies (MUST)
 
@@ -14396,6 +14450,8 @@ ssot_refs:
 - "docs/ssot/filesystem-contracts.md"         # optional DiskInterface usage, no path leaks
 - "docs/ssot/uow-and-reset-contracts.md"      # ResetInterface rules if stateful handler exists
 ---
+
+- [ ] update `6.420.0 Uploads virus scanning hook` to consume `SensitiveDataRedactorInterface` for file names, paths, verdict payloads, scanner responses, and quarantine diagnostics.
 
 ### Artifact registration & ownership (MUST)
 
@@ -14752,6 +14808,8 @@ ssot_refs:
 - "docs/ssot/context-store.md"                # safe context reads only
 - "docs/ssot/stateful-services.md"            # if cache is stateful -> ResetInterface + kernel.reset tag
 ---
+
+- [ ] update `6.430.0 Policy engine` to consume `SensitiveDataRedactorInterface` for policy input/output diagnostics.
 
 ### Dependencies (MUST)
 
@@ -15793,6 +15851,8 @@ ssot_refs:
 - docs/ssot/redaction.md
 ---
 
+- [ ] update `6.470.0 Contracts: AI` to reference the shared redaction boundary for prompts, tool inputs, tool outputs, embeddings metadata, and provider payloads.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -15939,6 +15999,8 @@ ssot_refs:
 - docs/ssot/config-roots.md
 - docs/ssot/observability-and-errors.md
 ---
+
+- [ ] update `6.471.0 coretsia/ai` to consume `SensitiveDataRedactorInterface` for prompts, completions, tools, embeddings, and provider diagnostics.
 
 ### Dependencies (MUST)
 
@@ -16154,6 +16216,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 ---
 
+- [ ] update `6.472.0 Contracts: AI guardrails` to extend or consume the shared redaction boundary instead of defining an incompatible local PII redaction model.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -16277,6 +16341,8 @@ ssot_refs:
 - docs/ssot/redaction.md
 - docs/ssot/observability-and-errors.md
 ---
+
+- [ ] update `6.473.0 coretsia/ai-guardrails` to consume `SensitiveDataRedactorInterface` and define AI-specific PII hooks as extensions, not replacements.
 
 ### Dependencies (MUST)
 
@@ -16484,6 +16550,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/redaction.md
 ---
+
+- [ ] update `6.474.0 Contracts: AI vectorstore` and `6.475.0 coretsia/ai-vectorstore` to consume `SensitiveDataRedactorInterface` for document chunks, metadata, embeddings diagnostics, and provider payloads.
 
 ### Dependencies (MUST)
 

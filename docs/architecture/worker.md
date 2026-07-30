@@ -584,7 +584,9 @@ The process-driver factory methods receive runtime filesystem roots through `Run
 
 `WorkerServiceFactory::pcntlWorkerManagerDriver(...)` extracts the normalized skeleton root and passes it to `PcntlWorkerManagerDriver`.
 
-`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives the concrete `module-manifest.php`, `config.php`, and `container.php` paths only from `RuntimePathContext::artifactRoot()`.
+`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives one skeleton-root-relative artifact-root value from `RuntimePathContext::artifactRoot()`.
+
+An absolute artifact root MUST be a strict descendant of `RuntimePathContext::skeletonRoot()`; an equal root or an absolute root outside the skeleton fails deterministically. `ProcWorkerManagerDriver` then applies the canonical relative-safe lexical validation before storing the value.
 
 The concrete process drivers do not receive `RuntimePathContext` or `BootstrapConfig`.
 
@@ -614,52 +616,47 @@ The `proc` driver starts a fresh PHP child process.
 
 Unlike a forked `pcntl` child, the proc child does not inherit the already-built in-memory runtime container.
 
-The master therefore passes three skeleton-root-relative artifact paths:
+The master passes exactly one skeleton-root-relative Kernel artifact root.
+
+The canonical child argv field is:
 
 ```text
-module-manifest.php
-config.php
-container.php
+--coretsia-worker-artifact-root=<relative-safe-path>
 ```
 
-The canonical child argv fields are:
+The child argument parser uses an exact key allowlist.
+
+It MUST reject the legacy individual artifact arguments:
 
 ```text
---coretsia-worker-module-manifest=<relative-path>
---coretsia-worker-config=<relative-path>
---coretsia-worker-container=<relative-path>
+--coretsia-worker-module-manifest
+--coretsia-worker-config
+--coretsia-worker-container
 ```
 
-Every artifact argument must:
+The artifact-root argument MUST:
 
 - be non-empty;
 - be skeleton-root-relative;
 - use `/` separators;
-- reject whitespace;
-- reject NUL and control characters;
-- reject URI schemes;
-- reject absolute Unix paths;
-- reject absolute Windows paths;
-- reject empty path segments;
-- reject `.` and `..` segments;
-- reject `@`-prefixed segments.
+- contain no whitespace;
+- contain no control bytes;
+- contain no empty segments;
+- contain no `.` or `..` segments;
+- contain no stream-wrapper syntax;
+- contain no absolute-path prefix;
+- contain no `@`-prefixed segment.
 
 The child process uses its working directory as the explicit normalized skeleton root.
 
-It resolves the three validated relative artifact paths against that skeleton root.
+It resolves the validated relative artifact root against that skeleton root and creates:
 
-The child then creates:
-
-```text
-ArtifactRuntimeInput(
-    skeletonRoot,
-    artifactRoot
-)
+```php
+new ArtifactRuntimeInput(
+    skeletonRoot: $skeletonRoot,
+    artifactRoot: $artifactRoot,
+);
 ```
-
-where `artifactRoot` is derived from the already explicit `container.php` path.
-
-This derivation is not generation discovery and does not select a current generation.
 
 The child invokes:
 
@@ -667,62 +664,65 @@ The child invokes:
 ArtifactRuntimeBooter
 ```
 
-with:
+with that input only.
 
-```text
-ArtifactRuntimeInput
-module-manifest.php
-config.php
-container.php
-```
+`ArtifactRuntimeBooter` then:
 
-The Kernel artifact hydration boundary restores:
-
-```text
-config@1
-  -> ArrayConfigRepository
-  -> ConfigRepositoryInterface
-
-module-manifest@1
-  -> ModulePlanArtifactHydrator
-  -> ModulePlan
-
-ArtifactRuntimeInput
-  -> RuntimePathContext
-```
+1. locates `current`;
+2. validates one selected generation;
+3. reads exact snapshots for all four generation files;
+4. validates generation metadata and fingerprints;
+5. hydrates `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+6. builds the compiled runtime container.
 
 These three objects form the exact entrypoint-owned runtime seed set.
 
-The proc child artifact-only boot path must not:
+The proc child artifact-only boot path MUST NOT:
 
+- accept individual artifact paths;
 - run Bootstrap Phase A;
 - run ConfigKernel Phase B;
 - read source config files;
-- read Composer metadata;
+- read Composer module metadata;
 - discover modules;
 - resolve presets;
 - execute source providers;
 - compile a replacement graph;
 - calculate fingerprints;
 - write or repair artifacts;
-- discover a generation directory;
-- select a current generation.
+- scan `generations/` for a newest generation;
+- fall back to another generation.
 
 After the compiled container is built, the child resolves:
 
 ```text
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+ConfigRepositoryInterface
+ModulePlan
 ApplicationWorker
 ```
 
-from that container.
-
 The child validates that the received worker arguments match `WorkerPoolSpec` before starting the application-worker loop.
 
-All child boot failures must remain deterministic and redacted.
+All child boot failures MUST remain deterministic and redacted.
 
-Raw artifact paths, absolute paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages must not appear in public child diagnostics.
+The launcher emits exactly two normalized STDERR lines on failure:
+
+```text
+CORETSIA_WORKER_CHILD_BOOT_FAILED
+<safe-reason>
+```
+
+Any `ArtifactRuntimeBooter` failure is collapsed to:
+
+```text
+runtime-container-boot-failed
+```
+
+The launcher MUST NOT forward the nested `ArtifactRuntimeBootException` reason or message.
+
+Raw artifact roots, generation paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages MUST NOT appear in public child diagnostics.
 
 ## Application worker boundary
 
@@ -963,18 +963,16 @@ Configured relative Worker paths must:
 
 These relative config values are distinct from both:
 
-- proc-child artifact path arguments;
+- the proc-child artifact-root argument;
 - runtime roots carried by `RuntimePathContext`.
 
-The proc-child artifact path arguments are launcher-owned, skeleton-root-relative runtime inputs:
+The proc-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
 
 ```text
-module-manifest.php
-config.php
-container.php
+--coretsia-worker-artifact-root=<relative-safe-path>
 ```
 
-They are not Worker config values and are not generated artifact payload fields.
+It is not a Worker config value and is not a generated artifact payload field.
 
 The runtime roots are carried by:
 
@@ -1326,12 +1324,14 @@ docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/ssot/runtime-container-definitions.md
 ```
 
-Changing proc-child artifact paths, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
+Changing the proc-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
 
 ```text
 docs/architecture/worker.md
 docs/adr/ADR-0029-kernel-container-compile-artifact.md
 docs/ssot/compiled-container.md
+docs/ssot/artifact-generations.md
+docs/adr/ADR-0031-atomic-artifact-generations.md
 framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 ```
@@ -1385,6 +1385,7 @@ docs/ssot/observability.md
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
+- [Artifact Generations SSoT](../ssot/artifact-generations.md)
 - [Compiled Container SSoT](../ssot/compiled-container.md)
 - [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
 - [Canonical Runtime Container Definitions SSoT](../ssot/runtime-container-definitions.md)

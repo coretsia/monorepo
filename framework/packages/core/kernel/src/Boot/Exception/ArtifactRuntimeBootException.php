@@ -38,8 +38,8 @@ final class ArtifactRuntimeBootException extends \RuntimeException
 {
     public const string ERROR_CODE = 'CORETSIA_ARTIFACT_RUNTIME_BOOT_FAILED';
 
+    public const string REASON_GENERATION_INVALID = 'artifact-runtime-boot-generation-invalid';
     public const string REASON_MODULE_MANIFEST_ARTIFACT_INVALID = 'artifact-runtime-boot-module-manifest-artifact-invalid';
-    public const string REASON_CONFIG_ARTIFACT_INVALID = 'artifact-runtime-boot-config-artifact-invalid';
     public const string REASON_CONTAINER_ARTIFACT_INVALID = 'artifact-runtime-boot-container-artifact-invalid';
     public const string REASON_RUNTIME_CONTAINER_INVALID = 'artifact-runtime-boot-runtime-container-invalid';
 
@@ -47,8 +47,8 @@ final class ArtifactRuntimeBootException extends \RuntimeException
      * @var array<string, true>
      */
     private const array REASONS = [
+        self::REASON_GENERATION_INVALID => true,
         self::REASON_MODULE_MANIFEST_ARTIFACT_INVALID => true,
-        self::REASON_CONFIG_ARTIFACT_INVALID => true,
         self::REASON_CONTAINER_ARTIFACT_INVALID => true,
         self::REASON_RUNTIME_CONTAINER_INVALID => true,
     ];
@@ -68,6 +68,15 @@ final class ArtifactRuntimeBootException extends \RuntimeException
         parent::__construct(self::message($this->reason), 0, $previous);
     }
 
+    public static function generationInvalid(
+        ?\Throwable $previous = null,
+    ): self {
+        return new self(
+            reason: self::REASON_GENERATION_INVALID,
+            previous: $previous,
+        );
+    }
+
     public static function moduleManifestArtifactInvalid(
         ?\Throwable $previous = null,
     ): self {
@@ -77,35 +86,22 @@ final class ArtifactRuntimeBootException extends \RuntimeException
         );
     }
 
-    public static function configArtifactInvalid(?\Throwable $previous = null): self
-    {
-        return new self(
-            reason: self::REASON_CONFIG_ARTIFACT_INVALID,
-            previous: $previous,
-        );
-    }
-
-    public static function containerArtifactInvalid(?\Throwable $previous = null): self
-    {
+    public static function containerArtifactInvalid(
+        ?\Throwable $previous = null,
+    ): self {
         return new self(
             reason: self::REASON_CONTAINER_ARTIFACT_INVALID,
             previous: $previous,
         );
     }
 
-    public static function runtimeContainerInvalid(?\Throwable $previous = null): self
-    {
+    public static function runtimeContainerInvalid(
+        ?\Throwable $previous = null,
+    ): self {
         return new self(
             reason: self::REASON_RUNTIME_CONTAINER_INVALID,
             previous: $previous,
         );
-    }
-
-    public static function withReason(
-        string $reason = self::REASON_RUNTIME_CONTAINER_INVALID,
-        ?\Throwable $previous = null,
-    ): self {
-        return new self($reason, $previous);
     }
 
     public function errorCode(): string

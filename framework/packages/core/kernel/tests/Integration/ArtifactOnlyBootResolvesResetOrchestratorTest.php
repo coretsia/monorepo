@@ -45,7 +45,9 @@ final class ArtifactOnlyBootResolvesResetOrchestratorTest extends TestCase
                 ]),
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                skeletonRoot: $root,
+            );
 
             self::assertTrue($container->has(ResetOrchestrator::class));
             self::assertTrue($container->has(TagRegistry::class));

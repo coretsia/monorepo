@@ -48,11 +48,15 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 moduleResolution: $moduleResolution,
             );
 
-            $generation = ArtifactPipelineTestSupport::currentGeneration($root);
-            $containerPath = $generation->containerPath();
+            $containerEnvelope = ArtifactPipelineTestSupport::artifactEnvelope(
+                $root,
+                'container.php',
+            );
+
             $configPayload = ArtifactPipelineTestSupport::configPayloadFromArtifact(
                 $root,
             );
+
             $moduleManifestEnvelope = ArtifactPipelineTestSupport::artifactEnvelope(
                 $root,
                 'module-manifest.php',
@@ -64,14 +68,25 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
 
             $input = new ArtifactRuntimeInput(
                 skeletonRoot: $root,
-                artifactRoot: $generation->generationDirectory(),
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot($root),
             );
 
-            $seeds = new ArtifactRuntimeSeedFactory()->create(
-                input: $input,
-                configPayload: $configPayload,
-                moduleManifestPayload: $moduleManifestPayload,
+            $seedFactory = new ArtifactRuntimeSeedFactory();
+
+            $configRepository = $seedFactory->hydrateConfigRepository(
+                $configPayload,
             );
+
+            $hydratedModulePlan = $seedFactory->hydrateModulePlan(
+                $moduleManifestPayload,
+            );
+
+            $seeds = $seedFactory->create(
+                input: $input,
+                configRepository: $configRepository,
+                modulePlan: $hydratedModulePlan,
+            );
+
             $instances = $seeds->instances();
 
             /** @var ConfigRepositoryInterface $config */
@@ -108,9 +123,8 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
             );
 
             $container = ArtifactPipelineTestSupport::compiledContainerFactory()
-                ->build(
-                    containerArtifactPath: $containerPath,
-                    configPayload: $configPayload,
+                ->buildFromEnvelope(
+                    containerEnvelope: $containerEnvelope,
                     seeds: $seeds,
                 );
 

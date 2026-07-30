@@ -25,19 +25,19 @@ use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
-use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException;
-use Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 
 /**
- * Builds a runtime Foundation container from an already generated `container@1`
- * compiled-container artifact.
+ * Builds a runtime Foundation container from an already-read `container@1`
+ * compiled-container envelope.
  *
- * This factory is the artifact-only production runtime boot boundary.
+ * ArtifactRuntimeBooter owns generation selection and artifact-only runtime
+ * boot. This factory owns container-envelope validation and hydration after
+ * generation validation has completed.
  *
  * It intentionally does not:
  *
@@ -54,9 +54,9 @@ use Psr\Container\ContainerInterface;
  *   values, source snippets, closure dumps, PHP warning text, OS error
  *   messages, stack traces, or previous throwable messages in diagnostics.
  *
- * Runtime config is supplied only through an already-read and already-validated
- * `config@1` payload. This factory uses the `config` field from that payload as
- * the Foundation container config snapshot.
+ * Runtime config is supplied only through the entrypoint-owned
+ * ConfigRepositoryInterface seed. The factory uses that repository's complete
+ * config tree as the Foundation container config snapshot.
  *
  * @internal
  */
@@ -90,8 +90,6 @@ final readonly class CompiledContainerFactory
     private const string FACTORY_KEY_SERVICE = 'service';
     private const string FACTORY_KEY_METHOD = 'method';
 
-    private const string CONFIG_PAYLOAD_KEY_CONFIG = 'config';
-
     private const int MAX_RUNTIME_GRAPH_DEPTH = 32;
     private const int MAX_RUNTIME_LIST_ITEMS = 8192;
     private const int MAX_RUNTIME_MAP_KEYS = 8192;
@@ -101,45 +99,31 @@ final readonly class CompiledContainerFactory
     private const string CONTAINER_TAG_PATTERN = '/\A[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*\z/';
 
     public function __construct(
-        private PhpArtifactReader $artifactReader,
         private ArtifactSchemaValidator $schemaValidator,
     ) {
     }
 
     /**
-     * Builds the runtime Foundation container from a `container@1`
-     * compiled-container artifact and an already-read/validated `config@1` payload.
+     * Builds the runtime Foundation container from one already-read
+     * `container@1` envelope.
      *
-     * @param non-empty-string $containerArtifactPath
-     * @param array<string, mixed> $configPayload Already-read/validated config@1 payload.
+     * @param array<int|string, mixed> $containerEnvelope
      *
-     * @throws ContainerArtifactMissingException
      * @throws ContainerArtifactInvalidException
      */
-    public function build(
-        string $containerArtifactPath,
-        array $configPayload,
+    public function buildFromEnvelope(
+        array $containerEnvelope,
         RuntimeContainerSeedSet $seeds,
     ): Container {
-        if ($containerArtifactPath === '' || !@\is_file($containerArtifactPath)) {
-            throw ContainerArtifactMissingException::missing();
-        }
-
-        $runtimeConfig = self::runtimeConfigFromConfigPayload($configPayload);
-
-        $envelope = null;
-
         try {
-            $read = $this->artifactReader->read($containerArtifactPath);
-            $envelope = $read['envelope'];
-
             $this->schemaValidator->validateExpected(
-                envelope: $envelope,
+                envelope: $containerEnvelope,
                 expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
                 expectedSchemaVersion: self::SCHEMA_VERSION_CONTAINER,
             );
 
-            $payload = self::containerPayloadFromEnvelope($envelope);
+            $payload = self::containerPayloadFromEnvelope($containerEnvelope);
+            $runtimeConfig = self::runtimeConfigFromSeeds($seeds);
 
             return self::buildRuntimeContainer(
                 payload: $payload,
@@ -152,7 +136,7 @@ final readonly class CompiledContainerFactory
             throw ContainerArtifactInvalidException::withReason(
                 self::mapArtifactInvalidReason(
                     exception: $exception,
-                    envelope: $envelope,
+                    envelope: $containerEnvelope,
                 ),
             );
         } catch (\Throwable) {
@@ -163,30 +147,30 @@ final readonly class CompiledContainerFactory
     }
 
     /**
-     * @param array<string, mixed> $configPayload
-     *
      * @return array<string, mixed>
      *
      * @throws ContainerArtifactInvalidException
      */
-    private static function runtimeConfigFromConfigPayload(array $configPayload): array
-    {
-        if (
-            !\array_key_exists(self::CONFIG_PAYLOAD_KEY_CONFIG, $configPayload)
-            || !\is_array($configPayload[self::CONFIG_PAYLOAD_KEY_CONFIG])
-            || !self::isMapArray($configPayload[self::CONFIG_PAYLOAD_KEY_CONFIG])
-        ) {
+    private static function runtimeConfigFromSeeds(
+        RuntimeContainerSeedSet $seeds,
+    ): array {
+        $instances = $seeds->instances();
+
+        $configRepository = $instances[ConfigRepositoryInterface::class] ?? null;
+
+        if (!$configRepository instanceof ConfigRepositoryInterface) {
             throw ContainerArtifactInvalidException::withReason(
                 ContainerArtifactInvalidException::REASON_INVALID,
             );
         }
 
-        /** @var array<string, mixed> $config */
-        $config = $configPayload[self::CONFIG_PAYLOAD_KEY_CONFIG];
-
-        self::assertRuntimeGraphMap($config, 0);
-
-        return $config;
+        /*
+         * ArtifactRuntimeBooter hydrates this repository from an already
+         * schema-validated config@1 payload. Compiled-container graph limits
+         * apply only to container parameters, definitions and references, not
+         * to the application config tree.
+         */
+        return $configRepository->all();
     }
 
     /**
@@ -1277,31 +1261,40 @@ final readonly class CompiledContainerFactory
     }
 
     /**
-     * @param array<int|string, mixed>|null $envelope
+     * @param array<int|string, mixed> $envelope
      */
     private static function mapArtifactInvalidReason(
         ArtifactInvalidException $exception,
-        ?array $envelope,
+        array $envelope,
     ): string {
-        $payload = $envelope['payload'] ?? null;
-
-        if (\is_array($payload) && !\array_is_list($payload)) {
-            if (($payload[self::PAYLOAD_KEY_KIND] ?? null) === 'stub') {
-                return ContainerArtifactInvalidException::REASON_LEGACY_STUB;
-            }
+        if ($exception->reason() === ArtifactInvalidException::REASON_SCHEMA_INVALID) {
+            $payload = $envelope['payload'] ?? null;
 
             if (
-                ($payload[self::PAYLOAD_KEY_KIND] ?? null) !== self::KIND_COMPILED
-                || ($payload[self::PAYLOAD_KEY_COMPILED] ?? null) !== true
+                \is_array($payload)
+                && !\array_is_list($payload)
+                && \array_key_exists(self::PAYLOAD_KEY_KIND, $payload)
+                && \array_key_exists(self::PAYLOAD_KEY_COMPILED, $payload)
+                && \is_string($payload[self::PAYLOAD_KEY_KIND])
+                && \is_bool($payload[self::PAYLOAD_KEY_COMPILED])
             ) {
-                return ContainerArtifactInvalidException::REASON_NON_COMPILED;
+                if (
+                    $payload[self::PAYLOAD_KEY_KIND] === 'stub'
+                    && $payload[self::PAYLOAD_KEY_COMPILED] === false
+                ) {
+                    return ContainerArtifactInvalidException::REASON_LEGACY_STUB;
+                }
+
+                if (
+                    $payload[self::PAYLOAD_KEY_KIND] !== self::KIND_COMPILED
+                    || $payload[self::PAYLOAD_KEY_COMPILED] !== true
+                ) {
+                    return ContainerArtifactInvalidException::REASON_NON_COMPILED;
+                }
             }
         }
 
         return match ($exception->reason()) {
-            ArtifactInvalidException::REASON_UNREADABLE => ContainerArtifactInvalidException::REASON_UNREADABLE,
-            ArtifactInvalidException::REASON_READ_FAILED => ContainerArtifactInvalidException::REASON_READ_FAILED,
-            ArtifactInvalidException::REASON_PHP_RETURN_TYPE_INVALID => ContainerArtifactInvalidException::REASON_RETURN_TYPE_INVALID,
             ArtifactInvalidException::REASON_ENVELOPE_INVALID => ContainerArtifactInvalidException::REASON_ENVELOPE_INVALID,
             ArtifactInvalidException::REASON_HEADER_INVALID,
             ArtifactInvalidException::REASON_FINGERPRINT_INVALID,

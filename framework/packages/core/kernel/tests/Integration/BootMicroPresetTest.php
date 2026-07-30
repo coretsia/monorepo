@@ -74,6 +74,7 @@ final class BootMicroPresetTest extends TestCase
                     'module-manifest.php',
                     'config.php',
                     'container.php',
+                    'generation-manifest.php',
                 ] as $basename
             ) {
                 self::assertArrayHasKey($basename, $artifactPaths);

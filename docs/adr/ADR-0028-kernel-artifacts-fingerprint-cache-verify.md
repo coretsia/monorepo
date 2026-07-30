@@ -30,7 +30,7 @@ Kernel artifact production publishes one immutable fingerprint-addressed generat
 
 `CacheVerifier` validates and compares the selected immutable generation rather than independently verifying mutable flat artifact files.
 
-Artifact-only runtime and Worker generation-root consumption are outside this ADR and retain their existing explicit-path contracts.
+Artifact-only runtime and proc Worker children consume the same artifact root and select one validated generation through `current`; detailed runtime hydration and Worker lifecycle semantics remain owned by their dedicated documents.
 
 ## Context
 
@@ -193,7 +193,7 @@ ArtifactGenerationPathResolver
 
 Production compilation MUST NOT dual-write the legacy flat layout.
 
-Artifact-only runtime and Worker generation-root consumption are outside this decision. Their existing explicit-path runtime contracts remain unchanged.
+Artifact-only runtime receives only the artifact root, locates `current` through `ArtifactGenerationLocator`, and consumes one validated generation. Proc Worker children forward one skeleton-root-relative artifact-root argument rather than individual artifact paths.
 
 ## Decision 3: Keep artifact production and cache verification separate
 
@@ -985,7 +985,7 @@ Multiple immutable generations may remain on disk because successful publication
 
 Retention, garbage collection, and stale staging cleanup policy remain separate concerns.
 
-Artifact-only runtime and Worker generation-root consumption remain outside this ADR.
+Artifact-only runtime performs its own exact consumed-snapshot read after current-generation location; this adds deliberate validation work so runtime construction uses the same bytes it validates.
 
 Artifact cache relocation supports only portable, bounded, `skeletonRoot`-relative output directories.
 
@@ -1026,9 +1026,9 @@ This ADR does not define:
 - automatic cache verification during provider registration;
 - generated artifact repair during verification;
 - filesystem mtime/permission/owner based cache semantics;
-- artifact-only runtime discovery of `current`;
-- artifact-only runtime hydration from one selected generation;
-- Worker child artifact-root argument semantics;
+- the detailed runtime seed hydration algorithm after one generation has been selected;
+- Worker process lifecycle beyond the single artifact-root handoff;
+- Worker command UX beyond the deterministic child argument contract;
 - generation retention and garbage collection;
 - automatic repair of invalid finalized generations;
 - broader package artifact ownership outside `core/kernel`.

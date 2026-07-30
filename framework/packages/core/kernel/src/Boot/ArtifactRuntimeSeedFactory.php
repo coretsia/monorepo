@@ -56,19 +56,40 @@ final readonly class ArtifactRuntimeSeedFactory
     }
 
     /**
-     * @param array<string, mixed> $configPayload Already-read and validated
-     *     `config@1` payload.
-     * @param array<string, mixed> $moduleManifestPayload Already-read and
-     *     validated `module-manifest@1` payload.
+     * Hydrates the exact runtime config repository from one validated
+     * `config@1` payload.
+     *
+     * @param array<string, mixed> $configPayload
+     */
+    public function hydrateConfigRepository(
+        array $configPayload,
+    ): ArrayConfigRepository {
+        return new ArrayConfigRepository(
+            self::configFromPayload($configPayload),
+        );
+    }
+
+    /**
+     * Hydrates the exact runtime ModulePlan from one validated
+     * `module-manifest@1` payload.
+     *
+     * @param array<string, mixed> $moduleManifestPayload
+     */
+    public function hydrateModulePlan(
+        array $moduleManifestPayload,
+    ): ModulePlan {
+        return $this->modulePlanHydrator->hydrate($moduleManifestPayload);
+    }
+
+    /**
+     * Creates the exact runtime seed set from already hydrated runtime
+     * instances.
      */
     public function create(
         ArtifactRuntimeInput $input,
-        array $configPayload,
-        array $moduleManifestPayload,
+        ConfigRepositoryInterface $configRepository,
+        ModulePlan $modulePlan,
     ): RuntimeContainerSeedSet {
-        $config = self::configFromPayload($configPayload);
-        $configRepository = new ArrayConfigRepository($config);
-        $modulePlan = $this->modulePlanHydrator->hydrate($moduleManifestPayload);
         $runtimePathContext = new RuntimePathContext(
             skeletonRoot: $input->skeletonRoot(),
             artifactRoot: $input->artifactRoot(),

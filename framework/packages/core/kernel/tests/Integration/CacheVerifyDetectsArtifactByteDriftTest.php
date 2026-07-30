@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use PHPUnit\Framework\TestCase;
 
 final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
@@ -46,6 +47,14 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
 
     public function testVerifyIsCleanImmediatelyAfterCompile(): void
     {
+        $expectedGenerationId = ArtifactPipelineTestSupport::fingerprintForCurrentConfig(
+            testCase: $this,
+            skeletonRoot: $this->skeletonRoot,
+        );
+        $currentGenerationId = ArtifactPipelineTestSupport::currentGeneration(
+            skeletonRoot: $this->skeletonRoot,
+        )->generationId()->value();
+
         $result = ArtifactPipelineTestSupport::verifyArtifacts(
             testCase: $this,
             skeletonRoot: $this->skeletonRoot,
@@ -55,10 +64,23 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
         self::assertTrue($result['clean']);
         self::assertFalse($result['dirty']);
         self::assertFalse($result['invalid']);
+        self::assertSame(
+            $expectedGenerationId,
+            $result['expectedGenerationId'],
+        );
+        self::assertSame(
+            $currentGenerationId,
+            $result['currentGenerationId'],
+        );
     }
 
     public function testVerifyRejectsValidPhpByteDriftAsInvalidGeneration(): void
     {
+        $expectedGenerationId = ArtifactPipelineTestSupport::fingerprintForCurrentConfig(
+            testCase: $this,
+            skeletonRoot: $this->skeletonRoot,
+        );
+
         self::assertSame(
             'clean',
             ArtifactPipelineTestSupport::verifyArtifacts(
@@ -107,6 +129,11 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
         self::assertFalse($result['dirty']);
         self::assertTrue($result['invalid']);
         self::assertSame(
+            $expectedGenerationId,
+            $result['expectedGenerationId'],
+        );
+        self::assertNull($result['currentGenerationId']);
+        self::assertSame(
             0,
             $result['counts']
             ['dirty_artifact_count'],
@@ -121,6 +148,45 @@ final class CacheVerifyDetectsArtifactByteDriftTest extends TestCase
 
         self::assertSame('invalid', $configResult['status']);
         self::assertSame('invalid', $configResult['reason']);
+    }
+
+    public function testVerifyReportsNullCurrentGenerationIdWhenCurrentIsMissing(): void
+    {
+        $expectedGenerationId = ArtifactPipelineTestSupport::fingerprintForCurrentConfig(
+            testCase: $this,
+            skeletonRoot: $this->skeletonRoot,
+        );
+        $artifactRoot = ArtifactPipelineTestSupport::artifactRoot($this->skeletonRoot);
+        $currentPath = new ArtifactGenerationPathResolver()->currentPath($artifactRoot);
+
+        self::assertTrue(\unlink($currentPath));
+
+        $result = ArtifactPipelineTestSupport::verifyArtifacts(
+            testCase: $this,
+            skeletonRoot: $this->skeletonRoot,
+        );
+
+        self::assertSame('dirty', $result['outcome']);
+        self::assertFalse($result['clean']);
+        self::assertTrue($result['dirty']);
+        self::assertFalse($result['invalid']);
+        self::assertSame(
+            $expectedGenerationId,
+            $result['expectedGenerationId'],
+        );
+        self::assertNull($result['currentGenerationId']);
+        self::assertSame(
+            [
+                'missing',
+                'missing',
+                'missing',
+                'missing',
+            ],
+            \array_column(
+                $result['artifacts'],
+                'reason',
+            ),
+        );
     }
 
     public function testVerifyDetectsInvalidPhpSyntaxAsInvalid(): void

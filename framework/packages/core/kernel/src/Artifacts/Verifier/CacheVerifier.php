@@ -29,7 +29,6 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
-use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
@@ -164,6 +163,8 @@ final readonly class CacheVerifier
      *     clean: bool,
      *     dirty: bool,
      *     invalid: bool,
+     *     expectedGenerationId: non-empty-string,
+     *     currentGenerationId: non-empty-string|null,
      *     artifacts: list<array{
      *         name: non-empty-string,
      *         basename: non-empty-string,
@@ -195,7 +196,6 @@ final readonly class CacheVerifier
      * @throws ContainerCompileFailedException
      * @throws JsonFloatForbiddenException
      * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
      * @throws ArtifactGenerationPublishException
      */
     public function verify(
@@ -229,6 +229,12 @@ final readonly class CacheVerifier
                 explicitEnvOverlayMappings: $explicitEnvOverlayMappings,
                 explain: false,
             );
+
+            if ($compiledConfig['validation']->isFailure()) {
+                throw ConfigInvalidException::fromValidationResult(
+                    $compiledConfig['validation'],
+                );
+            }
 
             $containerGraph = $this->runtimeContainerGraphCompiler->compile(
                 moduleResolution: $moduleResolution,
@@ -287,7 +293,13 @@ final readonly class CacheVerifier
                 );
             }
 
-            $result = self::result($artifactResults);
+            $result = self::result(
+                artifacts: $artifactResults,
+                expectedGenerationId: $expected['generationId'],
+                currentGenerationId: $currentGeneration instanceof ArtifactGeneration
+                    ? $currentGeneration->generationId()
+                    : null,
+            );
             $outcome = $result['outcome'];
 
             return $result;
@@ -620,8 +632,11 @@ final readonly class CacheVerifier
      *
      * @return array<string, mixed>
      */
-    private static function result(array $artifacts): array
-    {
+    private static function result(
+        array $artifacts,
+        ArtifactGenerationId $expectedGenerationId,
+        ?ArtifactGenerationId $currentGenerationId,
+    ): array {
         \usort(
             $artifacts,
             static fn (array $left, array $right): int => \strcmp(
@@ -648,6 +663,8 @@ final readonly class CacheVerifier
             'clean' => $outcome === self::OUTCOME_CLEAN,
             'dirty' => $outcome === self::OUTCOME_DIRTY,
             'invalid' => $outcome === self::OUTCOME_INVALID,
+            'expectedGenerationId' => $expectedGenerationId->value(),
+            'currentGenerationId' => $currentGenerationId?->value(),
             'artifacts' => $artifacts,
             'counts' => $counts,
         ];

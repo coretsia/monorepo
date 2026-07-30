@@ -64,7 +64,9 @@ final class CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest ext
                 'The container artifact service definition must preserve shared=false.',
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $first = $container->get(CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class);
             $second = $container->get(CompiledContainerFactoryPreservesNonSharedServiceDefinitionsSubject::class);

@@ -44,7 +44,7 @@ This document defines:
 - artifact-only runtime boot inputs;
 - runtime seed ownership and hydration semantics;
 - exact runtime seed-set semantics;
-- missing/invalid container artifact failure semantics.
+- artifact-runtime boot failure semantics after generation selection.
 
 ## Authority Boundary (MUST)
 
@@ -60,8 +60,8 @@ This document owns only compiled-container-specific rules for:
 - production graph-completeness semantics;
 - compiled-container closure/callable rejection semantics;
 - compiled-container runtime boot semantics;
-- compiled-container missing/invalid artifact failure semantics;
-- unsupported `1.330.0` transitional stub payload rejection semantics.
+- compiled-container validation and runtime-hydration failure semantics;
+- unsupported transitional stub payload rejection semantics.
 
 This document MUST NOT redefine:
 
@@ -103,7 +103,7 @@ This document MUST NOT add, remove, rename, or redefine artifact registry rows.
 
 ## `container@1` Schema Evolution Note (MUST)
 
-The `1.330.0` `container@1` payload was a transitional deterministic stub used to reserve and materialize the `container.php` artifact slot before REAL compiled-container semantics existed.
+An earlier `container@1` form was a transitional deterministic stub used to reserve and materialize the `container.php` artifact slot before REAL compiled-container semantics existed.
 
 The transitional stub shape was:
 
@@ -112,7 +112,7 @@ kind = stub
 compiled = false
 ```
 
-That transitional payload is no longer a supported production runtime container format.
+That payload is not a supported production runtime container format.
 
 Current Kernel-produced `container@1` artifacts MUST use REAL compiled-container semantics:
 
@@ -669,7 +669,7 @@ compiled_config
 
 The parameter bag may contain intentionally selected deterministic parameter values, but it is not the canonical runtime config snapshot.
 
-Runtime config snapshot ownership remains with the already-read and already-validated `config@1` payload.
+Runtime config snapshot ownership remains with the seeded `ConfigRepositoryInterface`, which is hydrated from the already-read and schema-validated `config@1` payload before `CompiledContainerFactory` is called.
 
 ## Alias Schema (MUST)
 
@@ -1191,73 +1191,89 @@ They MUST NOT be copied into:
 
 Production runtime boot paths covered by compiled-container semantics MUST use artifact-only boot.
 
-The complete artifact-only runtime boot inputs are:
+The complete public input is:
 
 ```text
 ArtifactRuntimeInput
-module-manifest@1
-config@1
-container@1
+  skeletonRoot
+  artifactRoot
+```
+
+`artifactRoot` identifies the final Kernel artifact root containing:
+
+```text
+generations/
+current
+generation.lock
 ```
 
 The public boot facade is:
 
-```text
-Coretsia\Kernel\Boot\ArtifactRuntimeBooter
+```php
+public function boot(
+    ArtifactRuntimeInput $input,
+): ContainerInterface;
 ```
-
-Artifact paths MUST be explicit caller-resolved inputs.
-
-`ArtifactRuntimeBooter` MUST NOT derive a generation directory or select a current generation.
 
 `ArtifactRuntimeBooter` MUST:
 
-1. read and schema-validate `module-manifest@1`;
-2. read and schema-validate `config@1`;
-3. create the exact entrypoint-owned runtime seed set;
-4. pass the validated `config@1` payload and seed set to `CompiledContainerFactory`;
-5. build the runtime Foundation container from the REAL `container@1` artifact.
+1. locate `current` through `ArtifactGenerationLocator`;
+2. require one valid selected `ArtifactGeneration`;
+3. read exact bytes and envelopes for `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`;
+4. validate `module-manifest@1`, `config@1`, `container@1`, and `artifact-generation@1`;
+5. require generation-manifest byte-length and SHA-256 metadata to match the exact runtime artifact bytes;
+6. require every artifact envelope fingerprint to equal the selected generation id;
+7. hydrate `ArrayConfigRepository` and expose it as `ConfigRepositoryInterface`;
+8. hydrate one canonical `ModulePlan`;
+9. create `RuntimePathContext`;
+10. create the exact `RuntimeContainerSeedSet`;
+11. build the runtime Foundation container from the already-read `container@1` envelope.
+
+`ArtifactRuntimeBooter` MUST NOT accept caller-selected individual artifact paths.
 
 `CompiledContainerFactory` MUST expose:
 
 ```php
-public function build(
-    string $containerArtifactPath,
-    array $configPayload,
+public function buildFromEnvelope(
+    array $containerEnvelope,
     RuntimeContainerSeedSet $seeds,
 ): Container;
 ```
 
-`CompiledContainerFactory` MUST read the `container@1` artifact through Kernel artifact reading infrastructure.
+`CompiledContainerFactory` MUST:
 
-`CompiledContainerFactory` MUST receive the `config@1` payload as already-read and already-validated input.
+- receive an already-read `container@1` envelope;
+- validate the REAL compiled-container payload;
+- receive the exact entrypoint-owned runtime seed set;
+- obtain the Foundation container config snapshot from the seeded `ConfigRepositoryInterface`;
+- build the runtime container without filesystem reads.
 
-`CompiledContainerFactory` MUST receive the exact entrypoint-owned runtime seed set from its caller.
+`CompiledContainerFactory` MUST NOT:
 
-`CompiledContainerFactory` MUST use the `config` field from `config@1` as the runtime Foundation container config snapshot.
+- receive a container artifact path;
+- receive a separate config payload;
+- read `module-manifest@1`, `config@1`, or `container@1` from the filesystem;
+- run source providers;
+- compile a replacement graph.
 
 Artifact-only runtime boot MUST NOT:
 
 - read source config files;
-- run Bootstrap Phase A;
 - run ConfigKernel Phase B;
-- run source config discovery;
-- run Composer module discovery;
-- resolve mode presets;
-- run source providers as an implicit fallback;
-- compile a new container graph;
+- run module discovery;
+- read Composer metadata;
+- run source providers as fallback;
+- compile a replacement graph;
 - calculate fingerprints;
-- write artifacts;
-- mutate or repair artifacts;
-- emit stdout or stderr.
+- write or repair artifacts.
 
-Provider-based container construction remains allowed only for:
+Provider-based container construction MAY remain available only for:
 
 - compile-time artifact production;
 - test scaffolding;
 - explicitly documented non-production paths outside this SSoT.
 
-Any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied by this document.
+Any future developer-mode fallback requires a separate ADR and MUST NOT be implied by this document.
 
 ## Runtime Container Construction Semantics (MUST)
 
@@ -1269,13 +1285,14 @@ The canonical construction order is:
 2. validate compiled service, alias, parameter, tag, and reference semantics;
 3. validate that compiled services and aliases do not define runtime seed ids;
 4. validate the exact `RuntimeContainerSeedSet`;
-5. create `TagRegistry` from the compiled tag payload;
-6. create `ContainerBuilder` with the compiled config snapshot;
-7. register entrypoint-owned runtime seed instances;
-8. register compiled service factories;
-9. register compiled aliases as non-shared delegation factories;
-10. register the runtime `TagRegistry` instance;
-11. build the Foundation container.
+5. obtain the compiled config snapshot from the seeded `ConfigRepositoryInterface`;
+6. create `TagRegistry` from the compiled tag payload;
+7. create `ContainerBuilder` with that config snapshot;
+8. register entrypoint-owned runtime seed instances;
+9. register compiled service factories;
+10. register compiled aliases as non-shared delegation factories;
+11. register the runtime `TagRegistry` instance;
+12. build the Foundation container.
 
 Entrypoint-owned runtime seed instances MUST be registered before compiled service factories so compiled services may resolve:
 
@@ -1312,65 +1329,69 @@ Tagged service ids MUST NOT resolve to runtime seed ids.
 
 The exact seed map and the object type associated with every entrypoint-owned seed id MUST be validated at the compiled-container hydration boundary.
 
-## Missing Artifact Failure Semantics (MUST)
+## Artifact-Runtime Failure Semantics (MUST)
 
-If the required `container.php` artifact is missing during artifact-only runtime boot, runtime boot MUST fail deterministically.
-
-Missing artifact failure MUST use:
+The public artifact-runtime boot exception is:
 
 ```text
-CORETSIA_CONTAINER_ARTIFACT_MISSING
-container-artifact-missing
+CORETSIA_ARTIFACT_RUNTIME_BOOT_FAILED: reason-token
 ```
 
-The missing artifact exception MUST NOT expose:
-
-- the missing filesystem path;
-- absolute paths;
-- configured path strings;
-- OS error messages;
-- stack traces;
-- filesystem details;
-- previous throwable messages.
-
-## Invalid Artifact Failure Semantics (MUST)
-
-If `container.php` exists but cannot be accepted as a production REAL `container@1` artifact, runtime boot MUST fail deterministically.
-
-Invalid artifact failure MUST use:
+The stable public reasons are:
 
 ```text
-CORETSIA_CONTAINER_ARTIFACT_INVALID
+artifact-runtime-boot-generation-invalid
+artifact-runtime-boot-module-manifest-artifact-invalid
+artifact-runtime-boot-container-artifact-invalid
+artifact-runtime-boot-runtime-container-invalid
+```
+
+`artifact-runtime-boot-generation-invalid` MUST cover selected-generation failures and config-repository hydration failures, including:
+
+- absent, malformed, unreadable, or symlinked `current`;
+- invalid generation directory or generation file path state;
+- missing, unreadable, or symlinked generation files;
+- invalid artifact envelope or schema in the selected generation;
+- invalid `artifact-generation@1`;
+- generation-manifest byte-length or SHA-256 mismatch;
+- artifact envelope fingerprint mismatch;
+- a schema-valid `config@1` payload that cannot hydrate `ArrayConfigRepository`.
+
+`artifact-runtime-boot-module-manifest-artifact-invalid` MUST cover a schema-valid `module-manifest@1` payload that cannot hydrate one canonical `ModulePlan`.
+
+`artifact-runtime-boot-container-artifact-invalid` MUST cover an already-read, generation-valid REAL `container@1` envelope that cannot build the runtime Foundation container.
+
+`artifact-runtime-boot-runtime-container-invalid` MUST cover unexpected failure while creating the exact runtime seed set.
+
+`ContainerArtifactInvalidException` is an internal compiled-container validation exception.
+
+Its stable internal reasons MAY distinguish:
+
+```text
 container-artifact-invalid
+container-artifact-envelope-invalid
+container-artifact-header-invalid
+container-artifact-payload-invalid
+container-artifact-schema-invalid
+container-artifact-schema-version-invalid
+container-artifact-legacy-stub
+container-artifact-non-compiled
 ```
 
-Invalid artifact failure covers:
+`ArtifactRuntimeBooter` MUST map compiled-container construction failure to the public `artifact-runtime-boot-container-artifact-invalid` reason.
 
-- unreadable artifacts;
-- read failures;
-- non-array PHP return values;
-- invalid envelope shape;
-- invalid header semantics;
-- wrong artifact name;
-- wrong schema version;
-- invalid payload shape;
-- schema-invalid REAL payload data;
-- unsupported `1.330.0` transitional stub payloads;
-- non-REAL `container@1` payloads.
+Artifact-runtime diagnostics MUST NOT expose:
 
-Invalid artifact diagnostics MUST NOT expose:
-
-- absolute paths;
-- raw artifact payloads;
+- artifact roots;
+- generation or artifact paths;
+- raw artifact bytes or payloads;
 - raw config values;
 - raw env values;
 - PHP warning text;
+- OS error messages;
 - closure dumps;
 - source snippets;
-- OS error messages;
 - stack traces;
-- object dumps;
-- filesystem details;
 - throwable messages;
 - previous throwable messages.
 
@@ -1511,7 +1532,7 @@ safe key paths
 - This document does not make artifact generation part of runtime request lifecycle.
 - This document does not require cache verification during normal provider registration.
 - This document does not allow automatic runtime fallback when `container.php` is missing or invalid.
-- This document does not preserve the `1.330.0` stub payload as a supported production runtime format.
+- This document does not preserve the transitional stub payload as a supported production runtime format.
 - Producer acceptance of canonical runtime-seed references does not serialize runtime objects; entrypoint-owned runtime seeds are materialized only by the artifact-only runtime hydration boundary.
 - This document does not introduce `container@2`.
 
@@ -1527,11 +1548,13 @@ framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
 framework/packages/core/kernel/src/Container/RuntimeContainerSeedSet.php
 framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
 framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
 framework/packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php
 framework/packages/core/kernel/src/Module/ModulePlanArtifactHydrator.php
 framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
 framework/packages/core/kernel/src/Module/ModuleResolution.php
 framework/packages/core/kernel/src/Container/CompiledContainerFactory.php
+framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php
 framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php
 framework/packages/core/kernel/src/Container/Definition/ParameterBag.php
 framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php

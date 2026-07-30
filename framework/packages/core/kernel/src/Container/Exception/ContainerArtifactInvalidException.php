@@ -21,12 +21,11 @@ namespace Coretsia\Kernel\Container\Exception;
 /**
  * Deterministic compiled-container artifact invalid failure.
  *
- * This exception is used by artifact-only runtime boot when container.php is
- * present but cannot be accepted as a production `container@1`
- * compiled-container artifact.
+ * This exception is used when an already-read `container@1` envelope cannot be
+ * accepted as a production compiled-container definition.
  *
- * It covers invalid, unreadable, schema-invalid, legacy-stub, and non-compiled
- * `container@1` artifacts.
+ * It covers invalid envelopes, invalid headers or payloads, unsupported schema
+ * versions, legacy stubs, non-compiled payloads, and invalid compiled graphs.
  *
  * The public message is intentionally fixed and safe:
  *
@@ -48,9 +47,6 @@ final class ContainerArtifactInvalidException extends \RuntimeException
     public const string MESSAGE_TOKEN = 'container-artifact-invalid';
 
     public const string REASON_INVALID = 'container-artifact-invalid';
-    public const string REASON_UNREADABLE = 'container-artifact-unreadable';
-    public const string REASON_READ_FAILED = 'container-artifact-read-failed';
-    public const string REASON_RETURN_TYPE_INVALID = 'container-artifact-return-type-invalid';
     public const string REASON_ENVELOPE_INVALID = 'container-artifact-envelope-invalid';
     public const string REASON_HEADER_INVALID = 'container-artifact-header-invalid';
     public const string REASON_PAYLOAD_INVALID = 'container-artifact-payload-invalid';
@@ -64,9 +60,6 @@ final class ContainerArtifactInvalidException extends \RuntimeException
      */
     private const array REASONS = [
         self::REASON_INVALID => true,
-        self::REASON_UNREADABLE => true,
-        self::REASON_READ_FAILED => true,
-        self::REASON_RETURN_TYPE_INVALID => true,
         self::REASON_ENVELOPE_INVALID => true,
         self::REASON_HEADER_INVALID => true,
         self::REASON_PAYLOAD_INVALID => true,

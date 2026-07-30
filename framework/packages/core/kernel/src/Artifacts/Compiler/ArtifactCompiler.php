@@ -24,7 +24,6 @@ use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
-use Coretsia\Kernel\Artifacts\Exception\ArtifactPathInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
@@ -51,14 +50,10 @@ final readonly class ArtifactCompiler
 {
     public const int SCHEMA_VERSION = 1;
 
-    private const string ARTIFACT_MODULE_MANIFEST = 'module-manifest';
-    private const string ARTIFACT_CONFIG = 'config';
-    private const string ARTIFACT_CONTAINER = 'container';
-
-    private const string REASON_REBUILT = 'rebuilt';
-
-    private const int MAX_SAFE_COUNT = 1_000_000_000;
-    private const int MAX_SAFE_PATH_BYTES = 512;
+    private const string ARTIFACT_MODULE_MANIFEST_IDENTITY = 'module-manifest@1';
+    private const string ARTIFACT_CONFIG_IDENTITY = 'config@1';
+    private const string ARTIFACT_CONTAINER_IDENTITY = 'container@1';
+    private const string ARTIFACT_GENERATION_IDENTITY = 'artifact-generation@1';
 
     public function __construct(
         private ConfigKernel $configKernel,
@@ -121,23 +116,14 @@ final readonly class ArtifactCompiler
      *
      * @return array{
      *     schemaVersion: int,
-     *     rebuilt: true,
-     *     reused: false,
-     *     reason: non-empty-string,
+     *     generationId: non-empty-string,
      *     artifacts: list<array{
-     *         name: non-empty-string,
-     *         basename: non-empty-string,
-     *         path: non-empty-string,
-     *         bytes: int
-     *     }>,
-     *     counts: array{
-     *         artifact_count: int,
-     *         written_byte_count: int
-     *     }
+     *         identity: non-empty-string,
+     *         basename: non-empty-string
+     *     }>
      * }
      *
      * @throws ArtifactPayloadInvalidException
-     * @throws ArtifactPathInvalidException
      * @throws ArtifactGenerationPublishException
      * @throws ConfigInvalidException
      * @throws ContainerDefinitionInvalidException
@@ -173,6 +159,12 @@ final readonly class ArtifactCompiler
             explicitEnvOverlayMappings: $explicitEnvOverlayMappings,
             explain: false,
         );
+
+        if ($compiledConfig['validation']->isFailure()) {
+            throw ConfigInvalidException::fromValidationResult(
+                $compiledConfig['validation'],
+            );
+        }
 
         $containerGraph = $this->runtimeContainerGraphCompiler->compile(
             moduleResolution: $moduleResolution,
@@ -225,119 +217,63 @@ final readonly class ArtifactCompiler
             ),
         );
 
-        $this->generationPublisher->publish(
+        $publishedGeneration = $this->generationPublisher->publish(
             artifactRoot: $this->pathResolver->artifactRoot($bootstrapConfig),
             publicationSet: $publicationSet,
         );
 
-        return self::compileResult(
-            artifacts: [
-                self::artifactResult(
-                    bootstrapConfig: $bootstrapConfig,
-                    pathResolver: $this->pathResolver,
-                    name: self::ARTIFACT_MODULE_MANIFEST,
-                    basename: ArtifactGeneration::MODULE_MANIFEST_BASENAME,
-                    bytes: $publicationSet->moduleManifestBytes(),
-                ),
-                self::artifactResult(
-                    bootstrapConfig: $bootstrapConfig,
-                    pathResolver: $this->pathResolver,
-                    name: self::ARTIFACT_CONFIG,
-                    basename: ArtifactGeneration::CONFIG_BASENAME,
-                    bytes: $publicationSet->configBytes(),
-                ),
-                self::artifactResult(
-                    bootstrapConfig: $bootstrapConfig,
-                    pathResolver: $this->pathResolver,
-                    name: self::ARTIFACT_CONTAINER,
-                    basename: ArtifactGeneration::CONTAINER_BASENAME,
-                    bytes: $publicationSet->containerBytes(),
-                ),
-            ],
-        );
+        return self::compileResult($publishedGeneration);
     }
 
     /**
      * @return array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     bytes: int
+     *     identity: non-empty-string,
+     *     basename: non-empty-string
      * }
      */
     private static function artifactResult(
-        BootstrapConfig $bootstrapConfig,
-        ArtifactPathResolver $pathResolver,
-        string $name,
+        string $identity,
         string $basename,
-        string $bytes,
     ): array {
         return [
-            'name' => self::safeArtifactName($name),
+            'identity' => self::safeArtifactIdentity($identity),
             'basename' => self::safeBasename($basename),
-            'path' => self::safeRelativePath(
-                $pathResolver->relativeCacheDirectory($bootstrapConfig)
-                . '/generations/current/'
-                . $basename,
-            ),
-            'bytes' => self::safeCount(\strlen($bytes)),
         ];
     }
 
     /**
-     * @param list<array{
-     *     name: non-empty-string,
-     *     basename: non-empty-string,
-     *     path: non-empty-string,
-     *     bytes: int
-     * }> $artifacts
-     *
      * @return array{
      *     schemaVersion: int,
-     *     rebuilt: true,
-     *     reused: false,
-     *     reason: non-empty-string,
+     *     generationId: non-empty-string,
      *     artifacts: list<array{
-     *         name: non-empty-string,
-     *         basename: non-empty-string,
-     *         path: non-empty-string,
-     *         bytes: int
-     *     }>,
-     *     counts: array{
-     *         artifact_count: int,
-     *         written_byte_count: int
-     *     }
+     *         identity: non-empty-string,
+     *         basename: non-empty-string
+     *     }>
      * }
      */
-    private static function compileResult(array $artifacts): array
-    {
-        \usort(
-            $artifacts,
-            static fn (array $left, array $right): int => \strcmp(
-                $left['path'],
-                $right['path'],
-            )
-                ?: \strcmp($left['name'], $right['name'])
-                    ?: \strcmp($left['basename'], $right['basename']),
-        );
-
-        $writtenBytes = 0;
-
-        foreach ($artifacts as $artifact) {
-            $writtenBytes = self::safeCount(
-                $writtenBytes + $artifact['bytes'],
-            );
-        }
-
+    private static function compileResult(
+        ArtifactGeneration $generation,
+    ): array {
         return [
             'schemaVersion' => self::SCHEMA_VERSION,
-            'rebuilt' => true,
-            'reused' => false,
-            'reason' => self::REASON_REBUILT,
-            'artifacts' => $artifacts,
-            'counts' => [
-                'artifact_count' => self::safeCount(\count($artifacts)),
-                'written_byte_count' => $writtenBytes,
+            'generationId' => $generation->generationId()->value(),
+            'artifacts' => [
+                self::artifactResult(
+                    identity: self::ARTIFACT_MODULE_MANIFEST_IDENTITY,
+                    basename: ArtifactGeneration::MODULE_MANIFEST_BASENAME,
+                ),
+                self::artifactResult(
+                    identity: self::ARTIFACT_CONFIG_IDENTITY,
+                    basename: ArtifactGeneration::CONFIG_BASENAME,
+                ),
+                self::artifactResult(
+                    identity: self::ARTIFACT_CONTAINER_IDENTITY,
+                    basename: ArtifactGeneration::CONTAINER_BASENAME,
+                ),
+                self::artifactResult(
+                    identity: self::ARTIFACT_GENERATION_IDENTITY,
+                    basename: ArtifactGeneration::GENERATION_MANIFEST_BASENAME,
+                ),
             ],
         ];
     }
@@ -345,13 +281,14 @@ final readonly class ArtifactCompiler
     /**
      * @return non-empty-string
      */
-    private static function safeArtifactName(string $name): string
+    private static function safeArtifactIdentity(string $identity): string
     {
-        return match ($name) {
-            self::ARTIFACT_MODULE_MANIFEST,
-            self::ARTIFACT_CONFIG,
-            self::ARTIFACT_CONTAINER => $name,
-            default => throw new \InvalidArgumentException('artifact-compiler-artifact-name-invalid'),
+        return match ($identity) {
+            self::ARTIFACT_MODULE_MANIFEST_IDENTITY,
+            self::ARTIFACT_CONFIG_IDENTITY,
+            self::ARTIFACT_CONTAINER_IDENTITY,
+            self::ARTIFACT_GENERATION_IDENTITY => $identity,
+            default => throw new \InvalidArgumentException('artifact-compiler-artifact-identity-invalid'),
         };
     }
 
@@ -363,59 +300,9 @@ final readonly class ArtifactCompiler
         return match ($basename) {
             ArtifactGeneration::MODULE_MANIFEST_BASENAME,
             ArtifactGeneration::CONFIG_BASENAME,
-            ArtifactGeneration::CONTAINER_BASENAME => $basename,
+            ArtifactGeneration::CONTAINER_BASENAME,
+            ArtifactGeneration::GENERATION_MANIFEST_BASENAME => $basename,
             default => throw new \InvalidArgumentException('artifact-compiler-basename-invalid'),
         };
-    }
-
-    /**
-     * @return non-empty-string
-     */
-    private static function safeRelativePath(string $path): string
-    {
-        $normalized = \str_replace('\\', '/', $path);
-
-        if (
-            $normalized === ''
-            || \strlen($normalized) > self::MAX_SAFE_PATH_BYTES
-            || self::containsUnsafeBytes($normalized)
-            || self::looksLikeAbsolutePath($normalized)
-            || \str_contains($normalized, ':')
-            || \str_contains($normalized, '://')
-            || \str_contains($normalized, '//')
-            || $normalized === '.'
-            || $normalized === '..'
-            || \str_starts_with($normalized, './')
-            || \str_starts_with($normalized, '../')
-            || \str_contains($normalized, '/./')
-            || \str_contains($normalized, '/../')
-            || \str_ends_with($normalized, '/.')
-            || \str_ends_with($normalized, '/..')
-        ) {
-            throw new \InvalidArgumentException('artifact-compiler-relative-path-invalid');
-        }
-
-        return $normalized;
-    }
-
-    private static function safeCount(int $value): int
-    {
-        if ($value <= 0) {
-            return 0;
-        }
-
-        return \min($value, self::MAX_SAFE_COUNT);
-    }
-
-    private static function containsUnsafeBytes(string $value): bool
-    {
-        return \preg_match('/[\x00-\x1F\x7F]/', $value) === 1;
-    }
-
-    private static function looksLikeAbsolutePath(string $value): bool
-    {
-        return \str_starts_with($value, '/')
-            || \str_starts_with($value, '\\')
-            || \preg_match('/\A[A-Za-z]:[\/\\\\]/', $value) === 1;
     }
 }

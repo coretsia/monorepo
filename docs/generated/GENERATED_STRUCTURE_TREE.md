@@ -583,7 +583,6 @@ Coretsia/
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ArtifactGenerationPublishException.php
 │   │   │       │   │   │   ├── ArtifactInvalidException.php
-│   │   │       │   │   │   ├── ArtifactPathInvalidException.php
 │   │   │       │   │   │   ├── ArtifactPayloadInvalidException.php
 │   │   │       │   │   │   ├── ArtifactWriteFailedException.php
 │   │   │       │   │   │   ├── FingerprintSymlinkForbiddenException.php
@@ -662,7 +661,6 @@ Coretsia/
 │   │   │       │   │   │   └── ServiceDefinition.php
 │   │   │       │   │   ├── Exception/
 │   │   │       │   │   │   ├── ContainerArtifactInvalidException.php
-│   │   │       │   │   │   ├── ContainerArtifactMissingException.php
 │   │   │       │   │   │   └── ContainerCompileFailedException.php
 │   │   │       │   │   ├── Provider/
 │   │   │       │   │   │   ├── ContainerProviderPlan.php
@@ -797,6 +795,7 @@ Coretsia/
 │   │   │       │   │   ├── IncompleteContainerDefinitionProviderFixture.php
 │   │   │       │   │   └── KernelRuntimeDefinitionProviderFixture.php
 │   │   │       │   ├── Integration/
+│   │   │       │   │   ├── ArtifactCompilerInvalidConfigDoesNotBuildGraphOrPublishTest.php
 │   │   │       │   │   ├── ArtifactCompilerUsesProductionContainerGraphTest.php
 │   │   │       │   │   ├── ArtifactGenerationLocatorRejectsHashMismatchTest.php
 │   │   │       │   │   ├── ArtifactGenerationLocatorRejectsSymlinkTest.php
@@ -806,11 +805,15 @@ Coretsia/
 │   │   │       │   │   ├── ArtifactGenerationPublisherReusesIdenticalGenerationTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootHydratesConfigRepositoryTest.php
+│   │   │       │   │   ├── ArtifactOnlyBootHydratesModulePlanTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php
 │   │   │       │   │   ├── ArtifactOnlyBootResolvesResetOrchestratorTest.php
 │   │   │       │   │   ├── ArtifactPipelineTestSupport.php
 │   │   │       │   │   ├── ArtifactPipelineUsesConfiguredCacheDirTest.php
 │   │   │       │   │   ├── ArtifactPublicationSetRejectsMixedFingerprintsTest.php
+│   │   │       │   │   ├── ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
+│   │   │       │   │   ├── ArtifactRuntimeBootRejectsMixedGenerationTest.php
 │   │   │       │   │   ├── ArtifactWriterAtomicNoPartialWriteTest.php
 │   │   │       │   │   ├── ArtifactsRerunNoDiffTest.php
 │   │   │       │   │   ├── BootExpressPresetTest.php
@@ -823,6 +826,7 @@ Coretsia/
 │   │   │       │   │   ├── BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
 │   │   │       │   │   ├── BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
 │   │   │       │   │   ├── CacheVerifierDetectsDirtyGenerationTest.php
+│   │   │       │   │   ├── CacheVerifierInvalidConfigDoesNotBuildGraphOrReadCurrentTest.php
 │   │   │       │   │   ├── CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 │   │   │       │   │   ├── CacheVerifyDetectsArtifactByteDriftTest.php
 │   │   │       │   │   ├── CacheVerifyIgnoresMtimeAndPermissionsTest.php
@@ -1139,7 +1143,9 @@ Coretsia/
 │   │           │   │           └── modes/
 │   │           │   │               └── micro.php
 │   │           │   ├── Integration/
+│   │           │   │   ├── ArtifactOnlyWorkerContainerBootTest.php
 │   │           │   │   ├── CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+│   │           │   │   ├── CoretsiaWorkerChildBootsCurrentGenerationTest.php
 │   │           │   │   ├── MaxRequestsTriggersRecycleTest.php
 │   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php

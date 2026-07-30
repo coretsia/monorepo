@@ -170,21 +170,31 @@ Cache verification MUST NOT:
 Cache verification follows this semantic sequence:
 
 1. derive the current `ModulePlan` from the supplied `ModuleResolution`;
-2. run `ConfigKernel::compile(...)` for the supplied resolved inputs;
-3. compile one canonical runtime `DefinitionGraph` through `RuntimeContainerGraphCompiler`;
-4. build deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
-5. calculate the expected graph-bound generation id through `FingerprintCalculator`;
-6. build the expected three runtime artifact envelopes;
-7. build the expected REAL `container@1` envelope from the same `DefinitionGraph`;
-8. dump the three expected exact runtime artifact byte strings;
-9. construct the expected `ArtifactPublicationSet`;
-10. derive and dump the expected `artifact-generation@1` envelope;
-11. locate `current` through `ArtifactGenerationLocator`;
-12. classify an absent pointer as missing;
-13. classify an invalid pointer or invalid selected generation as invalid;
-14. compare the selected generation id with the expected generation id;
-15. read and compare all four exact generation byte strings;
-16. return safe deterministic results and aggregate counts.
+2. run `ConfigKernel::compile(...)` exactly once for the supplied resolved inputs;
+3. inspect `$compiledConfig['validation']` returned by that call;
+4. when validation is failed, throw `ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`;
+5. compile one canonical runtime `DefinitionGraph` through `RuntimeContainerGraphCompiler`;
+6. build deterministic fingerprint input through `ConfigFingerprintInputBuilder`;
+7. calculate the expected graph-bound generation id through `FingerprintCalculator`;
+8. build the expected three runtime artifact envelopes;
+9. build the expected REAL `container@1` envelope from the same `DefinitionGraph`;
+10. dump the three expected exact runtime artifact byte strings;
+11. construct the expected `ArtifactPublicationSet`;
+12. derive and dump the expected `artifact-generation@1` envelope;
+13. locate `current` through `ArtifactGenerationLocator`;
+14. classify an absent pointer as missing;
+15. classify an invalid pointer or invalid selected generation as invalid;
+16. compare the selected generation id with the expected generation id;
+17. read and compare all four exact generation byte strings;
+18. return safe deterministic results, generation identity fields, and aggregate counts.
+
+The validation assertion reuses the result from the single `ConfigKernel::compile(...)` invocation.
+
+`CacheVerifier` MUST NOT invoke `ConfigValidator` or otherwise perform config validation again.
+
+The validation assertion MUST occur before `RuntimeContainerGraphCompiler`, fingerprint-input construction, fingerprint calculation, current-generation location, artifact reads, or artifact comparisons.
+
+`CacheVerifier` MUST NOT catch or downgrade the resulting `ConfigInvalidException`.
 
 `ArtifactGenerationLocator` performs current pointer reading while holding the shared generation lock.
 
@@ -215,10 +225,10 @@ Existing generation files are read through `PhpArtifactReader`.
 For generation-aware verification the reader MUST support:
 
 - exact byte reads without CRLF/CR normalization;
-- PHP-returned array parsing through isolated include behavior;
+- PHP-returned array parsing by evaluating one already-read exact byte snapshot in an isolated scope;
 - rejection of artifact files that emit output;
 - rejection of non-array returned values;
-- deterministic conversion of filesystem/include/parse failures.
+- deterministic conversion of filesystem/evaluation/parse failures.
 
 `CacheVerifier` uses exact-byte reads for comparison.
 
@@ -488,6 +498,24 @@ invalid = true
 
 A normal completed verification result MUST NOT set multiple state flags to true.
 
+## Generation Identity Result Fields (MUST)
+
+Every completed verification result contains:
+
+- `expectedGenerationId` — the generation id rebuilt from the current resolved inputs;
+- `currentGenerationId` — the id of the valid generation selected through `current`, or `null`.
+
+`expectedGenerationId` MUST be a lowercase SHA-256 string.
+
+`currentGenerationId` MUST:
+
+- equal the selected valid generation id for a clean result;
+- preserve the selected valid generation id when it differs from `expectedGenerationId`;
+- be `null` when `current` is absent;
+- be `null` when the pointer or selected generation is invalid.
+
+The generation identity fields MUST NOT expose filesystem paths or raw fingerprint input.
+
 ## Counts (MUST)
 
 Verification result counts MUST be deterministic and safe.
@@ -511,6 +539,8 @@ Verification result data MAY include:
 - schema version;
 - aggregate outcome;
 - boolean state flags;
+- safe expected generation id;
+- nullable safe current generation id;
 - safe artifact name;
 - safe artifact basename;
 - safe skeleton-relative artifact path;
@@ -622,6 +652,10 @@ They execute the same deterministic expected-generation pipeline independently.
 
 Neither may use an alternative graph-production, fingerprint, envelope, or byte-emission algorithm.
 
+Artifact-only runtime boot MUST use `ArtifactGenerationLocator` and `ArtifactGenerationValidator` for current-generation selection and validation, but it MUST NOT invoke `CacheVerifier` or rebuild the expected generation.
+
+An absent or invalid current generation is a runtime boot failure at the artifact-runtime boundary; it is not a `dirty` cache result because runtime boot does not perform cache classification.
+
 ## Observability Semantics (MUST)
 
 Cache verification observability is best-effort and non-semantic.
@@ -683,6 +717,7 @@ Provider registration MUST NOT:
 - This document does not define platform-owned artifact verification.
 - This document does not define `routes@1` verification.
 - This document does not define how artifact production is triggered.
+- This document does not define artifact-runtime boot failure taxonomy or Worker child boot semantics.
 - This document does not require cache verification during normal provider registration.
 - This document does not make filesystem mtimes, permissions, or owners semantic.
 

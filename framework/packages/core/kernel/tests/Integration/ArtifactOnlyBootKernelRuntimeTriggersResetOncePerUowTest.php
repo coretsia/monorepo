@@ -52,7 +52,9 @@ final class ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest extends Tes
                 ]),
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+                skeletonRoot: $root,
+            );
 
             $runtime = $container->get(KernelRuntime::class);
             $recorder = $container->get(ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowRecorder::class);

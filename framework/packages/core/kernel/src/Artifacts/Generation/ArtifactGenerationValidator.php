@@ -93,9 +93,10 @@ final readonly class ArtifactGenerationValidator
                 $directory,
                 ArtifactGeneration::GENERATION_MANIFEST_BASENAME,
             );
-            $manifestEnvelope = $this->artifactReader->readReturnedArray(
+            $manifestRead = $this->artifactReader->readExact(
                 $manifestPath,
             );
+            $manifestEnvelope = $manifestRead['envelope'];
 
             $this->manifestValidator->validate($manifestEnvelope);
             self::assertEnvelopeFingerprint(
@@ -178,7 +179,8 @@ final readonly class ArtifactGenerationValidator
         $path = self::childPath($directory, $basename);
         self::assertRegularNonSymlinkFile($path);
 
-        $bytes = $this->artifactReader->readExactBytes($path);
+        $read = $this->artifactReader->readExact($path);
+        $bytes = $read['bytes'];
 
         if (
             \strlen($bytes) !== $expectedBytes
@@ -187,7 +189,7 @@ final readonly class ArtifactGenerationValidator
             throw self::invalid();
         }
 
-        $envelope = $this->artifactReader->readReturnedArray($path);
+        $envelope = $read['envelope'];
 
         $this->schemaValidator->validateExpected(
             envelope: $envelope,

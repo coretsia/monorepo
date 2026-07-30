@@ -99,6 +99,53 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
     }
 
+    public function testCompilerAndVerifierOperationResultContractsAreDocumented(): void
+    {
+        $artifactSource = self::repoFile(
+            'docs/ssot/artifacts-and-fingerprint.md',
+        );
+        $cacheVerifySource = self::repoFile(
+            'docs/ssot/cache-verify.md',
+        );
+
+        foreach (
+            [
+                "'schemaVersion' => 1",
+                "'generationId' => '<lowercase-sha256>'",
+                "'identity' => 'module-manifest@1'",
+                "'identity' => 'config@1'",
+                "'identity' => 'container@1'",
+                "'identity' => 'artifact-generation@1'",
+                'The artifact list MUST contain exactly those four entries in that order.',
+                'The compile result MUST NOT contain `rebuilt`, `reused`, `reason`, `counts`, `bytes`, or `path`.',
+            ] as $requiredText
+        ) {
+            self::assertStringContainsString(
+                $requiredText,
+                $artifactSource,
+            );
+        }
+
+        self::assertStringNotContainsString(
+            'result entries describe the three runtime artifacts supplied to publication',
+            $artifactSource,
+        );
+
+        foreach (
+            [
+                '`expectedGenerationId`',
+                '`currentGenerationId`',
+                'ConfigInvalidException::fromValidationResult',
+                'MUST NOT invoke `ConfigValidator`',
+            ] as $requiredText
+        ) {
+            self::assertStringContainsString(
+                $requiredText,
+                $cacheVerifySource,
+            );
+        }
+    }
+
     public function testObservabilitySsotContainsRegisteredArtifactFingerprintAndCacheVerifyMetricNames(): void
     {
         $source = self::repoFile('docs/ssot/observability.md');
@@ -142,12 +189,7 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
 
         self::assertStringContainsString(
-            'Kernel-owned artifact production',
-            $source,
-        );
-
-        self::assertStringContainsString(
-            'Kernel-owned cache verification',
+            'Kernel-owned artifact production, fingerprint, and cache verification services:',
             $source,
         );
 
@@ -214,9 +256,8 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             $pathResolver,
         );
 
-        self::assertStringContainsString(
-            'public const string CONTAINER_BASENAME'
-            . ' = ArtifactGeneration::CONTAINER_BASENAME;',
+        self::assertStringNotContainsString(
+            'CONTAINER_BASENAME',
             $pathResolver,
         );
 
@@ -241,15 +282,36 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
             $artifactCompiler,
         );
 
-        self::assertStringContainsString(
+        self::assertStringNotContainsString(
             '$pathResolver->relativeCacheDirectory($bootstrapConfig)',
             $artifactCompiler,
         );
 
-        self::assertStringContainsString(
+        self::assertStringNotContainsString(
+            '$this->pathResolver->relativeCacheDirectory($bootstrapConfig)',
+            $artifactCompiler,
+        );
+
+        self::assertStringNotContainsString(
             ". '/generations/current/'",
             $artifactCompiler,
         );
+
+        self::assertStringContainsString(
+            "'generationId' => \$generation->generationId()->value(),",
+            $artifactCompiler,
+        );
+
+        foreach (
+            [
+                'module-manifest@1',
+                'config@1',
+                'container@1',
+                'artifact-generation@1',
+            ] as $identity
+        ) {
+            self::assertStringContainsString($identity, $artifactCompiler);
+        }
 
         self::assertStringNotContainsString(
             '$this->pathResolver->containerPath($bootstrapConfig)',
@@ -303,6 +365,76 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         );
     }
 
+    public function testCompilerAndVerifierAssertCompiledValidationBeforeDownstreamWork(): void
+    {
+        $artifactCompiler = self::kernelSource(
+            'src/Artifacts/Compiler/ArtifactCompiler.php',
+        );
+        $cacheVerifier = self::kernelSource(
+            'src/Artifacts/Verifier/CacheVerifier.php',
+        );
+
+        foreach (
+            [
+                'ArtifactCompiler.php' => $artifactCompiler,
+                'CacheVerifier.php' => $cacheVerifier,
+            ] as $path => $source
+        ) {
+            self::assertSame(
+                1,
+                \substr_count(
+                    $source,
+                    '$this->configKernel->compile(',
+                ),
+                $path,
+            );
+            self::assertStringContainsString(
+                'ConfigInvalidException::fromValidationResult(',
+                $source,
+                $path,
+            );
+            self::assertStringContainsString(
+                "\$compiledConfig['validation']",
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                'ConfigValidator',
+                $source,
+                $path,
+            );
+            self::assertStringNotContainsString(
+                '->validate(',
+                $source,
+                $path,
+            );
+        }
+
+        self::assertValidationGatePrecedes(
+            path: 'ArtifactCompiler.php',
+            source: $artifactCompiler,
+            downstreamTokens: [
+                '$this->runtimeContainerGraphCompiler->compile(',
+                '$this->fingerprintInputBuilder->build(',
+                '$this->fingerprintCalculator->calculate(',
+                '$this->moduleManifestBuilder->build(',
+                '$this->generationPublisher->publish(',
+            ],
+        );
+        self::assertValidationGatePrecedes(
+            path: 'CacheVerifier.php',
+            source: $cacheVerifier,
+            downstreamTokens: [
+                '$this->runtimeContainerGraphCompiler->compile(',
+                '$this->fingerprintInputBuilder->build(',
+                '$this->fingerprintCalculator->calculate(',
+                '$this->expectedGeneration(',
+                '$this->generationLocator->locate(',
+                '$this->artifactReader->readExactBytes(',
+            ],
+        );
+    }
+
     public function testCompiledContainerDoesNotIntroduceContainerSpecificKernelConfig(): void
     {
         $config = require self::kernelPath('config/kernel.php');
@@ -327,7 +459,9 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
     public function testCompiledContainerClassesDoNotReadFingerprintConfigurationDirectly(): void
     {
         $sources = [
-            'src/Container/ContainerCompiler.php' => self::kernelSource('src/Container/ContainerCompiler.php'),
+            'src/Container/ContainerCompiler.php' => self::kernelSource(
+                'src/Container/ContainerCompiler.php'
+            ),
             'src/Artifacts/Builders/CompiledContainerBuilder.php' => self::kernelSource(
                 'src/Artifacts/Builders/CompiledContainerBuilder.php'
             ),
@@ -376,6 +510,36 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
         self::assertIsInt($end);
 
         return \substr($source, $start, $end - $start);
+    }
+
+    /**
+     * @param list<non-empty-string> $downstreamTokens
+     */
+    private static function assertValidationGatePrecedes(
+        string $path,
+        string $source,
+        array $downstreamTokens,
+    ): void {
+        $validationGate = \strpos(
+            $source,
+            'if ($compiledConfig[\'validation\']->isFailure())',
+        );
+
+        self::assertIsInt($validationGate, $path);
+
+        foreach ($downstreamTokens as $token) {
+            $downstream = \strpos($source, $token);
+
+            self::assertIsInt(
+                $downstream,
+                $path . ': ' . $token,
+            );
+            self::assertGreaterThan(
+                $validationGate,
+                $downstream,
+                $path . ': ' . $token,
+            );
+        }
     }
 
     private static function repoFile(string $relativePath): string

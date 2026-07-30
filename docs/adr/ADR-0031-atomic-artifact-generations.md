@@ -69,9 +69,9 @@ The three runtime artifact envelopes continue to share one deterministic artifac
 
 That fingerprint remains the generation id and binds the selected module plan, compiled config, canonical compiled runtime container graph, and other safe deterministic fingerprint inputs into one logical artifact-set identity.
 
-This decision governs active production publication and cache verification.
+This decision governs active production publication, cache verification, artifact-only runtime selection, and proc Worker generation-root handoff.
 
-Artifact-only runtime and Worker generation-root consumption are outside this decision. Their existing explicit-path contracts remain unchanged.
+Artifact-only runtime and Worker children consume the same authoritative generation layout and MUST NOT accept independent artifact paths.
 
 ## Decision
 
@@ -563,7 +563,7 @@ Reuse requires:
 
 A conflicting or invalid existing generation MUST fail with `generation-conflict`.
 
-### Decision 13: Production compiler and verifier use generations; runtime consumption is outside this decision
+### Decision 13: Production compiler, verifier, artifact-only runtime, and Worker use generations
 
 `ArtifactCompiler` MUST publish only through `ArtifactGenerationPublisher`.
 
@@ -577,15 +577,27 @@ It MUST NOT independently write production flat artifacts.
 - compare generation identity;
 - compare all four exact byte sequences.
 
-The production path MUST NOT dual-write the legacy flat layout.
+`ArtifactRuntimeBooter` MUST:
 
-This decision does not change artifact-only runtime or Worker consumption:
+- receive `skeletonRoot` and one artifact root through `ArtifactRuntimeInput`, with no individual artifact paths;
+- locate `current` through `ArtifactGenerationLocator`;
+- require one valid selected generation;
+- read exact bytes and envelopes for all four generation files;
+- validate generation manifest metadata and all envelope fingerprints;
+- hydrate runtime state only from that selected generation;
+- build the container from the already-read `container@1` envelope.
 
-- `ArtifactRuntimeBooter` does not discover `current`;
-- artifact-only runtime retains its existing explicit-path contract;
-- Worker retains its existing artifact-path input contract.
+The proc Worker launcher MUST pass one skeleton-root-relative artifact-root argument:
 
-The generation publication and verification classes are production infrastructure governed by this ADR.
+```text
+--coretsia-worker-artifact-root=<relative-safe-path>
+```
+
+It MUST NOT pass independent module-manifest, config, or container paths.
+
+The production path MUST NOT dual-write or consume the legacy flat layout.
+
+The generation publication, location, validation, and runtime-selection classes are production infrastructure governed by this ADR.
 
 ## Consequences
 
@@ -605,7 +617,7 @@ The generation publication and verification classes are production infrastructur
 - Cache verification reads one selected immutable generation rather than three independently mutable files.
 - The global artifact envelope and registry remain authoritative.
 - Kernel artifact-root ownership remains separate from generation-layout ownership.
-- Artifact-only runtime boot remains outside this decision.
+- Artifact-only runtime and proc Worker children consume one validated generation selected through `current`.
 
 ### Trade-offs
 
@@ -617,7 +629,7 @@ The generation publication and verification classes are production infrastructur
 - Stale staging cleanup beyond the current operation requires separate policy.
 - The generation manifest introduces a fourth generated file that must be validated and compared.
 - Strict path and symlink validation rejects filesystem layouts that a permissive writer might otherwise accept.
-- Artifact-only runtime and Worker do not consume the generation layout under this decision.
+- Artifact-only runtime performs an additional exact consumed-snapshot read after location so the bytes used for hydration are the bytes validated by runtime.
 
 ### Operational consequences
 
@@ -625,13 +637,24 @@ The production compiler now writes only the generation layout.
 
 The production verifier now verifies only the generation selected by `current`.
 
-The runtime boundary remains:
+The production boundary is:
 
 ```text
-ArtifactCompiler publishes immutable generations.
-CacheVerifier verifies the selected immutable generation.
-ArtifactRuntimeBooter retains its explicit artifact-path contract.
-Worker retains its existing artifact-path input contract.
+ArtifactCompiler
+  -> publishes immutable generations
+  -> switches current
+
+CacheVerifier
+  -> locates and compares the selected generation
+
+ArtifactRuntimeBooter
+  -> receives artifact root
+  -> locates current
+  -> consumes one validated generation
+
+ProcWorkerManagerDriver
+  -> passes one skeleton-root-relative artifact root
+  -> child invokes ArtifactRuntimeBooter
 ```
 
 A successful publication leaves previous finalized generations in place.
@@ -714,13 +737,13 @@ The lock is publication-coordination state.
 
 Its contents and filesystem state are operational and non-semantic.
 
-### Alternative 9: Switch runtime consumption as part of this decision
+### Alternative 9: Allow runtime callers to supply individual artifact paths
 
 Rejected.
 
-This decision governs generation publication and generation-aware cache verification only.
+Independent module-manifest, config, and container path inputs would allow callers to construct a mixed-generation runtime set.
 
-Artifact-only runtime and Worker consumption require a separate end-to-end contract that prevents callers from supplying mixed artifact paths.
+The accepted runtime boundary receives only the artifact root and selects one complete generation through `current`.
 
 ### Alternative 10: Dual-write both storage layouts
 
@@ -773,7 +796,9 @@ The implementation must prove at least:
 - staging and pointer temporary files are removed after handled failures;
 - cache verification includes `generation-manifest.php`;
 - cache verification does not repair invalid generations;
-- artifact-only runtime generation discovery remains outside this decision.
+- artifact-only runtime accepts only an artifact root and selects `current` through `ArtifactGenerationLocator`;
+- artifact-only runtime validates and consumes all four files from one selected generation;
+- proc Worker children receive one artifact-root argument and cannot receive independent artifact paths.
 
 ## Related SSoT
 

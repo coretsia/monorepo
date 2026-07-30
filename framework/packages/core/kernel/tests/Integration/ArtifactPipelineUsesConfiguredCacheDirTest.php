@@ -45,14 +45,38 @@ final class ArtifactPipelineUsesConfiguredCacheDirTest extends TestCase
 
             self::assertSame(
                 [
-                    'var/artifacts_cache/web/' . 'generations/current/' . 'config.php',
-                    'var/artifacts_cache/web/' . 'generations/current/' . 'container.php',
-                    'var/artifacts_cache/web/' . 'generations/current/' . 'module-manifest.php',
+                    'schemaVersion',
+                    'generationId',
+                    'artifacts',
                 ],
-                \array_column(
-                    $compileResult['artifacts'],
-                    'path',
-                ),
+                \array_keys($compileResult),
+            );
+            self::assertSame(1, $compileResult['schemaVersion']);
+            self::assertIsString($compileResult['generationId']);
+            self::assertMatchesRegularExpression(
+                '/\A[a-f0-9]{64}\z/',
+                $compileResult['generationId'],
+            );
+            self::assertSame(
+                [
+                    [
+                        'identity' => 'module-manifest@1',
+                        'basename' => 'module-manifest.php',
+                    ],
+                    [
+                        'identity' => 'config@1',
+                        'basename' => 'config.php',
+                    ],
+                    [
+                        'identity' => 'container@1',
+                        'basename' => 'container.php',
+                    ],
+                    [
+                        'identity' => 'artifact-generation@1',
+                        'basename' => 'generation-manifest.php',
+                    ],
+                ],
+                $compileResult['artifacts'],
             );
 
             self::assertSame(
@@ -79,6 +103,16 @@ final class ArtifactPipelineUsesConfiguredCacheDirTest extends TestCase
             self::assertFileExists($configuredArtifactRoot . '/generation.lock');
             self::assertDirectoryExists($configuredArtifactRoot . '/generations');
 
+            $currentGeneration = ArtifactPipelineTestSupport::currentGeneration(
+                skeletonRoot: $skeletonRoot,
+                artifactsCacheDir: $artifactsCacheDir,
+            );
+
+            self::assertSame(
+                $compileResult['generationId'],
+                $currentGeneration->generationId()->value(),
+            );
+
             self::assertDirectoryDoesNotExist(
                 ArtifactPipelineTestSupport::artifactRoot($skeletonRoot),
             );
@@ -89,10 +123,20 @@ final class ArtifactPipelineUsesConfiguredCacheDirTest extends TestCase
                 artifactsCacheDir: $artifactsCacheDir,
             );
 
+            self::assertSame(1, $verifyResult['schemaVersion']);
             self::assertSame('clean', $verifyResult['outcome']);
             self::assertTrue($verifyResult['clean']);
             self::assertFalse($verifyResult['dirty']);
             self::assertFalse($verifyResult['invalid']);
+            self::assertSame(
+                $compileResult['generationId'],
+                $verifyResult['expectedGenerationId'],
+            );
+            self::assertSame(
+                $compileResult['generationId'],
+                $verifyResult['currentGenerationId'],
+            );
+            self::assertCount(4, $verifyResult['artifacts']);
         } finally {
             ArtifactPipelineTestSupport::removeTree($skeletonRoot);
         }

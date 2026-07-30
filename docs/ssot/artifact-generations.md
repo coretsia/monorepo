@@ -30,7 +30,7 @@ Those are owned by:
 docs/ssot/artifacts.md
 ```
 
-It intentionally does not redefine Kernel fingerprint input construction, fingerprint exclusions, current flat-layout compiler behavior, or cache verification classification.
+It intentionally does not redefine Kernel fingerprint input construction, fingerprint exclusions, compiled-container payload and hydration semantics, or cache verification classification.
 
 Those remain owned by:
 
@@ -53,7 +53,8 @@ The model ensures that:
 - mutable publication control state is not misclassified as generated artifact data;
 - production publication activates one complete generation through one locked pointer replacement;
 - concurrent publishers cannot expose mixed artifact outputs;
-- cache verification reads one selected immutable generation.
+- cache verification reads one selected immutable generation;
+- artifact-only runtime and proc Worker children consume one complete generation selected through `current`.
 
 ## Authority Boundary (MUST)
 
@@ -79,7 +80,7 @@ This document owns:
 - current-pointer encoding and replacement semantics;
 - existing-generation reuse rules;
 - current generation location and validation semantics;
-- production publication and verification boundary, excluding runtime consumption semantics.
+- production publication, verification, and runtime generation-selection boundary.
 
 This document MUST NOT redefine:
 
@@ -98,8 +99,8 @@ This document MUST NOT redefine:
 - generation retention count or policy;
 - finalized-generation garbage collection;
 - background stale-generation cleanup;
-- artifact-only runtime hydration semantics;
-- Worker child boot semantics.
+- runtime seed hydration and compiled-container construction semantics;
+- Worker task lifecycle and process-supervision semantics.
 
 ## Invariants (MUST)
 
@@ -127,7 +128,8 @@ This document MUST NOT redefine:
 - The publisher MUST finalize, reuse, and switch `current` while holding the exclusive generation lock.
 - An existing generation MUST NOT be reused unless it is valid and exactly byte-identical to the staged generation.
 - Cache verification MUST include all four finalized generation files.
-- Artifact-only runtime and Worker generation-root consumption are outside this SSoT.
+- Artifact-only runtime MUST accept only an artifact root and select one valid generation through `current`.
+- Proc Worker children MUST receive one skeleton-root-relative artifact root and MUST NOT receive independent artifact paths.
 
 ## Terminology
 
@@ -554,9 +556,7 @@ It MUST NOT:
 
 ## `ArtifactPathResolver` Delegation (MUST)
 
-`ArtifactPathResolver` remains the owner of the final Kernel artifact root.
-
-It derives that root from:
+`ArtifactPathResolver` MUST derive the final artifact root from:
 
 ```text
 BootstrapConfig::skeletonRoot()
@@ -564,36 +564,28 @@ BootstrapConfig::artifactsCacheDir()
 BootstrapConfig::appTarget()->value
 ```
 
-Generation-specific path derivation MUST be delegated to:
+Its supported API is root-only:
 
 ```text
-ArtifactGenerationPathResolver
-```
-
-Production compilation and cache verification MUST use:
-
-```text
+relativeCacheDirectory()
 artifactRoot()
 ```
 
-as the boundary between Bootstrap-owned root resolution and generation-owned path resolution.
+Production compilation, cache verification, artifact-only runtime boot, and Worker factory wiring MUST cross into generation-owned path resolution only through `artifactRoot()`.
 
-Generation-specific paths MUST be resolved only through `ArtifactGenerationPathResolver`.
-
-Legacy flat-artifact path methods belong only to the explicit-path runtime compatibility surface and are not part of generation publication or verification:
-
-- `ArtifactCompiler` MUST NOT use them for production publication;
-- `CacheVerifier` MUST NOT use them for persisted generation lookup;
-- they MUST NOT be treated as the active production storage model;
-- `generation-manifest.php` MUST NOT be added to their basename allowlist.
-
-The compatibility method:
+Generation-specific paths MUST be resolved through:
 
 ```text
-cacheDirectory()
+ArtifactGenerationPathResolver
+ArtifactGeneration
 ```
 
-continues to return the artifact root.
+`ArtifactPathResolver` MUST NOT expose:
+
+- flat runtime artifact paths;
+- individual `module-manifest.php`, `config.php`, or `container.php` helpers;
+- `current` or `generation.lock` paths;
+- generation-directory or staging-directory paths.
 
 ## `artifact-generation@1` Identity (MUST)
 
@@ -1190,25 +1182,38 @@ It MUST NOT:
 - select staging;
 - compile replacement artifacts.
 
-## Production Publication and Verification Boundary (MUST)
+## Production Publication, Verification, and Runtime Consumption Boundary (MUST)
 
 Production compilation writes only immutable generations.
 
 Production cache verification reads only the generation selected through `current`.
 
+Artifact-only runtime boot receives only the artifact root and consumes one validated generation selected through `current`.
+
 The active production boundary is:
 
 ```text
 ArtifactCompiler
-  -> ArtifactPublicationSet
   -> ArtifactGenerationPublisher
-  -> generations/<generation-id>
+  -> immutable generation
   -> current
 
 CacheVerifier
   -> ArtifactGenerationLocator
   -> ArtifactGenerationValidator
   -> selected immutable generation
+  -> expected identity and exact-byte comparison
+
+ArtifactRuntimeBooter
+  -> ArtifactRuntimeInput.artifactRoot
+  -> ArtifactGenerationLocator
+  -> selected immutable generation
+  -> exact read of all four generation files
+  -> runtime hydration
+
+ProcWorkerManagerDriver
+  -> --coretsia-worker-artifact-root=<relative-safe-path>
+  -> child ArtifactRuntimeBooter
 ```
 
 Production compilation MUST NOT create:
@@ -1221,13 +1226,20 @@ Production compilation MUST NOT create:
 
 as active flat production artifacts.
 
-Generation-aware runtime consumption is outside this SSoT.
+Artifact-only runtime and Worker children MUST NOT accept individual artifact paths.
 
-Under this authority boundary:
+`ArtifactRuntimeBooter` MUST NOT:
 
-- `ArtifactRuntimeBooter` is not required to read `current`;
-- Worker artifact-root input semantics are not defined;
-- runtime hydration from one located generation is not defined.
+- scan `generations/` for a newest candidate;
+- fall back to another generation;
+- select a staging directory;
+- repair `current`;
+- repair a finalized generation;
+- combine files from multiple generations.
+
+Detailed runtime seed hydration and compiled-container construction remain owned by `docs/ssot/compiled-container.md`.
+
+Detailed Worker child parsing and process lifecycle remain owned by `docs/architecture/worker.md`.
 
 The generation classes are production infrastructure governed by this SSoT.
 
@@ -1397,7 +1409,9 @@ The test suite MUST cover at least:
 - active state changes through `current`;
 - cache verification includes all four finalized generation files;
 - concurrent publishers never expose mixed artifact generations;
-- production runtime generation discovery remains outside this SSoT.
+- artifact-only runtime selects `current` through `ArtifactGenerationLocator`;
+- artifact-only runtime validates and consumes all four files from one selected generation;
+- Worker child input contains one artifact root and no individual artifact paths.
 
 ## Non-goals / Clarifications (MUST)
 
@@ -1406,8 +1420,8 @@ The test suite MUST cover at least:
 - This document does not define crash recovery beyond handled-operation semantics.
 - This document does not define cross-process retry timing.
 - This document does not define background stale-staging cleanup.
-- This document does not define artifact-only runtime generation discovery or hydration.
-- This document does not define Worker generation-root consumption.
+- This document does not redefine runtime seed hydration or compiled-container construction.
+- This document does not redefine Worker task execution, supervision, or control-channel lifecycle.
 - This document does not redefine artifact cache directory configuration.
 - This document does not redefine Bootstrap Phase A.
 - This document does not redefine fingerprint input.
@@ -1440,6 +1454,12 @@ framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php
 framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
 framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
 framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
+framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
+framework/packages/platform/worker/bin/coretsia-worker
+framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php
+framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
 framework/packages/core/kernel/src/Provider/KernelServiceFactory.php
 framework/packages/core/kernel/src/Provider/KernelServiceProvider.php
 ```

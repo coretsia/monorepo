@@ -69,7 +69,9 @@ final class CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest ex
                 'The compiled alias must point to the non-shared target service.',
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $first = $container->get('test.non_shared.alias');
             $second = $container->get('test.non_shared.alias');

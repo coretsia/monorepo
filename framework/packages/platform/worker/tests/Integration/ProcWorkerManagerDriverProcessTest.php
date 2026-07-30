@@ -125,9 +125,7 @@ final class ProcWorkerManagerDriverProcessTest extends TestCase
                         '--coretsia-worker-max-requests=17',
                         '--coretsia-worker-task-type=queue',
                         '--coretsia-worker-driver=proc',
-                        '--coretsia-worker-module-manifest=var/cache/worker/module-manifest.php',
-                        '--coretsia-worker-config=var/cache/worker/config.php',
-                        '--coretsia-worker-container=var/cache/worker/container.php',
+                        '--coretsia-worker-artifact-root=var/cache/worker',
                     ],
                     $argv,
                 );
@@ -140,9 +138,7 @@ final class ProcWorkerManagerDriverProcessTest extends TestCase
                     '--coretsia-worker-max-requests=17',
                     '--coretsia-worker-task-type=queue',
                     '--coretsia-worker-driver=proc',
-                    '--coretsia-worker-module-manifest=var/cache/worker/module-manifest.php',
-                    '--coretsia-worker-config=var/cache/worker/config.php',
-                    '--coretsia-worker-container=var/cache/worker/container.php',
+                    '--coretsia-worker-artifact-root=var/cache/worker',
                 ],
                 \array_slice($argvByWorkerIndex[0], 2),
             );

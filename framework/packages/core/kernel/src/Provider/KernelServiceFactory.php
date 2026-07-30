@@ -60,7 +60,6 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
-use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\ConfigMerger;
 use Coretsia\Kernel\Config\ConfigRulesLoader;
@@ -76,16 +75,13 @@ use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
-use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
-use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
@@ -205,7 +201,7 @@ final class KernelServiceFactory
 
         return new RuntimePathContext(
             skeletonRoot: $bootstrapConfig->skeletonRoot(),
-            artifactRoot: new ArtifactPathResolver()->cacheDirectory($bootstrapConfig),
+            artifactRoot: new ArtifactPathResolver()->artifactRoot($bootstrapConfig),
         );
     }
 
@@ -1039,22 +1035,19 @@ final class KernelServiceFactory
      * compile a new container graph, calculate fingerprints, write artifacts,
      * mutate artifacts, or emit stdout/stderr during provider registration.
      */
-    public static function compiledContainerFactory(ContainerInterface $container): CompiledContainerFactory
-    {
-        $artifactReader = self::artifactService($container, PhpArtifactReader::class);
-
-        if (!$artifactReader instanceof PhpArtifactReader) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        $schemaValidator = self::artifactService($container, ArtifactSchemaValidator::class);
+    public static function compiledContainerFactory(
+        ContainerInterface $container,
+    ): CompiledContainerFactory {
+        $schemaValidator = self::artifactService(
+            $container,
+            ArtifactSchemaValidator::class,
+        );
 
         if (!$schemaValidator instanceof ArtifactSchemaValidator) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 
         return new CompiledContainerFactory(
-            artifactReader: $artifactReader,
             schemaValidator: $schemaValidator,
         );
     }
@@ -1133,70 +1126,6 @@ final class KernelServiceFactory
             providerPlanResolver: $providerPlanResolver,
             containerCompiler: $containerCompiler,
             completenessValidator: $completenessValidator,
-        );
-    }
-
-    /**
-     * Builds the production runtime Foundation container through compiled-artifact
-     * boot only.
-     *
-     * The caller MUST provide:
-     *
-     * - the resolved container.php artifact path;
-     * - an already-read and already-validated config@1 payload;
-     * - the exact entrypoint-owned runtime seed set for the same artifact
-     *   snapshot.
-     *
-     * This method intentionally does not read source config files, run source
-     * config discovery, run module discovery, register runtime providers as a
-     * fallback, compile a new container graph, calculate fingerprints, write
-     * artifacts, mutate artifacts, or emit stdout/stderr.
-     *
-     * Missing container.php is surfaced by CompiledContainerFactory as:
-     *
-     *     CORETSIA_CONTAINER_ARTIFACT_MISSING: container-artifact-missing
-     *
-     * There is deliberately no implicit non-artifact fallback in this production
-     * runtime path. A developer-mode fallback requires an explicit architecture
-     * decision and MUST NOT be implied here.
-     *
-     * @param non-empty-string $containerArtifactPath
-     * @param array<string, mixed> $configPayload Already-read/validated config@1
-     *     payload.
-     *
-     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactMissingException
-     * @throws \Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException
-     */
-    public static function productionRuntimeContainer(
-        ContainerInterface $container,
-        string $containerArtifactPath,
-        array $configPayload,
-        RuntimeContainerSeedSet $seeds,
-    ): FoundationContainer {
-        $config = self::runtimeConfigFromConfigPayload($configPayload);
-        $seedInstances = $seeds->instances();
-        $modulePlan = $seedInstances[ModulePlan::class] ?? null;
-
-        if (!$modulePlan instanceof ModulePlan) {
-            throw new ContainerException('kernel-runtime-seed-set-invalid');
-        }
-
-        self::assertRuntimeEntrypointCompatible(
-            container: $container,
-            config: $config,
-            modulePlan: $modulePlan,
-        );
-
-        $compiledContainerFactory = self::artifactService($container, CompiledContainerFactory::class);
-
-        if (!$compiledContainerFactory instanceof CompiledContainerFactory) {
-            throw new ContainerException('kernel-artifacts-dependency-invalid');
-        }
-
-        return $compiledContainerFactory->build(
-            containerArtifactPath: $containerArtifactPath,
-            configPayload: $configPayload,
-            seeds: $seeds,
         );
     }
 
@@ -1388,32 +1317,6 @@ final class KernelServiceFactory
     public static function runtimeEntrypointGuard(): RuntimeEntrypointGuard
     {
         return new RuntimeEntrypointGuard();
-    }
-
-    /**
-     * Asserts that a production runtime entrypoint may start.
-     *
-     * @param array<string, mixed> $config Already-read/validated merged config tree.
-     */
-    public static function assertRuntimeEntrypointCompatible(
-        ContainerInterface $container,
-        array $config,
-        ModulePlan $modulePlan,
-    ): void {
-        $guard = self::service($container, RuntimeEntrypointGuard::class);
-
-        if (!$guard instanceof RuntimeEntrypointGuard) {
-            throw new ContainerException('kernel-runtime-dependency-invalid');
-        }
-
-        $guard->assertEntrypointAllowed(
-            config: new ArrayConfigRepository($config),
-            modulePlan: $modulePlan,
-            runtimeDriverContributions: RuntimeDriverContributions::fromDrivers(
-                httpDrivers: [],
-                backgroundDrivers: [],
-            ),
-        );
     }
 
     /**
@@ -1977,26 +1880,5 @@ final class KernelServiceFactory
     private static function isMapArray(array $value): bool
     {
         return $value === [] || !\array_is_list($value);
-    }
-
-    /**
-     * @param array<string, mixed> $configPayload
-     *
-     * @return array<string, mixed>
-     */
-    private static function runtimeConfigFromConfigPayload(array $configPayload): array
-    {
-        if (!\array_key_exists('config', $configPayload)) {
-            throw new ContainerException('kernel-runtime-config-payload-invalid');
-        }
-
-        $config = $configPayload['config'];
-
-        if (!\is_array($config) || \array_is_list($config)) {
-            throw new ContainerException('kernel-runtime-config-payload-invalid');
-        }
-
-        /** @var array<string, mixed> $config */
-        return $config;
     }
 }

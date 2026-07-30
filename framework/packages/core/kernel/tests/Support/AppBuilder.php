@@ -85,24 +85,19 @@ final class AppBuilder
             presetName: self::PRESET_MICRO,
         );
 
-        $generation = ArtifactPipelineTestSupport::currentGeneration($skeletonRoot);
-
-        $artifactPaths = [
-            'module-manifest.php' => $generation->moduleManifestPath(),
-            'config.php' => $generation->configPath(),
-            'container.php' => $generation->containerPath(),
-        ];
+        $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths(
+            $skeletonRoot,
+        );
 
         self::assertRuntimeArtifactsExist($artifactPaths);
 
         $container = new ArtifactRuntimeBooter()->boot(
             input: new ArtifactRuntimeInput(
                 skeletonRoot: $skeletonRoot,
-                artifactRoot: $generation->generationDirectory(),
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot(
+                    $skeletonRoot,
+                ),
             ),
-            moduleManifestArtifactPath: $artifactPaths['module-manifest.php'],
-            configArtifactPath: $artifactPaths['config.php'],
-            containerArtifactPath: $artifactPaths['container.php'],
         );
 
         return new AppBuilderBootResult(
@@ -206,7 +201,7 @@ final class AppBuilder
      */
     public static function artifactPaths(string $skeletonRoot): array
     {
-        return ArtifactPipelineTestSupport::artifactPaths($skeletonRoot);
+        return ArtifactPipelineTestSupport::currentArtifactPaths($skeletonRoot);
     }
 
     private static function temporarySkeletonRoot(string $name): string
@@ -283,6 +278,7 @@ final class AppBuilder
                 'module-manifest.php',
                 'config.php',
                 'container.php',
+                'generation-manifest.php',
             ] as $basename
         ) {
             $path =

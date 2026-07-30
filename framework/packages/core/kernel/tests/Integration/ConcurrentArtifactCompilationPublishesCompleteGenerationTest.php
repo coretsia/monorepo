@@ -71,20 +71,28 @@ final class ConcurrentArtifactCompilationPublishesCompleteGenerationTest extends
                 );
             }
 
+            $publishedGenerationIds = [];
+
             foreach (
                 $processes as $index => $processState
             ) {
-                self::assertCompilerProcessSucceeded(
+                $publishedGenerationIds[] = self::assertCompilerProcessSucceeded(
                     processState: $processState,
                     index: $index,
                 );
             }
+
+            \sort($publishedGenerationIds, \SORT_STRING);
 
             $generationIds = self::finalizedGenerationIds($artifactRoot);
 
             self::assertCount(
                 self::PROCESS_COUNT,
                 $generationIds,
+            );
+            self::assertSame(
+                $generationIds,
+                $publishedGenerationIds,
             );
             self::assertSame(
                 [],
@@ -398,10 +406,7 @@ try {
     echo \json_encode(
         [
             'status' => 'ok',
-            'artifactCount' =>
-                $result['counts']
-                    ['artifact_count']
-                    ?? null,
+            'result' => $result,
         ],
         \JSON_THROW_ON_ERROR,
     );
@@ -482,11 +487,13 @@ CHILD;
      *     stdout: resource,
      *     stderr: resource
      * } $processState
+     *
+     * @return non-empty-string
      */
     private static function assertCompilerProcessSucceeded(
         array $processState,
         int $index,
-    ): void {
+    ): string {
         $stdout = \stream_get_contents($processState['stdout']);
         $stderr = \stream_get_contents($processState['stderr']);
 
@@ -520,10 +527,61 @@ CHILD;
             'ok',
             $decoded['status'] ?? null,
         );
+        $result = $decoded['result'] ?? null;
+
+        self::assertIsArray($result);
+
+        return self::assertCompileResult($result);
+    }
+
+    /**
+     * @param array<string,mixed> $result
+     *
+     * @return non-empty-string
+     */
+    private static function assertCompileResult(array $result): string
+    {
         self::assertSame(
-            3,
-            $decoded['artifactCount'] ?? null,
+            [
+                'schemaVersion',
+                'generationId',
+                'artifacts',
+            ],
+            \array_keys($result),
         );
+        self::assertSame(1, $result['schemaVersion']);
+
+        $generationId = $result['generationId'] ?? null;
+
+        self::assertIsString($generationId);
+        self::assertMatchesRegularExpression(
+            '/\A[a-f0-9]{64}\z/',
+            $generationId,
+        );
+        self::assertSame(
+            [
+                [
+                    'identity' => 'module-manifest@1',
+                    'basename' => 'module-manifest.php',
+                ],
+                [
+                    'identity' => 'config@1',
+                    'basename' => 'config.php',
+                ],
+                [
+                    'identity' => 'container@1',
+                    'basename' => 'container.php',
+                ],
+                [
+                    'identity' => 'artifact-generation@1',
+                    'basename' => 'generation-manifest.php',
+                ],
+            ],
+            $result['artifacts'],
+        );
+
+        /** @var non-empty-string $generationId */
+        return $generationId;
     }
 
     private static function locator(): ArtifactGenerationLocator

@@ -91,6 +91,48 @@ final class ProcWorkerManagerDriverSupportTest extends TestCase
         }
     }
 
+    public function testConstructorRejectsInvalidArtifactRootsDeterministically(): void
+    {
+        foreach (
+            [
+                '',
+                ' var/cache/worker',
+                '/var/cache/worker',
+                'C:/var/cache/worker',
+                'var\\cache\\worker',
+                'var//cache/worker',
+                'var/cache/../worker',
+                'var/cache/@worker',
+                "var/cache/worker\n",
+            ] as $artifactRoot
+        ) {
+            try {
+                new ProcWorkerManagerDriver(
+                    skeletonRoot: __DIR__,
+                    stateStore: new WorkerStateStore(
+                        encoder: new StableJsonEncoder(),
+                        decoder: new StableJsonDecoder(),
+                    ),
+                    controlChannel: new WorkerSocketServer(),
+                    workerCommand: [
+                        'php',
+                        'bin/coretsia-worker',
+                    ],
+                    artifactRoot: $artifactRoot,
+                );
+
+                self::fail(
+                    'Expected invalid artifact root rejection.',
+                );
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame(
+                    'proc-worker-artifact-root-invalid',
+                    $exception->getMessage(),
+                );
+            }
+        }
+    }
+
     public function testSupportPathHasNoProcessPayloadPackageOrOutputSideEffects(): void
     {
         $driver = self::driver();
@@ -167,9 +209,7 @@ final class ProcWorkerManagerDriverSupportTest extends TestCase
                 'php',
                 'bin/coretsia-worker',
             ],
-            moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
-            configArtifactPath: 'var/cache/worker/config.php',
-            containerArtifactPath: 'var/cache/worker/container.php',
+            artifactRoot: 'var/cache/worker',
         );
     }
 
@@ -187,9 +227,7 @@ final class ProcWorkerManagerDriverSupportTest extends TestCase
                 ),
                 controlChannel: new WorkerSocketServer(),
                 workerCommand: $workerCommand,
-                moduleManifestArtifactPath: 'var/cache/worker/module-manifest.php',
-                configArtifactPath: 'var/cache/worker/config.php',
-                containerArtifactPath: 'var/cache/worker/container.php',
+                artifactRoot: 'var/cache/worker',
             );
 
             self::fail('Expected InvalidArgumentException was not thrown.');

@@ -26,7 +26,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
 {
-    public function testResolvesPathsUnderDefaultAppTargetCacheDirectory(): void
+    public function testResolvesArtifactRootUnderDefaultAppTargetCacheDirectory(): void
     {
         $resolver = new ArtifactPathResolver();
         $bootstrapConfig = self::bootstrapConfig(
@@ -38,25 +38,13 @@ final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
             'var/cache/api',
             $resolver->relativeCacheDirectory($bootstrapConfig),
         );
-
         self::assertSame(
-            'var/cache/api/config.php',
-            $resolver->relativePath(
-                bootstrapConfig: $bootstrapConfig,
-                basename: ArtifactPathResolver::CONFIG_BASENAME,
-            ),
-        );
-
-        self::assertSame(
-            '/workspace/skeleton/var/cache/api/config.php',
-            $resolver->resolve(
-                bootstrapConfig: $bootstrapConfig,
-                basename: ArtifactPathResolver::CONFIG_BASENAME,
-            ),
+            '/workspace/skeleton/var/cache/api',
+            $resolver->artifactRoot($bootstrapConfig),
         );
     }
 
-    public function testResolvesPathsUnderConfiguredArtifactCacheDirectory(): void
+    public function testResolvesArtifactRootUnderConfiguredCacheDirectory(): void
     {
         $resolver = new ArtifactPathResolver();
         $bootstrapConfig = self::bootstrapConfig(
@@ -68,17 +56,16 @@ final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
             'var/artifacts_cache/web',
             $resolver->relativeCacheDirectory($bootstrapConfig),
         );
-
         self::assertSame(
-            '/workspace/skeleton/var/artifacts_cache/web/container.php',
-            $resolver->containerPath($bootstrapConfig),
+            '/workspace/skeleton/var/artifacts_cache/web',
+            $resolver->artifactRoot($bootstrapConfig),
         );
     }
 
-    public function testMaximumAcceptedCacheDirKeepsCanonicalArtifactPathsWithinSafeLimit(): void
+    public function testEveryAppTargetIsAppendedExactlyOnceToArtifactRoot(): void
     {
         $resolver = new ArtifactPathResolver();
-        $artifactsCacheDir = \str_repeat('a', 480);
+        $artifactsCacheDir = 'var/cache';
 
         foreach (AppTarget::cases() as $appTarget) {
             $bootstrapConfig = self::bootstrapConfig(
@@ -86,18 +73,19 @@ final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
                 artifactsCacheDir: $artifactsCacheDir,
             );
 
-            foreach (ArtifactPathResolver::canonicalBasenames() as $basename) {
-                $relativePath = $resolver->relativePath(
-                    bootstrapConfig: $bootstrapConfig,
-                    basename: $basename,
-                );
+            $relativeRoot =
+                $artifactsCacheDir
+                . '/'
+                . $appTarget->value;
 
-                self::assertLessThanOrEqual(
-                    512,
-                    \strlen($relativePath),
-                    $appTarget->value . ':' . $basename,
-                );
-            }
+            self::assertSame(
+                $relativeRoot,
+                $resolver->relativeCacheDirectory($bootstrapConfig),
+            );
+            self::assertSame(
+                '/workspace/skeleton/' . $relativeRoot,
+                $resolver->artifactRoot($bootstrapConfig),
+            );
         }
     }
 

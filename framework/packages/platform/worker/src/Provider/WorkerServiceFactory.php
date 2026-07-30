@@ -73,10 +73,6 @@ use Psr\Log\LoggerInterface;
  */
 final class WorkerServiceFactory
 {
-    private const string MODULE_MANIFEST_ARTIFACT_BASENAME = 'module-manifest.php';
-    private const string CONFIG_ARTIFACT_BASENAME = 'config.php';
-    private const string CONTAINER_ARTIFACT_BASENAME = 'container.php';
-
     /**
      * Builds WorkerPoolSpec from the complete merged worker config after the
      * config validation pipeline.
@@ -286,18 +282,7 @@ final class WorkerServiceFactory
             stateStore: $stateStore,
             controlChannel: $controlChannel,
             workerCommand: $this->procWorkerCommand($config),
-            moduleManifestArtifactPath: self::runtimeArtifactPath(
-                runtimePaths: $runtimePaths,
-                basename: self::MODULE_MANIFEST_ARTIFACT_BASENAME,
-            ),
-            configArtifactPath: self::runtimeArtifactPath(
-                runtimePaths: $runtimePaths,
-                basename: self::CONFIG_ARTIFACT_BASENAME,
-            ),
-            containerArtifactPath: self::runtimeArtifactPath(
-                runtimePaths: $runtimePaths,
-                basename: self::CONTAINER_ARTIFACT_BASENAME,
-            ),
+            artifactRoot: self::relativeArtifactRoot($runtimePaths),
         );
     }
 
@@ -348,19 +333,6 @@ final class WorkerServiceFactory
         return $workerConfig;
     }
 
-    private static function runtimeArtifactPath(
-        RuntimePathContext $runtimePaths,
-        string $basename,
-    ): string {
-        $artifactRoot = self::relativeArtifactRoot($runtimePaths);
-
-        if ($artifactRoot === '') {
-            return $basename;
-        }
-
-        return $artifactRoot . '/' . $basename;
-    }
-
     private static function relativeArtifactRoot(
         RuntimePathContext $runtimePaths,
     ): string {
@@ -368,7 +340,7 @@ final class WorkerServiceFactory
         $skeletonRoot = $runtimePaths->skeletonRoot();
 
         if ($artifactRoot === $skeletonRoot) {
-            return '';
+            throw WorkerStartFailedException::invalidState();
         }
 
         $prefix = \str_ends_with($skeletonRoot, '/')

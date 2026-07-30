@@ -16,7 +16,7 @@
 
 `core/foundation` is the Foundation runtime package for the Coretsia Framework monorepo.
 
-Scope: PSR-11 DI container runtime, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
+Scope: PSR-11 DI container runtime, canonical declarative runtime-container definition model, deterministic definition application and graph-ready export, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
 Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, and tooling-only behavior.
 
@@ -33,7 +33,7 @@ Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
 Per-package independent versions MUST NOT be used.
 
-## Dependency policy (Phase 1)
+## Dependency policy
 
 This package is runtime-safe and intentionally small:
 
@@ -51,7 +51,7 @@ This package is runtime-safe and intentionally small:
 
 `psr/clock` is used for the baseline `Psr\Clock\ClockInterface` binding.
 
-`core/foundation` MUST NOT depend on Phase 0 tooling packages such as `devtools/internal-toolkit` or `devtools/cli-spikes`.
+`core/foundation` MUST NOT depend on tooling packages such as `devtools/internal-toolkit` or `devtools/cli-spikes`.
 
 ## Runtime responsibilities
 
@@ -59,6 +59,11 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 
 - PSR-11 container runtime.
 - Deterministic container build behavior from caller-supplied providers.
+- Canonical closure-free runtime definition production through `ContainerDefinitionProviderInterface`.
+- Ordered definition collection through one shared `ContainerDefinitionBuilder`.
+- Immutable definition output through `ContainerDefinitionSet`.
+- Source-container application through `ContainerDefinitionApplier`.
+- Typed graph-representable service, alias, parameter, tag, and value-reference definitions.
 - Canonical tag registry for service discovery lists.
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
 - Foundation runtime context storage through `ContextStore`.
@@ -157,9 +162,9 @@ Coretsia\Foundation\Id\CorrelationIdGenerator
 Coretsia\Foundation\Observability\CorrelationIdProvider
 ```
 
-`correlation_id` remains ULID-backed according to epic `1.210.0`.
+`correlation_id` remains ULID-backed by the canonical Foundation correlation-id generator.
 
-This package does not introduce runtime clock config.
+The `foundation` config root does not define runtime clock selection.
 
 The runtime clock binding is fixed to:
 
@@ -175,7 +180,7 @@ Tag discovery and reset orchestration MUST NOT be feature-disabled through confi
 
 Empty discovery lists are represented by empty-list semantics only.
 
-This package does not introduce context or correlation feature toggles.
+The `foundation` config root defines no context or correlation feature toggles.
 
 Context safe-write validation is baseline safety infrastructure.
 
@@ -183,7 +188,7 @@ It MUST NOT be disabled through config, environment-derived runtime flags, emerg
 
 Optional context writers that cannot provide safe public-key json-like context values MUST omit the optional write rather than bypass validation.
 
-The following keys MUST NOT be introduced by this epic:
+The following configuration keys are not owned by this package contract:
 
 ```text
 foundation.clock.*
@@ -213,13 +218,115 @@ It MUST NOT be represented by disabling Foundation context services.
 
 The package provides a PSR-11-compatible container implementation.
 
-Container behavior is deterministic:
+Foundation also owns the canonical declarative runtime-container definition model.
+
+The core types are:
+
+```text
+Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface
+Coretsia\Foundation\Container\Definition\ContainerDefinitionContext
+Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder
+Coretsia\Foundation\Container\Definition\ContainerDefinitionSet
+Coretsia\Foundation\Container\Definition\ContainerServiceDefinition
+Coretsia\Foundation\Container\Definition\ContainerValueReference
+Coretsia\Foundation\Container\Definition\ContainerDefinitionApplier
+```
+
+A definition provider contributes runtime wiring through:
+
+```php
+public function define(
+    ContainerDefinitionBuilder $definitions,
+    ContainerDefinitionContext $context,
+): void;
+```
+
+The canonical production sequence is:
+
+```text
+provider 1 define()
+provider 2 define()
+provider 3 define()
+→ one shared ContainerDefinitionBuilder
+→ one ContainerDefinitionSet
+```
+
+The sequence MUST NOT be:
+
+```text
+provider 1 → build
+provider 2 → build
+provider 3 → build
+```
+
+Provider order is semantic input.
+
+The builder preserves contribution order until deterministic collision semantics have been applied.
+
+The definition model supports:
+
+- class services;
+- class-method factories;
+- service-method factories;
+- aliases;
+- parameters;
+- tags;
+- required runtime service ids;
+- shared and non-shared service lifecycle;
+- typed service, parameter, and class references.
+
+The definition model MUST NOT contain:
+
+- closures;
+- callable objects;
+- arbitrary runtime objects;
+- resources;
+- floats;
+- environment references;
+- source snippets;
+- absolute filesystem paths;
+- stream-wrapper paths;
+- container instances.
+
+Plain strings and lists remain inert data and are not interpreted as executable callables by the definition model.
+
+Safe relative strings may be used as inert scalar values; the definition model does not resolve or read them as filesystem paths.
+
+`ContainerDefinitionSet` is not an artifact schema.
+
+It is the canonical in-memory runtime wiring model shared by:
+
+```text
+source container application
+Kernel runtime graph compilation
+compiled-container artifact production
+```
+
+Source-mode application uses:
+
+```text
+ContainerDefinitionApplier
+→ ContainerBuilder
+```
+
+Compile-mode consumption uses the same immutable definition set through Kernel-owned graph compilation.
+
+`FoundationServiceProvider` is both a source service provider and a canonical definition provider.
+
+Its source registration path MUST apply the same definition contribution used by compiled runtime graph production.
+
+Foundation runtime services MUST NOT have separate manual source wiring and compiled wiring implementations.
+
+Container and definition behavior is deterministic:
 
 - Provider order is supplied by the caller.
-- `ContainerBuilder` MUST preserve caller-supplied provider order exactly.
-- `ContainerBuilder` MUST NOT globally sort providers by FQCN.
-- Later container bindings override earlier container bindings deterministically.
-- Tag dedupe remains independent: `TagRegistry` keeps the first occurrence per `(tag, serviceId)`.
+- One shared `ContainerDefinitionBuilder` preserves caller-supplied provider order exactly.
+- Providers MUST NOT be globally sorted by FQCN.
+- Definition operations preserve semantic contribution order.
+- Later service, alias, and parameter bindings override earlier bindings deterministically.
+- Tag dedupe remains independent: the first occurrence per `(tag, serviceId)` wins.
+- `ContainerDefinitionSet::requiredServiceIds()` returns a byte-order `strcmp`-sorted set.
+- Source application and compiled graph production consume the same canonical definition contribution.
 
 Explicit container definitions are shared by default.
 
@@ -272,6 +379,27 @@ This is Coretsia-specific strict behavior. Integration code that needs an except
 Foundation MUST NOT introduce hidden container defaults inside `has()` to make malformed configuration appear valid.
 
 Baseline Foundation services are registered explicitly by the provider and MUST remain resolvable without relying on concrete-class autowiring.
+
+### Declarative definition failures
+
+Invalid declarative definitions fail through:
+
+```text
+Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException
+```
+
+Stable reasons include:
+
+```text
+definition-invalid
+reference-invalid
+provider-invalid
+required-service-invalid
+```
+
+Diagnostics MUST NOT expose raw service ids, raw parameter values, config payloads, filesystem paths, closures, object dumps, stack traces, or previous throwable messages.
+
+The definition builder validates graph-representable values before a definition set can be consumed by source or compiled mode.
 
 ## Tags and deterministic discovery
 
@@ -503,7 +631,7 @@ path
 user_agent
 ```
 
-Reserved future keys:
+Reserved keys without baseline Foundation writers:
 
 ```text
 request_id
@@ -513,7 +641,7 @@ actor_id
 tenant_id
 ```
 
-Reserved future keys MAY be present in `ContextKeys` to prevent name drift, even when their concrete writers are introduced later by owner packages.
+These keys MAY be present in `ContextKeys` to prevent name drift even when their concrete writers belong to owner packages outside Foundation or are absent from a given composition.
 
 ## Context safe-write policy
 
@@ -730,7 +858,7 @@ Diagnostics MUST NOT include raw values, object class names, resource ids, secre
 
 Higher runtime packages, including Kernel, MAY consume `JsonLikeNormalizer` through their own domain-specific wrappers when package dependency rules allow a dependency on `core/foundation`.
 
-Foundation does not introduce:
+Foundation does not own:
 
 - UoW-specific root map policy;
 - unsafe metadata key denylist;
@@ -880,13 +1008,13 @@ Coretsia\Foundation\Clock\SystemClock -> same SystemClock instance
 
 Runtime code that needs duration measurement MUST use `Stopwatch`, not differences between `SystemClock` values.
 
-This package does not introduce:
+The Foundation config contract does not define:
 
 ```text
 foundation.clock.*
 ```
 
-Clock selection is not runtime-config-driven in this epic.
+Clock selection is not runtime-config-driven.
 
 ## Frozen clock
 
@@ -906,7 +1034,7 @@ Psr\Clock\ClockInterface
 
 `FrozenClock` is test/support infrastructure.
 
-`FrozenClock` is not selected through runtime config in this epic.
+`FrozenClock` is not selected through runtime config.
 
 `FrozenClock` is not registered as the default runtime `ClockInterface` binding by the Foundation provider.
 
@@ -1496,3 +1624,6 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md)
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0015-context-bag-context-store-correlation-id.md)
 - [ADR-0016: Clock, IDs, and Stopwatch](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0016-clock-ids-stopwatch.md)
+- [Canonical Runtime Container Definitions SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/runtime-container-definitions.md)
+- [ADR-0030: Canonical Runtime Container Definitions](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [Compiled Container SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/compiled-container.md)

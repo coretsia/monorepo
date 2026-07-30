@@ -40,7 +40,7 @@ final class ArtifactsRerunNoDiffTest extends TestCase
 
     public function testArtifactCompileRerunProducesIdenticalBytes(): void
     {
-        ArtifactPipelineTestSupport::compileArtifacts(
+        $firstResult = ArtifactPipelineTestSupport::compileArtifacts(
             testCase: $this,
             skeletonRoot: $this->skeletonRoot,
             config: ArtifactPipelineTestSupport::defaultConfig(),
@@ -48,7 +48,7 @@ final class ArtifactsRerunNoDiffTest extends TestCase
 
         $firstBytes = ArtifactPipelineTestSupport::artifactBytes($this->skeletonRoot);
 
-        ArtifactPipelineTestSupport::compileArtifacts(
+        $secondResult = ArtifactPipelineTestSupport::compileArtifacts(
             testCase: $this,
             skeletonRoot: $this->skeletonRoot,
             config: ArtifactPipelineTestSupport::defaultConfig(),
@@ -56,6 +56,9 @@ final class ArtifactsRerunNoDiffTest extends TestCase
 
         $secondBytes = ArtifactPipelineTestSupport::artifactBytes($this->skeletonRoot);
 
+        self::assertCompileResult($firstResult);
+        self::assertCompileResult($secondResult);
+        self::assertSame($firstResult, $secondResult);
         self::assertSame($firstBytes, $secondBytes);
     }
 
@@ -67,11 +70,7 @@ final class ArtifactsRerunNoDiffTest extends TestCase
             config: ArtifactPipelineTestSupport::defaultConfig(),
         );
 
-        self::assertSame(1, $result['schemaVersion']);
-        self::assertTrue($result['rebuilt']);
-        self::assertFalse($result['reused']);
-        self::assertSame('rebuilt', $result['reason']);
-        self::assertSame(3, $result['counts']['artifact_count']);
+        self::assertCompileResult($result);
 
         self::assertSame(
             [
@@ -88,5 +87,47 @@ final class ArtifactsRerunNoDiffTest extends TestCase
         self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/module-manifest.php');
         self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/generation-manifest.php');
         self::assertFileDoesNotExist($this->skeletonRoot . '/var/cache/web/routes.php');
+    }
+
+    /**
+     * @param array<string,mixed> $result
+     */
+    private static function assertCompileResult(array $result): void
+    {
+        self::assertSame(
+            [
+                'schemaVersion',
+                'generationId',
+                'artifacts',
+            ],
+            \array_keys($result),
+        );
+        self::assertSame(1, $result['schemaVersion']);
+        self::assertIsString($result['generationId']);
+        self::assertMatchesRegularExpression(
+            '/\A[a-f0-9]{64}\z/',
+            $result['generationId'],
+        );
+        self::assertSame(
+            [
+                [
+                    'identity' => 'module-manifest@1',
+                    'basename' => 'module-manifest.php',
+                ],
+                [
+                    'identity' => 'config@1',
+                    'basename' => 'config.php',
+                ],
+                [
+                    'identity' => 'container@1',
+                    'basename' => 'container.php',
+                ],
+                [
+                    'identity' => 'artifact-generation@1',
+                    'basename' => 'generation-manifest.php',
+                ],
+            ],
+            $result['artifacts'],
+        );
     }
 }

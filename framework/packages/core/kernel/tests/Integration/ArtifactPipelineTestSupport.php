@@ -55,6 +55,7 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
 use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory;
 use Coretsia\Kernel\Boot\BootstrapConfig;
@@ -719,22 +720,47 @@ final class ArtifactPipelineTestSupport
     public static function compiledContainerFactory(): CompiledContainerFactory
     {
         return new CompiledContainerFactory(
-            artifactReader: new PhpArtifactReader(),
             schemaValidator: new ArtifactSchemaValidator(),
         );
     }
 
+    public static function runtimeContainerFromArtifacts(
+        string $skeletonRoot,
+        string $artifactsCacheDir = 'var/cache',
+    ): Container {
+        $container = new ArtifactRuntimeBooter()->boot(
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: self::artifactRoot(
+                    skeletonRoot: $skeletonRoot,
+                    artifactsCacheDir: $artifactsCacheDir,
+                ),
+            ),
+        );
+
+        TestCase::assertInstanceOf(Container::class, $container);
+
+        return $container;
+    }
+
     /**
+     * Builds a container directly through CompiledContainerFactory.
+     *
+     * This helper intentionally bypasses ArtifactRuntimeBooter so tests can
+     * exercise compiled-container hydration in isolation.
+     *
      * @param array<string, mixed>|null $configPayload
      */
-    public static function runtimeContainerFromArtifacts(
+    public static function compiledContainerFromArtifacts(
         string $skeletonRoot,
         ?array $configPayload = null,
         ?ArtifactGeneration $generation = null,
+        string $artifactsCacheDir = 'var/cache',
     ): Container {
-        $generation ??= self::currentGeneration($skeletonRoot);
-
-        $containerArtifactPath = $generation->containerPath();
+        $generation ??= self::currentGeneration(
+            skeletonRoot: $skeletonRoot,
+            artifactsCacheDir: $artifactsCacheDir,
+        );
 
         $configPayload ??= self::artifactPayloadFromPath(
             path: $generation->configPath(),
@@ -746,18 +772,32 @@ final class ArtifactPipelineTestSupport
             expectedName: ArtifactEnvelopeFactory::ARTIFACT_MODULE_MANIFEST,
         );
 
-        $seeds = new ArtifactRuntimeSeedFactory()->create(
-            input: new ArtifactRuntimeInput(
-                skeletonRoot: $skeletonRoot,
-                artifactRoot: $generation->generationDirectory(),
-            ),
-            configPayload: $configPayload,
-            moduleManifestPayload: $moduleManifestPayload,
+        $seedFactory = new ArtifactRuntimeSeedFactory();
+
+        $configRepository = $seedFactory->hydrateConfigRepository(
+            $configPayload,
         );
 
-        return self::compiledContainerFactory()->build(
-            containerArtifactPath: $containerArtifactPath,
-            configPayload: $configPayload,
+        $modulePlan = $seedFactory->hydrateModulePlan(
+            $moduleManifestPayload,
+        );
+
+        $seeds = $seedFactory->create(
+            input: new ArtifactRuntimeInput(
+                skeletonRoot: $skeletonRoot,
+                artifactRoot: self::artifactRoot(
+                    skeletonRoot: $skeletonRoot,
+                    artifactsCacheDir: $artifactsCacheDir,
+                ),
+            ),
+            configRepository: $configRepository,
+            modulePlan: $modulePlan,
+        );
+
+        return self::compiledContainerFactory()->buildFromEnvelope(
+            containerEnvelope: self::artifactEnvelopeFromPath(
+                $generation->containerPath(),
+            ),
             seeds: $seeds,
         );
     }

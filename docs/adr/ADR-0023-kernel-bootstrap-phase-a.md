@@ -982,74 +982,74 @@ KernelRuntimeInterface alias
 
 Phase A or Phase B services must not be re-read by Kernel runtime factories.
 
-## Decision 17: Artifact-only runtime hydration is separate from Bootstrap Phase A
+## Decision 17: Artifact-only runtime boot is separate from Bootstrap Phase A
 
 Artifact-only runtime boot is a separate entrypoint boundary.
 
 It does not re-run Bootstrap Phase A and does not consume `BootstrapInput` or `BootstrapConfig` as runtime container seeds.
 
-The public entrypoint-owned artifact runtime input is:
+The public entrypoint-owned input is:
 
 ```text
 Coretsia\Kernel\Boot\ArtifactRuntimeInput
 ```
 
-`ArtifactRuntimeInput` carries only the normalized runtime path context required by the artifact-only entrypoint:
+`ArtifactRuntimeInput` carries only:
 
 ```text
 skeletonRoot
 artifactRoot
 ```
 
-It is an entrypoint input.
+`artifactRoot` is the final Kernel artifact root containing:
 
-It is not:
+```text
+generations/
+current
+generation.lock
+```
 
-- a Bootstrap Phase A result;
-- an artifact payload;
-- a provider definition;
-- a compiled graph value;
-- a fingerprint input.
+It does not carry individual `module-manifest.php`, `config.php`, `container.php`, or `generation-manifest.php` paths.
 
-Artifact-only production runtime boot consumes explicit caller-resolved inputs:
+The canonical artifact-only boot flow is:
 
 ```text
 ArtifactRuntimeInput
-module-manifest@1
-config@1
-container@1
+  -> ArtifactGenerationLocator
+  -> current
+  -> one validated ArtifactGeneration
+  -> exact read of all four generation files
+  -> generation manifest, byte-length, SHA-256, schema, and fingerprint validation
+  -> ArrayConfigRepository
+  -> ModulePlan
+  -> RuntimePathContext
+  -> RuntimeContainerSeedSet
+  -> CompiledContainerFactory::buildFromEnvelope(...)
+  -> ContainerInterface
 ```
 
-The artifact runtime hydration boundary creates exactly these entrypoint-owned runtime seeds:
+`ArtifactRuntimeBooter` owns current-generation selection for artifact-only runtime boot.
+
+It MUST:
+
+1. locate `current` through `ArtifactGenerationLocator`;
+2. require one valid selected generation;
+3. read the exact bytes and envelopes of all four generation files;
+4. validate `artifact-generation@1`;
+5. require every artifact envelope fingerprint to equal the selected generation id;
+6. hydrate `ConfigRepositoryInterface` from `config@1`;
+7. hydrate `ModulePlan` from `module-manifest@1`;
+8. create `RuntimePathContext` from `ArtifactRuntimeInput`;
+9. create the exact `RuntimeContainerSeedSet`;
+10. build the runtime container from the already-read `container@1` envelope.
+
+The exact entrypoint-owned runtime seeds are:
 
 ```text
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
 ```
-
-The canonical hydration is:
-
-```text
-config@1 payload
-  -> ArrayConfigRepository
-  -> ConfigRepositoryInterface
-
-module-manifest@1 payload
-  -> ModulePlanArtifactHydrator
-  -> ModulePlan
-
-ArtifactRuntimeInput
-  -> RuntimePathContext
-```
-
-The three objects are carried through one exact immutable:
-
-```text
-RuntimeContainerSeedSet
-```
-
-Arbitrary runtime seed ids are forbidden.
 
 The explicit law is:
 
@@ -1058,7 +1058,7 @@ Runtime seeds are entrypoint-owned runtime objects.
 They are not provider definitions, artifact payloads, or fingerprint inputs.
 ```
 
-Runtime seed hydration must not:
+Artifact-only runtime boot MUST NOT:
 
 - resolve `BootstrapInput`;
 - resolve `BootstrapConfig`;
@@ -1070,20 +1070,19 @@ Runtime seed hydration must not:
 - execute source providers;
 - compile a replacement container graph;
 - calculate fingerprints;
-- write or repair artifacts.
+- write or repair artifacts;
+- accept caller-selected individual artifact paths.
 
-`ArtifactRuntimeInput` and the resulting `RuntimePathContext` may carry normalized absolute runtime paths.
+`ArtifactRuntimeInput` and the resulting `RuntimePathContext` may carry normalized absolute runtime roots.
 
-Those paths must not be copied into:
+Those paths MUST NOT be copied into:
 
 - canonical runtime definitions;
 - `DefinitionGraph`;
 - generated artifact payloads;
 - fingerprint input.
 
-Artifact paths remain explicit caller-resolved inputs.
-
-This decision does not introduce generation-directory discovery or current-generation selection into `ArtifactRuntimeBooter`.
+The caller resolves only the artifact root. Generation selection and generation-specific path resolution remain internal to the artifact-only runtime boundary.
 
 ## Consequences
 
@@ -1347,8 +1346,8 @@ This ADR does not introduce:
 - `BootstrapInput` or `BootstrapConfig` as compiled runtime container seeds;
 - artifact-runtime seed objects in generated artifact payloads;
 - artifact-runtime seed objects in fingerprint input;
-- generation-directory discovery in `ArtifactRuntimeBooter`;
-- current-generation selection in `ArtifactRuntimeBooter`;
+- Bootstrap Phase A ownership of current-generation selection;
+- Bootstrap Phase A ownership of artifact-generation validation or runtime hydration;
 - public `Bootstrapper`;
 - public `BootstrapResult`;
 - new config roots;
@@ -1393,6 +1392,10 @@ framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDote
 framework/packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
 framework/packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
 framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsMixedGenerationTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesModulePlanTest.php
+framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesConfigRepositoryTest.php
 ```
 
 Verification must prove:
@@ -1450,7 +1453,10 @@ Verification must prove:
 - artifact-only runtime hydration produces exactly `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
 - runtime seed ids cannot be supplied arbitrarily;
 - absolute runtime path state is absent from generated artifacts, compiled graphs, and fingerprint input;
-- `ArtifactRuntimeBooter` does not discover or select a generation directory.
+- `ArtifactRuntimeBooter` accepts only an artifact root and cannot accept caller-selected individual artifact paths;
+- `ArtifactRuntimeBooter` selects `current` through `ArtifactGenerationLocator`;
+- artifact-only runtime reads and validates all four files from one selected generation;
+- mixed-generation runtime input cannot be constructed through the public boot API.
 
 ## Related SSoT
 

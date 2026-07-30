@@ -106,6 +106,11 @@ final class CacheVerifierDetectsDirtyGenerationTest extends TestCase
                 ArtifactPipelineTestSupport::defaultConfig('changed-value'),
             );
 
+            $expectedGenerationId = ArtifactPipelineTestSupport::fingerprintForCurrentConfig(
+                testCase: $this,
+                skeletonRoot: $root,
+            );
+
             $result = $verifier->verify(
                 bootstrapConfig: $bootstrapConfig,
                 moduleResolution: $moduleResolution,
@@ -123,6 +128,18 @@ final class CacheVerifierDetectsDirtyGenerationTest extends TestCase
             self::assertFalse($result['clean']);
             self::assertTrue($result['dirty']);
             self::assertFalse($result['invalid']);
+            self::assertSame(
+                $expectedGenerationId,
+                $result['expectedGenerationId'],
+            );
+            self::assertSame(
+                $selectedBefore->generationId()->value(),
+                $result['currentGenerationId'],
+            );
+            self::assertNotSame(
+                $result['expectedGenerationId'],
+                $result['currentGenerationId'],
+            );
 
             self::assertSame(
                 4,

@@ -41,7 +41,9 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
                 ]),
             );
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts($root);
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
+                $root,
+            );
 
             $service = $container->get(CompiledContainerFactoryBuildsContainerFromArtifactService::class);
 
@@ -86,7 +88,7 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
         }
     }
 
-    public function testRuntimeContainerUsesAlreadyReadConfigPayloadSnapshot(): void
+    public function testCompiledContainerFactoryUsesAlreadyReadConfigPayloadSnapshot(): void
     {
         $root = ArtifactPipelineTestSupport::temporaryRoot('runtime-container-config-payload');
 
@@ -104,7 +106,7 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
 
             self::assertArrayHasKey('config', $configPayload);
 
-            $container = ArtifactPipelineTestSupport::runtimeContainerFromArtifacts(
+            $container = ArtifactPipelineTestSupport::compiledContainerFromArtifacts(
                 skeletonRoot: $root,
                 configPayload: $configPayload,
             );

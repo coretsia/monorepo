@@ -40,7 +40,7 @@ final class WorkerRuntimeArtifactPathContractTest extends TestCase
             $source,
         );
         self::assertStringContainsString(
-            'artifactRoot: new ArtifactPathResolver()->cacheDirectory($bootstrapConfig)',
+            'artifactRoot: new ArtifactPathResolver()->artifactRoot($bootstrapConfig)',
             $source,
         );
 
@@ -58,17 +58,12 @@ final class WorkerRuntimeArtifactPathContractTest extends TestCase
         );
     }
 
-    public function testProcWorkerArtifactPathsAreDerivedOnlyFromRuntimePathContext(): void
+    public function testProcWorkerArtifactRootIsDerivedOnlyFromRuntimePathContext(): void
     {
         $source = self::methodSource(
             WorkerServiceFactory::class,
             'procWorkerManagerDriver',
         )
-            . "\n"
-            . self::methodSource(
-                WorkerServiceFactory::class,
-                'runtimeArtifactPath',
-            )
             . "\n"
             . self::methodSource(
                 WorkerServiceFactory::class,
@@ -83,25 +78,10 @@ final class WorkerRuntimeArtifactPathContractTest extends TestCase
             'skeletonRoot: $runtimePaths->skeletonRoot()',
             $source,
         );
-
         self::assertStringContainsString(
-            'configArtifactPath: self::runtimeArtifactPath(',
+            'artifactRoot: self::relativeArtifactRoot($runtimePaths)',
             $source,
         );
-        self::assertStringContainsString(
-            'basename: self::CONFIG_ARTIFACT_BASENAME',
-            $source,
-        );
-
-        self::assertStringContainsString(
-            'containerArtifactPath: self::runtimeArtifactPath(',
-            $source,
-        );
-        self::assertStringContainsString(
-            'basename: self::CONTAINER_ARTIFACT_BASENAME',
-            $source,
-        );
-
         self::assertStringContainsString(
             '$runtimePaths->artifactRoot()',
             $source,
@@ -111,6 +91,34 @@ final class WorkerRuntimeArtifactPathContractTest extends TestCase
             $source,
         );
 
+        self::assertStringNotContainsString(
+            'moduleManifestArtifactPath:',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'configArtifactPath:',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'containerArtifactPath:',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'runtimeArtifactPath',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'MODULE_MANIFEST_ARTIFACT_BASENAME',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'CONFIG_ARTIFACT_BASENAME',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'CONTAINER_ARTIFACT_BASENAME',
+            $source,
+        );
         self::assertStringNotContainsString(
             'BootstrapConfig',
             $source,

@@ -23,8 +23,12 @@ use Coretsia\Kernel\Runtime\RuntimePathContext;
 /**
  * Immutable entrypoint-owned input for artifact-only runtime boot.
  *
- * This input carries runtime path context only. It is not an artifact payload,
- * a compiled-container definition, or fingerprint input.
+ * This input carries the skeleton root and the Kernel artifact root containing
+ * `current`, `generation.lock`, and `generations/`. It does not carry individual
+ * artifact paths and therefore cannot select a mixed runtime artifact set.
+ *
+ * It is not an artifact payload, a compiled-container definition, or fingerprint
+ * input.
  *
  * The constructor validates and normalizes paths without reading the filesystem
  * or resolving symlinks.

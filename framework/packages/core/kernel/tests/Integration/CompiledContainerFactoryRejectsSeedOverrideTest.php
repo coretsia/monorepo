@@ -48,10 +48,8 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
                 moduleResolution: $moduleResolution,
             );
 
-            $containerPath = ArtifactPipelineTestSupport::artifactPath(
-                $root,
-                'container.php',
-            );
+            $artifactRoot = ArtifactPipelineTestSupport::artifactRoot($root);
+
             $envelope = ArtifactPipelineTestSupport::artifactEnvelope(
                 $root,
                 'container.php',
@@ -90,11 +88,6 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
 
             $envelope['payload'] = $payload;
 
-            ArtifactPipelineTestSupport::writePhpReturn(
-                path: $containerPath,
-                value: $envelope,
-            );
-
             $configPayload =
                 ArtifactPipelineTestSupport::configPayloadFromArtifact(
                     $root,
@@ -110,15 +103,14 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
                 RuntimePathContext::class =>
                     new RuntimePathContext(
                         skeletonRoot: $root,
-                        artifactRoot: \dirname($containerPath),
+                        artifactRoot: $artifactRoot,
                     ),
             ]);
 
             try {
                 ArtifactPipelineTestSupport::compiledContainerFactory()
-                    ->build(
-                        containerArtifactPath: $containerPath,
-                        configPayload: $configPayload,
+                    ->buildFromEnvelope(
+                        containerEnvelope: $envelope,
                         seeds: $seeds,
                     );
 
@@ -142,7 +134,7 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
                     $exception->getMessage(),
                 );
                 self::assertStringNotContainsString(
-                    $containerPath,
+                    $artifactRoot,
                     $exception->getMessage(),
                 );
             }

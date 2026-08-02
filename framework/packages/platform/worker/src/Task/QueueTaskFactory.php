@@ -58,6 +58,13 @@ final class QueueTaskFactory implements TaskFactoryInternalInterface
         return $spec->taskType() === self::TASK_TYPE_QUEUE;
     }
 
+    public function assertReady(WorkerPoolSpec $spec): void
+    {
+        if (!$this->supports($spec)) {
+            throw WorkerStartFailedException::startFailed();
+        }
+    }
+
     public function operationId(WorkerPoolSpec $spec): string
     {
         if (!$this->supports($spec)) {
@@ -72,6 +79,8 @@ final class QueueTaskFactory implements TaskFactoryInternalInterface
      */
     public function create(WorkerPoolSpec $spec): array
     {
+        $this->assertReady($spec);
+
         $operationId = $this->operationId($spec);
 
         return [

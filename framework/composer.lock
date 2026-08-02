@@ -586,7 +586,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/worker",
-                "reference": "2384d93265111c7aa60586fea96c54081e6560f1"
+                "reference": "a35e36ef47ca46cb66e5c90e90179f34c96b073b"
             },
             "require": {
                 "coretsia/core-contracts": "^0.5.0",
@@ -599,8 +599,8 @@
                 "psr/log": "^3.0"
             },
             "suggest": {
-                "ext-pcntl": "Enables the optional pcntl worker manager driver on supported Unix-like platforms.",
-                "ext-posix": "Enables POSIX signal handling for the optional pcntl worker manager driver on supported Unix-like platforms."
+                "ext-pcntl": "Required for graceful SIGTERM/SIGINT handling by Unix-like worker supervisors and enables the optional pcntl process driver.",
+                "ext-posix": "Enables POSIX signal handling for the optional pcntl worker process driver on supported Unix-like platforms."
             },
             "bin": [
                 "bin/coretsia-worker"

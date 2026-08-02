@@ -415,14 +415,63 @@ operation
 outcome
 ```
 
-For worker process metrics, allowed `status` values are:
+For `worker.process_total`, the complete bounded `status` vocabulary is:
 
-- `start_success`
-- `start_failure`
-- `stop_success`
-- `stop_failure`
-- `status_success`
-- `status_failure`
+```text
+start_success
+start_failure
+stop_success
+stop_failure
+status_success
+status_failure
+recycle_success
+recycle_failure
+```
+
+The active foreground supervisor lifecycle values are:
+
+- `start_success` — all configured children became ready and the supervisor published `running`;
+- `start_failure` — startup failed before the ready pool was established;
+- `stop_success` — every child exited, all child and driver resources were closed, runtime artifacts were cleaned, and the lifecycle lock was released;
+- `stop_failure` — the supervisor could not complete deterministic shutdown or cleanup;
+- `status_success` — a live status request returned valid supervisor state;
+- `status_failure` — status classification or live control communication failed.
+
+The bounded recycle values are:
+
+- `recycle_success` — an expected ready-child exit was reaped, the same slot was replaced, and the replacement became ready;
+- `recycle_failure` — an expected recycle attempt failed to restore a ready replacement for the slot.
+
+`recycle_success` and `recycle_failure` are reserved canonical values.
+
+They MUST NOT be emitted until the corresponding supervisor metric emission is implemented and covered by deterministic tests.
+
+A recycle failure may subsequently cause supervisor shutdown, but it MUST NOT introduce dynamic or reason-derived `status` values.
+
+Worker recycle metrics MUST NOT add labels for:
+
+- worker index;
+- child generation;
+- pid;
+- exit code;
+- signal;
+- driver;
+- readiness token;
+- endpoint;
+- failure reason.
+
+Worker index, child generation, pid, exit code, and signal MUST NOT be encoded into the `status` label value.
+
+The following are forbidden examples:
+
+```text
+recycle_success_slot_2
+recycle_failure_generation_4
+recycle_failure_exit_17
+recycle_failure_sigterm
+```
+
+Only the exact bounded values registered above are allowed.
 
 For worker task metrics and worker task spans, allowed `operation` values are:
 
@@ -455,6 +504,17 @@ Worker process spans MAY include only safe lifecycle attributes:
 - `pid`
 - `outcome`
 
+Recycle does not introduce a new span name.
+
+If recycle is represented inside `worker.process`, the span attribute allowlist remains:
+
+```text
+pid
+outcome
+```
+
+Worker slot, child generation, exit code, and signal are not baseline span attributes.
+
 Worker task spans MAY include only safe task summary attributes:
 
 - `operation`
@@ -480,6 +540,10 @@ Worker lifecycle logs MAY include only:
 - `driver`
 - `control_transport`
 - `endpoint_hash`
+
+Recycle summary logs, if introduced, use the same lifecycle log allowlist.
+
+They MUST NOT include worker index, child generation, raw process command, readiness endpoint, readiness token, raw exit diagnostics, or throwable messages.
 
 Worker task logs, if introduced, MUST be summary-only and MAY include only:
 

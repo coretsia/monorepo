@@ -81,6 +81,16 @@ final readonly class HttpTaskFactory implements TaskFactoryInternalInterface
         return $spec->taskType() === self::TASK_TYPE_HTTP;
     }
 
+    public function assertReady(WorkerPoolSpec $spec): void
+    {
+        if (!$this->supports($spec)) {
+            throw WorkerStartFailedException::startFailed();
+        }
+
+        $this->assertRuntimeEntrypointCompatibilityHasPassed($spec);
+        $this->assertRequestHandlerResolvable();
+    }
+
     public function operationId(WorkerPoolSpec $spec): string
     {
         if (!$this->supports($spec)) {
@@ -95,10 +105,9 @@ final readonly class HttpTaskFactory implements TaskFactoryInternalInterface
      */
     public function create(WorkerPoolSpec $spec): array
     {
-        $operationId = $this->operationId($spec);
+        $this->assertReady($spec);
 
-        $this->assertRuntimeEntrypointCompatibilityHasPassed($spec);
-        $this->assertRequestHandlerResolvable();
+        $operationId = $this->operationId($spec);
 
         return [
             'operation_id' => $operationId,

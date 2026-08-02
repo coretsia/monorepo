@@ -190,7 +190,7 @@ Worker runtime factories and services may create execution callbacks during runt
 Examples include:
 
 ```text
-PcntlWorkerManagerDriver child runner
+PcntlWorkerProcessDriver child bootstrap callback
 package-internal task-work run callback
 ```
 
@@ -517,24 +517,46 @@ Kernel compile-host services remain outside this runtime contribution.
 
 ```text
 WorkerServiceFactory
-WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
 StableJsonEncoder
 StableJsonDecoder
+
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
 WorkerStateStore
-WorkerSocketServer
+WorkerLifecycleLock
+WorkerStopSignal
+
+WorkerControlTransport
+WorkerControlProtocol
+WorkerControlServer
+WorkerControlClient
+WorkerControlClientInterface alias
+WorkerChildReadinessChannel
+
+WorkerChildTable
+WorkerSignalController
+WorkerForkIsolation
+
 QueueTaskFactory
 HttpTaskFactory
 TaskFactoryInternalInterface
 ApplicationWorker
-PcntlWorkerManagerDriver
-ProcWorkerManagerDriver
-WorkerManager
-ContainerWorkerManagerResolver
-WorkerManagerResolverInterface alias
+
+PcntlWorkerProcessDriver
+WorkerProcProcessHostProtocol
+WorkerProcProcessHostClient
+ProcWorkerProcessDriver
+worker.process_driver tags
+
+WorkerSupervisor
+WorkerSupervisorInterface alias
+ContainerWorkerSupervisorResolver
+WorkerSupervisorResolverInterface alias
+
 WorkerStartCommand
 WorkerStopCommand
 WorkerStatusCommand
+WorkerHealthCommand
 cli.command tags
 ```
 
@@ -547,7 +569,8 @@ RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
 ApplicationWorker
-WorkerManager
+WorkerSupervisorInterface
+WorkerControlClientInterface
 QueueTaskFactory
 HttpTaskFactory
 ```
@@ -568,14 +591,28 @@ The following must be provided by the complete definition graph:
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
 ApplicationWorker
-WorkerManager
+WorkerSupervisorInterface
+WorkerControlClientInterface
 QueueTaskFactory
 HttpTaskFactory
 ```
 
 `QueueTaskFactory` and `HttpTaskFactory` are required because `WorkerServiceFactory::taskFactory(...)` resolves the selected service internally through `ContainerInterface`.
 
-`WorkerManager` is required because `ContainerWorkerManagerResolver::resolve()` performs a deferred lookup of `WorkerManager::class` through `ContainerInterface`.
+`WorkerSupervisorInterface` is required because `ContainerWorkerSupervisorResolver::resolve()` performs a deferred lookup through `ContainerInterface`.
+
+`WorkerControlClientInterface` is the canonical live control dependency for `worker:stop`, `worker:status`, and `worker:health`.
+
+Resolving `WorkerStartCommand` must not resolve `WorkerSupervisorInterface`.
+
+The required order is:
+
+```text
+construct WorkerPoolSpec
+-> validate WorkerRuntimeEntrypointGuard
+-> resolve WorkerSupervisorInterface
+-> run WorkerSupervisor
+```
 
 `RequestHandlerInterface` is not an unconditional required-service id because it is a mode-dependent HTTP preflight dependency whose absence is intentionally handled at Worker runtime startup.
 
@@ -902,8 +939,11 @@ This decision should be locked by tests covering:
 - missing factory services and nested resolution failures remain distinguishable;
 - Worker provider output contains no closure values;
 - Worker `register()` delegates the same contribution produced by `define()`;
-- Worker required-service declarations cover both internally selected task factories;
-- `WorkerManager` remains unresolved until after runtime entrypoint validation;
+- Worker required-service declarations cover the deferred supervisor interface, live control client interface, and both internally selected task factories;
+- Worker provider definitions contain no legacy lifecycle compatibility services or duplicate control-server abstractions;
+- Worker process drivers are tagged only under `worker.process_driver`;
+- `WorkerHealthCommand` is defined and tagged as a canonical CLI command;
+- `WorkerSupervisorInterface` remains unresolved until after runtime entrypoint validation;
 - only the selected task factory is resolved;
 - `RuntimePathContext::class` remains present as a required runtime service id;
 - the runtime context object and its path values never become definition values, generated artifact payload values, or fingerprint input;
@@ -959,7 +999,7 @@ framework/packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerG
 The required Worker lazy-resolution and runtime-seed test files are:
 
 ```text
-framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesManagerLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
 framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
@@ -1003,7 +1043,7 @@ Tests must also prove:
 ## Related ADRs
 
 - `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
-- `docs/adr/ADR-0017-worker-manager-application-worker.md`
+- `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
 - `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`

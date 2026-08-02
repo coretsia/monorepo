@@ -448,7 +448,7 @@ Changes to Worker-owned task-type mapping or Worker entrypoint ownership must al
 
 ```text
 docs/architecture/worker.md
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
 framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php

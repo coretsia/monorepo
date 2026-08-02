@@ -117,7 +117,10 @@ return [
             'keys' => [
                 'host' => [
                     'required' => true,
-                    'type' => 'non-empty-string',
+                    'type' => 'string',
+                    'allowedValues' => [
+                        '127.0.0.1',
+                    ],
                 ],
                 'port' => [
                     'required' => true,
@@ -135,10 +138,27 @@ return [
             'required' => true,
             'type' => 'relative-safe-path',
         ],
+        'lock_path' => [
+            'required' => true,
+            'type' => 'relative-safe-path',
+        ],
+        'start_timeout_ms' => [
+            'required' => true,
+            'type' => 'int',
+            'min' => 1,
+            'max' => 86_400_000,
+        ],
         'stop_timeout_ms' => [
             'required' => true,
             'type' => 'int',
-            'min' => 0,
+            'min' => 1,
+            'max' => 86_400_000,
+        ],
+        'force_kill_timeout_ms' => [
+            'required' => true,
+            'type' => 'int',
+            'min' => 1,
+            'max' => 86_400_000,
         ],
     ],
 ];

@@ -15872,7 +15872,7 @@ config_roots_introduced:
 - "worker"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0017-worker-manager-application-worker.md"
+adr: "docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md"
 ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/config-roots.md"
@@ -16596,7 +16596,7 @@ Implementation:
   - [x] MUST NOT expose absolute paths, raw config values, env values, payloads, headers, tokens, command lines, or stack traces
 
 Docs:
-- [x] `docs/adr/ADR-0017-worker-manager-application-worker.md`
+- [x] `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
 - [x] `docs/architecture/worker.md` — MUST include:
   - [x] process model (master + N workers) and driver selection (`pcntl` vs `proc_open`)
   - [x] reset discipline between UoW is achieved only transitively via `Coretsia\Contracts\Runtime\KernelRuntimeInterface` (`begin -> before hooks -> task -> after hooks -> ResetOrchestrator::resetAll()`).
@@ -17389,7 +17389,7 @@ Add config contract tests (policy rails):
   - [x] historical “Initial Rows Introduced by This Epic” block removed to keep the registry table as the only active source of truth
 
 - [x] `docs/adr/INDEX.md` — register:
-  - [x] `docs/adr/ADR-0017-worker-manager-application-worker.md`
+  - [x] `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
 
 - [x] `docs/ssot/observability.md`
   - [x] register worker spans:
@@ -17829,7 +17829,7 @@ Add config contract tests (policy rails):
 - [x] Docs updated:
   - [x] `docs/architecture/worker.md`
   - [x] `framework/packages/platform/worker/README.md`
-  - [x] `docs/adr/ADR-0017-worker-manager-application-worker.md`
+  - [x] `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
   - [x] `docs/ssot/config-roots.md`
   - [x] `docs/ssot/observability.md`
 

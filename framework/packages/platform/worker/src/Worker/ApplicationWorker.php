@@ -18,8 +18,6 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Worker;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
-use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
@@ -28,6 +26,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
+use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 
 /**
  * Sequential long-running application worker.
@@ -48,9 +47,8 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
  * - before/after hook invocation;
  * - reset orchestration.
  *
- * ApplicationWorker may read only safe context keys from the public
- * contract-level ContextKeys vocabulary for observability correlation. It must
- * not write context values.
+ * ApplicationWorker does not read or write ContextStore values. KernelRuntime
+ * owns base context creation, propagation, after hooks, and reset execution.
  *
  * Observability dependencies are injected. This class must not instantiate noop
  * logger, tracer, meter, or observability adapters directly.
@@ -80,18 +78,35 @@ final readonly class ApplicationWorker
     private const string OUTCOME_SUCCESS = 'success';
     private const string OUTCOME_FAILURE = 'failure';
 
-    private readonly string $skeletonRoot;
-
     public function __construct(
-        string $skeletonRoot,
+        private WorkerStopSignal $stopSignal,
         private KernelRuntimeInterface $kernelRuntime,
         private TaskFactoryInternalInterface $taskFactory,
-        private ContextAccessorInterface $context,
         private Stopwatch $stopwatch,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
     ) {
-        $this->skeletonRoot = self::normalizeSkeletonRoot($skeletonRoot);
+    }
+
+    /**
+     * Verifies child runtime and task-mode dependencies before readiness is
+     * published to the supervisor.
+     *
+     * This preflight does not consume, acknowledge, or execute a task.
+     */
+    public function assertReady(WorkerPoolSpec $spec): void
+    {
+        if (!$this->taskFactory->supports($spec)) {
+            throw WorkerStartFailedException::startFailed();
+        }
+
+        $operationId = $this->taskFactory->operationId($spec);
+
+        if (!self::isSafeOperationId($operationId)) {
+            throw WorkerStartFailedException::startFailed();
+        }
+
+        $this->taskFactory->assertReady($spec);
     }
 
     /**
@@ -140,9 +155,7 @@ final readonly class ApplicationWorker
         try {
             return $this->kernelRuntime->runUnitOfWork(
                 type: $spec->taskType(),
-                body: function () use ($body, $span): mixed {
-                    $this->attachSafeContextAttributes($span);
-
+                body: static function () use ($body): mixed {
                     return $body();
                 },
             );
@@ -251,62 +264,6 @@ final readonly class ApplicationWorker
         }
     }
 
-    private function attachSafeContextAttributes(?SpanInterface $span): void
-    {
-        if ($span === null) {
-            return;
-        }
-
-        $attributes = $this->safeContextAttributes();
-
-        if ($attributes === []) {
-            return;
-        }
-
-        try {
-            $span->setAttributes($attributes);
-        } catch (\Throwable) {
-        }
-    }
-
-    /**
-     * Reads only safe context values for observability correlation.
-     *
-     * Context read failures must not change task control-flow semantics.
-     *
-     * @return array<string, string>
-     */
-    private function safeContextAttributes(): array
-    {
-        $attributes = [];
-
-        foreach (
-            [
-                ContextKeys::CORRELATION_ID,
-                ContextKeys::UOW_ID,
-                ContextKeys::UOW_TYPE,
-            ] as $key
-        ) {
-            try {
-                if (!$this->context->has($key)) {
-                    continue;
-                }
-
-                $value = $this->context->get($key);
-            } catch (\Throwable) {
-                continue;
-            }
-
-            if (!\is_string($value) || $value === '') {
-                continue;
-            }
-
-            $attributes[$key] = $value;
-        }
-
-        return $attributes;
-    }
-
     private function emitTaskMetrics(
         int $durationMs,
         string $operationId,
@@ -358,40 +315,6 @@ final readonly class ApplicationWorker
 
     private function stopRequested(WorkerPoolSpec $spec): bool
     {
-        $path = $this->resolveRelativePath($spec->stopFlagPath());
-
-        \set_error_handler(static fn (): bool => true);
-
-        try {
-            return \is_file($path);
-        } finally {
-            \restore_error_handler();
-        }
-    }
-
-    private function resolveRelativePath(string $relativePath): string
-    {
-        if ($relativePath === '' || \str_contains($relativePath, "\0")) {
-            throw WorkerStartFailedException::startFailed();
-        }
-
-        return $this->skeletonRoot . '/' . $relativePath;
-    }
-
-    private static function normalizeSkeletonRoot(string $skeletonRoot): string
-    {
-        $root = \trim($skeletonRoot);
-
-        if ($root === '' || \str_contains($root, "\0")) {
-            throw new \InvalidArgumentException('application-worker-skeleton-root-invalid');
-        }
-
-        $root = \rtrim(\str_replace('\\', '/', $root), '/');
-
-        if ($root === '') {
-            throw new \InvalidArgumentException('application-worker-skeleton-root-invalid');
-        }
-
-        return $root;
+        return $this->stopSignal->isRequested($spec);
     }
 }

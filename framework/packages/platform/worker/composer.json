@@ -37,8 +37,8 @@
     "psr/log": "^3.0"
   },
   "suggest": {
-    "ext-pcntl": "Enables the optional pcntl worker manager driver on supported Unix-like platforms.",
-    "ext-posix": "Enables POSIX signal handling for the optional pcntl worker manager driver on supported Unix-like platforms."
+    "ext-pcntl": "Required for graceful SIGTERM/SIGINT handling by Unix-like worker supervisors and enables the optional pcntl process driver.",
+    "ext-posix": "Enables POSIX signal handling for the optional pcntl worker process driver on supported Unix-like platforms."
   },
   "autoload": {
     "psr-4": {

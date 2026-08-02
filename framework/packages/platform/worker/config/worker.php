@@ -101,14 +101,14 @@ return [
     /*
      * Proc child-process command vector.
      *
-     * This base argv vector is used by ProcWorkerManagerDriver to start child
+     * This base argv vector is used by ProcWorkerProcessDriver to start child
      * worker processes through proc_open().
      *
      * This is an argv list, not a shell string.
      *
      * The package default points to the worker-owned child launcher shipped by this
      * package. The special `@php` token is expanded by WorkerServiceFactory to the
-     * current PHP binary before ProcWorkerManagerDriver receives the command.
+     * current PHP binary before ProcWorkerProcessDriver receives the command.
      *
      * The default path is skeleton-root-relative and targets the normal Composer
      * installation layout.
@@ -137,8 +137,7 @@ return [
          *
          * `auto` resolves deterministically later:
          *
-         * - `unix` when the resolved driver is `pcntl` and unix domain sockets
-         *   are supported;
+         * - `unix` when unix domain sockets are supported;
          * - otherwise `tcp`.
          */
         'transport' => 'auto',
@@ -175,10 +174,24 @@ return [
     'stop_flag_path' => 'var/tmp/worker.stop',
 
     /*
+     * Persistent lifecycle lock anchor. The file itself is never unlinked.
+     */
+    'lock_path' => 'var/tmp/worker.lock',
+
+    /*
+     * Maximum time for all worker slots to publish readiness.
+     */
+    'start_timeout_ms' => 10000,
+
+    /*
      * Graceful stop timeout in milliseconds.
      *
-     * The value is validated by config rules as an integer greater than or equal
-     * to zero.
+     * The value is validated by config rules as an integer greater than zero.
      */
-    'stop_timeout_ms' => 3000,
+    'stop_timeout_ms' => 10000,
+
+    /*
+     * Additional deadline after graceful termination before hard kill.
+     */
+    'force_kill_timeout_ms' => 1000,
 ];

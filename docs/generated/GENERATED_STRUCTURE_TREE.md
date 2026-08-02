@@ -47,7 +47,7 @@ Coretsia/
 │   │   ├── ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 │   │   ├── ADR-0015-context-bag-context-store-correlation-id.md
 │   │   ├── ADR-0016-clock-ids-stopwatch.md
-│   │   ├── ADR-0017-worker-manager-application-worker.md
+│   │   ├── ADR-0017-persistent-worker-supervisor-application-worker.md
 │   │   ├── ADR-0019-enhanced-reset-long-running.md
 │   │   ├── ADR-0020-kernel-runtime-uow-spi.md
 │   │   ├── ADR-0021-unit-of-work-context-shape.md
@@ -1068,18 +1068,30 @@ Coretsia/
 │   │       │   └── composer.json
 │   │       └── worker/
 │   │           ├── bin/
-│   │           │   └── coretsia-worker
+│   │           │   ├── coretsia-worker
+│   │           │   └── coretsia-worker-proc-host
 │   │           ├── config/
 │   │           │   ├── rules.php
 │   │           │   └── worker.php
 │   │           ├── src/
 │   │           │   ├── Communication/
-│   │           │   │   └── WorkerSocketServer.php
+│   │           │   │   ├── WorkerChildReadinessChannel.php
+│   │           │   │   ├── WorkerChildReadinessEndpoint.php
+│   │           │   │   ├── WorkerControlClient.php
+│   │           │   │   ├── WorkerControlOperation.php
+│   │           │   │   ├── WorkerControlProtocol.php
+│   │           │   │   ├── WorkerControlRequest.php
+│   │           │   │   ├── WorkerControlResponse.php
+│   │           │   │   ├── WorkerControlServer.php
+│   │           │   │   ├── WorkerControlSession.php
+│   │           │   │   └── WorkerControlTransport.php
 │   │           │   ├── Console/
+│   │           │   │   ├── WorkerHealthCommand.php
 │   │           │   │   ├── WorkerStartCommand.php
 │   │           │   │   ├── WorkerStatusCommand.php
 │   │           │   │   └── WorkerStopCommand.php
 │   │           │   ├── Exception/
+│   │           │   │   ├── WorkerAlreadyRunningException.php
 │   │           │   │   ├── WorkerCommunicationFailedException.php
 │   │           │   │   ├── WorkerException.php
 │   │           │   │   ├── WorkerForkFailedException.php
@@ -1087,25 +1099,45 @@ Coretsia/
 │   │           │   │   └── WorkerStartFailedException.php
 │   │           │   ├── Internal/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
-│   │           │   │   ├── WorkerManagerDriverInterface.php
-│   │           │   │   ├── WorkerManagerResolverInterface.php
-│   │           │   │   └── WorkerRuntimeDriverContributions.php
-│   │           │   ├── Manager/
-│   │           │   │   ├── Driver/
-│   │           │   │   │   ├── PcntlWorkerManagerDriver.php
-│   │           │   │   │   └── ProcWorkerManagerDriver.php
-│   │           │   │   ├── ContainerWorkerManagerResolver.php
-│   │           │   │   └── WorkerManager.php
+│   │           │   │   ├── WorkerControlClientInterface.php
+│   │           │   │   ├── WorkerProcessDriverInterface.php
+│   │           │   │   ├── WorkerRuntimeDriverContributions.php
+│   │           │   │   ├── WorkerSupervisorInterface.php
+│   │           │   │   └── WorkerSupervisorResolverInterface.php
 │   │           │   ├── Module/
 │   │           │   │   └── WorkerModule.php
+│   │           │   ├── Process/
+│   │           │   │   ├── Driver/
+│   │           │   │   │   ├── PcntlWorkerProcessDriver.php
+│   │           │   │   │   └── ProcWorkerProcessDriver.php
+│   │           │   │   ├── Proc/
+│   │           │   │   │   ├── WorkerProcProcessHostChild.php
+│   │           │   │   │   ├── WorkerProcProcessHostClient.php
+│   │           │   │   │   └── WorkerProcProcessHostProtocol.php
+│   │           │   │   ├── WorkerChildProcess.php
+│   │           │   │   ├── WorkerForkIsolation.php
+│   │           │   │   └── WorkerProcessExit.php
 │   │           │   ├── Provider/
 │   │           │   │   ├── WorkerServiceFactory.php
 │   │           │   │   └── WorkerServiceProvider.php
 │   │           │   ├── Runtime/
+│   │           │   │   ├── WorkerHealthState.php
+│   │           │   │   ├── WorkerLifecycleLock.php
 │   │           │   │   ├── WorkerPoolSpec.php
 │   │           │   │   ├── WorkerPoolState.php
+│   │           │   │   ├── WorkerPoolStatus.php
 │   │           │   │   ├── WorkerRuntimeEntrypointGuard.php
-│   │           │   │   └── WorkerStateStore.php
+│   │           │   │   ├── WorkerStateStore.php
+│   │           │   │   └── WorkerStopSignal.php
+│   │           │   ├── Supervisor/
+│   │           │   │   ├── ContainerWorkerSupervisorResolver.php
+│   │           │   │   ├── WorkerChildEntry.php
+│   │           │   │   ├── WorkerChildReadinessState.php
+│   │           │   │   ├── WorkerChildShutdownState.php
+│   │           │   │   ├── WorkerChildTable.php
+│   │           │   │   ├── WorkerReapOutcome.php
+│   │           │   │   ├── WorkerSignalController.php
+│   │           │   │   └── WorkerSupervisor.php
 │   │           │   ├── Task/
 │   │           │   │   ├── HttpTaskFactory.php
 │   │           │   │   └── QueueTaskFactory.php
@@ -1116,11 +1148,14 @@ Coretsia/
 │   │           │   │   ├── ApplicationWorkerStopwatchFailurePolicyContractTest.php
 │   │           │   │   ├── CoretsiaWorkerChildLauncherContractTest.php
 │   │           │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
-│   │           │   │   ├── ProcWorkerManagerDriverSafetyContractTest.php
+│   │           │   │   ├── ProcWorkerProcessDriverSafetyContractTest.php
 │   │           │   │   ├── WorkerCommandMetadataConstantsTest.php
 │   │           │   │   ├── WorkerCommandsUseCliContractsOnlyTest.php
 │   │           │   │   ├── WorkerConfigSubtreeShapeContractTest.php
+│   │           │   │   ├── WorkerControlProtocolSafetyContractTest.php
+│   │           │   │   ├── WorkerControlProtocolSchemaContractTest.php
 │   │           │   │   ├── WorkerExceptionsAreDeterministicContractTest.php
+│   │           │   │   ├── WorkerHealthCommandContractTest.php
 │   │           │   │   ├── WorkerInternalInterfacesAreNotPublicApiContractTest.php
 │   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
@@ -1129,41 +1164,66 @@ Coretsia/
 │   │           │   │   ├── WorkerRuntimeArtifactPathContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
 │   │           │   │   ├── WorkerServiceProviderCliCommandTaggingTest.php
-│   │           │   │   ├── WorkerSocketProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerStartCommandContractTest.php
 │   │           │   │   ├── WorkerStateJsonSchemaContractTest.php
 │   │           │   │   ├── WorkerStateStoreOwnershipContractTest.php
 │   │           │   │   ├── WorkerStatusCommandContractTest.php
 │   │           │   │   └── WorkerStopCommandContractTest.php
 │   │           │   ├── Fake/
-│   │           │   │   └── FakeWorkerManagerDriver.php
+│   │           │   │   └── FakeWorkerProcessDriver.php
 │   │           │   ├── Fixtures/
-│   │           │   │   └── WorkerApp/
-│   │           │   │       └── config/
-│   │           │   │           └── modes/
-│   │           │   │               └── micro.php
+│   │           │   │   ├── proc-supervisor-child.php
+│   │           │   │   ├── proc-worker-fixture.php
+│   │           │   │   └── worker-command-harness.php
 │   │           │   ├── Integration/
 │   │           │   │   ├── ArtifactOnlyWorkerContainerBootTest.php
 │   │           │   │   ├── CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 │   │           │   │   ├── CoretsiaWorkerChildBootsCurrentGenerationTest.php
-│   │           │   │   ├── MaxRequestsTriggersRecycleTest.php
-│   │           │   │   ├── ProcWorkerManagerDriverProcessTest.php
+│   │           │   │   ├── CoretsiaWorkerChildReadinessTest.php
+│   │           │   │   ├── PcntlWorkerProcessDriverTest.php
+│   │           │   │   ├── ProcWorkerProcessDriverTest.php
+│   │           │   │   ├── WorkerControlTransportTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
+│   │           │   │   ├── WorkerLifecycleLockFilesystemTest.php
 │   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php
-│   │           │   │   ├── WorkerSocketServerTransportTest.php
-│   │           │   │   ├── WorkerStartCommandResolvesManagerLazilyTest.php
+│   │           │   │   ├── WorkerRuntimeCleanupTest.php
+│   │           │   │   ├── WorkerStartCommandResolvesSupervisorLazilyTest.php
 │   │           │   │   ├── WorkerStateStoreFilesystemTest.php
+│   │           │   │   ├── WorkerSupervisorChildFailureTest.php
+│   │           │   │   ├── WorkerSupervisorMaxRequestsRecycleTest.php
+│   │           │   │   ├── WorkerSupervisorProductionFlowTest.php
+│   │           │   │   ├── WorkerSupervisorReadinessTest.php
+│   │           │   │   ├── WorkerSupervisorRecycleTest.php
+│   │           │   │   ├── WorkerSupervisorSignalShutdownTest.php
 │   │           │   │   └── WorkerTaskFactorySelectsServiceLazilyTest.php
+│   │           │   ├── Support/
+│   │           │   │   ├── ArrayConfigRepository.php
+│   │           │   │   ├── PackageTestCase.php
+│   │           │   │   ├── RecordingControlClient.php
+│   │           │   │   ├── RecordingKernelRuntime.php
+│   │           │   │   ├── RecordingLogger.php
+│   │           │   │   ├── RecordingMeter.php
+│   │           │   │   ├── RecordingOutput.php
+│   │           │   │   ├── RecordingSpan.php
+│   │           │   │   ├── RecordingSupervisorResolver.php
+│   │           │   │   ├── RecordingTaskFactory.php
+│   │           │   │   ├── RecordingTracer.php
+│   │           │   │   ├── SupervisorIntegrationTestCase.php
+│   │           │   │   ├── TestInput.php
+│   │           │   │   ├── WorkerCommandHarness.php
+│   │           │   │   └── WorkerSpecFactory.php
 │   │           │   └── Unit/
+│   │           │       ├── ApplicationWorkerMaxRequestsTest.php
 │   │           │       ├── ApplicationWorkerTest.php
-│   │           │       ├── ProcWorkerManagerDriverSupportTest.php
-│   │           │       ├── WorkerManagerLifecycleTest.php
+│   │           │       ├── ProcWorkerProcessDriverSupportTest.php
+│   │           │       ├── WorkerChildTableTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
 │   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php
-│   │           │       └── WorkerStateStoreStateFactoryTest.php
+│   │           │       ├── WorkerStateStoreStateFactoryTest.php
+│   │           │       └── WorkerSupervisorLifecycleTest.php
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md

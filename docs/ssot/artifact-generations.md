@@ -1188,7 +1188,7 @@ Production compilation writes only immutable generations.
 
 Production cache verification reads only the generation selected through `current`.
 
-Artifact-only runtime boot receives only the artifact root and consumes one validated generation selected through `current`.
+Artifact-only runtime boot receives an explicit skeleton root from its runtime host and exactly one artifact-location input, the artifact root, then consumes one validated generation selected through `current`.
 
 The active production boundary is:
 
@@ -1211,9 +1211,10 @@ ArtifactRuntimeBooter
   -> exact read of all four generation files
   -> runtime hydration
 
-ProcWorkerManagerDriver
+ProcWorkerProcessDriver
   -> --coretsia-worker-artifact-root=<relative-safe-path>
-  -> child ArtifactRuntimeBooter
+  -> fresh child ArtifactRuntimeBooter
+  -> current generation selection
 ```
 
 Production compilation MUST NOT create:
@@ -1242,6 +1243,67 @@ Detailed runtime seed hydration and compiled-container construction remain owned
 Detailed Worker child parsing and process lifecycle remain owned by `docs/architecture/worker.md`.
 
 The generation classes are production infrastructure governed by this SSoT.
+
+### Recycled proc child generation selection (MUST)
+
+Every proc child spawn MUST perform an independent artifact-only runtime boot.
+
+This rule applies to:
+
+```text
+initial proc child spawn
+supervisor-owned replacement spawn after max-request exit
+```
+
+For every spawn, `ProcWorkerProcessDriver` MUST pass exactly one artifact-location argument:
+
+```text
+--coretsia-worker-artifact-root=<relative-safe-path>
+```
+
+This restriction applies only to artifact-location inputs.
+
+The driver MAY additionally pass bounded process-bootstrap and readiness arguments for:
+
+```text
+worker index
+worker count
+max requests
+task type
+resolved process driver
+readiness port
+readiness token
+```
+
+It MUST NOT pass independent module-manifest, config, container, generation-directory, or individual artifact-file paths.
+
+The child MUST:
+
+1. resolve the supplied artifact root against its explicit skeleton root;
+2. locate `current`;
+3. validate the selected finalized generation;
+4. read exact snapshots of all four generation files;
+5. hydrate the runtime container from that generation;
+6. resolve and validate Worker runtime services;
+7. emit the exact internal readiness frame;
+8. enter `ApplicationWorker`.
+
+A recycled proc child MUST NOT inherit:
+
+- the previous child’s selected generation id;
+- the previous child’s artifact file handles;
+- previously read artifact bytes;
+- the previous child’s runtime container;
+- the previous child’s readiness state;
+- the previous child’s generation-local runtime state.
+
+Worker slot continuity does not pin artifact generation identity.
+
+If `current` changes between two child generations, the replacement child MUST boot the generation selected by `current` at replacement startup.
+
+If the selected generation is missing, invalid, incomplete, or fails runtime boot, the replacement MUST fail readiness and the supervisor MUST apply its deterministic child-failure policy.
+
+The process host MUST NOT cache or select artifact generations on behalf of children.
 
 ## Diagnostics and Redaction (MUST)
 
@@ -1411,7 +1473,11 @@ The test suite MUST cover at least:
 - concurrent publishers never expose mixed artifact generations;
 - artifact-only runtime selects `current` through `ArtifactGenerationLocator`;
 - artifact-only runtime validates and consumes all four files from one selected generation;
-- Worker child input contains one artifact root and no individual artifact paths.
+- Worker child input contains one artifact root and no individual artifact paths;
+- each recycled proc child performs a fresh `current` lookup;
+- replacement children consume one complete independently validated generation;
+- replacement children do not inherit the previous process generation’s artifact snapshots;
+- the proc process host does not cache or select artifact generations.
 
 ## Non-goals / Clarifications (MUST)
 
@@ -1458,7 +1524,8 @@ framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
 framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
 framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
 framework/packages/platform/worker/bin/coretsia-worker
-framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php
+framework/packages/platform/worker/src/Process/Driver/ProcWorkerProcessDriver.php
+framework/packages/platform/worker/src/Process/Proc/WorkerProcProcessHostClient.php
 framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
 framework/packages/core/kernel/src/Provider/KernelServiceFactory.php
 framework/packages/core/kernel/src/Provider/KernelServiceProvider.php

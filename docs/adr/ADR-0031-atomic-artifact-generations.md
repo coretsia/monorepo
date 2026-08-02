@@ -587,15 +587,38 @@ It MUST NOT independently write production flat artifacts.
 - hydrate runtime state only from that selected generation;
 - build the container from the already-read `container@1` envelope.
 
-The proc Worker launcher MUST pass one skeleton-root-relative artifact-root argument:
+`ProcWorkerProcessDriver` MUST provide the proc Worker launcher with exactly one skeleton-root-relative artifact-location argument:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
 ```
 
-It MUST NOT pass independent module-manifest, config, or container paths.
+It MUST NOT provide independent module-manifest, config, or container artifact paths.
+
+This restriction applies only to artifact-location inputs.
+
+Bounded child-bootstrap and readiness arguments remain separate process inputs.
 
 The production path MUST NOT dual-write or consume the legacy flat layout.
+
+Every proc child spawn performs an independent artifact-generation selection.
+
+This includes a replacement child created by supervisor-owned max-request recycle.
+
+A recycled proc child MUST:
+
+```text
+receive exactly one artifact-location input
+-> locate current
+-> validate the selected immutable generation
+-> hydrate runtime state from that generation
+-> emit readiness
+-> enter the task loop
+```
+
+A replacement child MUST NOT inherit the previous child’s selected generation, runtime container, artifact snapshots, or generation-local state.
+
+If `current` changes between the original child and its replacement, the replacement boots the generation selected by `current` at replacement startup.
 
 The generation publication, location, validation, and runtime-selection classes are production infrastructure governed by this ADR.
 
@@ -652,9 +675,10 @@ ArtifactRuntimeBooter
   -> locates current
   -> consumes one validated generation
 
-ProcWorkerManagerDriver
-  -> passes one skeleton-root-relative artifact root
+ProcWorkerProcessDriver
+  -> passes one skeleton-root-relative artifact root for every spawn
   -> child invokes ArtifactRuntimeBooter
+  -> child selects and validates current
 ```
 
 A successful publication leaves previous finalized generations in place.
@@ -743,7 +767,7 @@ Rejected.
 
 Independent module-manifest, config, and container path inputs would allow callers to construct a mixed-generation runtime set.
 
-The accepted runtime boundary receives only the artifact root and selects one complete generation through `current`.
+The accepted runtime boundary receives one artifact-root input instead of independent artifact-file paths and selects one complete generation through `current`.
 
 ### Alternative 10: Dual-write both storage layouts
 
@@ -798,7 +822,9 @@ The implementation must prove at least:
 - cache verification does not repair invalid generations;
 - artifact-only runtime accepts only an artifact root and selects `current` through `ArtifactGenerationLocator`;
 - artifact-only runtime validates and consumes all four files from one selected generation;
-- proc Worker children receive one artifact-root argument and cannot receive independent artifact paths.
+- every proc Worker child receives one artifact-root argument and cannot receive independent artifact paths;
+- every recycled proc child performs a fresh `current` lookup and boots one independently validated generation;
+- a recycled proc child does not inherit the previous child’s selected generation or runtime artifact snapshots.
 
 ## Related SSoT
 
@@ -811,6 +837,7 @@ The implementation must prove at least:
 
 ## Related ADRs
 
+- `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
 - `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`

@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Provider;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
@@ -29,15 +28,26 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
-use Coretsia\Platform\Worker\Communication\WorkerSocketServer;
+use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
+use Coretsia\Platform\Worker\Communication\WorkerControlClient;
+use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
+use Coretsia\Platform\Worker\Communication\WorkerControlServer;
+use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
-use Coretsia\Platform\Worker\Manager\Driver\PcntlWorkerManagerDriver;
-use Coretsia\Platform\Worker\Manager\Driver\ProcWorkerManagerDriver;
-use Coretsia\Platform\Worker\Manager\WorkerManager;
+use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
+use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
+use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
+use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
 use Coretsia\Platform\Worker\Runtime\WorkerStateStore;
+use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
+use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
+use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
+use Coretsia\Platform\Worker\Supervisor\WorkerSupervisor;
 use Coretsia\Platform\Worker\Task\HttpTaskFactory;
 use Coretsia\Platform\Worker\Task\QueueTaskFactory;
 use Coretsia\Platform\Worker\Worker\ApplicationWorker;
@@ -94,27 +104,95 @@ final class WorkerServiceFactory
         );
     }
 
-    public function workerRuntimeEntrypointGuard(
-        RuntimeEntrypointGuard $kernelEntrypointGuard,
-    ): WorkerRuntimeEntrypointGuard {
-        return new WorkerRuntimeEntrypointGuard(
-            kernelEntrypointGuard: $kernelEntrypointGuard,
-        );
+    public function workerRuntimeEntrypointGuard(RuntimeEntrypointGuard $guard): WorkerRuntimeEntrypointGuard
+    {
+        return new WorkerRuntimeEntrypointGuard($guard);
     }
 
     public function workerStateStore(
+        RuntimePathContext $runtimePaths,
         StableJsonEncoder $encoder,
         StableJsonDecoder $decoder,
     ): WorkerStateStore {
-        return new WorkerStateStore(
-            encoder: $encoder,
-            decoder: $decoder,
+        return new WorkerStateStore($runtimePaths->skeletonRoot(), $encoder, $decoder);
+    }
+
+    public function workerLifecycleLock(RuntimePathContext $runtimePaths): WorkerLifecycleLock
+    {
+        return new WorkerLifecycleLock($runtimePaths->skeletonRoot());
+    }
+
+    public function workerStopSignal(RuntimePathContext $runtimePaths): WorkerStopSignal
+    {
+        return new WorkerStopSignal($runtimePaths->skeletonRoot());
+    }
+
+    public function workerControlTransport(RuntimePathContext $runtimePaths): WorkerControlTransport
+    {
+        return new WorkerControlTransport($runtimePaths->skeletonRoot());
+    }
+
+    public function workerControlProtocol(
+        StableJsonEncoder $encoder,
+        StableJsonDecoder $decoder,
+    ): WorkerControlProtocol {
+        return new WorkerControlProtocol($encoder, $decoder);
+    }
+
+    public function workerControlServer(
+        WorkerControlTransport $transport,
+        WorkerControlProtocol $protocol,
+    ): WorkerControlServer {
+        return new WorkerControlServer($transport, $protocol);
+    }
+
+    public function workerControlClient(
+        WorkerControlTransport $transport,
+        WorkerControlProtocol $protocol,
+        WorkerLifecycleLock $lifecycleLock,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
+        Stopwatch $stopwatch,
+    ): WorkerControlClient {
+        return new WorkerControlClient(
+            transport: $transport,
+            protocol: $protocol,
+            lifecycleLock: $lifecycleLock,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+            stopwatch: $stopwatch,
         );
     }
 
-    public function workerSocketServer(): WorkerSocketServer
+    public function workerChildReadinessChannel(): WorkerChildReadinessChannel
     {
-        return new WorkerSocketServer();
+        return new WorkerChildReadinessChannel();
+    }
+
+    public function workerChildTable(): WorkerChildTable
+    {
+        return new WorkerChildTable();
+    }
+
+    public function workerSignalController(): WorkerSignalController
+    {
+        return new WorkerSignalController();
+    }
+
+    public function workerForkIsolation(
+        WorkerLifecycleLock $lifecycleLock,
+        WorkerControlServer $controlServer,
+        WorkerSignalController $signals,
+        WorkerChildTable $children,
+    ): WorkerForkIsolation {
+        return new WorkerForkIsolation(
+            lifecycleLock: $lifecycleLock,
+            controlServer: $controlServer,
+            signals: $signals,
+            children: $children,
+        );
     }
 
     public function queueTaskFactory(): QueueTaskFactory
@@ -128,96 +206,144 @@ final class WorkerServiceFactory
         WorkerRuntimeEntrypointGuard $runtimeEntrypointGuard,
         ContainerInterface $container,
     ): HttpTaskFactory {
-        return new HttpTaskFactory(
-            config: $config,
-            modulePlan: $modulePlan,
-            runtimeEntrypointGuard: $runtimeEntrypointGuard,
-            container: $container,
-        );
+        return new HttpTaskFactory($config, $modulePlan, $runtimeEntrypointGuard, $container);
     }
 
-    public function taskFactory(
-        WorkerPoolSpec $spec,
-        ContainerInterface $container,
-    ): TaskFactoryInternalInterface {
+    public function taskFactory(WorkerPoolSpec $spec, ContainerInterface $container): TaskFactoryInternalInterface
+    {
         $serviceId = match ($spec->taskType()) {
             TaskFactoryInternalInterface::TASK_TYPE_QUEUE => QueueTaskFactory::class,
             TaskFactoryInternalInterface::TASK_TYPE_HTTP => HttpTaskFactory::class,
-
             default => throw WorkerStartFailedException::startFailed(),
         };
-
         try {
-            $taskFactory = $container->get($serviceId);
+            $factory = $container->get($serviceId);
         } catch (\Throwable) {
             throw WorkerStartFailedException::startFailed();
         }
-
-        if (!$taskFactory instanceof TaskFactoryInternalInterface) {
+        if (!$factory instanceof TaskFactoryInternalInterface || !$factory->supports($spec)) {
             throw WorkerStartFailedException::startFailed();
         }
-
-        return $this->supportedTaskFactory(
-            spec: $spec,
-            taskFactory: $taskFactory,
-        );
-    }
-
-    private function supportedTaskFactory(
-        WorkerPoolSpec $spec,
-        TaskFactoryInternalInterface $taskFactory,
-    ): TaskFactoryInternalInterface {
-        if (!$taskFactory->supports($spec)) {
-            throw WorkerStartFailedException::startFailed();
-        }
-
-        return $taskFactory;
+        return $factory;
     }
 
     public function applicationWorker(
-        RuntimePathContext $runtimePaths,
+        WorkerStopSignal $stopSignal,
         KernelRuntimeInterface $kernelRuntime,
         TaskFactoryInternalInterface $taskFactory,
-        ContextAccessorInterface $context,
         Stopwatch $stopwatch,
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
     ): ApplicationWorker {
         return new ApplicationWorker(
-            skeletonRoot: $runtimePaths->skeletonRoot(),
+            stopSignal: $stopSignal,
             kernelRuntime: $kernelRuntime,
             taskFactory: $taskFactory,
-            context: $context,
             stopwatch: $stopwatch,
             tracer: $tracer,
             meter: $meter,
         );
     }
 
-    public function pcntlWorkerManagerDriver(
-        RuntimePathContext $runtimePaths,
-        WorkerStateStore $stateStore,
-        WorkerSocketServer $controlChannel,
-        ApplicationWorker $applicationWorker,
-        ?bool $pcntlForkAvailable = null,
+    public function pcntlWorkerProcessDriver(
+        ContainerInterface $container,
+        WorkerForkIsolation $forkIsolation,
+        ?bool $pcntlAvailable = null,
         ?string $platformFamily = null,
-    ): PcntlWorkerManagerDriver {
-        return new PcntlWorkerManagerDriver(
-            skeletonRoot: $runtimePaths->skeletonRoot(),
-            stateStore: $stateStore,
-            controlChannel: $controlChannel,
-            childRunner: static function (
-                WorkerPoolSpec $spec,
-                int $_workerIndex,
-            ) use (
-                $applicationWorker,
-            ): int {
-                $applicationWorker->run($spec);
+    ): PcntlWorkerProcessDriver {
+        $bootstrap = static function (WorkerPoolSpec $spec, int $_workerIndex) use ($container): \Closure {
+            try {
+                $worker = $container->get(ApplicationWorker::class);
+            } catch (\Throwable) {
+                throw WorkerStartFailedException::childStartFailed();
+            }
+            if (!$worker instanceof ApplicationWorker) {
+                throw WorkerStartFailedException::childStartFailed();
+            }
 
+            $worker->assertReady($spec);
+
+            return static function () use ($worker, $spec): int {
+                $worker->run($spec);
                 return 0;
-            },
-            pcntlForkAvailable: $pcntlForkAvailable,
-            platformFamily: $platformFamily,
+            };
+        };
+
+        return new PcntlWorkerProcessDriver(
+            childBootstrap: $bootstrap,
+            forkIsolation: $forkIsolation,
+            pcntlAvailable: $pcntlAvailable ?? self::pcntlAvailable(),
+            platformFamily: $platformFamily ?? \PHP_OS_FAMILY,
+        );
+    }
+
+    public function procWorkerProcessDriver(
+        RuntimePathContext $runtimePaths,
+        ConfigRepositoryInterface $config,
+        WorkerChildReadinessChannel $readinessChannel,
+        WorkerProcProcessHostClient $processHost,
+    ): ProcWorkerProcessDriver {
+        return new ProcWorkerProcessDriver(
+            skeletonRoot: $runtimePaths->skeletonRoot(),
+            workerCommand: $this->procWorkerCommand($config),
+            artifactRoot: self::relativeArtifactRoot($runtimePaths),
+            readinessChannel: $readinessChannel,
+            processHost: $processHost,
+        );
+    }
+
+    public function workerProcProcessHostProtocol(
+        StableJsonEncoder $encoder,
+        StableJsonDecoder $decoder,
+    ): WorkerProcProcessHostProtocol {
+        return new WorkerProcProcessHostProtocol(
+            encoder: $encoder,
+            decoder: $decoder,
+        );
+    }
+
+    public function workerProcProcessHostClient(
+        RuntimePathContext $runtimePaths,
+        WorkerProcProcessHostProtocol $protocol,
+    ): WorkerProcProcessHostClient {
+        return new WorkerProcProcessHostClient(
+            command: [
+                self::phpBinary(),
+                \dirname(__DIR__, 2) . '/bin/coretsia-worker-proc-host',
+            ],
+            workingDirectory: $runtimePaths->skeletonRoot(),
+            protocol: $protocol,
+        );
+    }
+
+    public function workerSupervisor(
+        PcntlWorkerProcessDriver $pcntlDriver,
+        ProcWorkerProcessDriver $procDriver,
+        WorkerLifecycleLock $lifecycleLock,
+        WorkerControlServer $controlServer,
+        WorkerChildReadinessChannel $readinessChannel,
+        WorkerChildTable $childTable,
+        WorkerSignalController $signals,
+        WorkerStateStore $stateStore,
+        WorkerStopSignal $stopSignal,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        LoggerInterface $logger,
+        Stopwatch $stopwatch,
+    ): WorkerSupervisor {
+        return new WorkerSupervisor(
+            drivers: [$pcntlDriver, $procDriver],
+            lifecycleLock: $lifecycleLock,
+            controlServer: $controlServer,
+            readinessChannel: $readinessChannel,
+            children: $childTable,
+            signals: $signals,
+            stateStore: $stateStore,
+            stopSignal: $stopSignal,
+            tracer: $tracer,
+            meter: $meter,
+            logger: $logger,
+            stopwatch: $stopwatch,
         );
     }
 
@@ -231,167 +357,78 @@ final class WorkerServiceFactory
      *
      * @return list<non-empty-string>
      */
-    public function procWorkerCommand(
-        ConfigRepositoryInterface $config,
-    ): array {
-        $command = self::requiredConfigValue(
-            $config,
-            'worker.proc.command',
-        );
-
-        if (
-            !\is_array($command)
-            || !\array_is_list($command)
-            || $command === []
-        ) {
+    public function procWorkerCommand(ConfigRepositoryInterface $config): array
+    {
+        $command = self::requiredConfigValue($config, 'worker.proc.command');
+        if (!\is_array($command) || !\array_is_list($command) || $command === []) {
             throw WorkerStartFailedException::invalidState();
         }
-
         $normalized = [];
-
         foreach ($command as $part) {
-            if (!\is_string($part) || $part === '') {
+            if (!\is_string($part) || $part === '' || \trim($part) !== $part || \preg_match(
+                '/[\x00-\x1F\x7F]/',
+                $part
+            ) === 1) {
                 throw WorkerStartFailedException::invalidState();
             }
-
-            if (\trim($part) !== $part) {
-                throw WorkerStartFailedException::invalidState();
-            }
-
-            if (\preg_match('/[\x00-\x1F\x7F]/', $part) === 1) {
-                throw WorkerStartFailedException::invalidState();
-            }
-
-            $normalized[] = $part === '@php'
-                ? self::phpBinary()
-                : $part;
+            $normalized[] = $part === '@php' ? self::phpBinary() : $part;
         }
-
-        /** @var list<non-empty-string> $normalized */
         return $normalized;
     }
 
-    public function procWorkerManagerDriver(
-        RuntimePathContext $runtimePaths,
-        WorkerStateStore $stateStore,
-        WorkerSocketServer $controlChannel,
-        ConfigRepositoryInterface $config,
-    ): ProcWorkerManagerDriver {
-        return new ProcWorkerManagerDriver(
-            skeletonRoot: $runtimePaths->skeletonRoot(),
-            stateStore: $stateStore,
-            controlChannel: $controlChannel,
-            workerCommand: $this->procWorkerCommand($config),
-            artifactRoot: self::relativeArtifactRoot($runtimePaths),
-        );
-    }
-
-    public function workerManager(
-        PcntlWorkerManagerDriver $pcntlDriver,
-        ProcWorkerManagerDriver $procDriver,
-        TracerPortInterface $tracer,
-        MeterPortInterface $meter,
-        LoggerInterface $logger,
-        Stopwatch $stopwatch,
-    ): WorkerManager {
-        return new WorkerManager(
-            drivers: [
-                $pcntlDriver,
-                $procDriver,
-            ],
-            tracer: $tracer,
-            meter: $meter,
-            logger: $logger,
-            stopwatch: $stopwatch,
-        );
-    }
-
-    /**
-     * Reads the validated `worker` config root from the active config repository.
-     *
-     * The repository may be backed by generated config artifacts. This factory
-     * does not read package config files and does not invent worker defaults.
-     *
-     * @return array<string, mixed>
-     */
-    private static function workerConfigRoot(
-        ConfigRepositoryInterface $config,
-    ): array {
-        $workerConfig = self::requiredConfigValue(
-            $config,
-            'worker',
-        );
-
-        if (
-            !\is_array($workerConfig)
-            || \array_is_list($workerConfig)
-        ) {
+    /** @return array<string, mixed> */
+    private static function workerConfigRoot(ConfigRepositoryInterface $config): array
+    {
+        $value = self::requiredConfigValue($config, 'worker');
+        if (!\is_array($value) || \array_is_list($value)) {
             throw WorkerStartFailedException::invalidState();
         }
-
-        /** @var array<string, mixed> $workerConfig */
-        return $workerConfig;
+        return $value;
     }
 
-    private static function relativeArtifactRoot(
-        RuntimePathContext $runtimePaths,
-    ): string {
+    private static function relativeArtifactRoot(RuntimePathContext $runtimePaths): string
+    {
         $artifactRoot = $runtimePaths->artifactRoot();
         $skeletonRoot = $runtimePaths->skeletonRoot();
-
-        if ($artifactRoot === $skeletonRoot) {
-            throw WorkerStartFailedException::invalidState();
-        }
-
-        $prefix = \str_ends_with($skeletonRoot, '/')
-            ? $skeletonRoot
-            : $skeletonRoot . '/';
-
+        $prefix = \rtrim($skeletonRoot, '/') . '/';
         if (\str_starts_with($artifactRoot, $prefix)) {
-            return \substr(
-                $artifactRoot,
-                \strlen($prefix),
-            );
+            return \substr($artifactRoot, \strlen($prefix));
         }
-
-        if (self::isAbsolutePath($artifactRoot)) {
+        if (\str_starts_with($artifactRoot, '/') || \preg_match(
+            '/\A[A-Za-z]:\//',
+            $artifactRoot
+        ) === 1 || $artifactRoot === '') {
             throw WorkerStartFailedException::invalidState();
         }
-
         return $artifactRoot;
-    }
-
-    private static function isAbsolutePath(string $path): bool
-    {
-        return \str_starts_with($path, '/')
-            || \preg_match('/\A[A-Za-z]:\//', $path) === 1;
     }
 
     private static function phpBinary(): string
     {
-        $binary = \PHP_BINARY;
-
-        if (\trim($binary) !== $binary) {
+        if (\trim(\PHP_BINARY) !== \PHP_BINARY || \preg_match(
+            '/[\x00-\x1F\x7F]/',
+            \PHP_BINARY
+        ) === 1) {
             throw WorkerStartFailedException::invalidState();
         }
-
-        if (\preg_match('/[\x00-\x1F\x7F]/', $binary) === 1) {
-            throw WorkerStartFailedException::invalidState();
-        }
-
-        return $binary;
+        return \PHP_BINARY;
     }
 
-    private static function requiredConfigValue(
-        ConfigRepositoryInterface $config,
-        string $keyPath,
-    ): mixed {
+    private static function pcntlAvailable(): bool
+    {
+        return \function_exists('pcntl_fork')
+            && \function_exists('pcntl_waitpid')
+            && \function_exists('posix_kill')
+            && \function_exists('stream_socket_pair');
+    }
+
+    private static function requiredConfigValue(ConfigRepositoryInterface $config, string $key): mixed
+    {
         try {
-            if (!$config->has($keyPath)) {
+            if (!$config->has($key)) {
                 throw WorkerStartFailedException::invalidState();
             }
-
-            return $config->get($keyPath);
+            return $config->get($key);
         } catch (WorkerStartFailedException $exception) {
             throw $exception;
         } catch (\Throwable) {

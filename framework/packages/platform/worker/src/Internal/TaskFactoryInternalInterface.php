@@ -79,6 +79,16 @@ interface TaskFactoryInternalInterface
     public function supports(WorkerPoolSpec $spec): bool;
 
     /**
+     * Verifies that all task-mode services required by the child are resolved
+     * and valid before the child publishes its readiness frame.
+     *
+     * This method must not consume, acknowledge, or execute a task.
+     *
+     * @throws WorkerStartFailedException
+     */
+    public function assertReady(WorkerPoolSpec $spec): void;
+
+    /**
      * Returns the deterministic safe operation id used for observability label
      * `operation`.
      *

@@ -3204,7 +3204,7 @@ tags_introduced: [] # `cli.command` already exists; this epic implements owner-s
 config_roots_introduced: []  # `cli` root already exists
 artifacts_introduced: []     # CLI owns no artifact schema
 
-adr: "docs/adr/ADR-0032-cli-tag-first-command-catalog.md"
+adr: "docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md"
 
 ssot_refs:
 - "docs/ssot/tags.md"
@@ -3370,7 +3370,7 @@ The only files outside `framework/packages/platform/cli/` that this epic may cre
 - `framework/packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
 - `framework/packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
 - `framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
-- `docs/adr/ADR-0032-cli-tag-first-command-catalog.md`
+- `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/observability.md`
 - `docs/adr/INDEX.md`
@@ -4541,7 +4541,7 @@ Built-in commands:
     - [ ] `summary = Application target: web, api, console, or worker.`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `docs/adr/ADR-0032-cli-tag-first-command-catalog.md`
+- [ ] `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
   - [ ] MUST capture:
     - [ ] tag-first discovery via `cli.command`
     - [ ] reserved built-in command names (`help`, `list`)
@@ -5107,7 +5107,7 @@ Legacy tests and fixtures:
     - [ ] no arbitrary configured ANSI codes
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0032-cli-tag-first-command-catalog.md`
+  - [ ] `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
 
 - [ ] `framework/packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
   - [ ] scans every production command under `src/Command`
@@ -5718,7 +5718,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0033-cli-composite-workflows.md"
+adr: "docs/adr/ADR-XXXX-cli-composite-workflows.md"
 ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/observability.md"
@@ -5834,7 +5834,7 @@ Forbidden:
 
 The only files outside `framework/packages/platform/cli/` that this epic may create or modify are:
 
-- `docs/adr/ADR-0033-cli-composite-workflows.md`
+- `docs/adr/ADR-XXXX-cli-composite-workflows.md`
 - `docs/adr/INDEX.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/observability.md`
@@ -6360,7 +6360,7 @@ Errors:
   - [ ] contains no configured definition or step data
 
 Docs:
-- [ ] `docs/adr/ADR-0033-cli-composite-workflows.md`
+- [ ] `docs/adr/ADR-XXXX-cli-composite-workflows.md`
   - [ ] records the owner-only composite-command exception
   - [ ] records one UoW per workflow step and no outer workflow UoW
   - [ ] records fail-fast sequential execution
@@ -6480,7 +6480,7 @@ Docs:
   - [ ] unexecuted steps emit no observability
 
 - [ ] `docs/adr/INDEX.md`
-  - [ ] register ADR-0033
+  - [ ] register ADR-XXXX-cli-composite-workflows.md
 
 ### Output, redaction, context, and state (MUST)
 
@@ -7715,7 +7715,7 @@ provides:
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0034-devtools-cli-spikes-module-enablement.md"
+adr: "docs/adr/ADR-XXXX-devtools-cli-spikes-module-enablement.md"
 ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/modules-and-manifests.md"
@@ -7899,7 +7899,7 @@ No package-local mirror `ReservedTags` class is introduced.
 
 The only files outside `framework/packages/devtools/cli-spikes/` that this epic may create or modify are:
 
-- `docs/adr/ADR-0034-devtools-cli-spikes-module-enablement.md`
+- `docs/adr/ADR-XXXX-devtools-cli-spikes-module-enablement.md`
 - `docs/adr/INDEX.md`
 - `docs/architecture/PACKAGING.md`
 - `framework/tools/gates/package_compliance_gate.php`
@@ -8175,7 +8175,7 @@ Commands:
   - [ ] emits output only through `OutputInterface`
 
 Docs:
-- [ ] `docs/adr/ADR-0034-devtools-cli-spikes-module-enablement.md`
+- [ ] `docs/adr/ADR-XXXX-devtools-cli-spikes-module-enablement.md`
   - [ ] records installation versus module enablement separation
   - [ ] records explicit mode-preset activation
   - [ ] rejects appEnv/debug/package-presence auto-activation
@@ -8306,7 +8306,7 @@ Test fixture:
   - [ ] document tools-only dispatch and output policy
 
 - [ ] `docs/adr/INDEX.md`
-  - [ ] register ADR-0034
+  - [ ] register ADR-XXXX-devtools-cli-spikes-module-enablement.md
 
 #### Deletes
 
@@ -8621,7 +8621,7 @@ Commands MUST NOT:
 - [ ] The exact `devtools-console` fixture preset enables the module.
 - [ ] A preset without `devtools.cli-spikes` exposes no devtools commands even when the package is installed.
 - [ ] No `appEnv`, `debug`, CLI config, or package-presence auto-activation exists.
-- [ ] ADR-0034 records the final activation decision.
+- [ ] ADR-XXXX-devtools-cli-spikes-module-enablement.md records the final activation decision.
 - [ ] Repo-root default skeleton contains no CLI-spikes mode preset.
 - [ ] Repo-root default skeleton contains no CLI-spikes module-selection file.
 - [ ] The `devtools-console` preset exists only in the package-local synthetic fixture or in project-owned post-creation configuration.

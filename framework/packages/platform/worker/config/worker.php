@@ -32,7 +32,9 @@ declare(strict_types=1);
  * - module participation is owned by mode presets and ModulePlan;
  * - starting a worker pool is an explicit command action;
  * - queue task mode is the safe default task type;
- * - process/control paths are skeleton-root-relative runtime paths;
+ * - configurable process/control paths are skeleton-root-relative runtime paths;
+ * - the lifecycle lock and private lifecycle locator are package-owned canonical
+ *   artifacts and are not part of mutable worker configuration;
  * - path defaults MUST remain relative and MUST NOT contain a `skeleton/`
  *   prefix, absolute path syntax, host-specific path fragments, or monorepo-only
  *   paths;
@@ -172,11 +174,6 @@ return [
      * This path is skeleton-root-relative.
      */
     'stop_flag_path' => 'var/tmp/worker.stop',
-
-    /*
-     * Persistent lifecycle lock anchor. The file itself is never unlinked.
-     */
-    'lock_path' => 'var/tmp/worker.lock',
 
     /*
      * Maximum time for all worker slots to publish readiness.

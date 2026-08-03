@@ -1122,7 +1122,10 @@ Coretsia/
 │   │           │   │   └── WorkerServiceProvider.php
 │   │           │   ├── Runtime/
 │   │           │   │   ├── WorkerHealthState.php
+│   │           │   │   ├── WorkerLifecycleLocator.php
+│   │           │   │   ├── WorkerLifecycleLocatorStore.php
 │   │           │   │   ├── WorkerLifecycleLock.php
+│   │           │   │   ├── WorkerLifecyclePaths.php
 │   │           │   │   ├── WorkerPoolSpec.php
 │   │           │   │   ├── WorkerPoolState.php
 │   │           │   │   ├── WorkerPoolStatus.php
@@ -1157,6 +1160,7 @@ Coretsia/
 │   │           │   │   ├── WorkerExceptionsAreDeterministicContractTest.php
 │   │           │   │   ├── WorkerHealthCommandContractTest.php
 │   │           │   │   ├── WorkerInternalInterfacesAreNotPublicApiContractTest.php
+│   │           │   │   ├── WorkerLifecycleLocatorOwnershipContractTest.php
 │   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
@@ -1185,6 +1189,8 @@ Coretsia/
 │   │           │   │   ├── WorkerControlTransportTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
+│   │           │   │   ├── WorkerLifecycleConfigDriftTest.php
+│   │           │   │   ├── WorkerLifecycleLocatorStoreFilesystemTest.php
 │   │           │   │   ├── WorkerLifecycleLockFilesystemTest.php
 │   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php
 │   │           │   │   ├── WorkerRuntimeCleanupTest.php
@@ -1218,6 +1224,7 @@ Coretsia/
 │   │           │       ├── ApplicationWorkerTest.php
 │   │           │       ├── ProcWorkerProcessDriverSupportTest.php
 │   │           │       ├── WorkerChildTableTest.php
+│   │           │       ├── WorkerLifecycleLocatorTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php

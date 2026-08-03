@@ -26,15 +26,19 @@ use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerNotRunningException;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
-use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 use Psr\Log\LoggerInterface;
 
 /**
  * Sends typed status, health, and terminal stop requests to the live supervisor.
  *
- * Supervisor liveness is established by WorkerLifecycleLock before connecting.
+ * Supervisor liveness is established by WorkerLifecycleLock before the private
+ * lifecycle locator is read. The locator, rather than current worker config,
+ * supplies the active endpoint and stop deadlines.
+ *
  * This client never reads the diagnostic state snapshot and never writes the
  * stop flag or any other runtime artifact.
  */
@@ -55,6 +59,7 @@ final class WorkerControlClient implements WorkerControlClientInterface
         private readonly WorkerControlTransport $transport,
         private readonly WorkerControlProtocol $protocol,
         private readonly WorkerLifecycleLock $lifecycleLock,
+        private readonly WorkerLifecycleLocatorStore $locatorStore,
         private readonly TracerPortInterface $tracer,
         private readonly MeterPortInterface $meter,
         private readonly LoggerInterface $logger,
@@ -62,24 +67,26 @@ final class WorkerControlClient implements WorkerControlClientInterface
     ) {
     }
 
-    public function status(
-        WorkerPoolSpec $spec,
-    ): WorkerPoolState {
+    public function status(): WorkerPoolState
+    {
         $span = $this->safeStartProcessSpan();
         $startedAt = $this->safeStartTimer();
         $state = null;
         $outcome = self::OUTCOME_FAILURE;
 
         try {
-            $response = $this->request(
-                $spec,
+            [$response, $locator] = $this->request(
                 WorkerControlOperation::STATUS,
-                1000,
+                1_000,
             );
 
             $state = $this->stateResult(
                 $response,
                 WorkerControlResponse::STATUS_OK,
+            );
+            self::assertEndpointConsistency(
+                locator: $locator,
+                endpointHash: $state->endpointHash(),
             );
 
             $outcome = self::OUTCOME_SUCCESS;
@@ -107,12 +114,17 @@ final class WorkerControlClient implements WorkerControlClientInterface
         }
     }
 
-    public function health(WorkerPoolSpec $spec): WorkerHealthState
+    public function health(): WorkerHealthState
     {
-        $response = $this->request($spec, WorkerControlOperation::HEALTH, 1000);
+        [$response, $locator] = $this->request(
+            WorkerControlOperation::HEALTH,
+            1_000,
+        );
+
         if ($response->status() !== WorkerControlResponse::STATUS_OK) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
+
         $result = $response->result();
         if (
             !\is_array($result)
@@ -122,45 +134,98 @@ final class WorkerControlClient implements WorkerControlClientInterface
         ) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
+
         try {
-            return WorkerHealthState::fromArray($result['health']);
+            $health = WorkerHealthState::fromArray($result['health']);
         } catch (\Throwable) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
+
+        self::assertEndpointConsistency(
+            locator: $locator,
+            endpointHash: $health->endpointHash(),
+        );
+
+        return $health;
     }
 
-    public function stop(WorkerPoolSpec $spec): WorkerPoolState
+    public function stop(): WorkerPoolState
     {
-        $timeout = $spec->stopTimeoutMs() + (2 * $spec->forceKillTimeoutMs()) + 2000;
-        $response = $this->request($spec, WorkerControlOperation::STOP, $timeout);
+        [$response, $locator] = $this->request(
+            WorkerControlOperation::STOP,
+            1_000,
+        );
 
-        return $this->stateResult($response, WorkerControlResponse::STATUS_STOPPED);
+        $state = $this->stateResult(
+            $response,
+            WorkerControlResponse::STATUS_STOPPED,
+        );
+        self::assertEndpointConsistency(
+            locator: $locator,
+            endpointHash: $state->endpointHash(),
+        );
+
+        return $state;
     }
 
+    /**
+     * @return array{WorkerControlResponse, WorkerLifecycleLocator}
+     */
     private function request(
-        WorkerPoolSpec $spec,
         WorkerControlOperation $operation,
-        int $timeoutMs
-    ): WorkerControlResponse {
-        if (!$this->lifecycleLock->isHeld($spec)) {
+        int $timeoutMs,
+    ): array {
+        if (!$this->lifecycleLock->isHeld()) {
             throw WorkerNotRunningException::notRunning();
         }
+
+        $locator = $this->locatorStore->read();
+        if ($locator === null) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
+        if ($operation === WorkerControlOperation::STOP) {
+            $timeoutMs = $locator->stopRequestTimeoutMs();
+        }
+
+        if ($timeoutMs < 1) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
         $connection = null;
         $request = new WorkerControlRequest($operation, $this->nextRequestId());
+
         try {
-            $connection = $this->transport->connect($spec, \min(1000, $timeoutMs));
-            @\stream_set_timeout($connection, intdiv($timeoutMs, 1000), ($timeoutMs % 1000) * 1000);
-            $this->transport->writeFrame($connection, $this->protocol->encodeRequest($request));
-            $response = $this->protocol->decodeResponse(
-                $this->transport->readFrame($connection, WorkerControlProtocol::MAX_FRAME_BYTES),
+            $connection = $this->transport->connect(
+                $locator,
+                \min(1_000, $timeoutMs),
             );
+            if (!@\stream_set_timeout(
+                $connection,
+                \intdiv($timeoutMs, 1_000),
+                ($timeoutMs % 1_000) * 1_000,
+            )) {
+                throw WorkerCommunicationFailedException::communicationFailed();
+            }
+            $this->transport->writeFrame(
+                $connection,
+                $this->protocol->encodeRequest($request),
+            );
+            $response = $this->protocol->decodeResponse(
+                $this->transport->readFrame(
+                    $connection,
+                    WorkerControlProtocol::MAX_FRAME_BYTES,
+                ),
+            );
+
             if (
                 $response->requestId() !== $request->requestId()
                 || $response->status() === WorkerControlResponse::STATUS_ERROR
             ) {
                 throw WorkerCommunicationFailedException::communicationFailed();
             }
-            return $response;
+
+            return [$response, $locator];
         } catch (WorkerCommunicationFailedException $exception) {
             throw $exception;
         } catch (\Throwable) {
@@ -172,11 +237,14 @@ final class WorkerControlClient implements WorkerControlClientInterface
         }
     }
 
-    private function stateResult(WorkerControlResponse $response, string $expectedStatus): WorkerPoolState
-    {
+    private function stateResult(
+        WorkerControlResponse $response,
+        string $expectedStatus,
+    ): WorkerPoolState {
         if ($response->status() !== $expectedStatus) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
+
         $result = $response->result();
         if (
             !\is_array($result)
@@ -186,9 +254,19 @@ final class WorkerControlClient implements WorkerControlClientInterface
         ) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
+
         try {
             return WorkerPoolState::fromArray($result['state']);
         } catch (\Throwable) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+    }
+
+    private static function assertEndpointConsistency(
+        WorkerLifecycleLocator $locator,
+        string $endpointHash,
+    ): void {
+        if (!\hash_equals($locator->endpointHash(), $endpointHash)) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
     }

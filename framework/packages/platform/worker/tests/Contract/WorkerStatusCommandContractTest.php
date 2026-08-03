@@ -19,10 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Tests\Contract;
 
 use Coretsia\Platform\Worker\Console\WorkerStatusCommand;
-use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
-use Coretsia\Platform\Worker\Tests\Support\ArrayConfigRepository;
 use Coretsia\Platform\Worker\Tests\Support\RecordingControlClient;
 use Coretsia\Platform\Worker\Tests\Support\RecordingOutput;
 use Coretsia\Platform\Worker\Tests\Support\TestInput;
@@ -39,8 +37,6 @@ final class WorkerStatusCommandContractTest extends TestCase
         );
         $output = new RecordingOutput();
         $command = new WorkerStatusCommand(
-            config: self::config(),
-            factory: new WorkerServiceFactory(),
             client: $client,
         );
 
@@ -54,13 +50,26 @@ final class WorkerStatusCommandContractTest extends TestCase
         self::assertSame('starting', $output->json[0]['status']);
         self::assertSame(1, $output->json[0]['ready_worker_count']);
         self::assertSame(1, $client->statusCalls);
-    }
 
-    private static function config(): ArrayConfigRepository
-    {
-        return new ArrayConfigRepository([
-            'worker' => require \dirname(__DIR__, 2) . '/config/worker.php',
-        ]);
+        $source = \file_get_contents(
+            \dirname(__DIR__, 2) . '/src/Console/WorkerStatusCommand.php',
+        );
+        self::assertIsString($source);
+        $codeOnly = \preg_replace(
+            '/\/\*.*?\*\/|\/\/[^\n]*/s',
+            '',
+            $source,
+        ) ?? $source;
+
+        foreach (
+            [
+                'ConfigRepositoryInterface',
+                'WorkerServiceFactory',
+                'WorkerPoolSpec',
+            ] as $forbidden
+        ) {
+            self::assertStringNotContainsString($forbidden, $codeOnly);
+        }
     }
 
     private static function state(

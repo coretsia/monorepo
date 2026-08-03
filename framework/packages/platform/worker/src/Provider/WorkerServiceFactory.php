@@ -40,6 +40,7 @@ use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
@@ -117,6 +118,18 @@ final class WorkerServiceFactory
         return new WorkerStateStore($runtimePaths->skeletonRoot(), $encoder, $decoder);
     }
 
+    public function workerLifecycleLocatorStore(
+        RuntimePathContext $runtimePaths,
+        StableJsonEncoder $encoder,
+        StableJsonDecoder $decoder,
+    ): WorkerLifecycleLocatorStore {
+        return new WorkerLifecycleLocatorStore(
+            skeletonRoot: $runtimePaths->skeletonRoot(),
+            encoder: $encoder,
+            decoder: $decoder,
+        );
+    }
+
     public function workerLifecycleLock(RuntimePathContext $runtimePaths): WorkerLifecycleLock
     {
         return new WorkerLifecycleLock($runtimePaths->skeletonRoot());
@@ -150,6 +163,7 @@ final class WorkerServiceFactory
         WorkerControlTransport $transport,
         WorkerControlProtocol $protocol,
         WorkerLifecycleLock $lifecycleLock,
+        WorkerLifecycleLocatorStore $locatorStore,
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
         LoggerInterface $logger,
@@ -159,6 +173,7 @@ final class WorkerServiceFactory
             transport: $transport,
             protocol: $protocol,
             lifecycleLock: $lifecycleLock,
+            locatorStore: $locatorStore,
             tracer: $tracer,
             meter: $meter,
             logger: $logger,
@@ -320,6 +335,7 @@ final class WorkerServiceFactory
         PcntlWorkerProcessDriver $pcntlDriver,
         ProcWorkerProcessDriver $procDriver,
         WorkerLifecycleLock $lifecycleLock,
+        WorkerLifecycleLocatorStore $locatorStore,
         WorkerControlServer $controlServer,
         WorkerChildReadinessChannel $readinessChannel,
         WorkerChildTable $childTable,
@@ -334,6 +350,7 @@ final class WorkerServiceFactory
         return new WorkerSupervisor(
             drivers: [$pcntlDriver, $procDriver],
             lifecycleLock: $lifecycleLock,
+            locatorStore: $locatorStore,
             controlServer: $controlServer,
             readinessChannel: $readinessChannel,
             children: $childTable,

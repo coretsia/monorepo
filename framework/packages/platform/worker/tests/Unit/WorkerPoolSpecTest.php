@@ -107,8 +107,16 @@ final class WorkerPoolSpecTest extends TestCase
             'state_path' => 'var/tmp/worker.lock',
         ]];
 
-        yield 'state temp overlaps lock' => [[
-            'lock_path' => 'var/tmp/worker.state.json.tmp',
+        yield 'socket overlaps lifecycle locator' => [[
+            'socket_path' => 'var/tmp/worker.lifecycle.json',
+        ]];
+
+        yield 'state and state temp overlap lifecycle locator artifacts' => [[
+            'state_path' => 'var/tmp/worker.lifecycle.json',
+        ]];
+
+        yield 'stop flag overlaps canonical lock' => [[
+            'stop_flag_path' => 'var/tmp/worker.lock',
         ]];
 
         yield 'absolute path' => [[

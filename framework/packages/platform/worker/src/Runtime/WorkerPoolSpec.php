@@ -50,7 +50,6 @@ use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
  *     tcp: array{host: '127.0.0.1', port: int<1, 65535>},
  *     state_path: non-empty-string,
  *     stop_flag_path: non-empty-string,
- *     lock_path: non-empty-string,
  *     start_timeout_ms: int<1, 86400000>,
  *     stop_timeout_ms: int<1, 86400000>,
  *     force_kill_timeout_ms: int<1, 86400000>
@@ -80,7 +79,6 @@ final readonly class WorkerPoolSpec
         private int $tcpPort,
         private string $statePath,
         private string $stopFlagPath,
-        private string $lockPath,
         private int $startTimeoutMs,
         private int $stopTimeoutMs,
         private int $forceKillTimeoutMs,
@@ -117,7 +115,6 @@ final readonly class WorkerPoolSpec
         $tcpPort = self::int($tcp, 'port');
         $statePath = self::string($config, 'state_path');
         $stopFlagPath = self::string($config, 'stop_flag_path');
-        $lockPath = self::string($config, 'lock_path');
         $startTimeoutMs = self::timeoutInt(
             $config,
             'start_timeout_ms',
@@ -146,7 +143,7 @@ final readonly class WorkerPoolSpec
             throw WorkerStartFailedException::invalidState();
         }
 
-        foreach ([$socketPath, $statePath, $stopFlagPath, $lockPath] as $path) {
+        foreach ([$socketPath, $statePath, $stopFlagPath] as $path) {
             self::assertRelativeSafePath($path);
         }
         self::assertRuntimeArtifactPathsDoNotOverlap([
@@ -154,7 +151,9 @@ final readonly class WorkerPoolSpec
             $statePath,
             $statePath . '.tmp',
             $stopFlagPath,
-            $lockPath,
+            WorkerLifecyclePaths::LOCK,
+            WorkerLifecyclePaths::LOCATOR,
+            WorkerLifecyclePaths::LOCATOR_TEMP,
         ]);
         self::assertSafeTcpHost($tcpHost);
 
@@ -185,7 +184,6 @@ final readonly class WorkerPoolSpec
             tcpPort: $tcpPort,
             statePath: $statePath,
             stopFlagPath: $stopFlagPath,
-            lockPath: $lockPath,
             startTimeoutMs: $startTimeoutMs,
             stopTimeoutMs: $stopTimeoutMs,
             forceKillTimeoutMs: $forceKillTimeoutMs,
@@ -250,11 +248,6 @@ final readonly class WorkerPoolSpec
     public function stopFlagPath(): string
     {
         return $this->stopFlagPath;
-    }
-
-    public function lockPath(): string
-    {
-        return $this->lockPath;
     }
 
     public function startTimeoutMs(): int

@@ -32,6 +32,8 @@ final class WorkerProviderSourceDefinitionsParityTest extends PackageTestCase
             'ProcWorkerProcessDriver::class',
             'WorkerProcProcessHostClient::class',
             'WorkerControlClient::class',
+            'WorkerLifecycleLocatorStore::class',
+            "'workerLifecycleLocatorStore'",
             'WorkerHealthCommand::class',
             "PROCESS_DRIVER_TAG = 'worker.process_driver'",
         ] as $required) {

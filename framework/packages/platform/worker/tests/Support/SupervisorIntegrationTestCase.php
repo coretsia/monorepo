@@ -208,6 +208,8 @@ abstract class SupervisorIntegrationTestCase extends PackageTestCase
         self::assertFileDoesNotExist($harness->statePath());
         self::assertFileDoesNotExist($harness->stopPath());
         self::assertFileDoesNotExist($harness->socketPath());
+        self::assertFileDoesNotExist($harness->locatorPath());
+        self::assertFileDoesNotExist($harness->locatorTemporaryPath());
 
         $directory = \dirname($harness->lockPath());
         if (!\is_dir($directory)) {

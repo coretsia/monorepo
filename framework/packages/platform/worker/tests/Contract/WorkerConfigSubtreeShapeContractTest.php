@@ -44,7 +44,6 @@ final class WorkerConfigSubtreeShapeContractTest extends TestCase
                 'tcp',
                 'state_path',
                 'stop_flag_path',
-                'lock_path',
                 'start_timeout_ms',
                 'stop_timeout_ms',
                 'force_kill_timeout_ms',
@@ -53,6 +52,8 @@ final class WorkerConfigSubtreeShapeContractTest extends TestCase
         );
 
         self::assertSame(false, $rules['additionalKeys']);
+        self::assertArrayNotHasKey('lock_path', $defaults);
+        self::assertArrayNotHasKey('lock_path', $rules['keys']);
         self::assertSame(\array_keys($defaults), \array_keys($rules['keys']));
 
         foreach (

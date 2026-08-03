@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Contract;
 
+use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -31,7 +32,6 @@ final class WorkerPoolSpecConfigContractTest extends TestCase
 
         foreach (
             [
-                'lockPath',
                 'startTimeoutMs',
                 'stopTimeoutMs',
                 'forceKillTimeoutMs',
@@ -44,6 +44,14 @@ final class WorkerPoolSpecConfigContractTest extends TestCase
             );
         }
 
+        self::assertFalse(\method_exists(WorkerPoolSpec::class, 'lockPath'));
+        self::assertSame('var/tmp/worker.lock', WorkerLifecyclePaths::LOCK);
+        self::assertSame('var/tmp/worker.lifecycle.json', WorkerLifecyclePaths::LOCATOR);
+        self::assertSame(
+            'var/tmp/worker.lifecycle.json.tmp',
+            WorkerLifecyclePaths::LOCATOR_TEMP,
+        );
+
         $source = \file_get_contents(
             \dirname(__DIR__, 2) . '/src/Runtime/WorkerPoolSpec.php',
         );
@@ -53,6 +61,9 @@ final class WorkerPoolSpecConfigContractTest extends TestCase
             'assertRuntimeArtifactPathsDoNotOverlap',
             $source,
         );
+        self::assertStringContainsString('WorkerLifecyclePaths::LOCK', $source);
+        self::assertStringContainsString('WorkerLifecyclePaths::LOCATOR', $source);
+        self::assertStringContainsString('WorkerLifecyclePaths::LOCATOR_TEMP', $source);
         self::assertStringContainsString(
             "'127.0.0.1'",
             \file_get_contents(

@@ -27,7 +27,9 @@ declare(strict_types=1);
  * - task type is limited to `queue` or `http`;
  * - process driver selection is limited to `auto`, `pcntl`, or `proc`;
  * - control transport selection is limited to `auto`, `unix`, or `tcp`;
- * - runtime paths must be relative safe paths;
+ * - configurable runtime paths must be relative safe paths;
+ * - lifecycle lock and locator paths are package-owned and are rejected as
+ *   mutable config keys by the strict root shape;
  * - numeric keys must be integers only; floats are rejected by `int` type rules;
  * - TCP port `0` is rejected through `min = 1`.
  *
@@ -135,10 +137,6 @@ return [
             'type' => 'relative-safe-path',
         ],
         'stop_flag_path' => [
-            'required' => true,
-            'type' => 'relative-safe-path',
-        ],
-        'lock_path' => [
             'required' => true,
             'type' => 'relative-safe-path',
         ],

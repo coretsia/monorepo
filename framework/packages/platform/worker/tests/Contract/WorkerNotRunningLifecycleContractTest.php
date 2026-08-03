@@ -25,7 +25,10 @@ use Coretsia\Platform\Worker\Communication\WorkerControlClient;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerNotRunningException;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\RecordingLogger;
 use Coretsia\Platform\Worker\Tests\Support\RecordingMeter;
@@ -34,21 +37,31 @@ use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
 final class WorkerNotRunningLifecycleContractTest extends PackageTestCase
 {
-    public function testFreeLifecycleLockDefinesNotRunningEvenWithStaleState(): void
+    public function testFreeLifecycleLockDefinesNotRunningEvenWithStaleStateAndLocator(): void
     {
         $root = $this->temporaryDirectory('worker-not-running');
-        $spec = WorkerSpecFactory::create();
-        $statePath = $root . '/' . $spec->statePath();
+        $statePath = $root . '/var/tmp/worker.state.json';
         @\mkdir(\dirname($statePath), 0777, true);
         \file_put_contents($statePath, "{\"stale\":true}\n");
 
+        $encoder = new StableJsonEncoder();
+        $decoder = new StableJsonDecoder();
+        $locatorStore = new WorkerLifecycleLocatorStore(
+            skeletonRoot: $root,
+            encoder: $encoder,
+            decoder: $decoder,
+        );
+        $locatorStore->write(
+            WorkerLifecycleLocator::fromPoolSpec(
+                WorkerSpecFactory::create(),
+            ),
+        );
+
         $client = new WorkerControlClient(
             transport: new WorkerControlTransport($root),
-            protocol: new WorkerControlProtocol(
-                new StableJsonEncoder(),
-                new StableJsonDecoder(),
-            ),
+            protocol: new WorkerControlProtocol($encoder, $decoder),
             lifecycleLock: new WorkerLifecycleLock($root),
+            locatorStore: $locatorStore,
             tracer: new RecordingTracer(),
             meter: new RecordingMeter(),
             logger: new RecordingLogger(),
@@ -57,7 +70,7 @@ final class WorkerNotRunningLifecycleContractTest extends PackageTestCase
 
         foreach (['status', 'health', 'stop'] as $method) {
             try {
-                $client->{$method}($spec);
+                $client->{$method}();
                 self::fail('Expected WorkerNotRunningException.');
             } catch (WorkerNotRunningException $exception) {
                 self::assertSame(
@@ -66,5 +79,13 @@ final class WorkerNotRunningLifecycleContractTest extends PackageTestCase
                 );
             }
         }
+
+        self::assertFileExists(
+            WorkerLifecyclePaths::resolve(
+                $root,
+                WorkerLifecyclePaths::LOCATOR,
+            ),
+            'A free lock must short-circuit before stale locator inspection.',
+        );
     }
 }

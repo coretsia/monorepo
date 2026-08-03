@@ -175,7 +175,10 @@ WorkerControlServer
 WorkerControlClient
 WorkerChildReadinessChannel
 
+WorkerLifecyclePaths
 WorkerLifecycleLock
+WorkerLifecycleLocator
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 WorkerPoolSpec
 WorkerPoolState
@@ -254,6 +257,7 @@ WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
 WorkerStateStore
 WorkerLifecycleLock
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 
 WorkerControlTransport
@@ -379,7 +383,8 @@ The externally managed process tree is:
 service manager / container runtime
 └─ worker:start
    └─ WorkerSupervisor
-      ├─ owns lifecycle lock
+      ├─ owns canonical lifecycle lock
+      ├─ owns private lifecycle locator
       ├─ owns control listener
       ├─ owns child table
       ├─ owns readiness aggregation
@@ -405,12 +410,14 @@ WorkerStartCommand
   -> WorkerSupervisorInterface::run(...)
        -> select WorkerProcessDriverInterface
        -> driver.prepare(...)
-       -> acquire WorkerLifecycleLock
+       -> acquire canonical WorkerLifecycleLock
+       -> delete stale private lifecycle locator
        -> delete stale state
        -> clear stale cooperative stop signal
        -> open WorkerControlServer
        -> install WorkerSignalController
        -> publish state=starting
+       -> publish private WorkerLifecycleLocator
        -> spawn configured child slots
        -> wait for readiness from every child
        -> publish state=running
@@ -447,6 +454,7 @@ transition state to stopping
 -> clear stop signal
 -> close control listener
 -> remove Unix socket when applicable
+-> delete private lifecycle locator
 -> release lifecycle lock
 -> send terminal stopped response
 -> exit with deterministic process code
@@ -462,7 +470,7 @@ For the proc driver, this starts the dedicated process host before any superviso
 task type
 OS process driver
 control transport
-runtime paths
+configurable socket, state, and stop-signal paths
 worker count
 max requests
 lifecycle deadlines
@@ -479,6 +487,18 @@ Each child runs one `ApplicationWorker`.
 - task execution produces a terminal process failure.
 
 The control channel is lifecycle-only and must not transport task payloads.
+
+## Runtime artifact ownership
+
+| Artifact                  | Path source                                    | Filesystem owner                                                              | Semantics                                                                          |
+|---------------------------|------------------------------------------------|-------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| lifecycle lock            | canonical `WorkerLifecyclePaths::LOCK`         | `WorkerLifecycleLock`                                                         | sole liveness authority; persistent anchor file is not unlinked                    |
+| private lifecycle locator | canonical `WorkerLifecyclePaths::LOCATOR`      | supervisor writes/deletes through `WorkerLifecycleLocatorStore`; client reads | active endpoint and active stop deadlines; never public output                     |
+| locator temporary file    | canonical `WorkerLifecyclePaths::LOCATOR_TEMP` | `WorkerLifecycleLocatorStore`                                                 | fixed atomic-publication temporary file; deleted after publication or cleanup      |
+| Unix control socket       | `worker.socket_path` for a new start           | `WorkerControlTransport`                                                      | active control endpoint when transport is `unix`; configurable only for a new pool |
+| diagnostic state          | `worker.state_path`                            | `WorkerStateStore`                                                            | redacted snapshot only; never liveness authority                                   |
+| state temporary file      | `worker.state_path + ".tmp"`                   | `WorkerStateStore`                                                            | atomic state-publication temporary file                                            |
+| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written between-task shutdown hint; not primary control                 |
 
 ## Driver selection
 
@@ -688,7 +708,8 @@ They are not public Worker plugin APIs.
 It owns:
 
 ```text
-lifecycle lock
+canonical lifecycle lock
+private lifecycle locator
 control server
 child table
 readiness aggregation
@@ -786,7 +807,7 @@ The readiness arguments are internal process-bootstrap arguments and must not ap
 
 The child argument parser uses an exact key allowlist.
 
-It MUST reject the legacy individual artifact arguments:
+It MUST reject individual artifact-path arguments:
 
 ```text
 --coretsia-worker-module-manifest
@@ -1141,10 +1162,17 @@ These include:
 worker.socket_path
 worker.state_path
 worker.stop_flag_path
-worker.lock_path
 ```
 
-The socket, state, state temporary, stop-signal, and lifecycle-lock paths must not overlap.
+Lifecycle discovery artifacts are package-owned and non-configurable:
+
+```text
+var/tmp/worker.lock
+var/tmp/worker.lifecycle.json
+var/tmp/worker.lifecycle.json.tmp
+```
+
+The configurable socket, state, state temporary, and stop-signal paths must not overlap each other or any canonical lifecycle artifact.
 
 The derived state temporary path is:
 
@@ -1257,8 +1285,11 @@ The liveness rules are:
 lifecycle lock free
   -> not running
 
-lifecycle lock held
+lifecycle lock held + valid private locator
   -> starting, running, or stopping
+
+lifecycle lock held + missing, unreadable, malformed, oversized, symlinked, or schema-invalid private locator
+  -> communication failure
 
 lifecycle lock held + unavailable control endpoint
   -> communication failure
@@ -1284,6 +1315,105 @@ The state file must not contain:
 - throwable messages.
 
 Only `endpoint_hash` may identify the control endpoint in safe state and output.
+
+## Private lifecycle locator
+
+Lifecycle discovery deliberately separates three concepts:
+
+```text
+WorkerPoolSpec = desired configuration for creating a new pool
+WorkerPoolState = redacted diagnostic snapshot of an active pool
+WorkerLifecycleLocator = private address and stop deadlines of the active supervisor
+```
+
+`WorkerLifecyclePaths` is the single source of truth for canonical lifecycle artifacts:
+
+```text
+LOCK         = var/tmp/worker.lock
+LOCATOR      = var/tmp/worker.lifecycle.json
+LOCATOR_TEMP = var/tmp/worker.lifecycle.json.tmp
+```
+
+The locator exact schema version is `1`.
+
+Unix locator fields are:
+
+```text
+version = 1
+control_transport = unix
+socket_path = non-empty relative-safe path
+tcp_host = null
+tcp_port = null
+stop_timeout_ms = positive bounded integer
+force_kill_timeout_ms = positive bounded integer
+```
+
+TCP locator fields are:
+
+```text
+version = 1
+control_transport = tcp
+socket_path = null
+tcp_host = 127.0.0.1
+tcp_port = 1..65535
+stop_timeout_ms = positive bounded integer
+force_kill_timeout_ms = positive bounded integer
+```
+
+Unknown keys, missing keys, numeric strings, unsupported versions, absolute or unsafe Unix paths, and non-null inactive transport fields are rejected.
+
+`WorkerLifecycleLocatorStore` is the exclusive filesystem owner. It:
+
+- encodes through `StableJsonEncoder`;
+- limits the complete locator to `4096` bytes;
+- writes the fixed temporary path;
+- applies mode `0600`;
+- publishes by atomic rename;
+- rejects symlinks and non-regular files on read;
+- maps client-side read failures to deterministic communication failure;
+- deletes both final and temporary locator paths idempotently.
+
+The locator is published only after the control listener, signal handling, and `starting` state are ready, but before child spawn. It is deleted before the canonical lifecycle lock is released.
+
+The locator is not liveness authority without the lock. It is not a protocol frame, must not enter `worker.state.json`, and its raw endpoint fields must not be logged or rendered by CLI commands.
+
+The lifecycle-command sequence is:
+
+```text
+probe canonical lifecycle lock
+-> if free, return not running
+-> read private lifecycle locator
+-> connect to the active endpoint from the locator
+-> send status, health, or stop request
+-> validate the response endpoint hash against the locator
+```
+
+`worker:status`, `worker:health`, and `worker:stop` do not construct `WorkerPoolSpec`. They probe the canonical lock, read the active locator, and connect to the endpoint recorded by the active supervisor. `worker:stop` derives its complete request timeout from the active locator:
+
+```text
+stop_timeout_ms + (2 * force_kill_timeout_ms) + 2000
+```
+
+Current worker configuration therefore cannot redirect lifecycle commands away from an already-running pool or shorten the active pool's shutdown deadline.
+
+### Crash recovery and stale locator semantics
+
+A crashed supervisor may leave diagnostic state, a private locator, or a Unix socket after the operating system releases the lifecycle lock.
+
+The canonical classifications remain:
+
+```text
+free lifecycle lock
+  -> not running
+  -> stale state and locator are ignored for liveness
+
+held lifecycle lock + missing or invalid locator
+  -> communication failure
+```
+
+A new start first constructs its own `WorkerPoolSpec` from current config. After it acquires the canonical lock, it deletes the stale canonical locator before binding and publishing the new active endpoint.
+
+Configurable state, stop-signal, and Unix-socket cleanup uses the paths from the new start spec. The canonical lock and locator paths never drift with current config.
 
 ## Control channel
 
@@ -1311,7 +1441,7 @@ WorkerControlClientInterface
 
 `WorkerControlServer` owns the live supervisor listener and typed sessions.
 
-`WorkerControlClient` owns lifecycle-lock probing and live command request-response behavior.
+`WorkerControlClient` owns canonical lifecycle-lock probing, private locator resolution, endpoint-consistency validation, and live command request-response behavior.
 
 The control protocol supports exactly:
 
@@ -1348,6 +1478,7 @@ A stop request remains pending until:
 - the stop signal is cleared;
 - the listener is closed;
 - the Unix socket is removed when applicable;
+- the private lifecycle locator is deleted;
 - the lifecycle lock is released.
 
 Only then may the server return terminal:
@@ -1584,6 +1715,8 @@ Successful shutdown requires all children to be reaped and all process resources
 
 The stop signal is not primary control and is not terminal acknowledgement.
 
+The private lifecycle locator is deleted before the lifecycle lock is released.
+
 The lifecycle lock is released only after runtime cleanup is complete.
 
 ### Cross-platform behavior
@@ -1678,6 +1811,19 @@ Changing the `worker` config root ownership or defaults/rules authority requires
 
 ```text
 docs/ssot/config-roots.md
+```
+
+Changing canonical lifecycle paths, locator schema, locator publication, lifecycle-command discovery, or active timeout ownership requires updating:
+
+```text
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
+docs/architecture/worker.md
+docs/ssot/observability.md
+framework/packages/platform/worker/README.md
+framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
+framework/packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
 ```
 
 Changing worker spans, metrics, or allowed metric labels requires updating:

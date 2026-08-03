@@ -26,7 +26,8 @@ final class CompiledWorkerGraphContainsRequiredRuntimeServicesTest extends Packa
     {
         $source = self::source('src/Provider/WorkerServiceProvider.php');
         foreach ([
-            'WorkerLifecycleLock::class', 'WorkerStopSignal::class',
+            'WorkerLifecycleLock::class', 'WorkerLifecycleLocatorStore::class',
+            'WorkerStopSignal::class',
             'WorkerControlTransport::class', 'WorkerControlProtocol::class',
             'WorkerControlServer::class', 'WorkerControlClient::class',
             'WorkerChildReadinessChannel::class', 'WorkerChildTable::class',

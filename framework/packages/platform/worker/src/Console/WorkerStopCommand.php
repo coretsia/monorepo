@@ -21,14 +21,12 @@ namespace Coretsia\Platform\Worker\Console;
 use Coretsia\Contracts\Cli\Command\CommandInterface;
 use Coretsia\Contracts\Cli\Input\InputInterface;
 use Coretsia\Contracts\Cli\Output\OutputInterface;
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Platform\Worker\Exception\WorkerException;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
-use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 
 /**
- * Stops the configured worker pool.
+ * Stops the active worker pool.
  *
  * This command is package-local and contracts-only:
  *
@@ -38,10 +36,13 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
  * - it does not depend on platform/cli;
  * - it does not require full binary/catalog dispatch.
  *
- * Stop behavior is delegated to WorkerControlClientInterface. The command
- * derives only WorkerPoolSpec, verifies liveness through the client-owned lock
- * probe, sends a stop request, and reports success only after the terminal
- * `stopped` response is received.
+ * Stop behavior is delegated to WorkerControlClientInterface. The client
+ * verifies liveness through the canonical lock, resolves the private locator,
+ * sends a stop request, and reports success only after the terminal `stopped`
+ * response is received.
+ *
+ * Lifecycle commands do not resolve WorkerPoolSpec and do not use current
+ * worker configuration to address an active supervisor.
  *
  * The command must not write stop flags, read diagnostic state snapshots, own
  * control sockets, or expose raw runtime paths and endpoints.
@@ -60,7 +61,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 final readonly class WorkerStopCommand implements CommandInterface
 {
     public const string NAME = 'worker:stop';
-    public const string SUMMARY = 'Stop the configured worker pool.';
+    public const string SUMMARY = 'Stop the active worker pool.';
     public const string GROUP = 'worker';
     public const bool HIDDEN = false;
     public const string MODE = 'none';
@@ -68,8 +69,6 @@ final readonly class WorkerStopCommand implements CommandInterface
     public const array OPTIONS = [];
 
     public function __construct(
-        private ConfigRepositoryInterface $config,
-        private WorkerServiceFactory $factory,
         private WorkerControlClientInterface $client,
     ) {
     }
@@ -87,7 +86,7 @@ final readonly class WorkerStopCommand implements CommandInterface
             return 1;
         }
         try {
-            $state = $this->client->stop($this->factory->workerPoolSpec($this->config));
+            $state = $this->client->stop();
             $output->json(self::summary($state));
             return 0;
         } catch (WorkerException $exception) {

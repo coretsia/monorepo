@@ -53,6 +53,7 @@ use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
@@ -87,7 +88,8 @@ use Psr\Log\LoggerInterface;
  *   WorkerSupervisorResolverInterface after runtime entrypoint validation;
  * - process drivers are registered as single-child adapters under the
  *   package-owned `worker.process_driver` tag;
- * - status, health, and stop commands use WorkerControlClientInterface and do
+ * - status, health, and stop commands resolve the active lifecycle locator
+ *   through WorkerControlClientInterface, do not resolve WorkerPoolSpec, and do
  *   not read WorkerStateStore as a liveness authority;
  * - worker command metadata remains static and owner-approved;
  * - command tags preserve canonical TagRegistry ordering and first-wins policy.
@@ -151,6 +153,16 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 ],
             )
             ->serviceMethodFactory(
+                WorkerLifecycleLocatorStore::class,
+                WorkerServiceFactory::class,
+                'workerLifecycleLocatorStore',
+                [
+                    ContainerValueReference::service(RuntimePathContext::class),
+                    ContainerValueReference::service(StableJsonEncoder::class),
+                    ContainerValueReference::service(StableJsonDecoder::class),
+                ],
+            )
+            ->serviceMethodFactory(
                 WorkerLifecycleLock::class,
                 WorkerServiceFactory::class,
                 'workerLifecycleLock',
@@ -200,6 +212,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                     ContainerValueReference::service(WorkerControlTransport::class),
                     ContainerValueReference::service(WorkerControlProtocol::class),
                     ContainerValueReference::service(WorkerLifecycleLock::class),
+                    ContainerValueReference::service(WorkerLifecycleLocatorStore::class),
                     ContainerValueReference::service(TracerPortInterface::class),
                     ContainerValueReference::service(MeterPortInterface::class),
                     ContainerValueReference::service(LoggerInterface::class),
@@ -319,6 +332,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                     ContainerValueReference::service(PcntlWorkerProcessDriver::class),
                     ContainerValueReference::service(ProcWorkerProcessDriver::class),
                     ContainerValueReference::service(WorkerLifecycleLock::class),
+                    ContainerValueReference::service(WorkerLifecycleLocatorStore::class),
                     ContainerValueReference::service(WorkerControlServer::class),
                     ContainerValueReference::service(WorkerChildReadinessChannel::class),
                     ContainerValueReference::service(WorkerChildTable::class),
@@ -355,8 +369,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 WorkerStopCommand::class,
                 WorkerStopCommand::class,
                 [
-                    ContainerValueReference::service(ConfigRepositoryInterface::class),
-                    ContainerValueReference::service(WorkerServiceFactory::class),
                     ContainerValueReference::service(WorkerControlClientInterface::class),
                 ]
             )
@@ -364,8 +376,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 WorkerStatusCommand::class,
                 WorkerStatusCommand::class,
                 [
-                    ContainerValueReference::service(ConfigRepositoryInterface::class),
-                    ContainerValueReference::service(WorkerServiceFactory::class),
                     ContainerValueReference::service(WorkerControlClientInterface::class),
                 ]
             )
@@ -373,8 +383,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 WorkerHealthCommand::class,
                 WorkerHealthCommand::class,
                 [
-                    ContainerValueReference::service(ConfigRepositoryInterface::class),
-                    ContainerValueReference::service(WorkerServiceFactory::class),
                     ContainerValueReference::service(WorkerControlClientInterface::class),
                 ]
             )

@@ -22,8 +22,9 @@ namespace Coretsia\Platform\Worker\Exception;
  * Deterministic worker lifecycle failure.
  *
  * This exception covers startup, readiness, child-process, shutdown, runtime
- * cleanup, lifecycle-lock, state-schema, and task-factory failures owned by the
- * worker package after runtime-driver compatibility has already passed.
+ * cleanup, lifecycle-lock, lifecycle-locator, state-schema, and task-factory
+ * failures owned by the worker package after runtime-driver compatibility
+ * has already passed.
  *
  * The public message contains only:
  *
@@ -50,6 +51,7 @@ final class WorkerStartFailedException extends WorkerException
     public const string REASON_SHUTDOWN_FAILED = 'worker-shutdown-failed';
     public const string REASON_RUNTIME_CLEANUP_FAILED = 'worker-runtime-cleanup-failed';
     public const string REASON_LIFECYCLE_LOCK_FAILED = 'worker-lifecycle-lock-failed';
+    public const string REASON_LIFECYCLE_LOCATOR_FAILED = 'worker-lifecycle-locator-failed';
     public const string REASON_SIGNAL_HANDLING_UNAVAILABLE = 'worker-signal-handling-unavailable';
     public const string REASON_PROCESS_HOST_FAILED = 'worker-process-host-failed';
 
@@ -66,6 +68,7 @@ final class WorkerStartFailedException extends WorkerException
         self::REASON_SHUTDOWN_FAILED => true,
         self::REASON_RUNTIME_CLEANUP_FAILED => true,
         self::REASON_LIFECYCLE_LOCK_FAILED => true,
+        self::REASON_LIFECYCLE_LOCATOR_FAILED => true,
         self::REASON_SIGNAL_HANDLING_UNAVAILABLE => true,
         self::REASON_PROCESS_HOST_FAILED => true,
     ];
@@ -137,6 +140,11 @@ final class WorkerStartFailedException extends WorkerException
     public static function lifecycleLockFailed(): self
     {
         return new self(self::REASON_LIFECYCLE_LOCK_FAILED);
+    }
+
+    public static function lifecycleLocatorFailed(): self
+    {
+        return new self(self::REASON_LIFECYCLE_LOCATOR_FAILED);
     }
 
     public static function signalHandlingUnavailable(): self

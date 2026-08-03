@@ -30,6 +30,14 @@ final class WorkerSupervisorProductionFlowTest extends SupervisorIntegrationTest
         self::assertSame('running', $start['status']);
         self::assertSame(2, $start['worker_count']);
         self::assertSame(2, $start['ready_worker_count']);
+        self::assertFileExists($harness->locatorPath());
+        self::assertFileDoesNotExist($harness->locatorTemporaryPath());
+
+        self::assertSame(
+            $harness->startPid(),
+            $start['pid'],
+            'Published worker state PID must be the live foreground supervisor PID.',
+        );
 
         $status = self::onlyPayload($harness->invoke('status'));
         self::assertSame('running', $status['status']);

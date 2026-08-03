@@ -37,6 +37,7 @@ final class WorkerExceptionsAreDeterministicContractTest extends TestCase
             WorkerStartFailedException::startFailed(),
             WorkerStartFailedException::readinessTimeout(),
             WorkerStartFailedException::processHostFailed(),
+            WorkerStartFailedException::lifecycleLocatorFailed(),
         ];
 
         foreach ($exceptions as $exception) {

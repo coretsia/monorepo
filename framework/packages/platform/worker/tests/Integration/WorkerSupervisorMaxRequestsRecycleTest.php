@@ -60,6 +60,35 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
             'ApplicationWorker max_requests did not recycle the child.',
         );
 
+        self::waitUntil(
+            static function () use ($harness): bool {
+                $bytes = @\file_get_contents(
+                    $harness->statePath(),
+                );
+
+                if (!\is_string($bytes)) {
+                    return false;
+                }
+
+                try {
+                    $state = \json_decode(
+                        $bytes,
+                        true,
+                        512,
+                        \JSON_THROW_ON_ERROR,
+                    );
+                } catch (\Throwable) {
+                    return false;
+                }
+
+                return \is_array($state)
+                    && ($state['status'] ?? null) === 'running'
+                    && ($state['ready_worker_count'] ?? null) === 1;
+            },
+            10_000,
+            'Recycled child did not publish readiness.',
+        );
+
         $children = $harness->pidLog();
 
         self::assertSame(0, $children[0]['slot']);

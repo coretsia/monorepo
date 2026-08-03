@@ -28,6 +28,8 @@ final class WorkerRuntimeCleanupTest extends SupervisorIntegrationTestCase
         \mkdir($root . '/var/tmp', 0777, true);
         \file_put_contents($harness->statePath(), '{"stale":true}');
         \file_put_contents($harness->stopPath(), 'stale');
+        \file_put_contents($harness->locatorPath(), '{"stale":true}');
+        \file_put_contents($harness->locatorTemporaryPath(), '{"stale":true}');
 
         if (\PHP_OS_FAMILY !== 'Windows') {
             $socket = @\stream_socket_server(

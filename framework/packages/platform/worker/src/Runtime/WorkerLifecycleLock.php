@@ -39,13 +39,13 @@ final class WorkerLifecycleLock
         }
     }
 
-    public function acquire(WorkerPoolSpec $spec): void
+    public function acquire(): void
     {
         if (\is_resource($this->handle)) {
             throw WorkerAlreadyRunningException::alreadyRunning();
         }
 
-        $handle = $this->open($spec);
+        $handle = $this->open();
         if (!@\flock($handle, \LOCK_EX | \LOCK_NB)) {
             @\fclose($handle);
             throw WorkerAlreadyRunningException::alreadyRunning();
@@ -53,9 +53,9 @@ final class WorkerLifecycleLock
         $this->handle = $handle;
     }
 
-    public function isHeld(WorkerPoolSpec $spec): bool
+    public function isHeld(): bool
     {
-        $handle = $this->open($spec);
+        $handle = $this->open();
         try {
             if (@\flock($handle, \LOCK_EX | \LOCK_NB)) {
                 @\flock($handle, \LOCK_UN);
@@ -86,9 +86,9 @@ final class WorkerLifecycleLock
     }
 
     /** @return resource */
-    private function open(WorkerPoolSpec $spec): mixed
+    private function open(): mixed
     {
-        $path = $this->path($spec);
+        $path = $this->path();
         $dir = \dirname($path);
         if (!\is_dir($dir) && !@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
             throw WorkerStartFailedException::lifecycleLockFailed();
@@ -100,8 +100,11 @@ final class WorkerLifecycleLock
         return $handle;
     }
 
-    private function path(WorkerPoolSpec $spec): string
+    private function path(): string
     {
-        return \rtrim(\str_replace('\\', '/', $this->skeletonRoot), '/') . '/' . $spec->lockPath();
+        return WorkerLifecyclePaths::resolve(
+            $this->skeletonRoot,
+            WorkerLifecyclePaths::LOCK,
+        );
     }
 }

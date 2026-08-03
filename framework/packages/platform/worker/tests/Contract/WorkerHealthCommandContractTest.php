@@ -19,10 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Tests\Contract;
 
 use Coretsia\Platform\Worker\Console\WorkerHealthCommand;
-use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
-use Coretsia\Platform\Worker\Tests\Support\ArrayConfigRepository;
 use Coretsia\Platform\Worker\Tests\Support\RecordingControlClient;
 use Coretsia\Platform\Worker\Tests\Support\RecordingOutput;
 use Coretsia\Platform\Worker\Tests\Support\TestInput;
@@ -45,8 +43,6 @@ final class WorkerHealthCommandContractTest extends TestCase
             endpointHash: \str_repeat('a', 64),
         );
         $command = new WorkerHealthCommand(
-            config: self::config(),
-            factory: new WorkerServiceFactory(),
             client: $client,
         );
         $output = new RecordingOutput();
@@ -59,6 +55,26 @@ final class WorkerHealthCommandContractTest extends TestCase
             ),
         );
         self::assertSame(1, $client->healthCalls);
+
+        $source = \file_get_contents(
+            \dirname(__DIR__, 2) . '/src/Console/WorkerHealthCommand.php',
+        );
+        self::assertIsString($source);
+        $codeOnly = \preg_replace(
+            '/\/\*.*?\*\/|\/\/[^\n]*/s',
+            '',
+            $source,
+        ) ?? $source;
+
+        foreach (
+            [
+                'ConfigRepositoryInterface',
+                'WorkerServiceFactory',
+                'WorkerPoolSpec',
+            ] as $forbidden
+        ) {
+            self::assertStringNotContainsString($forbidden, $codeOnly);
+        }
         self::assertSame(
             [
                 'status' => 'healthy',
@@ -74,12 +90,5 @@ final class WorkerHealthCommandContractTest extends TestCase
             ],
             $output->json[0],
         );
-    }
-
-    private static function config(): ArrayConfigRepository
-    {
-        return new ArrayConfigRepository([
-            'worker' => require \dirname(__DIR__, 2) . '/config/worker.php',
-        ]);
     }
 }

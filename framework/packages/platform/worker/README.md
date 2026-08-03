@@ -92,7 +92,10 @@ This package provides the Worker runtime layer:
   - `Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol`;
   - `bin/coretsia-worker-proc-host`;
 - post-fork resource isolation through `Coretsia\Platform\Worker\Process\WorkerForkIsolation`;
+- canonical package-owned lifecycle paths through `Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths`;
 - lifecycle-lock authority through `Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock`;
+- immutable active-supervisor discovery data through `Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator`;
+- atomic private locator storage through `Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore`;
 - cooperative between-task shutdown signaling through `Coretsia\Platform\Worker\Runtime\WorkerStopSignal`;
 - typed child ownership through `Coretsia\Platform\Worker\Supervisor\WorkerChildTable`;
 - synchronous shutdown-intent handling through `Coretsia\Platform\Worker\Supervisor\WorkerSignalController`;
@@ -125,7 +128,8 @@ The Worker runtime uses one foreground persistent supervisor:
 external service manager / container runtime
 └─ worker:start
    └─ WorkerSupervisor
-      ├─ lifecycle lock
+      ├─ canonical lifecycle lock
+      ├─ private lifecycle locator
       ├─ control server
       ├─ child table
       ├─ readiness aggregation
@@ -148,9 +152,12 @@ WorkerStartCommand
   -> WorkerSupervisorInterface::run(...)
        -> select WorkerProcessDriverInterface
        -> prepare driver-owned infrastructure
-       -> acquire WorkerLifecycleLock
+       -> acquire canonical WorkerLifecycleLock
+       -> delete stale lifecycle locator, state, and stop signal
        -> open WorkerControlServer
+       -> install supervisor signal handling
        -> publish starting state
+       -> publish private WorkerLifecycleLocator
        -> spawn configured child slots
        -> wait for every child to become ready
        -> publish running state
@@ -176,7 +183,7 @@ requested and resolved OS process driver
 requested and resolved control transport
 worker count
 max requests
-runtime paths
+configurable socket, state, and stop-signal paths
 TCP control settings
 lifecycle deadlines
 ```
@@ -351,7 +358,7 @@ Each child also receives internal readiness arguments:
 --coretsia-worker-readiness-token=<64-lowercase-hex>
 ```
 
-The child MUST reject legacy individual artifact arguments:
+The child MUST reject individual artifact-path arguments:
 
 ```text
 --coretsia-worker-module-manifest
@@ -508,7 +515,6 @@ Baseline defaults include:
     ],
     'state_path' => 'var/tmp/worker.state.json',
     'stop_flag_path' => 'var/tmp/worker.stop',
-    'lock_path' => 'var/tmp/worker.lock',
     'start_timeout_ms' => 10000,
     'stop_timeout_ms' => 10000,
     'force_kill_timeout_ms' => 1000,
@@ -529,9 +535,11 @@ Important config rules:
 - `worker.start_timeout_ms` must be a positive bounded timeout.
 - `worker.stop_timeout_ms` must be a positive bounded timeout.
 - `worker.force_kill_timeout_ms` must be a positive bounded timeout.
-- `worker.lock_path` is the persistent lifecycle-lock anchor path.
-- socket, state, state-temp, stop-signal, and lock paths must not overlap.
-- runtime paths must be skeleton-root-relative.
+- `var/tmp/worker.lock` is the package-owned, non-configurable lifecycle anchor.
+- `var/tmp/worker.lifecycle.json` is the package-owned private active-supervisor locator.
+- `var/tmp/worker.lifecycle.json.tmp` is the fixed atomic-write temporary locator path.
+- configurable socket, state, state-temp, and stop-signal paths must not overlap each other or canonical lifecycle artifacts.
+- configurable runtime paths must be skeleton-root-relative.
 - runtime paths must not be absolute.
 - runtime paths must not contain `..`, `skeleton/`, backslashes, whitespace, control characters, `://`, or segments beginning with `@`.
 
@@ -547,6 +555,30 @@ http  -> http.worker
 ```
 
 Invalid or missing `worker.task_type` is a Worker-owned start-validation failure, not a Kernel runtime-driver invalid-config failure.
+
+## Lifecycle discovery artifacts
+
+Three separate runtime concepts are intentionally preserved:
+
+```text
+WorkerPoolSpec = desired configuration for creating a new pool
+WorkerPoolState = redacted diagnostic snapshot of an active pool
+WorkerLifecycleLocator = private address and stop deadlines of the active supervisor
+```
+
+Canonical package-owned paths are:
+
+```text
+var/tmp/worker.lock
+var/tmp/worker.lifecycle.json
+var/tmp/worker.lifecycle.json.tmp
+```
+
+The lock is the liveness authority. A free lock means the worker is not running, regardless of stale state or locator files. A held lock with a missing, unreadable, malformed, oversized, symlinked, or schema-invalid locator is a deterministic communication failure.
+
+The locator has an exact versioned schema, is written atomically with mode `0600`, and contains only the active control transport, its private address, and the active stop deadlines. It is never rendered by CLI commands, copied into `worker.state.json`, or included in logs and exception messages.
+
+The supervisor publishes the locator only after the listener, signal handling, and `starting` state are ready, but before child spawn. During shutdown it deletes the locator before releasing the lifecycle lock.
 
 ## Worker commands
 
@@ -619,14 +651,19 @@ Requests shutdown through `WorkerControlClientInterface`.
 
 The command:
 
-1. probes lifecycle-lock authority;
-2. connects to the live supervisor;
-3. sends one `stop` request;
-4. waits while the supervisor performs cooperative, graceful, and forced shutdown;
-5. reports success only after the terminal `stopped` response.
+1. probes the canonical lifecycle-lock authority;
+2. reads the private lifecycle locator;
+3. connects to the active endpoint from that locator;
+4. uses the active supervisor's locator-published stop deadlines;
+5. sends one `stop` request;
+6. waits while the supervisor performs cooperative, graceful, and forced shutdown;
+7. reports success only after the terminal `stopped` response.
+
+Lifecycle commands do not resolve `WorkerPoolSpec` and do not use current worker configuration to address an active supervisor.
 
 The command MUST NOT:
 
+- resolve `WorkerPoolSpec` from current config;
 - write the stop signal directly;
 - create a control listener;
 - read diagnostic state as liveness authority;
@@ -637,13 +674,15 @@ The command MUST NOT:
 
 Requests current in-memory state through `WorkerControlClientInterface`.
 
-It probes lifecycle-lock authority before live communication.
+It probes the canonical lifecycle lock, reads the private locator, and connects to the endpoint of the active supervisor. It does not resolve current worker configuration.
 
 It MUST NOT infer running state from `worker.state.json`.
 
 ### `worker:health`
 
 Requests the live health projection through `WorkerControlClientInterface`.
+
+It uses the same canonical-lock and private-locator discovery flow as status and stop, without resolving `WorkerPoolSpec` from current config.
 
 Health is true only when:
 
@@ -945,8 +984,11 @@ The liveness rules are:
 lifecycle lock free
   -> pool is not running
 
-lifecycle lock held
+lifecycle lock held + valid private locator
   -> pool is starting, running, or stopping
+
+lifecycle lock held + missing, unreadable, malformed, oversized, symlinked, or schema-invalid private locator
+  -> communication failure
 
 lifecycle lock held + unavailable control endpoint
   -> communication failure
@@ -1001,7 +1043,7 @@ WorkerControlClientInterface
 
 `WorkerControlServer` owns the live supervisor listener and typed control sessions.
 
-`WorkerControlClient` owns lifecycle-lock probing and live request-response behavior.
+`WorkerControlClient` owns lifecycle-lock probing, private locator resolution, endpoint-consistency validation, and live request-response behavior.
 
 Supported control transports are:
 
@@ -1047,6 +1089,7 @@ A stop request remains pending until:
 - the cooperative stop signal is cleared;
 - the control listener is closed;
 - the Unix socket is removed when applicable;
+- the private lifecycle locator is deleted;
 - the lifecycle lock is released.
 
 Only then may the server return terminal:
@@ -1230,6 +1273,7 @@ The worker package treats the following values as unsafe for public diagnostics:
 - raw TCP hosts;
 - raw TCP ports;
 - raw endpoint identifiers;
+- raw lifecycle locator JSON;
 - absolute paths;
 - task payloads;
 - HTTP request paths;
@@ -1264,6 +1308,8 @@ duration_ms
 ```
 
 Endpoint identity may be represented publicly only as a deterministic hash.
+
+The private lifecycle locator, `socket_path`, `tcp_host`, and `tcp_port` MUST NOT be emitted through logs, spans, metrics, CLI output, state snapshots, or exception messages.
 
 `reason` is allowed only when it is a bounded package-owned health or error token.
 

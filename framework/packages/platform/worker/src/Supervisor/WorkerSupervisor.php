@@ -34,6 +34,8 @@ use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
@@ -45,9 +47,10 @@ use Psr\Log\LoggerInterface;
 /**
  * Persistent foreground owner of the complete worker-pool lifecycle.
  *
- * The supervisor exclusively owns the lifecycle lock, control listener, child
- * table, readiness, state publication, signal intent, recycle policy, graceful
- * and forced shutdown, child reap, and runtime cleanup.
+ * The supervisor exclusively owns the lifecycle lock, private lifecycle
+ * locator, control listener, child table, readiness, state publication, signal
+ * intent, recycle policy, graceful and forced shutdown, child reap, and runtime
+ * cleanup.
  *
  * It does not resolve the container, build WorkerPoolSpec, daemonize, write
  * stdout/stderr, or delegate lifecycle authority to process adapters.
@@ -84,6 +87,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
     public function __construct(
         iterable $drivers,
         private readonly WorkerLifecycleLock $lifecycleLock,
+        private readonly WorkerLifecycleLocatorStore $locatorStore,
         private readonly WorkerControlServer $controlServer,
         private readonly WorkerChildReadinessChannel $readinessChannel,
         private readonly WorkerChildTable $children,
@@ -135,9 +139,10 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 throw WorkerStartFailedException::readinessTimeout();
             }
 
-            $this->lifecycleLock->acquire($spec);
+            $this->lifecycleLock->acquire();
             $lockAcquired = true;
 
+            $this->locatorStore->delete();
             $this->stateStore->delete($spec);
             $this->stopSignal->clear($spec);
 
@@ -154,6 +159,9 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 readyWorkerCount: 0,
             );
             $this->stateStore->write($spec, $state);
+            $this->locatorStore->write(
+                WorkerLifecycleLocator::fromPoolSpec($spec),
+            );
 
             for ($index = 0; $index < $spec->workers(); $index++) {
                 if ($this->signals->shutdownRequested()) {
@@ -389,6 +397,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $this->stopSignal->clear($spec);
             $this->controlServer->closeListener();
             $serverListening = false;
+            $this->locatorStore->delete();
 
             $this->lifecycleLock->release();
             $lockAcquired = false;
@@ -439,6 +448,11 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             }
 
             if ($lockAcquired) {
+                try {
+                    $this->locatorStore->delete();
+                } catch (\Throwable) {
+                }
+
                 $this->lifecycleLock->release();
             }
 
@@ -863,6 +877,11 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
 
         try {
             $this->stopSignal->clear($spec);
+        } catch (\Throwable) {
+        }
+
+        try {
+            $this->locatorStore->delete();
         } catch (\Throwable) {
         }
     }

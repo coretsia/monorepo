@@ -21,22 +21,24 @@ namespace Coretsia\Platform\Worker\Console;
 use Coretsia\Contracts\Cli\Command\CommandInterface;
 use Coretsia\Contracts\Cli\Input\InputInterface;
 use Coretsia\Contracts\Cli\Output\OutputInterface;
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Platform\Worker\Exception\WorkerException;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
-use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
 
 /**
  * Reports live worker-pool health through the supervisor control channel.
  *
  * The command does not inspect state files or runtime paths directly. It exits
- * successfully only when the pool is running and every configured slot is ready.
+ * successfully only when the active pool is running and every configured slot
+ * is ready.
+ *
+ * Lifecycle commands do not resolve WorkerPoolSpec and do not use current
+ * worker configuration to address an active supervisor.
  */
 final readonly class WorkerHealthCommand implements CommandInterface
 {
     public const string NAME = 'worker:health';
-    public const string SUMMARY = 'Show the configured worker pool health.';
+    public const string SUMMARY = 'Show the active worker pool health.';
     public const string GROUP = 'worker';
     public const bool HIDDEN = false;
     public const string MODE = 'none';
@@ -44,8 +46,6 @@ final readonly class WorkerHealthCommand implements CommandInterface
     public const array OPTIONS = [];
 
     public function __construct(
-        private ConfigRepositoryInterface $config,
-        private WorkerServiceFactory $factory,
         private WorkerControlClientInterface $client,
     ) {
     }
@@ -63,7 +63,7 @@ final readonly class WorkerHealthCommand implements CommandInterface
             return 1;
         }
         try {
-            $health = $this->client->health($this->factory->workerPoolSpec($this->config));
+            $health = $this->client->health();
             $output->json(self::summary($health));
             return $health->healthy() ? 0 : 1;
         } catch (WorkerException $exception) {

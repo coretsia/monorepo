@@ -149,11 +149,14 @@ WorkerModule
 WorkerServiceProvider
 WorkerServiceFactory
 
+WorkerLifecyclePaths
 WorkerPoolSpec
 WorkerPoolState
 WorkerHealthState
 WorkerStateStore
 WorkerLifecycleLock
+WorkerLifecycleLocator
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 WorkerRuntimeEntrypointGuard
 
@@ -189,7 +192,7 @@ WorkerStatusCommand
 WorkerHealthCommand
 ```
 
-Compatibility lifecycle facades, static process registries, and duplicate process-ownership wrappers are not retained.
+The package does not expose lifecycle facades, static process registries, or duplicate process-ownership wrappers.
 
 ## Package ownership decision
 
@@ -202,7 +205,9 @@ Compatibility lifecycle facades, static process registries, and duplicate proces
 - worker-pool specification;
 - foreground supervisor orchestration;
 - package-internal lazy supervisor resolution;
+- canonical lifecycle-artifact path ownership;
 - lifecycle-lock implementation;
+- private active-supervisor locator schema and storage;
 - worker child table;
 - child readiness protocol;
 - worker state schema and storage;
@@ -278,6 +283,18 @@ TCP control settings
 
 Driver and control-transport auto-resolution must be deterministic.
 
+Lifecycle discovery paths are package-owned and are not mutable worker configuration.
+
+The canonical paths are:
+
+```text
+var/tmp/worker.lock
+var/tmp/worker.lifecycle.json
+var/tmp/worker.lifecycle.json.tmp
+```
+
+Current worker configuration is desired input for constructing a new `WorkerPoolSpec`. It does not address or redefine the lifecycle artifacts of an already-running supervisor.
+
 ## Declarative container wiring decision
 
 `WorkerServiceProvider` implements:
@@ -310,6 +327,7 @@ WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
 WorkerStateStore
 WorkerLifecycleLock
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 
 WorkerControlTransport
@@ -477,6 +495,7 @@ The Worker runtime graph consumes runtime path data through path-owning services
 ```text
 WorkerStateStore
 WorkerLifecycleLock
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 WorkerControlTransport
 ProcWorkerProcessDriver
@@ -593,12 +612,25 @@ They may be tested through direct command invocation or a package-local command 
 
 `WorkerStopCommand`, `WorkerStatusCommand`, and `WorkerHealthCommand` use `WorkerControlClientInterface`.
 
+These lifecycle commands do not construct or resolve `WorkerPoolSpec`. They do not use current worker configuration to address an already-running supervisor.
+
+Their discovery flow is:
+
+```text
+probe canonical lifecycle lock
+-> read private active lifecycle locator
+-> connect to the endpoint recorded by the active supervisor
+-> perform the live status, health, or stop request
+```
+
 They must not:
 
+- resolve `WorkerPoolSpec` from current config;
 - construct a control server;
 - own child processes;
 - write the cooperative stop signal;
 - infer liveness from the state file;
+- read or render raw locator fields;
 - keep a static process registry.
 
 ## Foreground supervisor decision
@@ -630,12 +662,14 @@ The supervisor lifecycle is:
 ```text
 select process driver
 -> prepare driver-owned infrastructure
--> acquire lifecycle lock
+-> acquire canonical lifecycle lock
+-> delete stale private lifecycle locator
 -> delete stale diagnostic state
 -> clear stale cooperative stop signal
 -> open control listener
 -> install signal handlers
 -> publish starting state
+-> publish private lifecycle locator
 -> spawn configured worker slots
 -> wait for readiness from every child
 -> publish running state
@@ -645,8 +679,13 @@ select process driver
 -> reap and recycle expected exits
 -> process signal-driven shutdown intent
 -> stop and reap all children
--> delete runtime artifacts
--> release lifecycle lock
+-> shut down driver-owned infrastructure
+-> delete diagnostic state
+-> clear cooperative stop signal
+-> close control listener
+-> remove the Unix socket when applicable
+-> delete private lifecycle locator
+-> release canonical lifecycle lock
 -> return a deterministic process exit code
 ```
 
@@ -667,22 +706,23 @@ AND state == running
 
 ## Ownership matrix
 
-| Component                           | Owns                                                                                                                                                                     | Must not own                                                                                 |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `WorkerStartCommand`                | spec construction, runtime-entrypoint guard invocation, lazy supervisor resolution, startup summary                                                                      | lifecycle lock, control server, child table, process spawning, final cleanup                 |
-| `WorkerSupervisor`                  | lifecycle lock, control server lifecycle, child table, readiness aggregation, state publication, signal intent, stop-signal writes, recycle policy, shutdown and cleanup | container lookup, spec construction, daemonization, stdout/stderr writes, task execution     |
-| `WorkerSupervisorResolverInterface` | lazy resolution of `WorkerSupervisorInterface`                                                                                                                           | runtime guard policy, pool lifecycle                                                         |
-| `WorkerControlTransport`            | address derivation, listen, connect, accept, bounded frame I/O, close, Unix socket cleanup                                                                               | protocol semantics, health policy, lifecycle decisions                                       |
-| `WorkerControlProtocol`             | exact versioned request/response encoding and decoding                                                                                                                   | process lifecycle, endpoint ownership, task payload transport                                |
-| `WorkerControlServer`               | supervisor-side listener and typed sessions                                                                                                                              | startup decisions, health policy, shutdown orchestration                                     |
-| `WorkerControlClient`               | lifecycle-lock probing and status/health/stop request-response flow                                                                                                      | listener creation, state authority, stop-signal writes, child lifecycle                      |
-| `WorkerProcessDriverInterface`      | capability checks, driver preparation, one-child spawn/poll/terminate/kill/close, driver shutdown                                                                        | state store, control server, pool-wide registry, recycle policy, lifecycle observability     |
-| `WorkerChildTable`                  | typed mapping of worker slot, child generation, readiness, and shutdown state                                                                                            | OS process operations, state persistence, control communication                              |
-| `WorkerStateStore`                  | atomic diagnostic state write/read/delete                                                                                                                                | liveness authority, control decisions, process ownership                                     |
-| `WorkerLifecycleLock`               | exclusive liveness authority and duplicate-start exclusion                                                                                                               | state publication, control communication, child lifecycle                                    |
-| `WorkerStopSignal`                  | supervisor-written cooperative stop signal observed between tasks                                                                                                        | primary control transport, liveness authority, terminal acknowledgement                      |
-| `ApplicationWorker`                 | sequential task loop, task creation, KernelRuntime delegation, max-request exit, stop observation between tasks                                                          | supervisor state, child table, control server, state publication, direct reset orchestration |
-| external service manager            | foreground launch, restart policy, deployment policy, process-group or cgroup ownership                                                                                  | internal control protocol, state schema, per-task UnitOfWork semantics                       |
+| Component                           | Owns                                                                                                                                                                                                               | Must not own                                                                                 |
+|-------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `WorkerStartCommand`                | spec construction, runtime-entrypoint guard invocation, lazy supervisor resolution, startup summary                                                                                                                | lifecycle lock, control server, child table, process spawning, final cleanup                 |
+| `WorkerSupervisor`                  | lifecycle lock, private locator publication and deletion, control server lifecycle, child table, readiness aggregation, state publication, signal intent, stop-signal writes, recycle policy, shutdown and cleanup | container lookup, spec construction, daemonization, stdout/stderr writes, task execution     |
+| `WorkerSupervisorResolverInterface` | lazy resolution of `WorkerSupervisorInterface`                                                                                                                                                                     | runtime guard policy, pool lifecycle                                                         |
+| `WorkerControlTransport`            | address derivation, listen, connect, accept, bounded frame I/O, close, Unix socket cleanup                                                                                                                         | protocol semantics, health policy, lifecycle decisions                                       |
+| `WorkerControlProtocol`             | exact versioned request/response encoding and decoding                                                                                                                                                             | process lifecycle, endpoint ownership, task payload transport                                |
+| `WorkerControlServer`               | supervisor-side listener and typed sessions                                                                                                                                                                        | startup decisions, health policy, shutdown orchestration                                     |
+| `WorkerControlClient`               | lifecycle-lock probing, private locator reads, endpoint-consistency validation, and status/health/stop request-response flow                                                                                       | listener creation, state authority, locator writes, stop-signal writes, child lifecycle      |
+| `WorkerProcessDriverInterface`      | capability checks, driver preparation, one-child spawn/poll/terminate/kill/close, driver shutdown                                                                                                                  | state store, control server, pool-wide registry, recycle policy, lifecycle observability     |
+| `WorkerChildTable`                  | typed mapping of worker slot, child generation, readiness, and shutdown state                                                                                                                                      | OS process operations, state persistence, control communication                              |
+| `WorkerStateStore`                  | atomic diagnostic state write/read/delete                                                                                                                                                                          | liveness authority, control decisions, process ownership                                     |
+| `WorkerLifecycleLock`               | exclusive liveness authority and duplicate-start exclusion                                                                                                                                                         | state publication, control communication, child lifecycle                                    |
+| `WorkerLifecycleLocatorStore`       | atomic private locator write/read/delete and exact locator file validation                                                                                                                                         | liveness authority, control protocol semantics, state publication, child lifecycle           |
+| `WorkerStopSignal`                  | supervisor-written cooperative stop signal observed between tasks                                                                                                                                                  | primary control transport, liveness authority, terminal acknowledgement                      |
+| `ApplicationWorker`                 | sequential task loop, task creation, KernelRuntime delegation, max-request exit, stop observation between tasks                                                                                                    | supervisor state, child table, control server, state publication, direct reset orchestration |
+| external service manager            | foreground launch, restart policy, deployment policy, process-group or cgroup ownership                                                                                                                            | internal control protocol, state schema, per-task UnitOfWork semantics                       |
 
 ## Lazy supervisor resolution decision
 
@@ -984,6 +1024,7 @@ A stop session remains pending until:
 - the cooperative stop signal is cleared;
 - the control listener is closed;
 - the Unix socket is removed when applicable;
+- the private lifecycle locator is deleted;
 - the lifecycle lock is released.
 
 Only then may the supervisor return:
@@ -1009,6 +1050,16 @@ The control protocol must not transport:
 ## Lifecycle-lock authority decision
 
 `WorkerLifecycleLock` is the sole liveness authority.
+
+Its anchor path is package-owned and immutable:
+
+```text
+var/tmp/worker.lock
+```
+
+The path is resolved through `WorkerLifecyclePaths::LOCK`.
+
+It is not read from worker configuration, and current config cannot move the lifecycle anchor.
 
 The lock uses an inode-stable anchor file and non-blocking exclusive lock semantics equivalent to:
 
@@ -1043,6 +1094,97 @@ The state file must not be used as liveness authority.
 A stale state file with a free lifecycle lock means the pool is not running.
 
 A held lifecycle lock with an unavailable or invalid control endpoint means communication failure, not not-running.
+
+## Active lifecycle discovery
+
+Lifecycle discovery separates three distinct concepts:
+
+```text
+WorkerPoolSpec = desired configuration for creating a new worker pool
+WorkerPoolState = redacted diagnostic snapshot of an active worker pool
+WorkerLifecycleLocator = private control address and stop deadlines of the active supervisor
+```
+
+The canonical package-owned lifecycle paths are:
+
+```text
+LOCK         = var/tmp/worker.lock
+LOCATOR      = var/tmp/worker.lifecycle.json
+LOCATOR_TEMP = var/tmp/worker.lifecycle.json.tmp
+```
+
+The lock path and locator paths are immutable package-owned artifacts. They are not part of mutable worker configuration.
+
+`worker:start` uses current worker configuration to construct a new `WorkerPoolSpec`.
+
+`worker:status`, `worker:health`, and `worker:stop` do not construct `WorkerPoolSpec`. Their discovery flow is:
+
+```text
+probe canonical lifecycle lock
+-> read private lifecycle locator
+-> connect to the active endpoint from the locator
+-> communicate with the active supervisor
+```
+
+The locator is not liveness authority without the lifecycle lock.
+
+The canonical classifications are:
+
+```text
+lifecycle lock free
+  -> worker is not running
+  -> stale state or locator files do not change that result
+
+lifecycle lock held + valid locator
+  -> connect to the active supervisor
+
+lifecycle lock held + missing, unreadable, malformed, oversized, symlinked,
+or schema-invalid locator
+  -> deterministic communication failure
+
+lifecycle lock held + unavailable endpoint
+  -> deterministic communication failure
+```
+
+The locator is a private versioned filesystem record. It is not a control protocol request or response and must not enter `worker.state.json`.
+
+It contains only:
+
+```text
+version
+control_transport
+socket_path
+tcp_host
+tcp_port
+stop_timeout_ms
+force_kill_timeout_ms
+```
+
+The inactive transport fields must be `null`.
+
+The locator is published only after:
+
+```text
+control listener is bound
+AND signal handling is installed
+AND starting state is published
+```
+
+It is published before child spawn, so the supervisor can serve early status, health, or stop requests.
+
+The active locator, rather than current config, owns the stop-client request deadline:
+
+```text
+stop_timeout_ms + (2 * force_kill_timeout_ms) + 2000
+```
+
+Changing current worker endpoint or timeout configuration does not redirect lifecycle commands and does not shorten the shutdown deadline of an active pool.
+
+A process crash may leave a stale locator after the operating system releases the lifecycle lock. A free lock remains authoritative and classifies the pool as not running. The next successful start deletes the stale locator after acquiring the canonical lock and before publishing a fresh locator.
+
+Raw locator fields and raw locator JSON must not enter logs, spans, metrics, CLI output, state snapshots, or public exception messages.
+
+The supervisor deletes the private locator before releasing the lifecycle lock.
 
 ## Readiness protocol decision
 
@@ -1158,7 +1300,11 @@ Only SHA-256 `endpoint_hash` may identify the selected control endpoint in state
 
 ## Status and health decision
 
-`worker:status` probes the lifecycle lock and then requests the current in-memory supervisor state.
+`worker:status`, `worker:health`, and `worker:stop` first probe the canonical lifecycle lock and then read the private active lifecycle locator.
+
+They connect to the endpoint from the locator and do not resolve `WorkerPoolSpec` from current worker configuration.
+
+`worker:status` requests the current in-memory supervisor state.
 
 It must not infer running state from `worker.state.json`.
 
@@ -1220,6 +1366,7 @@ transition state to stopping
 -> clear stop signal
 -> close control listener
 -> remove Unix socket when applicable
+-> delete private lifecycle locator
 -> release lifecycle lock
 -> send terminal stopped response
 ```
@@ -1573,6 +1720,21 @@ child_generation
 
 Logs and spans are summary-only.
 
+The private lifecycle locator is not an observability source.
+
+The following locator data is forbidden in logs, spans, metrics, and metric labels:
+
+```text
+socket_path
+tcp_host
+tcp_port
+raw locator JSON
+```
+
+Only the lowercase hexadecimal SHA-256 `endpoint_hash` may identify the selected endpoint in the defined safe log and state contexts.
+
+`endpoint_hash` must not be emitted as a metric label.
+
 Observability failures must not alter:
 
 - worker lifecycle semantics;
@@ -1594,6 +1756,7 @@ The worker runtime must not leak:
 
 - raw socket paths;
 - raw TCP hosts or ports;
+- raw lifecycle locator JSON;
 - absolute paths;
 - task payloads;
 - HTTP payloads;
@@ -1627,6 +1790,8 @@ The public `pid` is the persistent supervisor PID.
 Child PIDs are not public state fields.
 
 Raw endpoint identifiers must not be public output.
+
+The private locator and its raw fields must not be emitted through CLI output, state snapshots, logs, spans, metrics, or exception messages.
 
 Endpoint identity may be represented publicly only as a deterministic hash.
 
@@ -1906,6 +2071,7 @@ Expected verification includes:
 
 ```text
 framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php
+framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
 framework/packages/platform/worker/tests/Unit/WorkerPoolStateTest.php
 framework/packages/platform/worker/tests/Unit/WorkerChildTableTest.php
 framework/packages/platform/worker/tests/Unit/WorkerSupervisorLifecycleTest.php
@@ -1913,6 +2079,8 @@ framework/packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.p
 
 framework/packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php
 framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php
@@ -1937,6 +2105,8 @@ framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesS
 framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
 framework/packages/platform/worker/tests/Integration/WorkerLifecycleLockFilesystemTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
 framework/packages/platform/worker/tests/Integration/WorkerSupervisorProductionFlowTest.php
 framework/packages/platform/worker/tests/Integration/WorkerSupervisorReadinessTest.php
 framework/packages/platform/worker/tests/Integration/WorkerSupervisorRecycleTest.php
@@ -1955,6 +2125,14 @@ These tests are expected to verify:
 - Kernel runtime-driver selection is independent from Worker OS process-driver selection;
 - TCP port `0` is rejected;
 - the lifecycle lock is sole liveness authority;
+- the lifecycle lock path is canonical and cannot drift with current config;
+- the private locator has an exact versioned schema;
+- locator publication is atomic, bounded, private, and mode `0600` on Unix;
+- locator ownership is limited to supervisor writes/deletes and control-client reads;
+- lifecycle commands do not resolve `WorkerPoolSpec`;
+- endpoint, transport, invalid-config, and timeout drift do not redirect lifecycle commands;
+- a stale locator with a free lock still means not running;
+- the next successful start replaces stale locator data;
 - duplicate start fails deterministically;
 - stale state with a free lock does not mean running;
 - a held lock with unavailable control endpoint is a communication failure;
@@ -1976,7 +2154,7 @@ These tests are expected to verify:
 - resolving `WorkerStartCommand` does not resolve the supervisor;
 - Worker provider definitions contain no closures;
 - Worker source registration applies the contribution produced by `define()`;
-- the Worker graph contains no legacy lifecycle compatibility services;
+- the Worker graph contains only canonical lifecycle services;
 - the selected task factory alone is resolved;
 - every internal container lookup has a matching required-service declaration;
 - `RuntimePathContext` values never enter definitions, artifacts, or fingerprint input;

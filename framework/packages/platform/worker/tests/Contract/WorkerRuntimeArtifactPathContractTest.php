@@ -25,7 +25,15 @@ final class WorkerRuntimeArtifactPathContractTest extends PackageTestCase
     public function testRuntimeArtifactsRemainRelativeAndOwnedByDedicatedCollaborators(): void
     {
         $factory = self::source('src/Provider/WorkerServiceFactory.php');
-        foreach (['workerLifecycleLock', 'workerStopSignal', 'workerStateStore', 'workerControlTransport'] as $method) {
+        foreach (
+            [
+                'workerLifecycleLock',
+                'workerLifecycleLocatorStore',
+                'workerStopSignal',
+                'workerStateStore',
+                'workerControlTransport',
+            ] as $method
+        ) {
             self::assertStringContainsString('function ' . $method, $factory);
         }
         foreach (['procWorkerManagerDriver', 'workerManager', 'workerSocketServer'] as $old) {

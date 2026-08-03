@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Integration;
 
+use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
+use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
 use Coretsia\Platform\Worker\Tests\Support\SupervisorIntegrationTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerCommandHarness;
 
@@ -40,6 +42,27 @@ final class WorkerLifecycleLockFilesystemTest extends SupervisorIntegrationTestC
 
         self::onlyPayload($first->invoke('stop'));
         self::assertSame(0, $first->finishStart()['exit_code']);
+    }
+
+    public function testCurrentConfigurationCannotChangeTheCanonicalLockAnchor(): void
+    {
+        ['root' => $root, 'harness' => $harness] = $this->newHarness();
+        $lockPath = $harness->lockPath();
+
+        $harness->replaceWorkerConfig([
+            'workers' => 0,
+            'driver' => 'invalid',
+            'lock_path' => 'var/tmp/current-config.lock',
+        ]);
+
+        self::assertSame(
+            WorkerLifecyclePaths::resolve(
+                $root,
+                WorkerLifecyclePaths::LOCK,
+            ),
+            $lockPath,
+        );
+        self::assertSame($lockPath, $harness->lockPath());
     }
 
     public function testStaleStateWithFreeLockIsNotRunning(): void
@@ -66,6 +89,131 @@ final class WorkerLifecycleLockFilesystemTest extends SupervisorIntegrationTestC
         } finally {
             \flock($handle, \LOCK_UN);
             \fclose($handle);
+        }
+    }
+
+    public function testSecondStartFailsWhileFirstSupervisorIsStillStarting(): void
+    {
+        ['root' => $root, 'harness' => $first] = $this->newHarness(
+            workerOverride: [
+                'start_timeout_ms' => 10_000,
+            ],
+            behavior: [
+                /*
+                 * Slot 1 cannot emit readiness until the test explicitly releases
+                 * the gate. The first supervisor therefore holds its lifecycle lock
+                 * while its public state remains STARTING.
+                 */
+                'ready_gate_slots' => [1],
+            ],
+        );
+
+        $first->start();
+
+        self::waitForStateStatus(
+            $first,
+            WorkerPoolStatus::STARTING,
+        );
+
+        $second = new WorkerCommandHarness(
+            skeletonRoot: $root,
+            workerOverride: $first->workerConfig(),
+            behavior: [
+                /*
+                 * Preserve the same fixture configuration when the second harness
+                 * rewrites the shared test behavior file. The second supervisor
+                 * must fail on the lifecycle lock before spawning any child.
+                 */
+                'ready_gate_slots' => [1],
+            ],
+        );
+
+        try {
+            $second->start();
+
+            $message = $second->waitForStartMessage();
+
+            self::assertSame(
+                'error',
+                $message['type'] ?? null,
+            );
+
+            self::assertSame(
+                'CORETSIA_WORKER_ALREADY_RUNNING',
+                $message['code'] ?? null,
+            );
+
+            $secondFinished = $second->finishStart();
+
+            self::assertNotSame(
+                0,
+                $secondFinished['exit_code'],
+                $secondFinished['stderr'],
+            );
+
+            /*
+             * The rejected second start must not alter or terminate the first
+             * supervisor. It must still expose its live STARTING state.
+             */
+            $status = self::onlyPayload(
+                $first->invoke('status'),
+            );
+
+            self::assertSame(
+                'starting',
+                $status['status'],
+            );
+
+            self::assertSame(
+                $first->startPid(),
+                $status['pid'],
+                'The original STARTING supervisor must remain the lifecycle owner.',
+            );
+
+            /*
+             * Release readiness only after duplicate-start rejection has been
+             * observed. The original supervisor must then complete startup.
+             */
+            $first->releaseReadiness();
+
+            $startMessage = $first->waitForStartMessage();
+
+            self::assertSame(
+                'json',
+                $startMessage['type'] ?? null,
+            );
+
+            self::assertSame(
+                'running',
+                $startMessage['payload']['status'] ?? null,
+            );
+
+            self::assertSame(
+                $first->startPid(),
+                $startMessage['payload']['pid'] ?? null,
+            );
+
+            $stop = self::onlyPayload(
+                $first->invoke('stop'),
+            );
+
+            self::assertSame(
+                'stopped',
+                $stop['status'],
+            );
+
+            $firstFinished = $first->finishStart();
+
+            self::assertSame(
+                0,
+                $firstFinished['exit_code'],
+                $firstFinished['stderr'],
+            );
+
+            self::assertLoggedChildrenExited($first);
+            self::assertRuntimeArtifactsCleaned($first);
+        } finally {
+            $second->close();
         }
     }
 }

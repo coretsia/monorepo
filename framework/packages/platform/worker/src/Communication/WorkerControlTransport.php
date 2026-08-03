@@ -19,13 +19,17 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Communication;
 
 use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
 /**
  * Low-level socket transport for the worker control channel.
  *
- * It derives addresses from WorkerPoolSpec, binds/connects sockets, performs
- * bounded frame I/O, and removes supervisor-owned Unix socket artifacts.
+ * Server addresses are derived from the startup WorkerPoolSpec. Client
+ * addresses are derived exclusively from the active WorkerLifecycleLocator.
+ * The transport performs bounded frame I/O and removes supervisor-owned Unix
+ * socket artifacts.
  */
 final readonly class WorkerControlTransport
 {
@@ -47,7 +51,7 @@ final readonly class WorkerControlTransport
             }
         }
         $server = @\stream_socket_server(
-            $this->address($spec),
+            $this->serverAddress($spec),
             $errno,
             $error,
             \STREAM_SERVER_BIND | \STREAM_SERVER_LISTEN
@@ -78,7 +82,7 @@ final readonly class WorkerControlTransport
 
     /** @return resource */
     public function connect(
-        WorkerPoolSpec $spec,
+        WorkerLifecycleLocator $locator,
         int $timeoutMs,
     ): mixed {
         if ($timeoutMs < 1) {
@@ -86,7 +90,7 @@ final readonly class WorkerControlTransport
         }
 
         $connection = @\stream_socket_client(
-            $this->address($spec),
+            $this->clientAddress($locator),
             $errorCode,
             $errorMessage,
             $timeoutMs / 1_000,
@@ -256,7 +260,7 @@ final readonly class WorkerControlTransport
         }
     }
 
-    private function address(WorkerPoolSpec $spec): string
+    private function serverAddress(WorkerPoolSpec $spec): string
     {
         return match ($spec->controlTransport()) {
             'unix' => 'unix://' . $this->unixPath($spec),
@@ -265,8 +269,48 @@ final readonly class WorkerControlTransport
         };
     }
 
+    private function clientAddress(WorkerLifecycleLocator $locator): string
+    {
+        return match ($locator->controlTransport()) {
+            'unix' => 'unix://' . $this->clientUnixPath($locator),
+            'tcp' => $this->clientTcpAddress($locator),
+            default => throw WorkerCommunicationFailedException::communicationFailed(),
+        };
+    }
+
     private function unixPath(WorkerPoolSpec $spec): string
     {
-        return \rtrim(\str_replace('\\', '/', $this->skeletonRoot), '/') . '/' . $spec->socketPath();
+        return WorkerLifecyclePaths::resolve(
+            $this->skeletonRoot,
+            $spec->socketPath(),
+        );
+    }
+
+    private function clientTcpAddress(WorkerLifecycleLocator $locator): string
+    {
+        $port = $locator->tcpPort();
+
+        if ($locator->tcpHost() !== '127.0.0.1' || $port === null) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
+        return 'tcp://127.0.0.1:' . $port;
+    }
+
+    private function clientUnixPath(WorkerLifecycleLocator $locator): string
+    {
+        $socketPath = $locator->socketPath();
+        if ($socketPath === null) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
+        try {
+            return WorkerLifecyclePaths::resolve(
+                $this->skeletonRoot,
+                $socketPath,
+            );
+        } catch (\Throwable) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
     }
 }

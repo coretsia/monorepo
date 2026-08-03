@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Support;
 
+use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
+
 /**
  * Process wrapper around the worker command fixture.
  */
@@ -70,14 +72,7 @@ final class WorkerCommandHarness
 
         $this->workerConfig = $worker;
 
-        $config = [
-            'kernel' => [
-                'runtime' => [
-                    'http_driver' => 'http.classic',
-                ],
-            ],
-            'worker' => $worker,
-        ];
+        $config = self::configDocument($worker);
 
         $this->configPath = $skeletonRoot . '/worker-test-config.json';
         $this->behaviorPath = $skeletonRoot . '/worker-test-behavior.json';
@@ -374,6 +369,22 @@ final class WorkerCommandHarness
         return $this->workerConfig;
     }
 
+    /**
+     * Replaces the config document used only by subsequent CLI processes.
+     *
+     * The retained workerConfig remains the startup configuration of the active
+     * supervisor so process-collection deadlines cannot drift with current config.
+     *
+     * @param array<string, mixed> $worker
+     */
+    public function replaceWorkerConfig(array $worker): void
+    {
+        self::writeJson(
+            $this->configPath,
+            self::configDocument($worker),
+        );
+    }
+
     public function releaseReadiness(): void
     {
         $this->writeGate(
@@ -436,7 +447,26 @@ final class WorkerCommandHarness
 
     public function lockPath(): string
     {
-        return $this->skeletonRoot . '/var/tmp/worker.lock';
+        return WorkerLifecyclePaths::resolve(
+            $this->skeletonRoot,
+            WorkerLifecyclePaths::LOCK,
+        );
+    }
+
+    public function locatorPath(): string
+    {
+        return WorkerLifecyclePaths::resolve(
+            $this->skeletonRoot,
+            WorkerLifecyclePaths::LOCATOR,
+        );
+    }
+
+    public function locatorTemporaryPath(): string
+    {
+        return WorkerLifecyclePaths::resolve(
+            $this->skeletonRoot,
+            WorkerLifecyclePaths::LOCATOR_TEMP,
+        );
     }
 
     public function socketPath(): string
@@ -1248,6 +1278,19 @@ final class WorkerCommandHarness
         return $messages;
     }
 
+    /** @param array<string, mixed> $worker */
+    private static function configDocument(array $worker): array
+    {
+        return [
+            'kernel' => [
+                'runtime' => [
+                    'http_driver' => 'http.classic',
+                ],
+            ],
+            'worker' => $worker,
+        ];
+    }
+
     /** @param array<string, mixed> $value */
     private static function writeJson(
         string $path,
@@ -1259,11 +1302,48 @@ final class WorkerCommandHarness
             | \JSON_UNESCAPED_UNICODE
             | \JSON_PRETTY_PRINT
             | \JSON_THROW_ON_ERROR,
-        );
+        ) . "\n";
+        $temporaryPath = $path . '.tmp';
+        $backupPath = $path . '.bak';
 
-        if (\file_put_contents($path, $bytes . "\n") === false) {
+        if (
+            @\file_put_contents(
+                $temporaryPath,
+                $bytes,
+                \LOCK_EX,
+            ) === false
+        ) {
             throw new \RuntimeException('worker-harness-config-write-failed');
         }
+
+        if (@\rename($temporaryPath, $path)) {
+            return;
+        }
+
+        if (
+            @\is_link($path)
+            || !@\is_file($path)
+            || @\file_exists($backupPath)
+            || @\is_link($backupPath)
+            || !@\rename($path, $backupPath)
+        ) {
+            @\unlink($temporaryPath);
+            throw new \RuntimeException('worker-harness-config-write-failed');
+        }
+
+        if (@\rename($temporaryPath, $path)) {
+            @\unlink($backupPath);
+            return;
+        }
+
+        $restored = @\rename($backupPath, $path);
+        @\unlink($temporaryPath);
+
+        if (!$restored) {
+            throw new \RuntimeException('worker-harness-config-restore-failed');
+        }
+
+        throw new \RuntimeException('worker-harness-config-write-failed');
     }
 
     private static function nullDevice(): string

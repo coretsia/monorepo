@@ -40,6 +40,7 @@ use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
+use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
 use Coretsia\Platform\Worker\Runtime\WorkerStateStore;
@@ -129,6 +130,11 @@ $decoder = new StableJsonDecoder();
 $transport = new WorkerControlTransport($skeletonRoot);
 $protocol = new WorkerControlProtocol($encoder, $decoder);
 $lock = new WorkerLifecycleLock($skeletonRoot);
+$locatorStore = new WorkerLifecycleLocatorStore(
+    skeletonRoot: $skeletonRoot,
+    encoder: $encoder,
+    decoder: $decoder,
+);
 $logger = new RecordingLogger();
 $meter = new RecordingMeter();
 $tracer = new RecordingTracer();
@@ -195,6 +201,7 @@ if ($operation === 'start') {
     $supervisor = new WorkerSupervisor(
         drivers: [$driver],
         lifecycleLock: $lock,
+        locatorStore: $locatorStore,
         controlServer: $server,
         readinessChannel: $readiness,
         children: $children,
@@ -242,6 +249,7 @@ $client = new WorkerControlClient(
     transport: $transport,
     protocol: $protocol,
     lifecycleLock: $lock,
+    locatorStore: $locatorStore,
     tracer: $tracer,
     meter: $meter,
     logger: $logger,
@@ -250,18 +258,12 @@ $client = new WorkerControlClient(
 
 $command = match ($operation) {
     'status' => new WorkerStatusCommand(
-        config: $repository,
-        factory: $factory,
         client: $client,
     ),
     'health' => new WorkerHealthCommand(
-        config: $repository,
-        factory: $factory,
         client: $client,
     ),
     'stop' => new WorkerStopCommand(
-        config: $repository,
-        factory: $factory,
         client: $client,
     ),
     default => null,

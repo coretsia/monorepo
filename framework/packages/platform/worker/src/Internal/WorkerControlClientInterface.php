@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Internal;
 
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
-use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 
 /**
@@ -29,9 +28,9 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
  */
 interface WorkerControlClientInterface
 {
-    public function status(WorkerPoolSpec $spec): WorkerPoolState;
+    public function status(): WorkerPoolState;
 
-    public function health(WorkerPoolSpec $spec): WorkerHealthState;
+    public function health(): WorkerHealthState;
 
-    public function stop(WorkerPoolSpec $spec): WorkerPoolState;
+    public function stop(): WorkerPoolState;
 }

@@ -21,14 +21,12 @@ namespace Coretsia\Platform\Worker\Console;
 use Coretsia\Contracts\Cli\Command\CommandInterface;
 use Coretsia\Contracts\Cli\Input\InputInterface;
 use Coretsia\Contracts\Cli\Output\OutputInterface;
-use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Platform\Worker\Exception\WorkerException;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
-use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 
 /**
- * Shows the configured worker pool status.
+ * Shows the active worker pool status.
  *
  * This command is package-local and contracts-only:
  *
@@ -39,8 +37,12 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
  * - it does not require full binary/catalog dispatch.
  *
  * Status behavior is delegated to WorkerControlClientInterface and therefore
- * comes from the live supervisor after a lifecycle-lock probe. The diagnostic
- * state snapshot is never used as the liveness authority.
+ * comes from the live supervisor after canonical lock and private locator
+ * discovery. The diagnostic state snapshot is never used as the liveness
+ * authority.
+ *
+ * Lifecycle commands do not resolve WorkerPoolSpec and do not use current
+ * worker configuration to address an active supervisor.
  *
  * This command must not read state files directly, own control sockets, inspect
  * raw runtime paths/endpoints, or expose raw runtime data.
@@ -59,7 +61,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 final readonly class WorkerStatusCommand implements CommandInterface
 {
     public const string NAME = 'worker:status';
-    public const string SUMMARY = 'Show the configured worker pool status.';
+    public const string SUMMARY = 'Show the active worker pool status.';
     public const string GROUP = 'worker';
     public const bool HIDDEN = false;
     public const string MODE = 'none';
@@ -67,8 +69,6 @@ final readonly class WorkerStatusCommand implements CommandInterface
     public const array OPTIONS = [];
 
     public function __construct(
-        private ConfigRepositoryInterface $config,
-        private WorkerServiceFactory $factory,
         private WorkerControlClientInterface $client,
     ) {
     }
@@ -86,7 +86,7 @@ final readonly class WorkerStatusCommand implements CommandInterface
             return 1;
         }
         try {
-            $state = $this->client->status($this->factory->workerPoolSpec($this->config));
+            $state = $this->client->status();
             $output->json(self::summary($state));
             return 0;
         } catch (WorkerException $exception) {

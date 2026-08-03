@@ -490,6 +490,8 @@ Worker metrics MUST NOT introduce any of the following metric labels:
 - `path`
 - `socket`
 - `socket_path`
+- `tcp_host`
+- `tcp_port`
 - `endpoint`
 - `endpoint_hash`
 - `payload`
@@ -553,6 +555,34 @@ Worker task logs, if introduced, MUST be summary-only and MAY include only:
 
 Worker logs MUST NOT include payloads, raw socket paths, raw TCP endpoints, absolute paths, config dumps, environment values, headers, cookies, authorization values, tokens, command lines, stack traces, throwable messages, previous throwable messages, OS error messages, or PHP warning text.
 
+The private worker lifecycle locator is not an observability payload.
+
+The following locator data MUST NOT be emitted:
+
+```text
+socket_path
+tcp_host
+tcp_port
+raw locator JSON
+```
+
+This prohibition applies to:
+
+```text
+logs
+spans and span attributes
+metrics and metric labels
+CLI output
+worker state snapshots
+exception messages
+```
+
+The locator may be used internally only for active-supervisor discovery and transport connection.
+
+Only the lowercase hexadecimal SHA-256 `endpoint_hash` may represent endpoint identity, and only in the defined safe log and state-summary contexts.
+
+`endpoint_hash` MUST NOT be used as a metric label or span attribute.
+
 Worker observability MUST NOT use raw endpoint identifiers.
 
 When endpoint correlation is required, worker observability MAY use only the already-redacted lowercase hexadecimal SHA-256 `endpoint_hash`, and only in logs or safe state summaries.
@@ -573,6 +603,7 @@ The following data is forbidden in logs, metrics, span names, span attributes, a
 - tokens
 - raw SQL
 - raw config dump
+- raw lifecycle locator JSON
 - raw env value
 - closure dump
 - source snippet

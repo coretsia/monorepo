@@ -35,10 +35,13 @@ use Coretsia\Platform\Worker\Communication\WorkerControlServer;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
+use Coretsia\Platform\Worker\Process\ContainerWorkerProcessDriverResolver;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
@@ -260,32 +263,36 @@ final class WorkerServiceFactory
         );
     }
 
+    /**
+     * Builds the canonical child launcher argv builder from runtime path input.
+     */
+    public function workerChildCommandBuilder(
+        RuntimePathContext $runtimePaths,
+    ): WorkerChildCommandBuilder {
+        return new WorkerChildCommandBuilder(
+            self::relativeArtifactRoot($runtimePaths),
+        );
+    }
+
+    /**
+     * Builds the PCNTL fork-and-exec adapter without capturing the container.
+     */
     public function pcntlWorkerProcessDriver(
-        ContainerInterface $container,
+        RuntimePathContext $runtimePaths,
+        WorkerChildCommandBuilder $commandBuilder,
+        WorkerChildReadinessChannel $readinessChannel,
         WorkerForkIsolation $forkIsolation,
         ?bool $pcntlAvailable = null,
         ?string $platformFamily = null,
     ): PcntlWorkerProcessDriver {
-        $bootstrap = static function (WorkerPoolSpec $spec, int $_workerIndex) use ($container): \Closure {
-            try {
-                $worker = $container->get(ApplicationWorker::class);
-            } catch (\Throwable) {
-                throw WorkerStartFailedException::childStartFailed();
-            }
-            if (!$worker instanceof ApplicationWorker) {
-                throw WorkerStartFailedException::childStartFailed();
-            }
-
-            $worker->assertReady($spec);
-
-            return static function () use ($worker, $spec): int {
-                $worker->run($spec);
-                return 0;
-            };
-        };
-
         return new PcntlWorkerProcessDriver(
-            childBootstrap: $bootstrap,
+            skeletonRoot: $runtimePaths->skeletonRoot(),
+            workerCommand: [
+                self::phpBinary(),
+                \dirname(__DIR__, 2) . '/bin/coretsia-worker',
+            ],
+            commandBuilder: $commandBuilder,
+            readinessChannel: $readinessChannel,
             forkIsolation: $forkIsolation,
             pcntlAvailable: $pcntlAvailable ?? self::pcntlAvailable(),
             platformFamily: $platformFamily ?? \PHP_OS_FAMILY,
@@ -295,16 +302,26 @@ final class WorkerServiceFactory
     public function procWorkerProcessDriver(
         RuntimePathContext $runtimePaths,
         ConfigRepositoryInterface $config,
+        WorkerChildCommandBuilder $commandBuilder,
         WorkerChildReadinessChannel $readinessChannel,
         WorkerProcProcessHostClient $processHost,
     ): ProcWorkerProcessDriver {
         return new ProcWorkerProcessDriver(
             skeletonRoot: $runtimePaths->skeletonRoot(),
             workerCommand: $this->procWorkerCommand($config),
-            artifactRoot: self::relativeArtifactRoot($runtimePaths),
+            commandBuilder: $commandBuilder,
             readinessChannel: $readinessChannel,
             processHost: $processHost,
         );
+    }
+
+    /**
+     * Builds the package-internal lazy process-driver resolver.
+     */
+    public function workerProcessDriverResolver(
+        ContainerInterface $container,
+    ): ContainerWorkerProcessDriverResolver {
+        return new ContainerWorkerProcessDriverResolver($container);
     }
 
     public function workerProcProcessHostProtocol(
@@ -332,8 +349,7 @@ final class WorkerServiceFactory
     }
 
     public function workerSupervisor(
-        PcntlWorkerProcessDriver $pcntlDriver,
-        ProcWorkerProcessDriver $procDriver,
+        WorkerProcessDriverResolverInterface $driverResolver,
         WorkerLifecycleLock $lifecycleLock,
         WorkerLifecycleLocatorStore $locatorStore,
         WorkerControlServer $controlServer,
@@ -348,7 +364,7 @@ final class WorkerServiceFactory
         Stopwatch $stopwatch,
     ): WorkerSupervisor {
         return new WorkerSupervisor(
-            drivers: [$pcntlDriver, $procDriver],
+            driverResolver: $driverResolver,
             lifecycleLock: $lifecycleLock,
             locatorStore: $locatorStore,
             controlServer: $controlServer,
@@ -434,9 +450,13 @@ final class WorkerServiceFactory
     private static function pcntlAvailable(): bool
     {
         return \function_exists('pcntl_fork')
+            && \function_exists('pcntl_exec')
             && \function_exists('pcntl_waitpid')
-            && \function_exists('posix_kill')
-            && \function_exists('stream_socket_pair');
+            && \function_exists('pcntl_wifexited')
+            && \function_exists('pcntl_wexitstatus')
+            && \function_exists('pcntl_wifsignaled')
+            && \function_exists('pcntl_wtermsig')
+            && \function_exists('posix_kill');
     }
 
     private static function requiredConfigValue(ConfigRepositoryInterface $config, string $key): mixed

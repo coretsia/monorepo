@@ -25,9 +25,9 @@ use Coretsia\Platform\Worker\Process\WorkerChildProcess;
  * Implements the bounded one-frame readiness protocol between the supervisor
  * and one worker child.
  *
- * Pcntl children use a connected Unix socket pair. Proc children connect back
- * to a dedicated loopback TCP listener because PHP cannot select proc_open()
- * pipes on Windows.
+ * Production PCNTL and proc children connect back to a dedicated per-child
+ * loopback TCP listener and publish one tokenized frame. Connected stream mode
+ * remains available only for package test doubles.
  */
 final readonly class WorkerChildReadinessChannel
 {
@@ -39,7 +39,10 @@ final readonly class WorkerChildReadinessChannel
         self::writeFrame($stream, self::FRAME);
     }
 
-    public function createProcEndpoint(): WorkerChildReadinessEndpoint
+    /**
+     * Creates one tokenized loopback endpoint for a process child.
+     */
+    public function createProcessEndpoint(): WorkerChildReadinessEndpoint
     {
         $listener = @\stream_socket_server(
             'tcp://127.0.0.1:0',
@@ -106,7 +109,7 @@ final readonly class WorkerChildReadinessChannel
         }
 
         if ($endpoint->mode() === WorkerChildReadinessEndpoint::MODE_TCP_LISTENER) {
-            $this->acceptProcConnection($endpoint);
+            $this->acceptProcessConnection($endpoint);
         }
 
         $stream = $endpoint->mode() === WorkerChildReadinessEndpoint::MODE_STREAM
@@ -218,7 +221,7 @@ final readonly class WorkerChildReadinessChannel
         return $nowNs + ($timeoutMs * 1_000_000);
     }
 
-    private function acceptProcConnection(
+    private function acceptProcessConnection(
         WorkerChildReadinessEndpoint $endpoint,
     ): void {
         if (\is_resource($endpoint->connection())) {

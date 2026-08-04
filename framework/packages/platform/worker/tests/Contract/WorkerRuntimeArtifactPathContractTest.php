@@ -32,10 +32,18 @@ final class WorkerRuntimeArtifactPathContractTest extends PackageTestCase
                 'workerStopSignal',
                 'workerStateStore',
                 'workerControlTransport',
+                'workerChildCommandBuilder',
+                'pcntlWorkerProcessDriver',
+                'procWorkerProcessDriver',
             ] as $method
         ) {
             self::assertStringContainsString('function ' . $method, $factory);
         }
+        self::assertStringContainsString(
+            'self::relativeArtifactRoot($runtimePaths)',
+            $factory,
+        );
+
         foreach (['procWorkerManagerDriver', 'workerManager', 'workerSocketServer'] as $old) {
             self::assertStringNotContainsString($old, $factory);
         }

@@ -542,11 +542,13 @@ HttpTaskFactory
 TaskFactoryInternalInterface
 ApplicationWorker
 
+WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 ProcWorkerProcessDriver
-worker.process_driver tags
+ContainerWorkerProcessDriverResolver
+WorkerProcessDriverResolverInterface alias
 
 WorkerSupervisor
 WorkerSupervisorInterface alias
@@ -568,6 +570,7 @@ ModulePlan
 RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
@@ -590,12 +593,15 @@ The following must be provided by the complete definition graph:
 ```text
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
 QueueTaskFactory
 HttpTaskFactory
 ```
+
+`WorkerProcessDriverResolverInterface` is required because `WorkerSupervisor` performs a deferred exact lookup of the selected concrete process driver.
 
 `QueueTaskFactory` and `HttpTaskFactory` are required because `WorkerServiceFactory::taskFactory(...)` resolves the selected service internally through `ContainerInterface`.
 
@@ -941,7 +947,7 @@ This decision should be locked by tests covering:
 - Worker `register()` delegates the same contribution produced by `define()`;
 - Worker required-service declarations cover the deferred supervisor interface, live control client interface, and both internally selected task factories;
 - Worker provider definitions contain no legacy lifecycle compatibility services or duplicate control-server abstractions;
-- Worker process drivers are tagged only under `worker.process_driver`;
+- Worker process drivers are resolved through the exact package-owned `WorkerProcessDriverResolverInterface` mapping, and only the selected concrete driver is constructed;
 - `WorkerHealthCommand` is defined and tagged as a canonical CLI command;
 - `WorkerSupervisorInterface` remains unresolved until after runtime entrypoint validation;
 - only the selected task factory is resolved;

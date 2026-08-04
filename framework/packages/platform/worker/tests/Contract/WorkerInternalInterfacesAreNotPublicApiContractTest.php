@@ -24,7 +24,15 @@ final class WorkerInternalInterfacesAreNotPublicApiContractTest extends PackageT
 {
     public function testInternalContractsAreMarkedInternalAndOldManagerInterfacesAreAbsent(): void
     {
-        foreach (['WorkerProcessDriverInterface.php', 'WorkerSupervisorInterface.php', 'WorkerSupervisorResolverInterface.php', 'TaskFactoryInternalInterface.php'] as $file) {
+        foreach (
+            [
+                'WorkerProcessDriverInterface.php',
+                'WorkerProcessDriverResolverInterface.php',
+                'WorkerSupervisorInterface.php',
+                'WorkerSupervisorResolverInterface.php',
+                'TaskFactoryInternalInterface.php',
+            ] as $file
+        ) {
             self::assertStringContainsString('@internal', self::source('src/Internal/' . $file));
         }
         self::assertFileDoesNotExist(self::packageRoot() . '/src/Internal/WorkerManagerDriverInterface.php');

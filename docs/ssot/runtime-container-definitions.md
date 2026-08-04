@@ -482,6 +482,7 @@ WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
 WorkerStateStore
 WorkerLifecycleLock
+WorkerLifecycleLocatorStore
 WorkerStopSignal
 
 WorkerControlTransport
@@ -493,6 +494,7 @@ WorkerChildReadinessChannel
 WorkerChildTable
 WorkerSignalController
 WorkerForkIsolation
+WorkerChildCommandBuilder
 
 QueueTaskFactory
 HttpTaskFactory
@@ -503,6 +505,7 @@ PcntlWorkerProcessDriver
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 ProcWorkerProcessDriver
+ContainerWorkerProcessDriverResolver
 
 WorkerSupervisor
 ContainerWorkerSupervisorResolver
@@ -519,6 +522,9 @@ It MUST define the aliases:
 WorkerControlClientInterface
     -> WorkerControlClient
 
+WorkerProcessDriverResolverInterface
+    -> ContainerWorkerProcessDriverResolver
+
 WorkerSupervisorInterface
     -> WorkerSupervisor
 
@@ -526,15 +532,11 @@ WorkerSupervisorResolverInterface
     -> ContainerWorkerSupervisorResolver
 ```
 
-It MUST contribute the package-owned process-driver tags:
+It MUST define `ContainerWorkerProcessDriverResolver` and alias `WorkerProcessDriverResolverInterface` to it.
 
-```text
-worker.process_driver
-    -> PcntlWorkerProcessDriver
+The resolver MUST perform an exact package-owned mapping and MUST resolve only the driver selected by `WorkerPoolSpec`.
 
-worker.process_driver
-    -> ProcWorkerProcessDriver
-```
+Process-driver tags are not part of the Worker runtime contribution.
 
 It MUST contribute the canonical `cli.command` tags for:
 
@@ -559,6 +561,7 @@ ModulePlan
 RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
@@ -579,12 +582,15 @@ The following MUST be defined by the complete definition graph:
 ```text
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
 QueueTaskFactory
 HttpTaskFactory
 ```
+
+`WorkerProcessDriverResolverInterface` MUST be required because `WorkerSupervisor` performs a deferred exact lookup of the selected concrete process driver.
 
 `WorkerSupervisorInterface` MUST be required because `ContainerWorkerSupervisorResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerSupervisorInterface::class)` lookup.
 
@@ -709,9 +715,12 @@ The following Worker factory methods MUST receive `RuntimePathContext`:
 
 ```text
 WorkerServiceFactory::workerStateStore(...)
+WorkerServiceFactory::workerLifecycleLocatorStore(...)
 WorkerServiceFactory::workerLifecycleLock(...)
 WorkerServiceFactory::workerStopSignal(...)
 WorkerServiceFactory::workerControlTransport(...)
+WorkerServiceFactory::workerChildCommandBuilder(...)
+WorkerServiceFactory::pcntlWorkerProcessDriver(...)
 WorkerServiceFactory::procWorkerProcessDriver(...)
 WorkerServiceFactory::workerProcProcessHostClient(...)
 ```
@@ -719,15 +728,18 @@ WorkerServiceFactory::workerProcProcessHostClient(...)
 The path-owning factories use it as follows:
 
 - `WorkerStateStore` receives the normalized skeleton root;
+- `WorkerLifecycleLocatorStore` receives the normalized skeleton root;
 - `WorkerLifecycleLock` receives the normalized skeleton root;
 - `WorkerStopSignal` receives the normalized skeleton root;
 - `WorkerControlTransport` receives the normalized skeleton root;
-- `ProcWorkerProcessDriver` receives the normalized skeleton root and one validated skeleton-root-relative artifact root;
+- `WorkerChildCommandBuilder` receives one validated skeleton-root-relative artifact root;
+- `PcntlWorkerProcessDriver` receives the normalized skeleton root only for the post-fork artifact-only exec boundary;
+- `ProcWorkerProcessDriver` receives the normalized skeleton root;
 - `WorkerProcProcessHostClient` receives the normalized skeleton root as its working directory.
 
 `ApplicationWorker` MUST receive `WorkerStopSignal`, not a raw skeleton root.
 
-`PcntlWorkerProcessDriver` MUST NOT require runtime paths merely to execute fork-based child behavior.
+`PcntlWorkerProcessDriver` MUST NOT receive `BootstrapConfig`, `ContainerInterface`, `ApplicationWorker`, raw individual artifact paths, or a child-bootstrap closure.
 
 The constructed Worker runtime services MUST NOT resolve `BootstrapConfig` or reconstruct runtime roots independently.
 
@@ -2134,7 +2146,7 @@ Additional tests SHOULD cover:
 - absence of legacy lifecycle compatibility services and duplicate control-server abstractions;
 - presence of `WorkerControlClientInterface` and `WorkerSupervisorInterface` aliases;
 - presence of `WorkerHealthCommand`;
-- deterministic `worker.process_driver` tags;
+- exact lazy selected-driver resolution without process-driver tags;
 - lazy selection of only the canonical task-factory service;
 - `RuntimePathContext::class` remaining visible as a required service id;
 - runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
@@ -2162,8 +2174,8 @@ When a declarative runtime provider contributes canonical container definitions:
 9. service, alias, and parameter collisions use later-wins behavior;
 10. duplicate tag pairs use first-wins behavior;
 11. source-container factory closures created for definition application exist only inside the Foundation adapter;
-12. Worker execution callbacks, including the PCNTL child bootstrap callback and task-work callback, are created only during runtime service construction or execution and never enter canonical definitions;
-13. Worker source wiring defines supervisor, control, lifecycle-lock, process-driver, proc-host, readiness, and health-command services without legacy lifecycle compatibility facades;
+12. The task-work callback is created only during runtime service construction or execution and never enters canonical definitions; the PCNTL driver receives no child-bootstrap callback;
+13. Worker source wiring defines supervisor, lazy selected-driver resolver, child-command builder, control, lifecycle-lock, process-driver, proc-host, readiness, and health-command services;
 14. Worker source mode consumes `WorkerServiceProvider::define()`;
 15. production compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
 16. provider planning uses module topological order followed by declared provider order and creates no provider instances;

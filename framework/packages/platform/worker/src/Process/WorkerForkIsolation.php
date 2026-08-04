@@ -24,7 +24,10 @@ use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
 use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 
 /**
- * Closes supervisor-owned descriptors inherited across pcntl_fork().
+ * Detaches registered supervisor-owned resources inherited by a PCNTL child.
+ *
+ * The per-child readiness listener is owned by the process driver and is
+ * closed by that driver before this boundary is invoked.
  */
 final readonly class WorkerForkIsolation
 {
@@ -36,6 +39,10 @@ final readonly class WorkerForkIsolation
     ) {
     }
 
+    /**
+     * Detaches all supervisor resources registered with this boundary before
+     * process-image replacement.
+     */
     public function prepareForkedChild(): void
     {
         $this->children->detachInForkedChild();

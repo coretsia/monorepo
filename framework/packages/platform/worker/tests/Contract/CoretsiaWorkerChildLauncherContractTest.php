@@ -25,10 +25,28 @@ final class CoretsiaWorkerChildLauncherContractTest extends PackageTestCase
     public function testLauncherUsesTokenizedTcpReadinessAfterPreflightAndNoDirectOutput(): void
     {
         $source = self::source('bin/coretsia-worker');
-        foreach (['readiness_port', 'readiness_token', 'assertReady', 'coretsia_worker_child_signal_ready'] as $required) {
+        foreach (
+            [
+                'readiness_port',
+                'readiness_token',
+                'assertReady',
+                'coretsia_worker_child_signal_ready',
+                "\$driver !== 'pcntl' && \$driver !== 'proc'",
+                "\$args['driver'] !== \$spec->driver()",
+            ] as $required
+        ) {
             self::assertStringContainsString($required, $source);
         }
-        foreach (['readiness_fd', 'STDOUT', 'STDERR', 'fwrite(STDERR', 'echo ', 'print '] as $forbidden) {
+        foreach (
+            [
+                'readiness_fd',
+                'STDOUT',
+                'STDERR',
+                'fwrite(STDERR',
+                'echo ',
+                'print ',
+            ] as $forbidden
+        ) {
             self::assertStringNotContainsString($forbidden, $source);
         }
     }

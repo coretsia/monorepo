@@ -33,15 +33,20 @@ use Coretsia\Platform\Worker\Console\WorkerHealthCommand;
 use Coretsia\Platform\Worker\Console\WorkerStartCommand;
 use Coretsia\Platform\Worker\Console\WorkerStatusCommand;
 use Coretsia\Platform\Worker\Console\WorkerStopCommand;
+use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
+use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
 use Coretsia\Platform\Worker\Runtime\WorkerStateStore;
 use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
@@ -177,7 +182,7 @@ if ($operation === 'start') {
                 PHP_BINARY,
                 __DIR__ . '/proc-supervisor-child.php',
             ],
-            artifactRoot: 'var/tmp',
+            commandBuilder: new WorkerChildCommandBuilder('var/tmp'),
             readinessChannel: $readiness,
             processHost: $processHost,
         );
@@ -198,8 +203,24 @@ if ($operation === 'start') {
         );
     }
 
+    $driverResolver = new class($driver) implements WorkerProcessDriverResolverInterface {
+        public function __construct(
+            private readonly WorkerProcessDriverInterface $driver,
+        ) {
+        }
+
+        public function resolve(WorkerPoolSpec $spec): WorkerProcessDriverInterface
+        {
+            if (!$this->driver->supports($spec)) {
+                throw WorkerStartFailedException::childStartFailed();
+            }
+
+            return $this->driver;
+        }
+    };
+
     $supervisor = new WorkerSupervisor(
-        drivers: [$driver],
+        driverResolver: $driverResolver,
         lifecycleLock: $lock,
         locatorStore: $locatorStore,
         controlServer: $server,

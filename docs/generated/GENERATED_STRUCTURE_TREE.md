@@ -1101,6 +1101,7 @@ Coretsia/
 │   │           │   │   ├── TaskFactoryInternalInterface.php
 │   │           │   │   ├── WorkerControlClientInterface.php
 │   │           │   │   ├── WorkerProcessDriverInterface.php
+│   │           │   │   ├── WorkerProcessDriverResolverInterface.php
 │   │           │   │   ├── WorkerRuntimeDriverContributions.php
 │   │           │   │   ├── WorkerSupervisorInterface.php
 │   │           │   │   └── WorkerSupervisorResolverInterface.php
@@ -1114,6 +1115,8 @@ Coretsia/
 │   │           │   │   │   ├── WorkerProcProcessHostChild.php
 │   │           │   │   │   ├── WorkerProcProcessHostClient.php
 │   │           │   │   │   └── WorkerProcProcessHostProtocol.php
+│   │           │   │   ├── ContainerWorkerProcessDriverResolver.php
+│   │           │   │   ├── WorkerChildCommandBuilder.php
 │   │           │   │   ├── WorkerChildProcess.php
 │   │           │   │   ├── WorkerForkIsolation.php
 │   │           │   │   └── WorkerProcessExit.php
@@ -1151,6 +1154,7 @@ Coretsia/
 │   │           │   │   ├── ApplicationWorkerStopwatchFailurePolicyContractTest.php
 │   │           │   │   ├── CoretsiaWorkerChildLauncherContractTest.php
 │   │           │   │   ├── CrossCuttingNoopDoesNotThrowTest.php
+│   │           │   │   ├── PcntlWorkerContainerIsolationContractTest.php
 │   │           │   │   ├── ProcWorkerProcessDriverSafetyContractTest.php
 │   │           │   │   ├── WorkerCommandMetadataConstantsTest.php
 │   │           │   │   ├── WorkerCommandsUseCliContractsOnlyTest.php
@@ -1176,6 +1180,7 @@ Coretsia/
 │   │           │   ├── Fake/
 │   │           │   │   └── FakeWorkerProcessDriver.php
 │   │           │   ├── Fixtures/
+│   │           │   │   ├── pcntl-exec-worker-fixture.php
 │   │           │   │   ├── proc-supervisor-child.php
 │   │           │   │   ├── proc-worker-fixture.php
 │   │           │   │   └── worker-command-harness.php
@@ -1184,6 +1189,8 @@ Coretsia/
 │   │           │   │   ├── CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 │   │           │   │   ├── CoretsiaWorkerChildBootsCurrentGenerationTest.php
 │   │           │   │   ├── CoretsiaWorkerChildReadinessTest.php
+│   │           │   │   ├── PcntlWorkerArtifactBootTest.php
+│   │           │   │   ├── PcntlWorkerExecIsolationTest.php
 │   │           │   │   ├── PcntlWorkerProcessDriverTest.php
 │   │           │   │   ├── ProcWorkerProcessDriverTest.php
 │   │           │   │   ├── WorkerControlTransportTest.php
@@ -1222,7 +1229,9 @@ Coretsia/
 │   │           │   └── Unit/
 │   │           │       ├── ApplicationWorkerMaxRequestsTest.php
 │   │           │       ├── ApplicationWorkerTest.php
+│   │           │       ├── ContainerWorkerProcessDriverResolverTest.php
 │   │           │       ├── ProcWorkerProcessDriverSupportTest.php
+│   │           │       ├── WorkerChildCommandBuilderTest.php
 │   │           │       ├── WorkerChildTableTest.php
 │   │           │       ├── WorkerLifecycleLocatorTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
@@ -1757,6 +1766,7 @@ Coretsia/
 │   │   │   │   ├── skeleton__composer.json.bak.3
 │   │   │   │   └── skeleton__composer.json.bak.4
 │   │   │   └── .gitignore
+│   │   ├── deptrac/
 │   │   └── .gitignore
 │   ├── composer.json
 │   └── composer.lock

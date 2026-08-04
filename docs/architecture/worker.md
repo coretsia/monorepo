@@ -162,6 +162,9 @@ WorkerChildTable
 WorkerSignalController
 
 WorkerProcessDriverInterface
+WorkerProcessDriverResolverInterface
+ContainerWorkerProcessDriverResolver
+WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
 WorkerForkIsolation
@@ -199,6 +202,7 @@ The canonical package-internal interfaces are:
 Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface
 Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface
 Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface
+Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface
 Coretsia\Platform\Worker\Internal\WorkerControlClientInterface
 Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
@@ -270,6 +274,7 @@ WorkerChildReadinessChannel
 WorkerChildTable
 WorkerSignalController
 WorkerForkIsolation
+WorkerChildCommandBuilder
 
 QueueTaskFactory
 HttpTaskFactory
@@ -280,7 +285,8 @@ PcntlWorkerProcessDriver
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 ProcWorkerProcessDriver
-worker.process_driver tags
+ContainerWorkerProcessDriverResolver
+WorkerProcessDriverResolverInterface alias
 
 WorkerSupervisor
 WorkerSupervisorInterface alias
@@ -300,6 +306,9 @@ The canonical aliases are:
 WorkerControlClientInterface
     -> WorkerControlClient
 
+WorkerProcessDriverResolverInterface
+    -> ContainerWorkerProcessDriverResolver
+
 WorkerSupervisorInterface
     -> WorkerSupervisor
 
@@ -307,18 +316,9 @@ WorkerSupervisorResolverInterface
     -> ContainerWorkerSupervisorResolver
 ```
 
-The process-driver tag is:
+`WorkerProcessDriverResolverInterface` maps the resolved process-driver id to exactly one concrete driver service.
 
-```text
-worker.process_driver
-```
-
-It is applied to:
-
-```text
-PcntlWorkerProcessDriver
-ProcWorkerProcessDriver
-```
+The resolver does not enumerate tags, does not fall back across drivers, and does not construct the unselected driver.
 
 The contribution declares these required runtime service ids:
 
@@ -328,6 +328,7 @@ ModulePlan
 RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
@@ -344,6 +345,8 @@ RuntimePathContext
 ```
 
 The remaining required ids must be supplied by the complete runtime graph.
+
+`WorkerProcessDriverResolverInterface` is required because `WorkerSupervisor` performs a deferred lookup of only the selected concrete process driver.
 
 `WorkerSupervisorInterface` is required because `ContainerWorkerSupervisorResolver` performs a deferred runtime-container lookup of that interface.
 
@@ -364,14 +367,9 @@ build WorkerPoolSpec
 
 The Worker contribution contains no closures.
 
-Runtime-only callbacks may be created only after definition production, including:
+The package-internal task-work callback may be created only after definition production and must not enter definitions, descriptor streams, generated artifacts, or fingerprint input.
 
-```text
-PCNTL child bootstrap callback
-task-work run callback
-```
-
-Those callbacks must not enter definitions, descriptor streams, generated artifacts, or fingerprint input.
+The PCNTL driver receives no child-bootstrap callback and captures no runtime container.
 
 ## Process model
 
@@ -408,7 +406,7 @@ WorkerStartCommand
        -> ContainerWorkerSupervisorResolver
        -> runtime container get(WorkerSupervisorInterface)
   -> WorkerSupervisorInterface::run(...)
-       -> select WorkerProcessDriverInterface
+       -> WorkerProcessDriverResolverInterface::resolve(WorkerPoolSpec)
        -> driver.prepare(...)
        -> acquire canonical WorkerLifecycleLock
        -> delete stale private lifecycle locator
@@ -522,7 +520,7 @@ proc
 When `worker.driver=auto`, resolution is deterministic:
 
 ```text
-pcntl when pcntl_fork is available and the platform is not Windows
+pcntl when the required PCNTL fork/exec and POSIX capabilities are available and the platform is not Windows
 proc otherwise
 ```
 
@@ -532,7 +530,7 @@ The `proc` driver is the cross-platform process adapter.
 
 It delegates raw `proc_open()` resource ownership to the dedicated proc process host instead of retaining proc resources inside the supervisor process.
 
-`WorkerSupervisor` receives an already-built `WorkerPoolSpec` and selects a supported process driver by the resolved driver id.
+`WorkerSupervisor` receives an already-built `WorkerPoolSpec` and delegates exact lazy driver resolution to `WorkerProcessDriverResolverInterface`.
 
 If no matching supported driver exists, lifecycle execution fails with a safe deterministic worker start failure.
 
@@ -773,7 +771,11 @@ A process driver must not own:
 - recycle policy;
 - pool-wide observability.
 
-`PcntlWorkerProcessDriver` owns fork, wait, signal, and descriptor operations for one PCNTL child.
+`PcntlWorkerProcessDriver` owns tokenized readiness creation, fork, Worker-owned descriptor detachment, `pcntl_exec()`, wait, signal, and resource-close operations for one PCNTL child.
+
+It receives no `ContainerInterface` and no `ApplicationWorker`. The forked child executes the package-owned artifact-only launcher before any child runtime service is resolved.
+
+`WorkerChildCommandBuilder` owns the exact shell-free argv shape shared by PCNTL and proc children.
 
 `ProcWorkerProcessDriver` delegates one-child proc operations to:
 
@@ -787,13 +789,15 @@ It is not the worker supervisor and does not own state, control, readiness polic
 
 Process command construction is argv-vector based and must not construct an untrusted shell string.
 
-## Proc child artifact-only boot boundary
+## Process-child artifact-only boot boundary
 
-The `proc` driver starts a fresh PHP child process.
+Both process drivers enter a fresh PHP runtime image before Worker runtime boot.
 
-Unlike a forked `pcntl` child, the proc child does not inherit the already-built in-memory runtime container.
+The proc driver starts a fresh PHP child through the process host. The PCNTL driver forks only to establish a child PID, detaches Worker-owned inherited resources, and immediately replaces the forked supervisor image through `pcntl_exec()`.
 
-`ProcWorkerProcessDriver` passes each newly spawned proc child exactly one skeleton-root-relative Kernel artifact root.
+Neither child resolves `ApplicationWorker` from the supervisor container.
+
+`WorkerChildCommandBuilder` passes each newly spawned child exactly one skeleton-root-relative Kernel artifact root.
 
 The canonical child argv field is:
 
@@ -801,7 +805,7 @@ The canonical child argv field is:
 --coretsia-worker-artifact-root=<relative-safe-path>
 ```
 
-The proc child also receives a dedicated internal readiness endpoint and one independently generated 64-character lowercase hexadecimal readiness token.
+Each child receives a dedicated internal readiness endpoint and one independently generated 64-character lowercase hexadecimal readiness token.
 
 The readiness arguments are internal process-bootstrap arguments and must not appear in public diagnostics.
 
@@ -858,7 +862,7 @@ with that input only.
 
 These three objects form the exact entrypoint-owned runtime seed set.
 
-The proc child artifact-only boot path MUST NOT:
+The process-child artifact-only boot path MUST NOT:
 
 - accept individual artifact paths;
 - run Bootstrap Phase A;
@@ -900,11 +904,11 @@ The launcher MUST NOT forward the nested `ArtifactRuntimeBootException` reason o
 
 Raw artifact roots, generation paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages MUST NOT appear in public child diagnostics.
 
-Every proc spawn performs a fresh artifact-only boot.
+Every PCNTL and proc spawn performs a fresh artifact-only boot.
 
 This includes replacement children created during max-request recycle.
 
-A recycled proc child:
+A recycled process child:
 
 ```text
 receives the artifact root
@@ -916,7 +920,7 @@ receives the artifact root
 -> enters the task loop
 ```
 
-A replacement proc child must not inherit the previous child’s selected generation, loaded artifact snapshots, runtime container, or readiness state.
+A replacement process child must not inherit the previous child’s selected generation, loaded artifact snapshots, runtime container, or readiness state.
 
 ## Application worker boundary
 
@@ -924,9 +928,9 @@ A replacement proc child must not inherit the previous child’s selected genera
 
 It processes tasks sequentially without restarting PHP between tasks.
 
-`WorkerServiceFactory::applicationWorker(...)` receives `RuntimePathContext` and passes the normalized value returned by `RuntimePathContext::skeletonRoot()` to `ApplicationWorker`.
+`WorkerServiceFactory::applicationWorker(...)` receives `WorkerStopSignal`, `KernelRuntimeInterface`, `TaskFactoryInternalInterface`, `Stopwatch`, `TracerPortInterface`, and `MeterPortInterface`.
 
-`ApplicationWorker` does not depend on `RuntimePathContext` or `BootstrapConfig`.
+`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, or a raw skeleton root.
 
 The loop shape is:
 
@@ -1192,10 +1196,10 @@ Configured relative Worker paths must:
 
 These relative config values are distinct from both:
 
-- the proc-child artifact-root argument;
+- the process-child artifact-root argument;
 - runtime roots carried by `RuntimePathContext`.
 
-The proc-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
+The process-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -1769,7 +1773,7 @@ docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/ssot/runtime-container-definitions.md
 ```
 
-Changing the proc-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
+Changing the process-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
 
 ```text
 docs/architecture/worker.md

@@ -1211,8 +1211,10 @@ ArtifactRuntimeBooter
   -> exact read of all four generation files
   -> runtime hydration
 
-ProcWorkerProcessDriver
+WorkerChildCommandBuilder
   -> --coretsia-worker-artifact-root=<relative-safe-path>
+  -> PcntlWorkerProcessDriver | ProcWorkerProcessDriver
+  -> bin/coretsia-worker
   -> fresh child ArtifactRuntimeBooter
   -> current generation selection
 ```
@@ -1244,18 +1246,18 @@ Detailed Worker child parsing and process lifecycle remain owned by `docs/archit
 
 The generation classes are production infrastructure governed by this SSoT.
 
-### Recycled proc child generation selection (MUST)
+### Recycled process-child generation selection (MUST)
 
-Every proc child spawn MUST perform an independent artifact-only runtime boot.
+Every PCNTL and proc child spawn MUST perform an independent artifact-only runtime boot.
 
 This rule applies to:
 
 ```text
-initial proc child spawn
+initial process-child spawn
 supervisor-owned replacement spawn after max-request exit
 ```
 
-For every spawn, `ProcWorkerProcessDriver` MUST pass exactly one artifact-location argument:
+For every spawn, `WorkerChildCommandBuilder` MUST pass exactly one artifact-location argument:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -1288,7 +1290,7 @@ The child MUST:
 7. emit the exact internal readiness frame;
 8. enter `ApplicationWorker`.
 
-A recycled proc child MUST NOT inherit:
+A recycled process child MUST NOT inherit:
 
 - the previous child’s selected generation id;
 - the previous child’s artifact file handles;
@@ -1303,7 +1305,7 @@ If `current` changes between two child generations, the replacement child MUST b
 
 If the selected generation is missing, invalid, incomplete, or fails runtime boot, the replacement MUST fail readiness and the supervisor MUST apply its deterministic child-failure policy.
 
-The process host MUST NOT cache or select artifact generations on behalf of children.
+The proc process host MUST NOT cache or select artifact generations on behalf of children. The PCNTL forked child MUST replace the supervisor process image before artifact selection or runtime-container construction.
 
 ## Diagnostics and Redaction (MUST)
 
@@ -1474,7 +1476,7 @@ The test suite MUST cover at least:
 - artifact-only runtime selects `current` through `ArtifactGenerationLocator`;
 - artifact-only runtime validates and consumes all four files from one selected generation;
 - Worker child input contains one artifact root and no individual artifact paths;
-- each recycled proc child performs a fresh `current` lookup;
+- each recycled process child performs a fresh `current` lookup;
 - replacement children consume one complete independently validated generation;
 - replacement children do not inherit the previous process generation’s artifact snapshots;
 - the proc process host does not cache or select artifact generations.

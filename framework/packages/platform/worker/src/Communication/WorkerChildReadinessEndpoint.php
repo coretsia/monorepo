@@ -21,8 +21,9 @@ namespace Coretsia\Platform\Worker\Communication;
 /**
  * Mutable supervisor-side handle for one child readiness endpoint.
  *
- * Pcntl children use a connected Unix socket. Proc children use a dedicated
- * loopback TCP listener because PHP cannot select proc_open() pipes on Windows.
+ * Production process children use a tokenized loopback TCP listener. Connected
+ * stream mode remains available for package-owned test doubles that exercise
+ * supervisor readiness without launching the artifact-only child executable.
  */
 final class WorkerChildReadinessEndpoint
 {

@@ -24,6 +24,7 @@ use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
@@ -48,7 +49,7 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
         ));
     }
 
-    public function testConstructorRejectsShellStringsAndUnsafeArtifactPaths(): void
+    public function testConstructorRejectsInvalidCommandParts(): void
     {
         $root = $this->temporaryDirectory('worker-proc-invalid');
         $protocol = new WorkerProcProcessHostProtocol(
@@ -65,8 +66,8 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
 
         new ProcWorkerProcessDriver(
             skeletonRoot: $root,
-            workerCommand: ['php child.php &'],
-            artifactRoot: '../private',
+            workerCommand: ["php\n"],
+            commandBuilder: new WorkerChildCommandBuilder('var/cache/worker'),
             readinessChannel: new WorkerChildReadinessChannel(),
             processHost: $host,
         );
@@ -85,7 +86,7 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
                 \PHP_BINARY,
                 self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php',
             ],
-            artifactRoot: 'var/cache/worker',
+            commandBuilder: new WorkerChildCommandBuilder('var/cache/worker'),
             readinessChannel: new WorkerChildReadinessChannel(),
             processHost: new WorkerProcProcessHostClient(
                 command: [

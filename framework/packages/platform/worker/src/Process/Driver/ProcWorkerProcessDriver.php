@@ -22,6 +22,7 @@ use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerChildProcess;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -39,11 +40,11 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
  */
 final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInterface
 {
-    /** @param list<non-empty-string> $workerCommand */
+    /** @param non-empty-list<non-empty-string> $workerCommand */
     public function __construct(
         private string $skeletonRoot,
         private array $workerCommand,
-        private string $artifactRoot,
+        private WorkerChildCommandBuilder $commandBuilder,
         private WorkerChildReadinessChannel $readinessChannel,
         private WorkerProcProcessHostClient $processHost,
     ) {
@@ -52,7 +53,6 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
             || \str_contains($skeletonRoot, "\0")
             || $workerCommand === []
             || !\array_is_list($workerCommand)
-            || !self::isRelativeSafePath($artifactRoot)
         ) {
             throw new \InvalidArgumentException('proc-worker-process-driver-invalid');
         }
@@ -85,9 +85,7 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
             throw WorkerStartFailedException::childStartFailed();
         }
 
-        $this->processHost->start(
-            $spec->startTimeoutMs(),
-        );
+        $this->processHost->start($spec->startTimeoutMs());
     }
 
     public function spawn(
@@ -102,19 +100,13 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
             throw WorkerStartFailedException::childStartFailed();
         }
 
-        $readinessEndpoint = $this->readinessChannel->createProcEndpoint();
-
-        $command = [
-            ...$this->workerCommand,
-            '--coretsia-worker-index=' . $workerIndex,
-            '--coretsia-worker-count=' . $spec->workers(),
-            '--coretsia-worker-max-requests=' . $spec->maxRequests(),
-            '--coretsia-worker-task-type=' . $spec->taskType(),
-            '--coretsia-worker-driver=proc',
-            '--coretsia-worker-artifact-root=' . $this->artifactRoot,
-            '--coretsia-worker-readiness-port=' . $readinessEndpoint->port(),
-            '--coretsia-worker-readiness-token=' . $readinessEndpoint->token(),
-        ];
+        $readinessEndpoint = $this->readinessChannel->createProcessEndpoint();
+        $command = $this->commandBuilder->build(
+            baseCommand: $this->workerCommand,
+            spec: $spec,
+            workerIndex: $workerIndex,
+            readinessEndpoint: $readinessEndpoint,
+        );
 
         try {
             $hostChild = $this->processHost->spawn(
@@ -146,40 +138,27 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
     public function pollExit(
         WorkerChildProcess $child,
     ): ?WorkerProcessExit {
-        return $this->processHost->pollExit(
-            self::childId($child),
-        );
+        return $this->processHost->pollExit(self::childId($child));
     }
 
-    public function terminate(
-        WorkerChildProcess $child,
-    ): void {
-        $this->processHost->terminate(
-            self::childId($child),
-        );
+    public function terminate(WorkerChildProcess $child): void
+    {
+        $this->processHost->terminate(self::childId($child));
     }
 
-    public function kill(
-        WorkerChildProcess $child,
-    ): void {
-        $this->processHost->kill(
-            self::childId($child),
-        );
+    public function kill(WorkerChildProcess $child): void
+    {
+        $this->processHost->kill(self::childId($child));
     }
 
-    public function close(
-        WorkerChildProcess $child,
-    ): void {
+    public function close(WorkerChildProcess $child): void
+    {
         if ($child->closed()) {
             return;
         }
 
         $child->readinessEndpoint()->close();
-
-        $this->processHost->close(
-            self::childId($child),
-        );
-
+        $this->processHost->close(self::childId($child));
         $child->markClosed();
     }
 
@@ -188,51 +167,18 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
         $this->processHost->shutdown();
     }
 
-    private static function childId(
-        WorkerChildProcess $child,
-    ): string {
+    private static function childId(WorkerChildProcess $child): string
+    {
         $handle = $child->processHandle();
 
         if (
             $child->driverName() !== self::DRIVER_PROC
             || !\is_string($handle)
-            || \preg_match(
-                '/\Achild-[1-9][0-9]*\z/',
-                $handle,
-            ) !== 1
+            || \preg_match('/\Achild-[1-9][0-9]*\z/', $handle) !== 1
         ) {
             throw WorkerStartFailedException::childExited();
         }
 
         return $handle;
-    }
-
-    private static function isRelativeSafePath(string $path): bool
-    {
-        if (
-            $path === ''
-            || \trim($path) !== $path
-            || \preg_match('/[\x00-\x20\x7F]/', $path) === 1
-            || \str_starts_with($path, '/')
-            || \str_starts_with($path, '\\')
-            || \preg_match('/\A[A-Za-z]:[\/\\\\]/', $path) === 1
-            || \str_contains($path, '\\')
-            || \str_contains($path, '://')
-        ) {
-            return false;
-        }
-
-        foreach (\explode('/', $path) as $segment) {
-            if (
-                $segment === ''
-                || $segment === '.'
-                || $segment === '..'
-                || \str_starts_with($segment, '@')
-            ) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

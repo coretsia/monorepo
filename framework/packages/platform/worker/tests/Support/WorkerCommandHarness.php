@@ -94,9 +94,7 @@ final class WorkerCommandHarness
     public function start(): void
     {
         if ($this->startProcess !== null) {
-            throw new \LogicException(
-                'worker-harness-already-started',
-            );
+            throw new \LogicException('worker-harness-already-started');
         }
 
         [
@@ -116,7 +114,7 @@ final class WorkerCommandHarness
 
     /** @return array<string, mixed> */
     public function startAndWaitForSummary(
-        int $timeoutMs = 5000,
+        int $timeoutMs = self::DEFAULT_COMMAND_TIMEOUT_MS,
     ): array {
         $this->start();
 
@@ -140,7 +138,7 @@ final class WorkerCommandHarness
 
     /** @return array<string, mixed> */
     public function waitForStartMessage(
-        int $timeoutMs = 5000,
+        int $timeoutMs = self::DEFAULT_COMMAND_TIMEOUT_MS,
     ): array {
         return $this->readStartMessage($timeoutMs);
     }
@@ -167,26 +165,19 @@ final class WorkerCommandHarness
             $result = self::collectProcess(
                 process: $process,
                 pipes: $pipes,
-                timeoutMs: $timeoutMs
-                ?? $this->commandTimeoutMs($operation),
+                timeoutMs: $timeoutMs ?? $this->commandTimeoutMs($operation),
                 timeoutReason: 'worker-harness-command-timeout',
                 exitCodePath: $exitCodePath,
             );
         } finally {
-            self::cleanupOutputPaths(
-                $outputPaths,
-            );
+            self::cleanupOutputPaths($outputPaths);
 
-            self::cleanupExitCodePath(
-                $exitCodePath,
-            );
+            self::cleanupExitCodePath($exitCodePath);
         }
 
         return [
             'exit_code' => $result['exit_code'],
-            'messages' => self::decodeLines(
-                $result['stdout'],
-            ),
+            'messages' => self::decodeLines($result['stdout']),
             'stderr' => $result['stderr'],
         ];
     }
@@ -222,15 +213,12 @@ final class WorkerCommandHarness
             ? $status['exitcode']
             : null;
 
-        $timedOut = \is_array($status)
-            && ($status['running'] ?? false) === true;
+        $timedOut = \is_array($status) && ($status['running'] ?? false) === true;
 
         $explicitExitCode = null;
 
         if ($timedOut) {
-            self::terminateProcessTree(
-                $this->startProcess,
-            );
+            self::terminateProcessTree($this->startProcess);
 
             self::waitForProcessExit(
                 $this->startProcess,
@@ -245,18 +233,12 @@ final class WorkerCommandHarness
 
         $this->drainStartPipes();
 
-        self::closePipes(
-            $this->startPipes,
-        );
+        self::closePipes($this->startPipes);
 
-        $closedExitCode = @\proc_close(
-            $this->startProcess,
-        );
+        $closedExitCode = @\proc_close($this->startProcess);
 
         if (!$timedOut && $explicitExitCode === null) {
-            $explicitExitCode = self::readExitCode(
-                $this->startExitCodePath,
-            );
+            $explicitExitCode = self::readExitCode($this->startExitCodePath);
         }
         $exitCode = $explicitExitCode
             ?? $reportedExitCode
@@ -280,10 +262,7 @@ final class WorkerCommandHarness
         $this->startStderr = '';
 
         if ($timedOut) {
-            throw new \RuntimeException(
-                'worker-start-process-timeout: '
-                . $stderr,
-            );
+            throw new \RuntimeException('worker-start-process-timeout: ' . $stderr);
         }
 
         return [
@@ -387,16 +366,12 @@ final class WorkerCommandHarness
 
     public function releaseReadiness(): void
     {
-        $this->writeGate(
-            'worker-ready-gate',
-        );
+        $this->writeGate('worker-ready-gate');
     }
 
     public function releaseChildExit(): void
     {
-        $this->writeGate(
-            'worker-exit-gate',
-        );
+        $this->writeGate('worker-exit-gate');
     }
 
     private function writeGate(
@@ -417,9 +392,7 @@ final class WorkerCommandHarness
             )
             && !\is_dir($directory)
         ) {
-            throw new \RuntimeException(
-                'worker-gate-directory-failed',
-            );
+            throw new \RuntimeException('worker-gate-directory-failed');
         }
 
         if (
@@ -429,9 +402,7 @@ final class WorkerCommandHarness
                 \LOCK_EX,
             ) === false
         ) {
-            throw new \RuntimeException(
-                'worker-gate-write-failed',
-            );
+            throw new \RuntimeException('worker-gate-write-failed');
         }
     }
 
@@ -481,13 +452,8 @@ final class WorkerCommandHarness
             return self::DEFAULT_COMMAND_TIMEOUT_MS;
         }
 
-        $stopTimeoutMs =
-            $this->workerConfig['stop_timeout_ms']
-            ?? null;
-
-        $forceKillTimeoutMs =
-            $this->workerConfig['force_kill_timeout_ms']
-            ?? null;
+        $stopTimeoutMs = $this->workerConfig['stop_timeout_ms'] ?? null;
+        $forceKillTimeoutMs = $this->workerConfig['force_kill_timeout_ms'] ?? null;
 
         if (
             !\is_int($stopTimeoutMs)
@@ -523,17 +489,14 @@ final class WorkerCommandHarness
         try {
             $exitCodePath = $this->createExitCodePath();
         } catch (\Throwable $exception) {
-            self::cleanupOutputPaths(
-                $outputPaths,
-            );
+            self::cleanupOutputPaths($outputPaths);
 
             throw $exception;
         }
 
         $command = [
             \PHP_BINARY,
-            \dirname(__DIR__)
-            . '/Fixtures/worker-command-harness.php',
+            \dirname(__DIR__) . '/Fixtures/worker-command-harness.php',
             $operation,
             $this->skeletonRoot,
             $this->configPath,
@@ -579,17 +542,10 @@ final class WorkerCommandHarness
         );
 
         if (!\is_resource($process)) {
-            self::cleanupOutputPaths(
-                $outputPaths,
-            );
+            self::cleanupOutputPaths($outputPaths);
+            self::cleanupExitCodePath($exitCodePath);
 
-            self::cleanupExitCodePath(
-                $exitCodePath,
-            );
-
-            throw new \RuntimeException(
-                'worker-harness-process-failed',
-            );
+            throw new \RuntimeException('worker-harness-process-failed');
         }
 
         if ($windows) {
@@ -618,17 +574,10 @@ final class WorkerCommandHarness
                 self::terminateProcessTree($process);
                 @\proc_close($process);
 
-                self::cleanupOutputPaths(
-                    $outputPaths,
-                );
+                self::cleanupOutputPaths($outputPaths);
+                self::cleanupExitCodePath($exitCodePath);
 
-                self::cleanupExitCodePath(
-                    $exitCodePath,
-                );
-
-                throw new \RuntimeException(
-                    'worker-harness-output-files-invalid',
-                );
+                throw new \RuntimeException('worker-harness-output-files-invalid');
             }
 
             return [
@@ -659,13 +608,9 @@ final class WorkerCommandHarness
             self::closePipes($pipes);
             @\proc_close($process);
 
-            self::cleanupExitCodePath(
-                $exitCodePath,
-            );
+            self::cleanupExitCodePath($exitCodePath);
 
-            throw new \RuntimeException(
-                'worker-harness-pipes-invalid',
-            );
+            throw new \RuntimeException('worker-harness-pipes-invalid');
         }
 
         return [
@@ -684,8 +629,7 @@ final class WorkerCommandHarness
      */
     private function createWindowsOutputPaths(): array
     {
-        $directory = $this->skeletonRoot
-            . '/var/tmp';
+        $directory = $this->skeletonRoot . '/var/tmp';
 
         if (
             !\is_dir($directory)
@@ -696,9 +640,7 @@ final class WorkerCommandHarness
             )
             && !\is_dir($directory)
         ) {
-            throw new \RuntimeException(
-                'worker-harness-output-directory-failed',
-            );
+            throw new \RuntimeException('worker-harness-output-directory-failed');
         }
 
         try {
@@ -706,9 +648,7 @@ final class WorkerCommandHarness
                 \random_bytes(8),
             );
         } catch (\Throwable) {
-            throw new \RuntimeException(
-                'worker-harness-output-token-failed',
-            );
+            throw new \RuntimeException('worker-harness-output-token-failed');
         }
 
         $base = $directory
@@ -731,9 +671,7 @@ final class WorkerCommandHarness
             @\unlink($stdoutPath);
             @\unlink($stderrPath);
 
-            throw new \RuntimeException(
-                'worker-harness-output-files-failed',
-            );
+            throw new \RuntimeException('worker-harness-output-files-failed');
         }
 
         return [
@@ -752,8 +690,7 @@ final class WorkerCommandHarness
      */
     private function createExitCodePath(): string
     {
-        $directory = $this->skeletonRoot
-            . '/var/tmp';
+        $directory = $this->skeletonRoot . '/var/tmp';
 
         if (
             !\is_dir($directory)
@@ -764,9 +701,7 @@ final class WorkerCommandHarness
             )
             && !\is_dir($directory)
         ) {
-            throw new \RuntimeException(
-                'worker-harness-exit-directory-failed',
-            );
+            throw new \RuntimeException('worker-harness-exit-directory-failed');
         }
 
         try {
@@ -774,9 +709,7 @@ final class WorkerCommandHarness
                 \random_bytes(8),
             );
         } catch (\Throwable) {
-            throw new \RuntimeException(
-                'worker-harness-exit-token-failed',
-            );
+            throw new \RuntimeException('worker-harness-exit-token-failed');
         }
 
         $path = $directory
@@ -788,9 +721,7 @@ final class WorkerCommandHarness
             @\file_exists($path)
             || @\file_exists($path . '.tmp')
         ) {
-            throw new \RuntimeException(
-                'worker-harness-exit-path-collision',
-            );
+            throw new \RuntimeException('worker-harness-exit-path-collision');
         }
 
         return $path;
@@ -803,56 +734,124 @@ final class WorkerCommandHarness
             throw new \LogicException('worker-harness-not-started');
         }
 
+        if ($timeoutMs < 1) {
+            throw new \InvalidArgumentException('worker-harness-timeout-invalid');
+        }
+
         $deadline = \hrtime(true) + ($timeoutMs * 1_000_000);
 
         do {
             $this->drainStartPipes();
 
-            $newline = \strpos($this->startStdout, "\n");
+            $message = $this->shiftStartMessage();
 
-            if ($newline !== false) {
-                $line = \substr($this->startStdout, 0, $newline);
-                $this->startStdout = \substr(
-                    $this->startStdout,
-                    $newline + 1,
-                );
-
-                $message = \json_decode(
-                    $line,
-                    true,
-                    512,
-                    \JSON_THROW_ON_ERROR,
-                );
-
-                if (!\is_array($message)) {
-                    throw new \RuntimeException(
-                        'worker-harness-message-invalid',
-                    );
-                }
-
+            if ($message !== null) {
                 return $message;
             }
 
-            $status = \proc_get_status($this->startProcess);
+            $status = @\proc_get_status($this->startProcess);
 
-            if (
-                \is_array($status)
-                && ($status['running'] ?? false) !== true
-            ) {
-                break;
+            if (!\is_array($status)) {
+                $this->discardStartProcess();
+
+                throw new \RuntimeException('worker-start-status-invalid');
             }
 
-            \usleep(10_000);
+            if (($status['running'] ?? false) !== true) {
+                /*
+                 * The process may have written its final output between the
+                 * previous pipe drain and proc_get_status().
+                 */
+                $this->drainStartPipes();
+
+                $message = $this->shiftStartMessage();
+
+                if ($message !== null) {
+                    return $message;
+                }
+
+                $exitCode = \is_int($status['exitcode'] ?? null)
+                && $status['exitcode'] >= 0
+                    ? $status['exitcode']
+                    : null;
+
+                $stdout = $this->startStdout;
+                $stderr = $this->startStderr;
+
+                $this->discardStartProcess();
+
+                throw new \RuntimeException(
+                    'worker-start-process-exited-before-message: '
+                    . 'exit_code='
+                    . ($exitCode === null ? 'unknown' : (string)$exitCode)
+                    . '; stdout='
+                    . \var_export($stdout, true)
+                    . '; stderr='
+                    . \var_export($stderr, true),
+                );
+            }
+
+            \usleep(self::POLL_INTERVAL_US);
         } while (\hrtime(true) < $deadline);
 
+        /*
+         * Close the boundary race where output was produced immediately after
+         * the final loop condition check.
+         */
+        $this->drainStartPipes();
+
+        $message = $this->shiftStartMessage();
+
+        if ($message !== null) {
+            return $message;
+        }
+
+        $stdout = $this->startStdout;
         $stderr = $this->startStderr;
 
         $this->discardStartProcess();
 
         throw new \RuntimeException(
             'worker-harness-message-timeout: '
-            . $stderr,
+            . 'stdout='
+            . \var_export($stdout, true)
+            . '; stderr='
+            . \var_export($stderr, true),
         );
+    }
+
+    /** @return array<string, mixed>|null */
+    private function shiftStartMessage(): ?array
+    {
+        $newline = \strpos($this->startStdout, "\n");
+
+        if ($newline === false) {
+            return null;
+        }
+
+        $line = \substr(
+            $this->startStdout,
+            0,
+            $newline,
+        );
+
+        $this->startStdout = \substr(
+            $this->startStdout,
+            $newline + 1,
+        );
+
+        $message = \json_decode(
+            $line,
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+
+        if (!\is_array($message)) {
+            throw new \RuntimeException('worker-harness-message-invalid');
+        }
+
+        return $message;
     }
 
     private function discardStartProcess(): void
@@ -872,9 +871,7 @@ final class WorkerCommandHarness
             return;
         }
 
-        self::terminateProcessTree(
-            $this->startProcess,
-        );
+        self::terminateProcessTree($this->startProcess);
 
         self::waitForProcessExit(
             $this->startProcess,
@@ -927,9 +924,7 @@ final class WorkerCommandHarness
         string $exitCodePath,
     ): array {
         if ($timeoutMs < 1) {
-            throw new \InvalidArgumentException(
-                'worker-harness-timeout-invalid',
-            );
+            throw new \InvalidArgumentException('worker-harness-timeout-invalid');
         }
 
         $stdout = '';
@@ -937,8 +932,7 @@ final class WorkerCommandHarness
         $reportedExitCode = null;
         $running = true;
 
-        $deadlineNs = \hrtime(true)
-            + ($timeoutMs * 1_000_000);
+        $deadlineNs = \hrtime(true) + ($timeoutMs * 1_000_000);
 
         do {
             $stdout .= self::readAvailable(
@@ -956,20 +950,16 @@ final class WorkerCommandHarness
                 self::closePipes($pipes);
                 @\proc_close($process);
 
-                throw new \RuntimeException(
-                    'worker-harness-process-status-invalid',
-                );
+                throw new \RuntimeException('worker-harness-process-status-invalid');
             }
 
             if (($status['running'] ?? false) !== true) {
                 $running = false;
 
                 if (
-                    \is_int($status['exitcode'] ?? null)
-                    && $status['exitcode'] >= 0
+                    \is_int($status['exitcode'] ?? null) && $status['exitcode'] >= 0
                 ) {
-                    $reportedExitCode =
-                        $status['exitcode'];
+                    $reportedExitCode = $status['exitcode'];
                 }
 
                 break;
@@ -1012,15 +1002,11 @@ final class WorkerCommandHarness
         $closedExitCode = @\proc_close($process);
 
         if (!$running && $explicitExitCode === null) {
-            $explicitExitCode = self::readExitCode(
-                $exitCodePath,
-            );
+            $explicitExitCode = self::readExitCode($exitCodePath);
         }
 
         if ($running) {
-            throw new \RuntimeException(
-                $timeoutReason . ': ' . $stderr,
-            );
+            throw new \RuntimeException($timeoutReason . ': ' . $stderr);
         }
 
         return [
@@ -1044,9 +1030,7 @@ final class WorkerCommandHarness
             return '';
         }
 
-        $metadata = @\stream_get_meta_data(
-            $pipe,
-        );
+        $metadata = @\stream_get_meta_data($pipe);
 
         /*
          * A regular file reader can retain EOF after reaching the current end.
@@ -1126,8 +1110,7 @@ final class WorkerCommandHarness
             return null;
         }
 
-        $deadlineNs = \hrtime(true)
-            + ($timeoutMs * 1_000_000);
+        $deadlineNs = \hrtime(true) + ($timeoutMs * 1_000_000);
 
         do {
             $exitCode = self::readExitCode($path);
@@ -1192,8 +1175,7 @@ final class WorkerCommandHarness
             : null;
 
         if (
-            \PHP_OS_FAMILY === 'Windows'
-            && $pid !== null
+            \PHP_OS_FAMILY === 'Windows' && $pid !== null
         ) {
             $null = self::nullDevice();
 
@@ -1234,8 +1216,7 @@ final class WorkerCommandHarness
         mixed $process,
         int $timeoutMs,
     ): void {
-        $deadlineNs = \hrtime(true)
-            + ($timeoutMs * 1_000_000);
+        $deadlineNs = \hrtime(true) + ($timeoutMs * 1_000_000);
 
         do {
             $status = @\proc_get_status($process);
@@ -1299,9 +1280,9 @@ final class WorkerCommandHarness
         $bytes = \json_encode(
             $value === [] ? (object)[] : $value,
             \JSON_UNESCAPED_SLASHES
-            | \JSON_UNESCAPED_UNICODE
-            | \JSON_PRETTY_PRINT
-            | \JSON_THROW_ON_ERROR,
+                | \JSON_UNESCAPED_UNICODE
+                | \JSON_PRETTY_PRINT
+                | \JSON_THROW_ON_ERROR,
         ) . "\n";
         $temporaryPath = $path . '.tmp';
         $backupPath = $path . '.bak';

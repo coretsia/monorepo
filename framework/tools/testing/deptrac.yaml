@@ -14,6 +14,8 @@
 # Regenerate: php framework/tools/build/deptrac_generate.php --apply
 
 deptrac:
+  cache_file: 'var/deptrac/.deptrac.cache'
+
   paths:
     - '../../packages/core/contracts/src'
     - '../../packages/core/dto-attribute/src'

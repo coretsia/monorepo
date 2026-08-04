@@ -19,44 +19,58 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Process\Driver;
 
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
-use Coretsia\Platform\Worker\Communication\WorkerChildReadinessEndpoint;
 use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerChildProcess;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
 /**
- * Optional Unix pcntl single-child process adapter.
+ * Unix-like fork-and-exec single-child process adapter.
  *
- * This driver is selected only when the normalized worker pool specification
- * has resolved to `pcntl`, pcntl_fork is available, and the platform is not
- * Windows.
- *
- * It owns only fork/process-driver lifecycle behavior. It does not contain task
- * execution logic, does not call KernelRuntimeInterface, does not know about
- * CLI command dispatch, does not depend on platform/cli, and does not depend on
- * platform/http.
- *
- * Child task execution is provided as an injected Closure so the fork strategy
- * remains independent from ApplicationWorker wiring.
- *
- * This driver must not log payloads, raw socket paths, raw TCP endpoints,
- * absolute paths, headers, tokens, config dumps, or raw process internals.
+ * The supervisor forks only to establish the child PID. The child immediately
+ * detaches Worker-owned inherited resources and replaces the forked supervisor
+ * process image with the package-owned artifact-only worker launcher. No parent
+ * container, ApplicationWorker instance, or shared runtime object graph crosses
+ * the execution boundary.
  */
 final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInterface
 {
-    /** @param \Closure(WorkerPoolSpec, int): (\Closure(): int) $childBootstrap */
+    /**
+     * @param non-empty-list<non-empty-string> $workerCommand
+     */
     public function __construct(
-        private \Closure $childBootstrap,
+        private string $skeletonRoot,
+        private array $workerCommand,
+        private WorkerChildCommandBuilder $commandBuilder,
+        private WorkerChildReadinessChannel $readinessChannel,
         private WorkerForkIsolation $forkIsolation,
         private bool $pcntlAvailable,
         private string $platformFamily,
     ) {
-        if ($platformFamily === '' || \preg_match('/[\x00-\x1F\x7F]/', $platformFamily) === 1) {
+        if (
+            $skeletonRoot === ''
+            || \str_contains($skeletonRoot, "\0")
+            || $workerCommand === []
+            || !\array_is_list($workerCommand)
+            || $platformFamily === ''
+            || \preg_match('/[\x00-\x1F\x7F]/', $platformFamily) === 1
+        ) {
             throw new \InvalidArgumentException('pcntl-worker-process-driver-invalid');
+        }
+
+        foreach ($workerCommand as $part) {
+            if (
+                !\is_string($part)
+                || $part === ''
+                || \trim($part) !== $part
+                || \preg_match('/[\x00-\x1F\x7F]/', $part) === 1
+            ) {
+                throw new \InvalidArgumentException('pcntl-worker-process-driver-invalid');
+            }
         }
     }
 
@@ -71,13 +85,13 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
             && $this->pcntlAvailable
             && \strcasecmp($this->platformFamily, 'Windows') !== 0
             && \function_exists('pcntl_fork')
+            && \function_exists('pcntl_exec')
             && \function_exists('pcntl_waitpid')
             && \function_exists('pcntl_wifexited')
             && \function_exists('pcntl_wexitstatus')
             && \function_exists('pcntl_wifsignaled')
             && \function_exists('pcntl_wtermsig')
-            && \function_exists('posix_kill')
-            && \function_exists('stream_socket_pair');
+            && \function_exists('posix_kill');
     }
 
     public function prepare(WorkerPoolSpec $spec): void
@@ -87,52 +101,65 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         }
     }
 
-    public function spawn(WorkerPoolSpec $spec, int $workerIndex): WorkerChildProcess
-    {
-        if (!$this->supports($spec) || $workerIndex < 0 || $workerIndex >= $spec->workers()) {
-            throw WorkerStartFailedException::childStartFailed();
-        }
-        $pair = @\stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, 0);
-        if (!\is_array($pair) || \count($pair) !== 2 || !\is_resource($pair[0]) || !\is_resource($pair[1])) {
+    public function spawn(
+        WorkerPoolSpec $spec,
+        int $workerIndex,
+    ): WorkerChildProcess {
+        if (
+            !$this->supports($spec)
+            || $workerIndex < 0
+            || $workerIndex >= $spec->workers()
+        ) {
             throw WorkerStartFailedException::childStartFailed();
         }
 
+        $readinessEndpoint = $this->readinessChannel->createProcessEndpoint();
+        $command = $this->commandBuilder->build(
+            baseCommand: $this->workerCommand,
+            spec: $spec,
+            workerIndex: $workerIndex,
+            readinessEndpoint: $readinessEndpoint,
+        );
+
         $pid = @\pcntl_fork();
+
         if ($pid === -1) {
-            @\fclose($pair[0]);
-            @\fclose($pair[1]);
+            $readinessEndpoint->close();
+
             throw WorkerForkFailedException::forkFailed();
         }
 
         if ($pid === 0) {
-            @\fclose($pair[0]);
-            $exitCode = 1;
+            $readinessEndpoint->close();
+
             try {
                 $this->forkIsolation->prepareForkedChild();
-                $runner = ($this->childBootstrap)($spec, $workerIndex);
-                if (!$runner instanceof \Closure) {
-                    throw WorkerStartFailedException::childStartFailed();
-                }
-                WorkerChildReadinessChannel::signalReady($pair[1]);
-                @\fclose($pair[1]);
-                $exitCode = $runner();
-                if ($exitCode < 0 || $exitCode > 255) {
-                    $exitCode = 1;
-                }
-            } catch (\Throwable) {
-                $exitCode = 1;
-            }
-            exit($exitCode);
-        }
 
-        @\fclose($pair[1]);
+                if (!@\chdir($this->skeletonRoot)) {
+                    exit(1);
+                }
+
+                $binary = \array_shift($command);
+
+                if (!\is_string($binary) || $binary === '') {
+                    exit(1);
+                }
+
+                @\pcntl_exec($binary, $command);
+            } catch (\Throwable) {
+                // Process-image replacement failures collapse to child exit 1.
+            }
+
+            // pcntl_exec() returns only when process-image replacement failed.
+            exit(1);
+        }
 
         return new WorkerChildProcess(
             workerIndex: $workerIndex,
             pid: $pid,
             driverName: self::DRIVER_PCNTL,
             processHandle: null,
-            readinessEndpoint: WorkerChildReadinessEndpoint::stream($pair[0]),
+            readinessEndpoint: $readinessEndpoint,
             generation: 1,
             startedAtNs: \hrtime(true),
         );
@@ -142,16 +169,20 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
     {
         $status = 0;
         $result = @\pcntl_waitpid($child->pid(), $status, \WNOHANG);
+
         if ($result === 0) {
             return null;
         }
+
         if ($result !== $child->pid()) {
             throw WorkerStartFailedException::childExited();
         }
 
         $signaled = \pcntl_wifsignaled($status);
         $signal = $signaled ? \pcntl_wtermsig($status) : 0;
-        $exitCode = \pcntl_wifexited($status) ? \pcntl_wexitstatus($status) : 128 + $signal;
+        $exitCode = \pcntl_wifexited($status)
+            ? \pcntl_wexitstatus($status)
+            : 128 + $signal;
 
         return new WorkerProcessExit(
             pid: $child->pid(),
@@ -177,6 +208,7 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         if ($child->closed()) {
             return;
         }
+
         $child->readinessEndpoint()->close();
         $child->markClosed();
     }

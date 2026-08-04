@@ -175,7 +175,7 @@ function coretsia_worker_child_parse_args(array $argv): array
         coretsia_worker_child_throw('argv-invalid');
     }
 
-    if ($driver !== 'proc') {
+    if ($driver !== 'pcntl' && $driver !== 'proc') {
         coretsia_worker_child_throw('argv-invalid');
     }
 
@@ -239,19 +239,12 @@ function coretsia_worker_child_normalize_skeleton_root(string $root): string
 
 function coretsia_worker_child_is_relative_safe_path(string $path): bool
 {
-    if ($path === '') {
-        return false;
-    }
-
-    if (\trim($path) !== $path) {
-        return false;
-    }
-
-    if (\preg_match('/\s/u', $path) === 1) {
-        return false;
-    }
-
-    if (\str_contains($path, "\0") || \str_contains($path, "\r") || \str_contains($path, "\n")) {
+    if (
+        $path === ''
+        || \trim($path) !== $path
+        || \preg_match('/[\x00-\x1F\x7F]/', $path) === 1
+        || \preg_match('/\s/u', $path) !== 0
+    ) {
         return false;
     }
 
@@ -433,7 +426,11 @@ function coretsia_worker_child_signal_ready(
         coretsia_worker_child_throw('readiness-channel-unavailable');
     }
 
-    @\stream_set_timeout($stream, 1, 0);
+    if (!@\stream_set_timeout($stream, 1, 0)) {
+        @\fclose($stream);
+
+        coretsia_worker_child_throw('readiness-channel-unavailable');
+    }
 
     $remaining = 'ready:' . $token . "\n";
 
@@ -489,7 +486,7 @@ function coretsia_worker_child_assert_args_match_spec(array $args, WorkerPoolSpe
         coretsia_worker_child_throw('worker-args-mismatch');
     }
 
-    if ($args['driver'] !== 'proc' || $spec->driver() !== 'proc') {
+    if ($args['driver'] !== $spec->driver()) {
         coretsia_worker_child_throw('worker-args-mismatch');
     }
 }

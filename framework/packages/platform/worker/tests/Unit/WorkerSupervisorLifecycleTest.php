@@ -36,12 +36,15 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
                 'stateStore->delete',
                 'lifecycleLock->release',
                 'respondStopped',
+                'driverResolver->resolve',
             ] as $required
         ) {
             self::assertStringContainsString($required, $source);
         }
 
         self::assertStringNotContainsString('WorkerManager', $source);
+        self::assertStringNotContainsString('normalizeDrivers', $source);
+        self::assertStringNotContainsString('selectDriver', $source);
         self::assertStringNotContainsString('proc_open(', $source);
         self::assertStringNotContainsString('echo ', $source);
         self::assertStringNotContainsString('STDOUT', $source);

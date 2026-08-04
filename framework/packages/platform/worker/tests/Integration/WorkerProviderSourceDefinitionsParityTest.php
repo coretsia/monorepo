@@ -29,18 +29,27 @@ final class WorkerProviderSourceDefinitionsParityTest extends PackageTestCase
             'WorkerSupervisor::class',
             'ContainerWorkerSupervisorResolver::class',
             'PcntlWorkerProcessDriver::class',
+            'ContainerWorkerProcessDriverResolver::class',
+            'WorkerProcessDriverResolverInterface::class',
+            'WorkerChildCommandBuilder::class',
             'ProcWorkerProcessDriver::class',
             'WorkerProcProcessHostClient::class',
             'WorkerControlClient::class',
             'WorkerLifecycleLocatorStore::class',
             "'workerLifecycleLocatorStore'",
             'WorkerHealthCommand::class',
-            "PROCESS_DRIVER_TAG = 'worker.process_driver'",
         ] as $required) {
             self::assertStringContainsString($required, $provider);
         }
 
-        foreach (['WorkerManager', 'WorkerSocketServer', 'worker.manager_driver'] as $forbidden) {
+        foreach (
+            [
+                'WorkerManager',
+                'WorkerSocketServer',
+                'worker.manager_driver',
+                'worker.process_driver',
+            ] as $forbidden
+        ) {
             self::assertStringNotContainsString($forbidden, $provider);
         }
     }

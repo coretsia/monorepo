@@ -31,6 +31,7 @@ use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
@@ -80,12 +81,8 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
     private const string OUTCOME_SUCCESS = 'success';
     private const string OUTCOME_FAILURE = 'failure';
 
-    /** @var array<string, WorkerProcessDriverInterface> */
-    private array $drivers;
-
-    /** @param iterable<WorkerProcessDriverInterface> $drivers */
     public function __construct(
-        iterable $drivers,
+        private readonly WorkerProcessDriverResolverInterface $driverResolver,
         private readonly WorkerLifecycleLock $lifecycleLock,
         private readonly WorkerLifecycleLocatorStore $locatorStore,
         private readonly WorkerControlServer $controlServer,
@@ -99,7 +96,6 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         private readonly LoggerInterface $logger,
         private readonly Stopwatch $stopwatch,
     ) {
-        $this->drivers = self::normalizeDrivers($drivers);
     }
 
     public function run(WorkerPoolSpec $spec, \Closure $onReady): int
@@ -108,7 +104,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             throw WorkerStartFailedException::invalidState();
         }
 
-        $driver = $this->selectDriver($spec);
+        $driver = $this->driverResolver->resolve($spec);
 
         $driverPrepared = false;
         $lockAcquired = false;
@@ -925,59 +921,6 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             controlTransport: $state->controlTransport(),
             endpointHash: $state->endpointHash(),
         );
-    }
-
-    private function selectDriver(WorkerPoolSpec $spec): WorkerProcessDriverInterface
-    {
-        $driver = $this->drivers[$spec->driver()] ?? null;
-
-        if (!$driver instanceof WorkerProcessDriverInterface || !$driver->supports($spec)) {
-            throw WorkerStartFailedException::childStartFailed();
-        }
-
-        return $driver;
-    }
-
-    /**
-     * @param iterable<WorkerProcessDriverInterface> $drivers
-     *
-     * @return array<string, WorkerProcessDriverInterface>
-     */
-    private static function normalizeDrivers(iterable $drivers): array
-    {
-        $normalized = [];
-
-        foreach ($drivers as $driver) {
-            if (!$driver instanceof WorkerProcessDriverInterface) {
-                throw new \InvalidArgumentException('worker-process-drivers-invalid');
-            }
-
-            $name = $driver->name();
-
-            if (
-                !\in_array(
-                    $name,
-                    [
-                        WorkerProcessDriverInterface::DRIVER_PCNTL,
-                        WorkerProcessDriverInterface::DRIVER_PROC,
-                    ],
-                    true,
-                )
-                || isset($normalized[$name])
-            ) {
-                throw new \InvalidArgumentException('worker-process-drivers-invalid');
-            }
-
-            $normalized[$name] = $driver;
-        }
-
-        if ($normalized === []) {
-            throw new \InvalidArgumentException('worker-process-drivers-empty');
-        }
-
-        \ksort($normalized, \SORT_STRING);
-
-        return $normalized;
     }
 
     private static function currentPid(): int

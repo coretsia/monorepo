@@ -168,6 +168,9 @@ WorkerChildTable
 WorkerSignalController
 
 WorkerProcessDriverInterface
+WorkerProcessDriverResolverInterface
+ContainerWorkerProcessDriverResolver
+WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
 WorkerForkIsolation
@@ -213,6 +216,9 @@ The package does not expose lifecycle facades, static process registries, or dup
 - worker state schema and storage;
 - control transport and protocol;
 - package-internal OS process drivers;
+- package-internal lazy selected-process-driver resolution;
+- canonical shell-free process-child command construction;
+- PCNTL fork-exec child-runtime isolation;
 - proc process-host infrastructure;
 - signal-intent handling;
 - graceful and forced shutdown;
@@ -340,6 +346,7 @@ WorkerChildReadinessChannel
 WorkerChildTable
 WorkerSignalController
 WorkerForkIsolation
+WorkerChildCommandBuilder
 
 QueueTaskFactory
 HttpTaskFactory
@@ -350,7 +357,8 @@ PcntlWorkerProcessDriver
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 ProcWorkerProcessDriver
-worker.process_driver tags
+ContainerWorkerProcessDriverResolver
+WorkerProcessDriverResolverInterface alias
 
 WorkerSupervisor
 WorkerSupervisorInterface alias
@@ -370,6 +378,9 @@ The canonical aliases are:
 WorkerControlClientInterface
     -> WorkerControlClient
 
+WorkerProcessDriverResolverInterface
+    -> ContainerWorkerProcessDriverResolver
+
 WorkerSupervisorInterface
     -> WorkerSupervisor
 
@@ -377,18 +388,9 @@ WorkerSupervisorResolverInterface
     -> ContainerWorkerSupervisorResolver
 ```
 
-The package-owned process-driver tag is:
+`WorkerProcessDriverResolverInterface` performs one exact package-owned mapping from the resolved `WorkerPoolSpec::driver()` value to the matching concrete process-driver service.
 
-```text
-worker.process_driver
-```
-
-It is applied to:
-
-```text
-PcntlWorkerProcessDriver
-ProcWorkerProcessDriver
-```
+The resolver does not enumerate tags and does not construct the unselected process driver.
 
 The Worker contribution declares these required runtime service ids:
 
@@ -398,6 +400,7 @@ ModulePlan
 RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
@@ -414,6 +417,8 @@ RuntimePathContext
 ```
 
 The remaining required ids must be supplied by the complete runtime definition graph.
+
+`WorkerProcessDriverResolverInterface` is required because `WorkerSupervisor` resolves only the selected concrete process driver at lifecycle execution time.
 
 `WorkerSupervisorInterface` is required because `ContainerWorkerSupervisorResolver` performs a deferred lookup through `ContainerInterface`.
 
@@ -436,14 +441,11 @@ construct WorkerPoolSpec
 -> run WorkerSupervisor
 ```
 
-Runtime-only callbacks may be created after definition production, including:
+Runtime-only callbacks may be created after definition production, including the package-internal task-work run callback.
 
-```text
-PCNTL child bootstrap callback
-package-internal task-work run callback
-```
+The PCNTL process driver does not receive a child-bootstrap closure or `ContainerInterface`.
 
-They must not enter:
+Such callbacks must not enter:
 
 - provider output;
 - canonical definition operations;
@@ -498,6 +500,8 @@ WorkerLifecycleLock
 WorkerLifecycleLocatorStore
 WorkerStopSignal
 WorkerControlTransport
+WorkerChildCommandBuilder
+PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
 WorkerProcProcessHostClient
 ```
@@ -506,9 +510,11 @@ WorkerProcProcessHostClient
 
 It must not independently reconstruct the skeleton root.
 
-`ProcWorkerProcessDriver` receives the normalized skeleton root and one validated skeleton-root-relative artifact root.
+`WorkerChildCommandBuilder` receives one validated skeleton-root-relative artifact root.
 
-The proc process host receives the normalized skeleton root as its working directory.
+`PcntlWorkerProcessDriver` and `ProcWorkerProcessDriver` receive the normalized skeleton root and the shared `WorkerChildCommandBuilder`. Neither driver receives a raw artifact root as an independent constructor value.
+
+The PCNTL driver uses the skeleton root only for the post-fork artifact-only exec boundary. The proc process host uses it as the child working directory.
 
 The constructed Worker services must not depend on `BootstrapConfig` or independently reconstruct generated artifact locations.
 
@@ -660,7 +666,7 @@ WorkerStartCommand
 The supervisor lifecycle is:
 
 ```text
-select process driver
+resolve selected process driver
 -> prepare driver-owned infrastructure
 -> acquire canonical lifecycle lock
 -> delete stale private lifecycle locator
@@ -823,36 +829,36 @@ The `proc` driver is the cross-platform process adapter.
 
 Driver auto-resolution must be deterministic.
 
-Support checks must depend only on explicit platform and capability inputs.
+Support checks must depend only on the normalized `WorkerPoolSpec`, injected platform and capability values, and exact required runtime-function availability.
+
+They must not read Worker configuration or inspect filesystem state, ports, environment variables, external processes, or application services.
 
 ## PCNTL process decision
 
 `PcntlWorkerProcessDriver` owns Unix-like operations for one child:
 
+- tokenized readiness-listener creation;
 - fork;
-- child bootstrap entry;
+- Worker-owned inherited-resource detachment;
+- process-image replacement through `pcntl_exec()`;
 - non-blocking wait;
 - terminate signal;
 - kill signal;
 - child resource closure.
 
-`WorkerForkIsolation` closes or isolates supervisor-owned resources in the child after fork.
+The PCNTL driver receives `RuntimePathContext`-derived launch data, `WorkerChildCommandBuilder`, `WorkerChildReadinessChannel`, and `WorkerForkIsolation`.
 
-The PCNTL child must not retain:
+It does not receive `ContainerInterface`, `ApplicationWorker`, `BootstrapConfig`, raw individual artifact paths, or a child-bootstrap closure.
 
-- lifecycle lock ownership;
-- control listener ownership;
-- parent control sessions;
-- unrelated readiness descriptors;
-- supervisor signal handlers.
+After fork, the child closes its copy of the supervisor-owned readiness listener, invokes `WorkerForkIsolation::prepareForkedChild()`, changes to the explicit skeleton root, and executes the package-owned `bin/coretsia-worker` launcher.
 
-A PCNTL child uses a connected readiness socket pair.
+The exec-created PHP runtime performs a fresh artifact-only boot and resolves `ApplicationWorker` from a newly hydrated runtime container.
 
-It emits exactly:
+The forked child may briefly inherit the parent process image, but it resolves no child runtime services before `pcntl_exec()`.
 
-```text
-ready\n
-```
+No parent runtime container, shared service cache, `ApplicationWorker` instance, or PHP object graph crosses the exec boundary.
+
+PCNTL and proc children use the same independently tokenized loopback TCP readiness protocol.
 
 ## Proc process-host decision
 
@@ -908,9 +914,9 @@ Process command construction must use argv vectors.
 
 It must not construct an untrusted shell command string.
 
-## Proc child artifact-only boot decision
+## Process-child artifact-only boot decision
 
-Each proc child receives one validated skeleton-root-relative artifact root:
+Each PCNTL and proc child receives one validated skeleton-root-relative artifact root:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -932,11 +938,11 @@ resolve artifact root
 -> enter task loop
 ```
 
-Each proc spawn performs a fresh artifact-only boot.
+Each PCNTL and proc spawn performs a fresh artifact-only boot.
 
 This includes a replacement child created during max-request recycle.
 
-A recycled proc child must not inherit:
+A recycled process child must not inherit:
 
 - the previous child’s selected artifact generation;
 - artifact file handles;
@@ -947,7 +953,7 @@ A recycled proc child must not inherit:
 
 If `current` changes between the original child and its replacement, the replacement boots the generation selected at replacement startup.
 
-The proc child emits no stdout or stderr diagnostics.
+The process child emits no stdout or stderr diagnostics.
 
 A boot failure terminates the child with a non-zero process code.
 
@@ -1199,23 +1205,15 @@ Readiness occurs only after:
 
 Readiness occurs before `ApplicationWorker::run()` enters the long-running task loop.
 
-PCNTL children emit:
+PCNTL and proc children use a dedicated per-child loopback TCP readiness endpoint.
 
-```text
-ready\n
-```
-
-over a connected socket pair.
-
-Proc children use a dedicated per-child loopback TCP readiness endpoint.
-
-The proc readiness frame is:
+The readiness frame is:
 
 ```text
 ready:<64-lowercase-hex-token>\n
 ```
 
-The token is independently generated for each proc child endpoint.
+The token is independently generated for every process-child endpoint.
 
 Readiness rules are:
 
@@ -1427,7 +1425,7 @@ The child does not replace itself.
 
 The external service manager is not involved in normal max-request recycle.
 
-For proc children, every replacement performs a fresh artifact-generation selection and runtime boot.
+For PCNTL and proc children, every replacement performs a fresh artifact-generation selection and runtime boot.
 
 ## Unexpected child exit policy
 
@@ -2075,6 +2073,8 @@ framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
 framework/packages/platform/worker/tests/Unit/WorkerPoolStateTest.php
 framework/packages/platform/worker/tests/Unit/WorkerChildTableTest.php
 framework/packages/platform/worker/tests/Unit/WorkerSupervisorLifecycleTest.php
+framework/packages/platform/worker/tests/Unit/ContainerWorkerProcessDriverResolverTest.php
+framework/packages/platform/worker/tests/Unit/WorkerChildCommandBuilderTest.php
 framework/packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
 
 framework/packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
@@ -2092,6 +2092,7 @@ framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsConta
 framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSafetyContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSchemaContractTest.php
 framework/packages/platform/worker/tests/Contract/ProcWorkerProcessDriverSafetyContractTest.php
+framework/packages/platform/worker/tests/Contract/PcntlWorkerContainerIsolationContractTest.php
 
 framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
 framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
@@ -2100,6 +2101,8 @@ framework/packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemT
 framework/packages/platform/worker/tests/Integration/WorkerControlTransportTest.php
 framework/packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
+framework/packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
+framework/packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
 framework/packages/platform/worker/tests/Integration/CoretsiaWorkerChildReadinessTest.php
 framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
@@ -2142,10 +2145,12 @@ These tests are expected to verify:
 - process drivers do not execute task logic;
 - process drivers do not call KernelRuntime;
 - process drivers do not own state, control, recycle, or shutdown policy;
-- proc children do not inherit supervisor-owned resources;
-- proc children perform artifact-only runtime boot;
-- every recycled proc child performs fresh artifact-generation selection;
-- PCNTL and proc readiness frames are exact and bounded;
+- process children do not retain Worker-owned supervisor resources;
+- PCNTL children replace the forked process image before runtime boot;
+- PCNTL and proc children perform artifact-only runtime boot;
+- only the selected process driver is resolved;
+- every recycled process child performs fresh artifact-generation selection;
+- PCNTL and proc readiness frames are tokenized, exact, and bounded;
 - startup remains `starting` until every child is ready;
 - one unready child rolls back the complete startup;
 - a child exit before readiness never publishes `running`;

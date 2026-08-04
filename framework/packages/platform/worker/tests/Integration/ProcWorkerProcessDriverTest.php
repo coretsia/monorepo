@@ -24,6 +24,7 @@ use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
@@ -46,7 +47,7 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
         $driver = new ProcWorkerProcessDriver(
             skeletonRoot: $root,
             workerCommand: [\PHP_BINARY, self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php'],
-            artifactRoot: 'var/cache/coretsia',
+            commandBuilder: new WorkerChildCommandBuilder('var/cache/coretsia'),
             readinessChannel: $readiness,
             processHost: $host,
         );

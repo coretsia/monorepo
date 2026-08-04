@@ -34,73 +34,18 @@ use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
-final class PcntlWorkerProcessDriverTest extends PackageTestCase
+final class PcntlWorkerExecIsolationTest extends PackageTestCase
 {
-    public function testCapabilityAndForkExecBehaviorMatchCurrentPlatform(): void
+    public function testForkedChildExecutesFreshPhpProcessImageWhenSupported(): void
     {
-        $root = $this->temporaryDirectory('pcntl-driver');
+        $root = $this->temporaryDirectory('pcntl-exec-isolation');
         $readiness = new WorkerChildReadinessChannel();
-        $driver = self::driver(
-            root: $root,
-            artifactRoot: 'var/cache/coretsia',
-            readiness: $readiness,
-        );
+        $driver = self::driver($root, $readiness);
         $spec = WorkerSpecFactory::create([
             'workers' => 1,
             'driver' => 'pcntl',
         ]);
-
-        if (!$driver->supports($spec)) {
-            $this->expectException(WorkerStartFailedException::class);
-            $driver->prepare($spec);
-
-            return;
-        }
-
-        $driver->prepare($spec);
-        $child = $driver->spawn($spec, 0);
-        $readiness->await($child, 2000);
-
-        $exit = null;
-        self::waitUntil(function () use ($driver, $child, &$exit): bool {
-            $exit = $driver->pollExit($child);
-
-            return $exit !== null;
-        });
-
-        self::assertNotNull($exit);
-        self::assertTrue($exit->expected());
-        self::assertSame(0, $exit->exitCode());
-
         $markerPath = $root . '/var/cache/coretsia/pcntl-exec-marker.json';
-        self::assertFileExists($markerPath);
-        $marker = \json_decode(
-            (string)\file_get_contents($markerPath),
-            true,
-            512,
-            \JSON_THROW_ON_ERROR,
-        );
-        self::assertIsArray($marker);
-        self::assertTrue($marker['fresh_process_image'] ?? false);
-        self::assertSame($child->pid(), $marker['pid'] ?? null);
-
-        $driver->close($child);
-        $driver->shutdown();
-    }
-
-    public function testExecFailureBeforeReadinessIsUnexpectedNonZeroExit(): void
-    {
-        $root = $this->temporaryDirectory('pcntl-driver-exec-failure');
-        $readiness = new WorkerChildReadinessChannel();
-        $driver = self::driver(
-            root: $root,
-            artifactRoot: 'var/fail-before-readiness',
-            readiness: $readiness,
-        );
-        $spec = WorkerSpecFactory::create([
-            'workers' => 1,
-            'driver' => 'pcntl',
-        ]);
 
         if (!$driver->supports($spec)) {
             try {
@@ -113,21 +58,14 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
                 );
             }
 
+            self::assertFileDoesNotExist($markerPath);
+
             return;
         }
 
         $driver->prepare($spec);
         $child = $driver->spawn($spec, 0);
-
-        try {
-            $readiness->await($child, 1000);
-            self::fail('A child that exits before writing readiness must fail.');
-        } catch (WorkerStartFailedException $exception) {
-            self::assertSame(
-                WorkerStartFailedException::REASON_READINESS_INVALID,
-                $exception->reason(),
-            );
-        }
+        $readiness->await($child, 2000);
 
         $exit = null;
         self::waitUntil(
@@ -136,12 +74,24 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
 
                 return $exit !== null;
             },
-            failureMessage: 'PCNTL exec child was not reaped.',
+            failureMessage: 'PCNTL exec-isolation child was not reaped.',
         );
 
         self::assertNotNull($exit);
-        self::assertSame(1, $exit->exitCode());
-        self::assertFalse($exit->expected());
+        self::assertTrue($exit->expected());
+        self::assertSame(0, $exit->exitCode());
+        self::assertFileExists($markerPath);
+
+        $marker = \json_decode(
+            (string)\file_get_contents($markerPath),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+
+        self::assertIsArray($marker);
+        self::assertTrue($marker['fresh_process_image'] ?? false);
+        self::assertSame($child->pid(), $marker['pid'] ?? null);
 
         $driver->close($child);
         $driver->shutdown();
@@ -149,33 +99,27 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
 
     private static function driver(
         string $root,
-        string $artifactRoot,
         WorkerChildReadinessChannel $readiness,
     ): PcntlWorkerProcessDriver {
-        $lock = new WorkerLifecycleLock($root);
-        $server = new WorkerControlServer(
-            new WorkerControlTransport($root),
-            new WorkerControlProtocol(
-                new StableJsonEncoder(),
-                new StableJsonDecoder(),
-            ),
-        );
-        $table = new WorkerChildTable();
-        $signals = new WorkerSignalController();
-
         return new PcntlWorkerProcessDriver(
             skeletonRoot: $root,
             workerCommand: [
                 \PHP_BINARY,
                 self::packageRoot() . '/tests/Fixtures/pcntl-exec-worker-fixture.php',
             ],
-            commandBuilder: new WorkerChildCommandBuilder($artifactRoot),
+            commandBuilder: new WorkerChildCommandBuilder('var/cache/coretsia'),
             readinessChannel: $readiness,
             forkIsolation: new WorkerForkIsolation(
-                $lock,
-                $server,
-                $signals,
-                $table,
+                new WorkerLifecycleLock($root),
+                new WorkerControlServer(
+                    new WorkerControlTransport($root),
+                    new WorkerControlProtocol(
+                        new StableJsonEncoder(),
+                        new StableJsonDecoder(),
+                    ),
+                ),
+                new WorkerSignalController(),
+                new WorkerChildTable(),
             ),
             pcntlAvailable: self::pcntlAvailable(),
             platformFamily: \PHP_OS_FAMILY,

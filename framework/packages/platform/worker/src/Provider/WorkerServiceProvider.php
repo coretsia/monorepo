@@ -46,12 +46,15 @@ use Coretsia\Platform\Worker\Console\WorkerStatusCommand;
 use Coretsia\Platform\Worker\Console\WorkerStopCommand;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface;
+use Coretsia\Platform\Worker\Process\ContainerWorkerProcessDriverResolver;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
@@ -82,12 +85,12 @@ use Psr\Log\LoggerInterface;
  * - WorkerPoolSpec remains lazy and reads only the active config repository;
  * - TaskFactoryInternalInterface resolves only the task-factory service selected
  *   by the canonical WorkerPoolSpec task type;
- * - ApplicationWorker and process drivers consume RuntimePathContext instead of
+ * - path-owning process services consume RuntimePathContext instead of
  *   BootstrapConfig or raw provider-owned path closures;
  * - WorkerStartCommand resolves WorkerSupervisorInterface lazily through
  *   WorkerSupervisorResolverInterface after runtime entrypoint validation;
- * - process drivers are registered as single-child adapters under the
- *   package-owned `worker.process_driver` tag;
+ * - WorkerProcessDriverResolverInterface resolves only the selected concrete
+ *   process driver after WorkerSupervisor is resolved;
  * - status, health, and stop commands resolve the active lifecycle locator
  *   through WorkerControlClientInterface, do not resolve WorkerPoolSpec, and do
  *   not read WorkerStateStore as a liveness authority;
@@ -100,8 +103,6 @@ use Psr\Log\LoggerInterface;
  */
 final class WorkerServiceProvider implements ServiceProviderInterface, ContainerDefinitionProviderInterface
 {
-    private const string PROCESS_DRIVER_TAG = 'worker.process_driver';
-
     public function register(ContainerBuilder $builder): void
     {
         $builder->assertDefinitionProviderRegistrationAllowed();
@@ -118,6 +119,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
             ->requireService(RuntimePathContext::class)
             ->requireService(WorkerPoolSpec::class)
             ->requireService(WorkerRuntimeEntrypointGuard::class)
+            ->requireService(WorkerProcessDriverResolverInterface::class)
             ->requireService(ApplicationWorker::class)
             ->requireService(WorkerSupervisorInterface::class)
             ->requireService(WorkerControlClientInterface::class)
@@ -285,11 +287,21 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 ],
             )
             ->serviceMethodFactory(
+                WorkerChildCommandBuilder::class,
+                WorkerServiceFactory::class,
+                'workerChildCommandBuilder',
+                [
+                    ContainerValueReference::service(RuntimePathContext::class),
+                ],
+            )
+            ->serviceMethodFactory(
                 PcntlWorkerProcessDriver::class,
                 WorkerServiceFactory::class,
                 'pcntlWorkerProcessDriver',
                 [
-                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(RuntimePathContext::class),
+                    ContainerValueReference::service(WorkerChildCommandBuilder::class),
+                    ContainerValueReference::service(WorkerChildReadinessChannel::class),
                     ContainerValueReference::service(WorkerForkIsolation::class),
                 ],
             )
@@ -318,19 +330,29 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 [
                     ContainerValueReference::service(RuntimePathContext::class),
                     ContainerValueReference::service(ConfigRepositoryInterface::class),
+                    ContainerValueReference::service(WorkerChildCommandBuilder::class),
                     ContainerValueReference::service(WorkerChildReadinessChannel::class),
                     ContainerValueReference::service(WorkerProcProcessHostClient::class),
                 ],
             )
-            ->tag(self::PROCESS_DRIVER_TAG, PcntlWorkerProcessDriver::class)
-            ->tag(self::PROCESS_DRIVER_TAG, ProcWorkerProcessDriver::class)
+            ->serviceMethodFactory(
+                ContainerWorkerProcessDriverResolver::class,
+                WorkerServiceFactory::class,
+                'workerProcessDriverResolver',
+                [
+                    ContainerValueReference::service(ContainerInterface::class),
+                ],
+            )
+            ->alias(
+                WorkerProcessDriverResolverInterface::class,
+                ContainerWorkerProcessDriverResolver::class,
+            )
             ->serviceMethodFactory(
                 WorkerSupervisor::class,
                 WorkerServiceFactory::class,
                 'workerSupervisor',
                 [
-                    ContainerValueReference::service(PcntlWorkerProcessDriver::class),
-                    ContainerValueReference::service(ProcWorkerProcessDriver::class),
+                    ContainerValueReference::service(WorkerProcessDriverResolverInterface::class),
                     ContainerValueReference::service(WorkerLifecycleLock::class),
                     ContainerValueReference::service(WorkerLifecycleLocatorStore::class),
                     ContainerValueReference::service(WorkerControlServer::class),

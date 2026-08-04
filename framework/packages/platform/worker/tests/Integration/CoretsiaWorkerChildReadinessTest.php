@@ -26,7 +26,7 @@ final class CoretsiaWorkerChildReadinessTest extends PackageTestCase
     public function testProcFixturePublishesOnlyTokenizedInternalReadinessFrame(): void
     {
         $channel = new WorkerChildReadinessChannel();
-        $endpoint = $channel->createProcEndpoint();
+        $endpoint = $channel->createProcessEndpoint();
         $fixture = self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php';
 
         $token = $endpoint->token();
@@ -46,7 +46,18 @@ final class CoretsiaWorkerChildReadinessTest extends PackageTestCase
         });
 
         self::assertIsResource($accepted);
+
+        self::assertTrue(
+            \stream_set_blocking($accepted, true),
+        );
+
+        self::assertTrue(
+            \stream_set_timeout($accepted, 5),
+        );
+
         $frame = \stream_get_contents($accepted);
+        self::assertIsString($frame);
+
         \fclose($accepted);
         $endpoint->close();
 

@@ -31,7 +31,9 @@ final class CompiledWorkerGraphContainsRequiredRuntimeServicesTest extends Packa
             'WorkerControlTransport::class', 'WorkerControlProtocol::class',
             'WorkerControlServer::class', 'WorkerControlClient::class',
             'WorkerChildReadinessChannel::class', 'WorkerChildTable::class',
-            'WorkerSignalController::class', 'WorkerSupervisor::class',
+            'WorkerSignalController::class', 'WorkerChildCommandBuilder::class',
+            'ContainerWorkerProcessDriverResolver::class',
+            'WorkerProcessDriverResolverInterface::class', 'WorkerSupervisor::class',
             'WorkerProcProcessHostProtocol::class', 'WorkerProcProcessHostClient::class',
             'WorkerSupervisorInterface::class', 'WorkerSupervisorResolverInterface::class',
         ] as $service) {

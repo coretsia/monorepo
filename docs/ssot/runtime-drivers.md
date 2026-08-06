@@ -706,12 +706,12 @@ The Kernel guard MUST NOT treat omission of the contribution argument as an impl
 
 Owner packages own the presence, type, allowed values, defaults, and normalization of their own runtime inputs.
 
-For `platform/worker`, missing or invalid `worker.task_type` is a Worker-owned start-validation failure.
+For `platform/worker`, missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure.
 
 The current public failure is:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 
@@ -1063,7 +1063,7 @@ worker-task-type-invalid
 Missing or invalid Worker task type uses Worker-owned failure semantics:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 
@@ -1518,7 +1518,7 @@ worker.task_type = "scheduler"
 Failure:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 

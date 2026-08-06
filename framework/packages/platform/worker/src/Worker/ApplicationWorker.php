@@ -23,6 +23,7 @@ use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -185,23 +186,23 @@ final readonly class ApplicationWorker
     private function taskWork(WorkerPoolSpec $spec): array
     {
         if (!$this->taskFactory->supports($spec)) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $work = $this->taskFactory->create($spec);
 
         if (!\array_key_exists('operation_id', $work) || !\is_string($work['operation_id'])) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         if (!\array_key_exists('run', $work) || !$work['run'] instanceof \Closure) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $operationId = $work['operation_id'];
 
         if (!self::isSafeOperationId($operationId)) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         return [$operationId, $work['run']];
@@ -219,11 +220,11 @@ final readonly class ApplicationWorker
     private static function taskLabels(string $operationId, string $outcome): array
     {
         if (!self::isSafeOperationId($operationId)) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         if ($outcome !== self::OUTCOME_SUCCESS && $outcome !== self::OUTCOME_FAILURE) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         return [
@@ -270,11 +271,11 @@ final readonly class ApplicationWorker
         string $outcome,
     ): void {
         if (!self::isSafeOperationId($operationId)) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         if ($outcome !== self::OUTCOME_SUCCESS && $outcome !== self::OUTCOME_FAILURE) {
-            throw WorkerStartFailedException::startFailed();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $labels = [

@@ -162,9 +162,10 @@ final readonly class WorkerLifecycleLocator
 
     public function stopRequestTimeoutMs(): int
     {
-        return $this->stopTimeoutMs
-            + (2 * $this->forceKillTimeoutMs)
-            + 2_000;
+        return WorkerShutdownBudget::stopRequestTimeoutMs(
+            $this->stopTimeoutMs,
+            $this->forceKillTimeoutMs,
+        );
     }
 
     /**

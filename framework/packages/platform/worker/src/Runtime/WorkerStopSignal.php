@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Runtime;
 
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
  * Encapsulates the supervisor-owned cooperative stop flag.
@@ -40,10 +40,10 @@ final readonly class WorkerStopSignal
         $path = $this->path($spec);
         $dir = \dirname($path);
         if (!\is_dir($dir) && !@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
-            throw WorkerStartFailedException::shutdownFailed();
+            throw WorkerLifecycleFailedException::shutdownFailed();
         }
         if (@\file_put_contents($path, "stop\n", \LOCK_EX) === false) {
-            throw WorkerStartFailedException::shutdownFailed();
+            throw WorkerLifecycleFailedException::shutdownFailed();
         }
     }
 
@@ -59,7 +59,7 @@ final readonly class WorkerStopSignal
             return;
         }
         if (!@\is_file($path) || !@\unlink($path)) {
-            throw WorkerStartFailedException::runtimeCleanupFailed();
+            throw WorkerLifecycleFailedException::runtimeCleanupFailed();
         }
     }
 

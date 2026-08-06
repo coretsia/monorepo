@@ -24,10 +24,13 @@ use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
 use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 
 /**
- * Detaches registered supervisor-owned resources inherited by a PCNTL child.
+ * Detaches all Worker-owned supervisor resources known to the package.
  *
  * The per-child readiness listener is owned by the process driver and is
- * closed by that driver before this boundary is invoked.
+ * closed by that driver before this boundary is invoked. This boundary does
+ * not enumerate or close arbitrary application, integration, extension,
+ * deployment, or third-party descriptors. Those descriptors are governed by
+ * the repository-wide process-exec descriptor-safety contract.
  */
 final readonly class WorkerForkIsolation
 {

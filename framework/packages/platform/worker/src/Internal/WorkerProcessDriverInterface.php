@@ -49,25 +49,41 @@ interface WorkerProcessDriverInterface
         int $workerIndex,
     ): WorkerChildProcess;
 
+    /**
+     * Polls one child within the caller-owned remaining phase budget.
+     */
     public function pollExit(
         WorkerChildProcess $child,
+        int $timeoutMs,
     ): ?WorkerProcessExit;
 
+    /**
+     * Requests graceful termination within the remaining phase budget.
+     */
     public function terminate(
         WorkerChildProcess $child,
+        int $timeoutMs,
     ): void;
 
+    /**
+     * Requests forced termination within the remaining phase budget.
+     */
     public function kill(
         WorkerChildProcess $child,
+        int $timeoutMs,
     ): void;
 
+    /**
+     * Closes one child resource within the remaining phase budget.
+     */
     public function close(
         WorkerChildProcess $child,
+        int $timeoutMs,
     ): void;
 
     /**
      * Releases driver-owned process infrastructure after every child has been
-     * closed.
+     * closed within the caller-owned remaining cleanup budget.
      */
-    public function shutdown(): void;
+    public function shutdown(int $timeoutMs): void;
 }

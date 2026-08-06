@@ -538,6 +538,8 @@ The resolver MUST perform an exact package-owned mapping and MUST resolve only t
 
 Process-driver tags are not part of the Worker runtime contribution.
 
+`WorkerProcProcessHostTransport` is instantiated only by the package-owned proc-host executable. It is not a runtime-container service and must not be added to the Worker contribution.
+
 It MUST contribute the canonical `cli.command` tags for:
 
 ```text
@@ -548,6 +550,12 @@ WorkerHealthCommand
 ```
 
 The complete Worker contribution MUST contain no closure values.
+
+Container definition production MUST NOT introduce a tag, registry, or eager aggregate whose purpose is resolving arbitrary services so they can be closed after `fork()`.
+
+Process-exec safety belongs to descriptor owners and `docs/ssot/process-exec-descriptor-safety.md`, not to DI graph enumeration.
+
+Worker process-exec safety MUST NOT be implemented by clearing the resolved-service cache, eagerly resolving integration services, or executing arbitrary service callbacks in a forked child.
 
 It MUST NOT define compatibility aliases, deprecated lifecycle facades, duplicate process-ownership services, or duplicate control-server abstractions.
 
@@ -2197,11 +2205,13 @@ Step 21 remains the separate artifact-only runtime boot boundary.
 - [SSoT Index](./INDEX.md)
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
+- [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md)
 - [JSON-like Runtime Values](./json-like-runtime-values.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Config Merge Order](./config-merge-order.md)
 - [Kernel Bootstrap Phase A](../adr/ADR-0023-kernel-bootstrap-phase-a.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [ADR-0032: Process-Exec Descriptor Safety](../adr/ADR-0032-process-exec-descriptor-safety.md)
 - [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [Worker Architecture](../architecture/worker.md)
 - [Modules and Manifests](./modules-and-manifests.md)

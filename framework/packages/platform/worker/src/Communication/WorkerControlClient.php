@@ -194,16 +194,19 @@ final class WorkerControlClient implements WorkerControlClientInterface
 
         $connection = null;
         $request = new WorkerControlRequest($operation, $this->nextRequestId());
+        $deadlineNs = self::deadlineNs($timeoutMs);
 
         try {
             $connection = $this->transport->connect(
                 $locator,
-                \min(1_000, $timeoutMs),
+                \min(1_000, self::remainingMs($deadlineNs)),
             );
+            $remainingMs = self::remainingMs($deadlineNs);
+
             if (!@\stream_set_timeout(
                 $connection,
-                \intdiv($timeoutMs, 1_000),
-                ($timeoutMs % 1_000) * 1_000,
+                \intdiv($remainingMs, 1_000),
+                ($remainingMs % 1_000) * 1_000,
             )) {
                 throw WorkerCommunicationFailedException::communicationFailed();
             }
@@ -235,6 +238,32 @@ final class WorkerControlClient implements WorkerControlClientInterface
                 $this->transport->close($connection);
             }
         }
+    }
+
+    private static function deadlineNs(int $timeoutMs): int
+    {
+        $nowNs = \hrtime(true);
+
+        if (
+            !\is_int($nowNs)
+            || $timeoutMs < 1
+            || $timeoutMs > \intdiv(\PHP_INT_MAX - $nowNs, 1_000_000)
+        ) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
+        return $nowNs + ($timeoutMs * 1_000_000);
+    }
+
+    private static function remainingMs(int $deadlineNs): int
+    {
+        $remainingNs = $deadlineNs - \hrtime(true);
+
+        if ($remainingNs <= 0) {
+            throw WorkerCommunicationFailedException::communicationFailed();
+        }
+
+        return \max(1, (int)\ceil($remainingNs / 1_000_000));
     }
 
     private function stateResult(

@@ -163,27 +163,27 @@ final readonly class ResolverRecordingDriver implements WorkerProcessDriverInter
         throw new \LogicException('not-used');
     }
 
-    public function pollExit(WorkerChildProcess $child): ?WorkerProcessExit
+    public function pollExit(WorkerChildProcess $child, int $timeoutMs): ?WorkerProcessExit
     {
         throw new \LogicException('not-used');
     }
 
-    public function terminate(WorkerChildProcess $child): void
+    public function terminate(WorkerChildProcess $child, int $timeoutMs): void
     {
         throw new \LogicException('not-used');
     }
 
-    public function kill(WorkerChildProcess $child): void
+    public function kill(WorkerChildProcess $child, int $timeoutMs): void
     {
         throw new \LogicException('not-used');
     }
 
-    public function close(WorkerChildProcess $child): void
+    public function close(WorkerChildProcess $child, int $timeoutMs): void
     {
         throw new \LogicException('not-used');
     }
 
-    public function shutdown(): void
+    public function shutdown(int $timeoutMs): void
     {
     }
 }

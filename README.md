@@ -14,209 +14,410 @@
 
 <div align="center">
 
-# Coretsia Framework (Monorepo)
+# Coretsia Framework
 
 Coretsia [kɔˈrɛtsjɑ] / [ko-RET-si-ya] — from the Ukrainian word “серцевина” (*core, foundation*)
 
-A modular, deterministic-by-default PHP framework monorepo with strict compile-time boundaries and SSoT-driven development
+**A deterministic PHP 8.4+ application framework with preset-driven module composition, reproducible artifacts, explicit runtime lifecycles, and machine-enforced package boundaries and framework architecture rules.**
+
+*Start minimal. Add capabilities as the application grows. Keep the same foundation.*
 
 </div>
 
-## Status
+> [!WARNING]
+> **Coretsia is pre-release and is not production-ready.**
+>
+> The current repository is suitable for architecture review, framework development, and experimental evaluation. Stable Micro, Express, Hybrid, and Enterprise application releases are not available yet.
 
-Coretsia Framework is in active development and remains pre-release.
+## What is Coretsia?
+
+Coretsia is a modular PHP framework designed for applications that may begin as small APIs, command-line tools, or conventional web applications and later grow into systems with background workers, queues, scheduled workloads, broader integrations, and stricter operational requirements.
+
+The framework is built around a single architectural premise:
+
+> Application capabilities should be composed explicitly and deterministically, rather than emerging from incidental registration order, filesystem discovery, or undocumented bootstrap behavior.
+
+Coretsia therefore treats module composition, generated artifacts, package boundaries, runtime lifecycles, and architecture verification as parts of the framework itself.
+
+## Core model
+
+Coretsia's framework composition model is based on explicit inputs:
+
+```text
+selected mode preset
++ Composer installed package metadata
++ canonical Coretsia module metadata
+        ↓
+deterministic ModulePlan
+        ↓
+ordered provider planning
+        ↓
+compiled config, container, and module artifacts
+        ↓
+runtime
+```
+
+The module-resolution, provider-planning, and container-compilation baselines are implemented. Full provider-to-production-artifact integration remains in progress.
+
+For the same composition inputs, Coretsia aims to produce the same:
+
+- enabled and disabled module sets;
+- optional-missing module set;
+- dependency-order results.
+
+For the same normalized artifact inputs, schema, and generator version, it aims to produce the same:
+
+- artifact payloads;
+- fingerprints;
+- generated artifact bytes.
+
+Runtime module discovery uses Composer metadata only. It does not scan package directories or source trees to infer application composition.
+
+## Progressive capability modes
+
+Coretsia defines four canonical framework modes:
+
+### `micro`
+
+A minimal runtime profile for:
+
+- focused APIs;
+- small services;
+- lightweight CLI workloads;
+- applications that need a small active framework surface.
+
+### `express`
+
+A conventional application profile for:
+
+- HTTP and web application workflows;
+- routing and validation;
+- persistence;
+- filesystem and other common application IO concerns.
+
+### `hybrid`
+
+A mixed synchronous and asynchronous profile for:
+
+- background processing;
+- queues;
+- events;
+- scheduled workloads;
+- more complex business workflows.
+
+### `enterprise`
+
+An extended platform profile for:
+
+- stronger operational requirements;
+- governance and observability;
+- broader infrastructure integrations;
+- larger and longer-lived systems.
+
+Modes are capability profiles. They do not prescribe MVC, DDD, Clean Architecture, Vertical Slice Architecture, or another application architecture style.
+
+An application may use a simple architecture in a broader mode or a highly structured architecture in `micro`. The application architecture remains an owner decision.
+
+### Modes, targets, and runtime drivers
+
+Coretsia keeps three concerns separate:
+
+- a **mode preset** selects the active framework capability profile;
+- an **application target** identifies an application entrypoint or execution surface, such as `web`, `api`, `console`, or `worker`;
+- a **runtime driver** selects the execution mechanism, such as classic PHP, FrankenPHP, Swoole, or RoadRunner.
+
+These concepts are related but are not interchangeable. An application target does not introduce a separate module-selection mechanism: module composition remains preset-driven.
+
+## How Coretsia differs
+
+Coretsia does not attempt to differentiate itself merely by providing a container, modules, middleware, queues, workers, or runtime adapters. Modern PHP frameworks already provide mature versions of those capabilities.
+
+Its intended difference is the way those capabilities are composed and governed.
+
+### Deterministic module composition
+
+A mode preset and the installed Composer metadata resolve into one explicit `ModulePlan`.
+
+The plan records:
+
+- enabled modules;
+- disabled modules;
+- optional modules that are not installed;
+- deterministic dependency order;
+- deterministic warnings and exported diagnostics.
+
+### Reproducible generated artifacts
+
+Generated framework artifacts use a common versioned envelope and deterministic serialization rules.
+
+Artifacts:
+
+- have explicit schema identities;
+- contain deterministic fingerprints;
+- do not contain timestamps or absolute paths;
+- must be rerun-no-diff;
+- are validated by schema and header semantics.
+
+### Shared runtime lifecycle
+
+Coretsia uses a format-neutral Unit-of-Work model for runtime operations such as:
+
+- HTTP requests;
+- CLI invocations;
+- worker jobs;
+- queue messages;
+- scheduler ticks.
+
+Framework-managed Unit-of-Work-local state is reset after each operation so that participating services do not retain state from previous operations.
+
+### Explicit runtime compatibility
+
+Runtime drivers are selected explicitly and checked against a canonical compatibility matrix.
+
+The Kernel must not infer active runtimes from:
+
+- loaded extensions;
+- process names;
+- open ports;
+- filesystem contents;
+- container services;
+- reflection.
+
+Runtime conflicts fail deterministically before the runtime entrypoint executes.
+
+### Machine-enforced architecture
+
+Coretsia architecture rules are backed by tooling and CI rather than documentation alone.
+
+The repository includes enforcement for:
+
+- package identity and structure;
+- dependency boundaries;
+- DTO policy;
+- public API policy;
+- runtime/tooling separation;
+- deterministic generated outputs;
+- Composer security audit;
+- secret leakage checks;
+- package publishing safety.
+
+## Current status
 
 Roadmap status:
 
-- Prelude: implemented
-- Phase 0 — Spikes and prototypes: implemented
-- Phase 1 — Core: implemented
-- Phase 2 — Mode Infrastructure & CLI: active development
-- Phase 3 — RELEASE: micro: planned
-- Phase 4 — RELEASE: express: planned
-- Phase 5 — RELEASE: hybrid: planned
-- Phase 6+ — RELEASE: enterprise (extensions): planned
-- Stable production release: not available yet
+- Prelude — implemented
+- Phase 0: Spikes and prototypes — implemented
+- Phase 1: Core — implemented
+- Phase 2: Mode Infrastructure and CLI — active development
+- Phase 3: Micro release — planned
+- Phase 4: Express release — planned
+- Phase 5: Hybrid release — planned
+- Phase 6+: Enterprise extensions — planned
+- Stable production release — not available
 
-Current public implementation baseline:
+## Implemented today
 
-- deterministic tooling, gates, and CI verification rails
-- managed Composer workspace/repository synchronization
-- publishing rails and public split-package publishing baseline
-- canonical CLI ports and prod-safe CLI base
-- Phase 0 devtools command pack
-- Phase 1 `core/*` baseline:
-  - contracts baseline
-  - foundation baseline
-  - kernel baseline
-- deterministic module planning, config kernel, artifact generation, fingerprinting, cache verification, and container compilation
-- Kernel runtime baseline with format-neutral UnitOfWork shapes and lifecycle policy
-- runtime driver selection and compatibility guard
-- DTO policy, package compliance rails, and package publish safety rails
-- Composer audit and secret leakage security gates
-- architecture, quality, test, and spike verification rails
+### Core runtime and composition baseline
 
-Authoritative planning and invariants:
+- contracts, foundation, and Kernel package baseline;
+- deterministic mode-preset and module-plan contracts;
+- Composer-metadata module discovery;
+- module dependency and conflict resolution;
+- deterministic topological ordering;
+- immutable module-resolution snapshots;
+- configuration Kernel and merge policy;
+- deterministic artifact generation and fingerprinting;
+- cache verification;
+- compiled container artifact baseline;
+- format-neutral Unit-of-Work shapes and lifecycle;
+- runtime context and reset orchestration;
+- runtime-driver selection and compatibility guard.
 
-- [Roadmap (canonical)](docs/roadmap/ROADMAP.md)
-- [Single Source of Truth (invariants/shapes/policies)](docs/ssot/INDEX.md)
-- [Security policy](SECURITY.md)
+### Tooling and architecture governance
 
-Coretsia also tracks architecture generator idempotence evidence in CI. See [Architecture Generator Idempotence Evidence](docs/ops/architecture-generator-evidence.md).
+- deterministic tooling and CI verification rails;
+- package compliance gates;
+- DTO policy and consistency gates;
+- architecture and dependency-boundary checks;
+- managed Composer workspace synchronization;
+- lock-drift checks;
+- Composer audit;
+- secret leakage checks;
+- split-package publishing rails;
+- release-train safety automation;
+- architecture generator idempotence verification with [CI-tracked evidence](docs/ops/architecture-generator-evidence.md).
 
-## Repository layout (canonical)
+## Not yet available as stable framework products
 
-- `framework/` — framework meta-package + all framework packages
-  - packages: `framework/packages/<layer>/<slug>/`
-  - layers: `core|platform|integrations|enterprise|devtools|presets`
-- `skeleton/` — local workspace app sandbox
-  - fixtures, entrypoints, E2E tests, runtime caches (`skeleton/var/**`)
-- `docs/` — documentation
-  - `docs/roadmap/**` — task-first roadmap (phases/epics)
-  - `docs/ssot/**` — Single Source of Truth (invariants, shapes, policies)
-  - `docs/architecture/**`, `docs/ops/**` — non-SSoT guides (must link to SSoT for truth)
-- `framework/tools/` — tooling, gates, CI rails, spikes (Phase 0 / Prelude)
+Coretsia does not yet provide stable, production-ready application releases for:
 
-## Canonical rules (selected highlights)
+- complete HTTP Micro applications;
+- conventional Express web applications;
+- production Hybrid queue and event workloads;
+- Enterprise extensions.
 
-### Monorepo packaging law (MUST)
+The project also does not yet provide:
 
-- Package path: `framework/packages/<layer>/<slug>/`
-- Package id: `<layer>/<slug>`
-- Composer name: `coretsia/<layer>-<slug>`
-- Monorepo-wide release-train versioning via git tags `vMAJOR.MINOR.PATCH` (no per-package versions)
-- [Canonical packaging strategy (single-choice)](docs/architecture/PACKAGING.md)
+- long-term backward compatibility guarantees;
+- stable upgrade paths;
+- a mature third-party package ecosystem.
 
-### Release-train versioning (MUST)
+Some Core composition components are already implemented, but full product-level integration remains in progress.
 
-Coretsia packages are split for distribution, dependency boundaries, and Packagist publishing, but they are versioned as one framework release train.
+## Project priorities
 
-All split packages receive the same version as the monorepo tag.
+The immediate priority is not to implement every feature available in mature PHP ecosystems.
 
-Independent package versions are intentionally not supported.
+The priority is to prove that Coretsia can provide:
 
-SemVer applies at the Coretsia framework release-train level, not as independent SemVer streams for every package.
+1. a genuinely small and usable Micro application experience;
+2. a productive Express workflow for conventional applications;
+3. safe growth from synchronous to asynchronous workloads;
+4. deterministic module and artifact composition;
+5. consistent lifecycle behavior across classic and long-running runtimes;
+6. architecture rules that remain useful without exposing excessive ceremony to application developers.
 
-A patch that changes one package may still produce a monorepo-wide patch release. Unchanged packages may receive the same new tag so consumers can keep all `coretsia/*` packages aligned.
+## Who should evaluate Coretsia?
 
-This avoids maintaining a compatibility matrix across framework packages, generated artifacts, runtime contracts, platform adapters, docs, and tooling.
+Coretsia may currently be relevant to:
 
-### Canonical entrypoints (MUST)
+- framework and platform engineers;
+- maintainers of long-lived PHP systems;
+- teams interested in reproducible framework artifacts;
+- developers working with modular monoliths;
+- engineers evaluating long-running PHP lifecycle safety;
+- contributors interested in architecture tooling and enforceable package boundaries.
 
-Run commands from the repo root. Canonical scripts:
+Coretsia should not currently be selected for a production application that requires a stable framework, broad ecosystem support, or proven long-term upgrade compatibility.
 
-```bash
-composer setup
-composer test
-composer ci
+## Repository layout
+
+```text
+framework/
+  packages/
+    core/
+    platform/
+    integrations/
+    enterprise/
+    devtools/
+    presets/
+  tools/
+
+skeleton/
+docs/
 ```
 
-### Managed Composer repositories (MUST NOT edit manually)
+- `framework/packages/<layer>/<slug>/` — publishable framework packages;
+- `framework/tools/**` — repository tooling, generators, CI rails, and spikes;
+- `skeleton/**` — local application workspace, fixtures, entrypoints, E2E tests, and runtime caches;
+- `docs/roadmap/**` — implementation roadmap;
+- `docs/ssot/**` — canonical invariants, schemas, ownership, and policies;
+- `docs/architecture/**` — architecture guidance that refers to SSoT for normative truth;
+- `docs/ops/**` — operational and repository-maintenance documentation.
 
-`repositories` blocks in root/framework/skeleton composer.json files are managed only through the canonical repo-root commands:
+Canonical package layers are:
 
-```bash
-composer sync:check
-composer sync:repos
+```text
+core
+platform
+integrations
+enterprise
+devtools
+presets
 ```
 
-Manual edits are forbidden by policy and enforced by pre-commit/CI drift checks.
+## Package and release model
+
+Framework packages are developed in this monorepo and published as split Composer packages.
+
+Canonical package identity:
+
+```text
+path: framework/packages/<layer>/<slug>/
+package id: <layer>/<slug>
+Composer name: coretsia/<layer>-<slug>
+```
+
+All Coretsia packages use one framework release train:
+
+```text
+vMAJOR.MINOR.PATCH
+```
+
+Independent per-package version streams are intentionally not supported.
+
+This keeps framework packages, runtime contracts, generated artifact schemas, documentation, and tooling aligned under one compatibility line.
 
 See:
 
-- [Command catalog](docs/guides/commands.md)
-- [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
+- [Canonical packaging strategy](docs/architecture/PACKAGING.md)
+- [Repository structure](docs/architecture/STRUCTURE.md)
+- [Releasing guide](docs/guides/releasing.md)
+- [Packagist split publishing guide](docs/guides/packagist-split-publishing-guide.md)
 
-### Lock determinism (MUST)
+## Evaluate the monorepo
 
-- lock files are committed for root/framework/skeleton
-- CI uses `composer install` and fails on lock drift
-- drift check for managed repositories runs before installs
+Requirements:
 
-### SSoT config shape invariant (cemented)
+- PHP 8.4 or later;
+- Composer 2.x.
 
-- `config/<name>.php` returns a subtree (no wrapper repeating the root key).
-  - Example: `config/foundation.php` returns `['container' => ...]`, not `['foundation' => ...]`.
-- Runtime reads from global config under that root key (e.g. `foundation.container.*`).
-
-### Runtime discovery (MUST)
-
-- Runtime module discovery uses Composer metadata only.
-- Runtime discovery MUST NOT do filesystem scanning.
-- Tooling package indexes MUST NOT be used as runtime input.
-
-### Spikes boundary (MUST)
-
-- The only spikes root is `framework/tools/spikes/**`.
-- Spikes must not import runtime packages (`core/*`, `platform/*`, `integrations/*`) nor path-import `framework/packages/**/src/**`.
-- Single exception: `coretsia/devtools-internal-toolkit` (tooling-only) used only via Composer autoload.
-
-## Requirements
-
-- PHP: >= 8.4
-- Composer: 2.x
-
-## Quick start (monorepo dev)
-
-Run everything from the repository root. Canonical entrypoints:
+Run commands from the repository root:
 
 ```bash
 composer setup
-composer test
 composer ci
 ```
 
-- `composer setup` enables `.githooks/` (sets `core.hooksPath`) and ensures managed Composer repositories policy.
-- `composer test` runs the baseline test suite.
-- `composer ci` runs the CI-style pipeline locally.
+- `composer setup` configures the repository development environment and managed Composer repositories;
+- `composer ci` runs the full verification pipeline, including the test suite and architecture checks.
 
-## Documentation index
+This is a framework-development workflow, not yet an end-user application installation flow.
 
-### Guides
+## Canonical documentation
 
-- [Quickstart (clean clone → working baseline)](docs/guides/quickstart.md)
-- [Command catalog (canonical)](docs/guides/commands.md)
-- [Developer onboarding checklist](docs/guides/onboarding.md)
-- [Git hooks + managed repositories policy](docs/guides/git-hooks.md)
-- [Dependency graph (conceptual; truth is in SSoT)](docs/guides/dependency-graph.md)
-- [Releasing (GitHub Release + Packagist)](docs/guides/releasing.md)
-- [Packagist split publishing](docs/guides/packagist-split-publishing-guide.md)
+### Start here
 
-### References
-
-- [Packaging strategy (canonical)](docs/architecture/PACKAGING.md)
-- [Repository structure](docs/architecture/STRUCTURE.md)
 - [Roadmap](docs/roadmap/ROADMAP.md)
-- [Canonical condensed rules (normative)](docs/roadmap/ROADMAP.md)
 - [SSoT index](docs/ssot/INDEX.md)
-- [Branding spec](docs/architecture/BRANDING.md)
+- [Quickstart for repository development](docs/guides/quickstart.md)
+- [Developer onboarding checklist](docs/guides/onboarding.md)
+- [Dependency graph guide](docs/guides/dependency-graph.md)
+
+### Architecture and operations
+
+- [Canonical packaging strategy](docs/architecture/PACKAGING.md)
+- [Repository structure](docs/architecture/STRUCTURE.md)
+- [Command catalog](docs/guides/commands.md)
+- [Git hooks and managed repositories](docs/guides/git-hooks.md)
 - [Architecture generator idempotence evidence](docs/ops/architecture-generator-evidence.md)
+- [Security policy](SECURITY.md)
 
-## Community RFCs
+## Contributing and discussions
 
-### Website Design RFC
+Coretsia is currently seeking technical review of:
 
-Coretsia is collecting open-source ideas for the official website design direction.
+- architecture boundaries;
+- consistency between SSoT, implementation, tests, and tooling;
+- deterministic behavior;
+- package ownership;
+- runtime lifecycle;
+- unclear documentation;
+- unnecessary complexity.
 
-The discussion is focused on translating the canonical Coretsia branding specification into a practical website concept, including the homepage, documentation section, news/blog section, and community pages.
+The project is not currently seeking production adoption claims or comparisons positioning Coretsia as a replacement for established frameworks.
 
-Design discussion and direction are tracked in:
+Architecture and design discussions are tracked through:
 
-- [Website design RFC](https://github.com/coretsia/monorepo/discussions/51)
-
-Accepted website and visual implementation decisions are recorded in:
-
-- [Coretsia website decision records](https://github.com/coretsia/website/tree/main/docs/decisions)
-
-Website implementation work happens through scoped issues and pull requests in:
-
+- [Coretsia GitHub Discussions](https://github.com/coretsia/monorepo/discussions)
+- [Coretsia organization](https://github.com/coretsia)
 - [Coretsia website repository](https://github.com/coretsia/website)
-
-Website proposals must align with:
-
-- [Branding specification](docs/architecture/BRANDING.md)
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE). \
-See [NOTICE](NOTICE) for attribution and third-party notices (if applicable).
+Licensed under the Apache License, Version 2.0.
+
+See:
+
+- [LICENSE](LICENSE)
+- [NOTICE](NOTICE)

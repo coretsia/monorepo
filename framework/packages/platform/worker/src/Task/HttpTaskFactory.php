@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Worker\Task;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -105,9 +106,12 @@ final readonly class HttpTaskFactory implements TaskFactoryInternalInterface
      */
     public function create(WorkerPoolSpec $spec): array
     {
-        $this->assertReady($spec);
-
-        $operationId = $this->operationId($spec);
+        try {
+            $this->assertReady($spec);
+            $operationId = $this->operationId($spec);
+        } catch (WorkerStartFailedException) {
+            throw WorkerLifecycleFailedException::invalidState();
+        }
 
         return [
             'operation_id' => $operationId,

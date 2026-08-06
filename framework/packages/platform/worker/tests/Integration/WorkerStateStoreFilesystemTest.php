@@ -20,7 +20,7 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
 use Coretsia\Platform\Worker\Runtime\WorkerStateStore;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
@@ -53,7 +53,7 @@ final class WorkerStateStoreFilesystemTest extends PackageTestCase
 
         \mkdir(\dirname($root . '/' . $spec->statePath()), 0777, true);
         \file_put_contents($root . '/' . $spec->statePath(), "{}\n");
-        $this->expectException(WorkerStartFailedException::class);
+        $this->expectException(WorkerLifecycleFailedException::class);
         $store->readSnapshot($spec);
     }
 }

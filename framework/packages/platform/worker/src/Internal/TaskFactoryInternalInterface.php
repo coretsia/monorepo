@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Internal;
 
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
@@ -109,15 +110,13 @@ interface TaskFactoryInternalInterface
      * platform/worker and must not be documented as a userland task-provider
      * contract.
      *
-     * Unsupported task types or invalid task setup must fail deterministically
-     * with a worker exception. HTTP task mode may use the narrower
-     * WorkerStartFailedException::requestHandlerMissing() when the request
-     * handler requirement is not satisfied after runtime-driver compatibility
-     * has already passed.
+     * This method runs after child readiness. Unsupported task types or
+     * invalid task setup must therefore fail with
+     * WorkerLifecycleFailedException rather than a startup exception.
      *
      * @return WorkerTaskWork
      *
-     * @throws WorkerStartFailedException
+     * @throws WorkerLifecycleFailedException
      */
     public function create(WorkerPoolSpec $spec): array;
 }

@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Tests\Unit;
 
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\RecordingKernelRuntime;
@@ -78,6 +79,32 @@ final class ApplicationWorkerTest extends PackageTestCase
             'worker.task_duration_ms',
             $meter->observations[0]['name'],
         );
+    }
+
+    public function testRuntimeTaskFactoryDriftUsesLifecycleFailure(): void
+    {
+        $root = $this->temporaryDirectory('worker-application-runtime-drift');
+        $tasks = new RecordingTaskFactory();
+        $tasks->supported = false;
+
+        $worker = new ApplicationWorker(
+            stopSignal: new WorkerStopSignal($root),
+            kernelRuntime: new RecordingKernelRuntime(),
+            taskFactory: $tasks,
+            stopwatch: new Stopwatch(),
+            tracer: new RecordingTracer(),
+            meter: new RecordingMeter(),
+        );
+
+        try {
+            $worker->runOne(WorkerSpecFactory::create());
+            self::fail('Expected lifecycle failure.');
+        } catch (WorkerLifecycleFailedException $exception) {
+            self::assertSame(
+                WorkerLifecycleFailedException::REASON_INVALID_STATE,
+                $exception->reason(),
+            );
+        }
     }
 
     public function testTaskFailureKeepsFailureLabelsAndRethrows(): void

@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Unit;
 
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -37,6 +37,7 @@ final class WorkerPoolSpecTest extends TestCase
             pcntlForkAvailable: true,
             platformFamily: 'Linux',
             unixDomainSocketsSupported: true,
+            procProcessHostAvailable: true,
         );
 
         self::assertSame('auto', $unix->driverRequested());
@@ -48,10 +49,29 @@ final class WorkerPoolSpecTest extends TestCase
             pcntlForkAvailable: true,
             platformFamily: 'Windows',
             unixDomainSocketsSupported: false,
+            procProcessHostAvailable: true,
         );
 
         self::assertSame('proc', $windows->driver());
         self::assertSame('tcp', $windows->controlTransport());
+    }
+
+
+    public function testAutoDriverFailsWhenNoSecureProcessAdapterIsAvailable(): void
+    {
+        $config = require \dirname(__DIR__, 2) . '/config/worker.php';
+
+        self::assertIsArray($config);
+
+        $this->expectException(WorkerLifecycleFailedException::class);
+
+        WorkerPoolSpec::fromConfig(
+            $config,
+            pcntlForkAvailable: false,
+            platformFamily: 'Linux',
+            unixDomainSocketsSupported: true,
+            procProcessHostAvailable: false,
+        );
     }
 
     public function testExposesAllLifecycleFieldsAndRedactedEndpointIdentity(): void
@@ -83,7 +103,7 @@ final class WorkerPoolSpecTest extends TestCase
     #[DataProvider('invalidOverrides')]
     public function testInvalidConfigurationFailsDeterministically(array $override): void
     {
-        $this->expectException(WorkerStartFailedException::class);
+        $this->expectException(WorkerLifecycleFailedException::class);
 
         WorkerSpecFactory::create($override);
     }
@@ -122,5 +142,21 @@ final class WorkerPoolSpecTest extends TestCase
         yield 'absolute path' => [[
             'socket_path' => '/tmp/worker.sock',
         ]];
+
+        foreach (
+            [
+                'socket_path',
+                'state_path',
+                'stop_flag_path',
+            ] as $pathKey
+        ) {
+            yield $pathKey . ' rejects skeleton prefix' => [[
+                $pathKey => 'skeleton/var/tmp/worker.runtime',
+            ]];
+
+            yield $pathKey . ' rejects at-prefixed segment' => [[
+                $pathKey => 'var/@private/worker.runtime',
+            ]];
+        }
     }
 }

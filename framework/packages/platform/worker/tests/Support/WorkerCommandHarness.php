@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Tests\Support;
 
 use Coretsia\Platform\Worker\Runtime\WorkerLifecyclePaths;
+use Coretsia\Platform\Worker\Runtime\WorkerShutdownBudget;
 
 /**
  * Process wrapper around the worker command fixture.
@@ -309,7 +310,22 @@ final class WorkerCommandHarness
             return [];
         }
 
-        $bytes = \file_get_contents($path);
+        $handle = @\fopen($path, 'rb');
+
+        if (!\is_resource($handle)) {
+            return [];
+        }
+
+        try {
+            if (!@\flock($handle, \LOCK_SH)) {
+                return [];
+            }
+
+            $bytes = @\stream_get_contents($handle);
+        } finally {
+            @\flock($handle, \LOCK_UN);
+            @\fclose($handle);
+        }
 
         if (!\is_string($bytes)) {
             return [];
@@ -464,9 +480,10 @@ final class WorkerCommandHarness
             return self::DEFAULT_COMMAND_TIMEOUT_MS;
         }
 
-        return $stopTimeoutMs
-            + (2 * $forceKillTimeoutMs)
-            + 5_000;
+        return WorkerShutdownBudget::stopRequestTimeoutMs(
+            $stopTimeoutMs,
+            $forceKillTimeoutMs,
+        ) + self::TERMINATION_TIMEOUT_MS;
     }
 
     /**

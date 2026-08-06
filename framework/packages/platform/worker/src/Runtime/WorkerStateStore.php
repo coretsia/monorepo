@@ -20,7 +20,7 @@ namespace Coretsia\Platform\Worker\Runtime;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
  * Stable worker pool state JSON store.
@@ -83,7 +83,7 @@ final readonly class WorkerStateStore
                 endpointHash: self::endpointHash($spec),
             );
         } catch (\Throwable) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
     }
 
@@ -111,13 +111,13 @@ final readonly class WorkerStateStore
         try {
             $bytes = $this->encoder->encodeMap($state->toArray());
         } catch (\Throwable) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $path = $this->path($spec);
         $dir = \dirname($path);
         if (!\is_dir($dir) && !@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $tmp = $this->temporaryPath($spec);
@@ -125,7 +125,7 @@ final readonly class WorkerStateStore
         if (@\file_put_contents($tmp, $bytes, \LOCK_EX) === false || !@\rename($tmp, $path)) {
             @\unlink($tmp);
 
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
     }
 
@@ -149,13 +149,13 @@ final readonly class WorkerStateStore
         }
 
         if (!@\is_file($path)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $bytes = @\file_get_contents($path);
 
         if (!\is_string($bytes)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         try {
@@ -163,7 +163,7 @@ final readonly class WorkerStateStore
                 $this->decoder->decodeMap($bytes),
             );
         } catch (\Throwable) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
     }
 
@@ -175,7 +175,7 @@ final readonly class WorkerStateStore
             }
 
             if (!@\is_file($path) || !@\unlink($path)) {
-                throw WorkerStartFailedException::runtimeCleanupFailed();
+                throw WorkerLifecycleFailedException::runtimeCleanupFailed();
             }
         }
     }

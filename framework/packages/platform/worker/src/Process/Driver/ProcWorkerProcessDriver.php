@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Process\Driver;
 
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
@@ -32,7 +33,10 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
  *
  * The adapter never calls proc_open() from the supervisor process. A pre-lock
  * process host owns raw proc resources so worker children cannot inherit the
- * supervisor lifecycle lock, control listener, or readiness listeners.
+ * supervisor lifecycle lock, control listener, or readiness listeners. Before
+ * each child launch, the host rotates its authenticated supervisor connection
+ * through a one-shot handoff so no proc-host protocol descriptor crosses the
+ * proc_open() boundary.
  *
  * Child readiness is delivered through a dedicated per-child loopback TCP
  * endpoint owned by the supervisor. Standard input, output, and error streams
@@ -47,6 +51,7 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
         private WorkerChildCommandBuilder $commandBuilder,
         private WorkerChildReadinessChannel $readinessChannel,
         private WorkerProcProcessHostClient $processHost,
+        private bool $processHostAvailable,
     ) {
         if (
             $skeletonRoot === ''
@@ -76,7 +81,7 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
 
     public function supports(WorkerPoolSpec $spec): bool
     {
-        return $spec->driver() === self::DRIVER_PROC && \function_exists('proc_open');
+        return $spec->driver() === self::DRIVER_PROC && $this->processHostAvailable;
     }
 
     public function prepare(WorkerPoolSpec $spec): void
@@ -114,7 +119,7 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
                 workingDirectory: $this->skeletonRoot,
                 timeoutMs: $spec->startTimeoutMs(),
             );
-        } catch (WorkerStartFailedException $exception) {
+        } catch (WorkerStartFailedException|WorkerLifecycleFailedException $exception) {
             $readinessEndpoint->close();
 
             throw $exception;
@@ -137,34 +142,69 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
 
     public function pollExit(
         WorkerChildProcess $child,
+        int $timeoutMs,
     ): ?WorkerProcessExit {
-        return $this->processHost->pollExit(self::childId($child));
+        self::assertTimeout($timeoutMs);
+
+        return $this->processHost->pollExit(
+            self::childId($child),
+            $timeoutMs,
+        );
     }
 
-    public function terminate(WorkerChildProcess $child): void
-    {
-        $this->processHost->terminate(self::childId($child));
+    public function terminate(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
+
+        $this->processHost->terminate(
+            self::childId($child),
+            $timeoutMs,
+        );
     }
 
-    public function kill(WorkerChildProcess $child): void
-    {
-        $this->processHost->kill(self::childId($child));
+    public function kill(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
+
+        $this->processHost->kill(
+            self::childId($child),
+            $timeoutMs,
+        );
     }
 
-    public function close(WorkerChildProcess $child): void
-    {
+    public function close(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
+
         if ($child->closed()) {
             return;
         }
 
         $child->readinessEndpoint()->close();
-        $this->processHost->close(self::childId($child));
+        $this->processHost->close(
+            self::childId($child),
+            $timeoutMs,
+        );
         $child->markClosed();
     }
 
-    public function shutdown(): void
+    public function shutdown(int $timeoutMs): void
     {
-        $this->processHost->shutdown();
+        self::assertTimeout($timeoutMs);
+        $this->processHost->shutdown($timeoutMs);
+    }
+
+    private static function assertTimeout(int $timeoutMs): void
+    {
+        if ($timeoutMs < 1 || $timeoutMs > 86_400_000) {
+            throw WorkerLifecycleFailedException::invalidState();
+        }
     }
 
     private static function childId(WorkerChildProcess $child): string
@@ -176,7 +216,7 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
             || !\is_string($handle)
             || \preg_match('/\Achild-[1-9][0-9]*\z/', $handle) !== 1
         ) {
-            throw WorkerStartFailedException::childExited();
+            throw WorkerLifecycleFailedException::childExited();
         }
 
         return $handle;

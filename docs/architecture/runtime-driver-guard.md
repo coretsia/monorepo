@@ -310,7 +310,7 @@ Missing or invalid owner-package runtime input is not automatically a Kernel mat
 For the current Worker package, missing or invalid `worker.task_type` fails through Worker policy:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 The current Worker module-owner precondition is enforced before Kernel matrix evaluation.

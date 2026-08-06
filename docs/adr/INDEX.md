@@ -65,6 +65,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0029: Kernel compiled container artifact](./ADR-0029-kernel-container-compile-artifact.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,boot,container,kernel,runtime
 - [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
+- [ADR-0032: Process-Exec Descriptor Safety](./ADR-0032-process-exec-descriptor-safety.md) — owner: repo — adrVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
 
 ## Cross-references
 

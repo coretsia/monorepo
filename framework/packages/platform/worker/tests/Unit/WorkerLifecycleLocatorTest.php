@@ -52,7 +52,10 @@ final class WorkerLifecycleLocatorTest extends TestCase
         self::assertNull($locator->tcpPort());
         self::assertSame(2_300, $locator->stopTimeoutMs());
         self::assertSame(400, $locator->forceKillTimeoutMs());
-        self::assertSame(5_100, $locator->stopRequestTimeoutMs());
+        self::assertSame(
+            5_100,
+            $locator->stopRequestTimeoutMs(),
+        );
         self::assertSame(
             'unix:var/tmp/private-worker.sock',
             $locator->endpointIdentifier(),

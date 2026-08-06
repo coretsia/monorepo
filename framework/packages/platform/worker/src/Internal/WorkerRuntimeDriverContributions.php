@@ -21,7 +21,7 @@ namespace Coretsia\Platform\Worker\Internal;
 use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
 /**
@@ -55,7 +55,7 @@ final class WorkerRuntimeDriverContributions
                 backgroundDrivers: [],
             ),
 
-            default => throw WorkerStartFailedException::invalidState(),
+            default => throw WorkerLifecycleFailedException::invalidState(),
         };
     }
 }

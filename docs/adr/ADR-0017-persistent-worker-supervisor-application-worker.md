@@ -157,6 +157,7 @@ WorkerStateStore
 WorkerLifecycleLock
 WorkerLifecycleLocator
 WorkerLifecycleLocatorStore
+WorkerShutdownBudget
 WorkerStopSignal
 WorkerRuntimeEntrypointGuard
 
@@ -167,6 +168,7 @@ WorkerSupervisor
 WorkerChildTable
 WorkerSignalController
 
+WorkerProcessCapabilities
 WorkerProcessDriverInterface
 WorkerProcessDriverResolverInterface
 ContainerWorkerProcessDriverResolver
@@ -176,6 +178,8 @@ ProcWorkerProcessDriver
 WorkerForkIsolation
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
+WorkerProcProcessHostHandoffEndpoint
+WorkerProcProcessHostTransport
 
 WorkerControlClientInterface
 WorkerControlTransport
@@ -827,7 +831,9 @@ AND platform != Windows
 
 The `proc` driver is the cross-platform process adapter.
 
-Driver auto-resolution must be deterministic.
+Proc selection requires `proc_open()` and the complete bounded loopback stream capability on every platform. Descriptor isolation does not depend on `ext-sockets` or `SOCK_CLOEXEC`.
+
+Driver auto-resolution must be deterministic. It selects proc only when the process-host stream capability is available and fails start validation when neither process adapter is available.
 
 Support checks must depend only on the normalized `WorkerPoolSpec`, injected platform and capability values, and exact required runtime-function availability.
 
@@ -860,6 +866,22 @@ No parent runtime container, shared service cache, `ApplicationWorker` instance,
 
 PCNTL and proc children use the same independently tokenized loopback TCP readiness protocol.
 
+### Process-exec descriptor guarantee
+
+`WorkerForkIsolation` closes every Worker-owned supervisor descriptor registered with that boundary.
+
+This guarantee does not extend to arbitrary application, integration, extension, deployment, or third-party descriptors that are unknown to the Worker package.
+
+Such descriptors are governed by:
+
+```text
+docs/ssot/process-exec-descriptor-safety.md
+```
+
+Neither `PcntlWorkerProcessDriver` nor `ProcWorkerProcessDriver` alone is a framework-wide proof that arbitrary descriptors cannot cross an exec boundary.
+
+Coretsia-owned local file handles request close-on-exec on POSIX where the handle can coexist with process execution. Known Worker-owned sockets, listeners, sessions, and locks retain explicit owner-driven detachment.
+
 ## Proc process-host decision
 
 `ProcWorkerProcessDriver` owns one-child operations through a dedicated process host.
@@ -871,6 +893,8 @@ The canonical infrastructure is:
 ```text
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
+WorkerProcProcessHostHandoffEndpoint
+WorkerProcProcessHostTransport
 bin/coretsia-worker-proc-host
 ```
 
@@ -882,6 +906,10 @@ This prevents proc children from inheriting:
 - the control listener;
 - supervisor readiness listeners;
 - supervisor-owned control sessions.
+
+Before every proc worker-child launch, the supervisor creates a one-shot handoff listener with a fresh token. The process host validates the spawn request, closes its current authenticated supervisor connection, calls `proc_open()`, and only then establishes and authenticates the replacement connection.
+
+No proc-host protocol connection is open during worker-child launch. This invariant is identical on Windows and POSIX and requires only bounded loopback stream operations.
 
 The process host owns:
 
@@ -1070,9 +1098,15 @@ It is not read from worker configuration, and current config cannot move the lif
 The lock uses an inode-stable anchor file and non-blocking exclusive lock semantics equivalent to:
 
 ```php
-fopen($path, 'c+b');
+$mode = PHP_OS_FAMILY === 'Windows'
+    ? 'c+b'
+    : 'c+be';
+
+fopen($path, $mode);
 flock($handle, LOCK_EX | LOCK_NB);
 ```
+
+The POSIX `e` flag requests close-on-exec as defense in depth. Explicit `WorkerForkIsolation` detachment remains mandatory and is not replaced by the open mode.
 
 The semantics are:
 
@@ -1181,7 +1215,7 @@ It is published before child spawn, so the supervisor can serve early status, he
 The active locator, rather than current config, owns the stop-client request deadline:
 
 ```text
-stop_timeout_ms + (2 * force_kill_timeout_ms) + 2000
+stop_timeout_ms + (2 * force_kill_timeout_ms) + WorkerShutdownBudget::CLEANUP_TIMEOUT_MS
 ```
 
 Changing current worker endpoint or timeout configuration does not redirect lifecycle commands and does not shorten the shutdown deadline of an active pool.
@@ -1368,6 +1402,10 @@ transition state to stopping
 -> release lifecycle lock
 -> send terminal stopped response
 ```
+
+Each cooperative, terminate, and kill phase creates one monotonic deadline before its first process-driver operation. Every potentially blocking `pollExit`, `terminate`, `kill`, and `close` call receives only the remaining phase budget. Iterating over multiple children must not restart or extend the phase deadline.
+
+Driver infrastructure shutdown receives the remaining cleanup budget defined by `WorkerShutdownBudget::CLEANUP_TIMEOUT_MS`.
 
 `ApplicationWorker` observes the cooperative stop signal only between tasks.
 
@@ -1594,6 +1632,7 @@ The package introduces or uses:
 ```text
 WorkerException
 WorkerStartFailedException
+WorkerLifecycleFailedException
 WorkerForkFailedException
 WorkerAlreadyRunningException
 WorkerCommunicationFailedException
@@ -1607,6 +1646,12 @@ CORETSIA_WORKER_ALREADY_RUNNING: worker-already-running
 ```
 
 They are not collapsed into the generic Worker start-failure boundary.
+
+Startup-only failures use `WorkerStartFailedException` and `CORETSIA_WORKER_START_FAILED`.
+
+Supervisor-lifecycle failures that are not owned exclusively by startup use `WorkerLifecycleFailedException` and `CORETSIA_WORKER_LIFECYCLE_FAILED`.
+
+The lifecycle taxonomy owns invalid lifecycle state, unexpected child exit, shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, and proc-host failures. CLI commands preserve concrete `WorkerException` code and reason values. Unknown non-Worker throwables remain command-specific safe catch-all failures.
 
 Public exception messages use:
 
@@ -2093,6 +2138,7 @@ framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSafetyCon
 framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSchemaContractTest.php
 framework/packages/platform/worker/tests/Contract/ProcWorkerProcessDriverSafetyContractTest.php
 framework/packages/platform/worker/tests/Contract/PcntlWorkerContainerIsolationContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerLocalFileOpenModeContractTest.php
 
 framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
 framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
@@ -2103,11 +2149,13 @@ framework/packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest
 framework/packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
+framework/packages/platform/worker/tests/Integration/PcntlWorkerOwnedDescriptorIsolationTest.php
 framework/packages/platform/worker/tests/Integration/CoretsiaWorkerChildReadinessTest.php
 framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
 framework/packages/platform/worker/tests/Integration/WorkerLifecycleLockFilesystemTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleLockCloseOnExecTest.php
 framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
 framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
 framework/packages/platform/worker/tests/Integration/WorkerSupervisorProductionFlowTest.php
@@ -2118,6 +2166,7 @@ framework/packages/platform/worker/tests/Integration/WorkerSupervisorSignalShutd
 framework/packages/platform/worker/tests/Integration/WorkerRuntimeCleanupTest.php
 
 framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
+framework/packages/core/kernel/tests/Contract/ArtifactLocalFileOpenModeContractTest.php
 ```
 
 These tests are expected to verify:
@@ -2129,6 +2178,7 @@ These tests are expected to verify:
 - TCP port `0` is rejected;
 - the lifecycle lock is sole liveness authority;
 - the lifecycle lock path is canonical and cannot drift with current config;
+- Coretsia-owned local lock and artifact files request close-on-exec on POSIX;
 - the private locator has an exact versioned schema;
 - locator publication is atomic, bounded, private, and mode `0600` on Unix;
 - locator ownership is limited to supervisor writes/deletes and control-client reads;
@@ -2146,6 +2196,7 @@ These tests are expected to verify:
 - process drivers do not call KernelRuntime;
 - process drivers do not own state, control, recycle, or shutdown policy;
 - process children do not retain Worker-owned supervisor resources;
+- current readiness, sibling readiness, and control listeners do not cross PCNTL exec;
 - PCNTL children replace the forked process image before runtime boot;
 - PCNTL and proc children perform artifact-only runtime boot;
 - only the selected process driver is resolved;
@@ -2188,6 +2239,7 @@ These tests are expected to verify:
 - `docs/ssot/config-roots.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
+- `docs/ssot/process-exec-descriptor-safety.md`
 - `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/runtime-drivers.md`
 - `docs/ssot/tags.md`
@@ -2203,3 +2255,4 @@ These tests are expected to verify:
 - `docs/adr/ADR-0027-runtime-driver-guard.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
 - `docs/adr/ADR-0031-atomic-artifact-generations.md`
+- `docs/adr/ADR-0032-process-exec-descriptor-safety.md`

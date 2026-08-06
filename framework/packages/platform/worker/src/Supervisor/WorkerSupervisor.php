@@ -29,6 +29,7 @@ use Coretsia\Platform\Worker\Communication\WorkerControlSession;
 use Coretsia\Platform\Worker\Exception\WorkerAlreadyRunningException;
 use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
@@ -41,6 +42,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
+use Coretsia\Platform\Worker\Runtime\WorkerShutdownBudget;
 use Coretsia\Platform\Worker\Runtime\WorkerStateStore;
 use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Psr\Log\LoggerInterface;
@@ -62,6 +64,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
     private const int EXIT_FAILURE = 1;
     private const int EVENT_LOOP_TICK_MS = 50;
     private const int REAP_POLL_INTERVAL_US = 10_000;
+    private const int PROCESS_OPERATION_TIMEOUT_MS = 1_000;
 
     private const string SPAN_WORKER_PROCESS = 'worker.process';
     private const string METRIC_WORKER_PROCESS_TOTAL = 'worker.process_total';
@@ -101,7 +104,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
     public function run(WorkerPoolSpec $spec, \Closure $onReady): int
     {
         if (!$this->children->empty()) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $driver = $this->driverResolver->resolve($spec);
@@ -381,7 +384,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 onUnexpectedExit: $onUnexpectedExit,
             );
 
-            $driver->shutdown();
+            $cleanupDeadlineNs = self::deadlineNs(
+                WorkerShutdownBudget::CLEANUP_TIMEOUT_MS,
+            );
+            $driver->shutdown(
+                self::remainingMs($cleanupDeadlineNs),
+            );
             $driverPrepared = false;
 
             $state = $state->withStatus(
@@ -409,7 +417,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $exitCode = self::EXIT_FAILURE;
 
             throw $exception;
-        } catch (WorkerStartFailedException|WorkerForkFailedException|WorkerCommunicationFailedException $exception) {
+        } catch (
+            WorkerStartFailedException
+            | WorkerLifecycleFailedException
+            | WorkerForkFailedException
+            | WorkerCommunicationFailedException $exception
+        ) {
             $exitCode = self::EXIT_FAILURE;
 
             if ($lockAcquired) {
@@ -424,7 +437,9 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 $this->bestEffortShutdown($driver, $spec);
             }
 
-            throw WorkerStartFailedException::startFailed();
+            throw $startupCompleted
+                ? WorkerLifecycleFailedException::lifecycleFailed()
+                : WorkerStartFailedException::startFailed();
         } finally {
             foreach ($pendingStops as $session) {
                 $this->controlServer->closeSession($session);
@@ -454,7 +469,9 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
 
             if ($driverPrepared) {
                 try {
-                    $driver->shutdown();
+                    $driver->shutdown(
+                        WorkerShutdownBudget::CLEANUP_TIMEOUT_MS,
+                    );
                 } catch (\Throwable) {
                 }
             }
@@ -632,7 +649,10 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         }
 
         foreach ($this->children->all() as $child) {
-            $exit = $driver->pollExit($child);
+            $exit = $driver->pollExit(
+                $child,
+                self::PROCESS_OPERATION_TIMEOUT_MS,
+            );
 
             if ($exit === null) {
                 if ($this->signals->shutdownRequested()) {
@@ -646,7 +666,10 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $generation = $child->generation();
             $wasReady = $this->children->isReady($index);
 
-            $driver->close($child);
+            $driver->close(
+                $child,
+                self::PROCESS_OPERATION_TIMEOUT_MS,
+            );
             $this->children->remove($index);
 
             $this->stateStore->write(
@@ -675,7 +698,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
 
             if (!$wasReady || !$exit->expected()) {
                 if ($state->status() === WorkerPoolStatus::STARTING) {
-                    throw WorkerStartFailedException::childExited();
+                    throw WorkerLifecycleFailedException::childExited();
                 }
 
                 return WorkerReapOutcome::CHILD_FAILURE;
@@ -737,9 +760,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         ?\Closure $onTick = null,
         ?\Closure $onUnexpectedExit = null,
     ): void {
+        $cooperativeDeadlineNs = self::deadlineNs(
+            $spec->stopTimeoutMs(),
+        );
         $this->reapUntil(
             driver: $driver,
-            deadlineNs: self::deadlineNs($spec->stopTimeoutMs()),
+            deadlineNs: $cooperativeDeadlineNs,
             onTick: $onTick,
             onExit: static function (WorkerProcessExit $exit) use ($onUnexpectedExit): void {
                 if (!$exit->expected() && $onUnexpectedExit instanceof \Closure) {
@@ -752,17 +778,26 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             return;
         }
 
+        $terminateDeadlineNs = self::deadlineNs(
+            $spec->forceKillTimeoutMs(),
+        );
+
         foreach ($this->children->all() as $child) {
+            $remainingMs = self::remainingMsOrNull($terminateDeadlineNs);
+
+            if ($remainingMs === null) {
+                break;
+            }
+
             $this->children->markTerminating(
                 $child->workerIndex(),
             );
-
-            $driver->terminate($child);
+            $driver->terminate($child, $remainingMs);
         }
 
         $this->reapUntil(
             driver: $driver,
-            deadlineNs: self::deadlineNs($spec->forceKillTimeoutMs()),
+            deadlineNs: $terminateDeadlineNs,
             onTick: $onTick,
         );
 
@@ -770,27 +805,38 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             return;
         }
 
+        $killDeadlineNs = self::deadlineNs(
+            $spec->forceKillTimeoutMs(),
+        );
+
         foreach ($this->children->all() as $child) {
+            $remainingMs = self::remainingMsOrNull($killDeadlineNs);
+
+            if ($remainingMs === null) {
+                break;
+            }
+
             $this->children->markKilling(
                 $child->workerIndex(),
             );
-
-            $driver->kill($child);
+            $driver->kill($child, $remainingMs);
         }
 
         $this->reapUntil(
             driver: $driver,
-            deadlineNs: self::deadlineNs($spec->forceKillTimeoutMs()),
+            deadlineNs: $killDeadlineNs,
             onTick: $onTick,
         );
 
         if (!$this->children->empty()) {
-            throw WorkerStartFailedException::shutdownFailed();
+            throw WorkerLifecycleFailedException::shutdownFailed();
         }
     }
 
     /**
-     * Reaps exited children until the table is empty or the deadline expires.
+     * Reaps exited children until the table is empty or the caller-owned phase
+     * deadline expires. Every potentially blocking driver operation receives
+     * only the remaining phase budget.
      *
      * @param (\Closure(): void)|null $onTick
      * @param (\Closure(WorkerProcessExit): void)|null $onExit
@@ -807,7 +853,13 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             }
 
             foreach ($this->children->all() as $child) {
-                $exit = $driver->pollExit($child);
+                $remainingMs = self::remainingMsOrNull($deadlineNs);
+
+                if ($remainingMs === null) {
+                    return;
+                }
+
+                $exit = $driver->pollExit($child, $remainingMs);
 
                 if ($exit === null) {
                     continue;
@@ -817,7 +869,13 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                     $onExit($exit);
                 }
 
-                $driver->close($child);
+                $remainingMs = self::remainingMsOrNull($deadlineNs);
+
+                if ($remainingMs === null) {
+                    return;
+                }
+
+                $driver->close($child, $remainingMs);
                 $this->children->remove(
                     $child->workerIndex(),
                 );
@@ -827,8 +885,17 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 return;
             }
 
-            \usleep(self::REAP_POLL_INTERVAL_US);
-        } while (\hrtime(true) < $deadlineNs);
+            $remainingMs = self::remainingMsOrNull($deadlineNs);
+
+            if ($remainingMs === null) {
+                return;
+            }
+
+            \usleep(\min(
+                self::REAP_POLL_INTERVAL_US,
+                $remainingMs * 1_000,
+            ));
+        } while (true);
     }
 
     private function bestEffortShutdown(
@@ -843,9 +910,19 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         try {
             $this->shutdownChildren($driver, $spec);
         } catch (\Throwable) {
+            $killDeadlineNs = self::deadlineNs(
+                $spec->forceKillTimeoutMs(),
+            );
+
             foreach ($this->children->all() as $child) {
+                $remainingMs = self::remainingMsOrNull($killDeadlineNs);
+
+                if ($remainingMs === null) {
+                    break;
+                }
+
                 try {
-                    $driver->kill($child);
+                    $driver->kill($child, $remainingMs);
                 } catch (\Throwable) {
                 }
             }
@@ -853,14 +930,24 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             try {
                 $this->reapUntil(
                     $driver,
-                    self::deadlineNs($spec->forceKillTimeoutMs()),
+                    $killDeadlineNs,
                 );
             } catch (\Throwable) {
             }
 
+            $cleanupDeadlineNs = self::deadlineNs(
+                WorkerShutdownBudget::CLEANUP_TIMEOUT_MS,
+            );
+
             foreach ($this->children->all() as $child) {
+                $remainingMs = self::remainingMsOrNull($cleanupDeadlineNs);
+
+                if ($remainingMs === null) {
+                    break;
+                }
+
                 try {
-                    $driver->close($child);
+                    $driver->close($child, $remainingMs);
                 } catch (\Throwable) {
                 }
             }
@@ -934,12 +1021,34 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         return $pid;
     }
 
+    private static function remainingMs(int $deadlineNs): int
+    {
+        $remainingMs = self::remainingMsOrNull($deadlineNs);
+
+        if ($remainingMs === null) {
+            throw WorkerLifecycleFailedException::shutdownFailed();
+        }
+
+        return $remainingMs;
+    }
+
+    private static function remainingMsOrNull(int $deadlineNs): ?int
+    {
+        $remainingNs = $deadlineNs - \hrtime(true);
+
+        if ($remainingNs <= 0) {
+            return null;
+        }
+
+        return \max(1, (int)\ceil($remainingNs / 1_000_000));
+    }
+
     private static function deadlineNs(int $timeoutMs): int
     {
         $nowNs = \hrtime(true);
 
         if (!\is_int($nowNs)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         return self::deadlineNsFrom(
@@ -960,7 +1069,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 1_000_000,
             )
         ) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         return $startNs + ($timeoutMs * 1_000_000);

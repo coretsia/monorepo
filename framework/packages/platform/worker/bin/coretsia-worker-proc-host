@@ -20,6 +20,7 @@ declare(strict_types=1);
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostTransport;
 
 \error_reporting(\E_ALL);
 \ini_set('display_errors', '0');
@@ -41,14 +42,17 @@ final class CoretsiaWorkerProcHostFailure extends \RuntimeException
 /**
  * Low-level proc_open host runtime.
  *
- * It owns only opaque process resources. Worker-pool lifecycle, readiness,
- * state, health, recycle policy, and control-channel semantics remain in the
- * supervisor process.
+ * It owns only opaque process resources and one authenticated supervisor
+ * connection. Before every proc_open() call, that connection is closed and is
+ * replaced afterward through a one-shot authenticated handoff. Worker-pool
+ * lifecycle, readiness, state, health, recycle policy, and control-channel
+ * semantics remain in the supervisor process.
  */
 final class CoretsiaWorkerProcHostRuntime
 {
     private const int GRACEFUL_SHUTDOWN_MS = 1_000;
     private const int FORCED_SHUTDOWN_MS = 1_000;
+    private const int HANDOFF_CONNECT_TIMEOUT_MS = 1_000;
     private const int LOOP_TICK_US = 50_000;
 
     /**
@@ -73,6 +77,7 @@ final class CoretsiaWorkerProcHostRuntime
 
     public function __construct(
         private readonly WorkerProcProcessHostProtocol $protocol,
+        private readonly WorkerProcProcessHostTransport $transport,
         private mixed $connection,
     ) {
         if (!\is_resource($connection)) {
@@ -109,8 +114,7 @@ final class CoretsiaWorkerProcHostRuntime
 
                 if (!$authenticated) {
                     if (
-                        $operation
-                        !== WorkerProcProcessHostProtocol::OPERATION_HELLO
+                        $operation !== WorkerProcProcessHostProtocol::OPERATION_HELLO
                         || ($request['payload']['token'] ?? null) !== $token
                     ) {
                         $this->writeResponse(
@@ -130,6 +134,16 @@ final class CoretsiaWorkerProcHostRuntime
                             ['ready' => true],
                         ),
                     );
+
+                    continue;
+                }
+
+                if ($operation === WorkerProcProcessHostProtocol::OPERATION_SPAWN) {
+                    $this->handoffSpawn(
+                        requestId: $requestId,
+                        payload: $request['payload'],
+                    );
+                    $buffer = '';
 
                     continue;
                 }
@@ -195,7 +209,6 @@ final class CoretsiaWorkerProcHostRuntime
         array $payload,
     ): array {
         return match ($operation) {
-            WorkerProcProcessHostProtocol::OPERATION_SPAWN => $this->spawn($payload),
             WorkerProcProcessHostProtocol::OPERATION_POLL => $this->poll($payload),
             WorkerProcProcessHostProtocol::OPERATION_TERMINATE => $this->signal($payload, 15),
             WorkerProcProcessHostProtocol::OPERATION_KILL => $this->signal($payload, 9),
@@ -205,6 +218,74 @@ final class CoretsiaWorkerProcHostRuntime
                 WorkerProcProcessHostProtocol::ERROR_OPERATION_FAILED,
             ),
         };
+    }
+
+    /** @param array<int|string, mixed> $payload */
+    private function handoffSpawn(
+        int $requestId,
+        array $payload,
+    ): void {
+        $handoffPort = $payload['handoff_port'] ?? null;
+        $handoffToken = $payload['handoff_token'] ?? null;
+
+        if (
+            !\is_int($handoffPort)
+            || $handoffPort < 1
+            || $handoffPort > 65_535
+            || !\is_string($handoffToken)
+            || \preg_match('/\A[a-f0-9]{64}\z/', $handoffToken) !== 1
+        ) {
+            throw new CoretsiaWorkerProcHostFailure(
+                WorkerProcProcessHostProtocol::ERROR_OPERATION_FAILED,
+            );
+        }
+
+        /*
+         * This close is the descriptor-isolation boundary. No authenticated
+         * proc-host protocol connection exists while spawn() calls proc_open().
+         */
+        $this->closeConnection();
+
+        try {
+            $responseFrame = $this->protocol->encodeOkResponse(
+                $requestId,
+                $this->spawn($payload),
+            );
+        } catch (CoretsiaWorkerProcHostFailure $failure) {
+            $responseFrame = $this->protocol->encodeErrorResponse(
+                $requestId,
+                $failure->safeReason(),
+            );
+        } catch (\Throwable) {
+            $responseFrame = $this->protocol->encodeErrorResponse(
+                $requestId,
+                WorkerProcProcessHostProtocol::ERROR_CHILD_START_FAILED,
+            );
+        }
+
+        try {
+            $this->connection = $this->transport->connect(
+                port: $handoffPort,
+                timeoutMs: self::HANDOFF_CONNECT_TIMEOUT_MS,
+            );
+
+            $this->writeResponse(
+                $this->protocol->encodeHandoff(
+                    requestId: $requestId,
+                    handoffToken: $handoffToken,
+                    responseFrame: $responseFrame,
+                ),
+            );
+        } catch (\Throwable) {
+            /*
+             * The supervisor cannot identify a child whose handoff failed. Let
+             * run() unwind so its finally block terminates and reaps every child
+             * before the process host exits non-zero.
+             */
+            throw new CoretsiaWorkerProcHostFailure(
+                WorkerProcProcessHostProtocol::ERROR_OPERATION_FAILED,
+            );
+        }
     }
 
     /**
@@ -480,8 +561,7 @@ final class CoretsiaWorkerProcHostRuntime
             $status = @\proc_get_status($entry['process']);
 
             if (
-                \is_array($status)
-                && ($status['running'] ?? false) === true
+                \is_array($status) && ($status['running'] ?? false) === true
             ) {
                 @\proc_terminate($entry['process'], 9);
             }
@@ -517,8 +597,23 @@ final class CoretsiaWorkerProcHostRuntime
         } while (\hrtime(true) < $deadlineNs);
     }
 
+    private function closeConnection(): void
+    {
+        if (\is_resource($this->connection)) {
+            @\fclose($this->connection);
+        }
+
+        $this->connection = null;
+    }
+
     private function readFrame(string &$buffer): ?string
     {
+        if (!\is_resource($this->connection)) {
+            throw new CoretsiaWorkerProcHostFailure(
+                WorkerProcProcessHostProtocol::ERROR_OPERATION_FAILED,
+            );
+        }
+
         $read = [$this->connection];
         $write = null;
         $except = null;
@@ -593,6 +688,12 @@ final class CoretsiaWorkerProcHostRuntime
 
     private function writeResponse(string $frame): void
     {
+        if (!\is_resource($this->connection)) {
+            throw new CoretsiaWorkerProcHostFailure(
+                WorkerProcProcessHostProtocol::ERROR_OPERATION_FAILED,
+            );
+        }
+
         $remaining = $frame;
 
         while ($remaining !== '') {
@@ -738,10 +839,7 @@ function coretsia_worker_proc_host_parse_args(array $argv): array
             'coretsia-proc-host-token',
         ]
         || !\ctype_digit($values['coretsia-proc-host-port'])
-        || \preg_match(
-            '/\A[a-f0-9]{64}\z/',
-            $values['coretsia-proc-host-token'],
-        ) !== 1
+        || \preg_match('/\A[a-f0-9]{64}\z/', $values['coretsia-proc-host-token']) !== 1
     ) {
         throw new CoretsiaWorkerProcHostFailure('argv-invalid');
     }
@@ -769,41 +867,6 @@ function coretsia_worker_proc_host_require_autoload(string $root): void
     require $autoload;
 }
 
-function coretsia_worker_proc_host_accept(int $port): mixed
-{
-    $listener = @\stream_socket_server(
-        'tcp://127.0.0.1:' . $port,
-        $errorCode,
-        $errorMessage,
-        \STREAM_SERVER_BIND | \STREAM_SERVER_LISTEN,
-    );
-
-    if (!\is_resource($listener)) {
-        throw new CoretsiaWorkerProcHostFailure('listen-failed');
-    }
-
-    try {
-        $connection = @\stream_socket_accept(
-            $listener,
-            10.0,
-        );
-    } finally {
-        @\fclose($listener);
-    }
-
-    if (!\is_resource($connection)) {
-        throw new CoretsiaWorkerProcHostFailure('accept-failed');
-    }
-
-    if (!@\stream_set_blocking($connection, false)) {
-        @\fclose($connection);
-
-        throw new CoretsiaWorkerProcHostFailure('connection-invalid');
-    }
-
-    return $connection;
-}
-
 try {
     $cwd = \getcwd();
 
@@ -822,11 +885,12 @@ try {
         new StableJsonDecoder(),
     );
 
+    $transport = new WorkerProcProcessHostTransport();
+
     $runtime = new CoretsiaWorkerProcHostRuntime(
         protocol: $protocol,
-        connection: coretsia_worker_proc_host_accept(
-            $args['port'],
-        ),
+        transport: $transport,
+        connection: $transport->accept($args['port']),
     );
 
     exit($runtime->run($args['token']));

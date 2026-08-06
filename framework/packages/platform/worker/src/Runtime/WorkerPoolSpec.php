@@ -18,7 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Runtime;
 
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 
 /**
  * Immutable normalized worker pool specification.
@@ -92,8 +93,8 @@ final readonly class WorkerPoolSpec
      * Capability arguments are nullable on purpose:
      *
      * - production code may pass null to use deterministic runtime capability checks;
-     * - tests should pass explicit values and must not depend on host pcntl or
-     *   unix-domain-socket support.
+     * - tests should pass explicit values and must not depend on host pcntl,
+     *   secure proc-host transport, or unix-domain-socket support.
      *
      * @param array<string, mixed> $config
      */
@@ -102,6 +103,7 @@ final readonly class WorkerPoolSpec
         ?bool $pcntlForkAvailable = null,
         ?string $platformFamily = null,
         ?bool $unixDomainSocketsSupported = null,
+        ?bool $procProcessHostAvailable = null,
     ): self {
         $workers = self::positiveInt($config, 'workers');
         $maxRequests = self::positiveInt($config, 'max_requests');
@@ -115,32 +117,21 @@ final readonly class WorkerPoolSpec
         $tcpPort = self::int($tcp, 'port');
         $statePath = self::string($config, 'state_path');
         $stopFlagPath = self::string($config, 'stop_flag_path');
-        $startTimeoutMs = self::timeoutInt(
-            $config,
-            'start_timeout_ms',
-        );
-
-        $stopTimeoutMs = self::timeoutInt(
-            $config,
-            'stop_timeout_ms',
-        );
-
-        $forceKillTimeoutMs = self::timeoutInt(
-            $config,
-            'force_kill_timeout_ms',
-        );
+        $startTimeoutMs = self::timeoutInt($config, 'start_timeout_ms');
+        $stopTimeoutMs = self::timeoutInt($config, 'stop_timeout_ms');
+        $forceKillTimeoutMs = self::timeoutInt($config, 'force_kill_timeout_ms');
 
         if (!\in_array($taskType, ['http', 'queue'], true)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         if (!\in_array($driverRequested, ['auto', 'pcntl', 'proc'], true)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         if (!\in_array($controlTransportRequested, ['auto', 'unix', 'tcp'], true)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         if ($tcpPort < 1 || $tcpPort > 65535) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         foreach ([$socketPath, $statePath, $stopFlagPath] as $path) {
@@ -159,11 +150,16 @@ final readonly class WorkerPoolSpec
 
         $platformFamily ??= \PHP_OS_FAMILY;
         $pcntlForkAvailable ??= self::detectPcntlCapability();
+        $procProcessHostAvailable ??= WorkerProcessCapabilities::procDriverAvailable($platformFamily);
         $unixDomainSocketsSupported ??= self::detectUnixDomainSocketsSupported($platformFamily);
 
         $driver = match ($driverRequested) {
             'pcntl', 'proc' => $driverRequested,
-            'auto' => $pcntlForkAvailable && \strcasecmp($platformFamily, 'Windows') !== 0 ? 'pcntl' : 'proc',
+            'auto' => self::resolveAutomaticDriver(
+                pcntlForkAvailable: $pcntlForkAvailable,
+                procProcessHostAvailable: $procProcessHostAvailable,
+                platformFamily: $platformFamily,
+            ),
         };
 
         $controlTransport = match ($controlTransportRequested) {
@@ -270,7 +266,7 @@ final readonly class WorkerPoolSpec
         return match ($this->controlTransport) {
             'unix' => 'unix:' . $this->socketPath,
             'tcp' => 'tcp:' . $this->tcpHost . ':' . $this->tcpPort,
-            default => throw WorkerStartFailedException::invalidState(),
+            default => throw WorkerLifecycleFailedException::invalidState(),
         };
     }
 
@@ -286,7 +282,7 @@ final readonly class WorkerPoolSpec
         $value = self::positiveInt($config, $key);
 
         if ($value > self::MAX_TIMEOUT_MS) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         return $value;
@@ -297,7 +293,7 @@ final readonly class WorkerPoolSpec
     {
         $value = self::int($config, $key);
         if ($value < 1) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $value;
     }
@@ -306,7 +302,7 @@ final readonly class WorkerPoolSpec
     private static function int(array $config, string $key): int
     {
         if (!\array_key_exists($key, $config) || !\is_int($config[$key])) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $config[$key];
     }
@@ -315,7 +311,7 @@ final readonly class WorkerPoolSpec
     private static function string(array $config, string $key): string
     {
         if (!\array_key_exists($key, $config) || !\is_string($config[$key]) || $config[$key] === '') {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $config[$key];
     }
@@ -324,7 +320,7 @@ final readonly class WorkerPoolSpec
     private static function map(array $config, string $key): array
     {
         if (!\array_key_exists($key, $config) || !\is_array($config[$key]) || \array_is_list($config[$key])) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $config[$key];
     }
@@ -332,20 +328,26 @@ final readonly class WorkerPoolSpec
     private static function assertRelativeSafePath(string $path): void
     {
         if ($path === '' || \trim($path) !== $path || \preg_match('/[\x00-\x20\x7F]/', $path) === 1) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
-        if (\str_starts_with($path, '/') || \str_starts_with($path, '\\') || \preg_match(
-            '/\A[A-Za-z]:[\/\\\\]/',
-            $path
-        ) === 1 || \str_contains($path, '\\') || \str_contains($path, '://') || \str_starts_with(
-            $path,
-            'skeleton/'
-        )) {
-            throw WorkerStartFailedException::invalidState();
+        if (
+            \str_starts_with($path, '/')
+            || \str_starts_with($path, '\\')
+            || \preg_match('/\A[A-Za-z]:[\/\\\\]/', $path) === 1
+            || \str_contains($path, '\\')
+            || \str_contains($path, '://')
+            || \str_starts_with($path, 'skeleton/')
+        ) {
+            throw WorkerLifecycleFailedException::invalidState();
         }
         foreach (\explode('/', $path) as $segment) {
-            if ($segment === '' || $segment === '.' || $segment === '..' || \str_starts_with($segment, '@')) {
-                throw WorkerStartFailedException::invalidState();
+            if (
+                $segment === ''
+                || $segment === '.'
+                || $segment === '..'
+                || \str_starts_with($segment, '@')
+            ) {
+                throw WorkerLifecycleFailedException::invalidState();
             }
         }
     }
@@ -373,10 +375,28 @@ final readonly class WorkerPoolSpec
                     || \str_starts_with($left, $right . '/')
                     || \str_starts_with($right, $left . '/')
                 ) {
-                    throw WorkerStartFailedException::invalidState();
+                    throw WorkerLifecycleFailedException::invalidState();
                 }
             }
         }
+    }
+
+    private static function resolveAutomaticDriver(
+        bool $pcntlForkAvailable,
+        bool $procProcessHostAvailable,
+        string $platformFamily,
+    ): string {
+        if (
+            $pcntlForkAvailable && \strcasecmp($platformFamily, 'Windows') !== 0
+        ) {
+            return 'pcntl';
+        }
+
+        if ($procProcessHostAvailable) {
+            return 'proc';
+        }
+
+        throw WorkerLifecycleFailedException::invalidState();
     }
 
     /**
@@ -385,7 +405,7 @@ final readonly class WorkerPoolSpec
     private static function assertSafeTcpHost(string $host): void
     {
         if ($host !== '127.0.0.1') {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
     }
 

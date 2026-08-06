@@ -30,14 +30,16 @@ use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
 final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
 {
-    public function testSupportIsNarrowedToResolvedProcSpecAndProcOpenCapability(): void
+    public function testSupportIsNarrowedToResolvedProcSpecAndSecureHostCapability(): void
     {
         $root = $this->temporaryDirectory('worker-proc-support');
-        $driver = self::driver($root);
+        $driver = self::driver(
+            root: $root,
+            processHostAvailable: true,
+        );
 
         self::assertSame('proc', $driver->name());
-        self::assertSame(
-            \function_exists('proc_open'),
+        self::assertTrue(
             $driver->supports(WorkerSpecFactory::create([
                 'driver' => 'proc',
             ])),
@@ -47,6 +49,15 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
                 'driver' => 'pcntl',
             ]),
         ));
+
+        self::assertFalse(
+            self::driver(
+                root: $root,
+                processHostAvailable: false,
+            )->supports(WorkerSpecFactory::create([
+                'driver' => 'proc',
+            ])),
+        );
     }
 
     public function testConstructorRejectsInvalidCommandParts(): void
@@ -70,11 +81,14 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
             commandBuilder: new WorkerChildCommandBuilder('var/cache/worker'),
             readinessChannel: new WorkerChildReadinessChannel(),
             processHost: $host,
+            processHostAvailable: true,
         );
     }
 
-    private static function driver(string $root): ProcWorkerProcessDriver
-    {
+    private static function driver(
+        string $root,
+        bool $processHostAvailable,
+    ): ProcWorkerProcessDriver {
         $protocol = new WorkerProcProcessHostProtocol(
             new StableJsonEncoder(),
             new StableJsonDecoder(),
@@ -96,6 +110,7 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
                 workingDirectory: $root,
                 protocol: $protocol,
             ),
+            processHostAvailable: $processHostAvailable,
         );
     }
 }

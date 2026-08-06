@@ -95,8 +95,11 @@ return [
      *
      * `auto` resolves deterministically later:
      *
-     * - `pcntl` when `pcntl_fork` is available and the platform is not Windows;
-     * - otherwise `proc`.
+     * - `pcntl` when the required PCNTL and POSIX capabilities are available
+     *   and the platform is not Windows;
+     * - otherwise `proc` when the secure proc process-host capability is
+     *   available;
+     * - otherwise worker start validation fails deterministically.
      */
     'driver' => 'auto',
 

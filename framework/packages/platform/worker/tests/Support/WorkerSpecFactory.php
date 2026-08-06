@@ -43,6 +43,7 @@ final class WorkerSpecFactory
             pcntlForkAvailable: true,
             platformFamily: 'Linux',
             unixDomainSocketsSupported: true,
+            procProcessHostAvailable: true,
         );
     }
 

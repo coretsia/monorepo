@@ -21,7 +21,7 @@ namespace Coretsia\Platform\Worker\Runtime;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
  * Exclusive filesystem owner of the private worker lifecycle locator.
@@ -32,6 +32,7 @@ use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
  *
  * Raw locator bytes, decoded endpoint fields, and resolved absolute paths never
  * leave this storage boundary through logs, diagnostics, or exception messages.
+ * Exclusive temporary files request close-on-exec on POSIX as defense in depth.
  */
 final readonly class WorkerLifecycleLocatorStore
 {
@@ -52,11 +53,11 @@ final readonly class WorkerLifecycleLocatorStore
         try {
             $bytes = $this->encoder->encodeMap($locator->toArray());
         } catch (\Throwable) {
-            throw WorkerStartFailedException::lifecycleLocatorFailed();
+            throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
 
         if ($bytes === '' || \strlen($bytes) > self::MAX_BYTES) {
-            throw WorkerStartFailedException::lifecycleLocatorFailed();
+            throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
 
         $path = $this->path();
@@ -68,12 +69,15 @@ final readonly class WorkerLifecycleLocatorStore
             && !@\mkdir($directory, 0777, true)
             && !\is_dir($directory)
         ) {
-            throw WorkerStartFailedException::lifecycleLocatorFailed();
+            throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
 
-        $handle = @\fopen($temporaryPath, 'x+b');
+        $handle = @\fopen(
+            $temporaryPath,
+            self::temporaryOpenMode(),
+        );
         if (!\is_resource($handle)) {
-            throw WorkerStartFailedException::lifecycleLocatorFailed();
+            throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
 
         $published = false;
@@ -82,24 +86,24 @@ final readonly class WorkerLifecycleLocatorStore
             self::writeAll($handle, $bytes);
 
             if (!@\fflush($handle) || !@\chmod($temporaryPath, 0600)) {
-                throw WorkerStartFailedException::lifecycleLocatorFailed();
+                throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
             }
 
             if (!@\fclose($handle)) {
                 $handle = null;
-                throw WorkerStartFailedException::lifecycleLocatorFailed();
+                throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
             }
             $handle = null;
 
             if (!@\rename($temporaryPath, $path)) {
-                throw WorkerStartFailedException::lifecycleLocatorFailed();
+                throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
             }
 
             $published = true;
-        } catch (WorkerStartFailedException $exception) {
+        } catch (WorkerLifecycleFailedException $exception) {
             throw $exception;
         } catch (\Throwable) {
-            throw WorkerStartFailedException::lifecycleLocatorFailed();
+            throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         } finally {
             if (\is_resource($handle)) {
                 @\fclose($handle);
@@ -154,9 +158,22 @@ final readonly class WorkerLifecycleLocatorStore
             }
 
             if (@\is_link($path) || !@\is_file($path) || !@\unlink($path)) {
-                throw WorkerStartFailedException::runtimeCleanupFailed();
+                throw WorkerLifecycleFailedException::runtimeCleanupFailed();
             }
         }
+    }
+
+    /**
+     * Returns the exclusive temporary-file mode.
+     *
+     * POSIX runtimes request close-on-exec. Windows keeps the equivalent valid
+     * binary read/write mode without the POSIX-only `e` flag.
+     */
+    private static function temporaryOpenMode(): string
+    {
+        return \PHP_OS_FAMILY === 'Windows'
+            ? 'x+b'
+            : 'x+be';
     }
 
     /** @param resource $handle */
@@ -168,7 +185,7 @@ final readonly class WorkerLifecycleLocatorStore
             $written = @\fwrite($handle, $remaining);
 
             if (!\is_int($written) || $written < 1) {
-                throw WorkerStartFailedException::lifecycleLocatorFailed();
+                throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
             }
 
             $remaining = \substr($remaining, $written);

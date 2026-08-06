@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Worker\Tests\Contract;
 use Coretsia\Platform\Worker\Exception\WorkerAlreadyRunningException;
 use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerNotRunningException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use PHPUnit\Framework\TestCase;
@@ -36,8 +37,9 @@ final class WorkerExceptionsAreDeterministicContractTest extends TestCase
             WorkerForkFailedException::forkFailed(),
             WorkerStartFailedException::startFailed(),
             WorkerStartFailedException::readinessTimeout(),
-            WorkerStartFailedException::processHostFailed(),
-            WorkerStartFailedException::lifecycleLocatorFailed(),
+            WorkerLifecycleFailedException::lifecycleFailed(),
+            WorkerLifecycleFailedException::processHostFailed(),
+            WorkerLifecycleFailedException::lifecycleLocatorFailed(),
         ];
 
         foreach ($exceptions as $exception) {

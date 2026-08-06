@@ -27,7 +27,8 @@ declare(strict_types=1);
  * - task type is limited to `queue` or `http`;
  * - process driver selection is limited to `auto`, `pcntl`, or `proc`;
  * - control transport selection is limited to `auto`, `unix`, or `tcp`;
- * - configurable runtime paths must be relative safe paths;
+ * - configurable runtime paths must be relative safe paths, must not use the
+ *   `skeleton/` prefix, and must not contain `@`-prefixed segments;
  * - lifecycle lock and locator paths are package-owned and are rejected as
  *   mutable config keys by the strict root shape;
  * - numeric keys must be integers only; floats are rejected by `int` type rules;
@@ -72,6 +73,12 @@ return [
         'socket_path' => [
             'required' => true,
             'type' => 'relative-safe-path',
+            'forbiddenPrefixes' => [
+                'skeleton/',
+            ],
+            'forbiddenSegmentPrefixes' => [
+                '@',
+            ],
         ],
         'driver' => [
             'required' => true,
@@ -135,10 +142,22 @@ return [
         'state_path' => [
             'required' => true,
             'type' => 'relative-safe-path',
+            'forbiddenPrefixes' => [
+                'skeleton/',
+            ],
+            'forbiddenSegmentPrefixes' => [
+                '@',
+            ],
         ],
         'stop_flag_path' => [
             'required' => true,
             'type' => 'relative-safe-path',
+            'forbiddenPrefixes' => [
+                'skeleton/',
+            ],
+            'forbiddenSegmentPrefixes' => [
+                '@',
+            ],
         ],
         'start_timeout_ms' => [
             'required' => true,

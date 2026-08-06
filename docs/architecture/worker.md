@@ -161,6 +161,7 @@ WorkerSupervisor
 WorkerChildTable
 WorkerSignalController
 
+WorkerProcessCapabilities
 WorkerProcessDriverInterface
 WorkerProcessDriverResolverInterface
 ContainerWorkerProcessDriverResolver
@@ -170,6 +171,8 @@ ProcWorkerProcessDriver
 WorkerForkIsolation
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
+WorkerProcProcessHostHandoffEndpoint
+WorkerProcProcessHostTransport
 
 WorkerControlClientInterface
 WorkerControlTransport
@@ -182,6 +185,7 @@ WorkerLifecyclePaths
 WorkerLifecycleLock
 WorkerLifecycleLocator
 WorkerLifecycleLocatorStore
+WorkerShutdownBudget
 WorkerStopSignal
 WorkerPoolSpec
 WorkerPoolState
@@ -458,6 +462,10 @@ transition state to stopping
 -> exit with deterministic process code
 ```
 
+The cooperative, terminate, and kill phases each create one monotonic deadline before their first process-driver operation. Every potentially blocking `pollExit`, `terminate`, `kill`, and `close` call receives only the remaining phase budget. Iterating over multiple children never restarts or extends a phase deadline.
+
+Driver infrastructure shutdown receives the remaining cleanup budget defined by `WorkerShutdownBudget::CLEANUP_TIMEOUT_MS`.
+
 Driver preparation occurs before lifecycle-lock acquisition.
 
 For the proc driver, this starts the dedicated process host before any supervisor-owned lock or listener exists, preventing proc children from inheriting those resources.
@@ -521,7 +529,8 @@ When `worker.driver=auto`, resolution is deterministic:
 
 ```text
 pcntl when the required PCNTL fork/exec and POSIX capabilities are available and the platform is not Windows
-proc otherwise
+proc when the secure proc process-host capability is available
+deterministic lifecycle-validation failure when neither adapter is available
 ```
 
 The `pcntl` driver is Unix-like and fork-based.
@@ -564,7 +573,9 @@ Control-transport selection is independent from the selected Worker OS process d
 
 The `unix` transport uses a skeleton-root-relative socket path.
 
-The `tcp` transport uses configured TCP host and port.
+The `tcp` transport uses the canonical IPv4 loopback host `127.0.0.1` and the explicitly configured deterministic TCP port.
+
+`worker.tcp.host` MUST be exactly `127.0.0.1`.
 
 TCP port `0` is forbidden because it would make endpoint identity and persisted worker state non-deterministic across runs.
 
@@ -653,10 +664,10 @@ Worker callers must not:
 - duplicate the `platform.http` requirement;
 - translate Kernel matrix failures into Worker driver failures.
 
-Missing or invalid `worker.task_type` is a Worker-owned start-validation failure:
+Missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
@@ -922,6 +933,32 @@ receives the artifact root
 
 A replacement process child must not inherit the previous child’s selected generation, loaded artifact snapshots, runtime container, or readiness state.
 
+## Process-exec descriptor boundary
+
+The PCNTL child performs the following owner-driven sequence before process-image replacement:
+
+```text
+forked PCNTL child
+  -> close current readiness listener
+  -> detach sibling readiness listeners
+  -> detach control listener
+  -> detach lifecycle lock
+  -> reset signal-controller state
+  -> exec package-owned child launcher
+```
+
+`WorkerForkIsolation` covers only Worker-owned supervisor resources registered with that boundary.
+
+```text
+known Worker-owned descriptor isolation != arbitrary application or integration descriptor isolation
+```
+
+Coretsia-owned local files that can coexist with process execution request close-on-exec on POSIX. Integration-owned descriptors must follow `docs/ssot/process-exec-descriptor-safety.md`.
+
+The proc process host starts before lifecycle-lock acquisition and before supervisor listeners are opened. This prevents inheritance of those later Worker-owned descriptors, but does not prove isolation from descriptors opened before process-host startup.
+
+For every spawn, the supervisor creates a one-shot tokenized handoff endpoint. The process host closes its current authenticated connection before `proc_open()` and establishes the replacement connection only after child launch. No proc-host protocol connection is open during `proc_open()`, so the same descriptor-isolation invariant applies on Windows and POSIX without `ext-sockets` or `SOCK_CLOEXEC`.
+
 ## Application worker boundary
 
 `ApplicationWorker` owns the child-process task loop.
@@ -1141,13 +1178,13 @@ The value must be a positive integer no greater than `86400000`.
 
 ### `worker.stop_timeout_ms`
 
-Controls the cooperative shutdown phase owned by the supervisor.
+Controls the cooperative shutdown phase owned by the supervisor as a strict wall-clock budget for process-driver operations in that phase.
 
 The value must be a positive integer no greater than `86400000`.
 
 ### `worker.force_kill_timeout_ms`
 
-Controls each bounded post-cooperative shutdown phase:
+Controls each post-cooperative shutdown phase as an independent strict wall-clock budget for process-driver operations:
 
 ```text
 graceful terminate wait
@@ -1192,7 +1229,11 @@ Configured relative Worker paths must:
 - reject URI schemes;
 - reject parent traversal;
 - reject absolute Unix paths;
-- reject absolute Windows drive paths.
+- reject absolute Windows drive paths;
+- reject the `skeleton/` prefix;
+- reject every path segment beginning with `@`.
+
+Phase-B config validation declares the last two Worker-specific restrictions through `forbiddenPrefixes` and `forbiddenSegmentPrefixes` on the generic `relative-safe-path` type. `WorkerPoolSpec` repeats the same checks as a runtime defense-in-depth boundary.
 
 These relative config values are distinct from both:
 
@@ -1395,7 +1436,7 @@ probe canonical lifecycle lock
 `worker:status`, `worker:health`, and `worker:stop` do not construct `WorkerPoolSpec`. They probe the canonical lock, read the active locator, and connect to the endpoint recorded by the active supervisor. `worker:stop` derives its complete request timeout from the active locator:
 
 ```text
-stop_timeout_ms + (2 * force_kill_timeout_ms) + 2000
+stop_timeout_ms + (2 * force_kill_timeout_ms) + WorkerShutdownBudget::CLEANUP_TIMEOUT_MS
 ```
 
 Current worker configuration therefore cannot redirect lifecycle commands away from an already-running pool or shorten the active pool's shutdown deadline.
@@ -1727,7 +1768,7 @@ The lifecycle lock is released only after runtime cleanup is complete.
 
 `pcntl` is not assumed to exist on every platform.
 
-Windows resolves `worker.driver=auto` to `proc`.
+Every platform resolves `worker.driver=auto` to `proc` only when `proc_open()` and the bounded loopback process-host transport are available. Otherwise start validation fails deterministically.
 
 Unix-domain sockets are not assumed to exist on every PHP runtime.
 
@@ -1841,6 +1882,7 @@ docs/ssot/observability.md
 - [Runtime Driver Guard Architecture](./runtime-driver-guard.md)
 - [Config Roots Registry](../ssot/config-roots.md)
 - [Observability SSoT](../ssot/observability.md)
+- [Process-Exec Descriptor Safety SSoT](../ssot/process-exec-descriptor-safety.md)
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
 - [UnitOfWork and Reset Contracts SSoT](../ssot/uow-and-reset-contracts.md)
 - [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
@@ -1852,3 +1894,4 @@ docs/ssot/observability.md
 - [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
 - [Canonical Runtime Container Definitions SSoT](../ssot/runtime-container-definitions.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [ADR-0032: Process-Exec Descriptor Safety](../adr/ADR-0032-process-exec-descriptor-safety.md)

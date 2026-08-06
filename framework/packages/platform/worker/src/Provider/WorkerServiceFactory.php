@@ -33,8 +33,10 @@ use Coretsia\Platform\Worker\Communication\WorkerControlClient;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlServer;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Process\ContainerWorkerProcessDriverResolver;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
@@ -92,19 +94,22 @@ final class WorkerServiceFactory
      * config validation pipeline.
      *
      * Capability arguments are nullable for production wiring. Tests may pass
-     * explicit values to avoid depending on host pcntl or unix socket support.
+     * explicit values to avoid depending on host pcntl, secure proc-host
+     * transport, or Unix socket support.
      */
     public function workerPoolSpec(
         ConfigRepositoryInterface $config,
         ?bool $pcntlForkAvailable = null,
         ?string $platformFamily = null,
         ?bool $unixDomainSocketsSupported = null,
+        ?bool $procProcessHostAvailable = null,
     ): WorkerPoolSpec {
         return WorkerPoolSpec::fromConfig(
             config: self::workerConfigRoot($config),
             pcntlForkAvailable: $pcntlForkAvailable,
             platformFamily: $platformFamily,
             unixDomainSocketsSupported: $unixDomainSocketsSupported,
+            procProcessHostAvailable: $procProcessHostAvailable,
         );
     }
 
@@ -305,6 +310,8 @@ final class WorkerServiceFactory
         WorkerChildCommandBuilder $commandBuilder,
         WorkerChildReadinessChannel $readinessChannel,
         WorkerProcProcessHostClient $processHost,
+        ?bool $procProcessHostAvailable = null,
+        ?string $platformFamily = null,
     ): ProcWorkerProcessDriver {
         return new ProcWorkerProcessDriver(
             skeletonRoot: $runtimePaths->skeletonRoot(),
@@ -312,6 +319,7 @@ final class WorkerServiceFactory
             commandBuilder: $commandBuilder,
             readinessChannel: $readinessChannel,
             processHost: $processHost,
+            processHostAvailable: $procProcessHostAvailable ?? WorkerProcessCapabilities::procDriverAvailable($platformFamily),
         );
     }
 
@@ -394,7 +402,7 @@ final class WorkerServiceFactory
     {
         $command = self::requiredConfigValue($config, 'worker.proc.command');
         if (!\is_array($command) || !\array_is_list($command) || $command === []) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         $normalized = [];
         foreach ($command as $part) {
@@ -402,7 +410,7 @@ final class WorkerServiceFactory
                 '/[\x00-\x1F\x7F]/',
                 $part
             ) === 1) {
-                throw WorkerStartFailedException::invalidState();
+                throw WorkerLifecycleFailedException::invalidState();
             }
             $normalized[] = $part === '@php' ? self::phpBinary() : $part;
         }
@@ -414,7 +422,7 @@ final class WorkerServiceFactory
     {
         $value = self::requiredConfigValue($config, 'worker');
         if (!\is_array($value) || \array_is_list($value)) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $value;
     }
@@ -431,7 +439,7 @@ final class WorkerServiceFactory
             '/\A[A-Za-z]:\//',
             $artifactRoot
         ) === 1 || $artifactRoot === '') {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return $artifactRoot;
     }
@@ -442,7 +450,7 @@ final class WorkerServiceFactory
             '/[\x00-\x1F\x7F]/',
             \PHP_BINARY
         ) === 1) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
         return \PHP_BINARY;
     }
@@ -463,13 +471,13 @@ final class WorkerServiceFactory
     {
         try {
             if (!$config->has($key)) {
-                throw WorkerStartFailedException::invalidState();
+                throw WorkerLifecycleFailedException::invalidState();
             }
             return $config->get($key);
-        } catch (WorkerStartFailedException $exception) {
+        } catch (WorkerLifecycleFailedException $exception) {
             throw $exception;
         } catch (\Throwable) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
     }
 }

@@ -25,7 +25,9 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
  * Process-shared lock for generation publication and current-generation reads.
  *
  * The lock file is a persistent cache-control file. It is created when absent
- * and is never removed between operations.
+ * and is never removed between operations. POSIX runtimes request close-on-exec
+ * for the local lock handle; Windows uses the equivalent valid mode without the
+ * POSIX-only `e` flag.
  *
  * @internal Kernel atomic artifact generation publication boundary.
  */
@@ -72,7 +74,10 @@ final readonly class ArtifactGenerationLock
             throw self::lockFailed();
         }
 
-        $handle = @\fopen($lockPath, 'c+b');
+        $handle = @\fopen(
+            $lockPath,
+            self::openMode(),
+        );
 
         if (!\is_resource($handle)) {
             throw self::lockFailed();
@@ -107,6 +112,16 @@ final readonly class ArtifactGenerationLock
         }
 
         return $result;
+    }
+
+    /**
+     * Returns the local generation-lock mode.
+     */
+    private static function openMode(): string
+    {
+        return \PHP_OS_FAMILY === 'Windows'
+            ? 'c+b'
+            : 'c+be';
     }
 
     private function ensureDirectory(string $directory): bool

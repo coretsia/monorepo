@@ -70,7 +70,7 @@ final class PcntlWorkerExecIsolationTest extends PackageTestCase
         $exit = null;
         self::waitUntil(
             function () use ($driver, $child, &$exit): bool {
-                $exit = $driver->pollExit($child);
+                $exit = $driver->pollExit($child, 1_000);
 
                 return $exit !== null;
             },
@@ -93,8 +93,8 @@ final class PcntlWorkerExecIsolationTest extends PackageTestCase
         self::assertTrue($marker['fresh_process_image'] ?? false);
         self::assertSame($child->pid(), $marker['pid'] ?? null);
 
-        $driver->close($child);
-        $driver->shutdown();
+        $driver->close($child, 1_000);
+        $driver->shutdown(1_000);
     }
 
     private static function driver(

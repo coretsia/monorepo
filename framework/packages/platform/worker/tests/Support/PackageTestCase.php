@@ -271,7 +271,12 @@ abstract class PackageTestCase extends TestCase
                 continue;
             }
 
-            $fields = \str_getcsv($line);
+            $fields = \str_getcsv(
+                string: $line,
+                separator: ',',
+                enclosure: '"',
+                escape: '',
+            );
 
             if (
                 isset($fields[1])

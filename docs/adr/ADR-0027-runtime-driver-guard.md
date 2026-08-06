@@ -91,7 +91,7 @@ Therefore:
 - the current Kernel guard inspects `ModulePlan` only for the `platform.http` requirement;
 - Worker entrypoints may enforce Worker-owned module preconditions before invoking the Kernel entrypoint guard.
 
-Missing or invalid `worker.task_type` is a Worker-owned start-validation failure.
+Missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure.
 
 It is not a Kernel runtime-driver matrix invalid-config failure.
 
@@ -120,8 +120,7 @@ Owner packages select their own runtime drivers outside Kernel and pass them thr
 The Kernel matrix composes:
 
 ```text
-Kernel-selected HTTP driver
-+ explicit owner RuntimeDriverContributions
+Kernel-selected HTTP driver + explicit owner RuntimeDriverContributions
 ```
 
 `ModulePlan` MUST NOT be used to discover, infer, enable, disable, or synthesize owner contributions.
@@ -495,7 +494,7 @@ Missing or invalid `worker.task_type` is not a Kernel matrix invalid-config fail
 The current Worker package surfaces that owner-validation failure as:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 Diagnostics may expose only stable safe data:

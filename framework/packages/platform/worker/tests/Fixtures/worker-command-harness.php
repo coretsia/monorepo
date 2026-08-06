@@ -34,6 +34,7 @@ use Coretsia\Platform\Worker\Console\WorkerStartCommand;
 use Coretsia\Platform\Worker\Console\WorkerStatusCommand;
 use Coretsia\Platform\Worker\Console\WorkerStopCommand;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
@@ -185,6 +186,7 @@ if ($operation === 'start') {
             commandBuilder: new WorkerChildCommandBuilder('var/tmp'),
             readinessChannel: $readiness,
             processHost: $processHost,
+            processHostAvailable: WorkerProcessCapabilities::procDriverAvailable(),
         );
     } else {
         $forkIsolation = new WorkerForkIsolation(

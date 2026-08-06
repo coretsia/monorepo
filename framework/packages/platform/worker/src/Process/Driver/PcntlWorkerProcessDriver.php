@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Worker\Process\Driver;
 
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
@@ -165,8 +166,12 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         );
     }
 
-    public function pollExit(WorkerChildProcess $child): ?WorkerProcessExit
-    {
+    public function pollExit(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): ?WorkerProcessExit {
+        self::assertTimeout($timeoutMs);
+
         $status = 0;
         $result = @\pcntl_waitpid($child->pid(), $status, \WNOHANG);
 
@@ -175,7 +180,7 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         }
 
         if ($result !== $child->pid()) {
-            throw WorkerStartFailedException::childExited();
+            throw WorkerLifecycleFailedException::childExited();
         }
 
         $signaled = \pcntl_wifsignaled($status);
@@ -193,18 +198,28 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         );
     }
 
-    public function terminate(WorkerChildProcess $child): void
-    {
+    public function terminate(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
         @\posix_kill($child->pid(), \SIGTERM);
     }
 
-    public function kill(WorkerChildProcess $child): void
-    {
+    public function kill(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
         @\posix_kill($child->pid(), \SIGKILL);
     }
 
-    public function close(WorkerChildProcess $child): void
-    {
+    public function close(
+        WorkerChildProcess $child,
+        int $timeoutMs,
+    ): void {
+        self::assertTimeout($timeoutMs);
+
         if ($child->closed()) {
             return;
         }
@@ -213,8 +228,17 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
         $child->markClosed();
     }
 
-    public function shutdown(): void
+    public function shutdown(int $timeoutMs): void
     {
+        self::assertTimeout($timeoutMs);
+
         // Pcntl process resources are owned directly per WorkerChildProcess.
+    }
+
+    private static function assertTimeout(int $timeoutMs): void
+    {
+        if ($timeoutMs < 1 || $timeoutMs > 86_400_000) {
+            throw WorkerLifecycleFailedException::invalidState();
+        }
     }
 }

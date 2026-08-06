@@ -20,7 +20,7 @@ namespace Coretsia\Platform\Worker\Process\Proc;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
  * Encodes and validates the private process-host protocol.
@@ -123,7 +123,7 @@ final readonly class WorkerProcProcessHostProtocol
             || !\is_string($value['operation'])
             || !\is_array($value['payload'])
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         self::assertRequestId($value['request_id']);
@@ -162,7 +162,7 @@ final readonly class WorkerProcProcessHostProtocol
         self::assertRequestId($requestId);
 
         if (!isset(self::ERRORS[$reason])) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $this->encode([
@@ -197,7 +197,7 @@ final readonly class WorkerProcProcessHostProtocol
                 true,
             )
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         self::assertRequestId($value['request_id']);
@@ -209,12 +209,78 @@ final readonly class WorkerProcProcessHostProtocol
                 || !\is_string($value['payload']['reason'])
                 || !isset(self::ERRORS[$value['payload']['reason']])
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
         }
 
         /** @var HostResponse $value */
         return $value;
+    }
+
+    public function encodeHandoff(
+        int $requestId,
+        string $handoffToken,
+        string $responseFrame,
+    ): string {
+        self::assertRequestId($requestId);
+        self::assertToken($handoffToken);
+
+        $response = $this->decodeResponse($responseFrame);
+
+        if ($response['request_id'] !== $requestId) {
+            throw WorkerLifecycleFailedException::processHostFailed();
+        }
+
+        return $this->encode([
+            'handoff_token' => $handoffToken,
+            'request_id' => $requestId,
+            'response' => $responseFrame,
+            'version' => self::VERSION,
+        ]);
+    }
+
+    /** @return HostResponse */
+    public function decodeHandoff(
+        string $frame,
+        int $expectedRequestId,
+        string $expectedToken,
+    ): array {
+        self::assertRequestId($expectedRequestId);
+        self::assertToken($expectedToken);
+        $value = $this->decode($frame);
+
+        if (
+            \array_keys($value) !== [
+                'handoff_token',
+                'request_id',
+                'response',
+                'version',
+            ]
+            || $value['version'] !== self::VERSION
+            || !\is_int($value['request_id'])
+            || !\is_string($value['handoff_token'])
+            || !\is_string($value['response'])
+        ) {
+            throw WorkerLifecycleFailedException::processHostFailed();
+        }
+
+        self::assertRequestId($value['request_id']);
+        self::assertToken($value['handoff_token']);
+
+        if (
+            $value['request_id'] !== $expectedRequestId
+            || !\hash_equals($expectedToken, $value['handoff_token'])
+        ) {
+            throw WorkerLifecycleFailedException::processHostFailed();
+        }
+
+        $response = $this->decodeResponse($value['response']);
+
+        if ($response['request_id'] !== $expectedRequestId) {
+            throw WorkerLifecycleFailedException::processHostFailed();
+        }
+
+        return $response;
     }
 
     /** @param array<string, mixed> $value */
@@ -223,7 +289,7 @@ final readonly class WorkerProcProcessHostProtocol
         try {
             $frame = $this->encoder->encodeMap($value);
         } catch (\Throwable) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         if (
@@ -231,7 +297,7 @@ final readonly class WorkerProcProcessHostProtocol
             || \strlen($frame) > self::MAX_FRAME_BYTES
             || !\str_ends_with($frame, "\n")
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $frame;
@@ -245,27 +311,34 @@ final readonly class WorkerProcProcessHostProtocol
             || \strlen($frame) > self::MAX_FRAME_BYTES
             || !\str_ends_with($frame, "\n")
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         try {
             return $this->decoder->decodeMap($frame);
         } catch (\Throwable) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
     private static function assertRequestId(int $requestId): void
     {
         if ($requestId < 1) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
     private static function assertOperation(string $operation): void
     {
         if (!isset(self::OPERATIONS[$operation])) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
+        }
+    }
+
+    private static function assertToken(string $token): void
+    {
+        if (\preg_match('/\A[a-f0-9]{64}\z/', $token) !== 1) {
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
@@ -278,29 +351,41 @@ final readonly class WorkerProcProcessHostProtocol
             if (
                 \array_keys($payload) !== ['token']
                 || !\is_string($payload['token'])
-                || \preg_match('/\A[a-f0-9]{64}\z/', $payload['token']) !== 1
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
+
+            self::assertToken($payload['token']);
 
             return;
         }
 
         if ($operation === self::OPERATION_SPAWN) {
             if (
-                \array_keys($payload) !== ['command', 'working_directory']
+                \array_keys($payload) !== [
+                    'command',
+                    'handoff_port',
+                    'handoff_token',
+                    'working_directory',
+                ]
                 || !\is_array($payload['command'])
                 || !\array_is_list($payload['command'])
                 || $payload['command'] === []
+                || !\is_int($payload['handoff_port'])
+                || $payload['handoff_port'] < 1
+                || $payload['handoff_port'] > 65_535
+                || !\is_string($payload['handoff_token'])
                 || !\is_string($payload['working_directory'])
                 || !self::isSafeAbsoluteOrRelativeDirectory($payload['working_directory'])
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
+
+            self::assertToken($payload['handoff_token']);
 
             foreach ($payload['command'] as $part) {
                 if (!self::isSafeCommandPart($part)) {
-                    throw WorkerStartFailedException::processHostFailed();
+                    throw WorkerLifecycleFailedException::processHostFailed();
                 }
             }
 
@@ -322,12 +407,9 @@ final readonly class WorkerProcProcessHostProtocol
             if (
                 \array_keys($payload) !== ['child_id']
                 || !\is_string($payload['child_id'])
-                || \preg_match(
-                    '/\Achild-[1-9][0-9]*\z/',
-                    $payload['child_id'],
-                ) !== 1
+                || \preg_match('/\Achild-[1-9][0-9]*\z/', $payload['child_id']) !== 1
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             return;
@@ -337,7 +419,7 @@ final readonly class WorkerProcProcessHostProtocol
             return;
         }
 
-        throw WorkerStartFailedException::processHostFailed();
+        throw WorkerLifecycleFailedException::processHostFailed();
     }
 
     /** @param array<int|string, mixed> $payload */
@@ -351,7 +433,7 @@ final readonly class WorkerProcProcessHostProtocol
                 && !\is_string($value)
                 && !\is_array($value)
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
         }
     }

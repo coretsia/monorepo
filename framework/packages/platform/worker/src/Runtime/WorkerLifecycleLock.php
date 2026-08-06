@@ -19,12 +19,15 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Runtime;
 
 use Coretsia\Platform\Worker\Exception\WorkerAlreadyRunningException;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
  * Owns the persistent filesystem lock anchor for one worker supervisor.
  *
- * The lock file is opened with `c+b` and guarded by non-blocking `flock`.
+ * The lock file is opened with `c+b` on Windows and `c+be` on POSIX,
+ * requesting close-on-exec as defense in depth where PHP supports it. The
+ * handle remains guarded by non-blocking `flock`, and explicit fork-child
+ * detachment remains mandatory for Worker-owned descriptor ownership.
  * Releasing the lock closes the handle but never unlinks the anchor path.
  */
 final class WorkerLifecycleLock
@@ -91,13 +94,30 @@ final class WorkerLifecycleLock
         $path = $this->path();
         $dir = \dirname($path);
         if (!\is_dir($dir) && !@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
-            throw WorkerStartFailedException::lifecycleLockFailed();
+            throw WorkerLifecycleFailedException::lifecycleLockFailed();
         }
-        $handle = @\fopen($path, 'c+b');
+        $handle = @\fopen(
+            $path,
+            self::openMode(),
+        );
         if (!\is_resource($handle)) {
-            throw WorkerStartFailedException::lifecycleLockFailed();
+            throw WorkerLifecycleFailedException::lifecycleLockFailed();
         }
         return $handle;
+    }
+
+    /**
+     * Returns the local lock-file mode.
+     *
+     * POSIX runtimes request close-on-exec as defense in depth. Windows keeps
+     * the canonical binary read/write mode because PHP does not expose the
+     * POSIX `fopen()` `e` flag there.
+     */
+    private static function openMode(): string
+    {
+        return \PHP_OS_FAMILY === 'Windows'
+            ? 'c+b'
+            : 'c+be';
     }
 
     private function path(): string

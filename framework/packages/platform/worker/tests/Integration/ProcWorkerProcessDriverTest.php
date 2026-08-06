@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
 use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
@@ -32,6 +33,14 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
 {
     public function testProcessHostAdapterSpawnsReadyChildWithoutSupervisorResourceInheritance(): void
     {
+        if (!WorkerProcessCapabilities::procDriverAvailable()) {
+            self::assertFalse(
+                WorkerProcessCapabilities::procDriverAvailable(),
+            );
+
+            return;
+        }
+
         $root = $this->temporaryDirectory('proc-driver');
         $protocol = new WorkerProcProcessHostProtocol(new StableJsonEncoder(), new StableJsonDecoder());
         $hostRoot = \is_file(self::frameworkRoot() . '/vendor/autoload.php')
@@ -50,6 +59,7 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
             commandBuilder: new WorkerChildCommandBuilder('var/cache/coretsia'),
             readinessChannel: $readiness,
             processHost: $host,
+            processHostAvailable: true,
         );
         $spec = WorkerSpecFactory::create([
             'workers' => 1,
@@ -63,13 +73,13 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
 
         $exit = null;
         self::waitUntil(function () use ($driver, $child, &$exit): bool {
-            $exit = $driver->pollExit($child);
+            $exit = $driver->pollExit($child, 1_000);
             return $exit !== null;
         });
 
         self::assertNotNull($exit);
         self::assertTrue($exit->expected());
-        $driver->close($child);
-        $driver->shutdown();
+        $driver->close($child, 1_000);
+        $driver->shutdown(1_000);
     }
 }

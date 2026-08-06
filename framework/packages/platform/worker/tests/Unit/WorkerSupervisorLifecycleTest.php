@@ -79,4 +79,31 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
             self::assertFalse($reflection->hasMethod($forbidden));
         }
     }
+
+    public function testBoundedDriverOperationsReceiveTimeoutArguments(): void
+    {
+        $reflection = new \ReflectionClass(
+            WorkerProcessDriverInterface::class,
+        );
+
+        foreach (
+            ['pollExit', 'terminate', 'kill', 'close'] as $method
+        ) {
+            self::assertSame(
+                ['child', 'timeoutMs'],
+                \array_map(
+                    static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                    $reflection->getMethod($method)->getParameters(),
+                ),
+            );
+        }
+
+        self::assertSame(
+            ['timeoutMs'],
+            \array_map(
+                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+                $reflection->getMethod('shutdown')->getParameters(),
+            ),
+        );
+    }
 }

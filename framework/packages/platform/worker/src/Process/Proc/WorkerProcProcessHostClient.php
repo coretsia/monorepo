@@ -18,20 +18,34 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Process\Proc;
 
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 
 /**
  * Synchronous client for the pre-lock proc process host.
  *
- * The host is started before the supervisor acquires its lifecycle lock or
- * opens control/readiness listeners. Communication uses one authenticated
- * loopback TCP connection, avoiding proc_open pipe selection on Windows.
+ * The host is started before lifecycle-lock acquisition and before supervisor
+ * listeners are opened. This prevents inheritance of Worker-owned lifecycle
+ * descriptors created after driver preparation. Communication uses one
+ * authenticated loopback TCP connection, avoiding proc_open pipe selection on
+ * Windows. Before every worker-child launch, that connection is closed and
+ * replaced through a one-shot supervisor-owned handoff endpoint.
+ *
+ * This boundary does not by itself prove that arbitrary application or
+ * integration descriptors opened before process-host startup are
+ * close-on-exec. Those descriptors remain governed by the repository-wide
+ * process-exec descriptor-safety contract.
+ *
+ * The host's authenticated supervisor connection is a Worker-owned descriptor.
+ * No proc-host protocol connection is open while the host calls proc_open(), so
+ * the same descriptor-isolation guarantee applies on Windows and POSIX without
+ * relying on platform-specific close-on-exec flags.
  */
 final class WorkerProcProcessHostClient
 {
     private const int CONNECT_RETRY_US = 1_000;
-    private const int HOST_FALLBACK_SHUTDOWN_MS = 3_000;
+    private const int HOST_FALLBACK_SHUTDOWN_MS = 5_000;
     private const int MAX_TIMEOUT_MS = 86_400_000;
     private const int MAX_REQUEST_ID = 2_147_483_647;
 
@@ -76,7 +90,7 @@ final class WorkerProcProcessHostClient
         self::assertTimeout($timeoutMs);
 
         if ($this->started()) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $deadlineNs = self::deadlineNs($timeoutMs);
@@ -85,7 +99,7 @@ final class WorkerProcProcessHostClient
         try {
             $token = \bin2hex(\random_bytes(32));
         } catch (\Throwable) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $command = [
@@ -124,7 +138,7 @@ final class WorkerProcProcessHostClient
         );
 
         if (!\is_resource($process)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $this->process = $process;
@@ -146,7 +160,7 @@ final class WorkerProcProcessHostClient
                 \array_keys($response) !== ['ready']
                 || $response['ready'] !== true
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
         } catch (\Throwable $exception) {
             /*
@@ -157,11 +171,11 @@ final class WorkerProcProcessHostClient
                 allowCleanup: false,
             );
 
-            if ($exception instanceof WorkerStartFailedException) {
+            if ($exception instanceof WorkerLifecycleFailedException) {
                 throw $exception;
             }
 
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
@@ -190,52 +204,100 @@ final class WorkerProcProcessHostClient
             }
         }
 
-        $response = $this->request(
+        $handoff = WorkerProcProcessHostHandoffEndpoint::create();
+        $requestId = $this->nextRequestId();
+        $deadlineNs = self::deadlineNs($timeoutMs);
+        $frame = $this->protocol->encodeRequest(
+            requestId: $requestId,
             operation: WorkerProcProcessHostProtocol::OPERATION_SPAWN,
             payload: [
                 'command' => $command,
+                'handoff_port' => $handoff->port(),
+                'handoff_token' => $handoff->token(),
                 'working_directory' => $workingDirectory,
             ],
-            timeoutMs: $timeoutMs,
-            childStartFailureAllowed: true,
         );
 
-        if (
-            \array_keys($response) !== ['child_id', 'pid']
-            || !\is_string($response['child_id'])
-            || \preg_match(
-                '/\Achild-[1-9][0-9]*\z/',
-                $response['child_id'],
-            ) !== 1
-            || !\is_int($response['pid'])
-            || $response['pid'] < 1
-            || isset($this->children[$response['child_id']])
-        ) {
-            throw WorkerStartFailedException::processHostFailed();
+        try {
+            $this->writeFrame($frame, $deadlineNs);
+
+            /*
+             * The host validates the complete spawn frame before closing its copy
+             * of this connection. Closing the supervisor copy here completes the
+             * old-channel boundary before the host can call proc_open().
+             */
+            $this->closeConnection();
+
+            $this->connection = $handoff->accept($deadlineNs);
+            $response = $this->protocol->decodeHandoff(
+                frame: $this->readFrame($deadlineNs),
+                expectedRequestId: $requestId,
+                expectedToken: $handoff->token(),
+            );
+            $responsePayload = $this->responsePayload(
+                response: $response,
+                requestId: $requestId,
+                childStartFailureAllowed: true,
+            );
+
+            if (
+                \array_keys($responsePayload) !== ['child_id', 'pid']
+                || !\is_string($responsePayload['child_id'])
+                || \preg_match('/\Achild-[1-9][0-9]*\z/', $responsePayload['child_id']) !== 1
+                || !\is_int($responsePayload['pid'])
+                || $responsePayload['pid'] < 1
+                || isset($this->children[$responsePayload['child_id']])
+            ) {
+                throw WorkerLifecycleFailedException::processHostFailed();
+            }
+
+            $this->children[$responsePayload['child_id']] = $responsePayload['pid'];
+
+            return new WorkerProcProcessHostChild(
+                id: $responsePayload['child_id'],
+                pid: $responsePayload['pid'],
+            );
+        } catch (WorkerStartFailedException $exception) {
+            /*
+             * A deterministic child-start failure is delivered through a valid
+             * replacement connection, so the process host remains usable.
+             */
+            throw $exception;
+        } catch (\Throwable $exception) {
+            /*
+             * A failed or invalid handoff leaves no trustworthy child identity.
+             * Closing or terminating the host triggers its bounded all-child
+             * cleanup path.
+             */
+            $this->forceCloseHost(
+                allowCleanup: true,
+            );
+
+            if ($exception instanceof WorkerLifecycleFailedException) {
+                throw $exception;
+            }
+
+            throw WorkerLifecycleFailedException::processHostFailed();
+        } finally {
+            $handoff->close();
         }
-
-        $this->children[$response['child_id']] = $response['pid'];
-
-        return new WorkerProcProcessHostChild(
-            id: $response['child_id'],
-            pid: $response['pid'],
-        );
     }
 
     public function pollExit(
         string $childId,
+        int $timeoutMs,
     ): ?WorkerProcessExit {
         $pid = $this->knownChildPid($childId);
 
         $response = $this->request(
             operation: WorkerProcProcessHostProtocol::OPERATION_POLL,
             payload: ['child_id' => $childId],
-            timeoutMs: $this->requestTimeoutMs,
+            timeoutMs: $this->boundedRequestTimeoutMs($timeoutMs),
         );
 
         if (\array_keys($response) === ['state']) {
             if ($response['state'] !== 'running') {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             return null;
@@ -258,16 +320,10 @@ final class WorkerProcProcessHostClient
             || !\is_int($response['terminating_signal'])
             || $response['terminating_signal'] < 0
             || !\is_bool($response['expected'])
-            || (
-                !$response['signaled']
-                && $response['terminating_signal'] !== 0
-            )
-            || (
-                $response['signaled']
-                && $response['terminating_signal'] < 1
-            )
+            || (!$response['signaled'] && $response['terminating_signal'] !== 0)
+            || ($response['signaled'] && $response['terminating_signal'] < 1)
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return new WorkerProcessExit(
@@ -279,62 +335,67 @@ final class WorkerProcProcessHostClient
         );
     }
 
-    public function terminate(string $childId): void
+    public function terminate(string $childId, int $timeoutMs): void
     {
         $this->acknowledgeChildOperation(
             WorkerProcProcessHostProtocol::OPERATION_TERMINATE,
             $childId,
+            $timeoutMs,
         );
     }
 
-    public function kill(string $childId): void
+    public function kill(string $childId, int $timeoutMs): void
     {
         $this->acknowledgeChildOperation(
             WorkerProcProcessHostProtocol::OPERATION_KILL,
             $childId,
+            $timeoutMs,
         );
     }
 
-    public function close(string $childId): void
+    public function close(string $childId, int $timeoutMs): void
     {
         $this->acknowledgeChildOperation(
             WorkerProcProcessHostProtocol::OPERATION_CLOSE,
             $childId,
+            $timeoutMs,
         );
 
         unset($this->children[$childId]);
     }
 
-    public function shutdown(): void
+    public function shutdown(int $timeoutMs): void
     {
+        self::assertTimeout($timeoutMs);
+
         if (!$this->started()) {
             $this->reset();
 
             return;
         }
 
+        $deadlineNs = self::deadlineNs($timeoutMs);
+
         try {
             $response = $this->request(
                 operation: WorkerProcProcessHostProtocol::OPERATION_SHUTDOWN,
                 payload: [],
-                timeoutMs: $this->requestTimeoutMs,
+                timeoutMs: $this->boundedRequestTimeoutMs(
+                    self::remainingMs($deadlineNs),
+                ),
             );
 
             if (
                 \array_keys($response) !== ['acknowledged']
                 || $response['acknowledged'] !== true
             ) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $this->children = [];
             $this->closeConnection();
 
-            $this->waitForHostExit(
-                self::deadlineNs(
-                    self::HOST_FALLBACK_SHUTDOWN_MS,
-                ),
-            );
+            $this->waitForHostExit($deadlineNs);
 
             $this->closeProcessResource();
             $this->reset();
@@ -346,33 +407,35 @@ final class WorkerProcProcessHostClient
              */
             $this->forceCloseHost(
                 allowCleanup: true,
+                timeoutMs: self::remainingMsOrOne($deadlineNs),
             );
 
-            if ($exception instanceof WorkerStartFailedException) {
+            if ($exception instanceof WorkerLifecycleFailedException) {
                 throw $exception;
             }
 
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
     private function acknowledgeChildOperation(
         string $operation,
         string $childId,
+        int $timeoutMs,
     ): void {
         $this->knownChildPid($childId);
 
         $response = $this->request(
             operation: $operation,
             payload: ['child_id' => $childId],
-            timeoutMs: $this->requestTimeoutMs,
+            timeoutMs: $this->boundedRequestTimeoutMs($timeoutMs),
         );
 
         if (
             \array_keys($response) !== ['acknowledged']
             || $response['acknowledged'] !== true
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
@@ -403,22 +466,43 @@ final class WorkerProcProcessHostClient
             $this->readFrame($deadlineNs),
         );
 
+        return $this->responsePayload(
+            response: $response,
+            requestId: $requestId,
+            childStartFailureAllowed: $childStartFailureAllowed,
+        );
+    }
+
+    /**
+     * @param array{
+     *     version: 1,
+     *     request_id: positive-int,
+     *     status: 'ok'|'error',
+     *     payload: array<int|string, mixed>
+     * } $response
+     *
+     * @return array<int|string, mixed>
+     */
+    private function responsePayload(
+        array $response,
+        int $requestId,
+        bool $childStartFailureAllowed,
+    ): array {
         if ($response['request_id'] !== $requestId) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         if ($response['status'] === WorkerProcProcessHostProtocol::STATUS_ERROR) {
             $reason = $response['payload']['reason'] ?? null;
 
             if (
-                $childStartFailureAllowed
-                && $reason
+                $childStartFailureAllowed && $reason
                 === WorkerProcProcessHostProtocol::ERROR_CHILD_START_FAILED
             ) {
                 throw WorkerStartFailedException::childStartFailed();
             }
 
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $response['payload'];
@@ -429,7 +513,7 @@ final class WorkerProcProcessHostClient
         $connection = $this->connection;
 
         if (!\is_resource($connection)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $remaining = $frame;
@@ -462,24 +546,24 @@ final class WorkerProcProcessHostClient
                     continue;
                 }
 
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             if ($selected !== 1) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $written = @\fwrite($connection, $remaining);
 
             if (!\is_int($written) || $written < 1) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $remaining = \substr($remaining, $written);
         }
 
         if (!@\fflush($connection)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
@@ -488,7 +572,7 @@ final class WorkerProcProcessHostClient
         $connection = $this->connection;
 
         if (!\is_resource($connection)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $buffer = '';
@@ -516,11 +600,11 @@ final class WorkerProcProcessHostClient
                     continue;
                 }
 
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             if ($selected !== 1) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $remaining = WorkerProcProcessHostProtocol::MAX_FRAME_BYTES
@@ -528,13 +612,13 @@ final class WorkerProcProcessHostClient
                 - \strlen($buffer);
 
             if ($remaining < 1) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $chunk = @\fread($connection, $remaining);
 
             if ($chunk === false || $chunk === '') {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $buffer .= $chunk;
@@ -545,7 +629,7 @@ final class WorkerProcProcessHostClient
             }
 
             if ($newline !== \strlen($buffer) - 1) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             return $buffer;
@@ -556,7 +640,7 @@ final class WorkerProcProcessHostClient
     {
         do {
             if (!$this->hostRunning()) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             $remainingMs = self::remainingMs($deadlineNs);
@@ -577,7 +661,7 @@ final class WorkerProcProcessHostClient
                 if (!@\stream_set_blocking($connection, false)) {
                     @\fclose($connection);
 
-                    throw WorkerStartFailedException::processHostFailed();
+                    throw WorkerLifecycleFailedException::processHostFailed();
                 }
 
                 return $connection;
@@ -586,7 +670,14 @@ final class WorkerProcProcessHostClient
             \usleep(self::CONNECT_RETRY_US);
         } while (\hrtime(true) < $deadlineNs);
 
-        throw WorkerStartFailedException::processHostFailed();
+        throw WorkerLifecycleFailedException::processHostFailed();
+    }
+
+    private function boundedRequestTimeoutMs(int $timeoutMs): int
+    {
+        self::assertTimeout($timeoutMs);
+
+        return \min($timeoutMs, $this->requestTimeoutMs);
     }
 
     private function knownChildPid(string $childId): int
@@ -597,7 +688,7 @@ final class WorkerProcProcessHostClient
             \preg_match('/\Achild-[1-9][0-9]*\z/', $childId) !== 1
             || !isset($this->children[$childId])
         ) {
-            throw WorkerStartFailedException::childExited();
+            throw WorkerLifecycleFailedException::childExited();
         }
 
         return $this->children[$childId];
@@ -606,7 +697,7 @@ final class WorkerProcProcessHostClient
     private function nextRequestId(): int
     {
         if ($this->nextRequestId > self::MAX_REQUEST_ID) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $this->nextRequestId++;
@@ -615,14 +706,13 @@ final class WorkerProcProcessHostClient
     private function assertStarted(): void
     {
         if (!$this->started() || !$this->hostRunning()) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 
     private function started(): bool
     {
-        return \is_resource($this->process)
-            && \is_resource($this->connection);
+        return \is_resource($this->process) && \is_resource($this->connection);
     }
 
     private function hostRunning(): bool
@@ -640,45 +730,38 @@ final class WorkerProcProcessHostClient
     {
         while ($this->hostRunning()) {
             if (\hrtime(true) >= $deadlineNs) {
-                throw WorkerStartFailedException::processHostFailed();
+                throw WorkerLifecycleFailedException::processHostFailed();
             }
 
             \usleep(self::CONNECT_RETRY_US);
         }
     }
 
-    private function forceCloseHost(bool $allowCleanup): void
-    {
-        $hadConnection = \is_resource(
-            $this->connection,
-        );
-
+    private function forceCloseHost(
+        bool $allowCleanup,
+        int $timeoutMs = self::HOST_FALLBACK_SHUTDOWN_MS,
+    ): void {
+        self::assertTimeout($timeoutMs);
         /*
-         * EOF on the authenticated protocol connection tells the host that its
-         * supervisor disappeared. The host then owns termination and reap of all
-         * remaining worker process resources.
+         * EOF on an active authenticated connection tells the host that its
+         * supervisor disappeared. During handoff there may be no active
+         * connection, but the host still owns bounded cleanup before exit.
          */
         $this->closeConnection();
 
         if (\is_resource($this->process)) {
-            if ($allowCleanup && $hadConnection) {
-                $deadlineNs = self::deadlineNs(
-                    self::HOST_FALLBACK_SHUTDOWN_MS,
-                );
+            if ($allowCleanup) {
+                $deadlineNs = self::deadlineNs($timeoutMs);
 
                 while (
-                    $this->hostRunning()
-                    && \hrtime(true) < $deadlineNs
+                    $this->hostRunning() && \hrtime(true) < $deadlineNs
                 ) {
                     \usleep(self::CONNECT_RETRY_US);
                 }
             }
 
             if ($this->hostRunning()) {
-                @\proc_terminate(
-                    $this->process,
-                    9,
-                );
+                @\proc_terminate($this->process, 9);
             }
 
             @\proc_close($this->process);
@@ -724,14 +807,14 @@ final class WorkerProcProcessHostClient
         );
 
         if (!\is_resource($server)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $name = @\stream_socket_get_name($server, false);
         @\fclose($server);
 
         if (!\is_string($name)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $separator = \strrpos($name, ':');
@@ -740,13 +823,13 @@ final class WorkerProcProcessHostClient
             : \substr($name, $separator + 1);
 
         if (!\ctype_digit($value)) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $port = (int)$value;
 
         if ($port < 1 || $port > 65_535) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $port;
@@ -765,7 +848,7 @@ final class WorkerProcProcessHostClient
                 1_000_000,
             )
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return $nowNs + ($timeoutMs * 1_000_000);
@@ -777,7 +860,7 @@ final class WorkerProcProcessHostClient
         $remainingNs = $deadlineNs - \hrtime(true);
 
         if ($remainingNs <= 0) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         $seconds = \intdiv($remainingNs, 1_000_000_000);
@@ -794,10 +877,19 @@ final class WorkerProcProcessHostClient
         $remainingNs = $deadlineNs - \hrtime(true);
 
         if ($remainingNs <= 0) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
 
         return \max(1, (int)\ceil($remainingNs / 1_000_000));
+    }
+
+    private static function remainingMsOrOne(int $deadlineNs): int
+    {
+        $remainingNs = $deadlineNs - \hrtime(true);
+
+        return $remainingNs <= 0
+            ? 1
+            : \max(1, (int)\ceil($remainingNs / 1_000_000));
     }
 
     private static function assertTimeout(int $timeoutMs): void
@@ -806,7 +898,7 @@ final class WorkerProcProcessHostClient
             $timeoutMs < 1
             || $timeoutMs > self::MAX_TIMEOUT_MS
         ) {
-            throw WorkerStartFailedException::processHostFailed();
+            throw WorkerLifecycleFailedException::processHostFailed();
         }
     }
 

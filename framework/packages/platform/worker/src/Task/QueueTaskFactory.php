@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Task;
 
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -79,9 +80,12 @@ final class QueueTaskFactory implements TaskFactoryInternalInterface
      */
     public function create(WorkerPoolSpec $spec): array
     {
-        $this->assertReady($spec);
-
-        $operationId = $this->operationId($spec);
+        try {
+            $this->assertReady($spec);
+            $operationId = $this->operationId($spec);
+        } catch (WorkerStartFailedException) {
+            throw WorkerLifecycleFailedException::invalidState();
+        }
 
         return [
             'operation_id' => $operationId,

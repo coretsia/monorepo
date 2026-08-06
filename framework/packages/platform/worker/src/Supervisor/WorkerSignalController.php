@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Supervisor;
 
+use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 
 /**
@@ -49,10 +50,7 @@ final class WorkerSignalController
     ) {
         if (
             $platformFamily === ''
-            || \preg_match(
-                '/[\x00-\x1F\x7F]/',
-                $platformFamily,
-            ) === 1
+            || \preg_match('/[\x00-\x1F\x7F]/', $platformFamily) === 1
         ) {
             throw new \InvalidArgumentException('worker-signal-platform-invalid');
         }
@@ -61,18 +59,13 @@ final class WorkerSignalController
     public function install(): void
     {
         if ($this->installedMode !== null) {
-            throw WorkerStartFailedException::invalidState();
+            throw WorkerLifecycleFailedException::invalidState();
         }
 
         $this->shutdownSignals = [];
         $this->childExitSignalPending = false;
 
-        if (
-            \strcasecmp(
-                $this->platformFamily,
-                'Windows',
-            ) === 0
-        ) {
+        if (\strcasecmp($this->platformFamily, 'Windows') === 0) {
             $this->installWindowsHandler();
 
             return;
@@ -291,8 +284,7 @@ final class WorkerSignalController
         $handler = function (int $event): void {
             if (
                 $event === \PHP_WINDOWS_EVENT_CTRL_C
-                || $event
-                === \PHP_WINDOWS_EVENT_CTRL_BREAK
+                || $event === \PHP_WINDOWS_EVENT_CTRL_BREAK
             ) {
                 $this->shutdownSignals[$event] = true;
             }
@@ -313,10 +305,7 @@ final class WorkerSignalController
 
     private function removeWindowsHandler(): void
     {
-        if (
-            $this->windowsHandler instanceof \Closure
-            && \function_exists('sapi_windows_set_ctrl_handler')
-        ) {
+        if ($this->windowsHandler instanceof \Closure && \function_exists('sapi_windows_set_ctrl_handler')) {
             @\sapi_windows_set_ctrl_handler(
                 $this->windowsHandler,
                 false,

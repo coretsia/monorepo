@@ -24,15 +24,9 @@ final class WorkerControlProtocolSafetyContractTest extends PackageTestCase
 {
     public function testProtocolIsBoundedStableJsonAndPayloadFree(): void
     {
-        $source = self::source(
-            'src/Communication/WorkerControlProtocol.php',
-        );
-        $request = self::source(
-            'src/Communication/WorkerControlRequest.php',
-        );
-        $response = self::source(
-            'src/Communication/WorkerControlResponse.php',
-        );
+        $source = self::source('src/Communication/WorkerControlProtocol.php');
+        $request = self::source('src/Communication/WorkerControlRequest.php');
+        $response = self::source('src/Communication/WorkerControlResponse.php');
 
         self::assertStringContainsString(
             'StableJsonEncoder',
@@ -49,6 +43,9 @@ final class WorkerControlProtocolSafetyContractTest extends PackageTestCase
         self::assertStringNotContainsString('serialize(', $source);
         self::assertStringNotContainsString('unserialize(', $source);
         self::assertStringNotContainsString("case START", $request);
+        self::assertStringContainsString("'credential' =>", $request);
+        self::assertStringNotContainsString("'credential' =>", $response);
+        self::assertStringContainsString('VERSION = 1', $request);
 
         foreach (
             [

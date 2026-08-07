@@ -400,7 +400,8 @@ final readonly class WorkerPoolSpec
     }
 
     /**
-     * Restricts the unauthenticated control channel to the local host.
+     * Restricts the authenticated TCP control channel to the canonical IPv4
+     * loopback host.
      */
     private static function assertSafeTcpHost(string $host): void
     {

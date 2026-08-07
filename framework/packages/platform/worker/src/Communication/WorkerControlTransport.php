@@ -29,7 +29,8 @@ use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
  * Server addresses are derived from the startup WorkerPoolSpec. Client
  * addresses are derived exclusively from the active WorkerLifecycleLocator.
  * The transport performs bounded frame I/O and removes supervisor-owned Unix
- * socket artifacts.
+ * socket artifacts. Unix listeners are created under a restrictive umask and
+ * verified as owner-only before publication.
  */
 final readonly class WorkerControlTransport
 {
@@ -45,29 +46,66 @@ final readonly class WorkerControlTransport
     {
         if ($spec->controlTransport() === 'unix') {
             $this->cleanup($spec);
-            $dir = \dirname($this->unixPath($spec));
-            if (!\is_dir($dir) && !@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
+            $directory = \dirname($this->unixPath($spec));
+
+            if (
+                !\is_dir($directory)
+                && !@\mkdir($directory, 0777, true)
+                && !\is_dir($directory)
+            ) {
                 throw WorkerCommunicationFailedException::communicationFailed();
             }
         }
-        $server = @\stream_socket_server(
-            $this->serverAddress($spec),
-            $errno,
-            $error,
-            \STREAM_SERVER_BIND | \STREAM_SERVER_LISTEN
-        );
+
+        $previousUmask = null;
+
+        if (
+            $spec->controlTransport() === 'unix' && \PHP_OS_FAMILY !== 'Windows'
+        ) {
+            $previousUmask = \umask(0177);
+        }
+
+        try {
+            $server = @\stream_socket_server(
+                $this->serverAddress($spec),
+                $errno,
+                $error,
+                \STREAM_SERVER_BIND | \STREAM_SERVER_LISTEN,
+            );
+        } finally {
+            if (\is_int($previousUmask)) {
+                \umask($previousUmask);
+            }
+        }
+
         if (!\is_resource($server)) {
             throw WorkerCommunicationFailedException::communicationFailed();
         }
 
-        if (
-            $spec->controlTransport() === 'unix'
-            && !@\chmod($this->unixPath($spec), 0600)
-        ) {
-            $this->close($server);
-            $this->cleanup($spec);
+        if ($spec->controlTransport() === 'unix') {
+            $path = $this->unixPath($spec);
 
-            throw WorkerCommunicationFailedException::communicationFailed();
+            if (!@\chmod($path, 0600)) {
+                $this->close($server);
+                $this->cleanup($spec);
+
+                throw WorkerCommunicationFailedException::communicationFailed();
+            }
+
+            if (\PHP_OS_FAMILY !== 'Windows') {
+                \clearstatcache(true, $path);
+                $permissions = @\fileperms($path);
+
+                if (
+                    !\is_int($permissions)
+                    || (($permissions & 0777) !== 0600)
+                ) {
+                    $this->close($server);
+                    $this->cleanup($spec);
+
+                    throw WorkerCommunicationFailedException::communicationFailed();
+                }
+            }
         }
 
         if (!@\stream_set_blocking($server, false)) {
@@ -82,6 +120,7 @@ final readonly class WorkerControlTransport
 
     /** @return resource */
     public function connect(
+        #[\SensitiveParameter]
         WorkerLifecycleLocator $locator,
         int $timeoutMs,
     ): mixed {
@@ -269,8 +308,10 @@ final readonly class WorkerControlTransport
         };
     }
 
-    private function clientAddress(WorkerLifecycleLocator $locator): string
-    {
+    private function clientAddress(
+        #[\SensitiveParameter]
+        WorkerLifecycleLocator $locator,
+    ): string {
         return match ($locator->controlTransport()) {
             'unix' => 'unix://' . $this->clientUnixPath($locator),
             'tcp' => $this->clientTcpAddress($locator),
@@ -286,8 +327,10 @@ final readonly class WorkerControlTransport
         );
     }
 
-    private function clientTcpAddress(WorkerLifecycleLocator $locator): string
-    {
+    private function clientTcpAddress(
+        #[\SensitiveParameter]
+        WorkerLifecycleLocator $locator,
+    ): string {
         $port = $locator->tcpPort();
 
         if ($locator->tcpHost() !== '127.0.0.1' || $port === null) {
@@ -297,8 +340,10 @@ final readonly class WorkerControlTransport
         return 'tcp://127.0.0.1:' . $port;
     }
 
-    private function clientUnixPath(WorkerLifecycleLocator $locator): string
-    {
+    private function clientUnixPath(
+        #[\SensitiveParameter]
+        WorkerLifecycleLocator $locator,
+    ): string {
         $socketPath = $locator->socketPath();
         if ($socketPath === null) {
             throw WorkerCommunicationFailedException::communicationFailed();

@@ -193,7 +193,11 @@ final class WorkerControlClient implements WorkerControlClientInterface
         }
 
         $connection = null;
-        $request = new WorkerControlRequest($operation, $this->nextRequestId());
+        $request = new WorkerControlRequest(
+            operation: $operation,
+            requestId: $this->nextRequestId(),
+            credential: $locator->controlCredential(),
+        );
         $deadlineNs = self::deadlineNs($timeoutMs);
 
         try {
@@ -292,6 +296,7 @@ final class WorkerControlClient implements WorkerControlClientInterface
     }
 
     private static function assertEndpointConsistency(
+        #[\SensitiveParameter]
         WorkerLifecycleLocator $locator,
         string $endpointHash,
     ): void {

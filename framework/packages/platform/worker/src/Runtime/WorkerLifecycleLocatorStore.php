@@ -27,8 +27,10 @@ use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
  * Exclusive filesystem owner of the private worker lifecycle locator.
  *
  * The locator is published atomically by the supervisor while it owns the
- * canonical lifecycle lock. Lifecycle clients may read it only after confirming
- * that the lock is held by an active process.
+ * canonical lifecycle lock. It contains a supervisor-instance control
+ * credential and is therefore a private capability artifact, not merely
+ * endpoint discovery metadata. Lifecycle clients may read it only after
+ * confirming that the lock is held by an active process.
  *
  * Raw locator bytes, decoded endpoint fields, and resolved absolute paths never
  * leave this storage boundary through logs, diagnostics, or exception messages.
@@ -48,8 +50,10 @@ final readonly class WorkerLifecycleLocatorStore
         }
     }
 
-    public function write(WorkerLifecycleLocator $locator): void
-    {
+    public function write(
+        #[\SensitiveParameter]
+        WorkerLifecycleLocator $locator,
+    ): void {
         try {
             $bytes = $this->encoder->encodeMap($locator->toArray());
         } catch (\Throwable) {
@@ -72,10 +76,23 @@ final readonly class WorkerLifecycleLocatorStore
             throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
 
-        $handle = @\fopen(
-            $temporaryPath,
-            self::temporaryOpenMode(),
-        );
+        $previousUmask = null;
+
+        if (\PHP_OS_FAMILY !== 'Windows') {
+            $previousUmask = \umask(0177);
+        }
+
+        try {
+            $handle = @\fopen(
+                $temporaryPath,
+                self::temporaryOpenMode(),
+            );
+        } finally {
+            if (\is_int($previousUmask)) {
+                \umask($previousUmask);
+            }
+        }
+
         if (!\is_resource($handle)) {
             throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
         }
@@ -83,9 +100,25 @@ final readonly class WorkerLifecycleLocatorStore
         $published = false;
 
         try {
+            if (!@\chmod($temporaryPath, 0600)) {
+                throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
+            }
+
+            if (\PHP_OS_FAMILY !== 'Windows') {
+                \clearstatcache(true, $temporaryPath);
+                $permissions = @\fileperms($temporaryPath);
+
+                if (
+                    !\is_int($permissions)
+                    || (($permissions & 0777) !== 0600)
+                ) {
+                    throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
+                }
+            }
+
             self::writeAll($handle, $bytes);
 
-            if (!@\fflush($handle) || !@\chmod($temporaryPath, 0600)) {
+            if (!@\fflush($handle)) {
                 throw WorkerLifecycleFailedException::lifecycleLocatorFailed();
             }
 
@@ -129,6 +162,18 @@ final readonly class WorkerLifecycleLocatorStore
             }
 
             \clearstatcache(true, $path);
+
+            if (\PHP_OS_FAMILY !== 'Windows') {
+                $permissions = @\fileperms($path);
+
+                if (
+                    !\is_int($permissions)
+                    || (($permissions & 0777) !== 0600)
+                ) {
+                    throw new \RuntimeException('worker-lifecycle-locator-permissions-invalid');
+                }
+            }
+
             $size = @\filesize($path);
             if (!\is_int($size) || $size < 1 || $size > self::MAX_BYTES) {
                 throw new \RuntimeException('worker-lifecycle-locator-size-invalid');

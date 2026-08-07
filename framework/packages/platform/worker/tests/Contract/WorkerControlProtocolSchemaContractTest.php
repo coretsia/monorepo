@@ -20,25 +20,36 @@ namespace Coretsia\Platform\Worker\Tests\Contract;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Communication\WorkerControlOperation;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlRequest;
 use Coretsia\Platform\Worker\Communication\WorkerControlResponse;
+use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use PHPUnit\Framework\TestCase;
 
 final class WorkerControlProtocolSchemaContractTest extends TestCase
 {
     public function testRequestAndResponseSchemasRoundTripExactly(): void
     {
-        $protocol = new WorkerControlProtocol(
-            new StableJsonEncoder(),
-            new StableJsonDecoder(),
-        );
+        $protocol = self::protocol();
         $request = new WorkerControlRequest(
-            WorkerControlOperation::STATUS,
-            'request-1',
+            operation: WorkerControlOperation::STATUS,
+            requestId: 'request-1',
+            credential: WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
         );
 
+        self::assertSame(
+            [
+                'version' => 1,
+                'operation' => 'status',
+                'request_id' => 'request-1',
+                'credential' => \str_repeat('a', 64),
+            ],
+            $request->toArray(),
+        );
         self::assertEquals(
             $request,
             $protocol->decodeRequest(
@@ -50,41 +61,46 @@ final class WorkerControlProtocolSchemaContractTest extends TestCase
             'request-1',
             ['status' => 'running'],
         );
+        $responseFrame = $protocol->encodeResponse($response);
 
+        self::assertStringNotContainsString('credential', $responseFrame);
         self::assertEquals(
             $response,
-            $protocol->decodeResponse(
-                $protocol->encodeResponse($response),
-            ),
+            $protocol->decodeResponse($responseFrame),
         );
     }
 
-    public function testUnknownKeysVersionsAndStartOperationAreRejected(): void
+    public function testMissingMalformedUnknownAndUnsupportedRequestsAreRejected(): void
     {
-        $protocol = new WorkerControlProtocol(
-            new StableJsonEncoder(),
-            new StableJsonDecoder(),
-        );
-
+        $protocol = self::protocol();
+        $credential = \str_repeat('a', 64);
         $rejected = 0;
 
         foreach (
             [
-                "{\"operation\":\"start\",\"request_id\":\"x\",\"version\":1}\n",
-                "{\"operation\":\"status\",\"payload\":{},\"request_id\":\"x\",\"version\":1}\n",
-                "{\"operation\":\"status\",\"request_id\":\"x\",\"version\":2}\n",
+                '{"credential":"' . $credential . '","operation":"start","request_id":"x","version":1}' . "\n",
+                '{"operation":"status","request_id":"x","version":1}' . "\n",
+                '{"credential":"abcd","operation":"status","request_id":"x","version":1}' . "\n",
+                '{"credential":"' . $credential . '","operation":"status","payload":{},' . '"request_id":"x","version":1}' . "\n",
+                '{"credential":"' . $credential . '","operation":"status","request_id":"x","version":2}' . "\n",
             ] as $frame
         ) {
             try {
                 $protocol->decodeRequest($frame);
                 self::fail('Expected invalid control request.');
-            } catch (
-                \Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException
-            ) {
+            } catch (WorkerCommunicationFailedException) {
                 $rejected++;
             }
         }
 
-        self::assertSame(3, $rejected);
+        self::assertSame(5, $rejected);
+    }
+
+    private static function protocol(): WorkerControlProtocol
+    {
+        return new WorkerControlProtocol(
+            new StableJsonEncoder(),
+            new StableJsonDecoder(),
+        );
     }
 }

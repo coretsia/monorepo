@@ -22,6 +22,7 @@ use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Worker\Communication\WorkerControlClient;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerNotRunningException;
@@ -54,6 +55,9 @@ final class WorkerNotRunningLifecycleContractTest extends PackageTestCase
         $locatorStore->write(
             WorkerLifecycleLocator::fromPoolSpec(
                 WorkerSpecFactory::create(),
+                WorkerControlCredential::fromEncoded(
+                    \str_repeat('a', 64),
+                ),
             ),
         );
 

@@ -28,6 +28,7 @@ final readonly class WorkerControlSession
 {
     public function __construct(
         private mixed $connection,
+        #[\SensitiveParameter]
         private WorkerControlRequest $request,
     ) {
         if (!\is_resource($connection)) {

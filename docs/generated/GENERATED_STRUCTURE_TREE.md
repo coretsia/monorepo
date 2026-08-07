@@ -172,7 +172,8 @@ Coretsia/
 │       ├── uow-and-reset-contracts.md
 │       ├── uow-outcome-policy.md
 │       ├── uow-shapes.md
-│       └── validation-contracts.md
+│       ├── validation-contracts.md
+│       └── worker-control-security.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -1081,6 +1082,7 @@ Coretsia/
 │   │           │   │   ├── WorkerChildReadinessChannel.php
 │   │           │   │   ├── WorkerChildReadinessEndpoint.php
 │   │           │   │   ├── WorkerControlClient.php
+│   │           │   │   ├── WorkerControlCredential.php
 │   │           │   │   ├── WorkerControlOperation.php
 │   │           │   │   ├── WorkerControlProtocol.php
 │   │           │   │   ├── WorkerControlRequest.php
@@ -1169,6 +1171,7 @@ Coretsia/
 │   │           │   │   ├── WorkerCommandsUseCliContractsOnlyTest.php
 │   │           │   │   ├── WorkerConfigPathConstraintContractTest.php
 │   │           │   │   ├── WorkerConfigSubtreeShapeContractTest.php
+│   │           │   │   ├── WorkerControlCredentialRedactionContractTest.php
 │   │           │   │   ├── WorkerControlProtocolSafetyContractTest.php
 │   │           │   │   ├── WorkerControlProtocolSchemaContractTest.php
 │   │           │   │   ├── WorkerExceptionTaxonomyContractTest.php
@@ -1210,6 +1213,7 @@ Coretsia/
 │   │           │   │   ├── PcntlWorkerProcessDriverTest.php
 │   │           │   │   ├── ProcWorkerProcessDriverTest.php
 │   │           │   │   ├── ProcWorkerProcessHostDescriptorIsolationTest.php
+│   │           │   │   ├── WorkerControlAuthenticationTest.php
 │   │           │   │   ├── WorkerControlTransportTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
@@ -1251,6 +1255,7 @@ Coretsia/
 │   │           │       ├── ProcWorkerProcessDriverSupportTest.php
 │   │           │       ├── WorkerChildCommandBuilderTest.php
 │   │           │       ├── WorkerChildTableTest.php
+│   │           │       ├── WorkerControlCredentialTest.php
 │   │           │       ├── WorkerLifecycleLocatorTest.php
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php

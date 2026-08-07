@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Worker\Communication;
 /**
  * Immutable validated worker control request frame.
  *
+ * Every request carries the credential of the active supervisor instance.
  * Request identifiers are bounded transport-correlation values only and must
  * never be emitted as metric labels.
  */
@@ -32,6 +33,8 @@ final readonly class WorkerControlRequest
     public function __construct(
         private WorkerControlOperation $operation,
         private string $requestId,
+        #[\SensitiveParameter]
+        private WorkerControlCredential $credential,
     ) {
         if (\preg_match(self::REQUEST_ID_PATTERN, $requestId) !== 1) {
             throw new \InvalidArgumentException('worker-control-request-id-invalid');
@@ -53,33 +56,49 @@ final readonly class WorkerControlRequest
         return $this->requestId;
     }
 
-    /** @return array{version: 1, operation: string, request_id: string} */
+    public function credential(): WorkerControlCredential
+    {
+        return $this->credential;
+    }
+
+    /** @return array{version: 1, operation: string, request_id: string, credential: string} */
     public function toArray(): array
     {
         return [
             'version' => self::VERSION,
             'operation' => $this->operation->value,
             'request_id' => $this->requestId,
+            'credential' => $this->credential->encoded(),
         ];
     }
 
     /** @param array<string, mixed> $value */
-    public static function fromArray(array $value): self
-    {
+    public static function fromArray(
+        #[\SensitiveParameter]
+        array $value,
+    ): self {
         $keys = \array_keys($value);
         \sort($keys, \SORT_STRING);
-        if ($keys !== [
+
+        if (
+            $keys !== [
+                'credential',
                 'operation',
                 'request_id',
-                'version'
-            ] || ($value['version'] ?? null) !== self::VERSION || !\is_string(
-                $value['operation'] ?? null
-            ) || !\is_string($value['request_id'] ?? null)) {
+                'version',
+            ]
+            || ($value['version'] ?? null) !== self::VERSION
+            || !\is_string($value['operation'] ?? null)
+            || !\is_string($value['request_id'] ?? null)
+            || !\is_string($value['credential'] ?? null)
+        ) {
             throw new \InvalidArgumentException('worker-control-request-invalid');
         }
+
         return new self(
             operation: WorkerControlOperation::from($value['operation']),
             requestId: $value['request_id'],
+            credential: WorkerControlCredential::fromEncoded($value['credential']),
         );
     }
 }

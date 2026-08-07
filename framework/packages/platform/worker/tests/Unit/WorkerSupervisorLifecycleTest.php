@@ -30,6 +30,7 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
         foreach (
             [
                 'lifecycleLock->acquire',
+                'WorkerControlCredential::generate',
                 'controlServer->listen',
                 'signals->install',
                 'shutdownChildren',
@@ -49,6 +50,26 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
         self::assertStringNotContainsString('echo ', $source);
         self::assertStringNotContainsString('STDOUT', $source);
         self::assertStringNotContainsString('STDERR', $source);
+    }
+
+    public function testCredentialIsGeneratedBeforeListenerAndLocatorPublication(): void
+    {
+        $source = self::source('src/Supervisor/WorkerSupervisor.php');
+        $generate = \strpos(
+            $source,
+            'WorkerControlCredential::generate',
+        );
+        $listen = \strpos($source, 'controlServer->listen');
+        $locator = \strpos($source, 'locatorStore->write');
+        $spawn = \strpos($source, 'driver->spawn');
+
+        self::assertIsInt($generate);
+        self::assertIsInt($listen);
+        self::assertIsInt($locator);
+        self::assertIsInt($spawn);
+        self::assertLessThan($listen, $generate);
+        self::assertLessThan($locator, $listen);
+        self::assertLessThan($spawn, $locator);
     }
 
     public function testProcessDriverContractHasPreparationAndShutdownButNoPoolOperations(): void
@@ -82,9 +103,7 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
 
     public function testBoundedDriverOperationsReceiveTimeoutArguments(): void
     {
-        $reflection = new \ReflectionClass(
-            WorkerProcessDriverInterface::class,
-        );
+        $reflection = new \ReflectionClass(WorkerProcessDriverInterface::class);
 
         foreach (
             ['pollExit', 'terminate', 'kill', 'close'] as $method

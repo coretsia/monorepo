@@ -538,6 +538,8 @@ The resolver MUST perform an exact package-owned mapping and MUST resolve only t
 
 Process-driver tags are not part of the Worker runtime contribution.
 
+`WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. It is generated once per supervisor run and passed explicitly only to the active `WorkerControlServer` and private `WorkerLifecycleLocator`.
+
 `WorkerProcProcessHostTransport` is instantiated only by the package-owned proc-host executable. It is not a runtime-container service and must not be added to the Worker contribution.
 
 It MUST contribute the canonical `cli.command` tags for:

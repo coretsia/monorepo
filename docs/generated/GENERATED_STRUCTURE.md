@@ -172,7 +172,8 @@ Coretsia/
 │       ├── uow-and-reset-contracts.md
 │       ├── uow-outcome-policy.md
 │       ├── uow-shapes.md
-│       └── validation-contracts.md
+│       ├── validation-contracts.md
+│       └── worker-control-security.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -1081,9 +1082,10 @@ Coretsia/
 │   │           │   │   ├── WorkerChildReadinessChannel.php (WorkerChildReadinessChannel - signalReady()/createProcessEndpoint()/poll()/await()/deadlineNs()/acceptProcessConnection()/writeFrame())
 │   │           │   │   ├── WorkerChildReadinessEndpoint.php (WorkerChildReadinessEndpoint - stream()/tcpListener()/streamResource()/mode()/port()/token()/connection()/attachConnection()/append()/buffer()/expectedFrame()/closed()/close())
 │   │           │   │   ├── WorkerControlClient.php (WorkerControlClient - status()/health()/stop()/request()/deadlineNs()/remainingMs()/stateResult()/assertEndpointConsistency()/safeStartProcessSpan()/safeFinishProcessSpan()/safeEmitProcessMetric()/safeLogStatusSummary()/safeStartTimer()/safeStopTimer()/nextRequestId())
+│   │           │   │   ├── WorkerControlCredential.php (WorkerControlCredential - generate()/fromEncoded()/encoded()/matches())
 │   │           │   │   ├── WorkerControlOperation.php
 │   │           │   │   ├── WorkerControlProtocol.php (WorkerControlProtocol - encodeRequest()/decodeRequest()/encodeResponse()/decodeResponse()/encode()/decode())
-│   │           │   │   ├── WorkerControlRequest.php (WorkerControlRequest - version()/operation()/requestId()/toArray()/fromArray())
+│   │           │   │   ├── WorkerControlRequest.php (WorkerControlRequest - version()/operation()/requestId()/credential()/toArray()/fromArray())
 │   │           │   │   ├── WorkerControlResponse.php (WorkerControlResponse - ok()/stopped()/error()/requestId()/status()/result()/errorReason()/toArray()/fromArray())
 │   │           │   │   ├── WorkerControlServer.php (WorkerControlServer - listen()/accept()/respondState()/respondHealth()/respondStopped()/closeSession()/closeListener()/close()/reset()/detachInForkedChild()/respond())
 │   │           │   │   ├── WorkerControlSession.php (WorkerControlSession - connection()/request())
@@ -1132,7 +1134,7 @@ Coretsia/
 │   │           │   │   └── WorkerServiceProvider.php (WorkerServiceProvider - register()/define()/commandMeta())
 │   │           │   ├── Runtime/
 │   │           │   │   ├── WorkerHealthState.php (WorkerHealthState - pid()/status()/workerCount()/readyWorkerCount()/healthy()/reason()/driver()/controlTransport()/endpointHash()/toArray()/fromArray())
-│   │           │   │   ├── WorkerLifecycleLocator.php (WorkerLifecycleLocator - fromPoolSpec()/fromArray()/toArray()/controlTransport()/socketPath()/tcpHost()/tcpPort()/stopTimeoutMs()/forceKillTimeoutMs()/stopRequestTimeoutMs()/endpointIdentifier()/endpointHash()/create())
+│   │           │   │   ├── WorkerLifecycleLocator.php (WorkerLifecycleLocator - fromPoolSpec()/fromArray()/toArray()/controlCredential()/controlTransport()/socketPath()/tcpHost()/tcpPort()/stopTimeoutMs()/forceKillTimeoutMs()/stopRequestTimeoutMs()/endpointIdentifier()/endpointHash()/create())
 │   │           │   │   ├── WorkerLifecycleLocatorStore.php (WorkerLifecycleLocatorStore - write()/read()/delete()/temporaryOpenMode()/writeAll()/path()/temporaryPath())
 │   │           │   │   ├── WorkerLifecycleLock.php (WorkerLifecycleLock - acquire()/isHeld()/release()/detachInForkedChild()/open()/openMode()/path())
 │   │           │   │   ├── WorkerLifecyclePaths.php (WorkerLifecyclePaths - resolve()/assertRelativeSafePath())
@@ -1169,8 +1171,9 @@ Coretsia/
 │   │           │   │   ├── WorkerCommandsUseCliContractsOnlyTest.php (WorkerCommandsUseCliContractsOnlyTest - testCommandsUseOnlyContractsInputOutputAndNoRawSinks())
 │   │           │   │   ├── WorkerConfigPathConstraintContractTest.php (WorkerConfigPathConstraintContractTest - testPhaseBRejectsPathsRejectedByWorkerPoolSpec()/testWorkerRulesDeclareRuntimePathConstraints()/testWorkerDefaultPathsPassPhaseBValidation()/rejectedWorkerPathProvider()/workerGlobalConfig()/workerRuleset()/workerConfigPath()/workerRulesPath())
 │   │           │   │   ├── WorkerConfigSubtreeShapeContractTest.php (WorkerConfigSubtreeShapeContractTest - testDefaultsAndRulesExposeTheCompleteStrictRuntimeShape())
+│   │           │   │   ├── WorkerControlCredentialRedactionContractTest.php (WorkerControlCredentialRedactionContractTest - testCredentialIsAbsentFromPublicStateResponsesCommandsAndObservability()/testCredentialIsNotAContainerServiceOrPublicDiagnosticField()/testRawCredentialBoundariesAreMarkedSensitive()/testOnlyPrivateWireAndLocatorShapesEncodeCredential()/testEverySecretBearingObjectParameterIsSensitive()/testOnlyPrivateLocatorAndRequestFramesSerializeCredential())
 │   │           │   │   ├── WorkerControlProtocolSafetyContractTest.php (WorkerControlProtocolSafetyContractTest - testProtocolIsBoundedStableJsonAndPayloadFree())
-│   │           │   │   ├── WorkerControlProtocolSchemaContractTest.php (WorkerControlProtocolSchemaContractTest - testRequestAndResponseSchemasRoundTripExactly()/testUnknownKeysVersionsAndStartOperationAreRejected())
+│   │           │   │   ├── WorkerControlProtocolSchemaContractTest.php (WorkerControlProtocolSchemaContractTest - testRequestAndResponseSchemasRoundTripExactly()/testMissingMalformedUnknownAndUnsupportedRequestsAreRejected()/protocol())
 │   │           │   │   ├── WorkerExceptionTaxonomyContractTest.php (WorkerExceptionTaxonomyContractTest - testStartupAndLifecycleReasonsAreDisjoint()/testStartupAndLifecycleErrorCodesRemainDistinct()/testSupervisorCatchAllUsesStartupCompletionBoundary()/testRuntimeWideFactoriesDoNotExistOnStartupException())
 │   │           │   │   ├── WorkerExceptionsAreDeterministicContractTest.php (WorkerExceptionsAreDeterministicContractTest - testStableErrorCodesAndSafeReasons())
 │   │           │   │   ├── WorkerHealthCommandContractTest.php (WorkerHealthCommandContractTest - testHealthCommandUsesLiveClientAndEmitsSafeSummary())
@@ -1210,11 +1213,12 @@ Coretsia/
 │   │           │   │   ├── PcntlWorkerProcessDriverTest.php (PcntlWorkerProcessDriverTest - testCapabilityAndForkExecBehaviorMatchCurrentPlatform()/testExecFailureBeforeReadinessIsUnexpectedNonZeroExit()/driver()/pcntlAvailable())
 │   │           │   │   ├── ProcWorkerProcessDriverTest.php (ProcWorkerProcessDriverTest - testProcessHostAdapterSpawnsReadyChildWithoutSupervisorResourceInheritance())
 │   │           │   │   ├── ProcWorkerProcessHostDescriptorIsolationTest.php (ProcWorkerProcessHostDescriptorIsolationTest - testEverySpawnRotatesTheAuthenticatedConnectionBeforeChildLaunch()/testFailedSpawnRestoresAuthenticatedConnection()/testFailedHandoffTerminatesSpawnedChildAndHost()/startHost()/protocol()/spawnThroughHandoff()/successfulPayload()/connect()/request()/writeRequest()/readFrame()/terminateHost())
-│   │           │   │   ├── WorkerControlTransportTest.php (WorkerControlTransportTest - testAcceptReturnsNullWhenNoClientArrivesDuringTick()/testListenerSecurityAndCleanupMatchResolvedTransport()/testAcceptedTcpSessionWaitsForDelayedRequestFrame()/platformControlOverride())
+│   │           │   │   ├── WorkerControlAuthenticationTest.php (WorkerControlAuthenticationTest - testMissingCredentialIsRejectedAndListenerRemainsUsable()/testMalformedAndWrongCredentialsAreRejected()/testCorrectCredentialCreatesTypedSession()/testPreviousSupervisorCredentialIsRejectedAfterRestart()/server()/sendAuthenticatedRequest()/sendFrame()/credential()/close())
+│   │           │   │   ├── WorkerControlTransportTest.php (WorkerControlTransportTest - testAcceptReturnsNullWhenNoClientArrivesDuringTick()/testListenerSecurityAndCleanupMatchResolvedTransport()/testUnixListenerUsesRestrictiveCreationPolicy()/testAcceptedTcpSessionWaitsForDelayedRequestFrame()/platformControlOverride())
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php (WorkerHandlesMultipleTasksSequentiallyTest - testEachTaskUsesSeparateKernelRuntimeBoundary())
 │   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php (WorkerHttpTaskRequiresRequestHandlerTest - testHttpFactorySourcePerformsPreflightBeforeCreatingWork())
 │   │           │   │   ├── WorkerLifecycleConfigDriftTest.php (WorkerLifecycleConfigDriftTest - testTcpPortDriftStillUsesTheActiveSupervisorEndpoint()/testOppositeCurrentTransportStillUsesTheActiveSupervisorTransport()/testStructurallyInvalidCurrentWorkerConfigCannotBlockStop()/testStopTimeoutDriftUsesTheActiveLocatorDeadlines()/testStaleLocatorWithFreeLockIsIgnoredAndReplacedOnStart()/differentUnusedTcpPort())
-│   │           │   │   ├── WorkerLifecycleLocatorStoreFilesystemTest.php (WorkerLifecycleLocatorStoreFilesystemTest - testStablePrivateLocatorRoundTripsAndDeletesBothPathsIdempotently()/testWriteAtomicallyReplacesAnExistingLocator()/testMalformedOrOversizedLocatorIsSafeCommunicationFailure()/testLinkedOrNonRegularLocatorIsSafeCommunicationFailure()/invalidLocatorBytes()/store())
+│   │           │   │   ├── WorkerLifecycleLocatorStoreFilesystemTest.php (WorkerLifecycleLocatorStoreFilesystemTest - testStablePrivateLocatorRoundTripsAndDeletesBothPathsIdempotently()/testWriteAtomicallyReplacesAnExistingLocator()/testPosixLocatorWithBroadPermissionsIsRejected()/testMalformedOrOversizedLocatorIsSafeCommunicationFailure()/testLinkedOrNonRegularLocatorIsSafeCommunicationFailure()/testPrivateLocatorUsesRestrictiveCreationPolicyBeforeWriting()/invalidLocatorBytes()/store())
 │   │           │   │   ├── WorkerLifecycleLockCloseOnExecTest.php (WorkerLifecycleLockCloseOnExecTest - testLifecycleLockRequestsCloseOnExecWhenPcntlExecIsAvailable()/testLifecycleLockCanBeExplicitlyDetachedInForkedChildBoundary()/pcntlExecAvailable())
 │   │           │   │   ├── WorkerLifecycleLockFilesystemTest.php (WorkerLifecycleLockFilesystemTest - testSecondStartFailsDeterministically()/testCurrentConfigurationCannotChangeTheCanonicalLockAnchor()/testStaleStateWithFreeLockIsNotRunning()/testHeldLockWithUnavailableControlEndpointIsCommunicationFailure()/testSecondStartFailsWhileFirstSupervisorIsStillStarting())
 │   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php (WorkerProviderSourceDefinitionsParityTest - testProviderContainsCanonicalSupervisorProcessAndControlDefinitions())
@@ -1222,7 +1226,7 @@ Coretsia/
 │   │           │   │   ├── WorkerStartCommandResolvesSupervisorLazilyTest.php (WorkerStartCommandResolvesSupervisorLazilyTest - testSourceRunsEntrypointGuardBeforeResolvingSupervisor())
 │   │           │   │   ├── WorkerStateStoreFilesystemTest.php (WorkerStateStoreFilesystemTest - testAtomicSnapshotRoundTripsAndDeleteRemovesStateAndTemp()/testMissingSnapshotIsNullAndInvalidSnapshotIsDeterministicFailure())
 │   │           │   │   ├── WorkerSupervisorChildFailureTest.php (WorkerSupervisorChildFailureTest - testUnexpectedNonZeroExitStopsPoolAndSupervisorFails())
-│   │           │   │   ├── WorkerSupervisorMaxRequestsRecycleTest.php (WorkerSupervisorMaxRequestsRecycleTest - testApplicationWorkerMaxRequestsRecyclesSameSlotWithNextGeneration()/applicationWorkerRuns())
+│   │           │   │   ├── WorkerSupervisorMaxRequestsRecycleTest.php (WorkerSupervisorMaxRequestsRecycleTest - testApplicationWorkerMaxRequestsRecyclesSameSlotWithNextGeneration()/controlCredential()/applicationWorkerRuns())
 │   │           │   │   ├── WorkerSupervisorProductionFlowTest.php (WorkerSupervisorProductionFlowTest - testRealStartStatusHealthStopFlowCleansEveryRuntimeArtifact())
 │   │           │   │   ├── WorkerSupervisorReadinessTest.php (WorkerSupervisorReadinessTest - testStatusAndHealthExposeStartingUntilEveryChildIsReady()/testOneUnreadyChildRollsBackEntireStartup()/testCrashBeforeReadinessNeverPublishesRunning()/testStopDuringStartingTerminatesAllSpawnedChildren())
 │   │           │   │   ├── WorkerSupervisorRecycleTest.php (WorkerSupervisorRecycleTest - testExpectedExitCreatesNewGenerationForSameSlot())
@@ -1251,7 +1255,8 @@ Coretsia/
 │   │           │       ├── ProcWorkerProcessDriverSupportTest.php (ProcWorkerProcessDriverSupportTest - testSupportIsNarrowedToResolvedProcSpecAndSecureHostCapability()/testConstructorRejectsInvalidCommandParts()/driver())
 │   │           │       ├── WorkerChildCommandBuilderTest.php (WorkerChildCommandBuilderTest - testBuildsExactCanonicalArgumentOrder()/testRejectsUnsafeArtifactRoot()/testRejectsInvalidWorkerIndex()/testRejectsControlCharactersInCommandParts()/testRejectsConnectedStreamReadinessEndpoint())
 │   │           │       ├── WorkerChildTableTest.php (WorkerChildTableTest - testTableMaintainsSortedTypedSlotsAndReadiness()/testDuplicateAndMissingSlotsAreRejected()/testForkDetachClosesAllReadinessEndpointsAndClearsCopy()/child())
-│   │           │       ├── WorkerLifecycleLocatorTest.php (WorkerLifecycleLocatorTest - testBuildsExactUnixLocatorFromPoolSpecAndRoundTrips()/testBuildsExactTcpLocatorFromPoolSpecAndRoundTrips()/testRejectsNonExactOrUnsafeLocatorMaps()/invalidLocatorMaps())
+│   │           │       ├── WorkerControlCredentialTest.php (WorkerControlCredentialTest - testGeneratesDistinctLowercaseHexCredentials()/testValidEncodedCredentialRoundTripsAndMatchesExactly()/testRejectsInvalidEncodedCredential()/invalidCredentials())
+│   │           │       ├── WorkerLifecycleLocatorTest.php (WorkerLifecycleLocatorTest - testBuildsExactUnixLocatorFromPoolSpecAndRoundTrips()/testBuildsExactTcpLocatorFromPoolSpecAndRoundTrips()/testCredentialDoesNotAffectEndpointIdentity()/testRejectsNonExactOrUnsafeLocatorMaps()/invalidLocatorMaps()/credential())
 │   │           │       ├── WorkerPoolSpecTest.php (WorkerPoolSpecTest - testNormalizesAutoCapabilitiesDeterministically()/testAutoDriverFailsWhenNoSecureProcessAdapterIsAvailable()/testExposesAllLifecycleFieldsAndRedactedEndpointIdentity()/testInvalidConfigurationFailsDeterministically()/invalidOverrides())
 │   │           │       ├── WorkerPoolStateTest.php (WorkerPoolStateTest - testSchemaVersionOneRoundTripsExactly()/testWithStatusPreservesIdentityAndUpdatesReadyCount()/testInvalidSchemaIsRejected()/invalidArrays()/state())
 │   │           │       ├── WorkerProcProcessHostProtocolTest.php (WorkerProcProcessHostProtocolTest - testSpawnHandoffKeepsVersionOneAndExactSchema()/testHandoffRejectsWrongTokenWithoutVersionChange()/protocol())
@@ -1259,7 +1264,7 @@ Coretsia/
 │   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php (WorkerServiceFactoryTaskFactoryBoundaryTest - testTaskFactoryResolvesOnlySelectedInternalFactory()/testTaskFactoryDoesNotFallbackAcrossTaskTypes(); RecordingTaskContainer - get()/has())
 │   │           │       ├── WorkerShutdownBudgetTest.php (WorkerShutdownBudgetTest - testBuildsCanonicalStopRequestTimeout()/testRejectsInvalidPhaseTimeouts()/invalidTimeoutProvider())
 │   │           │       ├── WorkerStateStoreStateFactoryTest.php (WorkerStateStoreStateFactoryTest - testCreatesRedactedSchemaVersionOneState()/testMissingSnapshotReturnsNullAndDoesNotAssertLiveness())
-│   │           │       └── WorkerSupervisorLifecycleTest.php (WorkerSupervisorLifecycleTest - testSupervisorSourceOwnsLifecycleAndContainsNoManagerFacade()/testProcessDriverContractHasPreparationAndShutdownButNoPoolOperations()/testBoundedDriverOperationsReceiveTimeoutArguments())
+│   │           │       └── WorkerSupervisorLifecycleTest.php (WorkerSupervisorLifecycleTest - testSupervisorSourceOwnsLifecycleAndContainsNoManagerFacade()/testCredentialIsGeneratedBeforeListenerAndLocatorPublication()/testProcessDriverContractHasPreparationAndShutdownButNoPoolOperations()/testBoundedDriverOperationsReceiveTimeoutArguments())
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md

@@ -88,6 +88,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Runtime Drivers SSoT](./runtime-drivers.md) — owner: repo — ssotVersion: 1 — scope: background,drivers,http,long-running,matrix,runtime
 - [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,uow,redaction
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md) — owner: core/foundation — ssotVersion: 1 — scope: clock,duration,ids,runtime,time
+- [Worker Control Security](./worker-control-security.md) — owner: platform/worker — ssotVersion: 1 — scope: authentication,control,credentials,redaction,runtime,worker
 
 ## Tooling and CI Contracts
 

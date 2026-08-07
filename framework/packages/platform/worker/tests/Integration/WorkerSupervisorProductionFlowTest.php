@@ -33,6 +33,30 @@ final class WorkerSupervisorProductionFlowTest extends SupervisorIntegrationTest
         self::assertFileExists($harness->locatorPath());
         self::assertFileDoesNotExist($harness->locatorTemporaryPath());
 
+        $locatorBytes = \file_get_contents($harness->locatorPath());
+        self::assertIsString($locatorBytes);
+        $locator = \json_decode(
+            $locatorBytes,
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($locator);
+        $credential = $locator['control_credential'] ?? null;
+        self::assertIsString($credential);
+        self::assertMatchesRegularExpression(
+            '/\A[a-f0-9]{64}\z/',
+            $credential,
+        );
+
+        $stateBytes = \file_get_contents($harness->statePath());
+        self::assertIsString($stateBytes);
+        self::assertStringNotContainsString($credential, $stateBytes);
+        self::assertStringNotContainsString(
+            $credential,
+            \json_encode($start, \JSON_THROW_ON_ERROR),
+        );
+
         self::assertSame(
             $harness->startPid(),
             $start['pid'],
@@ -44,6 +68,10 @@ final class WorkerSupervisorProductionFlowTest extends SupervisorIntegrationTest
         self::assertSame($start['pid'], $status['pid']);
 
         $health = self::onlyPayload($harness->invoke('health'));
+        self::assertStringNotContainsString(
+            $credential,
+            \json_encode([$status, $health], \JSON_THROW_ON_ERROR),
+        );
         self::assertSame('healthy', $health['status']);
         self::assertTrue($health['healthy']);
         self::assertSame('healthy', $health['reason']);

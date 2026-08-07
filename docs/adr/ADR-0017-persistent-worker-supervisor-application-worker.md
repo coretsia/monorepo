@@ -1016,15 +1016,20 @@ The protocol uses:
 - rejection of unknown keys;
 - rejection of unsupported versions;
 - bounded request identifiers matching `[A-Za-z0-9._-]{1,64}`;
+- one per-supervisor-instance 256-bit control credential;
+- exact lowercase hexadecimal credential representation;
+- constant-time credential comparison through `hash_equals()`;
+- silent rejection before session creation;
 - payload-free operations.
 
 The canonical request shape is:
 
 ```json
 {
-  "version": 1,
+  "credential": "<64 lowercase hexadecimal characters>",
   "operation": "status",
-  "request_id": "request-123-1"
+  "request_id": "request-123-1",
+  "version": 1
 }
 ```
 
@@ -1038,6 +1043,10 @@ The canonical successful response shape is:
   "result": {}
 }
 ```
+
+The credential is generated once for each supervisor instance after stale lifecycle cleanup and before listener publication. Child recycle does not rotate it. A new supervisor start does rotate it.
+
+The server validates the credential after exact protocol decoding and before creating `WorkerControlSession`. Missing, malformed, and non-matching credentials cause silent connection closure and execute no lifecycle operation. Responses never contain or echo the credential.
 
 The control channel supports:
 
@@ -1076,7 +1085,8 @@ The control protocol must not transport:
 - queue payloads;
 - headers;
 - cookies;
-- tokens;
+- readiness or proc-host tokens;
+- credentials other than the required supervisor-instance control credential;
 - environment values;
 - raw filesystem paths;
 - raw endpoint values.
@@ -1186,12 +1196,13 @@ lifecycle lock held + unavailable endpoint
   -> deterministic communication failure
 ```
 
-The locator is a private versioned filesystem record. It is not a control protocol request or response and must not enter `worker.state.json`.
+The locator is a private versioned filesystem capability record. It contains the active supervisor-instance control credential, is not a control protocol request or response, and must not enter `worker.state.json`.
 
 It contains only:
 
 ```text
 version
+control_credential
 control_transport
 socket_path
 tcp_host
@@ -1222,7 +1233,11 @@ Changing current worker endpoint or timeout configuration does not redirect life
 
 A process crash may leave a stale locator after the operating system releases the lifecycle lock. A free lock remains authoritative and classifies the pool as not running. The next successful start deletes the stale locator after acquiring the canonical lock and before publishing a fresh locator.
 
-Raw locator fields and raw locator JSON must not enter logs, spans, metrics, CLI output, state snapshots, or public exception messages.
+Raw locator fields, the control credential, and raw locator JSON must not enter logs, spans, metrics, CLI output, state snapshots, response frames, endpoint hashes, or public exception messages.
+
+On POSIX, the locator temporary file is created under `umask(0177)` and verified as mode `0600` before credential bytes are written. The locator read boundary rejects effective permission bits other than `0600`.
+
+Unix control sockets are created under `umask(0177)` and verified as mode `0600` before publication. TCP remains exactly loopback-only at `127.0.0.1`; no non-loopback opt-in is defined. Windows deployment owns restrictive directory ACLs.
 
 The supervisor deletes the private locator before releasing the lifecycle lock.
 

@@ -24,12 +24,6 @@ final class WorkerRuntimeDoesNotWriteToStdoutTest extends PackageTestCase
 {
     public function testProductionRuntimeContainsNoRawOutputSinks(): void
     {
-        $paths = [
-            ...\glob(self::packageRoot() . '/src/**/*.php', \GLOB_BRACE) ?: [],
-            self::packageRoot() . '/bin/coretsia-worker',
-            self::packageRoot() . '/bin/coretsia-worker-proc-host',
-        ];
-
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator(
                 self::packageRoot() . '/src',

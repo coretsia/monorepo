@@ -416,7 +416,8 @@ WorkerStartCommand
        -> delete stale private lifecycle locator
        -> delete stale state
        -> clear stale cooperative stop signal
-       -> open WorkerControlServer
+       -> generate supervisor-instance control credential
+       -> open authenticated WorkerControlServer
        -> install WorkerSignalController
        -> publish state=starting
        -> publish private WorkerLifecycleLocator
@@ -496,15 +497,15 @@ The control channel is lifecycle-only and must not transport task payloads.
 
 ## Runtime artifact ownership
 
-| Artifact                  | Path source                                    | Filesystem owner                                                              | Semantics                                                                          |
-|---------------------------|------------------------------------------------|-------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| lifecycle lock            | canonical `WorkerLifecyclePaths::LOCK`         | `WorkerLifecycleLock`                                                         | sole liveness authority; persistent anchor file is not unlinked                    |
-| private lifecycle locator | canonical `WorkerLifecyclePaths::LOCATOR`      | supervisor writes/deletes through `WorkerLifecycleLocatorStore`; client reads | active endpoint and active stop deadlines; never public output                     |
-| locator temporary file    | canonical `WorkerLifecyclePaths::LOCATOR_TEMP` | `WorkerLifecycleLocatorStore`                                                 | fixed atomic-publication temporary file; deleted after publication or cleanup      |
-| Unix control socket       | `worker.socket_path` for a new start           | `WorkerControlTransport`                                                      | active control endpoint when transport is `unix`; configurable only for a new pool |
-| diagnostic state          | `worker.state_path`                            | `WorkerStateStore`                                                            | redacted snapshot only; never liveness authority                                   |
-| state temporary file      | `worker.state_path + ".tmp"`                   | `WorkerStateStore`                                                            | atomic state-publication temporary file                                            |
-| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written between-task shutdown hint; not primary control                 |
+| Artifact                  | Path source                                    | Filesystem owner                                                              | Semantics                                                                           |
+|---------------------------|------------------------------------------------|-------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+| lifecycle lock            | canonical `WorkerLifecyclePaths::LOCK`         | `WorkerLifecycleLock`                                                         | sole liveness authority; persistent anchor file is not unlinked                     |
+| private lifecycle locator | canonical `WorkerLifecyclePaths::LOCATOR`      | supervisor writes/deletes through `WorkerLifecycleLocatorStore`; client reads | active endpoint, control credential, and active stop deadlines; never public output |
+| locator temporary file    | canonical `WorkerLifecyclePaths::LOCATOR_TEMP` | `WorkerLifecycleLocatorStore`                                                 | fixed atomic-publication temporary file; deleted after publication or cleanup       |
+| Unix control socket       | `worker.socket_path` for a new start           | `WorkerControlTransport`                                                      | active control endpoint when transport is `unix`; configurable only for a new pool  |
+| diagnostic state          | `worker.state_path`                            | `WorkerStateStore`                                                            | redacted snapshot only; never liveness authority                                    |
+| state temporary file      | `worker.state_path + ".tmp"`                   | `WorkerStateStore`                                                            | atomic state-publication temporary file                                             |
+| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written between-task shutdown hint; not primary control                  |
 
 ## Driver selection
 
@@ -582,6 +583,37 @@ TCP port `0` is forbidden because it would make endpoint identity and persisted 
 Raw socket paths, raw TCP hosts, and raw TCP ports must not appear in public diagnostics, logs, metrics, or public command output.
 
 Endpoint identity may be represented publicly only through a deterministic hash.
+
+## Control-channel authentication
+
+Every `status`, `health`, and `stop` request authenticates with one 256-bit supervisor-instance control credential.
+
+The credential is generated after stale lifecycle cleanup and before listener publication. It remains stable during child spawn and recycle, and rotates only when a new supervisor instance starts.
+
+The exact version-`1` request shape is:
+
+```json
+{
+  "credential": "<64 lowercase hexadecimal characters>",
+  "operation": "status",
+  "request_id": "request-123-1",
+  "version": 1
+}
+```
+
+The server decodes the exact request schema and validates the credential through `hash_equals()` before creating a `WorkerControlSession`. Missing, malformed, or non-matching credentials close the connection silently and execute no operation. Responses never contain the credential.
+
+Credential ownership is limited to supervisor memory, the active control server, the private lifecycle locator, and one private request frame. It must not enter state, endpoint hashes, logs, spans, metrics, CLI output, exceptions, child argv, or child environment.
+
+TCP remains restricted to `127.0.0.1`; no non-loopback opt-in exists. A Unix listener is created under `umask(0177)`, verified as mode `0600`, and published only after that verification. On Windows, deployment owns restrictive ACLs for the skeleton and runtime directory.
+
+The credential does not claim isolation from arbitrary processes running under the same compromised operating-system account.
+
+Canonical security policy is owned by:
+
+```text
+docs/ssot/worker-control-security.md
+```
 
 ## Runtime-driver guard boundary
 
@@ -1368,7 +1400,7 @@ Lifecycle discovery deliberately separates three concepts:
 ```text
 WorkerPoolSpec = desired configuration for creating a new pool
 WorkerPoolState = redacted diagnostic snapshot of an active pool
-WorkerLifecycleLocator = private address and stop deadlines of the active supervisor
+WorkerLifecycleLocator = private endpoint, control credential, and stop deadlines of the active supervisor
 ```
 
 `WorkerLifecyclePaths` is the single source of truth for canonical lifecycle artifacts:
@@ -1385,6 +1417,7 @@ Unix locator fields are:
 
 ```text
 version = 1
+control_credential = 64 lowercase hexadecimal characters
 control_transport = unix
 socket_path = non-empty relative-safe path
 tcp_host = null
@@ -1397,6 +1430,7 @@ TCP locator fields are:
 
 ```text
 version = 1
+control_credential = 64 lowercase hexadecimal characters
 control_transport = tcp
 socket_path = null
 tcp_host = 127.0.0.1
@@ -1411,16 +1445,17 @@ Unknown keys, missing keys, numeric strings, unsupported versions, absolute or u
 
 - encodes through `StableJsonEncoder`;
 - limits the complete locator to `4096` bytes;
-- writes the fixed temporary path;
-- applies mode `0600`;
+- creates the fixed temporary path under `umask(0177)` on POSIX;
+- verifies mode `0600` before writing credential bytes;
 - publishes by atomic rename;
+- rejects POSIX locator files whose effective permission bits are not exactly `0600`;
 - rejects symlinks and non-regular files on read;
 - maps client-side read failures to deterministic communication failure;
 - deletes both final and temporary locator paths idempotently.
 
 The locator is published only after the control listener, signal handling, and `starting` state are ready, but before child spawn. It is deleted before the canonical lifecycle lock is released.
 
-The locator is not liveness authority without the lock. It is not a protocol frame, must not enter `worker.state.json`, and its raw endpoint fields must not be logged or rendered by CLI commands.
+The locator is not liveness authority without the lock. It is not a protocol frame, must not enter `worker.state.json`, and its raw endpoint fields or control credential must not be logged or rendered by CLI commands. Endpoint identity and endpoint hash deliberately exclude the credential.
 
 The lifecycle-command sequence is:
 
@@ -1429,7 +1464,7 @@ probe canonical lifecycle lock
 -> if free, return not running
 -> read private lifecycle locator
 -> connect to the active endpoint from the locator
--> send status, health, or stop request
+-> send an authenticated status, health, or stop request
 -> validate the response endpoint hash against the locator
 ```
 

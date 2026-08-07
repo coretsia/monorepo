@@ -23,6 +23,7 @@ use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Communication\WorkerControlOperation;
 use Coretsia\Platform\Worker\Communication\WorkerControlServer;
 use Coretsia\Platform\Worker\Communication\WorkerControlSession;
@@ -145,7 +146,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $this->stateStore->delete($spec);
             $this->stopSignal->clear($spec);
 
-            $this->controlServer->listen($spec);
+            $controlCredential = WorkerControlCredential::generate();
+
+            $this->controlServer->listen(
+                $spec,
+                $controlCredential,
+            );
             $serverListening = true;
 
             $this->signals->install();
@@ -159,7 +165,10 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             );
             $this->stateStore->write($spec, $state);
             $this->locatorStore->write(
-                WorkerLifecycleLocator::fromPoolSpec($spec),
+                WorkerLifecycleLocator::fromPoolSpec(
+                    $spec,
+                    $controlCredential,
+                ),
             );
 
             for ($index = 0; $index < $spec->workers(); $index++) {
@@ -419,9 +428,9 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             throw $exception;
         } catch (
             WorkerStartFailedException
-            | WorkerLifecycleFailedException
-            | WorkerForkFailedException
-            | WorkerCommunicationFailedException $exception
+            |WorkerLifecycleFailedException
+            |WorkerForkFailedException
+            |WorkerCommunicationFailedException $exception
         ) {
             $exitCode = self::EXIT_FAILURE;
 
@@ -499,6 +508,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
      */
     private function serviceControlRequest(
         WorkerPoolState $state,
+        #[\SensitiveParameter]
         array &$pendingStops,
         bool $terminalChildFailure,
         int $timeoutMs = self::EVENT_LOOP_TICK_MS,
@@ -891,10 +901,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 return;
             }
 
-            \usleep(\min(
-                self::REAP_POLL_INTERVAL_US,
-                $remainingMs * 1_000,
-            ));
+            \usleep(
+                \min(
+                    self::REAP_POLL_INTERVAL_US,
+                    $remainingMs * 1_000,
+                )
+            );
         } while (true);
     }
 
@@ -970,6 +982,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
     }
 
     private function bestEffortRespondStopped(
+        #[\SensitiveParameter]
         WorkerControlSession $session,
         WorkerPoolState $state,
     ): void {

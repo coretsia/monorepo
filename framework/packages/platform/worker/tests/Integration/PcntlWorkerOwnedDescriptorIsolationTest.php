@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlServer;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
@@ -166,7 +167,12 @@ final class PcntlWorkerOwnedDescriptorIsolationTest extends PackageTestCase
             return;
         }
 
-        $server->listen($spec);
+        $server->listen(
+            $spec,
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
+        );
         $child = $driver->spawn($spec, 0);
 
         try {

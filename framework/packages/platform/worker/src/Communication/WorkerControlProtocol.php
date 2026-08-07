@@ -27,6 +27,8 @@ use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
  *
  * Frames use StableJsonEncoder and StableJsonDecoder, have an exact bounded
  * schema, and reject unknown keys, unsupported versions, and oversized input.
+ * Version 1 requests contain one supervisor-instance credential; responses
+ * never contain or expose that credential.
  */
 final readonly class WorkerControlProtocol
 {
@@ -38,13 +40,17 @@ final readonly class WorkerControlProtocol
     ) {
     }
 
-    public function encodeRequest(WorkerControlRequest $request): string
-    {
+    public function encodeRequest(
+        #[\SensitiveParameter]
+        WorkerControlRequest $request,
+    ): string {
         return $this->encode($request->toArray());
     }
 
-    public function decodeRequest(string $frame): WorkerControlRequest
-    {
+    public function decodeRequest(
+        #[\SensitiveParameter]
+        string $frame,
+    ): WorkerControlRequest {
         try {
             return WorkerControlRequest::fromArray($this->decode($frame));
         } catch (\Throwable) {
@@ -67,8 +73,10 @@ final readonly class WorkerControlProtocol
     }
 
     /** @param array<string, mixed> $value */
-    private function encode(array $value): string
-    {
+    private function encode(
+        #[\SensitiveParameter]
+        array $value,
+    ): string {
         try {
             $frame = $this->encoder->encodeMap($value);
         } catch (\Throwable) {
@@ -84,8 +92,10 @@ final readonly class WorkerControlProtocol
     }
 
     /** @return array<string, mixed> */
-    private function decode(string $frame): array
-    {
+    private function decode(
+        #[\SensitiveParameter]
+        string $frame,
+    ): array {
         if (
             $frame === ''
             || \strlen($frame) > self::MAX_FRAME_BYTES

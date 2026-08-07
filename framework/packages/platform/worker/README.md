@@ -161,7 +161,8 @@ WorkerStartCommand
        -> prepare driver-owned infrastructure
        -> acquire canonical WorkerLifecycleLock
        -> delete stale lifecycle locator, state, and stop signal
-       -> open WorkerControlServer
+       -> generate supervisor-instance control credential
+       -> open authenticated WorkerControlServer
        -> install supervisor signal handling
        -> publish starting state
        -> publish private WorkerLifecycleLocator
@@ -591,7 +592,7 @@ Three separate runtime concepts are intentionally preserved:
 ```text
 WorkerPoolSpec = desired configuration for creating a new pool
 WorkerPoolState = redacted diagnostic snapshot of an active pool
-WorkerLifecycleLocator = private address and stop deadlines of the active supervisor
+WorkerLifecycleLocator = private endpoint, control credential, and stop deadlines of the active supervisor
 ```
 
 Canonical package-owned paths are:
@@ -604,9 +605,27 @@ var/tmp/worker.lifecycle.json.tmp
 
 The lock is the liveness authority. A free lock means the worker is not running, regardless of stale state or locator files. A held lock with a missing, unreadable, malformed, oversized, symlinked, or schema-invalid locator is a deterministic communication failure.
 
-The locator has an exact versioned schema, is written atomically with mode `0600`, and contains only the active control transport, its private address, and the active stop deadlines. It is never rendered by CLI commands, copied into `worker.state.json`, or included in logs and exception messages.
+The locator has an exact version-`1` schema and contains the active control transport, its private address, the supervisor-instance control credential, and the active stop deadlines. On POSIX its exclusive temporary file is created under `umask(0177)`, verified as mode `0600` before credential bytes are written, and published atomically. On POSIX, reads reject effective permission bits other than `0600`. The locator is never rendered by CLI commands, copied into `worker.state.json`, or included in logs and exception messages.
 
 The supervisor publishes the locator only after the listener, signal handling, and `starting` state are ready, but before child spawn. During shutdown it deletes the locator before releasing the lifecycle lock.
+
+## Control-channel authentication
+
+Every `status`, `health`, and `stop` request includes the 256-bit credential of the active supervisor instance. The credential is encoded as exactly 64 lowercase hexadecimal characters and compared through `hash_equals()` before a control session is created.
+
+The credential rotates on supervisor restart and remains stable during child spawn and recycle. Missing, malformed, stale, or incorrect credentials are rejected by silently closing the connection. Responses never echo the credential.
+
+The credential exists only in supervisor memory, the active control server, the private lifecycle locator, and a private request frame. It is absent from public state, endpoint hashes, logs, spans, metrics, CLI output, exceptions, child argv, and child environment.
+
+TCP control binds exactly to `127.0.0.1`; no remote or unsafe non-loopback opt-in is provided. Unix control sockets are created under restrictive `umask(0177)` and verified as mode `0600`. On Windows, deployment must restrict skeleton and runtime directory ACLs to the application service account and authorized administrators.
+
+This credential is not an isolation boundary against arbitrary processes running under the same compromised operating-system account.
+
+Canonical rules are defined in:
+
+```text
+docs/ssot/worker-control-security.md
+```
 
 ## Worker commands
 
@@ -682,10 +701,11 @@ The command:
 1. probes the canonical lifecycle-lock authority;
 2. reads the private lifecycle locator;
 3. connects to the active endpoint from that locator;
-4. uses the active supervisor's locator-published stop deadlines;
-5. sends one `stop` request;
-6. waits while the supervisor performs cooperative, graceful, and forced shutdown;
-7. reports success only after the terminal `stopped` response.
+4. authenticates with the active supervisor-instance control credential;
+5. uses the active supervisor's locator-published stop deadlines;
+6. sends one `stop` request;
+7. waits while the supervisor performs cooperative, graceful, and forced shutdown;
+8. reports success only after the terminal `stopped` response.
 
 Lifecycle commands do not resolve `WorkerPoolSpec` and do not use current worker configuration to address an active supervisor.
 

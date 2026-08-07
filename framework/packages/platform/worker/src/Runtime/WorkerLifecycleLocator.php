@@ -18,15 +18,18 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Runtime;
 
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
+
 /**
- * Validated private address of the active worker supervisor.
+ * Validated private capability locator of the active worker supervisor.
  *
- * The locator is discovery data, not a diagnostic state snapshot and not a
- * control-protocol frame. It intentionally contains only the active transport
- * address and stop deadlines required by lifecycle clients.
+ * The locator contains the active transport address, stop deadlines, and one
+ * supervisor-instance control credential. It is not a diagnostic state snapshot
+ * and not a control-protocol frame.
  *
- * Raw endpoint fields must remain private: they must not be logged, rendered by
- * CLI commands, copied into WorkerPoolState, or included in exceptions.
+ * Raw locator fields and the credential must remain private: they must not be
+ * logged, rendered by CLI commands, copied into WorkerPoolState, or included in
+ * exceptions. Endpoint identity deliberately excludes the credential.
  */
 final readonly class WorkerLifecycleLocator
 {
@@ -34,10 +37,9 @@ final readonly class WorkerLifecycleLocator
 
     private const int MAX_TIMEOUT_MS = 86_400_000;
 
-    /**
-     * @var list<string>
-     */
+    /** @var list<string> */
     private const array SCHEMA_KEYS = [
+        'control_credential',
         'control_transport',
         'force_kill_timeout_ms',
         'socket_path',
@@ -48,6 +50,8 @@ final readonly class WorkerLifecycleLocator
     ];
 
     private function __construct(
+        #[\SensitiveParameter]
+        private WorkerControlCredential $controlCredential,
         private string $controlTransport,
         private ?string $socketPath,
         private ?string $tcpHost,
@@ -57,10 +61,14 @@ final readonly class WorkerLifecycleLocator
     ) {
     }
 
-    public static function fromPoolSpec(WorkerPoolSpec $spec): self
-    {
+    public static function fromPoolSpec(
+        WorkerPoolSpec $spec,
+        #[\SensitiveParameter]
+        WorkerControlCredential $credential,
+    ): self {
         return match ($spec->controlTransport()) {
             'unix' => self::create(
+                controlCredential: $credential,
                 controlTransport: 'unix',
                 socketPath: $spec->socketPath(),
                 tcpHost: null,
@@ -69,6 +77,7 @@ final readonly class WorkerLifecycleLocator
                 forceKillTimeoutMs: $spec->forceKillTimeoutMs(),
             ),
             'tcp' => self::create(
+                controlCredential: $credential,
                 controlTransport: 'tcp',
                 socketPath: null,
                 tcpHost: $spec->tcpHost(),
@@ -80,23 +89,30 @@ final readonly class WorkerLifecycleLocator
         };
     }
 
-    /**
-     * @param array<string, mixed> $value
-     */
-    public static function fromArray(array $value): self
-    {
+    /** @param array<string, mixed> $value */
+    public static function fromArray(
+        #[\SensitiveParameter]
+        array $value,
+    ): self {
         $keys = \array_keys($value);
         \sort($keys, \SORT_STRING);
 
-        if ($keys !== self::SCHEMA_KEYS) {
+        if (
+            $keys !== self::SCHEMA_KEYS
+            || ($value['version'] ?? null) !== self::VERSION
+            || !\is_string($value['control_credential'] ?? null)
+        ) {
             throw new \InvalidArgumentException('worker-lifecycle-locator-invalid');
         }
 
-        if ($value['version'] !== self::VERSION) {
+        try {
+            $credential = WorkerControlCredential::fromEncoded($value['control_credential']);
+        } catch (\Throwable) {
             throw new \InvalidArgumentException('worker-lifecycle-locator-invalid');
         }
 
         return self::create(
+            controlCredential: $credential,
             controlTransport: $value['control_transport'],
             socketPath: $value['socket_path'],
             tcpHost: $value['tcp_host'],
@@ -109,6 +125,7 @@ final readonly class WorkerLifecycleLocator
     /**
      * @return array{
      *     version: 1,
+     *     control_credential: string,
      *     control_transport: 'unix'|'tcp',
      *     socket_path: non-empty-string|null,
      *     tcp_host: '127.0.0.1'|null,
@@ -121,6 +138,7 @@ final readonly class WorkerLifecycleLocator
     {
         return [
             'version' => self::VERSION,
+            'control_credential' => $this->controlCredential->encoded(),
             'control_transport' => $this->controlTransport,
             'socket_path' => $this->socketPath,
             'tcp_host' => $this->tcpHost,
@@ -128,6 +146,11 @@ final readonly class WorkerLifecycleLocator
             'stop_timeout_ms' => $this->stopTimeoutMs,
             'force_kill_timeout_ms' => $this->forceKillTimeoutMs,
         ];
+    }
+
+    public function controlCredential(): WorkerControlCredential
+    {
+        return $this->controlCredential;
     }
 
     public function controlTransport(): string
@@ -186,6 +209,8 @@ final readonly class WorkerLifecycleLocator
     }
 
     private static function create(
+        #[\SensitiveParameter]
+        WorkerControlCredential $controlCredential,
         mixed $controlTransport,
         mixed $socketPath,
         mixed $tcpHost,
@@ -218,6 +243,7 @@ final readonly class WorkerLifecycleLocator
             }
 
             return new self(
+                controlCredential: $controlCredential,
                 controlTransport: 'unix',
                 socketPath: $socketPath,
                 tcpHost: null,
@@ -238,6 +264,7 @@ final readonly class WorkerLifecycleLocator
         }
 
         return new self(
+            controlCredential: $controlCredential,
             controlTransport: 'tcp',
             socketPath: null,
             tcpHost: '127.0.0.1',

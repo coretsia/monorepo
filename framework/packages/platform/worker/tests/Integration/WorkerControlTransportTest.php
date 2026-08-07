@@ -26,10 +26,7 @@ final class WorkerControlTransportTest extends PackageTestCase
 {
     public function testAcceptReturnsNullWhenNoClientArrivesDuringTick(): void
     {
-        $root = $this->temporaryDirectory(
-            'worker-control-transport',
-        );
-
+        $root = $this->temporaryDirectory('worker-control-transport');
         $transport = new WorkerControlTransport($root);
 
         $spec = WorkerSpecFactory::create(
@@ -53,10 +50,7 @@ final class WorkerControlTransportTest extends PackageTestCase
 
     public function testListenerSecurityAndCleanupMatchResolvedTransport(): void
     {
-        $root = $this->temporaryDirectory(
-            'worker-control-security',
-        );
-
+        $root = $this->temporaryDirectory('worker-control-security');
         $transport = new WorkerControlTransport($root);
 
         $spec = WorkerSpecFactory::create(
@@ -100,15 +94,32 @@ final class WorkerControlTransportTest extends PackageTestCase
         );
     }
 
+    public function testUnixListenerUsesRestrictiveCreationPolicy(): void
+    {
+        $source = self::source('src/Communication/WorkerControlTransport.php');
+
+        self::assertStringContainsString(
+            '\\umask(0177)',
+            $source,
+        );
+        self::assertStringContainsString(
+            '\\umask($previousUmask)',
+            $source,
+        );
+        self::assertStringContainsString(
+            '@\\chmod($path, 0600)',
+            $source,
+        );
+        self::assertStringContainsString(
+            '(($permissions & 0777) !== 0600)',
+            $source,
+        );
+    }
+
     public function testAcceptedTcpSessionWaitsForDelayedRequestFrame(): void
     {
-        $root = $this->temporaryDirectory(
-            'worker-control-delayed-frame',
-        );
-
-        $transport = new WorkerControlTransport(
-            $root,
-        );
+        $root = $this->temporaryDirectory('worker-control-delayed-frame');
+        $transport = new WorkerControlTransport($root);
 
         $spec = WorkerSpecFactory::create([
             'workers' => 1,
@@ -245,14 +256,9 @@ PHP;
             $transport->cleanup($spec);
 
             if (\is_resource($process)) {
-                $status = @\proc_get_status(
-                    $process,
-                );
+                $status = @\proc_get_status($process);
 
-                if (
-                    \is_array($status)
-                    && ($status['running'] ?? false) === true
-                ) {
+                if (\is_array($status) && ($status['running'] ?? false) === true) {
                     @\proc_terminate(
                         $process,
                         9,

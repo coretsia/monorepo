@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Tests\Support\SupervisorIntegrationTestCase;
@@ -250,6 +251,9 @@ final class WorkerLifecycleConfigDriftTest extends SupervisorIntegrationTestCase
                     'port' => $stalePort,
                 ],
             ]),
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
         );
         $store->write($stale);
 

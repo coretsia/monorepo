@@ -50,9 +50,12 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
         self::assertSame(1, $summary['worker_count']);
         self::assertSame(1, $summary['ready_worker_count']);
 
+        $credentialBeforeRecycle = self::controlCredential(
+            $harness->locatorPath(),
+        );
+
         self::waitUntil(
-            static fn (): bool =>
-                \count($harness->pidLog()) >= 2
+            static fn (): bool => \count($harness->pidLog()) >= 2
                 && \count(
                     self::applicationWorkerRuns($root),
                 ) >= 1,
@@ -123,6 +126,10 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
         self::assertSame('running', $status['status']);
         self::assertSame(1, $status['worker_count']);
         self::assertSame(1, $status['ready_worker_count']);
+        self::assertSame(
+            $credentialBeforeRecycle,
+            self::controlCredential($harness->locatorPath()),
+        );
 
         self::onlyPayload(
             $harness->invoke('stop'),
@@ -132,6 +139,23 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
             0,
             $harness->finishStart()['exit_code'],
         );
+    }
+
+    private static function controlCredential(string $path): string
+    {
+        $bytes = \file_get_contents($path);
+        self::assertIsString($bytes);
+        $value = \json_decode(
+            $bytes,
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($value);
+        $credential = $value['control_credential'] ?? null;
+        self::assertIsString($credential);
+
+        return $credential;
     }
 
     /**
@@ -148,8 +172,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
     private static function applicationWorkerRuns(
         string $root,
     ): array {
-        $path = $root
-            . '/var/tmp/worker-application-runs.jsonl';
+        $path = $root . '/var/tmp/worker-application-runs.jsonl';
 
         if (!\is_file($path)) {
             return [];

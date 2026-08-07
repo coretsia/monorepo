@@ -23,6 +23,7 @@ namespace Coretsia\Platform\Worker\Communication;
  *
  * A stop response uses the terminal `stopped` status and is emitted only after
  * child reap, runtime cleanup, listener closure, and lifecycle-lock release.
+ * Responses never contain or expose the request credential.
  */
 final readonly class WorkerControlResponse
 {
@@ -113,16 +114,21 @@ final readonly class WorkerControlResponse
     /** @param array<string, mixed> $value */
     public static function fromArray(array $value): self
     {
-        if (($value['version'] ?? null) !== WorkerControlRequest::VERSION || !\is_string(
-            $value['request_id'] ?? null
-        ) || !\is_string($value['status'] ?? null)) {
+        if (
+            ($value['version'] ?? null) !== WorkerControlRequest::VERSION
+            || !\is_string($value['request_id'] ?? null)
+            || !\is_string($value['status'] ?? null)
+        ) {
             throw new \InvalidArgumentException('worker-control-response-invalid');
         }
 
         if ($value['status'] === self::STATUS_ERROR) {
             $keys = \array_keys($value);
             \sort($keys, \SORT_STRING);
-            if ($keys !== ['error', 'request_id', 'status', 'version'] || !\is_string($value['error'] ?? null)) {
+            if (
+                $keys !== ['error', 'request_id', 'status', 'version']
+                || !\is_string($value['error'] ?? null)
+            ) {
                 throw new \InvalidArgumentException('worker-control-response-invalid');
             }
             return new self($value['request_id'], self::STATUS_ERROR, null, $value['error']);
@@ -130,9 +136,11 @@ final readonly class WorkerControlResponse
 
         $keys = \array_keys($value);
         \sort($keys, \SORT_STRING);
-        if ($keys !== ['request_id', 'result', 'status', 'version'] || !\is_array(
-            $value['result'] ?? null
-        ) || \array_is_list($value['result'])) {
+        if (
+            $keys !== ['request_id', 'result', 'status', 'version']
+            || !\is_array($value['result'] ?? null)
+            || \array_is_list($value['result'])
+        ) {
             throw new \InvalidArgumentException('worker-control-response-invalid');
         }
         return new self($value['request_id'], $value['status'], $value['result'], null);

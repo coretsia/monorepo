@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Platform\Worker\Communication\WorkerControlCredential;
 use Coretsia\Platform\Worker\Exception\WorkerCommunicationFailedException;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
@@ -39,6 +40,9 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
                 'stop_timeout_ms' => 2_300,
                 'force_kill_timeout_ms' => 400,
             ]),
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
         );
         $path = WorkerLifecyclePaths::resolve($root, WorkerLifecyclePaths::LOCATOR);
         $temporaryPath = WorkerLifecyclePaths::resolve(
@@ -54,7 +58,8 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
         self::assertFileExists($path);
         self::assertFileDoesNotExist($temporaryPath);
         self::assertSame(
-            '{"control_transport":"unix","force_kill_timeout_ms":400,'
+            '{"control_credential":"' . \str_repeat('a', 64) . '",'
+            . '"control_transport":"unix","force_kill_timeout_ms":400,'
             . '"socket_path":"var/tmp/worker.sock","stop_timeout_ms":2300,'
             . '"tcp_host":null,"tcp_port":null,"version":1}'
             . "\n",
@@ -88,6 +93,9 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
             WorkerSpecFactory::create([
                 'socket_path' => 'var/tmp/first-worker.sock',
             ]),
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
         );
         $second = WorkerLifecycleLocator::fromPoolSpec(
             WorkerSpecFactory::create([
@@ -98,6 +106,9 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
                     'port' => 9_444,
                 ],
             ]),
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('b', 64),
+            ),
         );
         $path = WorkerLifecyclePaths::resolve($root, WorkerLifecyclePaths::LOCATOR);
         $temporaryPath = WorkerLifecyclePaths::resolve(
@@ -113,6 +124,37 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
         self::assertSame($second->toArray(), $store->read()?->toArray());
         self::assertNotSame($firstBytes, \file_get_contents($path));
         self::assertFileDoesNotExist($temporaryPath);
+    }
+
+    public function testPosixLocatorWithBroadPermissionsIsRejected(): void
+    {
+        if (\PHP_OS_FAMILY === 'Windows') {
+            self::assertSame('Windows', \PHP_OS_FAMILY);
+
+            return;
+        }
+
+        $root = $this->temporaryDirectory(
+            'worker-lifecycle-locator-permissions',
+        );
+        $store = self::store($root);
+        $locator = WorkerLifecycleLocator::fromPoolSpec(
+            WorkerSpecFactory::create(),
+            WorkerControlCredential::fromEncoded(
+                \str_repeat('a', 64),
+            ),
+        );
+        $path = WorkerLifecyclePaths::resolve(
+            $root,
+            WorkerLifecyclePaths::LOCATOR,
+        );
+
+        $store->write($locator);
+        self::assertTrue(\chmod($path, 0644));
+
+        $this->expectException(WorkerCommunicationFailedException::class);
+
+        $store->read();
     }
 
     #[DataProvider('invalidLocatorBytes')]
@@ -138,10 +180,7 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
 
     public function testLinkedOrNonRegularLocatorIsSafeCommunicationFailure(): void
     {
-        $root = $this->temporaryDirectory(
-            'worker-lifecycle-locator-link',
-        );
-
+        $root = $this->temporaryDirectory('worker-lifecycle-locator-link');
         $target = $root . '/target.json';
 
         $path = WorkerLifecyclePaths::resolve(
@@ -160,8 +199,7 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
             "{}\n",
         );
 
-        $linked = \function_exists('symlink')
-            && @\symlink($target, $path);
+        $linked = \function_exists('symlink') && @\symlink($target, $path);
 
         if (\PHP_OS_FAMILY !== 'Windows') {
             self::assertTrue(
@@ -182,9 +220,7 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
         try {
             self::store($root)->read();
 
-            self::fail(
-                'Expected WorkerCommunicationFailedException.',
-            );
+            self::fail('Expected WorkerCommunicationFailedException.');
         } catch (WorkerCommunicationFailedException $exception) {
             self::assertSame(
                 WorkerCommunicationFailedException::ERROR_CODE,
@@ -203,6 +239,31 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
         }
     }
 
+    public function testPrivateLocatorUsesRestrictiveCreationPolicyBeforeWriting(): void
+    {
+        $source = self::source('src/Runtime/WorkerLifecycleLocatorStore.php');
+        $umask = \strpos($source, '\\umask(0177)');
+        $open = \strpos($source, '@\\fopen(');
+        $chmod = \strpos($source, '@\\chmod($temporaryPath, 0600)');
+        $write = \strpos($source, 'self::writeAll($handle, $bytes)');
+
+        self::assertIsInt($umask);
+        self::assertIsInt($open);
+        self::assertIsInt($chmod);
+        self::assertIsInt($write);
+        self::assertLessThan($open, $umask);
+        self::assertLessThan($chmod, $open);
+        self::assertLessThan($write, $chmod);
+        self::assertStringContainsString(
+            '\\umask($previousUmask)',
+            $source,
+        );
+        self::assertStringContainsString(
+            '(($permissions & 0777) !== 0600)',
+            $source,
+        );
+    }
+
     /** @return iterable<string, array{string}> */
     public static function invalidLocatorBytes(): iterable
     {
@@ -210,7 +271,8 @@ final class WorkerLifecycleLocatorStoreFilesystemTest extends PackageTestCase
         yield 'non-map root' => ["[]\n"];
         yield 'missing keys' => ["{}\n"];
         yield 'unknown key' => [
-            '{"control_transport":"unix","force_kill_timeout_ms":1000,'
+            '{"control_credential":"' . \str_repeat('a', 64) . '",'
+            . '"control_transport":"unix","force_kill_timeout_ms":1000,'
             . '"instance_id":"stale","socket_path":"var/tmp/worker.sock",'
             . '"stop_timeout_ms":10000,"tcp_host":null,"tcp_port":null,'
             . '"version":1}'

@@ -27,6 +27,7 @@ final class WorkerInternalInterfacesAreNotPublicApiContractTest extends PackageT
         foreach (
             [
                 'WorkerProcessDriverInterface.php',
+                'WorkerProcessGuardianInterface.php',
                 'WorkerProcessDriverResolverInterface.php',
                 'WorkerSupervisorInterface.php',
                 'WorkerSupervisorResolverInterface.php',

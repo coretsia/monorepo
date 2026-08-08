@@ -25,18 +25,30 @@ final class CompiledWorkerGraphContainsRequiredRuntimeServicesTest extends Packa
     public function testProviderDeclaresEveryRequiredRuntimeServiceAndAlias(): void
     {
         $source = self::source('src/Provider/WorkerServiceProvider.php');
-        foreach ([
-            'WorkerLifecycleLock::class', 'WorkerLifecycleLocatorStore::class',
-            'WorkerStopSignal::class',
-            'WorkerControlTransport::class', 'WorkerControlProtocol::class',
-            'WorkerControlServer::class', 'WorkerControlClient::class',
-            'WorkerChildReadinessChannel::class', 'WorkerChildTable::class',
-            'WorkerSignalController::class', 'WorkerChildCommandBuilder::class',
-            'ContainerWorkerProcessDriverResolver::class',
-            'WorkerProcessDriverResolverInterface::class', 'WorkerSupervisor::class',
-            'WorkerProcProcessHostProtocol::class', 'WorkerProcProcessHostClient::class',
-            'WorkerSupervisorInterface::class', 'WorkerSupervisorResolverInterface::class',
-        ] as $service) {
+        foreach (
+            [
+                'WorkerLifecycleLock::class',
+                'WorkerLifecycleLocatorStore::class',
+                'WorkerStopSignal::class',
+                'WorkerControlTransport::class',
+                'WorkerControlProtocol::class',
+                'WorkerControlServer::class',
+                'WorkerControlClient::class',
+                'WorkerChildReadinessChannel::class',
+                'WorkerChildTable::class',
+                'WorkerSignalController::class',
+                'WorkerChildCommandBuilder::class',
+                'ContainerWorkerProcessDriverResolver::class',
+                'WorkerProcessDriverResolverInterface::class',
+                'WorkerSupervisor::class',
+                'WorkerProcessGuardianProtocol::class',
+                'WorkerProcessGuardianTransport::class',
+                'WorkerProcessGuardianClient::class',
+                'WorkerProcessGuardianInterface::class',
+                'WorkerSupervisorInterface::class',
+                'WorkerSupervisorResolverInterface::class',
+            ] as $service
+        ) {
             self::assertStringContainsString($service, $source);
         }
     }

@@ -21,16 +21,13 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
-use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
-use Coretsia\Platform\Worker\Communication\WorkerControlServer;
-use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
-use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
-use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
-use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
@@ -51,13 +48,13 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
         ]);
 
         if (!$driver->supports($spec)) {
-            $this->expectException(WorkerStartFailedException::class);
-            $driver->prepare($spec);
-
+            self::assertFalse(WorkerProcessCapabilities::pcntlDriverAvailable());
             return;
         }
 
-        $driver->prepare($spec);
+        $guardian = self::guardian($root);
+        $guardian->claim($spec, 'pcntl');
+        $driver = self::driver($root, 'var/cache/coretsia', $readiness, $guardian);
         $child = $driver->spawn($spec, 0);
         $readiness->await($child, 2000);
 
@@ -85,7 +82,7 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
         self::assertSame($child->pid(), $marker['pid'] ?? null);
 
         $driver->close($child, 1_000);
-        $driver->shutdown(1_000);
+        $guardian->release(1_000);
     }
 
     public function testExecFailureBeforeReadinessIsUnexpectedNonZeroExit(): void
@@ -103,20 +100,13 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
         ]);
 
         if (!$driver->supports($spec)) {
-            try {
-                $driver->prepare($spec);
-                self::fail('Unsupported PCNTL execution must fail before fork.');
-            } catch (WorkerStartFailedException $exception) {
-                self::assertSame(
-                    WorkerStartFailedException::REASON_CHILD_START_FAILED,
-                    $exception->reason(),
-                );
-            }
-
+            self::assertFalse(WorkerProcessCapabilities::pcntlDriverAvailable());
             return;
         }
 
-        $driver->prepare($spec);
+        $guardian = self::guardian($root);
+        $guardian->claim($spec, 'pcntl');
+        $driver = self::driver($root, 'var/fail-before-readiness', $readiness, $guardian);
         $child = $driver->spawn($spec, 0);
 
         try {
@@ -144,24 +134,16 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
         self::assertFalse($exit->expected());
 
         $driver->close($child, 1_000);
-        $driver->shutdown(1_000);
+        $guardian->release(1_000);
     }
 
     private static function driver(
         string $root,
         string $artifactRoot,
         WorkerChildReadinessChannel $readiness,
+        ?WorkerProcessGuardianClient $guardian = null,
     ): PcntlWorkerProcessDriver {
-        $lock = new WorkerLifecycleLock($root);
-        $server = new WorkerControlServer(
-            new WorkerControlTransport($root),
-            new WorkerControlProtocol(
-                new StableJsonEncoder(),
-                new StableJsonDecoder(),
-            ),
-        );
-        $table = new WorkerChildTable();
-        $signals = new WorkerSignalController();
+        $guardian ??= self::guardian($root);
 
         return new PcntlWorkerProcessDriver(
             skeletonRoot: $root,
@@ -171,36 +153,24 @@ final class PcntlWorkerProcessDriverTest extends PackageTestCase
             ],
             commandBuilder: new WorkerChildCommandBuilder($artifactRoot),
             readinessChannel: $readiness,
-            forkIsolation: new WorkerForkIsolation(
-                $lock,
-                $server,
-                $signals,
-                $table,
-            ),
-            pcntlAvailable: self::pcntlAvailable(),
+            guardian: $guardian,
+            driverAvailable: WorkerProcessCapabilities::pcntlDriverAvailable(),
             platformFamily: \PHP_OS_FAMILY,
         );
     }
 
-    private static function pcntlAvailable(): bool
+    private static function guardian(string $root): WorkerProcessGuardianClient
     {
-        foreach (
-            [
-                'pcntl_fork',
-                'pcntl_exec',
-                'pcntl_waitpid',
-                'pcntl_wifexited',
-                'pcntl_wexitstatus',
-                'pcntl_wifsignaled',
-                'pcntl_wtermsig',
-                'posix_kill',
-            ] as $function
-        ) {
-            if (!\function_exists($function)) {
-                return false;
-            }
-        }
+        $bootstrapRoot = \is_file(self::frameworkRoot() . '/vendor/autoload.php')
+            ? self::frameworkRoot()
+            : self::packageRoot();
 
-        return true;
+        return new WorkerProcessGuardianClient(
+            command: [\PHP_BINARY, self::packageRoot() . '/bin/coretsia-worker-guardian'],
+            bootstrapWorkingDirectory: $bootstrapRoot,
+            skeletonRoot: $root,
+            protocol: new WorkerProcessGuardianProtocol(new StableJsonEncoder(), new StableJsonDecoder()),
+            transport: new WorkerProcessGuardianTransport(),
+        );
     }
 }

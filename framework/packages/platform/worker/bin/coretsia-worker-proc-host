@@ -42,11 +42,11 @@ final class CoretsiaWorkerProcHostFailure extends \RuntimeException
 /**
  * Low-level proc_open host runtime.
  *
- * It owns only opaque process resources and one authenticated supervisor
+ * It owns only opaque process resources and one authenticated guardian
  * connection. Before every proc_open() call, that connection is closed and is
  * replaced afterward through a one-shot authenticated handoff. Worker-pool
  * lifecycle, readiness, state, health, recycle policy, and control-channel
- * semantics remain in the supervisor process.
+ * semantics remain in the foreground supervisor, while process-generation ownership remains in the guardian.
  */
 final class CoretsiaWorkerProcHostRuntime
 {
@@ -278,7 +278,7 @@ final class CoretsiaWorkerProcHostRuntime
             );
         } catch (\Throwable) {
             /*
-             * The supervisor cannot identify a child whose handoff failed. Let
+             * The guardian cannot identify a child whose handoff failed. Let
              * run() unwind so its finally block terminates and reaps every child
              * before the process host exits non-zero.
              */
@@ -726,9 +726,9 @@ final class CoretsiaWorkerProcHostRuntime
                 || !@\sapi_windows_set_ctrl_handler(
                     function (int $_event): void {
                         /*
-                         * The foreground supervisor owns CTRL+C/CTRL+BREAK lifecycle semantics.
-                         * The host only prevents default termination and lets the interrupted
-                         * protocol loop resume.
+                         * The guardian owns proc-host lifecycle semantics. The host prevents
+                         * service-unit control events from bypassing guardian-owned poll,
+                         * terminate, kill, close and shutdown operations.
                          */
                         $this->signalInterrupted = true;
                     },
@@ -758,9 +758,9 @@ final class CoretsiaWorkerProcHostRuntime
 
         $handler = function (): void {
             /*
-             * systemd and інші service managers можуть сигналізувати всю process
-             * group/cgroup. Host повинен залишитися доступним supervisor-у для poll,
-             * terminate, kill і close operations.
+             * A service manager may signal the complete process group/cgroup. The
+             * host must remain available to its guardian for poll, terminate, kill,
+             * close and shutdown operations while the guardian connection is alive.
              */
             $this->signalInterrupted = true;
         };

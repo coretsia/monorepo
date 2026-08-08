@@ -34,6 +34,7 @@ final class WorkerRuntimeDoesNotWriteToStdoutTest extends PackageTestCase
         $paths = [
             self::packageRoot() . '/bin/coretsia-worker',
             self::packageRoot() . '/bin/coretsia-worker-proc-host',
+            self::packageRoot() . '/bin/coretsia-worker-guardian',
         ];
 
         foreach ($iterator as $file) {

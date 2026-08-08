@@ -409,7 +409,7 @@ final class ProcWorkerProcessHostDescriptorIsolationTest extends PackageTestCase
             [
                 \PHP_BINARY,
                 self::packageRoot()
-                    . '/bin/coretsia-worker-proc-host',
+                . '/bin/coretsia-worker-proc-host',
                 '--coretsia-proc-host-port=' . $port,
                 '--coretsia-proc-host-token=' . $token,
             ],

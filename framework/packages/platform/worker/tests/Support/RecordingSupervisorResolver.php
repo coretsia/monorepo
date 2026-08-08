@@ -24,9 +24,11 @@ use Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface;
 final class RecordingSupervisorResolver implements WorkerSupervisorResolverInterface
 {
     public int $calls = 0;
+
     public function __construct(private readonly WorkerSupervisorInterface $supervisor)
     {
     }
+
     public function resolve(): WorkerSupervisorInterface
     {
         $this->calls++;

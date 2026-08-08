@@ -22,19 +22,25 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 
 final class RecordingMeter implements MeterPortInterface
 {
-    /** @var list<array{name:string,delta:int,labels:array<string,string|int|bool>}> */ public array $increments = [];
-    /** @var list<array{name:string,value:int,labels:array<string,string|int|bool>}> */ public array $observations = [];
+    /** @var list<array{name:string,delta:int,labels:array<string,string|int|bool>}> */
+    public array $increments = [];
+    /** @var list<array{name:string,value:int,labels:array<string,string|int|bool>}> */
+    public array $observations = [];
     public bool $throw = false;
+
     public function increment(string $name, int $delta = 1, array $labels = []): void
     {
         if ($this->throw) {
             throw new \RuntimeException('meter-failure');
-        }$this->increments[] = ['name' => $name, 'delta' => $delta, 'labels' => $labels];
+        }
+        $this->increments[] = ['name' => $name, 'delta' => $delta, 'labels' => $labels];
     }
+
     public function observe(string $name, int $value, array $labels = []): void
     {
         if ($this->throw) {
             throw new \RuntimeException('meter-failure');
-        }$this->observations[] = ['name' => $name, 'value' => $value, 'labels' => $labels];
+        }
+        $this->observations[] = ['name' => $name, 'value' => $value, 'labels' => $labels];
     }
 }

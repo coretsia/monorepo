@@ -154,10 +154,6 @@ final readonly class ResolverRecordingDriver implements WorkerProcessDriverInter
         return $this->supported && $spec->driver() === $this->driverName;
     }
 
-    public function prepare(WorkerPoolSpec $spec): void
-    {
-    }
-
     public function spawn(WorkerPoolSpec $spec, int $workerIndex): WorkerChildProcess
     {
         throw new \LogicException('not-used');
@@ -181,9 +177,5 @@ final readonly class ResolverRecordingDriver implements WorkerProcessDriverInter
     public function close(WorkerChildProcess $child, int $timeoutMs): void
     {
         throw new \LogicException('not-used');
-    }
-
-    public function shutdown(int $timeoutMs): void
-    {
     }
 }

@@ -19,10 +19,11 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Exception;
 
 /**
- * Signals that another supervisor currently owns the lifecycle lock.
+ * Signals that another active or recovering worker generation owns
+ * the canonical lifecycle fence.
  *
- * The failure is deterministic and exposes neither lock paths nor process
- * details.
+ * The failure is deterministic and exposes neither fence paths nor
+ * process details.
  */
 final class WorkerAlreadyRunningException extends WorkerException
 {

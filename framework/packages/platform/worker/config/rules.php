@@ -31,6 +31,8 @@ declare(strict_types=1);
  *   `skeleton/` prefix, and must not contain `@`-prefixed segments;
  * - lifecycle lock and locator paths are package-owned and are rejected as
  *   mutable config keys by the strict root shape;
+ * - guardian and generation-fence ownership are package-owned invariants; no
+ *   mutable `worker.guardian.*` configuration surface exists;
  * - numeric keys must be integers only; floats are rejected by `int` type rules;
  * - TCP port `0` is rejected through `min = 1`.
  *

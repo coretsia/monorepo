@@ -26,7 +26,7 @@ Coretsia Worker children use fresh process images:
 
 ```text
 PCNTL: fork -> detach Worker-owned resources -> exec child launcher
-proc: process host -> proc_open child launcher
+proc: guardian -> pre-lock process host -> proc_open child launcher
 ```
 
 Process-image replacement removes the inherited PHP object graph as active runtime state, including the parent container, resolved DI cache, `ApplicationWorker`, static PHP state, and extension process memory.
@@ -81,11 +81,11 @@ These policies are defense in depth. They do not replace explicit closure by the
 
 Known Worker-owned listeners, sessions, locks, child readiness endpoints, and signal state are detached by their exact owners before PCNTL exec.
 
-`WorkerForkIsolation` remains a narrow aggregate over Worker-owned supervisor resources.
+The PCNTL guardian explicitly closes its supervisor-ownership connection and detaches `WorkerLifecycleLock` in the forked child before exec. No supervisor-side fork-isolation aggregate remains because the foreground supervisor no longer forks worker children.
 
-For every proc spawn, the supervisor creates a one-shot loopback handoff listener with a fresh 256-bit token. After validating the complete spawn request, the process host closes its current authenticated supervisor connection, calls `proc_open()` with no proc-host protocol connection open, and only then connects to the handoff listener and publishes the exact spawn response. The same stream-based invariant applies on Windows and POSIX without `ext-sockets`, `SOCK_CLOEXEC`, FFI, or a native launcher.
+For every proc spawn, the guardian-owned process-host client creates a one-shot loopback handoff listener with a fresh 256-bit token. After validating the complete spawn request, the process host closes its current authenticated guardian connection, calls `proc_open()` with no proc-host protocol connection open, and only then connects to the handoff listener and publishes the exact spawn response. The same stream-based invariant applies on Windows and POSIX without `ext-sockets`, `SOCK_CLOEXEC`, FFI, or a native launcher.
 
-A failed child launch still rotates the connection and returns `child-start-failed`. A failed replacement handoff causes the process host to terminate and reap all registered children and exit non-zero, because the supervisor cannot safely retain a child whose identity was not delivered.
+A failed child launch still rotates the connection and returns `child-start-failed`. A failed replacement handoff causes the process host to terminate and reap all registered children and exit non-zero, because the guardian cannot safely retain a child whose identity was not delivered.
 
 It does not enumerate application or integration services.
 

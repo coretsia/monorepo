@@ -493,7 +493,10 @@ WorkerChildReadinessChannel
 
 WorkerChildTable
 WorkerSignalController
-WorkerForkIsolation
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
 
 QueueTaskFactory
@@ -502,8 +505,6 @@ TaskFactoryInternalInterface
 ApplicationWorker
 
 PcntlWorkerProcessDriver
-WorkerProcProcessHostProtocol
-WorkerProcProcessHostClient
 ProcWorkerProcessDriver
 ContainerWorkerProcessDriverResolver
 
@@ -732,7 +733,7 @@ WorkerServiceFactory::workerControlTransport(...)
 WorkerServiceFactory::workerChildCommandBuilder(...)
 WorkerServiceFactory::pcntlWorkerProcessDriver(...)
 WorkerServiceFactory::procWorkerProcessDriver(...)
-WorkerServiceFactory::workerProcProcessHostClient(...)
+WorkerServiceFactory::workerProcessGuardianClient(...)
 ```
 
 The path-owning factories use it as follows:
@@ -743,9 +744,9 @@ The path-owning factories use it as follows:
 - `WorkerStopSignal` receives the normalized skeleton root;
 - `WorkerControlTransport` receives the normalized skeleton root;
 - `WorkerChildCommandBuilder` receives one validated skeleton-root-relative artifact root;
-- `PcntlWorkerProcessDriver` receives the normalized skeleton root only for the post-fork artifact-only exec boundary;
-- `ProcWorkerProcessDriver` receives the normalized skeleton root;
-- `WorkerProcProcessHostClient` receives the normalized skeleton root as its working directory.
+- `PcntlWorkerProcessDriver` receives the normalized skeleton root as the worker working directory passed through guardian-backed spawn;
+- `ProcWorkerProcessDriver` receives the normalized skeleton root as the worker working directory passed through guardian-backed spawn;
+- `WorkerProcessGuardianClient` receives the normalized skeleton root plus the package guardian command; proc-host infrastructure is created inside the guardian process, outside the foreground container graph.
 
 `ApplicationWorker` MUST receive `WorkerStopSignal`, not a raw skeleton root.
 
@@ -2185,7 +2186,7 @@ When a declarative runtime provider contributes canonical container definitions:
 10. duplicate tag pairs use first-wins behavior;
 11. source-container factory closures created for definition application exist only inside the Foundation adapter;
 12. The task-work callback is created only during runtime service construction or execution and never enters canonical definitions; the PCNTL driver receives no child-bootstrap callback;
-13. Worker source wiring defines supervisor, lazy selected-driver resolver, child-command builder, control, lifecycle-lock, process-driver, proc-host, readiness, and health-command services;
+13. Worker source wiring defines supervisor, mandatory process-guardian, lazy selected-driver resolver, child-command builder, control, lifecycle-lock probe, process-driver, readiness, and health-command services;
 14. Worker source mode consumes `WorkerServiceProvider::define()`;
 15. production compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
 16. provider planning uses module topological order followed by declared provider order and creates no provider instances;

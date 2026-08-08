@@ -21,7 +21,7 @@ namespace Coretsia\Platform\Worker\Process\Proc;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
- * Owns one supervisor-side proc-host connection handoff endpoint.
+ * Owns one guardian-side proc-host connection handoff endpoint.
  *
  * The endpoint is created only after the process host has started. Its listener
  * therefore cannot be inherited by the host or by a worker child launched from

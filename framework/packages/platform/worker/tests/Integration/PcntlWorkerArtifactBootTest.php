@@ -26,10 +26,12 @@ final class PcntlWorkerArtifactBootTest extends PackageTestCase
     {
         $factory = self::source('src/Provider/WorkerServiceFactory.php');
         $driver = self::source('src/Process/Driver/PcntlWorkerProcessDriver.php');
+        $guardian = self::source('src/Process/Guardian/WorkerProcessGuardianRuntime.php');
         $launcher = self::source('bin/coretsia-worker');
 
         self::assertStringContainsString("'/bin/coretsia-worker'", $factory);
-        self::assertStringContainsString('pcntl_exec', $driver);
+        self::assertStringNotContainsString('pcntl_exec', $driver);
+        self::assertStringContainsString('pcntl_exec', $guardian);
         self::assertStringContainsString('ArtifactRuntimeBooter', $launcher);
         self::assertStringContainsString('ApplicationWorker::class', $launcher);
         self::assertStringContainsString("\$driver !== 'pcntl' && \$driver !== 'proc'", $launcher);

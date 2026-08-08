@@ -1305,7 +1305,7 @@ If `current` changes between two child generations, the replacement child MUST b
 
 If the selected generation is missing, invalid, incomplete, or fails runtime boot, the replacement MUST fail readiness and the supervisor MUST apply its deterministic child-failure policy.
 
-The proc process host MUST NOT cache or select artifact generations on behalf of children. The PCNTL forked child MUST replace the supervisor process image before artifact selection or runtime-container construction.
+The proc process host MUST NOT cache or select artifact generations on behalf of children. A PCNTL worker forked by the guardian MUST replace the guardian process image before artifact selection or runtime-container construction.
 
 ## Diagnostics and Redaction (MUST)
 
@@ -1527,6 +1527,7 @@ framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
 framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
 framework/packages/platform/worker/bin/coretsia-worker
 framework/packages/platform/worker/src/Process/Driver/ProcWorkerProcessDriver.php
+framework/packages/platform/worker/src/Process/Guardian/WorkerProcessGuardianClient.php
 framework/packages/platform/worker/src/Process/Proc/WorkerProcProcessHostClient.php
 framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
 framework/packages/core/kernel/src/Provider/KernelServiceFactory.php

@@ -19,7 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Exception;
 
 /**
- * The lifecycle lock is currently free, so no supervisor owns the pool.
+ * The generation fence is currently free, so no active or recovering Coretsia
+ * worker generation is owned by a guardian.
  */
 final class WorkerNotRunningException extends WorkerException
 {

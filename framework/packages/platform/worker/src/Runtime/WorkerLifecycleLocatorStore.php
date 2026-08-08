@@ -26,11 +26,15 @@ use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 /**
  * Exclusive filesystem owner of the private worker lifecycle locator.
  *
- * The locator is published atomically by the supervisor while it owns the
- * canonical lifecycle lock. It contains a supervisor-instance control
- * credential and is therefore a private capability artifact, not merely
- * endpoint discovery metadata. Lifecycle clients may read it only after
- * confirming that the lock is held by an active process.
+ * The locator is published atomically by the supervisor while its associated
+ * guardian owns the canonical generation fence. It contains a
+ * supervisor-instance control credential and is therefore a private capability
+ * artifact, not merely endpoint discovery metadata. Lifecycle clients may read
+ * it only after confirming that the canonical generation fence is held.
+ *
+ * A held generation fence establishes active or recovering worker-generation
+ * ownership. It does not by itself prove that the supervisor control endpoint
+ * is reachable.
  *
  * Raw locator bytes, decoded endpoint fields, and resolved absolute paths never
  * leave this storage boundary through logs, diagnostics, or exception messages.

@@ -23,8 +23,9 @@ use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
@@ -42,15 +43,15 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
         }
 
         $root = $this->temporaryDirectory('proc-driver');
-        $protocol = new WorkerProcProcessHostProtocol(new StableJsonEncoder(), new StableJsonDecoder());
         $hostRoot = \is_file(self::frameworkRoot() . '/vendor/autoload.php')
             ? self::frameworkRoot()
             : self::packageRoot();
-
-        $host = new WorkerProcProcessHostClient(
-            command: [\PHP_BINARY, self::packageRoot() . '/bin/coretsia-worker-proc-host'],
-            workingDirectory: $hostRoot,
-            protocol: $protocol,
+        $guardian = new WorkerProcessGuardianClient(
+            command: [\PHP_BINARY, self::packageRoot() . '/bin/coretsia-worker-guardian'],
+            bootstrapWorkingDirectory: $hostRoot,
+            skeletonRoot: $root,
+            protocol: new WorkerProcessGuardianProtocol(new StableJsonEncoder(), new StableJsonDecoder()),
+            transport: new WorkerProcessGuardianTransport(),
         );
         $readiness = new WorkerChildReadinessChannel();
         $driver = new ProcWorkerProcessDriver(
@@ -58,8 +59,8 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
             workerCommand: [\PHP_BINARY, self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php'],
             commandBuilder: new WorkerChildCommandBuilder('var/cache/coretsia'),
             readinessChannel: $readiness,
-            processHost: $host,
-            processHostAvailable: true,
+            guardian: $guardian,
+            driverAvailable: true,
         );
         $spec = WorkerSpecFactory::create([
             'workers' => 1,
@@ -67,7 +68,7 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
             'start_timeout_ms' => 2000,
         ]);
 
-        $driver->prepare($spec);
+        $guardian->claim($spec, 'proc');
         $child = $driver->spawn($spec, 0);
         $readiness->await($child, 1000);
 
@@ -80,6 +81,6 @@ final class ProcWorkerProcessDriverTest extends PackageTestCase
         self::assertNotNull($exit);
         self::assertTrue($exit->expected());
         $driver->close($child, 1_000);
-        $driver->shutdown(1_000);
+        $guardian->release(1_000);
     }
 }

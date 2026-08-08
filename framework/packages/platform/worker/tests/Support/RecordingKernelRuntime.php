@@ -23,9 +23,11 @@ use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 
 class RecordingKernelRuntime implements KernelRuntimeInterface
 {
-    /** @var list<string> */ public array $types = [];
+    /** @var list<string> */
+    public array $types = [];
     public int $calls = 0;
     public bool $throwAfterBody = false;
+
     public function runUnitOfWork(string $type, callable $body, array $attributes = []): mixed
     {
         $this->types[] = $type;
@@ -33,14 +35,21 @@ class RecordingKernelRuntime implements KernelRuntimeInterface
         $result = $body();
         if ($this->throwAfterBody) {
             throw new \RuntimeException('kernel-after-failure');
-        }return $result;
+        }
+        return $result;
     }
+
     public function beginUnitOfWork(string $type, array $attributes = []): UnitOfWorkHandle
     {
         throw new \LogicException('not-used');
     }
-    public function afterUnitOfWork(UnitOfWorkHandle $handle, string $outcome, ?\Throwable $error = null, array $extensions = []): array
-    {
+
+    public function afterUnitOfWork(
+        UnitOfWorkHandle $handle,
+        string $outcome,
+        ?\Throwable $error = null,
+        array $extensions = []
+    ): array {
         throw new \LogicException('not-used');
     }
 }

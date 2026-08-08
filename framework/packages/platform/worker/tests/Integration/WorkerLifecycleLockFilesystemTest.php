@@ -101,7 +101,7 @@ final class WorkerLifecycleLockFilesystemTest extends SupervisorIntegrationTestC
             behavior: [
                 /*
                  * Slot 1 cannot emit readiness until the test explicitly releases
-                 * the gate. The first supervisor therefore holds its lifecycle lock
+                 * the gate. The first supervisor's guardian therefore holds the generation fence
                  * while its public state remains STARTING.
                  */
                 'ready_gate_slots' => [1],
@@ -167,7 +167,7 @@ final class WorkerLifecycleLockFilesystemTest extends SupervisorIntegrationTestC
             self::assertSame(
                 $first->startPid(),
                 $status['pid'],
-                'The original STARTING supervisor must remain the lifecycle owner.',
+                'The original STARTING generation must remain fenced by its guardian.',
             );
 
             /*

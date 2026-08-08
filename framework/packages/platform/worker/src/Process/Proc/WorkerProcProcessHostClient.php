@@ -23,21 +23,21 @@ use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 
 /**
- * Synchronous client for the pre-lock proc process host.
+ * Synchronous client for the guardian-owned pre-lock proc process host.
  *
- * The host is started before lifecycle-lock acquisition and before supervisor
- * listeners are opened. This prevents inheritance of Worker-owned lifecycle
- * descriptors created after driver preparation. Communication uses one
+ * The host is started before the guardian-supervisor ownership channel and lifecycle-lock
+ * acquisition. This prevents inheritance of Worker-owned lifecycle
+ * descriptors created after process-host preparation. Communication uses one
  * authenticated loopback TCP connection, avoiding proc_open pipe selection on
  * Windows. Before every worker-child launch, that connection is closed and
- * replaced through a one-shot supervisor-owned handoff endpoint.
+ * replaced through a one-shot guardian-owned handoff endpoint.
  *
  * This boundary does not by itself prove that arbitrary application or
  * integration descriptors opened before process-host startup are
  * close-on-exec. Those descriptors remain governed by the repository-wide
  * process-exec descriptor-safety contract.
  *
- * The host's authenticated supervisor connection is a Worker-owned descriptor.
+ * The host's authenticated guardian connection is a Worker-owned descriptor.
  * No proc-host protocol connection is open while the host calls proc_open(), so
  * the same descriptor-isolation guarantee applies on Windows and POSIX without
  * relying on platform-specific close-on-exec flags.
@@ -223,7 +223,7 @@ final class WorkerProcProcessHostClient
 
             /*
              * The host validates the complete spawn frame before closing its copy
-             * of this connection. Closing the supervisor copy here completes the
+             * of this connection. Closing the guardian copy here completes the
              * old-channel boundary before the host can call proc_open().
              */
             $this->closeConnection();
@@ -534,7 +534,7 @@ final class WorkerProcProcessHostClient
 
             if ($selected === false) {
                 /*
-                 * SIGTERM/SIGINT may interrupt stream_select() after the supervisor
+                 * SIGTERM/SIGINT may interrupt stream_select() after the guardian
                  * signal handler has recorded shutdown intent. Retry while the host and
                  * connection remain live and the deterministic deadline has not expired.
                  */
@@ -744,7 +744,7 @@ final class WorkerProcProcessHostClient
         self::assertTimeout($timeoutMs);
         /*
          * EOF on an active authenticated connection tells the host that its
-         * supervisor disappeared. During handoff there may be no active
+         * guardian disappeared. During handoff there may be no active
          * connection, but the host still owns bounded cleanup before exit.
          */
         $this->closeConnection();

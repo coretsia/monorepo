@@ -29,13 +29,13 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
 
         foreach (
             [
-                'lifecycleLock->acquire',
+                'guardian->claim',
                 'WorkerControlCredential::generate',
                 'controlServer->listen',
                 'signals->install',
                 'shutdownChildren',
                 'stateStore->delete',
-                'lifecycleLock->release',
+                'guardian->release',
                 'respondStopped',
                 'driverResolver->resolve',
             ] as $required
@@ -72,7 +72,7 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
         self::assertLessThan($spawn, $locator);
     }
 
-    public function testProcessDriverContractHasPreparationAndShutdownButNoPoolOperations(): void
+    public function testProcessDriverContractIsStrictSingleChildAdapterWithoutPoolOperations(): void
     {
         $reflection = new \ReflectionClass(
             WorkerProcessDriverInterface::class,
@@ -82,13 +82,11 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
             [
                 'name',
                 'supports',
-                'prepare',
                 'spawn',
                 'pollExit',
                 'terminate',
                 'kill',
                 'close',
-                'shutdown',
             ],
             \array_map(
                 static fn (\ReflectionMethod $method): string => $method->getName(),
@@ -116,13 +114,5 @@ final class WorkerSupervisorLifecycleTest extends PackageTestCase
                 ),
             );
         }
-
-        self::assertSame(
-            ['timeoutMs'],
-            \array_map(
-                static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
-                $reflection->getMethod('shutdown')->getParameters(),
-            ),
-        );
     }
 }

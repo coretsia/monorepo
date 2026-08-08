@@ -44,6 +44,8 @@ final class CoretsiaWorkerChildBootsCurrentGenerationTest extends PackageTestCas
         foreach ([$boot, $guard, $resolve, $preflight, $ready, $run] as $position) {
             self::assertNotFalse($position);
         }
-        self::assertTrue($boot < $guard && $guard < $resolve && $resolve < $preflight && $preflight < $ready && $ready < $run);
+        self::assertTrue(
+            $boot < $guard && $guard < $resolve && $resolve < $preflight && $preflight < $ready && $ready < $run
+        );
     }
 }

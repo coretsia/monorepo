@@ -91,9 +91,7 @@ final class WorkerSupervisorReadinessTest extends SupervisorIntegrationTestCase
 
     public function testOneUnreadyChildRollsBackEntireStartup(): void
     {
-        $startTimeoutMs = \PHP_OS_FAMILY === 'Windows'
-            ? 5_000
-            : 200;
+        $startTimeoutMs = 5_000;
 
         ['harness' => $harness] = $this->newHarness(
             workerOverride: [
@@ -106,6 +104,17 @@ final class WorkerSupervisorReadinessTest extends SupervisorIntegrationTestCase
         );
 
         $harness->start();
+
+        self::waitForStateStatus(
+            $harness,
+            WorkerPoolStatus::STARTING,
+        );
+
+        self::waitUntil(
+            static fn (): bool => \count($harness->pidLog()) >= 1,
+            5_000,
+            'The worker child was not spawned before the readiness timeout assertion.',
+        );
 
         $message = $harness->waitForStartMessage(
             $startTimeoutMs + 5_000,
@@ -123,11 +132,7 @@ final class WorkerSupervisorReadinessTest extends SupervisorIntegrationTestCase
 
         self::assertNotSame(
             0,
-            $harness->finishStart(
-                \PHP_OS_FAMILY === 'Windows'
-                    ? 10_000
-                    : 5_000,
-            )['exit_code'],
+            $harness->finishStart(10_000)['exit_code'],
         );
 
         self::assertLoggedChildrenExited($harness);

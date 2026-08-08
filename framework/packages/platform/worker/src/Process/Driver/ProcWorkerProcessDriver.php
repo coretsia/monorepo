@@ -22,26 +22,13 @@ use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
+use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerChildProcess;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
-/**
- * Cross-platform proc_open single-child process adapter.
- *
- * The adapter never calls proc_open() from the supervisor process. A pre-lock
- * process host owns raw proc resources so worker children cannot inherit the
- * supervisor lifecycle lock, control listener, or readiness listeners. Before
- * each child launch, the host rotates its authenticated supervisor connection
- * through a one-shot handoff so no proc-host protocol descriptor crosses the
- * proc_open() boundary.
- *
- * Child readiness is delivered through a dedicated per-child loopback TCP
- * endpoint owned by the supervisor. Standard input, output, and error streams
- * are disconnected from the worker child and are not protocol transports.
- */
+/** Cross-platform proc command adapter backed by the package-owned guardian. */
 final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInterface
 {
     /** @param non-empty-list<non-empty-string> $workerCommand */
@@ -50,8 +37,8 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
         private array $workerCommand,
         private WorkerChildCommandBuilder $commandBuilder,
         private WorkerChildReadinessChannel $readinessChannel,
-        private WorkerProcProcessHostClient $processHost,
-        private bool $processHostAvailable,
+        private WorkerProcessGuardianInterface $guardian,
+        private bool $driverAvailable,
     ) {
         if (
             $skeletonRoot === ''
@@ -61,7 +48,6 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
         ) {
             throw new \InvalidArgumentException('proc-worker-process-driver-invalid');
         }
-
         foreach ($workerCommand as $part) {
             if (
                 !\is_string($part)
@@ -81,123 +67,68 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
 
     public function supports(WorkerPoolSpec $spec): bool
     {
-        return $spec->driver() === self::DRIVER_PROC && $this->processHostAvailable;
+        return $spec->driver() === self::DRIVER_PROC && $this->driverAvailable;
     }
 
-    public function prepare(WorkerPoolSpec $spec): void
+    public function spawn(WorkerPoolSpec $spec, int $workerIndex): WorkerChildProcess
     {
-        if (!$this->supports($spec)) {
+        if (!$this->supports($spec) || $workerIndex < 0 || $workerIndex >= $spec->workers()) {
             throw WorkerStartFailedException::childStartFailed();
         }
-
-        $this->processHost->start($spec->startTimeoutMs());
-    }
-
-    public function spawn(
-        WorkerPoolSpec $spec,
-        int $workerIndex,
-    ): WorkerChildProcess {
-        if (
-            !$this->supports($spec)
-            || $workerIndex < 0
-            || $workerIndex >= $spec->workers()
-        ) {
-            throw WorkerStartFailedException::childStartFailed();
-        }
-
         $readinessEndpoint = $this->readinessChannel->createProcessEndpoint();
-        $command = $this->commandBuilder->build(
-            baseCommand: $this->workerCommand,
-            spec: $spec,
-            workerIndex: $workerIndex,
-            readinessEndpoint: $readinessEndpoint,
-        );
-
+        $command = $this->commandBuilder->build($this->workerCommand, $spec, $workerIndex, $readinessEndpoint);
         try {
-            $hostChild = $this->processHost->spawn(
-                command: $command,
-                workingDirectory: $this->skeletonRoot,
-                timeoutMs: $spec->startTimeoutMs(),
-            );
-        } catch (WorkerStartFailedException|WorkerLifecycleFailedException $exception) {
+            $guardianChild = $this->guardian->spawn($command, $this->skeletonRoot, $spec->startTimeoutMs());
+        } catch (\Throwable $exception) {
             $readinessEndpoint->close();
-
             throw $exception;
-        } catch (\Throwable) {
-            $readinessEndpoint->close();
-
-            throw WorkerStartFailedException::childStartFailed();
         }
-
         return new WorkerChildProcess(
             workerIndex: $workerIndex,
-            pid: $hostChild->pid(),
+            pid: $guardianChild->pid(),
             driverName: self::DRIVER_PROC,
-            processHandle: $hostChild->id(),
+            processHandle: $guardianChild->id(),
             readinessEndpoint: $readinessEndpoint,
             generation: 1,
             startedAtNs: \hrtime(true),
         );
     }
 
-    public function pollExit(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): ?WorkerProcessExit {
+    public function pollExit(WorkerChildProcess $child, int $timeoutMs): ?WorkerProcessExit
+    {
         self::assertTimeout($timeoutMs);
-
-        return $this->processHost->pollExit(
-            self::childId($child),
-            $timeoutMs,
-        );
+        return $this->guardian->pollExit(self::childId($child), $timeoutMs);
     }
 
-    public function terminate(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function terminate(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-
-        $this->processHost->terminate(
-            self::childId($child),
-            $timeoutMs,
-        );
+        $this->guardian->terminate(self::childId($child), $timeoutMs);
     }
 
-    public function kill(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function kill(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-
-        $this->processHost->kill(
-            self::childId($child),
-            $timeoutMs,
-        );
+        $this->guardian->kill(self::childId($child), $timeoutMs);
     }
 
-    public function close(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function close(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-
         if ($child->closed()) {
             return;
         }
-
         $child->readinessEndpoint()->close();
-        $this->processHost->close(
-            self::childId($child),
-            $timeoutMs,
-        );
+        $this->guardian->close(self::childId($child), $timeoutMs);
         $child->markClosed();
     }
 
-    public function shutdown(int $timeoutMs): void
+    private static function childId(WorkerChildProcess $child): string
     {
-        self::assertTimeout($timeoutMs);
-        $this->processHost->shutdown($timeoutMs);
+        if ($child->driverName() !== self::DRIVER_PROC) {
+            throw WorkerLifecycleFailedException::childExited();
+        }
+        return $child->processHandle();
     }
 
     private static function assertTimeout(int $timeoutMs): void
@@ -205,20 +136,5 @@ final readonly class ProcWorkerProcessDriver implements WorkerProcessDriverInter
         if ($timeoutMs < 1 || $timeoutMs > 86_400_000) {
             throw WorkerLifecycleFailedException::invalidState();
         }
-    }
-
-    private static function childId(WorkerChildProcess $child): string
-    {
-        $handle = $child->processHandle();
-
-        if (
-            $child->driverName() !== self::DRIVER_PROC
-            || !\is_string($handle)
-            || \preg_match('/\Achild-[1-9][0-9]*\z/', $handle) !== 1
-        ) {
-            throw WorkerLifecycleFailedException::childExited();
-        }
-
-        return $handle;
     }
 }

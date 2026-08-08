@@ -57,11 +57,11 @@ final class WorkerStateJsonSchemaContractTest extends PackageTestCase
         );
         self::assertStringNotContainsString(
             $spec->socketPath(),
-            (string) $bytes,
+            (string)$bytes,
         );
         self::assertStringNotContainsString(
             $spec->tcpHost(),
-            (string) $bytes,
+            (string)$bytes,
         );
     }
 }

@@ -22,12 +22,12 @@ use Coretsia\Platform\Worker\Exception\WorkerAlreadyRunningException;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 
 /**
- * Owns the persistent filesystem lock anchor for one worker supervisor.
+ * Owns the persistent filesystem generation fence for one worker runtime.
  *
  * The lock file is opened with `c+b` on Windows and `c+be` on POSIX,
  * requesting close-on-exec as defense in depth where PHP supports it. The
- * handle remains guarded by non-blocking `flock`, and explicit fork-child
- * detachment remains mandatory for Worker-owned descriptor ownership.
+ * handle remains guarded by non-blocking `flock`. The guardian owns the handle;
+ * explicit fork-child detachment prevents PCNTL workers retaining the fence.
  * Releasing the lock closes the handle but never unlinks the anchor path.
  */
 final class WorkerLifecycleLock

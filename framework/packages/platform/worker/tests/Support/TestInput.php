@@ -26,26 +26,32 @@ final readonly class TestInput implements InputInterface
     public function __construct(private string $name, private array $arguments = [], private array $options = [])
     {
     }
+
     public function tokens(): array
     {
         return [];
     }
+
     public function commandName(): string
     {
         return $this->name;
     }
+
     public function arguments(): array
     {
         return $this->arguments;
     }
+
     public function options(): array
     {
         return $this->options;
     }
+
     public function hasOption(string $name): bool
     {
         return \array_key_exists($name, $this->options);
     }
+
     public function option(string $name): string|bool|array|null
     {
         return $this->options[$name] ?? null;

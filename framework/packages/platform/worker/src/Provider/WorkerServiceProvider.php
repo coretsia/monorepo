@@ -47,15 +47,16 @@ use Coretsia\Platform\Worker\Console\WorkerStopCommand;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface;
 use Coretsia\Platform\Worker\Process\ContainerWorkerProcessDriverResolver;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -89,8 +90,10 @@ use Psr\Log\LoggerInterface;
  *   BootstrapConfig or raw provider-owned path closures;
  * - WorkerStartCommand resolves WorkerSupervisorInterface lazily through
  *   WorkerSupervisorResolverInterface after runtime entrypoint validation;
+ * - WorkerProcessGuardianInterface owns the generation fence and child process
+ *   containment independently of foreground-supervisor survival;
  * - WorkerProcessDriverResolverInterface resolves only the selected concrete
- *   process driver after WorkerSupervisor is resolved;
+ *   process adapter after WorkerSupervisor is resolved;
  * - status, health, and stop commands resolve the active lifecycle locator
  *   through WorkerControlClientInterface, do not resolve WorkerPoolSpec, and do
  *   not read WorkerStateStore as a liveness authority;
@@ -238,17 +241,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 'workerSignalController',
             )
             ->serviceMethodFactory(
-                WorkerForkIsolation::class,
-                WorkerServiceFactory::class,
-                'workerForkIsolation',
-                [
-                    ContainerValueReference::service(WorkerLifecycleLock::class),
-                    ContainerValueReference::service(WorkerControlServer::class),
-                    ContainerValueReference::service(WorkerSignalController::class),
-                    ContainerValueReference::service(WorkerChildTable::class),
-                ],
-            )
-            ->serviceMethodFactory(
                 QueueTaskFactory::class,
                 WorkerServiceFactory::class,
                 'queueTaskFactory',
@@ -295,6 +287,34 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 ],
             )
             ->serviceMethodFactory(
+                WorkerProcessGuardianProtocol::class,
+                WorkerServiceFactory::class,
+                'workerProcessGuardianProtocol',
+                [
+                    ContainerValueReference::service(StableJsonEncoder::class),
+                    ContainerValueReference::service(StableJsonDecoder::class),
+                ],
+            )
+            ->serviceMethodFactory(
+                WorkerProcessGuardianTransport::class,
+                WorkerServiceFactory::class,
+                'workerProcessGuardianTransport',
+            )
+            ->serviceMethodFactory(
+                WorkerProcessGuardianClient::class,
+                WorkerServiceFactory::class,
+                'workerProcessGuardianClient',
+                [
+                    ContainerValueReference::service(RuntimePathContext::class),
+                    ContainerValueReference::service(WorkerProcessGuardianProtocol::class),
+                    ContainerValueReference::service(WorkerProcessGuardianTransport::class),
+                ],
+            )
+            ->alias(
+                WorkerProcessGuardianInterface::class,
+                WorkerProcessGuardianClient::class,
+            )
+            ->serviceMethodFactory(
                 PcntlWorkerProcessDriver::class,
                 WorkerServiceFactory::class,
                 'pcntlWorkerProcessDriver',
@@ -302,25 +322,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                     ContainerValueReference::service(RuntimePathContext::class),
                     ContainerValueReference::service(WorkerChildCommandBuilder::class),
                     ContainerValueReference::service(WorkerChildReadinessChannel::class),
-                    ContainerValueReference::service(WorkerForkIsolation::class),
-                ],
-            )
-            ->serviceMethodFactory(
-                WorkerProcProcessHostProtocol::class,
-                WorkerServiceFactory::class,
-                'workerProcProcessHostProtocol',
-                [
-                    ContainerValueReference::service(StableJsonEncoder::class),
-                    ContainerValueReference::service(StableJsonDecoder::class),
-                ],
-            )
-            ->serviceMethodFactory(
-                WorkerProcProcessHostClient::class,
-                WorkerServiceFactory::class,
-                'workerProcProcessHostClient',
-                [
-                    ContainerValueReference::service(RuntimePathContext::class),
-                    ContainerValueReference::service(WorkerProcProcessHostProtocol::class),
+                    ContainerValueReference::service(WorkerProcessGuardianInterface::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -332,7 +334,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                     ContainerValueReference::service(ConfigRepositoryInterface::class),
                     ContainerValueReference::service(WorkerChildCommandBuilder::class),
                     ContainerValueReference::service(WorkerChildReadinessChannel::class),
-                    ContainerValueReference::service(WorkerProcProcessHostClient::class),
+                    ContainerValueReference::service(WorkerProcessGuardianInterface::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -353,7 +355,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 'workerSupervisor',
                 [
                     ContainerValueReference::service(WorkerProcessDriverResolverInterface::class),
-                    ContainerValueReference::service(WorkerLifecycleLock::class),
+                    ContainerValueReference::service(WorkerProcessGuardianInterface::class),
                     ContainerValueReference::service(WorkerLifecycleLocatorStore::class),
                     ContainerValueReference::service(WorkerControlServer::class),
                     ContainerValueReference::service(WorkerChildReadinessChannel::class),

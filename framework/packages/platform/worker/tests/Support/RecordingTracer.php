@@ -23,17 +23,21 @@ use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 
 final class RecordingTracer implements TracerPortInterface
 {
-    /** @var list<RecordingSpan> */ public array $spans = [];
+    /** @var list<RecordingSpan> */
+    public array $spans = [];
     public bool $throwOnStart = false;
+
     public function startSpan(string $name, array $attributes = []): SpanInterface
     {
         if ($this->throwOnStart) {
             throw new \RuntimeException('tracer-failure');
-        } $span = new RecordingSpan($name);
+        }
+        $span = new RecordingSpan($name);
         $span->setAttributes($attributes);
         $this->spans[] = $span;
         return $span;
     }
+
     public function inSpan(string $name, callable $callback, array $attributes = []): mixed
     {
         $span = $this->startSpan($name, $attributes);
@@ -43,6 +47,7 @@ final class RecordingTracer implements TracerPortInterface
             $span->end();
         }
     }
+
     public function currentSpan(): ?SpanInterface
     {
         return $this->spans === [] ? null : $this->spans[\array_key_last($this->spans)];

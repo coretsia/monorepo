@@ -34,12 +34,12 @@ use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerHealthState;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
-use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolState;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolStatus;
@@ -49,15 +49,15 @@ use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Psr\Log\LoggerInterface;
 
 /**
- * Persistent foreground owner of the complete worker-pool lifecycle.
+ * Persistent foreground orchestrator for one guardian-owned worker generation.
  *
- * The supervisor exclusively owns the lifecycle lock, private lifecycle
- * locator, control listener, child table, readiness, state publication, signal
- * intent, recycle policy, graceful and forced shutdown, child reap, and runtime
- * cleanup.
+ * The supervisor owns the private lifecycle locator, control listener, child
+ * table, readiness, state publication, signal intent, recycle policy and normal
+ * shutdown orchestration. WorkerProcessGuardianInterface owns worker processes
+ * and the canonical generation fence, including supervisor-death containment.
  *
  * It does not resolve the container, build WorkerPoolSpec, daemonize, write
- * stdout/stderr, or delegate lifecycle authority to process adapters.
+ * stdout/stderr, or own the lifecycle lock directly.
  */
 final class WorkerSupervisor implements WorkerSupervisorInterface
 {
@@ -87,7 +87,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
 
     public function __construct(
         private readonly WorkerProcessDriverResolverInterface $driverResolver,
-        private readonly WorkerLifecycleLock $lifecycleLock,
+        private readonly WorkerProcessGuardianInterface $guardian,
         private readonly WorkerLifecycleLocatorStore $locatorStore,
         private readonly WorkerControlServer $controlServer,
         private readonly WorkerChildReadinessChannel $readinessChannel,
@@ -110,8 +110,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
 
         $driver = $this->driverResolver->resolve($spec);
 
-        $driverPrepared = false;
-        $lockAcquired = false;
+        $guardianClaimed = false;
         $serverListening = false;
         $signalsInstalled = false;
         $state = null;
@@ -132,15 +131,12 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         );
 
         try {
-            $driver->prepare($spec);
-            $driverPrepared = true;
+            $this->guardian->claim($spec, $driver->name());
+            $guardianClaimed = true;
 
             if (\hrtime(true) >= $startupDeadlineNs) {
                 throw WorkerStartFailedException::readinessTimeout();
             }
-
-            $this->lifecycleLock->acquire();
-            $lockAcquired = true;
 
             $this->locatorStore->delete();
             $this->stateStore->delete($spec);
@@ -396,10 +392,6 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $cleanupDeadlineNs = self::deadlineNs(
                 WorkerShutdownBudget::CLEANUP_TIMEOUT_MS,
             );
-            $driver->shutdown(
-                self::remainingMs($cleanupDeadlineNs),
-            );
-            $driverPrepared = false;
 
             $state = $state->withStatus(
                 WorkerPoolStatus::STOPPING,
@@ -412,8 +404,10 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
             $serverListening = false;
             $this->locatorStore->delete();
 
-            $this->lifecycleLock->release();
-            $lockAcquired = false;
+            $this->guardian->release(
+                self::remainingMs($cleanupDeadlineNs),
+            );
+            $guardianClaimed = false;
 
             foreach ($pendingStops as $session) {
                 $this->bestEffortRespondStopped($session, $state);
@@ -434,7 +428,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         ) {
             $exitCode = self::EXIT_FAILURE;
 
-            if ($lockAcquired) {
+            if ($guardianClaimed) {
                 $this->bestEffortShutdown($driver, $spec);
             }
 
@@ -442,7 +436,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
         } catch (\Throwable) {
             $exitCode = self::EXIT_FAILURE;
 
-            if ($lockAcquired) {
+            if ($guardianClaimed) {
                 $this->bestEffortShutdown($driver, $spec);
             }
 
@@ -467,21 +461,18 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
                 $this->signals->uninstall();
             }
 
-            if ($lockAcquired) {
+            if ($guardianClaimed) {
                 try {
                     $this->locatorStore->delete();
                 } catch (\Throwable) {
                 }
 
-                $this->lifecycleLock->release();
-            }
-
-            if ($driverPrepared) {
                 try {
-                    $driver->shutdown(
+                    $this->guardian->release(
                         WorkerShutdownBudget::CLEANUP_TIMEOUT_MS,
                     );
                 } catch (\Throwable) {
+                    /* Closing the client connection lets the guardian own crash cleanup. */
                 }
             }
 
@@ -501,8 +492,8 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
      * Services one control request.
      *
      * Stop sessions remain open until the supervisor has fully reaped children,
-     * removed runtime artifacts, closed the listener, and released the
-     * lifecycle lock.
+     * removed runtime artifacts, closed the listener, and received guardian
+     * acknowledgement that the generation fence was released.
      *
      * @param list<WorkerControlSession> $pendingStops
      */
@@ -759,7 +750,7 @@ final class WorkerSupervisor implements WorkerSupervisorInterface
      *
      * Unexpected exits are inspected only during the cooperative phase. After the
      * supervisor has explicitly sent SIGTERM or SIGKILL, signaled exits belong to
-     * supervisor-owned shutdown.
+     * supervisor-orchestrated shutdown.
      *
      * @param (\Closure(): void)|null $onTick
      * @param (\Closure(WorkerProcessExit): void)|null $onUnexpectedExit

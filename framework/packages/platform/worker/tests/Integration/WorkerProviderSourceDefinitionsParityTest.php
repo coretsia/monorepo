@@ -25,20 +25,23 @@ final class WorkerProviderSourceDefinitionsParityTest extends PackageTestCase
     public function testProviderContainsCanonicalSupervisorProcessAndControlDefinitions(): void
     {
         $provider = self::source('src/Provider/WorkerServiceProvider.php');
-        foreach ([
-            'WorkerSupervisor::class',
-            'ContainerWorkerSupervisorResolver::class',
-            'PcntlWorkerProcessDriver::class',
-            'ContainerWorkerProcessDriverResolver::class',
-            'WorkerProcessDriverResolverInterface::class',
-            'WorkerChildCommandBuilder::class',
-            'ProcWorkerProcessDriver::class',
-            'WorkerProcProcessHostClient::class',
-            'WorkerControlClient::class',
-            'WorkerLifecycleLocatorStore::class',
-            "'workerLifecycleLocatorStore'",
-            'WorkerHealthCommand::class',
-        ] as $required) {
+        foreach (
+            [
+                'WorkerSupervisor::class',
+                'ContainerWorkerSupervisorResolver::class',
+                'PcntlWorkerProcessDriver::class',
+                'ContainerWorkerProcessDriverResolver::class',
+                'WorkerProcessDriverResolverInterface::class',
+                'WorkerChildCommandBuilder::class',
+                'ProcWorkerProcessDriver::class',
+                'WorkerProcessGuardianClient::class',
+                'WorkerProcessGuardianInterface::class',
+                'WorkerControlClient::class',
+                'WorkerLifecycleLocatorStore::class',
+                "'workerLifecycleLocatorStore'",
+                'WorkerHealthCommand::class',
+            ] as $required
+        ) {
             self::assertStringContainsString($required, $provider);
         }
 

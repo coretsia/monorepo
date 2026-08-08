@@ -22,51 +22,31 @@ use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 
 final class PcntlWorkerContainerIsolationContractTest extends PackageTestCase
 {
-    public function testPcntlDriverUsesForkDetachExecWithoutContainerCapture(): void
+    public function testPcntlDriverDelegatesProcessOwnershipToGuardian(): void
     {
         $driver = self::source('src/Process/Driver/PcntlWorkerProcessDriver.php');
-        $factory = self::source('src/Provider/WorkerServiceFactory.php');
+        $guardian = self::source('src/Process/Guardian/WorkerProcessGuardianRuntime.php');
 
-        $driverCode = \preg_replace(
-            '/\/\*.*?\*\/|\/\/[^\n]*/s',
-            '',
-            $driver,
-        ) ?? $driver;
+        foreach (['pcntl_fork(', 'pcntl_exec(', 'pcntl_waitpid(', 'posix_kill('] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $driver);
+        }
+        self::assertStringContainsString('WorkerProcessGuardianInterface', $driver);
+        self::assertStringContainsString('$this->guardian->spawn(', $driver);
 
-        self::assertStringContainsString('pcntl_exec', $driverCode);
-        self::assertStringNotContainsString('ContainerInterface', $driverCode);
-        self::assertStringNotContainsString('ApplicationWorker', $driverCode);
-        self::assertStringNotContainsString('childBootstrap', $driverCode);
+        foreach (['pcntl_fork(', 'pcntl_exec(', 'pcntl_waitpid(', 'posix_kill('] as $required) {
+            self::assertStringContainsString($required, $guardian);
+        }
 
-        $factoryMethod = \strstr(
-            $factory,
-            'public function pcntlWorkerProcessDriver',
-        );
-        self::assertIsString($factoryMethod);
-        $factoryMethod = \strstr(
-            $factoryMethod,
-            'public function procWorkerProcessDriver',
-            true,
-        );
-        self::assertIsString($factoryMethod);
-
-        self::assertStringNotContainsString('ContainerInterface $container', $factoryMethod);
-        self::assertStringNotContainsString('use ($container)', $factoryMethod);
-        self::assertStringNotContainsString('ApplicationWorker::class', $factoryMethod);
-
-        $childBranch = \strstr(
-            $driverCode,
-            'if ($pid === 0)',
-        );
+        $childBranch = \strstr($guardian, 'if ($pid === 0)');
         self::assertIsString($childBranch);
-
-        $close = \strpos($childBranch, '$readinessEndpoint->close()');
-        $detach = \strpos($childBranch, 'prepareForkedChild()');
-        $exec = \strpos($childBranch, '@\pcntl_exec(');
-
-        self::assertNotFalse($close);
-        self::assertNotFalse($detach);
-        self::assertNotFalse($exec);
-        self::assertTrue($close < $detach && $detach < $exec);
+        $close = \strpos($childBranch, '@\\fclose($this->connection)');
+        $detach = \strpos($childBranch, 'detachInForkedChild()');
+        $reset = \strpos($childBranch, 'resetForkedChildSignals()');
+        $chdir = \strpos($childBranch, '@\\chdir($workingDirectory)');
+        $exec = \strpos($childBranch, '@\\pcntl_exec(');
+        foreach ([$close, $detach, $reset, $chdir, $exec] as $offset) {
+            self::assertNotFalse($offset);
+        }
+        self::assertTrue($close < $detach && $detach < $reset && $reset < $chdir && $chdir < $exec);
     }
 }

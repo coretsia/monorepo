@@ -172,8 +172,7 @@ Coretsia/
 │       ├── uow-and-reset-contracts.md
 │       ├── uow-outcome-policy.md
 │       ├── uow-shapes.md
-│       ├── validation-contracts.md
-│       └── worker-control-security.md
+│       └── validation-contracts.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -1073,6 +1072,7 @@ Coretsia/
 │   │       └── worker/
 │   │           ├── bin/
 │   │           │   ├── coretsia-worker
+│   │           │   ├── coretsia-worker-guardian
 │   │           │   └── coretsia-worker-proc-host
 │   │           ├── config/
 │   │           │   ├── rules.php
@@ -1109,6 +1109,7 @@ Coretsia/
 │   │           │   │   ├── WorkerProcessCapabilities.php
 │   │           │   │   ├── WorkerProcessDriverInterface.php
 │   │           │   │   ├── WorkerProcessDriverResolverInterface.php
+│   │           │   │   ├── WorkerProcessGuardianInterface.php
 │   │           │   │   ├── WorkerRuntimeDriverContributions.php
 │   │           │   │   ├── WorkerSupervisorInterface.php
 │   │           │   │   └── WorkerSupervisorResolverInterface.php
@@ -1118,6 +1119,13 @@ Coretsia/
 │   │           │   │   ├── Driver/
 │   │           │   │   │   ├── PcntlWorkerProcessDriver.php
 │   │           │   │   │   └── ProcWorkerProcessDriver.php
+│   │           │   │   ├── Guardian/
+│   │           │   │   │   ├── WorkerProcessGuardianChild.php
+│   │           │   │   │   ├── WorkerProcessGuardianClient.php
+│   │           │   │   │   ├── WorkerProcessGuardianFailure.php
+│   │           │   │   │   ├── WorkerProcessGuardianProtocol.php
+│   │           │   │   │   ├── WorkerProcessGuardianRuntime.php
+│   │           │   │   │   └── WorkerProcessGuardianTransport.php
 │   │           │   │   ├── Proc/
 │   │           │   │   │   ├── WorkerProcProcessHostChild.php
 │   │           │   │   │   ├── WorkerProcProcessHostClient.php
@@ -1127,7 +1135,6 @@ Coretsia/
 │   │           │   │   ├── ContainerWorkerProcessDriverResolver.php
 │   │           │   │   ├── WorkerChildCommandBuilder.php
 │   │           │   │   ├── WorkerChildProcess.php
-│   │           │   │   ├── WorkerForkIsolation.php
 │   │           │   │   └── WorkerProcessExit.php
 │   │           │   ├── Provider/
 │   │           │   │   ├── WorkerServiceFactory.php
@@ -1183,6 +1190,7 @@ Coretsia/
 │   │           │   │   ├── WorkerNotRunningLifecycleContractTest.php
 │   │           │   │   ├── WorkerPoolSpecConfigContractTest.php
 │   │           │   │   ├── WorkerPoolStateSchemaContractTest.php
+│   │           │   │   ├── WorkerProcessGuardianBoundaryContractTest.php
 │   │           │   │   ├── WorkerProviderDefinitionsContainNoClosuresContractTest.php
 │   │           │   │   ├── WorkerRuntimeArtifactPathContractTest.php
 │   │           │   │   ├── WorkerRuntimeDoesNotWriteToStdoutTest.php
@@ -1194,13 +1202,14 @@ Coretsia/
 │   │           │   │   ├── WorkerStatusCommandContractTest.php
 │   │           │   │   └── WorkerStopCommandContractTest.php
 │   │           │   ├── Fake/
-│   │           │   │   └── FakeWorkerProcessDriver.php
+│   │           │   │   └── FakeWorkerProcessGuardian.php
 │   │           │   ├── Fixtures/
 │   │           │   │   ├── exec-hold-fixture.php
 │   │           │   │   ├── exec-hold-pid-fixture.php
 │   │           │   │   ├── pcntl-exec-worker-fixture.php
-│   │           │   │   ├── proc-supervisor-child.php
+│   │           │   │   ├── proc-host-owner.php
 │   │           │   │   ├── proc-worker-fixture.php
+│   │           │   │   ├── supervisor-worker-child.php
 │   │           │   │   └── worker-command-harness.php
 │   │           │   ├── Integration/
 │   │           │   │   ├── ArtifactOnlyWorkerContainerBootTest.php
@@ -1209,7 +1218,6 @@ Coretsia/
 │   │           │   │   ├── CoretsiaWorkerChildReadinessTest.php
 │   │           │   │   ├── PcntlWorkerArtifactBootTest.php
 │   │           │   │   ├── PcntlWorkerExecIsolationTest.php
-│   │           │   │   ├── PcntlWorkerOwnedDescriptorIsolationTest.php
 │   │           │   │   ├── PcntlWorkerProcessDriverTest.php
 │   │           │   │   ├── ProcWorkerProcessDriverTest.php
 │   │           │   │   ├── ProcWorkerProcessHostDescriptorIsolationTest.php
@@ -1221,11 +1229,17 @@ Coretsia/
 │   │           │   │   ├── WorkerLifecycleLocatorStoreFilesystemTest.php
 │   │           │   │   ├── WorkerLifecycleLockCloseOnExecTest.php
 │   │           │   │   ├── WorkerLifecycleLockFilesystemTest.php
+│   │           │   │   ├── WorkerProcProcessHostGuardianDeathTest.php
+│   │           │   │   ├── WorkerProcessGuardianPcntlDescriptorIsolationTest.php
+│   │           │   │   ├── WorkerProcessGuardianPcntlTest.php
+│   │           │   │   ├── WorkerProcessGuardianProcTest.php
 │   │           │   │   ├── WorkerProviderSourceDefinitionsParityTest.php
 │   │           │   │   ├── WorkerRuntimeCleanupTest.php
 │   │           │   │   ├── WorkerStartCommandResolvesSupervisorLazilyTest.php
 │   │           │   │   ├── WorkerStateStoreFilesystemTest.php
 │   │           │   │   ├── WorkerSupervisorChildFailureTest.php
+│   │           │   │   ├── WorkerSupervisorCrashRecoveryTest.php
+│   │           │   │   ├── WorkerSupervisorGuardianFenceRaceTest.php
 │   │           │   │   ├── WorkerSupervisorMaxRequestsRecycleTest.php
 │   │           │   │   ├── WorkerSupervisorProductionFlowTest.php
 │   │           │   │   ├── WorkerSupervisorReadinessTest.php
@@ -1260,6 +1274,7 @@ Coretsia/
 │   │           │       ├── WorkerPoolSpecTest.php
 │   │           │       ├── WorkerPoolStateTest.php
 │   │           │       ├── WorkerProcProcessHostProtocolTest.php
+│   │           │       ├── WorkerProcessGuardianProtocolTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
 │   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php
 │   │           │       ├── WorkerShutdownBudgetTest.php

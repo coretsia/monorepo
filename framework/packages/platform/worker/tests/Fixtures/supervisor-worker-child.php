@@ -17,13 +17,13 @@ declare(strict_types=1);
  */
 
 /**
- * Cross-platform worker-child fixture used by the supervisor process harness.
+ * Cross-driver worker-child fixture used by the supervisor process harness.
  *
  * It intentionally implements only deterministic test behavior. Production
  * worker execution remains owned by bin/coretsia-worker and ApplicationWorker.
  */
 
-$options = coretsia_worker_proc_fixture_options(
+$options = coretsia_worker_supervisor_fixture_options(
     $_SERVER['argv'] ?? [],
 );
 
@@ -33,24 +33,39 @@ if (!\is_string($cwd) || $cwd === '') {
     exit(1);
 }
 
-$behavior = coretsia_worker_proc_fixture_behavior(
+$behavior = coretsia_worker_supervisor_fixture_behavior(
     $cwd . '/worker-test-behavior.json',
 );
 
 $workerIndex = $options['index'];
-$generation = coretsia_worker_proc_fixture_generation(
+$generation = coretsia_worker_supervisor_fixture_generation(
     root: $cwd,
     workerIndex: $workerIndex,
 );
 
-coretsia_worker_proc_fixture_record_spawn(
+coretsia_worker_supervisor_fixture_record_spawn(
     root: $cwd,
     workerIndex: $workerIndex,
     generation: $generation,
 );
 
 if (
-    coretsia_worker_proc_fixture_contains_slot(
+    coretsia_worker_supervisor_fixture_contains_slot(
+        $behavior['ignore_termination_signal_slots'] ?? [],
+        $workerIndex,
+    )
+    && \PHP_OS_FAMILY !== 'Windows'
+    && \function_exists('pcntl_async_signals')
+    && \function_exists('pcntl_signal')
+) {
+    \pcntl_async_signals(true);
+    @\pcntl_signal(\SIGTERM, static function (): void {
+        // Test-only: force guardian escalation from TERM to KILL.
+    }, true);
+}
+
+if (
+    coretsia_worker_supervisor_fixture_contains_slot(
         $behavior['crash_before_ready_slots'] ?? [],
         $workerIndex,
     )
@@ -61,7 +76,7 @@ if (
 $stopPath = $cwd . '/var/tmp/worker.stop';
 
 if (
-    coretsia_worker_proc_fixture_contains_slot(
+    coretsia_worker_supervisor_fixture_contains_slot(
         $behavior['ready_gate_slots'] ?? [],
         $workerIndex,
     )
@@ -86,13 +101,13 @@ if (\is_int($delayMs) && $delayMs > 0) {
     \usleep($delayMs * 1000);
 }
 
-$neverReady = coretsia_worker_proc_fixture_contains_slot(
+$neverReady = coretsia_worker_supervisor_fixture_contains_slot(
     $behavior['never_ready_slots'] ?? [],
     $workerIndex,
 );
 
 $applicationWorkerRun =
-    coretsia_worker_proc_fixture_application_worker_run(
+    coretsia_worker_supervisor_fixture_application_worker_run(
         behavior: $behavior,
         workerIndex: $workerIndex,
         generation: $generation,
@@ -107,7 +122,7 @@ if ($applicationWorkerRun !== null) {
 }
 
 if (!$neverReady) {
-    coretsia_worker_proc_fixture_signal_ready(
+    coretsia_worker_supervisor_fixture_signal_ready(
         port: $options['readiness_port'],
         token: $options['readiness_token'],
     );
@@ -122,7 +137,7 @@ if ($applicationWorkerRun !== null) {
         $applicationWorkerRun['spec'],
     );
 
-    coretsia_worker_proc_fixture_record_application_worker_run(
+    coretsia_worker_supervisor_fixture_record_application_worker_run(
         root: $cwd,
         workerIndex: $workerIndex,
         generation: $generation,
@@ -185,7 +200,7 @@ if (
     );
 }
 
-$ignoreStop = coretsia_worker_proc_fixture_contains_slot(
+$ignoreStop = coretsia_worker_supervisor_fixture_contains_slot(
     $behavior['ignore_stop_slots'] ?? [],
     $workerIndex,
 );
@@ -201,6 +216,7 @@ while (true) {
 /**
  * @param list<string> $argv
  * @return array{
+ *     driver: 'pcntl'|'proc',
  *     index: int,
  *     worker_count: int,
  *     max_requests: int,
@@ -209,7 +225,7 @@ while (true) {
  *     readiness_token: string
  * }
  */
-function coretsia_worker_proc_fixture_options(array $argv): array
+function coretsia_worker_supervisor_fixture_options(array $argv): array
 {
     $values = [];
 
@@ -309,7 +325,7 @@ function coretsia_worker_proc_fixture_options(array $argv): array
             ['http', 'queue'],
             true,
         )
-        || $driver !== 'proc'
+        || !\in_array($driver, ['pcntl', 'proc'], true)
         || !\is_int($port)
         || \preg_match(
             '/\A[a-f0-9]{64}\z/',
@@ -320,6 +336,7 @@ function coretsia_worker_proc_fixture_options(array $argv): array
     }
 
     return [
+        'driver' => $driver,
         'index' => $index,
         'worker_count' => $workerCount,
         'max_requests' => $maxRequests,
@@ -332,6 +349,7 @@ function coretsia_worker_proc_fixture_options(array $argv): array
 /**
  * @param array<string, mixed> $behavior
  * @param array{
+ *     driver: 'pcntl'|'proc',
  *     index: int,
  *     worker_count: int,
  *     max_requests: int,
@@ -347,7 +365,7 @@ function coretsia_worker_proc_fixture_options(array $argv): array
  *     exit_delay_ms: int
  * }|null
  */
-function coretsia_worker_proc_fixture_application_worker_run(
+function coretsia_worker_supervisor_fixture_application_worker_run(
     array $behavior,
     int $workerIndex,
     int $generation,
@@ -377,14 +395,14 @@ function coretsia_worker_proc_fixture_application_worker_run(
         exit(1);
     }
 
-    coretsia_worker_proc_fixture_require_autoload();
-    coretsia_worker_proc_fixture_register_test_autoloader();
+    coretsia_worker_supervisor_fixture_require_autoload();
+    coretsia_worker_supervisor_fixture_register_test_autoloader();
 
     $spec = \Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory::create([
         'workers' => $options['worker_count'],
         'max_requests' => $options['max_requests'],
         'task_type' => $options['task_type'],
-        'driver' => 'proc',
+        'driver' => $options['driver'],
         'control' => [
             'transport' => 'tcp',
         ],
@@ -413,7 +431,7 @@ function coretsia_worker_proc_fixture_application_worker_run(
     ];
 }
 
-function coretsia_worker_proc_fixture_require_autoload(): void
+function coretsia_worker_supervisor_fixture_require_autoload(): void
 {
     $directory = __DIR__;
 
@@ -436,7 +454,7 @@ function coretsia_worker_proc_fixture_require_autoload(): void
     }
 }
 
-function coretsia_worker_proc_fixture_register_test_autoloader(): void
+function coretsia_worker_supervisor_fixture_register_test_autoloader(): void
 {
     $prefix = 'Coretsia\\Platform\\Worker\\Tests\\';
     $testsRoot = \dirname(__DIR__);
@@ -471,7 +489,7 @@ function coretsia_worker_proc_fixture_register_test_autoloader(): void
     );
 }
 
-function coretsia_worker_proc_fixture_record_application_worker_run(
+function coretsia_worker_supervisor_fixture_record_application_worker_run(
     string $root,
     int $workerIndex,
     int $generation,
@@ -485,17 +503,17 @@ function coretsia_worker_proc_fixture_record_application_worker_run(
 
     $line = \json_encode(
         [
-            'generation' => $generation,
-            'kernel_calls' => $kernelCalls,
-            'max_requests' => $maxRequests,
-            'pid' => \getmypid(),
-            'processed' => $processed,
-            'slot' => $workerIndex,
-            'task_create_calls' => $taskCreateCalls,
-        ],
+                'generation' => $generation,
+                'kernel_calls' => $kernelCalls,
+                'max_requests' => $maxRequests,
+                'pid' => \getmypid(),
+                'processed' => $processed,
+                'slot' => $workerIndex,
+                'task_create_calls' => $taskCreateCalls,
+            ],
         \JSON_UNESCAPED_SLASHES
-        | \JSON_UNESCAPED_UNICODE
-        | \JSON_THROW_ON_ERROR,
+            | \JSON_UNESCAPED_UNICODE
+            | \JSON_THROW_ON_ERROR,
     ) . "\n";
 
     if (
@@ -510,7 +528,7 @@ function coretsia_worker_proc_fixture_record_application_worker_run(
 }
 
 /** @return array<string, mixed> */
-function coretsia_worker_proc_fixture_behavior(
+function coretsia_worker_supervisor_fixture_behavior(
     string $path,
 ): array {
     $bytes = @\file_get_contents($path);
@@ -536,7 +554,7 @@ function coretsia_worker_proc_fixture_behavior(
         : [];
 }
 
-function coretsia_worker_proc_fixture_generation(
+function coretsia_worker_supervisor_fixture_generation(
     string $root,
     int $workerIndex,
 ): int {
@@ -598,7 +616,7 @@ function coretsia_worker_proc_fixture_generation(
     }
 }
 
-function coretsia_worker_proc_fixture_record_spawn(
+function coretsia_worker_supervisor_fixture_record_spawn(
     string $root,
     int $workerIndex,
     int $generation,
@@ -624,7 +642,7 @@ function coretsia_worker_proc_fixture_record_spawn(
     );
 }
 
-function coretsia_worker_proc_fixture_signal_ready(
+function coretsia_worker_supervisor_fixture_signal_ready(
     int $port,
     string $token,
 ): void {
@@ -673,7 +691,7 @@ function coretsia_worker_proc_fixture_signal_ready(
 }
 
 /** @param list<int>|mixed $slots */
-function coretsia_worker_proc_fixture_contains_slot(
+function coretsia_worker_supervisor_fixture_contains_slot(
     mixed $slots,
     int $workerIndex,
 ): bool {

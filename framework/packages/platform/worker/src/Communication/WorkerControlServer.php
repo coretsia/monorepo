@@ -173,17 +173,6 @@ final class WorkerControlServer
         $this->credential = null;
     }
 
-    public function detachInForkedChild(): void
-    {
-        if (\is_resource($this->server)) {
-            $this->transport->close($this->server);
-        }
-
-        $this->server = null;
-        $this->spec = null;
-        $this->credential = null;
-    }
-
     private function respond(
         #[\SensitiveParameter]
         WorkerControlSession $session,

@@ -121,22 +121,6 @@ final class WorkerChildTable
         return $count;
     }
 
-    /**
-     * Closes parent-owned readiness descriptors inherited by a forked child.
-     *
-     * The table instance is a copy in the forked process, so clearing it does
-     * not mutate supervisor state in the parent process.
-     */
-    public function detachInForkedChild(): void
-    {
-        foreach ($this->entries as $entry) {
-            $entry->child()
-                ->readinessEndpoint()
-                ->close();
-        }
-
-        $this->entries = [];
-    }
 
     public function clear(): void
     {

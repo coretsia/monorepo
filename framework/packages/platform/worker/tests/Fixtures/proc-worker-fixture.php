@@ -27,7 +27,7 @@ $runMs = 50;
 
 foreach ($argv as $argument) {
     if (\str_starts_with($argument, '--coretsia-worker-readiness-port=')) {
-        $port = (int) \substr(
+        $port = (int)\substr(
             $argument,
             \strlen('--coretsia-worker-readiness-port='),
         );
@@ -41,14 +41,14 @@ foreach ($argv as $argument) {
     }
 
     if (\str_starts_with($argument, '--fixture-exit-code=')) {
-        $exitCode = (int) \substr(
+        $exitCode = (int)\substr(
             $argument,
             \strlen('--fixture-exit-code='),
         );
     }
 
     if (\str_starts_with($argument, '--fixture-run-ms=')) {
-        $runMs = (int) \substr(
+        $runMs = (int)\substr(
             $argument,
             \strlen('--fixture-run-ms='),
         );

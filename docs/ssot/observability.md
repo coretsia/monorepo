@@ -432,7 +432,7 @@ The active foreground supervisor lifecycle values are:
 
 - `start_success` — all configured children became ready and the supervisor published `running`;
 - `start_failure` — startup failed before the ready pool was established;
-- `stop_success` — every child exited, all child and driver resources were closed, runtime artifacts were cleaned, and the lifecycle lock was released;
+- `stop_success` — every child exited, all child resources were closed, supervisor-owned runtime artifacts were cleaned, and the guardian acknowledged release of the canonical generation fence;
 - `stop_failure` — the supervisor could not complete deterministic shutdown or cleanup;
 - `status_success` — a live status request returned valid supervisor state;
 - `status_failure` — status classification or live control communication failed.

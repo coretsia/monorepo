@@ -41,6 +41,7 @@ final class WorkerStateStoreOwnershipContractTest extends PackageTestCase
             [
                 'src/Process/Driver/PcntlWorkerProcessDriver.php',
                 'src/Process/Driver/ProcWorkerProcessDriver.php',
+                'src/Process/Guardian/WorkerProcessGuardianRuntime.php',
                 'src/Communication/WorkerControlClient.php',
                 'src/Console/WorkerStatusCommand.php',
                 'src/Console/WorkerStopCommand.php',

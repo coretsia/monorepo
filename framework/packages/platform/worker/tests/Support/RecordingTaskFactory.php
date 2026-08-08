@@ -26,20 +26,25 @@ final class RecordingTaskFactory implements TaskFactoryInternalInterface
 {
     public int $assertReadyCalls = 0;
     public int $createCalls = 0;
-    /** @var list<mixed> */ public array $results = [];
+    /** @var list<mixed> */
+    public array $results = [];
     public bool $supported = true;
     public bool $throwOnRun = false;
+
     public function __construct(private readonly string $type = self::TASK_TYPE_QUEUE)
     {
     }
+
     public function taskType(): string
     {
         return $this->type;
     }
+
     public function supports(WorkerPoolSpec $spec): bool
     {
         return $this->supported && $spec->taskType() === $this->type;
     }
+
     public function assertReady(WorkerPoolSpec $spec): void
     {
         $this->assertReadyCalls++;
@@ -47,17 +52,28 @@ final class RecordingTaskFactory implements TaskFactoryInternalInterface
             throw WorkerStartFailedException::startFailed();
         }
     }
+
     public function operationId(WorkerPoolSpec $spec): string
     {
         if (!$this->supports($spec)) {
             throw WorkerStartFailedException::startFailed();
-        }return $this->type;
+        }
+        return $this->type;
     }
+
     public function create(WorkerPoolSpec $spec): array
     {
         $this->createCalls++;
         $index = $this->createCalls - 1;
         $result = $this->results[$index] ?? $index;
-        return ['operation_id' => $this->type, 'run' => function () use ($result): mixed {if ($this->throwOnRun) {throw new \RuntimeException('task-failure'); }return $result;}];
+        return [
+            'operation_id' => $this->type,
+            'run' => function () use ($result): mixed {
+                if ($this->throwOnRun) {
+                    throw new \RuntimeException('task-failure');
+                }
+                return $result;
+            }
+        ];
     }
 }

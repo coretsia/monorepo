@@ -100,10 +100,10 @@ final readonly class WorkerPoolSpec
      */
     public static function fromConfig(
         array $config,
-        ?bool $pcntlForkAvailable = null,
+        ?bool $pcntlDriverAvailable = null,
         ?string $platformFamily = null,
         ?bool $unixDomainSocketsSupported = null,
-        ?bool $procProcessHostAvailable = null,
+        ?bool $procDriverAvailable = null,
     ): self {
         $workers = self::positiveInt($config, 'workers');
         $maxRequests = self::positiveInt($config, 'max_requests');
@@ -149,15 +149,15 @@ final readonly class WorkerPoolSpec
         self::assertSafeTcpHost($tcpHost);
 
         $platformFamily ??= \PHP_OS_FAMILY;
-        $pcntlForkAvailable ??= self::detectPcntlCapability();
-        $procProcessHostAvailable ??= WorkerProcessCapabilities::procDriverAvailable($platformFamily);
+        $pcntlDriverAvailable ??= WorkerProcessCapabilities::pcntlDriverAvailable($platformFamily);
+        $procDriverAvailable ??= WorkerProcessCapabilities::procDriverAvailable($platformFamily);
         $unixDomainSocketsSupported ??= self::detectUnixDomainSocketsSupported($platformFamily);
 
         $driver = match ($driverRequested) {
             'pcntl', 'proc' => $driverRequested,
             'auto' => self::resolveAutomaticDriver(
-                pcntlForkAvailable: $pcntlForkAvailable,
-                procProcessHostAvailable: $procProcessHostAvailable,
+                pcntlDriverAvailable: $pcntlDriverAvailable,
+                procDriverAvailable: $procDriverAvailable,
                 platformFamily: $platformFamily,
             ),
         };
@@ -382,17 +382,17 @@ final readonly class WorkerPoolSpec
     }
 
     private static function resolveAutomaticDriver(
-        bool $pcntlForkAvailable,
-        bool $procProcessHostAvailable,
+        bool $pcntlDriverAvailable,
+        bool $procDriverAvailable,
         string $platformFamily,
     ): string {
         if (
-            $pcntlForkAvailable && \strcasecmp($platformFamily, 'Windows') !== 0
+            $pcntlDriverAvailable && \strcasecmp($platformFamily, 'Windows') !== 0
         ) {
             return 'pcntl';
         }
 
-        if ($procProcessHostAvailable) {
+        if ($procDriverAvailable) {
             return 'proc';
         }
 
@@ -410,17 +410,6 @@ final readonly class WorkerPoolSpec
         }
     }
 
-    private static function detectPcntlCapability(): bool
-    {
-        return \function_exists('pcntl_fork')
-            && \function_exists('pcntl_exec')
-            && \function_exists('pcntl_waitpid')
-            && \function_exists('pcntl_wifexited')
-            && \function_exists('pcntl_wexitstatus')
-            && \function_exists('pcntl_wifsignaled')
-            && \function_exists('pcntl_wtermsig')
-            && \function_exists('posix_kill');
-    }
 
     private static function detectUnixDomainSocketsSupported(string $platformFamily): bool
     {

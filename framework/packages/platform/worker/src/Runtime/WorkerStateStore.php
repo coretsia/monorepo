@@ -27,6 +27,9 @@ use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
  *
  * This is the only platform/worker runtime class allowed to write
  * `worker.state.json`.
+ * State is supervisor-owned diagnostic data only; it is never the liveness or
+ * generation-ownership authority. The guardian-owned `worker.lock` fence is the
+ * authoritative active/recovering generation boundary.
  *
  * Persisted state is intentionally redacted and contains only the cemented
  * safe schema:
@@ -133,8 +136,10 @@ final readonly class WorkerStateStore
      * Reads and validates the optional diagnostic state snapshot.
      *
      * A missing snapshot returns null and MUST NOT be interpreted as the
-     * authoritative liveness signal. Supervisor liveness is owned exclusively
-     * by WorkerLifecycleLock and the live control channel.
+     * authoritative liveness signal. WorkerLifecycleLock is authoritative only
+     * for active or recovering worker-generation ownership. Live supervisor
+     * availability is established through the lifecycle locator and authenticated
+     * control channel.
      *
      * Existing but unreadable state, invalid JSON, non-map JSON, schema drift,
      * forbidden extra keys, invalid value types, and invalid value domains all

@@ -19,37 +19,26 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Process\Driver;
 
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
-use Coretsia\Platform\Worker\Exception\WorkerForkFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Process\WorkerChildProcess;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Process\WorkerProcessExit;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
 
-/**
- * Unix-like fork-and-exec single-child process adapter.
- *
- * The supervisor forks only to establish the child PID. The child immediately
- * detaches Worker-owned inherited resources and replaces the forked supervisor
- * process image with the package-owned artifact-only worker launcher. No parent
- * container, ApplicationWorker instance, or shared runtime object graph crosses
- * the execution boundary.
- */
+/** PCNTL command adapter backed by the package-owned process guardian. */
 final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInterface
 {
-    /**
-     * @param non-empty-list<non-empty-string> $workerCommand
-     */
+    /** @param non-empty-list<non-empty-string> $workerCommand */
     public function __construct(
         private string $skeletonRoot,
         private array $workerCommand,
         private WorkerChildCommandBuilder $commandBuilder,
         private WorkerChildReadinessChannel $readinessChannel,
-        private WorkerForkIsolation $forkIsolation,
-        private bool $pcntlAvailable,
+        private WorkerProcessGuardianInterface $guardian,
+        private bool $driverAvailable,
         private string $platformFamily,
     ) {
         if (
@@ -58,11 +47,9 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
             || $workerCommand === []
             || !\array_is_list($workerCommand)
             || $platformFamily === ''
-            || \preg_match('/[\x00-\x1F\x7F]/', $platformFamily) === 1
         ) {
             throw new \InvalidArgumentException('pcntl-worker-process-driver-invalid');
         }
-
         foreach ($workerCommand as $part) {
             if (
                 !\is_string($part)
@@ -83,34 +70,13 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
     public function supports(WorkerPoolSpec $spec): bool
     {
         return $spec->driver() === self::DRIVER_PCNTL
-            && $this->pcntlAvailable
-            && \strcasecmp($this->platformFamily, 'Windows') !== 0
-            && \function_exists('pcntl_fork')
-            && \function_exists('pcntl_exec')
-            && \function_exists('pcntl_waitpid')
-            && \function_exists('pcntl_wifexited')
-            && \function_exists('pcntl_wexitstatus')
-            && \function_exists('pcntl_wifsignaled')
-            && \function_exists('pcntl_wtermsig')
-            && \function_exists('posix_kill');
+            && $this->driverAvailable
+            && \strcasecmp($this->platformFamily, 'Windows') !== 0;
     }
 
-    public function prepare(WorkerPoolSpec $spec): void
+    public function spawn(WorkerPoolSpec $spec, int $workerIndex): WorkerChildProcess
     {
-        if (!$this->supports($spec)) {
-            throw WorkerStartFailedException::childStartFailed();
-        }
-    }
-
-    public function spawn(
-        WorkerPoolSpec $spec,
-        int $workerIndex,
-    ): WorkerChildProcess {
-        if (
-            !$this->supports($spec)
-            || $workerIndex < 0
-            || $workerIndex >= $spec->workers()
-        ) {
+        if (!$this->supports($spec) || $workerIndex < 0 || $workerIndex >= $spec->workers()) {
             throw WorkerStartFailedException::childStartFailed();
         }
 
@@ -122,117 +88,59 @@ final readonly class PcntlWorkerProcessDriver implements WorkerProcessDriverInte
             readinessEndpoint: $readinessEndpoint,
         );
 
-        $pid = @\pcntl_fork();
-
-        if ($pid === -1) {
+        try {
+            $guardianChild = $this->guardian->spawn($command, $this->skeletonRoot, $spec->startTimeoutMs());
+        } catch (\Throwable $exception) {
             $readinessEndpoint->close();
-
-            throw WorkerForkFailedException::forkFailed();
-        }
-
-        if ($pid === 0) {
-            $readinessEndpoint->close();
-
-            try {
-                $this->forkIsolation->prepareForkedChild();
-
-                if (!@\chdir($this->skeletonRoot)) {
-                    exit(1);
-                }
-
-                $binary = \array_shift($command);
-
-                if (!\is_string($binary) || $binary === '') {
-                    exit(1);
-                }
-
-                @\pcntl_exec($binary, $command);
-            } catch (\Throwable) {
-                // Process-image replacement failures collapse to child exit 1.
-            }
-
-            // pcntl_exec() returns only when process-image replacement failed.
-            exit(1);
+            throw $exception;
         }
 
         return new WorkerChildProcess(
             workerIndex: $workerIndex,
-            pid: $pid,
+            pid: $guardianChild->pid(),
             driverName: self::DRIVER_PCNTL,
-            processHandle: null,
+            processHandle: $guardianChild->id(),
             readinessEndpoint: $readinessEndpoint,
             generation: 1,
             startedAtNs: \hrtime(true),
         );
     }
 
-    public function pollExit(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): ?WorkerProcessExit {
+    public function pollExit(WorkerChildProcess $child, int $timeoutMs): ?WorkerProcessExit
+    {
         self::assertTimeout($timeoutMs);
-
-        $status = 0;
-        $result = @\pcntl_waitpid($child->pid(), $status, \WNOHANG);
-
-        if ($result === 0) {
-            return null;
-        }
-
-        if ($result !== $child->pid()) {
-            throw WorkerLifecycleFailedException::childExited();
-        }
-
-        $signaled = \pcntl_wifsignaled($status);
-        $signal = $signaled ? \pcntl_wtermsig($status) : 0;
-        $exitCode = \pcntl_wifexited($status)
-            ? \pcntl_wexitstatus($status)
-            : 128 + $signal;
-
-        return new WorkerProcessExit(
-            pid: $child->pid(),
-            exitCode: $exitCode,
-            signaled: $signaled,
-            terminatingSignal: $signal,
-            expected: !$signaled && $exitCode === 0,
-        );
+        return $this->guardian->pollExit(self::childId($child), $timeoutMs);
     }
 
-    public function terminate(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function terminate(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-        @\posix_kill($child->pid(), \SIGTERM);
+        $this->guardian->terminate(self::childId($child), $timeoutMs);
     }
 
-    public function kill(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function kill(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-        @\posix_kill($child->pid(), \SIGKILL);
+        $this->guardian->kill(self::childId($child), $timeoutMs);
     }
 
-    public function close(
-        WorkerChildProcess $child,
-        int $timeoutMs,
-    ): void {
+    public function close(WorkerChildProcess $child, int $timeoutMs): void
+    {
         self::assertTimeout($timeoutMs);
-
         if ($child->closed()) {
             return;
         }
-
         $child->readinessEndpoint()->close();
+        $this->guardian->close(self::childId($child), $timeoutMs);
         $child->markClosed();
     }
 
-    public function shutdown(int $timeoutMs): void
+    private static function childId(WorkerChildProcess $child): string
     {
-        self::assertTimeout($timeoutMs);
-
-        // Pcntl process resources are owned directly per WorkerChildProcess.
+        if ($child->driverName() !== self::DRIVER_PCNTL) {
+            throw WorkerLifecycleFailedException::childExited();
+        }
+        return $child->processHandle();
     }
 
     private static function assertTimeout(int $timeoutMs): void

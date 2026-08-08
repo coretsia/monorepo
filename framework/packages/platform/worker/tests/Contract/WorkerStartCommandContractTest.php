@@ -44,17 +44,19 @@ final class WorkerStartCommandContractTest extends TestCase
                 WorkerPoolSpec $spec,
                 \Closure $onReady,
             ): int {
-                $onReady(new WorkerPoolState(
-                    pid: 123,
-                    status: WorkerPoolStatus::RUNNING,
-                    workerCount: 1,
-                    readyWorkerCount: 1,
-                    driverRequested: 'pcntl',
-                    driver: 'pcntl',
-                    controlTransportRequested: 'unix',
-                    controlTransport: 'unix',
-                    endpointHash: \str_repeat('a', 64),
-                ));
+                $onReady(
+                    new WorkerPoolState(
+                        pid: 123,
+                        status: WorkerPoolStatus::RUNNING,
+                        workerCount: 1,
+                        readyWorkerCount: 1,
+                        driverRequested: 'pcntl',
+                        driver: 'pcntl',
+                        controlTransportRequested: 'unix',
+                        controlTransport: 'unix',
+                        endpointHash: \str_repeat('a', 64),
+                    )
+                );
 
                 return 7;
             }

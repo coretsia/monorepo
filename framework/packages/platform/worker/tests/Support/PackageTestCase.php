@@ -97,7 +97,7 @@ abstract class PackageTestCase extends TestCase
         $separator = \strrpos($name, ':');
         self::assertNotFalse($separator);
 
-        $port = (int) \substr($name, $separator + 1);
+        $port = (int)\substr($name, $separator + 1);
         self::assertGreaterThan(0, $port);
 
         return $port;
@@ -177,8 +177,8 @@ abstract class PackageTestCase extends TestCase
         $deadline = \hrtime(true) + ($timeoutMs * 1_000_000);
 
         do {
-            $stdout .= (string) \stream_get_contents($pipes[1]);
-            $stderr .= (string) \stream_get_contents($pipes[2]);
+            $stdout .= (string)\stream_get_contents($pipes[1]);
+            $stderr .= (string)\stream_get_contents($pipes[2]);
 
             $status = \proc_get_status($process);
 
@@ -195,17 +195,17 @@ abstract class PackageTestCase extends TestCase
 
         $status = \proc_get_status($process);
         $reportedExitCode = \is_array($status)
-            && \is_int($status['exitcode'] ?? null)
-            && $status['exitcode'] >= 0
-                ? $status['exitcode']
-                : null;
+        && \is_int($status['exitcode'] ?? null)
+        && $status['exitcode'] >= 0
+            ? $status['exitcode']
+            : null;
 
         if (\is_array($status) && ($status['running'] ?? false) === true) {
             @\proc_terminate($process, 9);
         }
 
-        $stdout .= (string) \stream_get_contents($pipes[1]);
-        $stderr .= (string) \stream_get_contents($pipes[2]);
+        $stdout .= (string)\stream_get_contents($pipes[1]);
+        $stderr .= (string)\stream_get_contents($pipes[2]);
 
         \fclose($pipes[1]);
         \fclose($pipes[2]);
@@ -281,7 +281,7 @@ abstract class PackageTestCase extends TestCase
             if (
                 isset($fields[1])
                 && \ctype_digit($fields[1])
-                && (int) $fields[1] === $pid
+                && (int)$fields[1] === $pid
             ) {
                 return true;
             }

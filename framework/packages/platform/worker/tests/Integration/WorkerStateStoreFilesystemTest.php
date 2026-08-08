@@ -37,7 +37,7 @@ final class WorkerStateStoreFilesystemTest extends PackageTestCase
 
         $store->write($spec, $state);
         self::assertSame($state->toArray(), $store->readSnapshot($spec)?->toArray());
-        self::assertStringEndsWith("\n", (string) \file_get_contents($root . '/' . $spec->statePath()));
+        self::assertStringEndsWith("\n", (string)\file_get_contents($root . '/' . $spec->statePath()));
 
         $store->delete($spec);
         self::assertNull($store->readSnapshot($spec));

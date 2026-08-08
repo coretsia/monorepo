@@ -22,81 +22,65 @@ use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 
 final class WorkerShutdownDeadlinePropagationContractTest extends PackageTestCase
 {
-    public function testSupervisorUsesOneDeadlinePerShutdownPhase(): void
+    public function testSupervisorUsesBoundedBudgetsAndReleasesGuardianFenceAfterChildrenClose(): void
     {
         $source = self::source('src/Supervisor/WorkerSupervisor.php');
-
         foreach (
             [
                 '$cooperativeDeadlineNs',
                 '$terminateDeadlineNs',
                 '$killDeadlineNs',
                 'remainingMsOrNull',
-                'WorkerShutdownBudget::CLEANUP_TIMEOUT_MS',
+                'WorkerShutdownBudget::CLEANUP_TIMEOUT_MS'
             ] as $required
         ) {
             self::assertStringContainsString($required, $source);
         }
+        foreach (['pollExit', 'terminate', 'kill', 'close'] as $method) {
+            self::assertStringContainsString('$driver->' . $method . '(', $source);
+        }
+        $shutdown = \strpos($source, '$this->shutdownChildren(');
 
-        self::assertStringContainsString(
-            '$driver->pollExit($child, $remainingMs)',
+        self::assertIsInt($shutdown);
+
+        $cleanup = \strpos(
             $source,
+            '$this->locatorStore->delete()',
+            $shutdown,
         );
-        self::assertStringContainsString(
-            '$driver->terminate($child, $remainingMs)',
+        $release = \strpos(
             $source,
+            '$this->guardian->release(',
+            $shutdown,
         );
-        self::assertStringContainsString(
-            '$driver->kill($child, $remainingMs)',
+        $respond = \strpos(
             $source,
+            '$this->bestEffortRespondStopped(',
+            $shutdown,
         );
-        self::assertStringContainsString(
-            '$driver->close($child, $remainingMs)',
-            $source,
+
+        self::assertIsInt($cleanup);
+        self::assertIsInt($release);
+        self::assertIsInt($respond);
+        self::assertTrue(
+            $cleanup < $release && $release < $respond,
         );
+    }
+
+    public function testGuardianOwnerLossUsesSpecDerivedTerminationBudgets(): void
+    {
+        $runtime = self::source('src/Process/Guardian/WorkerProcessGuardianRuntime.php');
+        self::assertStringContainsString('$this->stopTimeoutMs', $runtime);
+        self::assertStringContainsString('$this->forceKillTimeoutMs', $runtime);
+        self::assertStringContainsString('cleanupOwnedGeneration()', $runtime);
+        self::assertStringContainsString('signalAll(false)', $runtime);
+        self::assertStringContainsString('signalAll(true)', $runtime);
     }
 
     public function testStopClientUsesOneLocatorDerivedRequestDeadline(): void
     {
-        $client = self::source(
-            'src/Communication/WorkerControlClient.php',
-        );
-
-        self::assertStringContainsString(
-            '$deadlineNs = self::deadlineNs($timeoutMs)',
-            $client,
-        );
-        self::assertStringContainsString(
-            'self::remainingMs($deadlineNs)',
-            $client,
-        );
-    }
-
-    public function testProcHostRequestsUseCallerOwnedRemainingBudget(): void
-    {
-        $client = self::source(
-            'src/Process/Proc/WorkerProcProcessHostClient.php',
-        );
-        $driver = self::source(
-            'src/Process/Driver/ProcWorkerProcessDriver.php',
-        );
-
-        self::assertStringContainsString(
-            'boundedRequestTimeoutMs',
-            $client,
-        );
-
-        foreach (['pollExit', 'terminate', 'kill', 'close'] as $method) {
-            self::assertStringContainsString(
-                '$this->processHost->' . $method,
-                $driver,
-            );
-            self::assertStringContainsString('$timeoutMs', $driver);
-        }
-
-        self::assertStringContainsString(
-            '$this->processHost->shutdown($timeoutMs)',
-            $driver,
-        );
+        $client = self::source('src/Communication/WorkerControlClient.php');
+        self::assertStringContainsString('$deadlineNs = self::deadlineNs($timeoutMs)', $client);
+        self::assertStringContainsString('self::remainingMs($deadlineNs)', $client);
     }
 }

@@ -301,6 +301,162 @@ final class WorkerCommandHarness
         @\proc_terminate($this->startProcess, $signal);
     }
 
+    /**
+     * Abruptly terminates only the foreground supervisor process.
+     *
+     * The guardian and workers are deliberately left untouched so tests can
+     * verify Coretsia-owned supervisor-death containment.
+     */
+    public function crashSupervisorOnly(): void
+    {
+        if (!\is_resource($this->startProcess)) {
+            throw new \LogicException('worker-harness-not-started');
+        }
+
+        $pid = $this->startPid();
+
+        if (\PHP_OS_FAMILY === 'Windows') {
+            self::terminateWindowsPid($pid, false);
+        } else {
+            if (!\defined('SIGKILL') || !\function_exists('posix_kill')) {
+                throw new \RuntimeException('worker-harness-abrupt-termination-unavailable');
+            }
+            @\posix_kill($pid, \SIGKILL);
+            @\proc_terminate($this->startProcess, \SIGKILL);
+        }
+
+        self::waitForProcessExit($this->startProcess, self::TERMINATION_TIMEOUT_MS);
+        $status = @\proc_get_status($this->startProcess);
+        if (\is_array($status) && ($status['running'] ?? false) === true) {
+            throw new \RuntimeException('worker-harness-supervisor-crash-timeout');
+        }
+
+        $this->drainStartPipes();
+        self::closePipes($this->startPipes);
+        @\proc_close($this->startProcess);
+        self::cleanupOutputPaths($this->startOutputPaths);
+        self::cleanupExitCodePath($this->startExitCodePath);
+
+        $this->startProcess = null;
+        $this->startPipes = [];
+        $this->startOutputPaths = [];
+        $this->startExitCodePath = null;
+        $this->startStdout = '';
+        $this->startStderr = '';
+    }
+
+    public function lifecycleLockAvailable(): bool
+    {
+        $handle = @\fopen($this->lockPath(), \PHP_OS_FAMILY === 'Windows' ? 'c+b' : 'c+be');
+        if (!\is_resource($handle)) {
+            return false;
+        }
+        try {
+            if (!@\flock($handle, \LOCK_EX | \LOCK_NB)) {
+                return false;
+            }
+            @\flock($handle, \LOCK_UN);
+            return true;
+        } finally {
+            @\fclose($handle);
+        }
+    }
+
+    /** @param list<int> $pids */
+    public function waitForLoggedChildrenExit(array $pids, int $timeoutMs = 10_000): void
+    {
+        $deadlineNs = \hrtime(true) + ($timeoutMs * 1_000_000);
+        do {
+            $alive = false;
+            foreach ($pids as $pid) {
+                if (self::pidExists($pid)) {
+                    $alive = true;
+                    break;
+                }
+            }
+            if (!$alive) {
+                return;
+            }
+            \usleep(self::POLL_INTERVAL_US);
+        } while (\hrtime(true) < $deadlineNs);
+
+        throw new \RuntimeException('worker-harness-children-still-running');
+    }
+
+    /**
+     * Abruptly terminates the externally-owned supervisor process tree.
+     *
+     * This deliberately bypasses worker:stop and supervisor cleanup so crash
+     * recovery tests can observe stale lifecycle artifacts after OS-level death.
+     */
+    public function crashStartProcessTree(): void
+    {
+        if (!\is_resource($this->startProcess)) {
+            throw new \LogicException('worker-harness-not-started');
+        }
+
+        if (\PHP_OS_FAMILY === 'Windows') {
+            self::terminateProcessTree($this->startProcess);
+        } else {
+            if (
+                !\defined('SIGKILL')
+                || !\function_exists('posix_kill')
+                || !\function_exists('posix_getpgid')
+            ) {
+                throw new \RuntimeException('worker-harness-abrupt-termination-unavailable');
+            }
+
+            $supervisorPid = $this->startPid();
+            $processGroupId = @\posix_getpgid($supervisorPid);
+
+            if (
+                !\is_int($processGroupId)
+                || $processGroupId < 1
+                || $processGroupId !== $supervisorPid
+            ) {
+                throw new \RuntimeException('worker-harness-process-group-not-isolated');
+            }
+
+            /*
+             * The start fixture creates a dedicated POSIX session before launching
+             * the guardian or any worker infrastructure. Killing the negative PGID
+             * therefore models catastrophic termination of the complete externally
+             * owned service unit, including supervisor, guardian, ProcHost when
+             * present, and every worker descendant.
+             */
+            if (!@\posix_kill(-$processGroupId, \SIGKILL)) {
+                throw new \RuntimeException('worker-harness-process-group-termination-failed');
+            }
+        }
+
+        self::waitForProcessExit(
+            $this->startProcess,
+            self::TERMINATION_TIMEOUT_MS,
+        );
+
+        $status = @\proc_get_status($this->startProcess);
+
+        if (
+            \is_array($status) && ($status['running'] ?? false) === true
+        ) {
+            throw new \RuntimeException('worker-harness-abrupt-termination-timeout');
+        }
+
+        $this->drainStartPipes();
+        self::closePipes($this->startPipes);
+        @\proc_close($this->startProcess);
+
+        self::cleanupOutputPaths($this->startOutputPaths);
+        self::cleanupExitCodePath($this->startExitCodePath);
+
+        $this->startProcess = null;
+        $this->startPipes = [];
+        $this->startOutputPaths = [];
+        $this->startExitCodePath = null;
+        $this->startStdout = '';
+        $this->startStderr = '';
+    }
+
     /** @return list<array{generation: int, pid: int, slot: int}> */
     public function pidLog(): array
     {
@@ -612,14 +768,8 @@ final class WorkerCommandHarness
             !isset($pipes[1], $pipes[2])
             || !\is_resource($pipes[1])
             || !\is_resource($pipes[2])
-            || !@\stream_set_blocking(
-                $pipes[1],
-                false,
-            )
-            || !@\stream_set_blocking(
-                $pipes[2],
-                false,
-            )
+            || !@\stream_set_blocking($pipes[1], false)
+            || !@\stream_set_blocking($pipes[2], false)
         ) {
             self::terminateProcessTree($process);
             self::closePipes($pipes);
@@ -661,9 +811,7 @@ final class WorkerCommandHarness
         }
 
         try {
-            $token = \bin2hex(
-                \random_bytes(8),
-            );
+            $token = \bin2hex(\random_bytes(8));
         } catch (\Throwable) {
             throw new \RuntimeException('worker-harness-output-token-failed');
         }
@@ -676,14 +824,8 @@ final class WorkerCommandHarness
         $stderrPath = $base . '.err';
 
         if (
-            @\file_put_contents(
-                $stdoutPath,
-                '',
-            ) === false
-            || @\file_put_contents(
-                $stderrPath,
-                '',
-            ) === false
+            @\file_put_contents($stdoutPath, '') === false
+            || @\file_put_contents($stderrPath, '') === false
         ) {
             @\unlink($stdoutPath);
             @\unlink($stderrPath);
@@ -711,20 +853,14 @@ final class WorkerCommandHarness
 
         if (
             !\is_dir($directory)
-            && !@\mkdir(
-                $directory,
-                0777,
-                true,
-            )
+            && !@\mkdir($directory, 0777, true)
             && !\is_dir($directory)
         ) {
             throw new \RuntimeException('worker-harness-exit-directory-failed');
         }
 
         try {
-            $token = \bin2hex(
-                \random_bytes(8),
-            );
+            $token = \bin2hex(\random_bytes(8));
         } catch (\Throwable) {
             throw new \RuntimeException('worker-harness-exit-token-failed');
         }
@@ -1153,10 +1289,7 @@ final class WorkerCommandHarness
         array $paths,
     ): void {
         foreach ($paths as $path) {
-            if (
-                \is_string($path)
-                && $path !== ''
-            ) {
+            if (\is_string($path) && $path !== '') {
                 @\unlink($path);
             }
         }
@@ -1176,6 +1309,40 @@ final class WorkerCommandHarness
         @\unlink($path . '.tmp');
     }
 
+    private static function pidExists(int $pid): bool
+    {
+        if ($pid < 1) {
+            return false;
+        }
+        if (\PHP_OS_FAMILY !== 'Windows' && \function_exists('posix_kill')) {
+            return @\posix_kill($pid, 0);
+        }
+        return false;
+    }
+
+    private static function terminateWindowsPid(int $pid, bool $tree): void
+    {
+        if ($pid < 1) {
+            return;
+        }
+        $null = self::nullDevice();
+        $descriptors = [
+            0 => ['file', $null, 'r'],
+            1 => ['file', $null, 'w'],
+            2 => ['file', $null, 'w'],
+        ];
+        $command = ['taskkill.exe', '/PID', (string)$pid];
+        if ($tree) {
+            $command[] = '/T';
+        }
+        $command[] = '/F';
+        $pipes = [];
+        $killer = @\proc_open($command, $descriptors, $pipes, null, null, ['bypass_shell' => true]);
+        if (\is_resource($killer)) {
+            @\proc_close($killer);
+        }
+    }
+
     private static function terminateProcessTree(
         mixed $process,
     ): void {
@@ -1191,39 +1358,8 @@ final class WorkerCommandHarness
             ? $status['pid']
             : null;
 
-        if (
-            \PHP_OS_FAMILY === 'Windows' && $pid !== null
-        ) {
-            $null = self::nullDevice();
-
-            $descriptors = [
-                0 => ['file', $null, 'r'],
-                1 => ['file', $null, 'w'],
-                2 => ['file', $null, 'w'],
-            ];
-
-            $pipes = [];
-
-            $killer = @\proc_open(
-                command: [
-                    'taskkill.exe',
-                    '/PID',
-                    (string)$pid,
-                    '/T',
-                    '/F',
-                ],
-                descriptor_spec: $descriptors,
-                pipes: $pipes,
-                cwd: null,
-                env_vars: null,
-                options: [
-                    'bypass_shell' => true,
-                ],
-            );
-
-            if (\is_resource($killer)) {
-                @\proc_close($killer);
-            }
+        if (\PHP_OS_FAMILY === 'Windows' && $pid !== null) {
+            self::terminateWindowsPid($pid, true);
         }
 
         @\proc_terminate($process, 9);

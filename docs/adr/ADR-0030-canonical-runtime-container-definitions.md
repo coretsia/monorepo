@@ -535,7 +535,10 @@ WorkerChildReadinessChannel
 
 WorkerChildTable
 WorkerSignalController
-WorkerForkIsolation
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianInterface alias
 
 QueueTaskFactory
 HttpTaskFactory
@@ -544,8 +547,6 @@ ApplicationWorker
 
 WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
-WorkerProcProcessHostProtocol
-WorkerProcProcessHostClient
 ProcWorkerProcessDriver
 ContainerWorkerProcessDriverResolver
 WorkerProcessDriverResolverInterface alias

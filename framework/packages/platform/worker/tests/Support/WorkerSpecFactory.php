@@ -40,10 +40,10 @@ final class WorkerSpecFactory
 
         return WorkerPoolSpec::fromConfig(
             config: $config,
-            pcntlForkAvailable: true,
+            pcntlDriverAvailable: true,
             platformFamily: 'Linux',
             unixDomainSocketsSupported: true,
-            procProcessHostAvailable: true,
+            procDriverAvailable: true,
         );
     }
 

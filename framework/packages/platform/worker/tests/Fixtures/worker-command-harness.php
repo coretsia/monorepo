@@ -39,11 +39,12 @@ use Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface;
 use Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface;
+use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
@@ -54,7 +55,6 @@ use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
 use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Supervisor\WorkerSupervisor;
-use Coretsia\Platform\Worker\Tests\Fake\FakeWorkerProcessDriver;
 use Coretsia\Platform\Worker\Tests\Support\ArrayConfigRepository;
 use Coretsia\Platform\Worker\Tests\Support\RecordingLogger;
 use Coretsia\Platform\Worker\Tests\Support\RecordingMeter;
@@ -126,6 +126,18 @@ if (
     exit(64);
 }
 
+if (
+    $operation === 'start'
+    && \PHP_OS_FAMILY !== 'Windows'
+    && \function_exists('posix_setsid')
+) {
+    $sessionId = @\posix_setsid();
+
+    if (!\is_int($sessionId) || $sessionId < 1) {
+        exit(70);
+    }
+}
+
 $config = coretsia_worker_test_decode_file($configPath);
 $behavior = coretsia_worker_test_decode_file($behaviorPath);
 
@@ -159,49 +171,44 @@ if ($operation === 'start') {
         decoder: $decoder,
     );
 
-    $driverName = $config['worker']['driver'] ?? null;
+    $specForDriver = $factory->workerPoolSpec($repository);
+    $driverName = $specForDriver->driver();
+
+    $guardian = new WorkerProcessGuardianClient(
+        command: [
+            PHP_BINARY,
+            \dirname(__DIR__, 2) . '/bin/coretsia-worker-guardian',
+        ],
+        bootstrapWorkingDirectory: $frameworkRoot,
+        skeletonRoot: $skeletonRoot,
+        protocol: new WorkerProcessGuardianProtocol($encoder, $decoder),
+        transport: new WorkerProcessGuardianTransport(),
+    );
+
+    $childCommand = [
+        PHP_BINARY,
+        __DIR__ . '/supervisor-worker-child.php',
+    ];
+    $commandBuilder = new WorkerChildCommandBuilder('var/tmp');
 
     if ($driverName === 'proc') {
-        $hostProtocol = new WorkerProcProcessHostProtocol(
-            $encoder,
-            $decoder,
-        );
-
-        $processHost = new WorkerProcProcessHostClient(
-            command: [
-                PHP_BINARY,
-                \dirname(__DIR__, 2)
-                . '/bin/coretsia-worker-proc-host',
-            ],
-            workingDirectory: $frameworkRoot,
-            protocol: $hostProtocol,
-        );
-
         $driver = new ProcWorkerProcessDriver(
             skeletonRoot: $skeletonRoot,
-            workerCommand: [
-                PHP_BINARY,
-                __DIR__ . '/proc-supervisor-child.php',
-            ],
-            commandBuilder: new WorkerChildCommandBuilder('var/tmp'),
+            workerCommand: $childCommand,
+            commandBuilder: $commandBuilder,
             readinessChannel: $readiness,
-            processHost: $processHost,
-            processHostAvailable: WorkerProcessCapabilities::procDriverAvailable(),
+            guardian: $guardian,
+            driverAvailable: WorkerProcessCapabilities::procDriverAvailable(),
         );
     } else {
-        $forkIsolation = new WorkerForkIsolation(
-            lifecycleLock: $lock,
-            controlServer: $server,
-            signals: $signals,
-            children: $children,
-        );
-
-        $driver = new FakeWorkerProcessDriver(
-            forkIsolation: $forkIsolation,
-            stopSignal: $stopSignal,
-            behavior: $behavior,
-            pidLogPath: $skeletonRoot
-            . '/var/tmp/worker-pids.jsonl',
+        $driver = new PcntlWorkerProcessDriver(
+            skeletonRoot: $skeletonRoot,
+            workerCommand: $childCommand,
+            commandBuilder: $commandBuilder,
+            readinessChannel: $readiness,
+            guardian: $guardian,
+            driverAvailable: WorkerProcessCapabilities::pcntlDriverAvailable(),
+            platformFamily: PHP_OS_FAMILY,
         );
     }
 
@@ -223,7 +230,7 @@ if ($operation === 'start') {
 
     $supervisor = new WorkerSupervisor(
         driverResolver: $driverResolver,
-        lifecycleLock: $lock,
+        guardian: $guardian,
         locatorStore: $locatorStore,
         controlServer: $server,
         readinessChannel: $readiness,
@@ -331,7 +338,7 @@ function coretsia_worker_test_exit(
     if (
         @\file_put_contents(
             $temporaryPath,
-            (string) $exitCode . "\n",
+            (string)$exitCode . "\n",
             \LOCK_EX,
         ) === false
         || !@\rename(

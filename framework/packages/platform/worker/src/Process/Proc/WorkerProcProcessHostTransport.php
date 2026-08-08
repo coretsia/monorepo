@@ -35,7 +35,7 @@ final class WorkerProcProcessHostTransport
     private const int CONNECT_RETRY_US = 1_000;
 
     /**
-     * Accepts the initial private supervisor connection.
+     * Accepts the initial private guardian connection.
      *
      * @return resource
      */
@@ -73,7 +73,7 @@ final class WorkerProcProcessHostTransport
     }
 
     /**
-     * Connects the host to one supervisor-owned handoff endpoint.
+     * Connects the host to one guardian-owned handoff endpoint.
      *
      * @return resource
      */

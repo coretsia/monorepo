@@ -140,7 +140,7 @@ They are not Kernel runtime-driver ids.
 
 `platform/worker` is the package that owns the long-running worker runtime.
 
-Coretsia will use one foreground persistent supervisor as the sole worker-pool lifecycle owner.
+Coretsia will use one foreground persistent supervisor for worker-pool orchestration and one mandatory package-internal `WorkerProcessGuardian` for worker-generation ownership, process containment, and canonical generation fencing.
 
 The package provides:
 
@@ -175,7 +175,11 @@ ContainerWorkerProcessDriverResolver
 WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
-WorkerForkIsolation
+WorkerProcessGuardianInterface
+WorkerProcessGuardianClient
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianRuntime
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 WorkerProcProcessHostHandoffEndpoint
@@ -214,6 +218,9 @@ The package does not expose lifecycle facades, static process registries, or dup
 - package-internal lazy supervisor resolution;
 - canonical lifecycle-artifact path ownership;
 - lifecycle-lock implementation;
+- mandatory worker-generation guardian infrastructure;
+- worker-generation ownership and canonical generation fencing;
+- supervisor-death worker-generation containment;
 - private active-supervisor locator schema and storage;
 - worker child table;
 - child readiness protocol;
@@ -349,7 +356,10 @@ WorkerChildReadinessChannel
 
 WorkerChildTable
 WorkerSignalController
-WorkerForkIsolation
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
 
 QueueTaskFactory
@@ -358,8 +368,6 @@ TaskFactoryInternalInterface
 ApplicationWorker
 
 PcntlWorkerProcessDriver
-WorkerProcProcessHostProtocol
-WorkerProcProcessHostClient
 ProcWorkerProcessDriver
 ContainerWorkerProcessDriverResolver
 WorkerProcessDriverResolverInterface alias
@@ -507,7 +515,7 @@ WorkerControlTransport
 WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
-WorkerProcProcessHostClient
+WorkerProcessGuardianClient
 ```
 
 `ApplicationWorker` receives `WorkerStopSignal`.
@@ -518,7 +526,7 @@ It must not independently reconstruct the skeleton root.
 
 `PcntlWorkerProcessDriver` and `ProcWorkerProcessDriver` receive the normalized skeleton root and the shared `WorkerChildCommandBuilder`. Neither driver receives a raw artifact root as an independent constructor value.
 
-The PCNTL driver uses the skeleton root only for the post-fork artifact-only exec boundary. The proc process host uses it as the child working directory.
+The PCNTL and proc drivers pass the normalized skeleton root as the worker working directory through guardian-backed spawn. `WorkerProcessGuardianClient` uses the normalized skeleton root for guardian bootstrap and generation claim. The proc process host receives the worker working directory through guardian-owned process-host operations.
 
 The constructed Worker services must not depend on `BootstrapConfig` or independently reconstruct generated artifact locations.
 
@@ -551,8 +559,8 @@ The canonical startup order is:
 build WorkerPoolSpec
 -> invoke WorkerRuntimeEntrypointGuard
 -> resolve WorkerSupervisorInterface
--> start driver-owned infrastructure
--> acquire lifecycle authority
+-> launch and authenticate WorkerProcessGuardian
+-> guardian claims canonical generation fence
 ```
 
 `WorkerStartCommand`, `HttpTaskFactory`, and the shipped proc child launcher must use this Worker-owned boundary where applicable.
@@ -671,8 +679,8 @@ The supervisor lifecycle is:
 
 ```text
 resolve selected process driver
--> prepare driver-owned infrastructure
--> acquire canonical lifecycle lock
+-> launch and authenticate mandatory WorkerProcessGuardian
+-> guardian claims canonical lifecycle lock
 -> delete stale private lifecycle locator
 -> delete stale diagnostic state
 -> clear stale cooperative stop signal
@@ -688,20 +696,21 @@ resolve selected process driver
 -> serve status / health / stop
 -> reap and recycle expected exits
 -> process signal-driven shutdown intent
--> stop and reap all children
--> shut down driver-owned infrastructure
+-> stop and reap all children through the guardian-backed driver
 -> delete diagnostic state
 -> clear cooperative stop signal
 -> close control listener
 -> remove the Unix socket when applicable
 -> delete private lifecycle locator
--> release canonical lifecycle lock
+-> request terminal guardian release
+-> guardian shuts down proc-host infrastructure when applicable
+-> guardian releases the canonical generation fence last
 -> return a deterministic process exit code
 ```
 
-Driver preparation occurs after runtime-entrypoint validation and before lifecycle-lock acquisition.
+Guardian claim occurs after runtime-entrypoint validation and before supervisor-owned state/control artifacts are published.
 
-This ordering is required by the proc process-host model so proc children cannot inherit the supervisor lifecycle lock, control listener, or readiness listeners.
+For the proc backend the guardian starts the proc process host before accepting the supervisor ownership connection and before acquiring the generation fence. This ordering prevents proc children from inheriting the guardian-supervisor connection or `worker.lock`.
 
 The startup callback is invoked exactly once.
 
@@ -716,23 +725,25 @@ AND state == running
 
 ## Ownership matrix
 
-| Component                           | Owns                                                                                                                                                                                                               | Must not own                                                                                 |
-|-------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| `WorkerStartCommand`                | spec construction, runtime-entrypoint guard invocation, lazy supervisor resolution, startup summary                                                                                                                | lifecycle lock, control server, child table, process spawning, final cleanup                 |
-| `WorkerSupervisor`                  | lifecycle lock, private locator publication and deletion, control server lifecycle, child table, readiness aggregation, state publication, signal intent, stop-signal writes, recycle policy, shutdown and cleanup | container lookup, spec construction, daemonization, stdout/stderr writes, task execution     |
-| `WorkerSupervisorResolverInterface` | lazy resolution of `WorkerSupervisorInterface`                                                                                                                                                                     | runtime guard policy, pool lifecycle                                                         |
-| `WorkerControlTransport`            | address derivation, listen, connect, accept, bounded frame I/O, close, Unix socket cleanup                                                                                                                         | protocol semantics, health policy, lifecycle decisions                                       |
-| `WorkerControlProtocol`             | exact versioned request/response encoding and decoding                                                                                                                                                             | process lifecycle, endpoint ownership, task payload transport                                |
-| `WorkerControlServer`               | supervisor-side listener and typed sessions                                                                                                                                                                        | startup decisions, health policy, shutdown orchestration                                     |
-| `WorkerControlClient`               | lifecycle-lock probing, private locator reads, endpoint-consistency validation, and status/health/stop request-response flow                                                                                       | listener creation, state authority, locator writes, stop-signal writes, child lifecycle      |
-| `WorkerProcessDriverInterface`      | capability checks, driver preparation, one-child spawn/poll/terminate/kill/close, driver shutdown                                                                                                                  | state store, control server, pool-wide registry, recycle policy, lifecycle observability     |
-| `WorkerChildTable`                  | typed mapping of worker slot, child generation, readiness, and shutdown state                                                                                                                                      | OS process operations, state persistence, control communication                              |
-| `WorkerStateStore`                  | atomic diagnostic state write/read/delete                                                                                                                                                                          | liveness authority, control decisions, process ownership                                     |
-| `WorkerLifecycleLock`               | exclusive liveness authority and duplicate-start exclusion                                                                                                                                                         | state publication, control communication, child lifecycle                                    |
-| `WorkerLifecycleLocatorStore`       | atomic private locator write/read/delete and exact locator file validation                                                                                                                                         | liveness authority, control protocol semantics, state publication, child lifecycle           |
-| `WorkerStopSignal`                  | supervisor-written cooperative stop signal observed between tasks                                                                                                                                                  | primary control transport, liveness authority, terminal acknowledgement                      |
-| `ApplicationWorker`                 | sequential task loop, task creation, KernelRuntime delegation, max-request exit, stop observation between tasks                                                                                                    | supervisor state, child table, control server, state publication, direct reset orchestration |
-| external service manager            | foreground launch, restart policy, deployment policy, process-group or cgroup ownership                                                                                                                            | internal control protocol, state schema, per-task UnitOfWork semantics                       |
+| Component                           | Owns                                                                                                                                                                                             | Must not own                                                                                 |
+|-------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `WorkerStartCommand`                | spec construction, runtime-entrypoint guard invocation, lazy supervisor resolution, startup summary                                                                                              | lifecycle lock, control server, child table, process spawning, final cleanup                 |
+| `WorkerSupervisor`                  | private locator publication/deletion, control server lifecycle, child table, readiness aggregation, state publication, signal intent, stop-signal writes, recycle policy, shutdown orchestration | lifecycle lock, raw worker OS ownership, restart policy, daemonization                       |
+| `WorkerSupervisorResolverInterface` | lazy resolution of `WorkerSupervisorInterface`                                                                                                                                                   | runtime guard policy, pool lifecycle                                                         |
+| `WorkerControlTransport`            | address derivation, listen, connect, accept, bounded frame I/O, close, Unix socket cleanup                                                                                                       | protocol semantics, health policy, lifecycle decisions                                       |
+| `WorkerControlProtocol`             | exact versioned request/response encoding and decoding                                                                                                                                           | process lifecycle, endpoint ownership, task payload transport                                |
+| `WorkerControlServer`               | supervisor-side listener and typed sessions                                                                                                                                                      | startup decisions, health policy, shutdown orchestration                                     |
+| `WorkerControlClient`               | lifecycle-lock probing, private locator reads, endpoint-consistency validation, and status/health/stop request-response flow                                                                     | listener creation, state authority, locator writes, stop-signal writes, child lifecycle      |
+| `WorkerProcessDriverInterface`      | capability checks and one-child spawn/poll/terminate/kill/close adaptation                                                                                                                       | generation ownership, pool preparation/shutdown, state store, control server, recycle policy |
+| `WorkerChildTable`                  | typed mapping of worker slot, child generation, readiness, and shutdown state                                                                                                                    | OS process operations, state persistence, control communication                              |
+| `WorkerStateStore`                  | atomic diagnostic state write/read/delete                                                                                                                                                        | liveness authority, control decisions, process ownership                                     |
+| `WorkerLifecycleLock`               | exclusive worker-generation fencing and duplicate-start exclusion                                                                                                                                | state publication, control communication, supervisor artifact ownership                      |
+| `WorkerLifecycleLocatorStore`       | atomic private locator write/read/delete and exact locator file validation                                                                                                                       | liveness authority, control protocol semantics, state publication, child lifecycle           |
+| `WorkerStopSignal`                  | supervisor-written cooperative stop signal observed between tasks                                                                                                                                | primary control transport, liveness authority, terminal acknowledgement                      |
+| `ApplicationWorker`                 | sequential task loop, task creation, KernelRuntime delegation, max-request exit, stop observation between tasks                                                                                  | supervisor state, child table, control server, state publication, direct reset orchestration |
+| `WorkerProcessGuardian`             | worker-generation fence, PCNTL process ownership, supervisor-death containment, proc-host ownership                                                                                              | state/locator/control artifacts, deployment restart policy                                   |
+| `WorkerProcProcessHost`             | raw `proc_open()` resources and proc-child fallback cleanup                                                                                                                                      | canonical generation fence, supervisor state/locator                                         |
+| external service manager            | foreground launch, restart policy, deployment policy, process-group/cgroup/job-object ownership, whole-unit recovery                                                                             | internal control protocol, state schema, per-task UnitOfWork semantics                       |
 
 ## Lazy supervisor resolution decision
 
@@ -788,18 +799,14 @@ Its operations cover:
 ```text
 name
 supports
-prepare
 spawn one child
 poll one child exit
 terminate one child
 kill one child
 close one child
-shutdown driver-owned infrastructure
 ```
 
-`prepare()` and `shutdown()` are driver-infrastructure hooks.
-
-They do not grant pool-wide lifecycle ownership.
+Process drivers are strict single-child adapters. Pool preparation, generation ownership, generation fencing, and terminal generation release belong to `WorkerProcessGuardian`.
 
 A process driver must not:
 
@@ -841,106 +848,48 @@ They must not read Worker configuration or inspect filesystem state, ports, envi
 
 ## PCNTL process decision
 
-`PcntlWorkerProcessDriver` owns Unix-like operations for one child:
+`PcntlWorkerProcessDriver` is a strict command/readiness adapter backed by `WorkerProcessGuardianInterface`.
+
+The driver owns:
 
 - tokenized readiness-listener creation;
-- fork;
-- Worker-owned inherited-resource detachment;
-- process-image replacement through `pcntl_exec()`;
-- non-blocking wait;
-- terminate signal;
-- kill signal;
-- child resource closure.
+- child command construction;
+- translation between guardian child identity and `WorkerChildProcess`.
 
-The PCNTL driver receives `RuntimePathContext`-derived launch data, `WorkerChildCommandBuilder`, `WorkerChildReadinessChannel`, and `WorkerForkIsolation`.
+It MUST NOT call `pcntl_fork()`, `pcntl_exec()`, `pcntl_waitpid()`, or `posix_kill()`.
 
-It does not receive `ContainerInterface`, `ApplicationWorker`, `BootstrapConfig`, raw individual artifact paths, or a child-bootstrap closure.
+The guardian PCNTL backend owns fork, exec, signal, wait, reap, and the canonical generation fence. After fork, the guardian child closes its copy of the authenticated guardian-supervisor connection, detaches the `WorkerLifecycleLock` descriptor, resets guardian signal handlers, changes to the explicit skeleton root, and executes the package-owned child launcher.
 
-After fork, the child closes its copy of the supervisor-owned readiness listener, invokes `WorkerForkIsolation::prepareForkedChild()`, changes to the explicit skeleton root, and executes the package-owned `bin/coretsia-worker` launcher.
-
-The exec-created PHP runtime performs a fresh artifact-only boot and resolves `ApplicationWorker` from a newly hydrated runtime container.
-
-The forked child may briefly inherit the parent process image, but it resolves no child runtime services before `pcntl_exec()`.
-
-No parent runtime container, shared service cache, `ApplicationWorker` instance, or PHP object graph crosses the exec boundary.
+The exec-created PHP runtime performs a fresh artifact-only boot and resolves `ApplicationWorker` from a newly hydrated runtime container. No parent runtime container, shared service cache, `ApplicationWorker` instance, or PHP object graph crosses the successful exec boundary as active PHP state.
 
 PCNTL and proc children use the same independently tokenized loopback TCP readiness protocol.
 
 ### Process-exec descriptor guarantee
 
-`WorkerForkIsolation` closes every Worker-owned supervisor descriptor registered with that boundary.
+The guardian explicitly detaches the Worker-owned descriptors that can exist at the PCNTL fork boundary: the guardian-supervisor ownership stream and the generation-fence descriptor. POSIX close-on-exec remains defense in depth.
 
-This guarantee does not extend to arbitrary application, integration, extension, deployment, or third-party descriptors that are unknown to the Worker package.
-
-Such descriptors are governed by:
-
-```text
-docs/ssot/process-exec-descriptor-safety.md
-```
-
-Neither `PcntlWorkerProcessDriver` nor `ProcWorkerProcessDriver` alone is a framework-wide proof that arbitrary descriptors cannot cross an exec boundary.
-
-Coretsia-owned local file handles request close-on-exec on POSIX where the handle can coexist with process execution. Known Worker-owned sockets, listeners, sessions, and locks retain explicit owner-driven detachment.
+This guarantee does not extend to arbitrary application, integration, extension, deployment, or third-party descriptors unknown to the Worker package. Such descriptors are governed by `docs/ssot/process-exec-descriptor-safety.md`.
 
 ## Proc process-host decision
 
-`ProcWorkerProcessDriver` owns one-child operations through a dedicated process host.
+`ProcWorkerProcessDriver` is a strict command/readiness adapter backed by `WorkerProcessGuardianInterface`; it does not own `WorkerProcProcessHostClient` or raw proc resources.
 
-The supervisor process must not directly own raw `proc_open()` resources.
-
-The canonical infrastructure is:
+The canonical topology is:
 
 ```text
-WorkerProcProcessHostProtocol
-WorkerProcProcessHostClient
-WorkerProcProcessHostHandoffEndpoint
-WorkerProcProcessHostTransport
-bin/coretsia-worker-proc-host
+WorkerSupervisor
+-> WorkerProcessGuardian
+   -> WorkerProcProcessHost
+      -> proc worker children
 ```
 
-The process host starts during driver preparation, before lifecycle-lock acquisition.
+The guardian executable starts `WorkerProcProcessHost` before it accepts the authenticated supervisor ownership connection and before it acquires `worker.lock`. The process host therefore cannot inherit the guardian-supervisor ownership stream or the generation-fence descriptor.
 
-This prevents proc children from inheriting:
-
-- the supervisor lifecycle lock;
-- the control listener;
-- supervisor readiness listeners;
-- supervisor-owned control sessions.
-
-Before every proc worker-child launch, the supervisor creates a one-shot handoff listener with a fresh token. The process host validates the spawn request, closes its current authenticated supervisor connection, calls `proc_open()`, and only then establishes and authenticates the replacement connection.
+For every proc worker-child launch, the guardian-owned `WorkerProcProcessHostClient` creates a one-shot handoff listener with a fresh token. The process host validates the spawn request, closes its current authenticated guardian connection, calls `proc_open()`, and only then establishes and authenticates the replacement connection.
 
 No proc-host protocol connection is open during worker-child launch. This invariant is identical on Windows and POSIX and requires only bounded loopback stream operations.
 
-The process host owns:
-
-- raw proc resources;
-- process spawn commands;
-- non-blocking process polling;
-- terminate and kill operations;
-- raw process-resource closure.
-
-It does not own:
-
-- pool lifecycle;
-- state publication;
-- readiness policy;
-- control operations;
-- recycle policy;
-- shutdown policy.
-
-Process-host communication is:
-
-- internal;
-- versioned;
-- newline framed;
-- deterministic;
-- bounded;
-- payload-minimal;
-- safe for cross-platform operation.
-
-Process command construction must use argv vectors.
-
-It must not construct an untrusted shell command string.
+The process host owns raw proc resources, non-blocking polling, terminate/kill, resource closure, and fallback child cleanup if its guardian connection disappears. It does not own the canonical generation fence, state publication, readiness policy, lifecycle control, or recycle policy.
 
 ## Process-child artifact-only boot decision
 
@@ -1022,6 +971,8 @@ The protocol uses:
 - silent rejection before session creation;
 - payload-free operations.
 
+The control request schema and private lifecycle-locator schema remain version `1` while the project is pre-stable. Historical unauthenticated shapes are not compatibility inputs and MUST be rejected through exact schema validation.
+
 The canonical request shape is:
 
 ```json
@@ -1048,6 +999,38 @@ The credential is generated once for each supervisor instance after stale lifecy
 
 The server validates the credential after exact protocol decoding and before creating `WorkerControlSession`. Missing, malformed, and non-matching credentials cause silent connection closure and execute no lifecycle operation. Responses never contain or echo the credential.
 
+### Control credential ownership and redaction
+
+Every supervisor-instance control credential MUST contain 256 bits generated through `random_bytes(32)`.
+
+`WorkerControlCredential` MUST have no string-conversion, JSON-serialization, logging, fingerprint, or diagnostic API.
+
+The supervisor-instance control credential MAY exist only in:
+
+- active supervisor memory;
+- the active `WorkerControlServer` authentication state;
+- the private `WorkerLifecycleLocator` and its owner-only file;
+- one private request frame and decoded request object;
+- tests and Worker architecture documentation.
+
+`WorkerControlCredential` MUST NOT be a container service, runtime seed, public contract, process-driver input, child-launch argument, public state field, endpoint identifier, endpoint hash, or observability value.
+
+The credential MUST NOT enter:
+
+- `worker.state.json`;
+- `WorkerPoolState` or `WorkerHealthState`;
+- response frames;
+- CLI output;
+- logs;
+- spans;
+- metrics;
+- endpoint identifiers or endpoint hashes;
+- exception messages or reasons;
+- artifact fingerprints;
+- child environment or argv.
+
+A credential from an earlier supervisor instance MUST be rejected by the active control server.
+
 The control channel supports:
 
 ```text
@@ -1061,14 +1044,14 @@ A stop session remains pending until:
 
 - every child has exited;
 - every child has been reaped;
-- child resources are closed;
-- driver infrastructure is shut down;
+- every child resource is closed;
 - diagnostic state is deleted;
 - the cooperative stop signal is cleared;
 - the control listener is closed;
 - the Unix socket is removed when applicable;
 - the private lifecycle locator is deleted;
-- the lifecycle lock is released.
+- terminal guardian release has completed;
+- the canonical generation fence is released.
 
 Only then may the supervisor return:
 
@@ -1091,9 +1074,37 @@ The control protocol must not transport:
 - raw filesystem paths;
 - raw endpoint values.
 
+### Control security boundary
+
+The control credential protects the lifecycle endpoint from processes that cannot read the private lifecycle locator.
+
+It is not an isolation boundary against:
+
+- arbitrary processes running under the same compromised operating-system account;
+- an administrator capable of reading that account's private files or process memory.
+
+Remote Worker control is not supported.
+
+### Private credential domains
+
+The following credentials and tokens belong to distinct authority domains and MUST NOT be reused:
+
+```text
+supervisor control credential
+!= guardian ownership token
+!= proc-host token or handoff token
+!= child-readiness token
+```
+
+The guardian ownership token authenticates only the private supervisor-to-guardian channel.
+
+Guardian tokens, proc-host tokens, handoff tokens, and readiness tokens MUST NOT be published in the lifecycle locator, diagnostic state, logs, spans, metrics, CLI output, or public exceptions unless a narrower owning contract explicitly permits a private transport use.
+
 ## Lifecycle-lock authority decision
 
-`WorkerLifecycleLock` is the sole liveness authority.
+`WorkerLifecycleLock` is the sole worker-generation ownership and fencing authority.
+
+A held generation fence does not by itself prove that the foreground supervisor is reachable. Live supervisor availability additionally requires a valid private lifecycle locator and a reachable authenticated control endpoint.
 
 Its anchor path is package-owned and immutable:
 
@@ -1116,16 +1127,16 @@ fopen($path, $mode);
 flock($handle, LOCK_EX | LOCK_NB);
 ```
 
-The POSIX `e` flag requests close-on-exec as defense in depth. Explicit `WorkerForkIsolation` detachment remains mandatory and is not replaced by the open mode.
+The POSIX `e` flag requests close-on-exec as defense in depth. Explicit guardian fork-child detachment of the lifecycle-lock descriptor remains mandatory and is not replaced by the open mode.
 
 The semantics are:
 
 ```text
-exclusive lock acquired
-  -> this supervisor owns the pool lifecycle
+exclusive lock acquired by guardian
+  -> one Coretsia worker generation is active or being recovered
 
 exclusive lock unavailable
-  -> a pool is starting, running, or stopping
+  -> a worker generation is starting, running, stopping, or supervisor-death cleanup is in progress
 
 exclusive lock available during a client probe
   -> the pool is not running
@@ -1231,15 +1242,27 @@ stop_timeout_ms + (2 * force_kill_timeout_ms) + WorkerShutdownBudget::CLEANUP_TI
 
 Changing current worker endpoint or timeout configuration does not redirect lifecycle commands and does not shorten the shutdown deadline of an active pool.
 
-A process crash may leave a stale locator after the operating system releases the lifecycle lock. A free lock remains authoritative and classifies the pool as not running. The next successful start deletes the stale locator after acquiring the canonical lock and before publishing a fresh locator.
+Abrupt supervisor death may leave the private locator and other supervisor-owned runtime artifacts stale. If the guardian survives, it retains the canonical generation fence while containing the old worker generation and releases the fence only after cleanup completes.
+
+Abrupt guardian death or catastrophic termination of the complete externally managed service unit may cause the operating system to release the generation fence while stale supervisor-owned artifacts remain. A free generation fence remains authoritative and classifies the pool as not running.
+
+The next successful start proceeds only after its guardian has acquired the canonical generation fence. The supervisor then deletes the stale canonical locator before publishing a fresh locator.
 
 Raw locator fields, the control credential, and raw locator JSON must not enter logs, spans, metrics, CLI output, state snapshots, response frames, endpoint hashes, or public exception messages.
 
-On POSIX, the locator temporary file is created under `umask(0177)` and verified as mode `0600` before credential bytes are written. The locator read boundary rejects effective permission bits other than `0600`.
+On POSIX, the locator temporary file is created under `umask(0177)`, requests close-on-exec as defense in depth, and is verified as mode `0600` before credential bytes are written. The locator read boundary rejects effective permission bits other than `0600`.
 
-Unix control sockets are created under `umask(0177)` and verified as mode `0600` before publication. TCP remains exactly loopback-only at `127.0.0.1`; no non-loopback opt-in is defined. Windows deployment owns restrictive directory ACLs.
+The locator store rejects symlinks and non-regular files on read.
 
-The supervisor deletes the private locator before releasing the lifecycle lock.
+Unix control sockets are created under restrictive `umask(0177)` and verified as mode `0600` before publication. Post-bind `chmod(0600)` remains required as verification and defense in depth, but it MUST NOT be the only creation-time protection.
+
+TCP control remains restricted exactly to `127.0.0.1`; no non-loopback or unsafe opt-in exists.
+
+On Windows, deployment MUST restrict the skeleton and runtime-directory ACLs to the application service account and authorized administrators. Pure-PHP `chmod()` behavior is not treated as an equivalent Windows ACL guarantee.
+
+Linux-specific peer credential validation MAY be evaluated separately, but it is not required by the cross-platform Worker contract.
+
+The supervisor deletes the private locator before requesting terminal guardian release. The guardian releases the canonical generation fence only after all owned workers are reaped/closed and proc-host shutdown is complete when applicable.
 
 ## Readiness protocol decision
 
@@ -1408,19 +1431,21 @@ transition state to stopping
 -> wait up to force_kill_timeout_ms
 -> reap every child
 -> close every child resource
--> shut down driver-owned infrastructure
 -> delete state
 -> clear stop signal
 -> close control listener
 -> remove Unix socket when applicable
 -> delete private lifecycle locator
--> release lifecycle lock
+-> request terminal guardian release
+-> guardian shuts down ProcHost when applicable
+-> guardian verifies no owned workers remain
+-> guardian releases canonical generation fence last
 -> send terminal stopped response
 ```
 
 Each cooperative, terminate, and kill phase creates one monotonic deadline before its first process-driver operation. Every potentially blocking `pollExit`, `terminate`, `kill`, and `close` call receives only the remaining phase budget. Iterating over multiple children must not restart or extend the phase deadline.
 
-Driver infrastructure shutdown receives the remaining cleanup budget defined by `WorkerShutdownBudget::CLEANUP_TIMEOUT_MS`.
+Terminal guardian release receives the remaining cleanup budget defined by `WorkerShutdownBudget::CLEANUP_TIMEOUT_MS`.
 
 `ApplicationWorker` observes the cooperative stop signal only between tasks.
 
@@ -1494,11 +1519,12 @@ An unexpected child exit during startup causes:
 
 ```text
 startup failure
--> stop all spawned children
+-> stop all spawned children through guardian-backed drivers
 -> reap and close all child resources
--> shut down driver infrastructure
--> clean runtime artifacts
--> release lifecycle lock
+-> clean supervisor-owned runtime artifacts
+-> request terminal guardian release
+-> guardian shuts down ProcHost when applicable
+-> guardian releases canonical generation fence last
 -> return deterministic start failure
 ```
 
@@ -1878,31 +1904,40 @@ The worker package does not:
 - implement deployment restart loops;
 - replace systemd, OpenRC, Supervisor, Kubernetes, Docker, or Windows service management.
 
+Coretsia provides a framework-level worker-generation containment layer without taking ownership of restart policy. If only the foreground supervisor dies while its guardian remains alive, the guardian terminates and reaps the old worker generation and retains `worker.lock` until cleanup completes. External process-group, cgroup, container, or job-object containment remains the outer safety boundary for guardian or whole-unit death.
+
 The external service manager must not bypass the Worker control and shutdown contracts by treating the diagnostic state file as liveness authority.
 
 ## Consequences
 
 ### Positive
 
-Coretsia gains one deterministic owner for the complete worker-pool lifecycle.
+Coretsia gains explicit ownership boundaries for foreground orchestration and worker-generation containment.
 
 The foreground supervisor owns:
 
-- liveness;
 - control communication;
-- readiness;
-- child state;
-- recycle;
-- shutdown;
-- cleanup.
+- supervisor state and lifecycle locator;
+- readiness aggregation;
+- child-table state;
+- recycle policy;
+- graceful and forced shutdown orchestration;
+- supervisor-owned artifact cleanup.
 
-Process drivers are reduced to explicit one-child OS adapters.
+The mandatory `WorkerProcessGuardian` owns:
 
-The same supervisor semantics operate across PCNTL and proc execution.
+- the canonical worker-generation fence;
+- PCNTL worker-process lifetime;
+- supervisor-death worker-generation containment;
+- `WorkerProcProcessHost` lifetime for the proc backend.
 
-The proc process-host boundary prevents children from inheriting supervisor-owned resources.
+Process drivers are reduced to explicit one-child command/readiness adapters.
 
-The lifecycle lock provides one cross-process liveness authority.
+PCNTL and proc expose the same supervisor-facing process-driver semantics while retaining backend-specific process ownership below the guardian.
+
+The proc process-host boundary prevents proc-created children from inheriting guardian-supervisor ownership-channel and generation-fence descriptors.
+
+The lifecycle lock provides one cross-process worker-generation ownership and fencing authority.
 
 The state file remains useful for safe diagnostics without becoming a process registry.
 
@@ -1956,7 +1991,7 @@ Rejected.
 
 The process issuing `worker:stop` does not own the running children.
 
-A control server must already exist inside the persistent process that owns the pool.
+A control server must already exist inside the persistent foreground supervisor that orchestrates the pool.
 
 Creating the server in the stop command reverses control ownership and cannot coordinate deterministic shutdown.
 
@@ -1964,7 +1999,7 @@ Creating the server in the stop command reverses control ownership and cannot co
 
 Rejected.
 
-A held lifecycle lock means a supervisor owns or is establishing the pool.
+A held lifecycle lock means a Coretsia worker generation is active or being recovered by its guardian.
 
 If the live endpoint is unavailable while the lock is held, the result is a communication failure.
 
@@ -2006,7 +2041,7 @@ A state file may remain after a crash or disappear while a process still owns re
 
 It cannot provide exclusive ownership.
 
-The lifecycle lock is the sole liveness authority.
+The lifecycle lock is the sole cross-process worker-generation ownership and fencing authority.
 
 ### Use a static process registry
 
@@ -2164,7 +2199,7 @@ framework/packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest
 framework/packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
-framework/packages/platform/worker/tests/Integration/PcntlWorkerOwnedDescriptorIsolationTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlDescriptorIsolationTest.php
 framework/packages/platform/worker/tests/Integration/CoretsiaWorkerChildReadinessTest.php
 framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
@@ -2186,12 +2221,25 @@ framework/packages/core/kernel/tests/Contract/ArtifactLocalFileOpenModeContractT
 
 These tests are expected to verify:
 
+- supervisor control credentials are exactly 256-bit values encoded as 64 lowercase hexadecimal characters;
+- missing, malformed, and valid-shaped incorrect control credentials are rejected before session creation;
+- the correct control credential creates a typed control session;
+- a credential from a previous supervisor instance is rejected;
+- an invalid request does not make the listener unusable;
+- child spawn and recycle do not rotate the control credential;
+- a new supervisor instance rotates the control credential;
+- the control credential is absent from state, responses, CLI output, observability, diagnostics, child argv/environment, and exceptions;
+- TCP control remains exactly loopback-only;
+- Unix control socket creation uses restrictive umask and mode `0600`;
+- the POSIX private locator uses restrictive creation, exact `0600` permissions, and rejects symlinks and non-regular files;
+- supervisor control, guardian, proc-host/handoff, and readiness credentials remain distinct authority domains;
 - worker config root shape is a subtree;
 - invalid scalar, path, timeout, driver, and transport values are rejected;
 - process-driver and control-transport auto-resolution is deterministic;
 - Kernel runtime-driver selection is independent from Worker OS process-driver selection;
 - TCP port `0` is rejected;
-- the lifecycle lock is sole liveness authority;
+- the lifecycle lock is the sole worker-generation ownership and fencing authority;
+- a held generation fence does not by itself prove supervisor endpoint availability;
 - the lifecycle lock path is canonical and cannot drift with current config;
 - Coretsia-owned local lock and artifact files request close-on-exec on POSIX;
 - the private locator has an exact versioned schema;
@@ -2235,7 +2283,7 @@ These tests are expected to verify:
 - control protocol operations are exactly `status`, `health`, and `stop`;
 - control protocol frames are payload-free;
 - delayed TCP request frames are handled cross-platform;
-- terminal stop is returned only after cleanup and lifecycle-lock release;
+- terminal stop is returned only after supervisor-owned cleanup, terminal guardian release, and canonical generation-fence release;
 - status and health use the live supervisor;
 - signal shutdown uses the same deterministic cleanup path as control stop;
 - expected child exit recycles the same slot with a new generation;

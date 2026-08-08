@@ -78,25 +78,33 @@ final class WorkerPoolStateTest extends TestCase
     {
         $valid = self::state()->toArray();
 
-        yield 'unknown key' => [[
-            ...$valid,
-            'raw_endpoint' => '/tmp/private.sock',
-        ]];
+        yield 'unknown key' => [
+            [
+                ...$valid,
+                'raw_endpoint' => '/tmp/private.sock',
+            ]
+        ];
 
-        yield 'wrong version' => [[
-            ...$valid,
-            'version' => 2,
-        ]];
+        yield 'wrong version' => [
+            [
+                ...$valid,
+                'version' => 2,
+            ]
+        ];
 
-        yield 'invalid ready count' => [[
-            ...$valid,
-            'ready_worker_count' => 3,
-        ]];
+        yield 'invalid ready count' => [
+            [
+                ...$valid,
+                'ready_worker_count' => 3,
+            ]
+        ];
 
-        yield 'invalid hash' => [[
-            ...$valid,
-            'endpoint_hash' => '/tmp/private.sock',
-        ]];
+        yield 'invalid hash' => [
+            [
+                ...$valid,
+                'endpoint_hash' => '/tmp/private.sock',
+            ]
+        ];
     }
 
     private static function state(): WorkerPoolState

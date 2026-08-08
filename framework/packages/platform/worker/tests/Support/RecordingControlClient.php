@@ -31,25 +31,31 @@ final class RecordingControlClient implements WorkerControlClientInterface
     public int $statusCalls = 0;
     public int $healthCalls = 0;
     public int $stopCalls = 0;
+
     public function status(): WorkerPoolState
     {
         $this->statusCalls++;
         if ($this->failure) {
             throw $this->failure;
-        } return $this->statusState ?? throw new \LogicException('status-state-missing');
+        }
+        return $this->statusState ?? throw new \LogicException('status-state-missing');
     }
+
     public function health(): WorkerHealthState
     {
         $this->healthCalls++;
         if ($this->failure) {
             throw $this->failure;
-        } return $this->healthState ?? throw new \LogicException('health-state-missing');
+        }
+        return $this->healthState ?? throw new \LogicException('health-state-missing');
     }
+
     public function stop(): WorkerPoolState
     {
         $this->stopCalls++;
         if ($this->failure) {
             throw $this->failure;
-        } return $this->stopState ?? throw new \LogicException('stop-state-missing');
+        }
+        return $this->stopState ?? throw new \LogicException('stop-state-missing');
     }
 }

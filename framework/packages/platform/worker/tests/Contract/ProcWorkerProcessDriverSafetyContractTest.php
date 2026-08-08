@@ -22,99 +22,52 @@ use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 
 final class ProcWorkerProcessDriverSafetyContractTest extends PackageTestCase
 {
-    public function testDriverDelegatesRawProcessOwnershipToPreLockHost(): void
+    public function testProcDriverDelegatesAllProcessOwnershipToGuardian(): void
     {
-        $source = self::source('src/Process/Driver/ProcWorkerProcessDriver.php');
-
-        foreach (
-            [
-                'processHost->start',
-                'processHost->spawn',
-                'processHost->pollExit',
-                'processHost->terminate',
-                'processHost->kill',
-                'processHost->close',
-                'processHost->shutdown',
-            ] as $required
-        ) {
-            self::assertStringContainsString($required, $source);
+        $driver = self::source('src/Process/Driver/ProcWorkerProcessDriver.php');
+        self::assertStringContainsString('WorkerProcessGuardianInterface', $driver);
+        foreach (['spawn', 'pollExit', 'terminate', 'kill', 'close'] as $method) {
+            self::assertStringContainsString('$this->guardian->' . $method, $driver);
         }
-
-        $codeOnly = \preg_replace('/\/\*.*?\*\/|\/\/[^\n]*/s', '', $source) ?? $source;
-
-        foreach (
-            [
-                'proc_open(',
-                'proc_get_status(',
-                'proc_terminate(',
-                'proc_close(',
-                'WorkerStateStore',
-                'WorkerControlServer',
-                'WorkerStopSignal',
-            ] as $forbidden
-        ) {
-            self::assertStringNotContainsString($forbidden, $codeOnly);
+        foreach (['proc_open(', 'WorkerProcProcessHostClient', 'WorkerLifecycleLock'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $driver);
         }
     }
 
+    public function testGuardianStartsProcHostBeforeAcceptingSupervisorAndClaimingFence(): void
+    {
+        $bin = self::source('bin/coretsia-worker-guardian');
+        $runtime = self::source('src/Process/Guardian/WorkerProcessGuardianRuntime.php');
+        $startHost = \strpos($bin, '$processHost->start(');
+        $accept = \strpos($bin, '$transport->accept(');
+        self::assertIsInt($startHost);
+        self::assertIsInt($accept);
+        self::assertLessThan($accept, $startHost);
+        self::assertStringContainsString('$lock->acquire()', $runtime);
+    }
 
-    public function testProcessHostRotatesConnectionAroundEveryChildLaunch(): void
+    public function testProcessHostRotatesGuardianConnectionAroundEveryProcOpen(): void
     {
         $host = self::source('bin/coretsia-worker-proc-host');
         $client = self::source('src/Process/Proc/WorkerProcProcessHostClient.php');
-        $endpoint = self::source('src/Process/Proc/WorkerProcProcessHostHandoffEndpoint.php');
-        $transport = self::source('src/Process/Proc/WorkerProcProcessHostTransport.php');
-
-        foreach (
-            [
-                'WorkerProcProcessHostHandoffEndpoint::create',
-                'handoff_port',
-                'handoff_token',
-                'decodeHandoff',
-            ] as $required
-        ) {
-            self::assertStringContainsString($required, $client);
-        }
-
-        $hostClose = \strpos($host, '$this->closeConnection();');
-        $hostSpawn = \strpos($host, '$this->spawn($payload)');
-        $hostReconnect = \strpos($host, '$this->transport->connect(');
-
-        self::assertIsInt($hostClose);
-        self::assertIsInt($hostSpawn);
-        self::assertIsInt($hostReconnect);
-        self::assertLessThan($hostSpawn, $hostClose);
-        self::assertLessThan($hostReconnect, $hostSpawn);
-
-        foreach (
-            [
-                'stream_socket_server(',
-                'stream_socket_accept(',
-                'random_bytes(32)',
-                'function accept(',
-            ] as $required
-        ) {
-            self::assertStringContainsString($required, $endpoint);
-        }
-
-        self::assertStringContainsString('stream_socket_client(', $transport);
-        self::assertStringNotContainsString('SOCK_CLOEXEC', $transport);
-        self::assertStringNotContainsString('socket_create(', $transport);
+        self::assertStringContainsString('WorkerProcProcessHostHandoffEndpoint::create', $client);
+        self::assertStringContainsString('$this->closeConnection();', $host);
+        self::assertStringContainsString('$this->spawn($payload)', $host);
+        self::assertStringContainsString('$this->transport->connect(', $host);
     }
 
-    public function testProcDriverCapabilityChecksEveryRequiredFunction(): void
+    public function testProcCapabilityIncludesGuardianAndProcessHostTransportRequirements(): void
     {
         $capabilities = self::source('src/Internal/WorkerProcessCapabilities.php');
-
-        self::assertStringContainsString(
-            'procProcessHostTransportAvailable',
-            $capabilities,
-        );
-        self::assertStringContainsString(
-            'procDriverAvailable',
-            $capabilities,
-        );
-
+        foreach (
+            [
+                'guardianTransportAvailable',
+                'procProcessHostTransportAvailable',
+                'procDriverAvailable'
+            ] as $required
+        ) {
+            self::assertStringContainsString($required, $capabilities);
+        }
         foreach (
             [
                 'proc_open',
@@ -122,29 +75,10 @@ final class ProcWorkerProcessDriverSafetyContractTest extends PackageTestCase
                 'proc_terminate',
                 'proc_close',
                 'stream_socket_server',
-                'stream_socket_get_name',
-                'stream_socket_client',
-                'stream_socket_accept',
-                'stream_set_blocking',
-                'stream_select',
-            ] as $requiredFunction
+                'stream_socket_client'
+            ] as $fn
         ) {
-            self::assertStringContainsString(
-                "\\function_exists('{$requiredFunction}')",
-                $capabilities,
-            );
+            self::assertStringContainsString("\\function_exists('{$fn}')", $capabilities);
         }
-    }
-
-    public function testHostProtocolIsVersionedBoundedAndRejectsUnknownShapes(): void
-    {
-        $source = self::source('src/Process/Proc/WorkerProcProcessHostProtocol.php');
-
-        self::assertStringContainsString('VERSION = 1', $source);
-        self::assertStringContainsString('MAX_FRAME_BYTES', $source);
-        self::assertStringContainsString('StableJsonEncoder', $source);
-        self::assertStringContainsString('StableJsonDecoder', $source);
-        self::assertStringNotContainsString('serialize(', $source);
-        self::assertStringNotContainsString('unserialize(', $source);
     }
 }

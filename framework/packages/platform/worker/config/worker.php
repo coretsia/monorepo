@@ -35,6 +35,8 @@ declare(strict_types=1);
  * - configurable process/control paths are skeleton-root-relative runtime paths;
  * - the lifecycle lock and private lifecycle locator are package-owned canonical
  *   artifacts and are not part of mutable worker configuration;
+ * - the worker-generation guardian is mandatory package infrastructure and
+ *   cannot be enabled, disabled, or redirected by application configuration;
  * - path defaults MUST remain relative and MUST NOT contain a `skeleton/`
  *   prefix, absolute path syntax, host-specific path fragments, or monorepo-only
  *   paths;
@@ -95,10 +97,10 @@ return [
      *
      * `auto` resolves deterministically later:
      *
-     * - `pcntl` when the required PCNTL and POSIX capabilities are available
-     *   and the platform is not Windows;
-     * - otherwise `proc` when the secure proc process-host capability is
-     *   available;
+     * - `pcntl` when the guardian PCNTL backend and required POSIX capabilities
+     *   are available and the platform is not Windows;
+     * - otherwise `proc` when the guardian and isolated proc process-host
+     *   backend are available;
      * - otherwise worker start validation fails deterministically.
      */
     'driver' => 'auto',
@@ -106,8 +108,8 @@ return [
     /*
      * Proc child-process command vector.
      *
-     * This base argv vector is used by ProcWorkerProcessDriver to start child
-     * worker processes through proc_open().
+     * This base argv vector is adapted by ProcWorkerProcessDriver and executed
+     * by the guardian-owned isolated proc process host through proc_open().
      *
      * This is an argv list, not a shell string.
      *

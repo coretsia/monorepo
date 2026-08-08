@@ -22,12 +22,15 @@ use Psr\Log\AbstractLogger;
 
 final class RecordingLogger extends AbstractLogger
 {
-    /** @var list<array{level:string,message:string,context:array<string,mixed>}> */ public array $records = [];
+    /** @var list<array{level:string,message:string,context:array<string,mixed>}> */
+    public array $records = [];
     public bool $throw = false;
+
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         if ($this->throw) {
             throw new \RuntimeException('logger-failure');
-        }$this->records[] = ['level' => (string)$level, 'message' => (string)$message, 'context' => $context];
+        }
+        $this->records[] = ['level' => (string)$level, 'message' => (string)$message, 'context' => $context];
     }
 }

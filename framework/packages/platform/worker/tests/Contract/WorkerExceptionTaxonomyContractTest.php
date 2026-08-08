@@ -46,6 +46,7 @@ final class WorkerExceptionTaxonomyContractTest extends PackageTestCase
             WorkerLifecycleFailedException::lifecycleLockFailed()->reason(),
             WorkerLifecycleFailedException::lifecycleLocatorFailed()->reason(),
             WorkerLifecycleFailedException::processHostFailed()->reason(),
+            WorkerLifecycleFailedException::processGuardianFailed()->reason(),
         ];
 
         self::assertSame(
@@ -108,6 +109,7 @@ final class WorkerExceptionTaxonomyContractTest extends PackageTestCase
                 'lifecycleLockFailed',
                 'lifecycleLocatorFailed',
                 'processHostFailed',
+                'processGuardianFailed',
             ] as $factory
         ) {
             self::assertFalse(

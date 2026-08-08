@@ -21,16 +21,12 @@ namespace Coretsia\Platform\Worker\Tests\Integration;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
-use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
-use Coretsia\Platform\Worker\Communication\WorkerControlServer;
-use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
-use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
-use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
-use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
@@ -48,22 +44,14 @@ final class PcntlWorkerExecIsolationTest extends PackageTestCase
         $markerPath = $root . '/var/cache/coretsia/pcntl-exec-marker.json';
 
         if (!$driver->supports($spec)) {
-            try {
-                $driver->prepare($spec);
-                self::fail('Unsupported PCNTL execution must fail before fork.');
-            } catch (WorkerStartFailedException $exception) {
-                self::assertSame(
-                    WorkerStartFailedException::REASON_CHILD_START_FAILED,
-                    $exception->reason(),
-                );
-            }
-
+            self::assertFalse(WorkerProcessCapabilities::pcntlDriverAvailable());
             self::assertFileDoesNotExist($markerPath);
-
             return;
         }
 
-        $driver->prepare($spec);
+        $guardian = self::guardian($root);
+        $guardian->claim($spec, 'pcntl');
+        $driver = self::driver($root, $readiness, $guardian);
         $child = $driver->spawn($spec, 0);
         $readiness->await($child, 2000);
 
@@ -94,57 +82,38 @@ final class PcntlWorkerExecIsolationTest extends PackageTestCase
         self::assertSame($child->pid(), $marker['pid'] ?? null);
 
         $driver->close($child, 1_000);
-        $driver->shutdown(1_000);
+        $guardian->release(1_000);
     }
 
     private static function driver(
         string $root,
         WorkerChildReadinessChannel $readiness,
+        ?WorkerProcessGuardianClient $guardian = null,
     ): PcntlWorkerProcessDriver {
+        $guardian ??= self::guardian($root);
+
         return new PcntlWorkerProcessDriver(
             skeletonRoot: $root,
-            workerCommand: [
-                \PHP_BINARY,
-                self::packageRoot() . '/tests/Fixtures/pcntl-exec-worker-fixture.php',
-            ],
+            workerCommand: [\PHP_BINARY, self::packageRoot() . '/tests/Fixtures/pcntl-exec-worker-fixture.php'],
             commandBuilder: new WorkerChildCommandBuilder('var/cache/coretsia'),
             readinessChannel: $readiness,
-            forkIsolation: new WorkerForkIsolation(
-                new WorkerLifecycleLock($root),
-                new WorkerControlServer(
-                    new WorkerControlTransport($root),
-                    new WorkerControlProtocol(
-                        new StableJsonEncoder(),
-                        new StableJsonDecoder(),
-                    ),
-                ),
-                new WorkerSignalController(),
-                new WorkerChildTable(),
-            ),
-            pcntlAvailable: self::pcntlAvailable(),
+            guardian: $guardian,
+            driverAvailable: WorkerProcessCapabilities::pcntlDriverAvailable(),
             platformFamily: \PHP_OS_FAMILY,
         );
     }
 
-    private static function pcntlAvailable(): bool
+    private static function guardian(string $root): WorkerProcessGuardianClient
     {
-        foreach (
-            [
-                'pcntl_fork',
-                'pcntl_exec',
-                'pcntl_waitpid',
-                'pcntl_wifexited',
-                'pcntl_wexitstatus',
-                'pcntl_wifsignaled',
-                'pcntl_wtermsig',
-                'posix_kill',
-            ] as $function
-        ) {
-            if (!\function_exists($function)) {
-                return false;
-            }
-        }
-
-        return true;
+        $bootstrapRoot = \is_file(
+            self::frameworkRoot() . '/vendor/autoload.php'
+        ) ? self::frameworkRoot() : self::packageRoot();
+        return new WorkerProcessGuardianClient(
+            command: [\PHP_BINARY, self::packageRoot() . '/bin/coretsia-worker-guardian'],
+            bootstrapWorkingDirectory: $bootstrapRoot,
+            skeletonRoot: $root,
+            protocol: new WorkerProcessGuardianProtocol(new StableJsonEncoder(), new StableJsonDecoder()),
+            transport: new WorkerProcessGuardianTransport(),
+        );
     }
 }

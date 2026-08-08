@@ -119,25 +119,6 @@ final class WorkerSignalController
         $this->clearRuntimeState();
     }
 
-    /**
-     * Removes supervisor signal ownership from a forked child.
-     *
-     * Parent handlers are deliberately not restored in the child. The child
-     * must receive default SIGTERM/SIGINT behavior during forced shutdown and
-     * must never inherit a parent SIGCHLD reaper.
-     */
-    public function detachInForkedChild(): void
-    {
-        if ($this->installedMode === self::MODE_PCNTL) {
-            $this->resetForkedChildPcntlHandlers();
-        } elseif (
-            $this->installedMode === self::MODE_WINDOWS
-        ) {
-            $this->removeWindowsHandler();
-        }
-
-        $this->clearRuntimeState();
-    }
 
     private function installPcntlHandlers(): void
     {
@@ -236,40 +217,6 @@ final class WorkerSignalController
         $this->clearPreviousPcntlState();
     }
 
-    private function resetForkedChildPcntlHandlers(): void
-    {
-        if (
-            \function_exists('pcntl_signal')
-            && \defined('SIGTERM')
-            && \defined('SIGINT')
-            && \defined('SIGCHLD')
-            && \defined('SIG_DFL')
-        ) {
-            @\pcntl_signal(
-                \SIGTERM,
-                \SIG_DFL,
-                true,
-            );
-
-            @\pcntl_signal(
-                \SIGINT,
-                \SIG_DFL,
-                true,
-            );
-
-            @\pcntl_signal(
-                \SIGCHLD,
-                \SIG_DFL,
-                true,
-            );
-        }
-
-        if (\function_exists('pcntl_async_signals')) {
-            @\pcntl_async_signals(false);
-        }
-
-        $this->clearPreviousPcntlState();
-    }
 
     private function installWindowsHandler(): void
     {

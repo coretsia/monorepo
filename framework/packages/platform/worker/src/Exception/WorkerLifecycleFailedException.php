@@ -22,8 +22,8 @@ namespace Coretsia\Platform\Worker\Exception;
  * Deterministic worker supervisor-lifecycle failure.
  *
  * This exception covers invalid lifecycle state, unexpected child exits,
- * shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, and proc-host
- * failures that are not owned exclusively by worker startup.
+ * shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, process-guardian,
+ * and proc-host failures that are not owned exclusively by worker startup.
  *
  * The public message contains only:
  *
@@ -46,6 +46,7 @@ final class WorkerLifecycleFailedException extends WorkerException
     public const string REASON_LIFECYCLE_LOCK_FAILED = 'worker-lifecycle-lock-failed';
     public const string REASON_LIFECYCLE_LOCATOR_FAILED = 'worker-lifecycle-locator-failed';
     public const string REASON_PROCESS_HOST_FAILED = 'worker-process-host-failed';
+    public const string REASON_PROCESS_GUARDIAN_FAILED = 'worker-process-guardian-failed';
 
     private const array REASONS = [
         self::REASON_LIFECYCLE_FAILED => true,
@@ -56,6 +57,7 @@ final class WorkerLifecycleFailedException extends WorkerException
         self::REASON_LIFECYCLE_LOCK_FAILED => true,
         self::REASON_LIFECYCLE_LOCATOR_FAILED => true,
         self::REASON_PROCESS_HOST_FAILED => true,
+        self::REASON_PROCESS_GUARDIAN_FAILED => true,
     ];
 
     private function __construct(string $reason)
@@ -105,5 +107,10 @@ final class WorkerLifecycleFailedException extends WorkerException
     public static function processHostFailed(): self
     {
         return new self(self::REASON_PROCESS_HOST_FAILED);
+    }
+
+    public static function processGuardianFailed(): self
+    {
+        return new self(self::REASON_PROCESS_GUARDIAN_FAILED);
     }
 }

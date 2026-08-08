@@ -21,10 +21,10 @@ namespace Coretsia\Platform\Worker\Process;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessEndpoint;
 
 /**
- * Mutable runtime handle for one supervisor-owned worker child.
+ * Mutable supervisor-observed handle for one guardian-owned worker child.
  *
- * The object stores only bounded process metadata and opaque runtime resources.
- * Command vectors, raw endpoints, and absolute paths are intentionally absent.
+ * The process handle is always an opaque guardian child id. Command vectors,
+ * guardian endpoints, credentials and absolute paths are intentionally absent.
  */
 final class WorkerChildProcess
 {
@@ -34,30 +34,19 @@ final class WorkerChildProcess
         private readonly int $workerIndex,
         private readonly int $pid,
         private readonly string $driverName,
-        private readonly mixed $processHandle,
+        private readonly string $processHandle,
         private readonly WorkerChildReadinessEndpoint $readinessEndpoint,
         private readonly int $generation,
         private readonly int $startedAtNs,
     ) {
-        if ($workerIndex < 0 || $pid < 1 || $generation < 1 || $startedAtNs < 1) {
-            throw new \InvalidArgumentException('worker-child-process-invalid');
-        }
-        if (!\in_array($driverName, ['pcntl', 'proc'], true)) {
-            throw new \InvalidArgumentException('worker-child-process-invalid');
-        }
         if (
-            $driverName === 'proc'
-            && (
-                !\is_string($processHandle)
-                || \preg_match(
-                    '/\Achild-[1-9][0-9]*\z/',
-                    $processHandle,
-                ) !== 1
-            )
+            $workerIndex < 0
+            || $pid < 1
+            || $generation < 1
+            || $startedAtNs < 1
+            || !\in_array($driverName, ['pcntl', 'proc'], true)
+            || \preg_match('/\Achild-[1-9][0-9]*\z/', $processHandle) !== 1
         ) {
-            throw new \InvalidArgumentException('worker-child-process-invalid');
-        }
-        if ($driverName === 'pcntl' && $processHandle !== null) {
             throw new \InvalidArgumentException('worker-child-process-invalid');
         }
     }
@@ -77,7 +66,7 @@ final class WorkerChildProcess
         return $this->driverName;
     }
 
-    public function processHandle(): mixed
+    public function processHandle(): string
     {
         return $this->processHandle;
     }
@@ -107,7 +96,6 @@ final class WorkerChildProcess
         if ($generation < 1) {
             throw new \InvalidArgumentException('worker-child-generation-invalid');
         }
-
         return new self(
             workerIndex: $this->workerIndex,
             pid: $this->pid,

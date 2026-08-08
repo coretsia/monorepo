@@ -34,10 +34,13 @@ final class WorkerChildTableTest extends TestCase
         $table->add($second);
         $table->add($first);
 
-        self::assertSame([0, 1], \array_map(
-            static fn (WorkerChildProcess $child): int => $child->workerIndex(),
-            $table->all(),
-        ));
+        self::assertSame(
+            [0, 1],
+            \array_map(
+                static fn (WorkerChildProcess $child): int => $child->workerIndex(),
+                $table->all(),
+            )
+        );
         self::assertSame(2, $table->count());
         self::assertSame(0, $table->readyCount());
 
@@ -45,10 +48,13 @@ final class WorkerChildTableTest extends TestCase
 
         self::assertTrue($table->isReady(0));
         self::assertFalse($table->isReady(1));
-        self::assertSame([1], \array_map(
-            static fn (WorkerChildProcess $child): int => $child->workerIndex(),
-            $table->unready(),
-        ));
+        self::assertSame(
+            [1],
+            \array_map(
+                static fn (WorkerChildProcess $child): int => $child->workerIndex(),
+                $table->unready(),
+            )
+        );
 
         self::assertSame($first, $table->remove(0));
         self::assertSame(1, $table->count());
@@ -71,21 +77,6 @@ final class WorkerChildTableTest extends TestCase
         $table->markReady(9);
     }
 
-    public function testForkDetachClosesAllReadinessEndpointsAndClearsCopy(): void
-    {
-        $table = new WorkerChildTable();
-        $first = self::child(0, 2001);
-        $second = self::child(1, 2002);
-        $table->add($first);
-        $table->add($second);
-
-        $table->detachInForkedChild();
-
-        self::assertTrue($table->empty());
-        self::assertTrue($first->readinessEndpoint()->closed());
-        self::assertTrue($second->readinessEndpoint()->closed());
-    }
-
     private static function child(int $slot, int $pid): WorkerChildProcess
     {
         $stream = \tmpfile();
@@ -96,7 +87,7 @@ final class WorkerChildTableTest extends TestCase
             workerIndex: $slot,
             pid: $pid,
             driverName: 'pcntl',
-            processHandle: null,
+            processHandle: 'child-' . ($slot + 1),
             readinessEndpoint: WorkerChildReadinessEndpoint::stream($stream),
             generation: 1,
             startedAtNs: \hrtime(true),

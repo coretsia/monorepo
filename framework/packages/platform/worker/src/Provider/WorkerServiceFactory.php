@@ -38,13 +38,14 @@ use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
 use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
+use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
 use Coretsia\Platform\Worker\Process\ContainerWorkerProcessDriverResolver;
 use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
+use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
-use Coretsia\Platform\Worker\Process\WorkerForkIsolation;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
@@ -94,22 +95,22 @@ final class WorkerServiceFactory
      * config validation pipeline.
      *
      * Capability arguments are nullable for production wiring. Tests may pass
-     * explicit values to avoid depending on host pcntl, secure proc-host
+     * explicit values to avoid depending on host guardian-backed PCNTL, secure proc-host
      * transport, or Unix socket support.
      */
     public function workerPoolSpec(
         ConfigRepositoryInterface $config,
-        ?bool $pcntlForkAvailable = null,
+        ?bool $pcntlDriverAvailable = null,
         ?string $platformFamily = null,
         ?bool $unixDomainSocketsSupported = null,
-        ?bool $procProcessHostAvailable = null,
+        ?bool $procDriverAvailable = null,
     ): WorkerPoolSpec {
         return WorkerPoolSpec::fromConfig(
             config: self::workerConfigRoot($config),
-            pcntlForkAvailable: $pcntlForkAvailable,
+            pcntlDriverAvailable: $pcntlDriverAvailable,
             platformFamily: $platformFamily,
             unixDomainSocketsSupported: $unixDomainSocketsSupported,
-            procProcessHostAvailable: $procProcessHostAvailable,
+            procDriverAvailable: $procDriverAvailable,
         );
     }
 
@@ -204,20 +205,6 @@ final class WorkerServiceFactory
         return new WorkerSignalController();
     }
 
-    public function workerForkIsolation(
-        WorkerLifecycleLock $lifecycleLock,
-        WorkerControlServer $controlServer,
-        WorkerSignalController $signals,
-        WorkerChildTable $children,
-    ): WorkerForkIsolation {
-        return new WorkerForkIsolation(
-            lifecycleLock: $lifecycleLock,
-            controlServer: $controlServer,
-            signals: $signals,
-            children: $children,
-        );
-    }
-
     public function queueTaskFactory(): QueueTaskFactory
     {
         return new QueueTaskFactory();
@@ -286,10 +273,12 @@ final class WorkerServiceFactory
         RuntimePathContext $runtimePaths,
         WorkerChildCommandBuilder $commandBuilder,
         WorkerChildReadinessChannel $readinessChannel,
-        WorkerForkIsolation $forkIsolation,
-        ?bool $pcntlAvailable = null,
+        WorkerProcessGuardianInterface $guardian,
+        ?bool $driverAvailable = null,
         ?string $platformFamily = null,
     ): PcntlWorkerProcessDriver {
+        $platformFamily ??= \PHP_OS_FAMILY;
+
         return new PcntlWorkerProcessDriver(
             skeletonRoot: $runtimePaths->skeletonRoot(),
             workerCommand: [
@@ -298,9 +287,9 @@ final class WorkerServiceFactory
             ],
             commandBuilder: $commandBuilder,
             readinessChannel: $readinessChannel,
-            forkIsolation: $forkIsolation,
-            pcntlAvailable: $pcntlAvailable ?? self::pcntlAvailable(),
-            platformFamily: $platformFamily ?? \PHP_OS_FAMILY,
+            guardian: $guardian,
+            driverAvailable: $driverAvailable ?? WorkerProcessCapabilities::pcntlDriverAvailable($platformFamily),
+            platformFamily: $platformFamily,
         );
     }
 
@@ -309,8 +298,8 @@ final class WorkerServiceFactory
         ConfigRepositoryInterface $config,
         WorkerChildCommandBuilder $commandBuilder,
         WorkerChildReadinessChannel $readinessChannel,
-        WorkerProcProcessHostClient $processHost,
-        ?bool $procProcessHostAvailable = null,
+        WorkerProcessGuardianInterface $guardian,
+        ?bool $driverAvailable = null,
         ?string $platformFamily = null,
     ): ProcWorkerProcessDriver {
         return new ProcWorkerProcessDriver(
@@ -318,8 +307,8 @@ final class WorkerServiceFactory
             workerCommand: $this->procWorkerCommand($config),
             commandBuilder: $commandBuilder,
             readinessChannel: $readinessChannel,
-            processHost: $processHost,
-            processHostAvailable: $procProcessHostAvailable ?? WorkerProcessCapabilities::procDriverAvailable($platformFamily),
+            guardian: $guardian,
+            driverAvailable: $driverAvailable ?? WorkerProcessCapabilities::procDriverAvailable($platformFamily),
         );
     }
 
@@ -332,33 +321,38 @@ final class WorkerServiceFactory
         return new ContainerWorkerProcessDriverResolver($container);
     }
 
-    public function workerProcProcessHostProtocol(
+    public function workerProcessGuardianProtocol(
         StableJsonEncoder $encoder,
         StableJsonDecoder $decoder,
-    ): WorkerProcProcessHostProtocol {
-        return new WorkerProcProcessHostProtocol(
-            encoder: $encoder,
-            decoder: $decoder,
-        );
+    ): WorkerProcessGuardianProtocol {
+        return new WorkerProcessGuardianProtocol($encoder, $decoder);
     }
 
-    public function workerProcProcessHostClient(
+    public function workerProcessGuardianTransport(): WorkerProcessGuardianTransport
+    {
+        return new WorkerProcessGuardianTransport();
+    }
+
+    public function workerProcessGuardianClient(
         RuntimePathContext $runtimePaths,
-        WorkerProcProcessHostProtocol $protocol,
-    ): WorkerProcProcessHostClient {
-        return new WorkerProcProcessHostClient(
+        WorkerProcessGuardianProtocol $protocol,
+        WorkerProcessGuardianTransport $transport,
+    ): WorkerProcessGuardianClient {
+        return new WorkerProcessGuardianClient(
             command: [
                 self::phpBinary(),
-                \dirname(__DIR__, 2) . '/bin/coretsia-worker-proc-host',
+                \dirname(__DIR__, 2) . '/bin/coretsia-worker-guardian',
             ],
-            workingDirectory: $runtimePaths->skeletonRoot(),
+            bootstrapWorkingDirectory: $runtimePaths->skeletonRoot(),
+            skeletonRoot: $runtimePaths->skeletonRoot(),
             protocol: $protocol,
+            transport: $transport,
         );
     }
 
     public function workerSupervisor(
         WorkerProcessDriverResolverInterface $driverResolver,
-        WorkerLifecycleLock $lifecycleLock,
+        WorkerProcessGuardianInterface $guardian,
         WorkerLifecycleLocatorStore $locatorStore,
         WorkerControlServer $controlServer,
         WorkerChildReadinessChannel $readinessChannel,
@@ -373,7 +367,7 @@ final class WorkerServiceFactory
     ): WorkerSupervisor {
         return new WorkerSupervisor(
             driverResolver: $driverResolver,
-            lifecycleLock: $lifecycleLock,
+            guardian: $guardian,
             locatorStore: $locatorStore,
             controlServer: $controlServer,
             readinessChannel: $readinessChannel,
@@ -453,18 +447,6 @@ final class WorkerServiceFactory
             throw WorkerLifecycleFailedException::invalidState();
         }
         return \PHP_BINARY;
-    }
-
-    private static function pcntlAvailable(): bool
-    {
-        return \function_exists('pcntl_fork')
-            && \function_exists('pcntl_exec')
-            && \function_exists('pcntl_waitpid')
-            && \function_exists('pcntl_wifexited')
-            && \function_exists('pcntl_wexitstatus')
-            && \function_exists('pcntl_wifsignaled')
-            && \function_exists('pcntl_wtermsig')
-            && \function_exists('posix_kill');
     }
 
     private static function requiredConfigValue(ConfigRepositoryInterface $config, string $key): mixed

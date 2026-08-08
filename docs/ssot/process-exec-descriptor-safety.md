@@ -41,6 +41,7 @@ This document owns:
 
 This document does not own:
 
+- Worker process ownership or worker-generation fencing;
 - DI container lifecycle;
 - reset orchestration;
 - application service discovery;
@@ -165,17 +166,17 @@ close current child readiness listener
 -> pcntl_exec package-owned child launcher
 ```
 
-`WorkerForkIsolation` owns only Worker-known supervisor resources.
+The PCNTL guardian fork boundary owns only Worker-known guardian resources. It MUST close the guardian-supervisor connection and detach the `WorkerLifecycleLock` descriptor before exec.
 
 It MUST NOT enumerate or close arbitrary application, integration, extension, deployment, or third-party descriptors.
 
-The proc process host starts before Worker lifecycle-lock acquisition and before supervisor listeners are opened. This prevents inheritance of those later Worker-owned resources, but it does not prove isolation from descriptors opened before process-host startup.
+The proc process host starts inside the guardian before the guardian accepts the supervisor ownership connection and before Worker lifecycle-lock acquisition. This prevents inheritance of those later Worker-owned resources, but it does not prove isolation from descriptors opened before process-host startup.
 
-The proc process host MUST prevent its authenticated supervisor connection from crossing worker-child launch.
+The proc process host MUST prevent its authenticated guardian connection from crossing worker-child launch.
 
-For every spawn request, the supervisor MUST create a one-shot loopback handoff listener after process-host startup and MUST authenticate it with a fresh 256-bit token.
+For every spawn request, the guardian-owned process-host client MUST create a one-shot loopback handoff listener after process-host startup and MUST authenticate it with a fresh 256-bit token.
 
-After validating the complete spawn request, the process host MUST close its current authenticated supervisor connection before calling `proc_open()`.
+After validating the complete spawn request, the process host MUST close its current authenticated guardian connection before calling `proc_open()`.
 
 The process host MUST establish the replacement authenticated connection only after `proc_open()` returns. The replacement handoff frame MUST bind the handoff token, request id, protocol version, and exact encoded spawn response.
 
@@ -183,7 +184,7 @@ No proc-host protocol connection may be open while the host calls `proc_open()`.
 
 A failed child launch MUST still restore the authenticated connection and return the deterministic `child-start-failed` response through the handoff.
 
-If the replacement connection cannot be established or authenticated after a child was created, the process host MUST terminate and reap every registered child and MUST exit non-zero. The supervisor MUST treat the handoff failure as a process-host failure and MUST NOT retain an unidentified child.
+If the replacement connection cannot be established or authenticated after a child was created, the process host MUST terminate and reap every registered child and MUST exit non-zero. The guardian MUST treat the handoff failure as a process-host failure and MUST NOT retain an unidentified child.
 
 The proc process-host transport is available only when `proc_open()` and every required bounded loopback stream operation are available. It MUST NOT require `ext-sockets` or `SOCK_CLOEXEC` for descriptor isolation.
 
@@ -195,7 +196,7 @@ PCNTL and proc both depend on descriptor-owner discipline.
 
 The PCNTL fork-exec path provides object-graph isolation and explicit Worker-owned detachment.
 
-The proc process-host path avoids inheritance of Worker-owned resources opened after driver preparation and rotates its authenticated supervisor connection around every worker-child launch.
+The proc process-host path starts before the guardian-supervisor ownership stream and generation fence exist, then rotates its authenticated guardian connection around every worker-child launch.
 
 Neither driver alone proves arbitrary integration-descriptor isolation.
 
@@ -235,7 +236,7 @@ Tests MAY inspect descriptor behavior through bounded behavioral effects, such a
 
 ## Change rules
 
-Changing process-exec descriptor ownership, local-file open modes, Worker fork-child detachment, proc process-host ordering, or integration obligations requires updating:
+Changing process-exec descriptor ownership, local-file open modes, guardian fork-child detachment, proc process-host ordering, or integration obligations requires updating:
 
 ```text
 docs/ssot/process-exec-descriptor-safety.md

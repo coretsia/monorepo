@@ -39,6 +39,7 @@ final class WorkerExceptionsAreDeterministicContractTest extends TestCase
             WorkerStartFailedException::readinessTimeout(),
             WorkerLifecycleFailedException::lifecycleFailed(),
             WorkerLifecycleFailedException::processHostFailed(),
+            WorkerLifecycleFailedException::processGuardianFailed(),
             WorkerLifecycleFailedException::lifecycleLocatorFailed(),
         ];
 

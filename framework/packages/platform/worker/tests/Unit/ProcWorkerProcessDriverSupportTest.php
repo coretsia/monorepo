@@ -18,61 +18,33 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Tests\Unit;
 
-use Coretsia\Foundation\Serialization\StableJsonDecoder;
-use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostClient;
-use Coretsia\Platform\Worker\Process\Proc\WorkerProcProcessHostProtocol;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
+use Coretsia\Platform\Worker\Tests\Fake\FakeWorkerProcessGuardian;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 
 final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
 {
-    public function testSupportIsNarrowedToResolvedProcSpecAndSecureHostCapability(): void
+    public function testSupportIsNarrowedToResolvedProcSpecAndGuardianCapability(): void
     {
         $root = $this->temporaryDirectory('worker-proc-support');
-        $driver = self::driver(
-            root: $root,
-            processHostAvailable: true,
-        );
+        $driver = self::driver($root, true);
 
         self::assertSame('proc', $driver->name());
-        self::assertTrue(
-            $driver->supports(WorkerSpecFactory::create([
-                'driver' => 'proc',
-            ])),
-        );
-        self::assertFalse($driver->supports(
-            WorkerSpecFactory::create([
-                'driver' => 'pcntl',
-            ]),
-        ));
-
+        self::assertTrue($driver->supports(WorkerSpecFactory::create(['driver' => 'proc'])));
+        self::assertFalse($driver->supports(WorkerSpecFactory::create(['driver' => 'pcntl'])));
         self::assertFalse(
-            self::driver(
-                root: $root,
-                processHostAvailable: false,
-            )->supports(WorkerSpecFactory::create([
-                'driver' => 'proc',
-            ])),
+            self::driver($root, false)->supports(
+                WorkerSpecFactory::create(['driver' => 'proc']),
+            )
         );
     }
 
     public function testConstructorRejectsInvalidCommandParts(): void
     {
         $root = $this->temporaryDirectory('worker-proc-invalid');
-        $protocol = new WorkerProcProcessHostProtocol(
-            new StableJsonEncoder(),
-            new StableJsonDecoder(),
-        );
-        $host = new WorkerProcProcessHostClient(
-            command: [\PHP_BINARY, self::packageRoot() . '/bin/coretsia-worker-proc-host'],
-            workingDirectory: $root,
-            protocol: $protocol,
-        );
-
         $this->expectException(\InvalidArgumentException::class);
 
         new ProcWorkerProcessDriver(
@@ -80,37 +52,20 @@ final class ProcWorkerProcessDriverSupportTest extends PackageTestCase
             workerCommand: ["php\n"],
             commandBuilder: new WorkerChildCommandBuilder('var/cache/worker'),
             readinessChannel: new WorkerChildReadinessChannel(),
-            processHost: $host,
-            processHostAvailable: true,
+            guardian: new FakeWorkerProcessGuardian(),
+            driverAvailable: true,
         );
     }
 
-    private static function driver(
-        string $root,
-        bool $processHostAvailable,
-    ): ProcWorkerProcessDriver {
-        $protocol = new WorkerProcProcessHostProtocol(
-            new StableJsonEncoder(),
-            new StableJsonDecoder(),
-        );
-
+    private static function driver(string $root, bool $driverAvailable): ProcWorkerProcessDriver
+    {
         return new ProcWorkerProcessDriver(
             skeletonRoot: $root,
-            workerCommand: [
-                \PHP_BINARY,
-                self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php',
-            ],
+            workerCommand: [\PHP_BINARY, self::packageRoot() . '/tests/Fixtures/proc-worker-fixture.php'],
             commandBuilder: new WorkerChildCommandBuilder('var/cache/worker'),
             readinessChannel: new WorkerChildReadinessChannel(),
-            processHost: new WorkerProcProcessHostClient(
-                command: [
-                    \PHP_BINARY,
-                    self::packageRoot() . '/bin/coretsia-worker-proc-host',
-                ],
-                workingDirectory: $root,
-                protocol: $protocol,
-            ),
-            processHostAvailable: $processHostAvailable,
+            guardian: new FakeWorkerProcessGuardian(),
+            driverAvailable: $driverAvailable,
         );
     }
 }

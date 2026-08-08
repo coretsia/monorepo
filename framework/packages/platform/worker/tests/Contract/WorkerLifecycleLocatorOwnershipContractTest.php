@@ -57,6 +57,7 @@ final class WorkerLifecycleLocatorOwnershipContractTest extends PackageTestCase
             [
                 'src/Process/Driver/PcntlWorkerProcessDriver.php',
                 'src/Process/Driver/ProcWorkerProcessDriver.php',
+                'src/Process/Guardian/WorkerProcessGuardianRuntime.php',
                 'src/Worker/ApplicationWorker.php',
                 'src/Runtime/WorkerStateStore.php',
                 'src/Console/WorkerStatusCommand.php',

@@ -35,7 +35,7 @@ use Psr\Log\LoggerInterface;
 /**
  * Sends typed status, health, and terminal stop requests to the live supervisor.
  *
- * Supervisor liveness is established by WorkerLifecycleLock before the private
+ * Worker-generation ownership is established by WorkerLifecycleLock before the private
  * lifecycle locator is read. The locator, rather than current worker config,
  * supplies the active endpoint and stop deadlines.
  *

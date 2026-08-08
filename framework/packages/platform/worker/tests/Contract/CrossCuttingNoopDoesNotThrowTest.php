@@ -51,7 +51,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
     public function testPackageMetadataDeclaresOnlyRuntimeModuleSurface(): void
     {
         $composer = \json_decode(
-            (string) \file_get_contents(
+            (string)\file_get_contents(
                 \dirname(__DIR__, 2) . '/composer.json',
             ),
             true,

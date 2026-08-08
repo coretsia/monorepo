@@ -34,10 +34,10 @@ final class WorkerPoolSpecTest extends TestCase
 
         $unix = WorkerPoolSpec::fromConfig(
             $config,
-            pcntlForkAvailable: true,
+            pcntlDriverAvailable: true,
             platformFamily: 'Linux',
             unixDomainSocketsSupported: true,
-            procProcessHostAvailable: true,
+            procDriverAvailable: true,
         );
 
         self::assertSame('auto', $unix->driverRequested());
@@ -46,10 +46,10 @@ final class WorkerPoolSpecTest extends TestCase
 
         $windows = WorkerPoolSpec::fromConfig(
             $config,
-            pcntlForkAvailable: true,
+            pcntlDriverAvailable: true,
             platformFamily: 'Windows',
             unixDomainSocketsSupported: false,
-            procProcessHostAvailable: true,
+            procDriverAvailable: true,
         );
 
         self::assertSame('proc', $windows->driver());
@@ -67,10 +67,10 @@ final class WorkerPoolSpecTest extends TestCase
 
         WorkerPoolSpec::fromConfig(
             $config,
-            pcntlForkAvailable: false,
+            pcntlDriverAvailable: false,
             platformFamily: 'Linux',
             unixDomainSocketsSupported: true,
-            procProcessHostAvailable: false,
+            procDriverAvailable: false,
         );
     }
 
@@ -111,37 +111,53 @@ final class WorkerPoolSpecTest extends TestCase
     /** @return iterable<string, array{array<string, mixed>}> */
     public static function invalidOverrides(): iterable
     {
-        yield 'numeric string timeout' => [[
-            'start_timeout_ms' => '1000',
-        ]];
+        yield 'numeric string timeout' => [
+            [
+                'start_timeout_ms' => '1000',
+            ]
+        ];
 
-        yield 'timeout too large' => [[
-            'stop_timeout_ms' => 86_400_001,
-        ]];
+        yield 'timeout too large' => [
+            [
+                'stop_timeout_ms' => 86_400_001,
+            ]
+        ];
 
-        yield 'public TCP host' => [[
-            'tcp' => ['host' => '0.0.0.0'],
-        ]];
+        yield 'public TCP host' => [
+            [
+                'tcp' => ['host' => '0.0.0.0'],
+            ]
+        ];
 
-        yield 'overlapping state and lock' => [[
-            'state_path' => 'var/tmp/worker.lock',
-        ]];
+        yield 'overlapping state and lock' => [
+            [
+                'state_path' => 'var/tmp/worker.lock',
+            ]
+        ];
 
-        yield 'socket overlaps lifecycle locator' => [[
-            'socket_path' => 'var/tmp/worker.lifecycle.json',
-        ]];
+        yield 'socket overlaps lifecycle locator' => [
+            [
+                'socket_path' => 'var/tmp/worker.lifecycle.json',
+            ]
+        ];
 
-        yield 'state and state temp overlap lifecycle locator artifacts' => [[
-            'state_path' => 'var/tmp/worker.lifecycle.json',
-        ]];
+        yield 'state and state temp overlap lifecycle locator artifacts' => [
+            [
+                'state_path' => 'var/tmp/worker.lifecycle.json',
+            ]
+        ];
 
-        yield 'stop flag overlaps canonical lock' => [[
-            'stop_flag_path' => 'var/tmp/worker.lock',
-        ]];
+        yield 'stop flag overlaps canonical lock' => [
+            [
+                'stop_flag_path' => 'var/tmp/worker.lock',
+            ]
+        ];
 
-        yield 'absolute path' => [[
-            'socket_path' => '/tmp/worker.sock',
-        ]];
+        yield 'absolute path' => [
+            [
+                'socket_path' => '/tmp/worker.sock',
+            ]
+        ];
 
         foreach (
             [
@@ -150,13 +166,17 @@ final class WorkerPoolSpecTest extends TestCase
                 'stop_flag_path',
             ] as $pathKey
         ) {
-            yield $pathKey . ' rejects skeleton prefix' => [[
-                $pathKey => 'skeleton/var/tmp/worker.runtime',
-            ]];
+            yield $pathKey . ' rejects skeleton prefix' => [
+                [
+                    $pathKey => 'skeleton/var/tmp/worker.runtime',
+                ]
+            ];
 
-            yield $pathKey . ' rejects at-prefixed segment' => [[
-                $pathKey => 'var/@private/worker.runtime',
-            ]];
+            yield $pathKey . ' rejects at-prefixed segment' => [
+                [
+                    $pathKey => 'var/@private/worker.runtime',
+                ]
+            ];
         }
     }
 }

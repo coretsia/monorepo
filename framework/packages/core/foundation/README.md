@@ -47,7 +47,9 @@ This package is runtime-safe and intentionally small:
   - `integrations/*`
   - `devtools/*`
 
-`psr/log` is used only for the baseline `Psr\Log\LoggerInterface` noop binding.
+`psr/log` provides the PSR-3 logging port used by Foundation runtime observability, including deterministic reset summary logs.
+
+Foundation registers `Coretsia\Foundation\Logging\NoopLogger` as the baseline `Psr\Log\LoggerInterface` binding so a concrete logging backend remains optional and later providers MAY replace the baseline binding.
 
 `psr/clock` is used for the baseline `Psr\Clock\ClockInterface` binding.
 

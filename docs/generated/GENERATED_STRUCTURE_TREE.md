@@ -312,7 +312,9 @@ Coretsia/
 │   │   │   │   │   │   ├── EnvMissingVsEmptyIsDistinctContractTest.php
 │   │   │   │   │   │   ├── EnvPolicyPrecedenceContractTest.php
 │   │   │   │   │   │   ├── EnvRepositoryInterfaceShapeContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorExtensionsAreBoundedContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+│   │   │   │   │   │   ├── ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorFieldSetIsStableContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorHttpStatusIsOptionalContractTest.php
 │   │   │   │   │   │   ├── ErrorDescriptorSeverityEnumContractTest.php

@@ -20,6 +20,12 @@ Entries in this file are not accepted architecture decisions, not SSoT policy, a
 
 A cleanup candidate becomes actionable only when it is promoted into a numbered epic, ADR, or SSoT update.
 
+## Contents
+
+- [Foundation compiled autowire metadata](#foundation-compiled-autowire-metadata)
+- [ModulePlan artifact for pre-container runtime entrypoint guard](#moduleplan-artifact-for-pre-container-runtime-entrypoint-guard)
+- [Bounded ErrorDescriptor extension construction](#bounded-errordescriptor-extension-construction)
+
 ## Rules
 
 - Do not use this document as runtime policy.
@@ -641,5 +647,465 @@ Potential deliverables:
 - ensure diagnostics never expose raw paths, argv dumps, artifact payloads, or module-plan payload dumps;
 - add tests proving container.php is not read before entrypoint guard passes;
 - update relevant ADR and SSoT documents.
+
+---
+
+## Bounded ErrorDescriptor extension construction
+
+- Status: candidate
+- Source epic: `1.90.0` / ErrorDescriptor extensions resource-bound follow-up
+- Owner area: `core/contracts`, future error mapper and integration owners
+- Priority: later cleanup
+- Type: error normalization / bounded metadata construction / producer resource boundary
+
+### Goal
+
+Introduce a centralized bounded construction path for `ErrorDescriptor.extensions` if future mapper and integration APIs begin producing extension metadata regularly from potentially large or externally controlled sources.
+
+The current `ErrorDescriptor` implementation already protects its own normalization boundary with fixed limits for:
+
+```text
+container depth
+node count
+individual string bytes
+aggregate string bytes
+recursive PHP-array traversal
+```
+
+This correctly prevents unbounded work inside `ErrorDescriptor`.
+
+However, that boundary cannot retroactively prevent memory already allocated by a producer before descriptor construction.
+
+For example:
+
+```php
+$huge = buildVeryLargeArray();
+
+new ErrorDescriptor(
+    code: 'core.example',
+    message: 'Example message.',
+    extensions: $huge,
+);
+```
+
+In this shape, the large PHP array is already materialized before `ErrorDescriptor::__construct()` begins.
+
+A future cleanup may introduce a dedicated bounded extension-construction abstraction so that producers can build safe extension metadata incrementally instead of first materializing arbitrary arrays.
+
+### Motivation
+
+This cleanup becomes relevant when Coretsia has real mapper or integration APIs that regularly derive `ErrorDescriptor` extension metadata from sources such as:
+
+```text
+plugins
+queue transports
+HTTP runtimes
+database adapters
+external SDKs
+callback-provided metadata
+decoded transport structures
+domain exception context
+```
+
+Without a shared bounded construction abstraction, every producer would otherwise need to implement its own:
+
+```text
+depth accounting
+node accounting
+string-size accounting
+aggregate-size accounting
+safe-key validation
+deterministic map normalization
+failure behavior
+```
+
+That would create duplicated policy and increase the risk of drift between integrations.
+
+The desired long-term shape is:
+
+```text
+potentially unbounded source
+        ↓
+source-owner input limit
+        ↓
+incremental safe derivation
+        ↓
+bounded extension construction
+        ↓
+ErrorDescriptor
+        ↓
+canonical descriptor validation
+```
+
+This provides three distinct protection layers:
+
+```text
+1. source-owner limits
+   prevent excessive source materialization
+
+2. bounded extension construction
+   prevents producer-side extension growth
+
+3. ErrorDescriptor validation
+   protects the canonical contracts boundary
+```
+
+### Candidate policy
+
+The future abstraction MUST NOT imply that `ErrorDescriptor` can protect against memory already consumed before the abstraction is invoked.
+
+Potentially unbounded source data MUST be bounded before or during materialization by the owner of that source.
+
+Examples include:
+
+```text
+HTTP owner
+→ body / decoded input size limit
+
+queue adapter
+→ message / metadata size limit
+
+database adapter
+→ bounded diagnostic derivation
+
+plugin owner
+→ bounded plugin metadata contract
+
+external SDK adapter
+→ bounded extraction from vendor result/error objects
+```
+
+The extension-construction abstraction should operate only on data that can be consumed incrementally or whose source boundary is already controlled.
+
+It MUST NOT encourage the pattern:
+
+```text
+materialize arbitrary source completely
+→ pass huge array to bounded builder
+```
+
+because the memory cost has already occurred before the builder can enforce its limits.
+
+### Candidate implementation shape
+
+A future implementation may introduce a dedicated value object or builder such as:
+
+```text
+ErrorDescriptorExtensions
+```
+
+or:
+
+```text
+ErrorDescriptorExtensionsBuilder
+```
+
+The actual class name and public API must be decided by the promoting epic.
+
+A conceptual value-object shape could be:
+
+```php
+final readonly class ErrorDescriptorExtensions
+{
+    public static function empty(): self;
+
+    /**
+     * @param iterable<string,mixed> $entries
+     */
+    public static function fromIterable(iterable $entries): self;
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function toArray(): array;
+}
+```
+
+A builder-oriented API may instead expose incremental operations such as:
+
+```php
+$extensions = $builder
+    ->add('operation', 'consume')
+    ->add('outcome', 'rejected')
+    ->add('violationCount', 3)
+    ->build();
+```
+
+The accepted design should preserve the existing canonical `ErrorDescriptor` invariants:
+
+```text
+safe json-like values
+deterministic map ordering
+list ordering preservation
+forbidden semantic extension channels
+absolute-local-path rejection
+fixed resource limits
+fail-closed behavior
+no automatic truncation or redaction
+```
+
+The builder or value object MUST NOT become a generic payload sanitization facility.
+
+It MUST NOT accept raw secrets, SQL, transport payloads, throwable dumps, request bodies, response bodies, credentials, tokens, or arbitrary application structures merely to sanitize them later.
+
+Producer-side safe derivation remains mandatory.
+
+### Iterable boundary
+
+Using `iterable` may allow incremental consumption from generators or other lazy sources:
+
+```php
+function extensionEntries(): iterable
+{
+    yield 'operation' => 'consume';
+    yield 'outcome' => 'rejected';
+    yield 'violationCount' => 3;
+}
+```
+
+This can avoid requiring a complete root extension array before validation.
+
+However, `iterable` alone is not a complete memory-safety guarantee because PHP arrays are also iterable.
+
+This remains possible:
+
+```php
+$huge = buildVeryLargeArray();
+
+ErrorDescriptorExtensions::fromIterable($huge);
+```
+
+Therefore the future contract MUST explicitly distinguish:
+
+```text
+bounded incremental construction
+```
+
+from:
+
+```text
+retroactive validation of an already-materialized oversized structure
+```
+
+Only the first can prevent producer-side extension allocation growth.
+
+### Source-owner responsibility
+
+The strongest supported model should be:
+
+```text
+external or arbitrary source
+        ↓
+source-specific size/resource limit
+        ↓
+safe owner-approved derivation
+        ↓
+bounded ErrorDescriptor extension construction
+        ↓
+ErrorDescriptor canonical validation
+```
+
+For encoded or transport data, limits should be applied before expensive decoding where feasible.
+
+For example:
+
+```text
+raw HTTP body
+→ body-size limit
+→ decode
+→ derive safe compact metadata
+→ bounded extensions
+```
+
+rather than:
+
+```text
+raw HTTP body
+→ decode unbounded payload
+→ copy decoded structure into extensions
+→ reject later
+```
+
+Likewise, an adapter should prefer:
+
+```text
+vendor exception/result
+→ stable reason
+→ safe count
+→ safe length
+→ non-reconstructable hash when permitted
+```
+
+instead of copying an entire vendor-provided diagnostic structure.
+
+### Candidate files
+
+Potential existing files:
+
+```text
+framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php
+framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php
+
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
+
+docs/ssot/error-descriptor.md
+docs/ssot/errors-boundary.md
+docs/ssot/observability-and-errors.md
+```
+
+Potential future files, depending on the accepted design:
+
+```text
+framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensions.php
+```
+
+or:
+
+```text
+framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensionsBuilder.php
+```
+
+If implementation-specific construction behavior should remain outside `core/contracts`, a future epic may instead place the builder in the runtime package that owns error normalization while keeping the resulting value contract Contracts-owned.
+
+That ownership decision must be made before implementation.
+
+### Candidate tests
+
+A future implementation should cover at least:
+
+```text
+incremental construction accepts safe metadata
+
+incremental construction preserves deterministic map ordering
+
+incremental construction preserves semantic list ordering
+
+construction rejects the 257th node before consuming later entries
+
+construction rejects container depth greater than the canonical limit
+
+construction rejects an individual string exceeding the canonical limit
+
+construction rejects aggregate string bytes exceeding the canonical limit
+
+construction rejects forbidden semantic keys
+
+construction rejects absolute local paths
+
+construction does not auto-truncate oversized values
+
+construction does not auto-drop entries
+
+construction failure diagnostics contain no raw values
+
+generator-backed input stops being consumed immediately after budget failure
+
+entries after a budget violation are not evaluated
+
+ErrorDescriptor accepts the resulting bounded extension value
+
+existing ErrorDescriptor array behavior remains compatible or has an explicitly versioned migration path
+
+source-owner tests prove large transport/plugin/vendor payloads are bounded before conversion into extension metadata
+```
+
+Potential test files may include:
+
+```text
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsBoundedContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsDeterministicContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderPreservesRedactionContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderConsumesIterableIncrementallyContractTest.php
+```
+
+The exact test names depend on the accepted implementation shape.
+
+### Why not now
+
+The current ErrorDescriptor resource-bound hardening already closes the active availability defect inside `ErrorDescriptor` normalization.
+
+The current implementation guarantees that recursive, excessively deep, excessively wide, or oversized extension structures do not cause unbounded normalization work inside the descriptor.
+
+Introducing a dedicated extension value object or builder now would expand that fix into a public API and producer architecture change.
+
+That would require decisions about:
+
+```text
+public API shape
+value object versus builder
+Contracts versus runtime ownership
+array backward compatibility
+iterable semantics
+migration strategy
+mapper integration
+plugin integration
+queue adapter integration
+HTTP runtime integration
+database adapter integration
+external SDK adapter integration
+source-owner resource limits
+```
+
+Those decisions are not required for the current ErrorDescriptor resource-bound fix.
+
+There is also currently limited value in centralizing producer-side construction while concrete mapper and integration APIs do not yet use `ErrorDescriptor.extensions` extensively.
+
+For now, the accepted behavior remains:
+
+```text
+producer
+→ MUST derive safe, bounded metadata
+
+ErrorDescriptor
+→ independently validates and bounds normalization
+
+already-materialized producer memory
+→ remains producer/source-owner responsibility
+```
+
+### Promotion condition
+
+Promote only through a numbered epic, ADR, or SSoT update.
+
+Promotion becomes appropriate when one or more of the following conditions occur:
+
+- multiple concrete exception mappers begin producing non-empty `ErrorDescriptor.extensions`;
+- plugin APIs can contribute error extension metadata;
+- queue transports regularly derive descriptor metadata from broker messages or failure objects;
+- HTTP runtimes regularly derive descriptor metadata from request/response/runtime state;
+- database adapters regularly derive descriptor metadata from database failures;
+- external SDK integrations regularly derive descriptor metadata from vendor exceptions or result objects;
+- two or more packages duplicate equivalent extension depth/node/string budget logic;
+- producer-side array materialization becomes a measurable memory or availability concern;
+- an incremental extension construction API is needed to stop consuming generators or lazy sources immediately after the canonical budget is exhausted;
+- package compliance requires a single enforceable producer-side bounded extension construction contract.
+
+### Possible future epic shape
+
+```text
+1.xxx.0 Contracts: Bounded ErrorDescriptor Extension Construction
+```
+
+Potential deliverables:
+
+- decide whether the canonical abstraction is a value object, builder, or another bounded construction model;
+- define ownership between `core/contracts` and runtime error-normalization packages;
+- define incremental `iterable` consumption semantics;
+- define whether existing `array $extensions` construction remains supported and for how long;
+- preserve the current canonical depth, node, individual-string, and aggregate-string limits;
+- preserve semantic-key and absolute-path rejection;
+- preserve deterministic recursive map ordering;
+- preserve semantic list ordering;
+- ensure construction stops immediately when the resource budget is exhausted;
+- ensure lazy producers are not consumed after failure;
+- ensure no implementation silently truncates, drops, masks, or repairs producer metadata;
+- define safe failure diagnostics;
+- add producer-side integration guidance for plugins, queues, HTTP runtimes, database adapters, and external SDKs;
+- add contract and integration tests for bounded incremental construction;
+- update `ErrorDescriptor` SSoT;
+- update the errors boundary SSoT;
+- record an ADR only if the accepted solution changes the public error-normalization architecture.
 
 ---

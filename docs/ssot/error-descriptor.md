@@ -422,6 +422,67 @@ Extension map keys MUST be:
 - non-empty;
 - safe single-line values.
 
+### Extension semantic-key policy
+
+`ErrorDescriptor` performs fail-closed recursive semantic-key validation for extension maps at every nesting depth.
+
+For policy comparison, extension keys are normalized by:
+
+1. ASCII lowercasing;
+2. removal of `_`, `-`, and `.`.
+
+For example:
+
+```text
+access_token
+access-token
+access.token
+accessToken
+-> accesstoken
+```
+
+Known forbidden extension channels include:
+
+- authorization and authentication data;
+- headers and cookies;
+- sessions and session identifiers;
+- tokens and API keys;
+- passwords, secrets, credentials, and private keys;
+- DSNs and connection strings;
+- raw, request, and response bodies or payloads;
+- SQL, query, and statement data;
+- stack traces, throwables, and raw exception data;
+- profile and persistence payloads;
+- private customer identifiers and private customer data;
+- local-path channels;
+- environment- and host-specific metadata;
+- request and correlation identifiers.
+
+Request and correlation identifiers MAY be safe runtime-context values, but they do not belong to `ErrorDescriptor.extensions`.
+
+`correlation_id` and `request_id` remain owned by their respective runtime context policies. Error correlation MUST use the dedicated runtime/error handling context channels rather than duplicating those identifiers into the normalized descriptor.
+
+In particular:
+
+- `correlationId` belongs to `ErrorHandlingContext` when supplied to the error handling boundary;
+- runtime packages MAY read `correlation_id` or `request_id` through `ContextAccessorInterface` when their owner policy permits;
+- neither `correlationId` nor `requestId` MAY be copied into `ErrorDescriptor.extensions`.
+
+Semantic-key rejection is based on exact normalized token matches.
+
+It MUST NOT use substring matching. Therefore safe owner-approved derivation channels remain possible:
+
+```text
+token         -> forbidden
+tokenHash     -> allowed safe-derivation channel
+tokenLength   -> allowed safe-derivation channel
+
+rawSql        -> forbidden
+rawSqlHash    -> allowed safe-derivation channel
+```
+
+An allowed key does not make an arbitrary raw value safe.
+
 Extension values MUST follow the json-like payload policy in this document.
 
 `extensions` MUST NOT be used as a dump for raw exception, request, response, database, queue, or profiler data.
@@ -470,6 +531,63 @@ Floats are forbidden at any nesting depth.
 
 Decimal values, if needed, MUST be represented as strings with an owner-documented format.
 
+## Extensions resource bounds
+
+`ErrorDescriptor.extensions` MUST be bounded during the same recursive traversal used for validation and deterministic normalization.
+
+The mandatory canonical limits are:
+
+```text
+maximum container depth                  8
+maximum total map-value/list-item nodes  256
+maximum bytes per map key/string value   4096
+maximum aggregate map-key/string bytes   65536
+```
+
+The root `extensions` map has container depth `1`.
+
+Every map entry consumes one node.
+
+Every list item consumes one node.
+
+Container nodes are bounded through their parent entry or list item and through the mandatory depth limit.
+
+Individual string and aggregate string-byte budgets apply to both:
+
+- map keys;
+- string values.
+
+PHP array identity is not part of the `ErrorDescriptor` contract.
+
+Implementations are not required to identify a recursive PHP array by object-style identity. Instead, mandatory depth and node budgets MUST stop recursive or cyclic traversal before it can become unbounded.
+
+A recursive array MUST result in controlled `InvalidArgumentException` behavior, not process-level memory exhaustion.
+
+Any extension resource-budget violation MUST fail closed with:
+
+```text
+Invalid error descriptor extensions.
+```
+
+Budget failure diagnostics MUST NOT expose:
+
+- the rejected value;
+- the rejected map key;
+- a raw path through the payload;
+- byte contents;
+- secret material.
+
+`ErrorDescriptor` MUST NOT:
+
+- truncate strings;
+- drop map entries;
+- drop list items;
+- reduce nesting;
+- partially normalize an oversized payload;
+- silently replace excessive data with placeholders.
+
+Resource-budget limits are fixed contracts-level invariants. They MUST NOT be configurable or disabled by runtime configuration.
+
 ## Extensions redaction constraints
 
 `extensions` MUST be safe-by-design.
@@ -503,6 +621,42 @@ len(value)
 ```
 
 Safe derivations MUST NOT expose raw values or allow reconstruction of sensitive values.
+
+Absolute local-path strings MUST be rejected recursively regardless of the extension key under which they appear.
+
+The path policy is platform-independent and covers at minimum:
+
+- POSIX-rooted paths;
+- Windows drive-rooted paths;
+- Windows rooted and UNC paths;
+- `file://` representations of absolute local paths.
+
+`ErrorDescriptor` MUST NOT silently rewrite, trim, redact, mask, hash, or replace an unsafe extension value.
+
+### Producer responsibility
+
+`ErrorDescriptor` is a fail-closed contract boundary, not a secret scanner, SQL parser, PII detector, or taint-analysis engine.
+
+Producers MUST derive safe metadata before constructing `ErrorDescriptor`.
+
+Producers MUST NOT fully materialize potentially unbounded source data merely to pass it as candidate `ErrorDescriptor.extensions`.
+
+When extension metadata is derived from external payloads, plugin output, callback-provided structures, decoded transport data, or another potentially unbounded source, the owning producer MUST apply its source/input bounds before or during materialization.
+
+The `ErrorDescriptor` resource budget bounds descriptor validation and normalization work. It does not retroactively bound memory already allocated by a producer before descriptor construction.
+
+An allowed extension key does not authorize copying arbitrary raw producer values.
+
+Raw values MUST NOT be passed to `ErrorDescriptor` merely so that `ErrorDescriptor` can hash, truncate, redact, mask, or otherwise sanitize them.
+
+The canonical flow is:
+
+```text
+raw producer value
+-> producer-owned safe derivation
+-> hash / length / count / stable category
+-> ErrorDescriptor
+```
 
 ## Extensions determinism
 
@@ -728,6 +882,8 @@ Current contracts-level enforcement evidence includes:
 ```text
 framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
@@ -737,6 +893,18 @@ The extension json-like and float-forbidden policy is enforced by:
 
 ```text
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+```
+
+The extension depth, node-count, individual-string, aggregate-string, recursive-array, and budget-diagnostic requirements are enforced by:
+
+```text
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+```
+
+The semantic extension-key, absolute-path, safe-derivation, recursive-policy, and fail-safe diagnostic requirements are enforced by:
+
+```text
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 ```
 
 The exported field set and deterministic top-level key order are enforced by:

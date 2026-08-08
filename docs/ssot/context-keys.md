@@ -365,6 +365,12 @@ path
 
 `correlation_id` is safe for correlation use and MAY be logged or used for tracing correlation according to owner policy, but it MUST NOT be emitted as a metric label under the baseline policy.
 
+Safe correlation or request identifiers MUST NOT be copied into `ErrorDescriptor.extensions`.
+
+For error handling, `correlation_id` is represented through `ErrorHandlingContext.correlationId` when an error-handling context is available.
+
+`request_id` remains runtime/HTTP context and MAY be consumed directly by an owner-approved adapter; it is not canonical normalized error metadata.
+
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, session ids, and payloads MUST NOT be exported even if a future owner accidentally attempts to write them.
 
 Diagnostic paths are structural safe paths, not raw user-controlled key/value payloads.

@@ -28,6 +28,16 @@ use Throwable;
  * raw SQL, credentials, tokens, cookies, request/response bodies, profile
  * payloads, private customer data, or absolute local paths.
  *
+ * Implementations MUST derive safe, bounded extension metadata before
+ * constructing an ErrorDescriptor.
+ *
+ * They MUST NOT rely on ErrorDescriptor to redact, mask, hash, truncate, or
+ * otherwise sanitize or resize raw producer data.
+ *
+ * Safe hashes, lengths, counts, stable reasons, operation identifiers, and
+ * equivalent non-reconstructable derivations MAY be used when permitted by the
+ * owning error policy.
+ *
  * Runtime discovery of mapper implementations is platform-owned. This
  * contracts package does not introduce or own DI tags.
  */

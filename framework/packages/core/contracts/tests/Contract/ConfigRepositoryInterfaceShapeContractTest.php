@@ -26,7 +26,7 @@ use ReflectionNamedType;
 
 final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
 {
-    public function test_config_repository_interface_exposes_canonical_methods_only(): void
+    public function testConfigRepositoryInterfaceExposesCanonicalMethodsOnly(): void
     {
         $interface = new ReflectionClass(ConfigRepositoryInterface::class);
 
@@ -41,7 +41,7 @@ final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_has_method_shape_is_stable(): void
+    public function testHasMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(ConfigRepositoryInterface::class, 'has');
 
@@ -57,7 +57,7 @@ final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
         self::assertNamedType($method->getReturnType(), 'bool', false);
     }
 
-    public function test_get_method_shape_is_default_aware_and_stable(): void
+    public function testGetMethodShapeIsDefaultAwareAndStable(): void
     {
         $method = new \ReflectionMethod(ConfigRepositoryInterface::class, 'get');
 
@@ -79,7 +79,7 @@ final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
         self::assertSame('mixed', (string)$method->getReturnType());
     }
 
-    public function test_all_method_shape_is_stable(): void
+    public function testAllMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(ConfigRepositoryInterface::class, 'all');
 
@@ -95,7 +95,7 @@ final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
         self::assertStringContainsString('@return array<string,mixed>', $docComment);
     }
 
-    public function test_source_of_method_shape_is_stable(): void
+    public function testSourceOfMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(ConfigRepositoryInterface::class, 'sourceOf');
 
@@ -111,7 +111,7 @@ final class ConfigRepositoryInterfaceShapeContractTest extends TestCase
         self::assertNamedType($method->getReturnType(), ConfigValueSource::class, true);
     }
 
-    public function test_explain_method_shape_is_stable(): void
+    public function testExplainMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(ConfigRepositoryInterface::class, 'explain');
 

@@ -14,13 +14,13 @@
 
 # coretsia/platform-worker
 
-`platform/worker` is the experimental long-running Worker runtime package for the Coretsia Framework monorepo.
+`platform/worker` is the long-running Worker runtime package for the Coretsia Framework.
 
-It provides one foreground persistent worker supervisor, cross-platform child-process adapters, live lifecycle control, deterministic readiness and shutdown, and package-local placeholder task factories. Production queue and HTTP task sources belong to platform or integration packages.
+It provides one foreground persistent worker supervisor, cross-platform child-process adapters, live lifecycle control, deterministic readiness and shutdown, and transport-neutral orchestration of real task sources contributed by runtime/integration packages.
 
 Scope: worker module metadata, canonical declarative worker container definitions, worker service provider/factory wiring, worker pool specification, foreground supervisor orchestration, mandatory worker-generation guardian and fencing, child readiness, lazy selected-driver resolution, guardian-backed single-child process drivers, PCNTL fork-exec isolation, nested proc process-host infrastructure, supervisor-death containment, atomic-generation process-child boot, max-request recycle, deterministic worker state storage, payload-free live control, package-contributed worker commands, safe worker exceptions, and bounded worker observability summaries.
 
-Out of scope: CLI binary dispatch, CLI command catalog construction, service-manager configuration and restart policy, HTTP platform adapters, real HTTP request production, real queue adapter behavior, external queue acknowledgement/retry/dead-letter semantics, scheduler integrations, RoadRunner/Swoole/FrankenPHP adapters, public task-source plugin APIs, public process-driver plugin APIs, Kernel UnitOfWork lifecycle ownership, Kernel hook discovery, reset discovery, reset execution semantics, observability exporters, and tooling-only behavior.
+Out of scope: CLI binary dispatch, CLI command catalog construction, service-manager configuration and restart policy, concrete HTTP platform adapters, real HTTP request production, concrete queue adapter behavior, queue acknowledgement/retry/dead-letter policy, scheduler integrations, RoadRunner/Swoole/FrankenPHP adapters, public process-driver plugin APIs, Kernel UnitOfWork lifecycle ownership, Kernel hook discovery, reset discovery, reset execution semantics, observability exporters, and tooling-only behavior. The public transport-neutral task-source SPI itself is contracts-owned and consumed by this package.
 
 This README is a consumer-oriented package summary.
 
@@ -84,7 +84,7 @@ This package is runtime-safe and process-oriented.
 
 `platform/worker` contributes worker command classes, but CLI discovery, command catalog construction, binary dispatch, terminal UX, and output rendering remain owned by `platform/cli`.
 
-`platform/worker` may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but it MUST NOT depend on `platform/http` or import `Coretsia\Platform\Http\*`.
+`platform/worker` does not own HTTP request-handler or PSR-7 integration. HTTP task-source adapter packages own their HTTP contracts/runtime dependencies. `platform/worker` MUST NOT depend on `platform/http` or import `Coretsia\Platform\Http\*`.
 
 ## Runtime responsibilities
 
@@ -123,7 +123,7 @@ This package provides the Worker runtime layer:
 - immutable active-supervisor discovery data through `Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocator`;
 - atomic private locator storage through `Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore`;
 - canonical shutdown request and cleanup budgets through `Coretsia\Platform\Worker\Runtime\WorkerShutdownBudget`;
-- cooperative between-task shutdown signaling through `Coretsia\Platform\Worker\Runtime\WorkerStopSignal`;
+- cooperative task-acquisition shutdown signaling through `Coretsia\Platform\Worker\Runtime\WorkerStopSignal`;
 - typed child ownership through `Coretsia\Platform\Worker\Supervisor\WorkerChildTable`;
 - synchronous shutdown-intent handling through `Coretsia\Platform\Worker\Supervisor\WorkerSignalController`;
 - child readiness through `Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel`;
@@ -140,9 +140,9 @@ This package provides the Worker runtime layer:
 - one-root process-child artifact handoff through `--coretsia-worker-artifact-root`;
 - artifact-only PCNTL and proc child container boot through Kernel `ArtifactRuntimeBooter`;
 - sequential child task execution through `Coretsia\Platform\Worker\Worker\ApplicationWorker`;
-- package-internal task-factory seam through `Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface`;
-- placeholder queue task work through `Coretsia\Platform\Worker\Task\QueueTaskFactory`;
-- HTTP task-mode preflight through `Coretsia\Platform\Worker\Task\HttpTaskFactory`;
+- safe child task-source context through `Coretsia\Platform\Worker\Runtime\WorkerTaskSourceContext`;
+- exact-one task-source resolution through `Coretsia\Platform\Worker\Task\WorkerTaskSourceResolver`;
+- transport-neutral task acquisition/settlement through `Coretsia\Contracts\Worker\WorkerTaskSourceInterface` and `WorkerTaskInterface`;
 - package-local Kernel runtime-driver contribution mapping through `Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions`;
 - Worker-owned runtime-entrypoint compatibility through `Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard`;
 - deterministic Worker exceptions under `Coretsia\Platform\Worker\Exception`.
@@ -241,7 +241,7 @@ Each child runs one `ApplicationWorker`.
 Each `ApplicationWorker` processes tasks sequentially until:
 
 - `worker.max_requests` is reached;
-- the supervisor-written cooperative stop signal is observed between tasks;
+- the supervisor-written cooperative stop signal is observed outside in-flight tasks, including during interruptible task acquisition;
 - task execution or child bootstrap produces a terminal process failure.
 
 The canonical lifecycle lock is the sole worker-generation ownership and fencing authority. The guardian owns it; the foreground supervisor does not.
@@ -592,7 +592,7 @@ Important config rules:
 - runtime paths must not be absolute.
 - runtime paths must not contain `..`, `skeleton/`, backslashes, whitespace, control characters, `://`, or segments beginning with `@`.
 
-Phase-B config rules enforce the Worker-specific `skeleton/` and `@` constraints through `forbiddenPrefixes` and `forbiddenSegmentPrefixes`. `WorkerPoolSpec` repeats the same checks as runtime defense in depth.
+`ConfigKernel` Phase B validation rules enforce the Worker-specific `skeleton/` and `@` constraints through `forbiddenPrefixes` and `forbiddenSegmentPrefixes`. `WorkerPoolSpec` repeats the same checks as runtime defense in depth.
 
 `worker.task_type` is Worker-owned runtime input.
 
@@ -811,7 +811,6 @@ The following Worker-owned runtime paths use this boundary:
 
 ```text
 WorkerStartCommand
-HttpTaskFactory
 bin/coretsia-worker
 ```
 
@@ -900,9 +899,9 @@ The worker package MUST NOT duplicate runtime-driver matrix logic.
 
 The worker package MUST NOT reclassify Kernel runtime-driver guard failures as worker exceptions.
 
-HTTP worker mode must pass Kernel runtime entrypoint compatibility before request-handler resolution.
+HTTP worker mode must pass Kernel runtime entrypoint compatibility before HTTP task-source resolution/readiness.
 
-Missing `platform.http` for `http.worker` must fail through the Kernel runtime entrypoint guard before request-handler resolution.
+Missing `platform.http` for `http.worker` must fail through the Kernel runtime entrypoint guard before HTTP task-source resolution/readiness.
 
 ## UnitOfWork and reset boundary
 
@@ -942,56 +941,41 @@ The worker package owns only the long-running loop and task submission into the 
 
 ## Task modes
 
-Supported task types are:
+Supported task-source types are:
 
 ```text
 queue
 http
 ```
 
-### Queue task mode
+`platform/worker` does not ship a production source for either type.
 
-`QueueTaskFactory` handles:
-
-```text
-worker.task_type=queue
-```
-
-The shipped queue task factory performs package-local placeholder task work.
-
-It does not implement a production queue adapter.
-
-Real queue sources, transports, acknowledgement semantics, retry semantics, dead-letter behavior, and integration-specific adapters are owned by integration packages.
-
-### HTTP task mode
-
-`HttpTaskFactory` handles:
+Sources are contributed through:
 
 ```text
-worker.task_type=http
+ReservedTags::WORKER_TASK_SOURCE
+worker.task_source
 ```
 
-It does not implement a production HTTP request source.
+with exact metadata:
 
-It does not create PSR-7 requests.
-
-It does not depend on `platform/http`.
-
-HTTP task mode first requires `RuntimeEntrypointGuard` compatibility to pass with the explicit `http.worker` contribution produced from the normalized `WorkerPoolSpec`.
-
-Only after that may it require a resolvable:
-
-```text
-Psr\Http\Server\RequestHandlerInterface
+```php
+[
+    'task_type' => 'queue', // or 'http'
+]
 ```
 
-Request-handler preflight failures use deterministic worker start reasons:
+For the selected type, zero matching sources fail child startup, exactly one source is used, and multiple matching sources are a deterministic configuration conflict. Priority is not an override mechanism.
 
-```text
-worker-request-handler-missing
-worker-request-handler-unresolvable
-worker-request-handler-invalid
-```
+Before readiness publication, the selected source must pass `assertReady(...)`. Real work is then acquired by `receive(...)` using transport-native blocking/event-loop waiting that remains cooperatively interruptible.
+
+`receive()` returns `null` only for cooperative shutdown. It must not represent an empty queue or idle wake-up, and synthetic/no-op tasks are forbidden.
+
+`worker.max_requests` counts real acquired task attempts. For a successful Kernel UoW, `WorkerTaskInterface::complete(result)` performs success settlement. For an application/Kernel failure, `WorkerTaskInterface::fail(original failure)` performs failure settlement. A `complete()` failure is a lifecycle settlement failure and must not trigger `fail()` automatically.
+
+Queue adapters own broker receive, acknowledgement, retry/requeue/dead-letter behavior. HTTP runtime adapters own request receive, request/handler integration, response emission, and failure response behavior. Those adapters own their transport dependencies; `platform/worker` remains transport-neutral.
+
+The canonical task-source contract is documented in `docs/ssot/worker-task-sources.md`.
 
 ## State files
 
@@ -1296,15 +1280,20 @@ Examples:
 
 ```text
 CORETSIA_WORKER_START_FAILED: worker-start-failed
-CORETSIA_WORKER_START_FAILED: worker-request-handler-missing
-CORETSIA_WORKER_START_FAILED: worker-request-handler-unresolvable
-CORETSIA_WORKER_START_FAILED: worker-request-handler-invalid
+CORETSIA_WORKER_START_FAILED: worker-task-source-missing
+CORETSIA_WORKER_START_FAILED: worker-task-source-ambiguous
+CORETSIA_WORKER_START_FAILED: worker-task-source-invalid
+CORETSIA_WORKER_START_FAILED: worker-task-source-unresolvable
+CORETSIA_WORKER_START_FAILED: worker-task-source-not-ready
 CORETSIA_WORKER_START_FAILED: worker-readiness-timeout
 CORETSIA_WORKER_START_FAILED: worker-readiness-invalid
 CORETSIA_WORKER_START_FAILED: worker-child-start-failed
 CORETSIA_WORKER_START_FAILED: worker-signal-handling-unavailable
 CORETSIA_WORKER_LIFECYCLE_FAILED: worker-lifecycle-failed
 CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-task-source-terminated
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-task-source-receive-failed
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-task-settlement-failed
 CORETSIA_WORKER_LIFECYCLE_FAILED: worker-child-exited
 CORETSIA_WORKER_LIFECYCLE_FAILED: worker-shutdown-failed
 CORETSIA_WORKER_LIFECYCLE_FAILED: worker-runtime-cleanup-failed
@@ -1319,9 +1308,9 @@ CORETSIA_WORKER_NOT_RUNNING: worker-not-running
 
 Worker exception messages MUST NOT include previous throwable messages, stack traces, absolute paths, raw socket paths, raw TCP endpoints, raw config values, payload fragments, headers, tokens, process command lines, or environment data.
 
-`WorkerStartFailedException` is limited to startup validation, request-handler resolution, readiness, child-process creation, and signal bootstrap.
+`WorkerStartFailedException` is limited to startup validation, task-source selection/readiness, child-process creation, and signal bootstrap.
 
-`WorkerLifecycleFailedException` owns runtime-wide Worker failures, including invalid lifecycle state, unexpected child exit, shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, process-guardian, and proc-host failures.
+`WorkerLifecycleFailedException` owns runtime-wide Worker failures, including task-source receive/termination/settlement failures, invalid lifecycle state, unexpected child exit, shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, process-guardian, and proc-host failures.
 
 `worker:start`, `worker:status`, `worker:health`, and `worker:stop` preserve the error code and reason of concrete `WorkerException` instances. Unknown throwables are mapped to command-specific safe catch-all errors.
 
@@ -1407,7 +1396,6 @@ Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface
 Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface
 Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface
 Coretsia\Platform\Worker\Internal\WorkerControlClientInterface
-Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
 
 The following helper is also package-internal:
@@ -1436,7 +1424,7 @@ The guardian seam owns worker-generation process containment and canonical gener
 
 The control-client seam owns live command communication.
 
-The task-factory seam owns package-local task work creation.
+The public Worker task-source SPI is intentionally not package-internal; it is owned by `core/contracts`, while `platform/worker` owns source selection and orchestration.
 
 ## Non-goals
 
@@ -1460,7 +1448,6 @@ This package does not provide:
 - Swoole integration;
 - FrankenPHP integration;
 - public worker plugin APIs;
-- public task-source plugin APIs;
 - container artifact schema;
 - artifact-generation publication;
 - artifact-generation validation policy;
@@ -1480,6 +1467,7 @@ This package does not provide:
 - [ADR-0017: Persistent worker supervisor and application worker](https://github.com/coretsia/monorepo/tree/main/docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [Config Roots Registry](https://github.com/coretsia/monorepo/tree/main/docs/ssot/config-roots.md)
 - [Observability SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/observability.md)
+- [Worker Task Sources SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/worker-task-sources.md)
 - [Runtime Drivers SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/runtime-drivers.md)
 - [Runtime Container Definitions SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/runtime-container-definitions.md)
 - [Process-Exec Descriptor Safety SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/process-exec-descriptor-safety.md)

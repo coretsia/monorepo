@@ -26,7 +26,7 @@ use ReflectionNamedType;
 
 final class ManifestReaderInterfaceShapeContractTest extends TestCase
 {
-    public function test_manifest_reader_interface_exposes_read_only(): void
+    public function testManifestReaderInterfaceExposesReadOnly(): void
     {
         $interface = new ReflectionClass(ManifestReaderInterface::class);
 
@@ -41,7 +41,7 @@ final class ManifestReaderInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_read_returns_module_manifest_not_descriptor_list(): void
+    public function testReadReturnsModuleManifestNotDescriptorList(): void
     {
         $method = new \ReflectionMethod(ManifestReaderInterface::class, 'read');
 

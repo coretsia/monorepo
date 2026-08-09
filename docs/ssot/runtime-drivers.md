@@ -959,7 +959,7 @@ platform.worker
 
 before Worker runtime execution starts.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must use this boundary rather than performing independent module checks.
+`WorkerStartCommand` and the shipped Worker child launcher must use this boundary rather than performing independent module checks. Task-source resolution/readiness occurs only after the Worker-owned guard succeeds.
 
 A failed Worker owner precondition is surfaced as:
 
@@ -1295,7 +1295,7 @@ framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGua
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
 framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
 framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
-framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
 ```
 
 ## Verification contract
@@ -1330,7 +1330,7 @@ Worker package tests MUST prove at minimum:
 - `WorkerRuntimeEntrypointGuard` maps `WorkerPoolSpec` to explicit contributions;
 - the Worker-owned boundary invokes the Kernel `RuntimeEntrypointGuard` with those explicit contributions;
 - Worker production callers do not import the internal mapper or invoke the Kernel guard directly;
-- HTTP task compatibility is checked through `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- HTTP task compatibility is checked through `WorkerRuntimeEntrypointGuard` before HTTP task-source resolution/readiness;
 - the child launcher invokes `WorkerRuntimeEntrypointGuard` before resolving `ApplicationWorker`;
 - Kernel guard failures are surfaced without reclassification as Worker failures.
 

@@ -16,7 +16,7 @@
 
 `core/kernel` is the Kernel runtime package for the Coretsia Framework monorepo.
 
-Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A minimal boot-input resolution, deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic `ModulePlan` resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B orchestration, config directives, deterministic config merge, semantic config validation, safe config explain traces, canonical runtime-container graph compilation, atomic immutable artifact-generation publication, deterministic artifact fingerprint input construction and calculation, generation-aware cache verification, artifact-only production runtime boot from one validated current generation, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
+Scope: Kernel module metadata, Kernel service provider/factory wiring, Bootstrap Phase A (minimal boot-input resolution), deterministic app target selection, dotenv/system env source precedence, immutable env repository snapshot construction, deterministic `ModulePlan` resolution, mode preset loading, module graph policy, canonical runtime driver selection and matrix guarding, ConfigKernel Phase B (full configuration orchestration), config directives, deterministic config merge, semantic config validation, safe config explain traces, canonical runtime-container graph compilation, atomic immutable artifact-generation publication, deterministic artifact fingerprint input construction and calculation, generation-aware cache verification, artifact-only production runtime boot from one validated current generation, Kernel-owned `KernelRuntime` implementation, hook invocation, Kernel-owned format-neutral UnitOfWork context/result shapes, UnitOfWork type and outcome vocabularies, UoW-specific json-like shape policy through a Foundation-backed internal wrapper, normalized hook payload production, canonical UnitOfWork lifecycle policy, and safe lifecycle summary observability.
 
 Out of scope: public bootstrap orchestration facade ownership, public bootstrap aggregate result ownership, config CLI command UX, module debug CLI UX, reusable baseline json-like runtime value model ownership, generic redaction engine, HTTP response construction, HTTP status-code selection, PSR-7/PSR-15 integration, runtime adapter implementation, worker pool implementation, CLI command execution, CLI output rendering, platform-owned artifact production such as `routes@1`, platform adapters, integrations, observability exporters/backends, reset discovery implementation, and tooling-only behavior.
 
@@ -115,7 +115,7 @@ This package provides the Kernel baseline runtime layer:
 - Bootstrap Phase A artifact cache directory validation:
   - `Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir`
   - internal portable and bounded artifact-root policy
-- Kernel-owned ConfigKernel Phase B orchestration:
+- Kernel-owned ConfigKernel Phase B (full configuration orchestration):
   - `Coretsia\Kernel\Config\ConfigKernel`
   - `Coretsia\Kernel\Config\ConfigRulesLoader`
   - `Coretsia\Kernel\Config\ConfigValidator`
@@ -229,9 +229,9 @@ Kernel owns only the UoW-specific layer on top of that model: root map policy, u
 
 Platform packages own transport adapters.
 
-## Bootstrap Phase A
+## Bootstrap Phase A — minimal boot-input resolution
 
-Bootstrap Phase A is the minimal deterministic Kernel boot-input phase.
+Bootstrap Phase A is the minimal deterministic Kernel boot-input stage.
 
 It resolves only:
 
@@ -324,7 +324,7 @@ It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which rema
 
 Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package. Entrypoint and platform owners compose the explicit Phase A services through DI.
 
-## ConfigKernel Phase B
+## ConfigKernel Phase B — full configuration pipeline
 
 ConfigKernel Phase B is the deterministic full config pipeline.
 

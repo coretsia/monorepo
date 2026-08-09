@@ -25,12 +25,8 @@ use PHPUnit\Framework\TestCase;
 final class ErrorDescriptorExtensionsAreBoundedContractTest extends TestCase
 {
     private const int MAX_DEPTH = 8;
-
     private const int MAX_NODES = 256;
-
     private const int MAX_STRING_BYTES = 4096;
-
-    private const int MAX_TOTAL_STRING_BYTES = 65_536;
 
     private const string INVALID_EXTENSIONS_MESSAGE = 'Invalid error descriptor extensions.';
 

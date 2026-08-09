@@ -23,17 +23,13 @@
       "homepage": "https://coretsia.dev/"
     }
   ],
-  "bin": [
-    "bin/coretsia-worker"
-  ],
   "require": {
     "php": "^8.4",
+    "ext-ctype": "*",
     "coretsia/core-contracts": "^0.5.0",
     "coretsia/core-foundation": "^0.5.0",
     "coretsia/core-kernel": "^0.5.0",
     "psr/container": "^2.0",
-    "psr/http-message": "^2.0",
-    "psr/http-server-handler": "^1.0",
     "psr/log": "^3.0"
   },
   "suggest": {

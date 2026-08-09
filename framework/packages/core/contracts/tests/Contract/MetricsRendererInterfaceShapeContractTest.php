@@ -26,7 +26,7 @@ use ReflectionNamedType;
 
 final class MetricsRendererInterfaceShapeContractTest extends TestCase
 {
-    public function test_metrics_renderer_interface_shape_is_stable(): void
+    public function testMetricsRendererInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(MetricsRendererInterface::class);
 
@@ -62,7 +62,7 @@ final class MetricsRendererInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($render, 'string', false);
     }
 
-    public function test_metrics_renderer_returns_string_without_vendor_api_requirement(): void
+    public function testMetricsRendererReturnsStringWithoutVendorApiRequirement(): void
     {
         $renderer = new class() implements MetricsRendererInterface {
             public function contentType(): string

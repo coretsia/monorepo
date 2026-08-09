@@ -471,7 +471,7 @@ This factory:
 
 `WorkerServiceProvider::define()` is the canonical source for the complete Worker runtime contribution.
 
-It MUST define:
+It MUST define the Worker orchestration graph, including:
 
 ```text
 WorkerServiceFactory
@@ -484,6 +484,9 @@ WorkerStateStore
 WorkerLifecycleLock
 WorkerLifecycleLocatorStore
 WorkerStopSignal
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
+ApplicationWorker
 
 WorkerControlTransport
 WorkerControlProtocol
@@ -498,11 +501,6 @@ WorkerProcessGuardianTransport
 WorkerProcessGuardianClient
 WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
-
-QueueTaskFactory
-HttpTaskFactory
-TaskFactoryInternalInterface
-ApplicationWorker
 
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
@@ -533,226 +531,38 @@ WorkerSupervisorResolverInterface
     -> ContainerWorkerSupervisorResolver
 ```
 
-It MUST define `ContainerWorkerProcessDriverResolver` and alias `WorkerProcessDriverResolverInterface` to it.
-
-The resolver MUST perform an exact package-owned mapping and MUST resolve only the driver selected by `WorkerPoolSpec`.
-
-Process-driver tags are not part of the Worker runtime contribution.
-
-`WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. It is generated once per supervisor run and passed explicitly only to the active `WorkerControlServer` and private `WorkerLifecycleLocator`.
-
-`WorkerProcProcessHostTransport` is instantiated only by the package-owned proc-host executable. It is not a runtime-container service and must not be added to the Worker contribution.
-
-It MUST contribute the canonical `cli.command` tags for:
-
-```text
-WorkerStartCommand
-WorkerStopCommand
-WorkerStatusCommand
-WorkerHealthCommand
-```
-
-The complete Worker contribution MUST contain no closure values.
-
-Container definition production MUST NOT introduce a tag, registry, or eager aggregate whose purpose is resolving arbitrary services so they can be closed after `fork()`.
-
-Process-exec safety belongs to descriptor owners and `docs/ssot/process-exec-descriptor-safety.md`, not to DI graph enumeration.
-
-Worker process-exec safety MUST NOT be implemented by clearing the resolved-service cache, eagerly resolving integration services, or executing arbitrary service callbacks in a forked child.
-
-It MUST NOT define compatibility aliases, deprecated lifecycle facades, duplicate process-ownership services, or duplicate control-server abstractions.
-
-### Required Worker service ids
-
-The Worker contribution MUST declare through `requireService()`:
+It MUST require the external/core runtime dependencies needed by the graph, including:
 
 ```text
 ConfigRepositoryInterface
 ModulePlan
 RuntimePathContext
+TagRegistry
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
-QueueTaskFactory
-HttpTaskFactory
 ```
 
-The following MAY be external runtime seeds:
+`ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `TagRegistry` MAY be supplied by the surrounding runtime graph. `WorkerTaskSourceInterface` is a lazy selected runtime dependency resolved through `WorkerTaskSourceResolver` from `worker.task_source` contributions.
 
-```text
-ConfigRepositoryInterface
-ModulePlan
-RuntimePathContext
-```
+The Worker contribution MUST NOT register a built-in queue, HTTP, synthetic, or no-op task source.
 
-The following MUST be defined by the complete definition graph:
+`WorkerTaskSourceResolver` MUST use `ReservedTags::WORKER_TASK_SOURCE`, match exact `task_type` metadata, resolve only the selected source, reject zero/multiple/invalid sources deterministically, and avoid first-wins priority selection.
 
-```text
-WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
-WorkerProcessDriverResolverInterface
-ApplicationWorker
-WorkerSupervisorInterface
-WorkerControlClientInterface
-QueueTaskFactory
-HttpTaskFactory
-```
+Graph compilation MUST remain possible when no external source contribution exists. Missing selected-source capability is a child runtime startup failure before readiness, not a compile-host graph failure.
 
-`WorkerProcessDriverResolverInterface` MUST be required because `WorkerSupervisor` performs a deferred exact lookup of the selected concrete process driver.
+`WorkerProcessDriverResolverInterface` remains required because `WorkerSupervisor` performs a deferred exact lookup of the selected process driver. `WorkerSupervisorInterface` remains required because `ContainerWorkerSupervisorResolver` resolves it lazily. `WorkerControlClientInterface` remains the live control dependency for stop/status/health commands.
 
-`WorkerSupervisorInterface` MUST be required because `ContainerWorkerSupervisorResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerSupervisorInterface::class)` lookup.
+`WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. `WorkerProcProcessHostTransport` remains proc-host-executable-owned infrastructure rather than a runtime-container service.
 
-`WorkerControlClientInterface` MUST be the live control dependency used by:
+The complete Worker contribution MUST contain no closure values. Task execution callbacks are no longer part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
 
-```text
-WorkerStopCommand
-WorkerStatusCommand
-WorkerHealthCommand
-```
-
-`QueueTaskFactory` and `HttpTaskFactory` MUST both be required because `WorkerServiceFactory::taskFactory(...)` performs a runtime `ContainerInterface` lookup against one selected canonical id.
-
-`Psr\Http\Server\RequestHandlerInterface` is not an unconditional required service id.
-
-It is a mode-dependent HTTP preflight dependency that:
-
-- is irrelevant in queue mode;
-- is checked only after Worker runtime-driver compatibility passes;
-- may be absent so HTTP preflight can produce its deterministic Worker start failure.
-
-These declarations describe possible runtime graph edges, not eager resolution order.
-
-### Worker task-factory selection
-
-`WorkerServiceFactory::taskFactory(...)` MUST receive:
-
-```text
-WorkerPoolSpec
-ContainerInterface
-```
-
-It MUST NOT receive closure factories.
-
-It MUST:
-
-1. select the canonical service id from `WorkerPoolSpec`;
-2. resolve only that selected service;
-3. validate `TaskFactoryInternalInterface`;
-4. validate `supports($spec)`;
-5. map lookup and validation failures to safe deterministic Worker start failures.
-
-The canonical mapping is:
-
-```text
-queue -> QueueTaskFactory
-http  -> HttpTaskFactory
-```
-
-Task-factory selection MUST NOT eagerly resolve both concrete factories.
-
-A task-body closure produced after successful runtime resolution is allowed runtime work.
-
-It MUST NOT enter:
-
-- provider output;
-- canonical operations;
-- canonical values;
-- descriptor streams;
-- generated container artifacts;
-- fingerprint input.
-
-### Lazy WorkerSupervisor resolution
-
-`WorkerStartCommand` MUST depend on:
-
-```text
-WorkerSupervisorResolverInterface
-```
-
-It MUST NOT depend on an eager supervisor or closure-valued supervisor factory.
-
-The canonical implementation is:
-
-```text
-ContainerWorkerSupervisorResolver
-```
-
-The resolver MUST:
-
-- retain only `ContainerInterface`;
-- resolve `WorkerSupervisorInterface` on demand;
-- validate the resolved type;
-- map container failures and invalid bindings to safe deterministic Worker start failures;
-- preserve guard-before-supervisor ordering.
-
-Resolving `WorkerStartCommand` MUST NOT resolve `WorkerSupervisorInterface`.
-
-The required order is:
-
-```text
-build WorkerPoolSpec
--> validate WorkerRuntimeEntrypointGuard
--> resolve WorkerSupervisorInterface
--> run WorkerSupervisor
-```
-
-### RuntimePathContext
-
-`RuntimePathContext` is an immutable runtime-only seed owned by Kernel.
-
-It MAY contain normalized absolute:
-
-```text
-skeletonRoot
-artifactRoot
-```
-
-It MUST NOT:
-
-- be part of `ContainerDefinitionContext`;
-- be represented as a literal or parameter operation;
-- be represented as a runtime-object definition value;
-- serialize its path values into descriptors;
-- emit its path values into artifact payloads;
-- include its path values in fingerprint input;
-- be resolved from `BootstrapConfig` by Worker services.
-
-The Worker runtime graph MUST consume it as an external runtime seed.
-
-The following Worker factory methods MUST receive `RuntimePathContext`:
-
-```text
-WorkerServiceFactory::workerStateStore(...)
-WorkerServiceFactory::workerLifecycleLocatorStore(...)
-WorkerServiceFactory::workerLifecycleLock(...)
-WorkerServiceFactory::workerStopSignal(...)
-WorkerServiceFactory::workerControlTransport(...)
-WorkerServiceFactory::workerChildCommandBuilder(...)
-WorkerServiceFactory::pcntlWorkerProcessDriver(...)
-WorkerServiceFactory::procWorkerProcessDriver(...)
-WorkerServiceFactory::workerProcessGuardianClient(...)
-```
-
-The path-owning factories use it as follows:
-
-- `WorkerStateStore` receives the normalized skeleton root;
-- `WorkerLifecycleLocatorStore` receives the normalized skeleton root;
-- `WorkerLifecycleLock` receives the normalized skeleton root;
-- `WorkerStopSignal` receives the normalized skeleton root;
-- `WorkerControlTransport` receives the normalized skeleton root;
-- `WorkerChildCommandBuilder` receives one validated skeleton-root-relative artifact root;
-- `PcntlWorkerProcessDriver` receives the normalized skeleton root as the worker working directory passed through guardian-backed spawn;
-- `ProcWorkerProcessDriver` receives the normalized skeleton root as the worker working directory passed through guardian-backed spawn;
-- `WorkerProcessGuardianClient` receives the normalized skeleton root plus the package guardian command; proc-host infrastructure is created inside the guardian process, outside the foreground container graph.
-
-`ApplicationWorker` MUST receive `WorkerStopSignal`, not a raw skeleton root.
-
-`PcntlWorkerProcessDriver` MUST NOT receive `BootstrapConfig`, `ContainerInterface`, `ApplicationWorker`, raw individual artifact paths, or a child-bootstrap closure.
-
-The constructed Worker runtime services MUST NOT resolve `BootstrapConfig` or reconstruct runtime roots independently.
+Resolving `WorkerStartCommand` MUST NOT resolve the selected task source. Source resolution/readiness occurs in the child only after `WorkerRuntimeEntrypointGuard` passes.
 
 ## Definition context (MUST)
 
@@ -2102,7 +1912,7 @@ Worker lazy-resolution and runtime-seed behavior SHOULD additionally be locked b
 
 ```text
 framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
 framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
@@ -2158,7 +1968,7 @@ Additional tests SHOULD cover:
 - presence of `WorkerControlClientInterface` and `WorkerSupervisorInterface` aliases;
 - presence of `WorkerHealthCommand`;
 - exact lazy selected-driver resolution without process-driver tags;
-- lazy selection of only the canonical task-factory service;
+- lazy exact-one selection of only the matching task-source service;
 - `RuntimePathContext::class` remaining visible as a required service id;
 - runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
 - production artifact compilation consuming complete provider-produced definition sets;
@@ -2168,7 +1978,7 @@ Additional tests SHOULD cover:
 - missing service, parameter, factory-service, alias, tag, and required-service edges failing deterministically;
 - Kernel compile-host ids being absent from runtime definition operations and compiled graph topology;
 - mandatory and possible container-owned graph lookups resolved through `ContainerInterface` having matching required-service declarations;
-- optional mode-dependent preflight lookups remaining outside unconditional required-service declarations.
+- external task-source implementations remaining lazy and absent from canonical built-in Worker definitions.
 
 ## Runtime acceptance scenario
 

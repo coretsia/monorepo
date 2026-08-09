@@ -23,28 +23,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ContextKeysAreStableContractTest extends TestCase
 {
-    /**
-     * @return list<non-empty-string>
-     */
-    private static function expectedKeys(): array
-    {
-        return [
-            'correlation_id',
-            'uow_id',
-            'uow_type',
-            'client_ip',
-            'scheme',
-            'host',
-            'path',
-            'user_agent',
-            'request_id',
-            'path_template',
-            'http_response_format',
-            'actor_id',
-            'tenant_id',
-        ];
-    }
-
     public function testCanonicalKeyListIsStableAndOrdered(): void
     {
         self::assertSame(self::expectedKeys(), ContextKeys::all());
@@ -118,5 +96,27 @@ final class ContextKeysAreStableContractTest extends TestCase
                 \sprintf('Context key "%s" must be stable lowercase snake_case ASCII.', $key),
             );
         }
+    }
+
+    /**
+     * @return list<non-empty-string>
+     */
+    private static function expectedKeys(): array
+    {
+        return [
+            'correlation_id',
+            'uow_id',
+            'uow_type',
+            'client_ip',
+            'scheme',
+            'host',
+            'path',
+            'user_agent',
+            'request_id',
+            'path_template',
+            'http_response_format',
+            'actor_id',
+            'tenant_id',
+        ];
     }
 }

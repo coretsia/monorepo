@@ -31,7 +31,9 @@ declare(strict_types=1);
  * - the `worker` root is owned by `platform/worker`;
  * - module participation is owned by mode presets and ModulePlan;
  * - starting a worker pool is an explicit command action;
- * - queue task mode is the safe default task type;
+ * - `worker.task_type` explicitly selects the worker task-source and runtime-driver mode;
+ * - `queue` is the default selection, but starting the pool still requires exactly
+ *   one matching registered task source;
  * - configurable process/control paths are skeleton-root-relative runtime paths;
  * - the lifecycle lock and private lifecycle locator are package-owned canonical
  *   artifacts and are not part of mutable worker configuration;
@@ -73,8 +75,10 @@ return [
      * - `queue`
      * - `http`
      *
-     * Queue mode is the safe default because it does not require an HTTP
-     * handling stack.
+     * Queue is the default task-source selection. Starting the worker pool
+     * requires exactly one registered `worker.task_source` contribution for
+     * the selected task type. The platform/worker package does not provide
+     * synthetic or no-op task sources.
      */
     'task_type' => 'queue',
 

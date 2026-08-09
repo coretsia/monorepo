@@ -27,7 +27,7 @@ use stdClass;
 
 final class RouteMatchShapeContractTest extends TestCase
 {
-    public function test_constructor_shape_is_stable(): void
+    public function testConstructorShapeIsStable(): void
     {
         $reflection = new ReflectionClass(RouteMatch::class);
         $constructor = $reflection->getConstructor();
@@ -59,7 +59,7 @@ final class RouteMatchShapeContractTest extends TestCase
         self::assertSame([], $parameters[4]->getDefaultValue());
     }
 
-    public function test_accessors_and_array_shape_are_stable(): void
+    public function testAccessorsAndArrayShapeAreStable(): void
     {
         $match = new RouteMatch(
             name: 'users.show',
@@ -134,7 +134,7 @@ final class RouteMatchShapeContractTest extends TestCase
         );
     }
 
-    public function test_path_template_must_start_with_slash(): void
+    public function testPathTemplateMustStartWithSlash(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -145,7 +145,7 @@ final class RouteMatchShapeContractTest extends TestCase
         );
     }
 
-    public function test_parameters_reject_root_lists(): void
+    public function testParametersRejectRootLists(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -157,7 +157,7 @@ final class RouteMatchShapeContractTest extends TestCase
         );
     }
 
-    public function test_parameters_reject_invalid_keys_and_values(): void
+    public function testParametersRejectInvalidKeysAndValues(): void
     {
         $invalidCases = [
             'empty-key' => [
@@ -190,7 +190,7 @@ final class RouteMatchShapeContractTest extends TestCase
         }
     }
 
-    public function test_metadata_rejects_invalid_json_like_values(): void
+    public function testMetadataRejectsInvalidJsonLikeValues(): void
     {
         $invalidCases = [
             'root-list' => ['root-list-value'],

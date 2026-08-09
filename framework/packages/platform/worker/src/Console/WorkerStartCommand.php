@@ -46,7 +46,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
  * Runtime entrypoint compatibility is checked before the foreground
  * WorkerSupervisor is resolved. The supervisor remains lazy so resolving this
  * command from the container cannot construct process drivers, ApplicationWorker,
- * TaskFactoryInternalInterface, or lifecycle resources before the command run
+ * WorkerTaskSourceInterface, or lifecycle resources before the command run
  * path has enforced the required ordering.
  *
  * Guard failures are surfaced using the original runtime driver matrix error
@@ -54,7 +54,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard;
  *
  * This class must not:
  *
- * - resolve RequestHandlerInterface;
+ * - resolve or instantiate task-source services directly;
  * - fork;
  * - call proc_open();
  * - open sockets;

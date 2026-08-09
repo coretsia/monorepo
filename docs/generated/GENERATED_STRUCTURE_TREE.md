@@ -172,7 +172,8 @@ Coretsia/
 │       ├── uow-and-reset-contracts.md
 │       ├── uow-outcome-policy.md
 │       ├── uow-shapes.md
-│       └── validation-contracts.md
+│       ├── validation-contracts.md
+│       └── worker-task-sources.md
 ├── framework/
 │   ├── bin/
 │   │   └── coretsia
@@ -281,11 +282,16 @@ Coretsia/
 │   │   │   │   │   │   └── UnitOfWorkHandle.php
 │   │   │   │   │   ├── Secrets/
 │   │   │   │   │   │   └── SecretsResolverInterface.php
-│   │   │   │   │   └── Validation/
-│   │   │   │   │       ├── ValidationException.php
-│   │   │   │   │       ├── ValidationResult.php
-│   │   │   │   │       ├── ValidatorInterface.php
-│   │   │   │   │       └── Violation.php
+│   │   │   │   │   ├── Validation/
+│   │   │   │   │   │   ├── ValidationException.php
+│   │   │   │   │   │   ├── ValidationResult.php
+│   │   │   │   │   │   ├── ValidatorInterface.php
+│   │   │   │   │   │   └── Violation.php
+│   │   │   │   │   └── Worker/
+│   │   │   │   │       ├── WorkerTaskInterface.php
+│   │   │   │   │       ├── WorkerTaskSourceContextInterface.php
+│   │   │   │   │       ├── WorkerTaskSourceInterface.php
+│   │   │   │   │       └── WorkerTaskType.php
 │   │   │   │   ├── tests/
 │   │   │   │   │   ├── Contract/
 │   │   │   │   │   │   ├── ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php
@@ -357,7 +363,9 @@ Coretsia/
 │   │   │   │   │   │   ├── UnitOfWorkHandleContractTest.php
 │   │   │   │   │   │   ├── ValidationContractsTest.php
 │   │   │   │   │   │   ├── ValidationExceptionHasDeterministicCodeTest.php
-│   │   │   │   │   │   └── ValidationViolationShapeIsSafeContractTest.php
+│   │   │   │   │   │   ├── ValidationViolationShapeIsSafeContractTest.php
+│   │   │   │   │   │   ├── WorkerTaskSourceContractsShapeContractTest.php
+│   │   │   │   │   │   └── WorkerTaskTypeIsStableContractTest.php
 │   │   │   │   │   └── Unit/
 │   │   │   │   │       └── ModuleIdFormatTest.php
 │   │   │   │   ├── LICENSE
@@ -1106,7 +1114,6 @@ Coretsia/
 │   │           │   │   ├── WorkerNotRunningException.php
 │   │           │   │   └── WorkerStartFailedException.php
 │   │           │   ├── Internal/
-│   │           │   │   ├── TaskFactoryInternalInterface.php
 │   │           │   │   ├── WorkerControlClientInterface.php
 │   │           │   │   ├── WorkerProcessCapabilities.php
 │   │           │   │   ├── WorkerProcessDriverInterface.php
@@ -1153,7 +1160,8 @@ Coretsia/
 │   │           │   │   ├── WorkerRuntimeEntrypointGuard.php
 │   │           │   │   ├── WorkerShutdownBudget.php
 │   │           │   │   ├── WorkerStateStore.php
-│   │           │   │   └── WorkerStopSignal.php
+│   │           │   │   ├── WorkerStopSignal.php
+│   │           │   │   └── WorkerTaskSourceContext.php
 │   │           │   ├── Supervisor/
 │   │           │   │   ├── ContainerWorkerSupervisorResolver.php
 │   │           │   │   ├── WorkerChildEntry.php
@@ -1164,8 +1172,7 @@ Coretsia/
 │   │           │   │   ├── WorkerSignalController.php
 │   │           │   │   └── WorkerSupervisor.php
 │   │           │   ├── Task/
-│   │           │   │   ├── HttpTaskFactory.php
-│   │           │   │   └── QueueTaskFactory.php
+│   │           │   │   └── WorkerTaskSourceResolver.php
 │   │           │   └── Worker/
 │   │           │       └── ApplicationWorker.php
 │   │           ├── tests/
@@ -1226,7 +1233,6 @@ Coretsia/
 │   │           │   │   ├── WorkerControlAuthenticationTest.php
 │   │           │   │   ├── WorkerControlTransportTest.php
 │   │           │   │   ├── WorkerHandlesMultipleTasksSequentiallyTest.php
-│   │           │   │   ├── WorkerHttpTaskRequiresRequestHandlerTest.php
 │   │           │   │   ├── WorkerLifecycleConfigDriftTest.php
 │   │           │   │   ├── WorkerLifecycleLocatorStoreFilesystemTest.php
 │   │           │   │   ├── WorkerLifecycleLockCloseOnExecTest.php
@@ -1247,7 +1253,8 @@ Coretsia/
 │   │           │   │   ├── WorkerSupervisorReadinessTest.php
 │   │           │   │   ├── WorkerSupervisorRecycleTest.php
 │   │           │   │   ├── WorkerSupervisorSignalShutdownTest.php
-│   │           │   │   └── WorkerTaskFactorySelectsServiceLazilyTest.php
+│   │           │   │   ├── WorkerTaskSourceResolverSelectsServiceLazilyTest.php
+│   │           │   │   └── WorkerTaskSourceStartupFailureProcessTest.php
 │   │           │   ├── Support/
 │   │           │   │   ├── ArrayConfigRepository.php
 │   │           │   │   ├── PackageTestCase.php
@@ -1258,8 +1265,9 @@ Coretsia/
 │   │           │   │   ├── RecordingOutput.php
 │   │           │   │   ├── RecordingSpan.php
 │   │           │   │   ├── RecordingSupervisorResolver.php
-│   │           │   │   ├── RecordingTaskFactory.php
 │   │           │   │   ├── RecordingTracer.php
+│   │           │   │   ├── RecordingWorkerTask.php
+│   │           │   │   ├── RecordingWorkerTaskSource.php
 │   │           │   │   ├── SupervisorIntegrationTestCase.php
 │   │           │   │   ├── TestInput.php
 │   │           │   │   ├── WorkerCommandHarness.php
@@ -1278,10 +1286,11 @@ Coretsia/
 │   │           │       ├── WorkerProcProcessHostProtocolTest.php
 │   │           │       ├── WorkerProcessGuardianProtocolTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
-│   │           │       ├── WorkerServiceFactoryTaskFactoryBoundaryTest.php
 │   │           │       ├── WorkerShutdownBudgetTest.php
 │   │           │       ├── WorkerStateStoreStateFactoryTest.php
-│   │           │       └── WorkerSupervisorLifecycleTest.php
+│   │           │       ├── WorkerSupervisorLifecycleTest.php
+│   │           │       ├── WorkerTaskSourceContextTest.php
+│   │           │       └── WorkerTaskSourceResolverTest.php
 │   │           ├── LICENSE
 │   │           ├── NOTICE
 │   │           ├── README.md

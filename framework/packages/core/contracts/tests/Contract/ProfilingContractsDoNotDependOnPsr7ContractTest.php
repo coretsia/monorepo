@@ -25,7 +25,7 @@ use RecursiveIteratorIterator;
 
 final class ProfilingContractsDoNotDependOnPsr7ContractTest extends TestCase
 {
-    public function test_profiling_contracts_do_not_reference_psr7_types(): void
+    public function testProfilingContractsDoNotReferencePsr7Types(): void
     {
         $profilingSourceDirectory = dirname(__DIR__, 2) . '/src/Observability/Profiling';
 

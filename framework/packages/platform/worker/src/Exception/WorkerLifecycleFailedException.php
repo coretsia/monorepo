@@ -19,20 +19,21 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Worker\Exception;
 
 /**
- * Deterministic worker supervisor-lifecycle failure.
+ * Deterministic worker lifecycle failure.
  *
- * This exception covers invalid lifecycle state, unexpected child exits,
- * shutdown, runtime cleanup, lifecycle-lock, lifecycle-locator, process-guardian,
- * and proc-host failures that are not owned exclusively by worker startup.
+ * This exception covers invalid lifecycle state, task-source runtime failures,
+ * unexpected child exits, shutdown, runtime cleanup, lifecycle-lock,
+ * lifecycle-locator, process-guardian, and proc-host failures that are not
+ * owned exclusively by worker startup.
  *
  * The public message contains only:
  *
  *     CORETSIA_WORKER_LIFECYCLE_FAILED: worker-reason-token
  *
  * It MUST NOT expose raw config values, absolute paths, raw socket paths, raw
- * TCP endpoints, request payloads, headers, tokens, process command lines,
+ * TCP endpoints, task payloads, headers, tokens, process command lines,
  * previous throwable messages, container exception messages, service ids,
- * stack traces, or environment-specific data.
+ * adapter class names, stack traces, or environment-specific data.
  */
 final class WorkerLifecycleFailedException extends WorkerException
 {
@@ -40,6 +41,9 @@ final class WorkerLifecycleFailedException extends WorkerException
 
     public const string REASON_LIFECYCLE_FAILED = 'worker-lifecycle-failed';
     public const string REASON_INVALID_STATE = 'worker-invalid-state';
+    public const string REASON_TASK_SOURCE_TERMINATED = 'worker-task-source-terminated';
+    public const string REASON_TASK_SOURCE_RECEIVE_FAILED = 'worker-task-source-receive-failed';
+    public const string REASON_TASK_SETTLEMENT_FAILED = 'worker-task-settlement-failed';
     public const string REASON_CHILD_EXITED = 'worker-child-exited';
     public const string REASON_SHUTDOWN_FAILED = 'worker-shutdown-failed';
     public const string REASON_RUNTIME_CLEANUP_FAILED = 'worker-runtime-cleanup-failed';
@@ -51,6 +55,9 @@ final class WorkerLifecycleFailedException extends WorkerException
     private const array REASONS = [
         self::REASON_LIFECYCLE_FAILED => true,
         self::REASON_INVALID_STATE => true,
+        self::REASON_TASK_SOURCE_TERMINATED => true,
+        self::REASON_TASK_SOURCE_RECEIVE_FAILED => true,
+        self::REASON_TASK_SETTLEMENT_FAILED => true,
         self::REASON_CHILD_EXITED => true,
         self::REASON_SHUTDOWN_FAILED => true,
         self::REASON_RUNTIME_CLEANUP_FAILED => true,
@@ -77,6 +84,21 @@ final class WorkerLifecycleFailedException extends WorkerException
     public static function invalidState(): self
     {
         return new self(self::REASON_INVALID_STATE);
+    }
+
+    public static function taskSourceTerminated(): self
+    {
+        return new self(self::REASON_TASK_SOURCE_TERMINATED);
+    }
+
+    public static function taskSourceReceiveFailed(): self
+    {
+        return new self(self::REASON_TASK_SOURCE_RECEIVE_FAILED);
+    }
+
+    public static function taskSettlementFailed(): self
+    {
+        return new self(self::REASON_TASK_SETTLEMENT_FAILED);
     }
 
     public static function childExited(): self

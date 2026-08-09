@@ -27,7 +27,7 @@ use ReflectionNamedType;
 
 final class SamplerInterfaceShapeContractTest extends TestCase
 {
-    public function test_sampler_interface_shape_is_stable(): void
+    public function testSamplerInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(SamplerInterface::class);
 
@@ -55,7 +55,7 @@ final class SamplerInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, SamplingDecision::class, false);
     }
 
-    public function test_sampler_implementations_can_return_sampling_decision(): void
+    public function testSamplerImplementationsCanReturnSamplingDecision(): void
     {
         $sampler = new class() implements SamplerInterface {
             /**

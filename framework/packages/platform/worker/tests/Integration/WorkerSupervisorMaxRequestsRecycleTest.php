@@ -55,10 +55,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
         );
 
         self::waitUntil(
-            static fn (): bool => \count($harness->pidLog()) >= 2
-                && \count(
-                    self::applicationWorkerRuns($root),
-                ) >= 1,
+            static fn (): bool => \count($harness->pidLog()) >= 2 && \count(self::applicationWorkerRuns($root)) >= 1,
             10_000,
             'ApplicationWorker max_requests did not recycle the child.',
         );
@@ -114,7 +111,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
                 'pid' => $children[0]['pid'],
                 'processed' => 3,
                 'slot' => 0,
-                'task_create_calls' => 3,
+                'task_receive_calls' => 3,
             ],
             $runs[0],
         );
@@ -166,7 +163,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
      *     pid: int,
      *     processed: int,
      *     slot: int,
-     *     task_create_calls: int
+     *     task_receive_calls: int
      * }>
      */
     private static function applicationWorkerRuns(
@@ -212,7 +209,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
                 || !\is_int($record['pid'] ?? null)
                 || !\is_int($record['processed'] ?? null)
                 || !\is_int($record['slot'] ?? null)
-                || !\is_int($record['task_create_calls'] ?? null)
+                || !\is_int($record['task_receive_calls'] ?? null)
             ) {
                 return [];
             }
@@ -224,7 +221,7 @@ final class WorkerSupervisorMaxRequestsRecycleTest extends SupervisorIntegration
                 'pid' => $record['pid'],
                 'processed' => $record['processed'],
                 'slot' => $record['slot'],
-                'task_create_calls' => $record['task_create_calls'],
+                'task_receive_calls' => $record['task_receive_calls'],
             ];
         }
 

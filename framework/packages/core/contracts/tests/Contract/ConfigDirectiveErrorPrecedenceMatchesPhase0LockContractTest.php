@@ -48,7 +48,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         self::CONFIG_DIRECTIVE_INVALID_JSON_LIKE_VALUE => 'CORETSIA_JSON_FLOAT_FORBIDDEN',
     ];
 
-    public function test_phase0_aligned_directive_error_precedence_is_locked(): void
+    public function testPhase0AlignedDirectiveErrorPrecedenceIsLocked(): void
     {
         self::assertSame(
             [
@@ -61,7 +61,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         );
     }
 
-    public function test_contract_codes_map_to_phase0_lock_source_codes(): void
+    public function testContractCodesMapToPhase0LockSourceCodes(): void
     {
         self::assertSame(
             [
@@ -74,7 +74,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         );
     }
 
-    public function test_validation_codes_are_stable_ascii_strings(): void
+    public function testValidationCodesAreStableAsciiStrings(): void
     {
         foreach (self::PHASE0_ALIGNED_ERROR_PRECEDENCE as $code) {
             self::assertMatchesRegularExpression('/^[A-Z][A-Z0-9_]*$/', $code);
@@ -85,7 +85,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         }
     }
 
-    public function test_unknown_reserved_directive_key_is_reported_before_exclusive_level_violation(): void
+    public function testUnknownReservedDirectiveKeyIsReportedBeforeExclusiveLevelViolation(): void
     {
         $node = [
             '@custom' => true,
@@ -98,7 +98,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         self::assertSame(self::CONFIG_DIRECTIVE_UNKNOWN, self::firstDirectiveProblemCode($node));
     }
 
-    public function test_unknown_reserved_directive_key_is_the_single_reserved_namespace_guard_bucket(): void
+    public function testUnknownReservedDirectiveKeyIsTheSingleReservedNamespaceGuardBucket(): void
     {
         foreach (['@set', '@delete', '@override', '@custom', '@env', '@'] as $key) {
             self::assertTrue(ConfigDirective::isReservedDirectiveKey($key));
@@ -113,7 +113,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         }
     }
 
-    public function test_exclusive_level_violation_is_reported_before_payload_shape_violation(): void
+    public function testExclusiveLevelViolationIsReportedBeforePayloadShapeViolation(): void
     {
         $node = [
             '@merge' => new \stdClass(),
@@ -123,7 +123,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         self::assertSame(self::CONFIG_DIRECTIVE_EXCLUSIVE_LEVEL_VIOLATION, self::firstDirectiveProblemCode($node));
     }
 
-    public function test_payload_shape_violation_is_reported_before_json_like_value_violation(): void
+    public function testPayloadShapeViolationIsReportedBeforeJsonLikeValueViolation(): void
     {
         $node = [
             '@append' => 'not-a-list-or-map-payload',
@@ -132,7 +132,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         self::assertSame(self::CONFIG_DIRECTIVE_INVALID_PAYLOAD, self::firstDirectiveProblemCode($node));
     }
 
-    public function test_json_like_value_violation_is_reported_after_payload_shape_is_valid(): void
+    public function testJsonLikeValueViolationIsReportedAfterPayloadShapeIsValid(): void
     {
         $node = [
             '@merge' => [
@@ -143,7 +143,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         self::assertSame(self::CONFIG_DIRECTIVE_INVALID_JSON_LIKE_VALUE, self::firstDirectiveProblemCode($node));
     }
 
-    public function test_replace_accepts_scalar_payload_shape_before_json_like_validation(): void
+    public function testReplaceAcceptsScalarPayloadShapeBeforeJsonLikeValidation(): void
     {
         self::assertNull(self::firstDirectiveProblemCode([
             '@replace' => false,
@@ -154,7 +154,7 @@ final class ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest extends 
         ]));
     }
 
-    public function test_merge_rejects_non_empty_list_payload_shape(): void
+    public function testMergeRejectsNonEmptyListPayloadShape(): void
     {
         self::assertSame(
             self::CONFIG_DIRECTIVE_INVALID_PAYLOAD,

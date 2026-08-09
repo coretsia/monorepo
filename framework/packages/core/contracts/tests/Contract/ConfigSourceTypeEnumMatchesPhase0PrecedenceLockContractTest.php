@@ -38,19 +38,19 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
         'generated_artifact',
     ];
 
-    public function test_source_type_enum_matches_source_tracking_vocabulary(): void
+    public function testSourceTypeEnumMatchesSourceTrackingVocabulary(): void
     {
         self::assertSame(self::SOURCE_TYPE_VALUES, ConfigSourceType::values());
     }
 
-    public function test_source_type_enum_does_not_define_intrinsic_precedence(): void
+    public function testSourceTypeEnumDoesNotDefineIntrinsicPrecedence(): void
     {
         foreach (ConfigSourceType::cases() as $type) {
             self::assertFalse(method_exists($type, 'precedence'));
         }
     }
 
-    public function test_precedence_is_explicit_source_trace_metadata_not_source_type_metadata(): void
+    public function testPrecedenceIsExplicitSourceTraceMetadataNotSourceTypeMetadata(): void
     {
         $lowRank = new ConfigValueSource(
             type: ConfigSourceType::Env,
@@ -77,7 +77,7 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
         self::assertSame(40, $highRank->precedence());
     }
 
-    public function test_source_type_vocabulary_order_is_not_a_merge_precedence_contract(): void
+    public function testSourceTypeVocabularyOrderIsNotAMergePrecedenceContract(): void
     {
         $trace = new ConfigValueSource(
             type: ConfigSourceType::PackageDefault,
@@ -94,7 +94,7 @@ final class ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest extends 
         self::assertSame(90, $trace->toArray()['precedence']);
     }
 
-    public function test_source_type_expansion_requires_contract_test_update(): void
+    public function testSourceTypeExpansionRequiresContractTestUpdate(): void
     {
         self::assertSame(
             self::SOURCE_TYPE_VALUES,

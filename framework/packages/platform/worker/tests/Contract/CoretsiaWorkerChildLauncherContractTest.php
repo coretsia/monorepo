@@ -30,6 +30,7 @@ final class CoretsiaWorkerChildLauncherContractTest extends PackageTestCase
                 'readiness_port',
                 'readiness_token',
                 'assertReady',
+                "\$args['index']",
                 'coretsia_worker_child_signal_ready',
                 "\$driver !== 'pcntl' && \$driver !== 'proc'",
                 "\$args['driver'] !== \$spec->driver()",

@@ -311,7 +311,7 @@ Missing or invalid Worker task type fails through Worker exception policy before
 
 That boundary validates the `platform.worker` module precondition, maps the already-normalized `WorkerPoolSpec` to explicit contributions through the package-internal mapper, and then invokes the Kernel entrypoint guard.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must not perform that mapping or call the Kernel guard directly.
+`WorkerStartCommand` and the shipped Worker child launcher must not perform that mapping or call the Kernel guard directly. Task-source implementations are resolved only after the Worker-owned compatibility boundary passes.
 
 ## Method boundary decision
 
@@ -583,7 +583,7 @@ Tests must verify:
 - Worker task type maps deterministically to `RuntimeDriverContributions`;
 - `WorkerRuntimeEntrypointGuard` performs the `platform.worker` precondition before runtime execution;
 - Worker production callers use `WorkerRuntimeEntrypointGuard` rather than importing the internal mapper or invoking the Kernel guard directly;
-- HTTP task preflight invokes `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- HTTP task-source readiness occurs only after `WorkerRuntimeEntrypointGuard` has passed;
 - `resolveEntrypointDrivers(...)` returns the same composed set that passed module compatibility validation;
 - `assertEntrypointAllowed(...)` is an assertion-only `void` wrapper.
 

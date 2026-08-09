@@ -27,7 +27,7 @@ use ReflectionNamedType;
 
 final class EnvRepositoryInterfaceShapeContractTest extends TestCase
 {
-    public function test_env_repository_interface_exposes_canonical_methods_only(): void
+    public function testEnvRepositoryInterfaceExposesCanonicalMethodsOnly(): void
     {
         $interface = new ReflectionClass(EnvRepositoryInterface::class);
 
@@ -42,7 +42,7 @@ final class EnvRepositoryInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_has_method_shape_is_stable(): void
+    public function testHasMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(EnvRepositoryInterface::class, 'has');
 
@@ -63,7 +63,7 @@ final class EnvRepositoryInterfaceShapeContractTest extends TestCase
         self::assertStringContainsString('Present empty string MUST return true.', $docComment);
     }
 
-    public function test_get_method_returns_env_value_not_nullable_string(): void
+    public function testGetMethodReturnsEnvValueNotNullableString(): void
     {
         $method = new \ReflectionMethod(EnvRepositoryInterface::class, 'get');
 
@@ -87,7 +87,7 @@ final class EnvRepositoryInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_all_method_shape_is_stable_but_documented_as_raw_runtime_access(): void
+    public function testAllMethodShapeIsStableButDocumentedAsRawRuntimeAccess(): void
     {
         $method = new \ReflectionMethod(EnvRepositoryInterface::class, 'all');
 
@@ -104,7 +104,7 @@ final class EnvRepositoryInterfaceShapeContractTest extends TestCase
         self::assertStringContainsString('MUST NOT print this', $docComment);
     }
 
-    public function test_source_of_method_shape_is_stable(): void
+    public function testSourceOfMethodShapeIsStable(): void
     {
         $method = new \ReflectionMethod(EnvRepositoryInterface::class, 'sourceOf');
 

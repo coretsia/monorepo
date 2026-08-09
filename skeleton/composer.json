@@ -58,9 +58,9 @@
     }
   ],
   "config": {
+    "sort-packages": true,
     "platform": {
       "php": "8.4.0"
-    },
-    "sort-packages": true
+    }
   }
 }

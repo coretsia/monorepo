@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
 {
-    public function test_trace_entries_can_be_ordered_by_phase0_aligned_safe_trace_order(): void
+    public function testTraceEntriesCanBeOrderedByPhase0AlignedSafeTraceOrder(): void
     {
         $entries = [
             new ConfigValueSource(
@@ -86,7 +86,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         );
     }
 
-    public function test_trace_ordering_is_independent_from_input_order(): void
+    public function testTraceOrderingIsIndependentFromInputOrder(): void
     {
         $entries = [
             new ConfigValueSource(
@@ -162,7 +162,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         );
     }
 
-    public function test_nullable_key_path_sorts_deterministically_as_empty_string(): void
+    public function testNullableKeyPathSortsDeterministicallyAsEmptyString(): void
     {
         $entries = [
             new ConfigValueSource(
@@ -189,7 +189,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         self::assertSame('container.bindings', $sorted[1]->keyPath());
     }
 
-    public function test_nullable_path_sorts_deterministically_as_empty_string(): void
+    public function testNullablePathSortsDeterministicallyAsEmptyString(): void
     {
         $entries = [
             new ConfigValueSource(
@@ -216,7 +216,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         self::assertSame('package.defaults/foundation', $sorted[1]->path());
     }
 
-    public function test_precedence_is_exported_and_part_of_phase0_aligned_safe_trace_sort_key(): void
+    public function testPrecedenceIsExportedAndPartOfPhase0AlignedSafeTraceSortKey(): void
     {
         $lowerPrecedence = new ConfigValueSource(
             type: ConfigSourceType::PackageDefault,
@@ -245,7 +245,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         self::assertSame(90, $sorted[1]->precedence());
     }
 
-    public function test_path_is_safe_source_file_equivalent_in_phase0_aligned_sort_key(): void
+    public function testPathIsSafeSourceFileEquivalentInPhase0AlignedSortKey(): void
     {
         $entries = [
             new ConfigValueSource(
@@ -272,7 +272,7 @@ final class ConfigTraceOrderingIsDeterministicContractTest extends TestCase
         self::assertSame('z.source', $sorted[1]->path());
     }
 
-    public function test_trace_export_key_order_is_stable_after_sorting(): void
+    public function testTraceExportKeyOrderIsStableAfterSorting(): void
     {
         $entries = self::sortTraceEntries([
             new ConfigValueSource(

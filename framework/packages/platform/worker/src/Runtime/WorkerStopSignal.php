@@ -23,8 +23,10 @@ use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 /**
  * Encapsulates the supervisor-owned cooperative stop flag.
  *
- * WorkerSupervisor is the only writer and remover. ApplicationWorker observes
- * the flag between tasks without owning shutdown orchestration.
+ * WorkerSupervisor is the only writer and remover. The worker child observes
+ * the flag outside an in-flight task: ApplicationWorker checks it before task
+ * acquisition, and task sources may check it during interruptible receive()
+ * through WorkerTaskSourceContextInterface.
  */
 final readonly class WorkerStopSignal
 {

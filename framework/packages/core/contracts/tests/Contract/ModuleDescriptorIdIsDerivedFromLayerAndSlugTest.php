@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
 {
-    public function test_derives_module_id_from_layer_and_slug(): void
+    public function testDerivesModuleIdFromLayerAndSlug(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug(
             layer: 'Platform',
@@ -44,7 +44,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
         self::assertSame('cli', $descriptor->toArray()['slug']);
     }
 
-    public function test_composer_metadata_does_not_affect_module_identity(): void
+    public function testComposerMetadataDoesNotAffectModuleIdentity(): void
     {
         $left = ModuleDescriptor::fromLayerAndSlug(
             layer: 'core',
@@ -74,7 +74,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
         self::assertTrue($left->id()->equals($right->id()));
     }
 
-    public function test_exports_internal_module_id_as_scalars_not_object_identity(): void
+    public function testExportsInternalModuleIdAsScalarsNotObjectIdentity(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug('presets', 'micro');
 
@@ -94,7 +94,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
         self::assertNoObjectsInExportedShape($exported);
     }
 
-    public function test_sorts_capabilities_and_metadata_deterministically(): void
+    public function testSortsCapabilitiesAndMetadataDeterministically(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug(
             layer: 'enterprise',
@@ -142,7 +142,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
         self::assertSame($descriptor->capabilities(), $descriptor->toArray()['capabilities']);
     }
 
-    public function test_rejects_tooling_only_layer_as_runtime_descriptor(): void
+    public function testRejectsToolingOnlyLayerAsRuntimeDescriptor(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 

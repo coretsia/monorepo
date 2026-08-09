@@ -23,30 +23,43 @@ use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Coretsia\Platform\Worker\Tests\Support\PackageTestCase;
 use Coretsia\Platform\Worker\Tests\Support\RecordingKernelRuntime;
 use Coretsia\Platform\Worker\Tests\Support\RecordingMeter;
-use Coretsia\Platform\Worker\Tests\Support\RecordingTaskFactory;
 use Coretsia\Platform\Worker\Tests\Support\RecordingTracer;
+use Coretsia\Platform\Worker\Tests\Support\RecordingWorkerTask;
+use Coretsia\Platform\Worker\Tests\Support\RecordingWorkerTaskSource;
 use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
 use Coretsia\Platform\Worker\Worker\ApplicationWorker;
 
 final class WorkerHandlesMultipleTasksSequentiallyTest extends PackageTestCase
 {
-    public function testEachTaskUsesSeparateKernelRuntimeBoundary(): void
+    public function testEachAcquiredTaskUsesSeparateKernelRuntimeBoundary(): void
     {
         $root = $this->temporaryDirectory('worker-sequential');
         $runtime = new RecordingKernelRuntime();
-        $factory = new RecordingTaskFactory('queue');
+        $source = new RecordingWorkerTaskSource();
+        $source->tasks = [
+            new RecordingWorkerTask(1),
+            new RecordingWorkerTask(2),
+            new RecordingWorkerTask(3),
+        ];
         $worker = new ApplicationWorker(
             new WorkerStopSignal($root),
             $runtime,
-            $factory,
+            $source,
             new Stopwatch(),
             new RecordingTracer(),
             new RecordingMeter(),
         );
 
-        $processed = $worker->run(WorkerSpecFactory::create(['workers' => 1, 'max_requests' => 3]));
+        $processed = $worker->run(
+            WorkerSpecFactory::create(['workers' => 1, 'max_requests' => 3]),
+            0,
+        );
+
         self::assertSame(3, $processed);
         self::assertSame(['queue', 'queue', 'queue'], $runtime->types);
-        self::assertSame(3, $factory->createCalls);
+        self::assertSame(3, $source->receiveCalls);
+        foreach ($source->tasks as $_remaining) {
+            self::fail('No task should remain after max_requests=3.');
+        }
     }
 }

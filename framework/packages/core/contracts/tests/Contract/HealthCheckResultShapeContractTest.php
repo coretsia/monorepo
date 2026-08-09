@@ -28,7 +28,7 @@ use stdClass;
 
 final class HealthCheckResultShapeContractTest extends TestCase
 {
-    public function test_constructor_shape_is_stable(): void
+    public function testConstructorShapeIsStable(): void
     {
         $reflection = new ReflectionClass(HealthCheckResult::class);
         $constructor = $reflection->getConstructor();
@@ -55,7 +55,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         self::assertSame([], $parameters[2]->getDefaultValue());
     }
 
-    public function test_getters_and_array_shape_are_stable(): void
+    public function testGettersAndArrayShapeAreStable(): void
     {
         $result = new HealthCheckResult(
             status: HealthStatus::Warn,
@@ -110,7 +110,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         );
     }
 
-    public function test_empty_message_normalizes_to_null(): void
+    public function testEmptyMessageNormalizesToNull(): void
     {
         $result = new HealthCheckResult(
             status: HealthStatus::Pass,
@@ -121,7 +121,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         self::assertNull($result->toArray()['message']);
     }
 
-    public function test_message_rejects_outer_whitespace(): void
+    public function testMessageRejectsOuterWhitespace(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -131,7 +131,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         );
     }
 
-    public function test_details_preserve_list_order_and_sort_maps(): void
+    public function testDetailsPreserveListOrderAndSortMaps(): void
     {
         $result = new HealthCheckResult(
             status: HealthStatus::Pass,
@@ -162,7 +162,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         );
     }
 
-    public function test_details_reject_non_empty_root_lists(): void
+    public function testDetailsRejectNonEmptyRootLists(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -172,7 +172,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         );
     }
 
-    public function test_details_reject_floats_objects_closures_and_invalid_keys(): void
+    public function testDetailsRejectFloatsObjectsClosuresAndInvalidKeys(): void
     {
         $invalidCases = [
             'float' => [
@@ -209,7 +209,7 @@ final class HealthCheckResultShapeContractTest extends TestCase
         }
     }
 
-    public function test_message_rejects_multiline_values(): void
+    public function testMessageRejectsMultilineValues(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 

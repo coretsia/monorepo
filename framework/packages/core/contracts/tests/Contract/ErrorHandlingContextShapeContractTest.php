@@ -26,7 +26,7 @@ use ReflectionParameter;
 
 final class ErrorHandlingContextShapeContractTest extends TestCase
 {
-    public function test_constructor_shape_is_stable(): void
+    public function testConstructorShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ErrorHandlingContext::class);
         $constructor = $reflection->getConstructor();
@@ -53,7 +53,7 @@ final class ErrorHandlingContextShapeContractTest extends TestCase
         self::assertSame([], $parameters[2]->getDefaultValue());
     }
 
-    public function test_getters_and_public_array_shape_are_stable(): void
+    public function testGettersAndPublicArrayShapeAreStable(): void
     {
         $context = new ErrorHandlingContext(
             operation: 'contract-test',
@@ -96,7 +96,7 @@ final class ErrorHandlingContextShapeContractTest extends TestCase
         );
     }
 
-    public function test_default_context_is_empty_and_format_neutral(): void
+    public function testDefaultContextIsEmptyAndFormatNeutral(): void
     {
         $context = new ErrorHandlingContext();
 
@@ -114,28 +114,28 @@ final class ErrorHandlingContextShapeContractTest extends TestCase
         );
     }
 
-    public function test_context_rejects_empty_operation(): void
+    public function testContextRejectsEmptyOperation(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ErrorHandlingContext(operation: '');
     }
 
-    public function test_context_rejects_empty_correlation_id(): void
+    public function testContextRejectsEmptyCorrelationId(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ErrorHandlingContext(correlationId: '');
     }
 
-    public function test_context_rejects_multiline_operation(): void
+    public function testContextRejectsMultilineOperation(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ErrorHandlingContext(operation: "operation\nunsafe");
     }
 
-    public function test_context_rejects_multiline_correlation_id(): void
+    public function testContextRejectsMultilineCorrelationId(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 

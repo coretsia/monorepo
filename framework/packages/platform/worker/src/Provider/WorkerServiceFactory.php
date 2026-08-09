@@ -22,10 +22,12 @@ use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Worker\WorkerTaskSourceInterface;
+use Coretsia\Contracts\Worker\WorkerTaskType;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
@@ -34,8 +36,6 @@ use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
 use Coretsia\Platform\Worker\Communication\WorkerControlServer;
 use Coretsia\Platform\Worker\Communication\WorkerControlTransport;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
-use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
-use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
@@ -55,8 +55,7 @@ use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
 use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
 use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Supervisor\WorkerSupervisor;
-use Coretsia\Platform\Worker\Task\HttpTaskFactory;
-use Coretsia\Platform\Worker\Task\QueueTaskFactory;
+use Coretsia\Platform\Worker\Task\WorkerTaskSourceResolver;
 use Coretsia\Platform\Worker\Worker\ApplicationWorker;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -205,42 +204,29 @@ final class WorkerServiceFactory
         return new WorkerSignalController();
     }
 
-    public function queueTaskFactory(): QueueTaskFactory
-    {
-        return new QueueTaskFactory();
-    }
-
-    public function httpTaskFactory(
-        ConfigRepositoryInterface $config,
-        ModulePlan $modulePlan,
-        WorkerRuntimeEntrypointGuard $runtimeEntrypointGuard,
+    public function workerTaskSourceResolver(
         ContainerInterface $container,
-    ): HttpTaskFactory {
-        return new HttpTaskFactory($config, $modulePlan, $runtimeEntrypointGuard, $container);
+        TagRegistry $tags,
+    ): WorkerTaskSourceResolver {
+        return new WorkerTaskSourceResolver(
+            container: $container,
+            tags: $tags,
+        );
     }
 
-    public function taskFactory(WorkerPoolSpec $spec, ContainerInterface $container): TaskFactoryInternalInterface
-    {
-        $serviceId = match ($spec->taskType()) {
-            TaskFactoryInternalInterface::TASK_TYPE_QUEUE => QueueTaskFactory::class,
-            TaskFactoryInternalInterface::TASK_TYPE_HTTP => HttpTaskFactory::class,
-            default => throw WorkerStartFailedException::startFailed(),
-        };
-        try {
-            $factory = $container->get($serviceId);
-        } catch (\Throwable) {
-            throw WorkerStartFailedException::startFailed();
-        }
-        if (!$factory instanceof TaskFactoryInternalInterface || !$factory->supports($spec)) {
-            throw WorkerStartFailedException::startFailed();
-        }
-        return $factory;
+    public function workerTaskSource(
+        WorkerPoolSpec $spec,
+        WorkerTaskSourceResolver $resolver,
+    ): WorkerTaskSourceInterface {
+        return $resolver->resolve(
+            WorkerTaskType::from($spec->taskType()),
+        );
     }
 
     public function applicationWorker(
         WorkerStopSignal $stopSignal,
         KernelRuntimeInterface $kernelRuntime,
-        TaskFactoryInternalInterface $taskFactory,
+        WorkerTaskSourceInterface $taskSource,
         Stopwatch $stopwatch,
         TracerPortInterface $tracer,
         MeterPortInterface $meter,
@@ -248,7 +234,7 @@ final class WorkerServiceFactory
         return new ApplicationWorker(
             stopSignal: $stopSignal,
             kernelRuntime: $kernelRuntime,
-            taskFactory: $taskFactory,
+            taskSource: $taskSource,
             stopwatch: $stopwatch,
             tracer: $tracer,
             meter: $meter,

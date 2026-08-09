@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Worker\Runtime;
 
+use Coretsia\Contracts\Worker\WorkerTaskType;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Internal\WorkerProcessCapabilities;
 
@@ -121,7 +122,7 @@ final readonly class WorkerPoolSpec
         $stopTimeoutMs = self::timeoutInt($config, 'stop_timeout_ms');
         $forceKillTimeoutMs = self::timeoutInt($config, 'force_kill_timeout_ms');
 
-        if (!\in_array($taskType, ['http', 'queue'], true)) {
+        if (WorkerTaskType::tryFrom($taskType) === null) {
             throw WorkerLifecycleFailedException::invalidState();
         }
         if (!\in_array($driverRequested, ['auto', 'pcntl', 'proc'], true)) {

@@ -31,7 +31,6 @@ final class WorkerInternalInterfacesAreNotPublicApiContractTest extends PackageT
                 'WorkerProcessDriverResolverInterface.php',
                 'WorkerSupervisorInterface.php',
                 'WorkerSupervisorResolverInterface.php',
-                'TaskFactoryInternalInterface.php',
             ] as $file
         ) {
             self::assertStringContainsString('@internal', self::source('src/Internal/' . $file));

@@ -47,5 +47,9 @@ final class CoretsiaWorkerChildBootsCurrentGenerationTest extends PackageTestCas
         self::assertTrue(
             $boot < $guard && $guard < $resolve && $resolve < $preflight && $preflight < $ready && $ready < $run
         );
+        self::assertStringContainsString(
+            "\$args['index']",
+            $main,
+        );
     }
 }

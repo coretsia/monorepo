@@ -28,7 +28,7 @@ use ReflectionNamedType;
 
 final class HealthCheckInterfaceShapeContractTest extends TestCase
 {
-    public function test_health_check_interface_shape_is_stable(): void
+    public function testHealthCheckInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(HealthCheckInterface::class);
 
@@ -64,7 +64,7 @@ final class HealthCheckInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($check, HealthCheckResult::class, false);
     }
 
-    public function test_health_status_cases_are_stable(): void
+    public function testHealthStatusCasesAreStable(): void
     {
         self::assertSame(
             [
@@ -88,7 +88,7 @@ final class HealthCheckInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_health_check_implementations_can_return_health_result(): void
+    public function testHealthCheckImplementationsCanReturnHealthResult(): void
     {
         $check = new class() implements HealthCheckInterface {
             public function id(): string

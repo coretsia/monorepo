@@ -26,7 +26,7 @@ use ReflectionNamedType;
 
 final class ConfigLoaderInterfaceShapeContractTest extends TestCase
 {
-    public function test_config_loader_interface_exposes_load_only(): void
+    public function testConfigLoaderInterfaceExposesLoadOnly(): void
     {
         $interface = new ReflectionClass(ConfigLoaderInterface::class);
 
@@ -41,7 +41,7 @@ final class ConfigLoaderInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_load_returns_config_repository_interface_not_raw_array(): void
+    public function testLoadReturnsConfigRepositoryInterfaceNotRawArray(): void
     {
         $method = new \ReflectionMethod(ConfigLoaderInterface::class, 'load');
 

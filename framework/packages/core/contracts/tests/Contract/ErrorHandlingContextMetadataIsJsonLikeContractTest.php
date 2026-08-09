@@ -24,7 +24,7 @@ use stdClass;
 
 final class ErrorHandlingContextMetadataIsJsonLikeContractTest extends TestCase
 {
-    public function test_metadata_accepts_json_like_values_and_normalizes_maps_deterministically(): void
+    public function testMetadataAcceptsJsonLikeValuesAndNormalizesMapsDeterministically(): void
     {
         $context = new ErrorHandlingContext(
             metadata: [
@@ -70,7 +70,7 @@ final class ErrorHandlingContextMetadataIsJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_metadata_preserves_list_order(): void
+    public function testMetadataPreservesListOrder(): void
     {
         $context = new ErrorHandlingContext(
             metadata: [
@@ -94,7 +94,7 @@ final class ErrorHandlingContextMetadataIsJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_metadata_rejects_non_empty_root_lists(): void
+    public function testMetadataRejectsNonEmptyRootLists(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -105,7 +105,7 @@ final class ErrorHandlingContextMetadataIsJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_metadata_rejects_floats_nan_and_infinity(): void
+    public function testMetadataRejectsFloatsNanAndInfinity(): void
     {
         $invalidMetadataCases = [
             'float' => [
@@ -144,7 +144,7 @@ final class ErrorHandlingContextMetadataIsJsonLikeContractTest extends TestCase
         }
     }
 
-    public function test_metadata_rejects_objects_closures_and_invalid_keys(): void
+    public function testMetadataRejectsObjectsClosuresAndInvalidKeys(): void
     {
         $invalidMetadataCases = [
             'object' => [

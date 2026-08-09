@@ -197,6 +197,7 @@
     "quality": "@composer --no-interaction --working-dir=framework run-script quality --"
   },
   "config": {
+    "process-timeout": 600,
     "sort-packages": true,
     "platform": {
       "php": "8.4.0"

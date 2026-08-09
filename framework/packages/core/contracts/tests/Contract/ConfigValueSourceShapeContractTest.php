@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigValueSourceShapeContractTest extends TestCase
 {
-    public function test_config_value_source_exposes_canonical_safe_shape(): void
+    public function testConfigValueSourceExposesCanonicalSafeShape(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::AppConfig,
@@ -88,7 +88,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_default_optional_fields_precedence_redaction_and_meta_are_canonical(): void
+    public function testDefaultOptionalFieldsPrecedenceRedactionAndMetaAreCanonical(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::PackageDefault,
@@ -124,7 +124,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_exported_array_key_order_is_deterministic(): void
+    public function testExportedArrayKeyOrderIsDeterministic(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::GeneratedArtifact,
@@ -152,7 +152,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_root_must_be_non_empty_lowercase_config_root_identifier(): void
+    public function testRootMustBeNonEmptyLowercaseConfigRootIdentifier(): void
     {
         foreach (['', ' ', 'Foundation', 'foundation-root', 'foundation.root', '1foundation'] as $root) {
             try {
@@ -169,7 +169,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_source_id_must_be_non_empty(): void
+    public function testSourceIdMustBeNonEmpty(): void
     {
         foreach (['', ' '] as $sourceId) {
             try {
@@ -186,7 +186,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_precedence_must_be_non_negative(): void
+    public function testPrecedenceMustBeNonNegative(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Config value source precedence must be non-negative.');
@@ -199,7 +199,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_path_key_path_and_source_id_must_not_contain_control_bytes(): void
+    public function testPathKeyPathAndSourceIdMustNotContainControlBytes(): void
     {
         foreach (["line\nbreak", "line\rbreak", "null\0byte"] as $value) {
             foreach (['path', 'keyPath', 'sourceId'] as $field) {
@@ -214,7 +214,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_key_path_and_source_id_must_not_contain_whitespace(): void
+    public function testKeyPathAndSourceIdMustNotContainWhitespace(): void
     {
         foreach (['keyPath', 'sourceId'] as $field) {
             try {
@@ -227,7 +227,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_path_key_path_and_source_id_must_not_be_absolute_paths_or_urls(): void
+    public function testPathKeyPathAndSourceIdMustNotBeAbsolutePathsOrUrls(): void
     {
         foreach (
             [
@@ -249,7 +249,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_path_key_path_and_source_id_must_not_contain_path_traversal(): void
+    public function testPathKeyPathAndSourceIdMustNotContainPathTraversal(): void
     {
         foreach (['..', '../config', 'config/../secret', 'config/..', '..\\config', 'config\\..\\secret'] as $value) {
             foreach (['path', 'keyPath', 'sourceId'] as $field) {
@@ -264,7 +264,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_directive_must_be_allowed_and_is_stored_without_prefix(): void
+    public function testDirectiveMustBeAllowedAndIsStoredWithoutPrefix(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::AppConfig,
@@ -277,7 +277,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         self::assertSame('replace', $source->toArray()['directive']);
     }
 
-    public function test_unknown_directive_is_rejected(): void
+    public function testUnknownDirectiveIsRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid config value source directive.');
@@ -290,7 +290,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_meta_must_be_json_like_map_without_floats_or_runtime_values(): void
+    public function testMetaMustBeJsonLikeMapWithoutFloatsOrRuntimeValues(): void
     {
         foreach (
             [
@@ -315,7 +315,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_meta_root_must_be_a_map(): void
+    public function testMetaRootMustBeAMap(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Config value source meta must be a map.');
@@ -328,7 +328,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         );
     }
 
-    public function test_meta_must_not_use_raw_value_or_secret_keys(): void
+    public function testMetaMustNotUseRawValueOrSecretKeys(): void
     {
         foreach (['value', 'rawValue', 'envValue', 'secret', 'password', 'token'] as $key) {
             try {
@@ -346,7 +346,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_nested_meta_must_not_use_raw_value_or_secret_keys(): void
+    public function testNestedMetaMustNotUseRawValueOrSecretKeys(): void
     {
         try {
             new ConfigValueSource(
@@ -366,7 +366,7 @@ final class ConfigValueSourceShapeContractTest extends TestCase
         }
     }
 
-    public function test_path_key_path_and_source_id_must_not_contain_colons(): void
+    public function testPathKeyPathAndSourceIdMustNotContainColons(): void
     {
         foreach (['C:secret', 'config:secret'] as $value) {
             foreach (['path', 'keyPath', 'sourceId'] as $field) {

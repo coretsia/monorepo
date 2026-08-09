@@ -182,9 +182,10 @@
   },
   "config": {
     "optimize-autoloader": true,
+    "process-timeout": 600,
+    "sort-packages": true,
     "platform": {
       "php": "8.4.0"
-    },
-    "sort-packages": true
+    }
   }
 }

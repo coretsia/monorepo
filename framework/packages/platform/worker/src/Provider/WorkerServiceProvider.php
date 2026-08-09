@@ -22,6 +22,7 @@ use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Worker\WorkerTaskSourceInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -31,6 +32,7 @@ use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Foundation\Tag\ReservedTags;
+use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
@@ -44,7 +46,6 @@ use Coretsia\Platform\Worker\Console\WorkerHealthCommand;
 use Coretsia\Platform\Worker\Console\WorkerStartCommand;
 use Coretsia\Platform\Worker\Console\WorkerStatusCommand;
 use Coretsia\Platform\Worker\Console\WorkerStopCommand;
-use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Internal\WorkerControlClientInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface;
 use Coretsia\Platform\Worker\Internal\WorkerProcessGuardianInterface;
@@ -67,8 +68,7 @@ use Coretsia\Platform\Worker\Supervisor\ContainerWorkerSupervisorResolver;
 use Coretsia\Platform\Worker\Supervisor\WorkerChildTable;
 use Coretsia\Platform\Worker\Supervisor\WorkerSignalController;
 use Coretsia\Platform\Worker\Supervisor\WorkerSupervisor;
-use Coretsia\Platform\Worker\Task\HttpTaskFactory;
-use Coretsia\Platform\Worker\Task\QueueTaskFactory;
+use Coretsia\Platform\Worker\Task\WorkerTaskSourceResolver;
 use Coretsia\Platform\Worker\Worker\ApplicationWorker;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -84,8 +84,8 @@ use Psr\Log\LoggerInterface;
  *
  * - WorkerServiceFactory is a shared stateless service;
  * - WorkerPoolSpec remains lazy and reads only the active config repository;
- * - TaskFactoryInternalInterface resolves only the task-factory service selected
- *   by the canonical WorkerPoolSpec task type;
+ * - WorkerTaskSourceInterface resolves lazily through the canonical reserved
+ *   task-source tag after the WorkerPoolSpec task type is known;
  * - path-owning process services consume RuntimePathContext instead of
  *   BootstrapConfig or raw provider-owned path closures;
  * - WorkerStartCommand resolves WorkerSupervisorInterface lazily through
@@ -122,12 +122,13 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
             ->requireService(RuntimePathContext::class)
             ->requireService(WorkerPoolSpec::class)
             ->requireService(WorkerRuntimeEntrypointGuard::class)
+            ->requireService(WorkerTaskSourceResolver::class)
+            ->requireService(WorkerTaskSourceInterface::class)
             ->requireService(WorkerProcessDriverResolverInterface::class)
             ->requireService(ApplicationWorker::class)
             ->requireService(WorkerSupervisorInterface::class)
             ->requireService(WorkerControlClientInterface::class)
-            ->requireService(QueueTaskFactory::class)
-            ->requireService(HttpTaskFactory::class)
+            ->requireService(TagRegistry::class)
             ->classService(WorkerServiceFactory::class, WorkerServiceFactory::class)
             ->classService(StableJsonEncoder::class, StableJsonEncoder::class)
             ->classService(StableJsonDecoder::class, StableJsonDecoder::class)
@@ -241,28 +242,21 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 'workerSignalController',
             )
             ->serviceMethodFactory(
-                QueueTaskFactory::class,
+                WorkerTaskSourceResolver::class,
                 WorkerServiceFactory::class,
-                'queueTaskFactory',
-            )
-            ->serviceMethodFactory(
-                HttpTaskFactory::class,
-                WorkerServiceFactory::class,
-                'httpTaskFactory',
+                'workerTaskSourceResolver',
                 [
-                    ContainerValueReference::service(ConfigRepositoryInterface::class),
-                    ContainerValueReference::service(ModulePlan::class),
-                    ContainerValueReference::service(WorkerRuntimeEntrypointGuard::class),
                     ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(TagRegistry::class),
                 ],
             )
             ->serviceMethodFactory(
-                TaskFactoryInternalInterface::class,
+                WorkerTaskSourceInterface::class,
                 WorkerServiceFactory::class,
-                'taskFactory',
+                'workerTaskSource',
                 [
                     ContainerValueReference::service(WorkerPoolSpec::class),
-                    ContainerValueReference::service(ContainerInterface::class),
+                    ContainerValueReference::service(WorkerTaskSourceResolver::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -272,7 +266,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 [
                     ContainerValueReference::service(WorkerStopSignal::class),
                     ContainerValueReference::service(KernelRuntimeInterface::class),
-                    ContainerValueReference::service(TaskFactoryInternalInterface::class),
+                    ContainerValueReference::service(WorkerTaskSourceInterface::class),
                     ContainerValueReference::service(Stopwatch::class),
                     ContainerValueReference::service(TracerPortInterface::class),
                     ContainerValueReference::service(MeterPortInterface::class),

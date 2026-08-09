@@ -40,6 +40,9 @@ final class WorkerProviderSourceDefinitionsParityTest extends PackageTestCase
                 'WorkerLifecycleLocatorStore::class',
                 "'workerLifecycleLocatorStore'",
                 'WorkerHealthCommand::class',
+                'WorkerTaskSourceResolver::class',
+                'WorkerTaskSourceInterface::class',
+                'TagRegistry::class',
             ] as $required
         ) {
             self::assertStringContainsString($required, $provider);
@@ -51,6 +54,7 @@ final class WorkerProviderSourceDefinitionsParityTest extends PackageTestCase
                 'WorkerSocketServer',
                 'worker.manager_driver',
                 'worker.process_driver',
+                'ReservedTags::WORKER_TASK_SOURCE',
             ] as $forbidden
         ) {
             self::assertStringNotContainsString($forbidden, $provider);

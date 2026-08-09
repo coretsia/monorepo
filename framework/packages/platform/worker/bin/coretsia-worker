@@ -527,14 +527,20 @@ try {
     /** @var ApplicationWorker $worker */
     $worker = coretsia_worker_child_service($container, ApplicationWorker::class);
 
-    $worker->assertReady($spec);
+    $worker->assertReady(
+        $spec,
+        $args['index'],
+    );
 
     coretsia_worker_child_signal_ready(
         port: $args['readiness_port'],
         token: $args['readiness_token'],
     );
 
-    $worker->run($spec);
+    $worker->run(
+        $spec,
+        $args['index'],
+    );
 
     exit(0);
 } catch (CoretsiaWorkerChildBootFailure $exception) {

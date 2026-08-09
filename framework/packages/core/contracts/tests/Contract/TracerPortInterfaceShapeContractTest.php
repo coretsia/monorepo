@@ -27,7 +27,7 @@ use ReflectionNamedType;
 
 final class TracerPortInterfaceShapeContractTest extends TestCase
 {
-    public function test_tracer_port_interface_shape_is_stable(): void
+    public function testTracerPortInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(TracerPortInterface::class);
 
@@ -99,7 +99,7 @@ final class TracerPortInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($currentSpan, SpanInterface::class, true);
     }
 
-    public function test_tracer_implementation_can_run_callback_inside_span(): void
+    public function testTracerImplementationCanRunCallbackInsideSpan(): void
     {
         $tracer = new class() implements TracerPortInterface {
             private ?SpanInterface $current = null;

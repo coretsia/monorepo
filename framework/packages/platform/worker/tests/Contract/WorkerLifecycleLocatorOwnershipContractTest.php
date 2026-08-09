@@ -63,8 +63,8 @@ final class WorkerLifecycleLocatorOwnershipContractTest extends PackageTestCase
                 'src/Console/WorkerStatusCommand.php',
                 'src/Console/WorkerHealthCommand.php',
                 'src/Console/WorkerStopCommand.php',
-                'src/Task/QueueTaskFactory.php',
-                'src/Task/HttpTaskFactory.php',
+                'src/Task/WorkerTaskSourceResolver.php',
+                'src/Runtime/WorkerTaskSourceContext.php',
             ] as $path
         ) {
             self::assertStringNotContainsString(

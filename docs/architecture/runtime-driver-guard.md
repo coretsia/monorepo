@@ -270,7 +270,7 @@ Expected direct caller categories include:
 - Kernel-owned production boot paths;
 - platform or integration package boundaries that already possess explicit `RuntimeDriverContributions`.
 
-Worker command surfaces, Worker HTTP task preflight, and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly.
+Worker command surfaces and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly. Worker task-source resolution/readiness occurs after this compatibility boundary succeeds.
 
 Every caller supplies:
 

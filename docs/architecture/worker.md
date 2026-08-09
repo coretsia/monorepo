@@ -63,7 +63,7 @@ It explains:
 - driver selection;
 - supervisor, process-driver, and application-worker boundaries;
 - declarative runtime container wiring;
-- lazy supervisor and task-factory resolution;
+- lazy supervisor and task-source resolution;
 - runtime path seed ownership;
 - UnitOfWork and reset discipline;
 - worker state ownership;
@@ -176,7 +176,7 @@ integrations/*
 
 The worker package may contribute CLI command services, but CLI discovery, catalog construction, binary dispatch, and command UX remain owned by `platform/cli`.
 
-The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain outside `platform/worker` and are owned by platform/runtime adapters.
+The worker package consumes the transport-neutral Worker task-source contracts from `core/contracts`. Real queue and HTTP acquisition is implemented by integration/runtime adapter packages.
 
 ## Architecture components
 
@@ -238,9 +238,8 @@ WorkerStateStore
 WorkerRuntimeEntrypointGuard
 
 ApplicationWorker
-TaskFactoryInternalInterface
-QueueTaskFactory
-HttpTaskFactory
+WorkerTaskSourceContext
+WorkerTaskSourceResolver
 WorkerRuntimeDriverContributions
 ```
 
@@ -252,12 +251,11 @@ Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface
 Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface
 Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface
 Coretsia\Platform\Worker\Internal\WorkerControlClientInterface
-Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
 ```
 
 These interfaces are package-local architectural seams.
 
-They are not public framework extension points and must not be moved to `core/contracts`.
+They are not public framework extension points and must not be moved to `core/contracts`. The Worker task-source SPI is intentionally different: it is a public cross-package contract owned by `core/contracts`.
 
 `RuntimePathContext` is Kernel-owned runtime infrastructure:
 
@@ -327,9 +325,8 @@ WorkerProcessGuardianClient
 WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
 
-QueueTaskFactory
-HttpTaskFactory
-TaskFactoryInternalInterface
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 ApplicationWorker
 
 PcntlWorkerProcessDriver
@@ -381,8 +378,9 @@ WorkerProcessDriverResolverInterface
 ApplicationWorker
 WorkerSupervisorInterface
 WorkerControlClientInterface
-QueueTaskFactory
-HttpTaskFactory
+TagRegistry
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 ```
 
 The allowed external runtime seeds are:
@@ -401,7 +399,7 @@ The remaining required ids must be supplied by the complete runtime graph.
 
 `WorkerControlClientInterface` is the live control boundary used by the status, health, and stop commands.
 
-`QueueTaskFactory` and `HttpTaskFactory` are required because task-factory selection resolves only the selected canonical service through `ContainerInterface`.
+`WorkerTaskSourceInterface` is required because `WorkerServiceFactory::workerTaskSource(...)` resolves exactly one selected source through `WorkerTaskSourceResolver` and `TagRegistry`. External task-source implementations remain lazy runtime dependencies.
 
 Resolving `WorkerStartCommand` must not resolve `WorkerSupervisorInterface`.
 
@@ -543,7 +541,7 @@ Each child runs one `ApplicationWorker`.
 `ApplicationWorker` processes tasks sequentially until:
 
 - `worker.max_requests` is reached;
-- the cooperative stop signal is observed between tasks;
+- the cooperative stop signal is observed outside in-flight tasks, including interruptible task acquisition;
 - task execution produces a terminal process failure.
 
 The control channel is lifecycle-only and must not transport task payloads.
@@ -558,7 +556,7 @@ The control channel is lifecycle-only and must not transport task payloads.
 | Unix control socket       | `worker.socket_path` for a new start           | `WorkerControlTransport`                                                      | active control endpoint when transport is `unix`; configurable only for a new pool  |
 | diagnostic state          | `worker.state_path`                            | `WorkerStateStore`                                                            | redacted snapshot only; never liveness authority                                    |
 | state temporary file      | `worker.state_path + ".tmp"`                   | `WorkerStateStore`                                                            | atomic state-publication temporary file                                             |
-| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written between-task shutdown hint; not primary control                  |
+| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written cooperative shutdown hint; observed outside in-flight tasks      |
 
 ## Driver selection
 
@@ -690,7 +688,6 @@ Worker runtime callers use the Worker-owned boundary:
 
 ```text
 WorkerStartCommand
-HttpTaskFactory
 bin/coretsia-worker
 ```
 
@@ -731,7 +728,7 @@ build WorkerPoolSpec
 → run WorkerSupervisorInterface
 ```
 
-Resolving the command service itself must not resolve `WorkerSupervisorInterface`, process drivers, `ApplicationWorker`, or the selected task factory.
+Resolving the command service itself must not resolve `WorkerSupervisorInterface`, process drivers, `ApplicationWorker`, or the selected task source.
 
 Worker callers must not:
 
@@ -753,7 +750,7 @@ CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 
 Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
 
-HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
+HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before HTTP task-source resolution/readiness.
 
 ## Lazy WorkerSupervisor resolution boundary
 
@@ -1048,29 +1045,37 @@ For every proc spawn, the guardian-owned process-host client creates a one-shot 
 
 `ApplicationWorker` owns the child-process task loop.
 
-It processes tasks sequentially without restarting PHP between tasks.
+It processes real acquired tasks sequentially without restarting PHP between tasks.
 
-`WorkerServiceFactory::applicationWorker(...)` receives `WorkerStopSignal`, `KernelRuntimeInterface`, `TaskFactoryInternalInterface`, `Stopwatch`, `TracerPortInterface`, and `MeterPortInterface`.
+`WorkerServiceFactory::applicationWorker(...)` receives `WorkerStopSignal`, `KernelRuntimeInterface`, `WorkerTaskSourceInterface`, `Stopwatch`, `TracerPortInterface`, and `MeterPortInterface`.
 
-`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, or a raw skeleton root.
+`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, a raw skeleton root, or transport-specific queue/HTTP APIs.
+
+Before the child readiness frame is published, `ApplicationWorker::assertReady(...)` validates that the resolved source type matches `WorkerPoolSpec` and delegates source preflight to `WorkerTaskSourceInterface::assertReady(...)` using the safe `WorkerTaskSourceContextInterface` boundary.
 
 The loop shape is:
 
 ```text
 while processed < worker.max_requests:
-    if stop flag is present:
+    if cooperative cancellation is requested:
         break
 
-    run one task through KernelRuntimeInterface
+    task = source.receive(context)
+
+    if task is null and cancellation is requested:
+        break
+
+    if task is null without cancellation:
+        fail lifecycle
 
     processed++
+    execute task through KernelRuntimeInterface
+    settle success or failure through WorkerTaskInterface
 ```
 
-The stop flag is checked only between tasks.
+`worker.max_requests` counts real acquired task attempts. It does not count cooperative cancellation or transport wake-ups that do not produce a task.
 
-The worker must not interrupt an in-flight task.
-
-In-flight task cancellation is outside the Worker runtime contract.
+The worker must not interrupt an in-flight task. In-flight application cancellation remains outside the generic Worker task-source contract.
 
 Each task is executed by:
 
@@ -1078,14 +1083,7 @@ Each task is executed by:
 Coretsia\Contracts\Runtime\KernelRuntimeInterface::runUnitOfWork(...)
 ```
 
-The resolved worker task type is passed as the UnitOfWork type.
-
-The safe task operation id used for observability is produced by package-local task work and is restricted to low-cardinality values such as:
-
-```text
-queue
-http
-```
+The resolved `WorkerTaskType` is passed as the UnitOfWork type and is also the bounded low-cardinality observability operation id.
 
 `ApplicationWorker` must not:
 
@@ -1112,102 +1110,70 @@ The canonical flow is:
 ```text
 begin
   -> before hooks
-  -> task
+  -> task.execute()
   -> after hooks
   -> ResetOrchestrator::resetAll()
+  -> task.complete(result)
 ```
 
-`platform/worker` must not call hooks directly.
+When application/Kernel execution fails, `task.fail(original failure)` is invoked after the Kernel UoW has failed. If success settlement fails, `task.fail()` must not be invoked automatically.
 
-`platform/worker` must not call `ResetOrchestrator::resetAll()` directly.
+`platform/worker` must not call hooks directly, call `ResetOrchestrator::resetAll()` directly, enumerate reset tags, or redefine Foundation reset infrastructure.
 
-`platform/worker` must not enumerate reset tags.
-
-`platform/worker` must not redefine Foundation reset infrastructure.
-
-The worker runtime controls only the long-running worker loop.
-
-Kernel owns UnitOfWork lifecycle semantics.
-
-Foundation owns reset orchestration infrastructure.
+Kernel owns UnitOfWork lifecycle semantics. Foundation owns reset orchestration infrastructure. The worker runtime owns only acquisition orchestration, the long-running loop, max-request counting, and settlement sequencing.
 
 ## Task source boundary
 
-Task factories are package-internal.
-
-They produce task work for `ApplicationWorker`.
-
-Task work contains:
+The cross-package task-source SPI is owned by `core/contracts`:
 
 ```text
-operation_id
-run
+Coretsia\Contracts\Worker\WorkerTaskType
+Coretsia\Contracts\Worker\WorkerTaskSourceInterface
+Coretsia\Contracts\Worker\WorkerTaskSourceContextInterface
+Coretsia\Contracts\Worker\WorkerTaskInterface
 ```
 
-`operation_id` must be deterministic, low-cardinality, and safe for the observability metric label `operation`.
-
-`QueueTaskFactory` handles:
+Task sources are registered through the canonical reserved tag:
 
 ```text
-worker.task_type=queue
+worker.task_source
 ```
 
-It does not implement a real external queue adapter.
+Runtime code uses `ReservedTags::WORKER_TASK_SOURCE`.
 
-`HttpTaskFactory` handles:
+`WorkerTaskSourceResolver` selects exactly one source whose tag metadata contains exactly:
+
+```php
+[
+    'task_type' => 'queue', // or 'http'
+]
+```
+
+Selection semantics are:
 
 ```text
-worker.task_type=http
+0 matching sources  -> startup failure
+1 matching source   -> selected source
+2+ matching sources -> startup conflict
 ```
 
-It does not implement a real HTTP request source.
+Priority is not a source override mechanism.
 
-`HttpTaskFactory` receives the normalized `WorkerPoolSpec`.
+`receive()` returns one real `WorkerTaskInterface`, returns `null` only for cooperative cancellation, or throws on source/transport failure. It must not use a synthetic no-op task or `null` as an idle/no-work signal.
 
-It invokes `WorkerRuntimeEntrypointGuard` before resolving an HTTP request handler.
+Task acquisition must use transport-native blocking/event-loop waiting and remain cooperatively interruptible. Every source must bound each continuous transport wait by `WorkerTaskSourceContextInterface::maxBlockingWaitMs()` and regain control to re-check cancellation. Transport-native cancellation MAY wake the wait earlier but does not relax this bound. The Worker-owned bounded wait is `min(1000 ms, worker.stop_timeout_ms)`.
 
-The Worker-owned guard performs the internal contribution mapping and delegates to the Kernel guard.
-
-`HttpTaskFactory` must not import the mapper or call the Kernel guard directly.
-
-Only after compatibility passes may HTTP task mode require a resolvable:
+`WorkerTaskInterface` settlement is single-path:
 
 ```text
-Psr\Http\Server\RequestHandlerInterface
+UoW success  -> complete(result)
+UoW failure  -> fail(original failure)
+complete failure -> lifecycle settlement failure; do not call fail()
 ```
 
-`WorkerServiceFactory::taskFactory(...)` performs lazy task-factory selection.
+`platform/worker` ships no production queue or HTTP task source. Queue transports and HTTP runtime adapters are external integration/runtime packages and own their transport dependencies and settlement details.
 
-It receives:
-
-```text
-WorkerPoolSpec
-ContainerInterface
-```
-
-It selects the canonical service id:
-
-```text
-queue -> QueueTaskFactory
-http  -> HttpTaskFactory
-```
-
-It resolves only the selected service.
-
-The resolved service must:
-
-- implement `TaskFactoryInternalInterface`;
-- return `true` from `supports($spec)`.
-
-Closure-based queue-task-factory and HTTP-task-factory constructor arguments are forbidden.
-
-Resolution or validation failures are mapped to safe deterministic Worker start failures.
-
-The task-body closure produced by a valid task factory remains runtime work and is not part of declarative container wiring.
-
-Request-handler preflight failures must be deterministic and safe.
-
-The worker package must not import `Coretsia\Platform\Http\*`.
+The normative contract is `docs/ssot/worker-task-sources.md`.
 
 ## Safety limits
 
@@ -1219,7 +1185,7 @@ The worker runtime has the following safety controls.
 
 `WorkerRuntimeEntrypointGuard` verifies that `platform.worker` is enabled before Worker runtime execution starts.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the child launcher reach this check through the same Worker-owned boundary.
+`WorkerStartCommand` and the child launcher reach this check through the same Worker-owned boundary. Task-source resolution/readiness occurs only after that Worker-owned compatibility guard passes.
 
 This owner precondition does not cause Kernel to discover or infer Worker runtime-driver contributions.
 
@@ -1247,11 +1213,11 @@ The value must be a positive integer.
 
 ### `worker.stop_flag_path`
 
-Controls cooperative shutdown observation between tasks.
+Controls cooperative shutdown observation outside in-flight tasks, including interruptible task acquisition.
 
 The supervisor writes the cooperative stop signal.
 
-`ApplicationWorker` checks it only between tasks.
+`ApplicationWorker` checks it before task acquisition. The selected task source may re-check it during interruptible `receive()` through `WorkerTaskSourceContextInterface`.
 
 It must not interrupt an in-flight task.
 
@@ -1827,7 +1793,7 @@ The synchronous supervisor event loop performs shutdown.
 
 The cooperative stop signal is written only by the supervisor.
 
-`ApplicationWorker` observes it only between tasks, so an in-flight UnitOfWork is allowed to finish.
+The worker child observes it only outside an in-flight UnitOfWork, so acquired application work is allowed to finish. `ApplicationWorker` checks before acquisition, and the selected source may re-check during interruptible `receive()`.
 
 The shutdown deadlines are:
 
@@ -1885,7 +1851,6 @@ This architecture document does not define:
 - Swoole integration;
 - FrankenPHP integration;
 - public worker plugin APIs;
-- public task-source plugin APIs;
 - production artifact-compilation consumption of declarative provider definitions;
 - container artifact schema;
 - config merge implementation;
@@ -1894,7 +1859,7 @@ This architecture document does not define:
 
 ## Required update path
 
-Changing Worker declarative container wiring, required-service declarations, lazy supervisor resolution, lazy task-factory selection, or runtime path seed policy requires updating:
+Changing Worker declarative container wiring, required-service declarations, lazy supervisor resolution, task-source selection, or runtime path seed policy requires updating:
 
 ```text
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
@@ -1915,7 +1880,7 @@ framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherCon
 framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 ```
 
-Changing worker process ownership, supervisor/process-driver/application-worker boundaries, state schema, task factory visibility, or process-driver extension policy requires updating:
+Changing worker process ownership, supervisor/process-driver/application-worker boundaries, state schema, task-source SPI/selection semantics, or process-driver extension policy requires updating:
 
 ```text
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md

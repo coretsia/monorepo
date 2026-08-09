@@ -22,52 +22,42 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Worker\WorkerTaskInterface;
+use Coretsia\Contracts\Worker\WorkerTaskSourceInterface;
+use Coretsia\Contracts\Worker\WorkerTaskType;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Worker\Exception\WorkerLifecycleFailedException;
 use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
-use Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface;
 use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
+use Coretsia\Platform\Worker\Runtime\WorkerShutdownBudget;
 use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
+use Coretsia\Platform\Worker\Runtime\WorkerTaskSourceContext;
 
 /**
  * Sequential long-running application worker.
  *
- * ApplicationWorker owns the child-process task loop. It executes many tasks
- * sequentially without restarting PHP and delegates each task to the canonical
- * KernelRuntime UoW boundary.
+ * ApplicationWorker owns the child-process task loop. It receives real tasks
+ * from the selected WorkerTaskSourceInterface and delegates each task body to
+ * the canonical KernelRuntime UoW boundary.
  *
- * It does not create task sources, does not implement queue adapter logic, does
- * not implement HTTP adapter logic, does not invoke kernel hooks directly, does
- * not enumerate reset tags, and does not call ResetOrchestrator directly.
+ * It does not implement queue or HTTP transport logic, does not invoke kernel
+ * hooks directly, does not enumerate reset tags, and does not call the reset
+ * orchestrator directly.
  *
- * KernelRuntime owns:
- *
- * - UoW id creation;
- * - correlation id creation;
- * - base ContextStore writes;
- * - before/after hook invocation;
- * - reset orchestration.
- *
- * ApplicationWorker does not read or write ContextStore values. KernelRuntime
- * owns base context creation, propagation, after hooks, and reset execution.
- *
- * Observability dependencies are injected. This class must not instantiate noop
- * logger, tracer, meter, or observability adapters directly.
+ * KernelRuntime owns UoW ids, correlation ids, base context, hooks, and reset.
+ * The task source owns acquisition; WorkerTaskInterface owns transport-specific
+ * success and failure settlement.
  *
  * Task metrics use only allowlisted labels:
  *
  * - operation
  * - outcome
  *
- * The resolved worker task type is passed to KernelRuntime as the UoW type. It
- * must not be read from WorkerPoolSpec and used directly as a metric label.
- * Metric label `operation` comes from package-internal task work only.
+ * `operation` is restricted to the closed WorkerTaskType vocabulary.
  *
  * This class must not write to stdout/stderr and must not log raw payloads,
- * raw endpoints, absolute paths, headers, cookies, Authorization values,
- * tokens, body fragments, config dumps, or environment values.
- *
- * @phpstan-import-type WorkerTaskWork from TaskFactoryInternalInterface
+ * endpoints, absolute paths, headers, cookies, authorization data, tokens,
+ * body fragments, config dumps, or environment values.
  */
 final readonly class ApplicationWorker
 {
@@ -82,7 +72,7 @@ final readonly class ApplicationWorker
     public function __construct(
         private WorkerStopSignal $stopSignal,
         private KernelRuntimeInterface $kernelRuntime,
-        private TaskFactoryInternalInterface $taskFactory,
+        private WorkerTaskSourceInterface $taskSource,
         private Stopwatch $stopwatch,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
@@ -90,59 +80,92 @@ final readonly class ApplicationWorker
     }
 
     /**
-     * Verifies child runtime and task-mode dependencies before readiness is
-     * published to the supervisor.
+     * Verifies selected task-source readiness before the child readiness frame
+     * is published.
      *
-     * This preflight does not consume, acknowledge, or execute a task.
+     * This preflight must not acquire, acknowledge, execute, or consume a task.
      */
-    public function assertReady(WorkerPoolSpec $spec): void
+    public function assertReady(WorkerPoolSpec $spec, int $workerIndex): void
     {
-        if (!$this->taskFactory->supports($spec)) {
-            throw WorkerStartFailedException::startFailed();
+        $expectedType = WorkerTaskType::from($spec->taskType());
+
+        try {
+            $actualType = $this->taskSource->taskType();
+        } catch (\Throwable) {
+            throw WorkerStartFailedException::taskSourceInvalid();
         }
 
-        $operationId = $this->taskFactory->operationId($spec);
-
-        if (!self::isSafeOperationId($operationId)) {
-            throw WorkerStartFailedException::startFailed();
+        if ($actualType !== $expectedType) {
+            throw WorkerStartFailedException::taskSourceInvalid();
         }
 
-        $this->taskFactory->assertReady($spec);
+        try {
+            $this->taskSource->assertReady(
+                $this->sourceContext($spec, $workerIndex),
+            );
+        } catch (\Throwable) {
+            throw WorkerStartFailedException::taskSourceNotReady();
+        }
     }
 
     /**
-     * Runs the worker child loop until max_requests is reached or a graceful
-     * stop request is observed between tasks.
+     * Runs until max_requests real tasks have been acquired or cooperative
+     * cancellation is observed.
      *
-     * The loop checks the stop flag only between tasks. It must not interrupt an
-     * in-flight task unless future cancellation semantics are explicitly
-     * introduced.
-     *
-     * Returns the number of task iterations completed by this worker process.
+     * max_requests counts acquired task attempts. Idle transport wake-ups and
+     * cooperative cancellation do not consume the budget.
      */
-    public function run(WorkerPoolSpec $spec): int
+    public function run(WorkerPoolSpec $spec, int $workerIndex): int
     {
         $processed = 0;
+        $context = $this->sourceContext($spec, $workerIndex);
 
         while ($processed < $spec->maxRequests()) {
-            if ($this->stopRequested($spec)) {
+            if ($context->cancellationRequested()) {
                 break;
             }
 
-            $this->runOne($spec);
+            try {
+                $task = $this->taskSource->receive($context);
+            } catch (\Throwable) {
+                throw WorkerLifecycleFailedException::taskSourceReceiveFailed();
+            }
 
-            $processed++;
+            if ($task === null) {
+                if ($context->cancellationRequested()) {
+                    break;
+                }
+
+                throw WorkerLifecycleFailedException::taskSourceTerminated();
+            }
+
+            ++$processed;
+
+            $this->runTask(
+                spec: $spec,
+                task: $task,
+            );
         }
 
         return $processed;
     }
 
     /**
-     * Executes exactly one task as a KernelRuntime-owned UnitOfWork.
+     * Executes one acquired task and performs exactly one settlement path.
      */
-    public function runOne(WorkerPoolSpec $spec): mixed
-    {
-        [$operationId, $body] = $this->taskWork($spec);
+    private function runTask(
+        WorkerPoolSpec $spec,
+        WorkerTaskInterface $task,
+    ): mixed {
+        $taskType = WorkerTaskType::tryFrom(
+            $spec->taskType(),
+        );
+
+        if ($taskType === null) {
+            throw WorkerLifecycleFailedException::invalidState();
+        }
+
+        $operationId = $taskType->value;
 
         $labels = self::taskLabels(
             operationId: $operationId,
@@ -154,16 +177,32 @@ final readonly class ApplicationWorker
         $outcome = self::OUTCOME_SUCCESS;
 
         try {
-            return $this->kernelRuntime->runUnitOfWork(
-                type: $spec->taskType(),
-                body: static function () use ($body): mixed {
-                    return $body();
-                },
-            );
-        } catch (\Throwable $throwable) {
-            $outcome = self::OUTCOME_FAILURE;
+            try {
+                $result = $this->kernelRuntime->runUnitOfWork(
+                    type: $spec->taskType(),
+                    body: static fn (): mixed => $task->execute(),
+                );
+            } catch (\Throwable $failure) {
+                $outcome = self::OUTCOME_FAILURE;
 
-            throw $throwable;
+                try {
+                    $task->fail($failure);
+                } catch (\Throwable) {
+                    throw WorkerLifecycleFailedException::taskSettlementFailed();
+                }
+
+                throw $failure;
+            }
+
+            try {
+                $task->complete($result);
+            } catch (\Throwable) {
+                $outcome = self::OUTCOME_FAILURE;
+
+                throw WorkerLifecycleFailedException::taskSettlementFailed();
+            }
+
+            return $result;
         } finally {
             $durationMs = $this->safeDurationMs($startedAt);
             $labels = self::taskLabels(
@@ -180,38 +219,24 @@ final readonly class ApplicationWorker
         }
     }
 
-    /**
-     * @return array{0: string, 1: \Closure(): mixed}
-     */
-    private function taskWork(WorkerPoolSpec $spec): array
-    {
-        if (!$this->taskFactory->supports($spec)) {
-            throw WorkerLifecycleFailedException::invalidState();
-        }
-
-        $work = $this->taskFactory->create($spec);
-
-        if (!\array_key_exists('operation_id', $work) || !\is_string($work['operation_id'])) {
-            throw WorkerLifecycleFailedException::invalidState();
-        }
-
-        if (!\array_key_exists('run', $work) || !$work['run'] instanceof \Closure) {
-            throw WorkerLifecycleFailedException::invalidState();
-        }
-
-        $operationId = $work['operation_id'];
-
-        if (!self::isSafeOperationId($operationId)) {
-            throw WorkerLifecycleFailedException::invalidState();
-        }
-
-        return [$operationId, $work['run']];
+    private function sourceContext(
+        WorkerPoolSpec $spec,
+        int $workerIndex,
+    ): WorkerTaskSourceContext {
+        return new WorkerTaskSourceContext(
+            workerIndex: $workerIndex,
+            workerCount: $spec->workers(),
+            maxBlockingWaitMs: WorkerShutdownBudget::taskSourceBlockingWaitMs(
+                $spec->stopTimeoutMs(),
+            ),
+            stopSignal: $this->stopSignal,
+            spec: $spec,
+        );
     }
 
     private static function isSafeOperationId(string $operationId): bool
     {
-        return $operationId === TaskFactoryInternalInterface::TASK_TYPE_QUEUE
-            || $operationId === TaskFactoryInternalInterface::TASK_TYPE_HTTP;
+        return WorkerTaskType::tryFrom($operationId) !== null;
     }
 
     /**
@@ -312,10 +337,5 @@ final readonly class ApplicationWorker
         } catch (\Throwable) {
             return 0;
         }
-    }
-
-    private function stopRequested(WorkerPoolSpec $spec): bool
-    {
-        return $this->stopSignal->isRequested($spec);
     }
 }

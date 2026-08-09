@@ -28,9 +28,11 @@ final class WorkerExceptionTaxonomyContractTest extends PackageTestCase
     {
         $startupReasons = [
             WorkerStartFailedException::startFailed()->reason(),
-            WorkerStartFailedException::requestHandlerMissing()->reason(),
-            WorkerStartFailedException::requestHandlerUnresolvable()->reason(),
-            WorkerStartFailedException::requestHandlerInvalid()->reason(),
+            WorkerStartFailedException::taskSourceMissing()->reason(),
+            WorkerStartFailedException::taskSourceAmbiguous()->reason(),
+            WorkerStartFailedException::taskSourceInvalid()->reason(),
+            WorkerStartFailedException::taskSourceUnresolvable()->reason(),
+            WorkerStartFailedException::taskSourceNotReady()->reason(),
             WorkerStartFailedException::readinessTimeout()->reason(),
             WorkerStartFailedException::readinessInvalid()->reason(),
             WorkerStartFailedException::childStartFailed()->reason(),
@@ -40,6 +42,9 @@ final class WorkerExceptionTaxonomyContractTest extends PackageTestCase
         $lifecycleReasons = [
             WorkerLifecycleFailedException::lifecycleFailed()->reason(),
             WorkerLifecycleFailedException::invalidState()->reason(),
+            WorkerLifecycleFailedException::taskSourceTerminated()->reason(),
+            WorkerLifecycleFailedException::taskSourceReceiveFailed()->reason(),
+            WorkerLifecycleFailedException::taskSettlementFailed()->reason(),
             WorkerLifecycleFailedException::childExited()->reason(),
             WorkerLifecycleFailedException::shutdownFailed()->reason(),
             WorkerLifecycleFailedException::runtimeCleanupFailed()->reason(),
@@ -103,6 +108,9 @@ final class WorkerExceptionTaxonomyContractTest extends PackageTestCase
             [
                 'lifecycleFailed',
                 'invalidState',
+                'taskSourceTerminated',
+                'taskSourceReceiveFailed',
+                'taskSettlementFailed',
                 'childExited',
                 'shutdownFailed',
                 'runtimeCleanupFailed',

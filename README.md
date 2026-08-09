@@ -57,20 +57,6 @@ compiled config, container, and module artifacts
 runtime
 ```
 
-The module-resolution, provider-planning, and container-compilation baselines are implemented. Full provider-to-production-artifact integration remains in progress.
-
-For the same composition inputs, Coretsia aims to produce the same:
-
-- enabled and disabled module sets;
-- optional-missing module set;
-- dependency-order results.
-
-For the same normalized artifact inputs, schema, and generator version, it aims to produce the same:
-
-- artifact payloads;
-- fingerprints;
-- generated artifact bytes.
-
 Runtime module discovery uses Composer metadata only. It does not scan package directories or source trees to infer application composition.
 
 ## Progressive capability modes
@@ -187,33 +173,20 @@ Runtime conflicts fail deterministically before the runtime entrypoint executes.
 
 ### Machine-enforced architecture
 
-Coretsia architecture rules are backed by tooling and CI rather than documentation alone.
+Coretsia architecture rules are backed by repository tooling and CI rather than documentation alone.
 
-The repository includes enforcement for:
-
-- package identity and structure;
-- dependency boundaries;
-- DTO policy;
-- public API policy;
-- runtime/tooling separation;
-- deterministic generated outputs;
-- Composer security audit;
-- secret leakage checks;
-- package publishing safety.
+Enforcement covers package and dependency boundaries, DTO and public API policy, runtime/tooling separation, deterministic generated outputs, security checks, and publishing safety.
 
 ## Current status
 
-Roadmap status:
+Development status by capability track:
 
-- Prelude — implemented
-- Phase 0: Spikes and prototypes — implemented
-- Phase 1: Core — implemented
-- Phase 2: Mode Infrastructure and CLI — active development
-- Phase 3: Micro release — planned
-- Phase 4: Express release — planned
-- Phase 5: Hybrid release — planned
-- Phase 6+: Enterprise extensions — planned
-- Stable production release — not available
+- **Bootstrap & prototypes — implemented.** Repository bootstrap, packaging foundations, development tooling, CI/architecture verification, deterministic tooling primitives, prototypes, and initial CLI foundations are in place.
+- **Core — implemented.** Contracts, Foundation, Kernel, the baseline persistent Worker runtime, and the supporting composition and runtime infrastructure are implemented.
+- **Micro release track — active development.** Current work focuses on mode infrastructure, production CLI integration, target-aware application entrypoints, and the remaining runtime infrastructure required for the first complete `micro` application release.
+- **Express release — planned.**
+- **Hybrid release — planned.**
+- **Enterprise extensions — planned.**
 
 ## Implemented today
 
@@ -235,47 +208,36 @@ Roadmap status:
 
 ### Tooling and architecture governance
 
-- deterministic tooling and CI verification rails;
-- package compliance gates;
-- DTO policy and consistency gates;
+- deterministic tooling and CI verification;
+- package identity and structure checks;
+- DTO policy and consistency checks;
 - architecture and dependency-boundary checks;
 - managed Composer workspace synchronization;
 - lock-drift checks;
 - Composer audit;
 - secret leakage checks;
-- split-package publishing rails;
-- release-train safety automation;
-- architecture generator idempotence verification with [CI-tracked evidence](docs/ops/architecture-generator-evidence.md).
+- split-package publishing checks;
+- release and publishing safety checks;
+- architecture generator idempotence verification.
 
-## Not yet available as stable framework products
+## Current stability limitations
 
-Coretsia does not yet provide stable, production-ready application releases for:
-
-- complete HTTP Micro applications;
-- conventional Express web applications;
-- production Hybrid queue and event workloads;
-- Enterprise extensions.
-
-The project also does not yet provide:
+Coretsia does not yet provide:
 
 - long-term backward compatibility guarantees;
 - stable upgrade paths;
 - a mature third-party package ecosystem.
 
-Some Core composition components are already implemented, but full product-level integration remains in progress.
+Product-level integration and release hardening remain in progress.
 
-## Project priorities
+## Design priorities
 
-The immediate priority is not to implement every feature available in mature PHP ecosystems.
+Coretsia prioritizes:
 
-The priority is to prove that Coretsia can provide:
-
-1. a genuinely small and usable Micro application experience;
-2. a productive Express workflow for conventional applications;
-3. safe growth from synchronous to asynchronous workloads;
-4. deterministic module and artifact composition;
-5. consistent lifecycle behavior across classic and long-running runtimes;
-6. architecture rules that remain useful without exposing excessive ceremony to application developers.
+1. a small initial application surface that can grow by adding capabilities without replacing the application foundation;
+2. deterministic module and artifact composition;
+3. consistent lifecycle behavior across classic and long-running runtimes;
+4. enforceable architecture boundaries without unnecessary application-level ceremony.
 
 ## Who should evaluate Coretsia?
 
@@ -308,9 +270,8 @@ docs/
 ```
 
 - `framework/packages/<layer>/<slug>/` — publishable framework packages;
-- `framework/tools/**` — repository tooling, generators, CI rails, and spikes;
+- `framework/tools/**` — repository tooling, generators, and CI support;
 - `skeleton/**` — local application workspace, fixtures, entrypoints, E2E tests, and runtime caches;
-- `docs/roadmap/**` — implementation roadmap;
 - `docs/ssot/**` — canonical invariants, schemas, ownership, and policies;
 - `docs/architecture/**` — architecture guidance that refers to SSoT for normative truth;
 - `docs/ops/**` — operational and repository-maintenance documentation.
@@ -378,7 +339,6 @@ This is a framework-development workflow, not yet an end-user application instal
 
 ### Start here
 
-- [Roadmap](docs/roadmap/ROADMAP.md)
 - [SSoT index](docs/ssot/INDEX.md)
 - [Quickstart for repository development](docs/guides/quickstart.md)
 - [Developer onboarding checklist](docs/guides/onboarding.md)

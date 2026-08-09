@@ -23,6 +23,23 @@ declare(strict_types=1);
  * worker execution remains owned by bin/coretsia-worker and ApplicationWorker.
  */
 
+use Coretsia\Contracts\Worker\WorkerTaskType;
+use Coretsia\Foundation\Tag\ReservedTags;
+use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Platform\Worker\Exception\WorkerStartFailedException;
+use Coretsia\Platform\Worker\Provider\WorkerServiceFactory;
+use Coretsia\Platform\Worker\Runtime\WorkerPoolSpec;
+use Coretsia\Platform\Worker\Runtime\WorkerStopSignal;
+use Coretsia\Platform\Worker\Tests\Support\RecordingKernelRuntime;
+use Coretsia\Platform\Worker\Tests\Support\RecordingMeter;
+use Coretsia\Platform\Worker\Tests\Support\RecordingTracer;
+use Coretsia\Platform\Worker\Tests\Support\RecordingWorkerTask;
+use Coretsia\Platform\Worker\Tests\Support\RecordingWorkerTaskSource;
+use Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory;
+use Coretsia\Platform\Worker\Worker\ApplicationWorker;
+use Psr\Container\ContainerInterface;
+
 $options = coretsia_worker_supervisor_fixture_options(
     $_SERVER['argv'] ?? [],
 );
@@ -33,10 +50,7 @@ if (!\is_string($cwd) || $cwd === '') {
     exit(1);
 }
 
-$behavior = coretsia_worker_supervisor_fixture_behavior(
-    $cwd . '/worker-test-behavior.json',
-);
-
+$behavior = coretsia_worker_supervisor_fixture_behavior($cwd . '/worker-test-behavior.json');
 $workerIndex = $options['index'];
 $generation = coretsia_worker_supervisor_fixture_generation(
     root: $cwd,
@@ -81,8 +95,7 @@ if (
         $workerIndex,
     )
 ) {
-    $gatePath = $cwd
-        . '/var/tmp/worker-ready-gate';
+    $gatePath = $cwd . '/var/tmp/worker-ready-gate';
 
     while (!\is_file($gatePath)) {
         if (\is_file($stopPath)) {
@@ -106,18 +119,26 @@ $neverReady = coretsia_worker_supervisor_fixture_contains_slot(
     $workerIndex,
 );
 
-$applicationWorkerRun =
-    coretsia_worker_supervisor_fixture_application_worker_run(
-        behavior: $behavior,
-        workerIndex: $workerIndex,
-        generation: $generation,
-        root: $cwd,
-        options: $options,
-    );
+coretsia_worker_supervisor_fixture_task_source_start_failure(
+    behavior: $behavior,
+    workerIndex: $workerIndex,
+    generation: $generation,
+    root: $cwd,
+    options: $options,
+);
+
+$applicationWorkerRun = coretsia_worker_supervisor_fixture_application_worker_run(
+    behavior: $behavior,
+    workerIndex: $workerIndex,
+    generation: $generation,
+    root: $cwd,
+    options: $options,
+);
 
 if ($applicationWorkerRun !== null) {
     $applicationWorkerRun['worker']->assertReady(
         $applicationWorkerRun['spec'],
+        $workerIndex,
     );
 }
 
@@ -135,6 +156,7 @@ if ($applicationWorkerRun !== null) {
 
     $processed = $applicationWorkerRun['worker']->run(
         $applicationWorkerRun['spec'],
+        $workerIndex,
     );
 
     coretsia_worker_supervisor_fixture_record_application_worker_run(
@@ -144,7 +166,7 @@ if ($applicationWorkerRun !== null) {
         maxRequests: $options['max_requests'],
         processed: $processed,
         kernelCalls: $applicationWorkerRun['kernel']->calls,
-        taskCreateCalls: $applicationWorkerRun['tasks']->createCalls,
+        taskReceiveCalls: $applicationWorkerRun['source']->receiveCalls,
     );
 
     $exitDelayMs = $applicationWorkerRun['exit_delay_ms'];
@@ -166,15 +188,9 @@ if (
         || $generation === 1
     )
 ) {
-    if (
-        ($exitAfterReady['wait_for_release'] ?? false)
-        === true
-    ) {
-        $gatePath = $cwd
-            . '/var/tmp/worker-exit-gate';
-
-        $stopPath = $cwd
-            . '/var/tmp/worker.stop';
+    if (($exitAfterReady['wait_for_release'] ?? false) === true) {
+        $gatePath = $cwd . '/var/tmp/worker-exit-gate';
+        $stopPath = $cwd . '/var/tmp/worker.stop';
 
         while (!\is_file($gatePath)) {
             if (\is_file($stopPath)) {
@@ -320,17 +336,10 @@ function coretsia_worker_supervisor_fixture_options(array $argv): array
         || !\is_int($workerCount)
         || $index >= $workerCount
         || !\is_int($maxRequests)
-        || !\in_array(
-            $taskType,
-            ['http', 'queue'],
-            true,
-        )
+        || !\in_array($taskType, ['http', 'queue'], true)
         || !\in_array($driver, ['pcntl', 'proc'], true)
         || !\is_int($port)
-        || \preg_match(
-            '/\A[a-f0-9]{64}\z/',
-            $token,
-        ) !== 1
+        || \preg_match('/\A[a-f0-9]{64}\z/', $token) !== 1
     ) {
         exit(1);
     }
@@ -357,11 +366,190 @@ function coretsia_worker_supervisor_fixture_options(array $argv): array
  *     readiness_port: int,
  *     readiness_token: string
  * } $options
+ */
+function coretsia_worker_supervisor_fixture_task_source_start_failure(
+    array $behavior,
+    int $workerIndex,
+    int $generation,
+    string $root,
+    array $options,
+): void {
+    $configuration = $behavior['task_source_start_failure'] ?? null;
+
+    if (
+        !\is_array($configuration)
+        || ($configuration['slot'] ?? null) !== $workerIndex
+        || (
+            ($configuration['first_generation_only'] ?? true) === true
+            && $generation !== 1
+        )
+    ) {
+        return;
+    }
+
+    $scenario = $configuration['scenario'] ?? null;
+
+    if (
+        $scenario !== 'missing'
+        && $scenario !== 'ambiguous'
+        && $scenario !== 'not_ready'
+    ) {
+        exit(1);
+    }
+
+    coretsia_worker_supervisor_fixture_require_autoload();
+    coretsia_worker_supervisor_fixture_register_test_autoloader();
+
+    $taskType = WorkerTaskType::from(
+        $options['task_type'],
+    );
+
+    $spec = WorkerSpecFactory::create([
+        'workers' => $options['worker_count'],
+        'max_requests' => $options['max_requests'],
+        'task_type' => $options['task_type'],
+        'driver' => $options['driver'],
+        'control' => [
+            'transport' => 'tcp',
+        ],
+    ]);
+
+    $tags = new TagRegistry();
+
+    /** @var array<string, object> $services */
+    $services = [];
+
+    if ($scenario === 'ambiguous') {
+        $tags->add(
+            ReservedTags::WORKER_TASK_SOURCE,
+            'worker.source.one',
+            meta: [
+                'task_type' => $taskType->value,
+            ],
+        );
+
+        $tags->add(
+            ReservedTags::WORKER_TASK_SOURCE,
+            'worker.source.two',
+            meta: [
+                'task_type' => $taskType->value,
+            ],
+        );
+    }
+
+    if ($scenario === 'not_ready') {
+        $source = new RecordingWorkerTaskSource(
+            $taskType,
+        );
+
+        $source->readyFailure = new \RuntimeException('private-task-source-readiness-failure');
+
+        $services['worker.source.selected'] = $source;
+
+        $tags->add(
+            ReservedTags::WORKER_TASK_SOURCE,
+            'worker.source.selected',
+            meta: [
+                'task_type' => $taskType->value,
+            ],
+        );
+    }
+
+    $container = new class($services) implements ContainerInterface {
+        /**
+         * @param array<string, object> $services
+         */
+        public function __construct(
+            private readonly array $services,
+        ) {
+        }
+
+        public function get(string $id): mixed
+        {
+            if (!isset($this->services[$id])) {
+                throw new \RuntimeException('private-task-source-container-failure');
+            }
+
+            return $this->services[$id];
+        }
+
+        public function has(string $id): bool
+        {
+            return isset($this->services[$id]);
+        }
+    };
+
+    $factory = new WorkerServiceFactory();
+
+    try {
+        $resolver = $factory->workerTaskSourceResolver(
+            container: $container,
+            tags: $tags,
+        );
+
+        $source = $factory->workerTaskSource(
+            spec: $spec,
+            resolver: $resolver,
+        );
+
+        if ($scenario !== 'not_ready') {
+            exit(1);
+        }
+
+        $worker = $factory->applicationWorker(
+            stopSignal: new WorkerStopSignal($root),
+            kernelRuntime: new RecordingKernelRuntime(),
+            taskSource: $source,
+            stopwatch: new Stopwatch(),
+            tracer: new RecordingTracer(),
+            meter: new RecordingMeter(),
+        );
+
+        $worker->assertReady(
+            $spec,
+            $workerIndex,
+        );
+    } catch (WorkerStartFailedException $exception) {
+        $expectedReason = match ($scenario) {
+            'missing' => WorkerStartFailedException::REASON_TASK_SOURCE_MISSING,
+            'ambiguous' => WorkerStartFailedException::REASON_TASK_SOURCE_AMBIGUOUS,
+            'not_ready' => WorkerStartFailedException::REASON_TASK_SOURCE_NOT_READY,
+        };
+
+        if ($exception->reason() !== $expectedReason) {
+            exit(1);
+        }
+
+        /*
+         * Expected source failure. Exit before the fixture reaches its
+         * readiness-frame publication.
+         */
+        exit(1);
+    }
+
+    /*
+     * The selected failure scenario unexpectedly passed source resolution and
+     * readiness preflight.
+     */
+    exit(1);
+}
+
+/**
+ * @param array<string, mixed> $behavior
+ * @param array{
+ *     driver: 'pcntl'|'proc',
+ *     index: int,
+ *     worker_count: int,
+ *     max_requests: int,
+ *     task_type: string,
+ *     readiness_port: int,
+ *     readiness_token: string
+ * } $options
  * @return array{
- *     worker: \Coretsia\Platform\Worker\Worker\ApplicationWorker,
- *     spec: \Coretsia\Platform\Worker\Runtime\WorkerPoolSpec,
- *     kernel: \Coretsia\Platform\Worker\Tests\Support\RecordingKernelRuntime,
- *     tasks: \Coretsia\Platform\Worker\Tests\Support\RecordingTaskFactory,
+ *     worker: ApplicationWorker,
+ *     spec: WorkerPoolSpec,
+ *     kernel: RecordingKernelRuntime,
+ *     source: RecordingWorkerTaskSource,
  *     exit_delay_ms: int
  * }|null
  */
@@ -398,7 +586,7 @@ function coretsia_worker_supervisor_fixture_application_worker_run(
     coretsia_worker_supervisor_fixture_require_autoload();
     coretsia_worker_supervisor_fixture_register_test_autoloader();
 
-    $spec = \Coretsia\Platform\Worker\Tests\Support\WorkerSpecFactory::create([
+    $spec = WorkerSpecFactory::create([
         'workers' => $options['worker_count'],
         'max_requests' => $options['max_requests'],
         'task_type' => $options['task_type'],
@@ -408,25 +596,27 @@ function coretsia_worker_supervisor_fixture_application_worker_run(
         ],
     ]);
 
-    $kernel = new \Coretsia\Platform\Worker\Tests\Support\RecordingKernelRuntime();
-    $tasks = new \Coretsia\Platform\Worker\Tests\Support\RecordingTaskFactory(
-        $options['task_type'],
+    $kernel = new RecordingKernelRuntime();
+    $source = new RecordingWorkerTaskSource(
+        WorkerTaskType::from($options['task_type']),
     );
 
+    for ($i = 0; $i < $options['max_requests']; ++$i) {
+        $source->tasks[] = new RecordingWorkerTask($i);
+    }
+
     return [
-        'worker' => new \Coretsia\Platform\Worker\Worker\ApplicationWorker(
-            stopSignal: new \Coretsia\Platform\Worker\Runtime\WorkerStopSignal(
-                $root,
-            ),
+        'worker' => new ApplicationWorker(
+            stopSignal: new WorkerStopSignal($root),
             kernelRuntime: $kernel,
-            taskFactory: $tasks,
-            stopwatch: new \Coretsia\Foundation\Time\Stopwatch(),
-            tracer: new \Coretsia\Platform\Worker\Tests\Support\RecordingTracer(),
-            meter: new \Coretsia\Platform\Worker\Tests\Support\RecordingMeter(),
+            taskSource: $source,
+            stopwatch: new Stopwatch(),
+            tracer: new RecordingTracer(),
+            meter: new RecordingMeter(),
         ),
         'spec' => $spec,
         'kernel' => $kernel,
-        'tasks' => $tasks,
+        'source' => $source,
         'exit_delay_ms' => $exitDelayMs,
     ];
 }
@@ -496,10 +686,9 @@ function coretsia_worker_supervisor_fixture_record_application_worker_run(
     int $maxRequests,
     int $processed,
     int $kernelCalls,
-    int $taskCreateCalls,
+    int $taskReceiveCalls,
 ): void {
-    $path = $root
-        . '/var/tmp/worker-application-runs.jsonl';
+    $path = $root . '/var/tmp/worker-application-runs.jsonl';
 
     $line = \json_encode(
         [
@@ -509,7 +698,7 @@ function coretsia_worker_supervisor_fixture_record_application_worker_run(
                 'pid' => \getmypid(),
                 'processed' => $processed,
                 'slot' => $workerIndex,
-                'task_create_calls' => $taskCreateCalls,
+                'task_receive_calls' => $taskReceiveCalls,
             ],
         \JSON_UNESCAPED_SLASHES
             | \JSON_UNESCAPED_UNICODE
@@ -600,10 +789,7 @@ function coretsia_worker_supervisor_fixture_generation(
         if (
             !@\ftruncate($handle, 0)
             || !@\rewind($handle)
-            || @\fwrite(
-                $handle,
-                (string)$generation,
-            ) === false
+            || @\fwrite($handle, (string)$generation) === false
             || !@\fflush($handle)
         ) {
             exit(1);
@@ -621,8 +807,7 @@ function coretsia_worker_supervisor_fixture_record_spawn(
     int $workerIndex,
     int $generation,
 ): void {
-    $path = $root
-        . '/var/tmp/worker-pids.jsonl';
+    $path = $root . '/var/tmp/worker-pids.jsonl';
 
     $line = \json_encode(
         [

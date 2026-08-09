@@ -53,7 +53,7 @@ Foundation registers `Coretsia\Foundation\Logging\NoopLogger` as the baseline `P
 
 `psr/clock` is used for the baseline `Psr\Clock\ClockInterface` binding.
 
-`core/foundation` MUST NOT depend on tooling packages such as `devtools/internal-toolkit` or `devtools/cli-spikes`.
+`core/foundation` MUST NOT depend on tooling-only packages.
 
 ## Runtime responsibilities
 
@@ -1608,7 +1608,6 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Foundation package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/foundation)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
-- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
 - [Json-like Runtime Values SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)

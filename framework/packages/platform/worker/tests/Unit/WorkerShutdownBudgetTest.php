@@ -39,6 +39,33 @@ final class WorkerShutdownBudgetTest extends TestCase
         );
     }
 
+    public function testTaskSourceBlockingWaitUsesCanonicalBoundedBudget(): void
+    {
+        self::assertSame(
+            1_000,
+            WorkerShutdownBudget::taskSourceBlockingWaitMs(10_000),
+        );
+        self::assertSame(
+            750,
+            WorkerShutdownBudget::taskSourceBlockingWaitMs(750),
+        );
+    }
+
+    #[DataProvider('invalidTaskSourceTimeoutProvider')]
+    public function testTaskSourceBlockingWaitRejectsInvalidTimeout(int $stopTimeoutMs): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        WorkerShutdownBudget::taskSourceBlockingWaitMs($stopTimeoutMs);
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function invalidTaskSourceTimeoutProvider(): iterable
+    {
+        yield 'zero' => [0];
+        yield 'oversized' => [86_400_001];
+    }
+
     #[DataProvider('invalidTimeoutProvider')]
     public function testRejectsInvalidPhaseTimeouts(
         int $stopTimeoutMs,

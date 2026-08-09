@@ -27,7 +27,7 @@ use ReflectionParameter;
 
 final class ContextAccessorInterfaceShapeContractTest extends TestCase
 {
-    public function test_context_accessor_interface_shape_is_stable(): void
+    public function testContextAccessorInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ContextAccessorInterface::class);
 
@@ -53,7 +53,7 @@ final class ContextAccessorInterfaceShapeContractTest extends TestCase
         self::assertFalse($reflection->hasMethod('all'));
     }
 
-    public function test_has_method_shape_is_stable(): void
+    public function testHasMethodShapeIsStable(): void
     {
         $method = new ReflectionMethod(ContextAccessorInterface::class, 'has');
 
@@ -70,7 +70,7 @@ final class ContextAccessorInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'bool', false);
     }
 
-    public function test_get_method_shape_is_stable(): void
+    public function testGetMethodShapeIsStable(): void
     {
         $method = new ReflectionMethod(ContextAccessorInterface::class, 'get');
 
@@ -87,7 +87,7 @@ final class ContextAccessorInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'mixed', true);
     }
 
-    public function test_context_accessor_can_distinguish_missing_key_from_present_null_value(): void
+    public function testContextAccessorCanDistinguishMissingKeyFromPresentNullValue(): void
     {
         $accessor = new class([ 'presentNull' => null, 'operation' => 'contract-test', ]) implements ContextAccessorInterface {
             /**

@@ -16,22 +16,21 @@
 
 `core/contracts` is the boundary-only contracts package for the Coretsia Framework monorepo.
 
-Scope: public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define cross-package boundaries.
+Scope: public interfaces, ports, enums, small value objects, public context key identifiers, and contract-level shapes that define stable cross-package boundaries.
 
-Out of scope: runtime implementations, DI wiring, filesystem scanning, platform adapters, integrations, generated artifacts, and tooling-only behavior.
+Out of scope: runtime implementations, DI wiring, filesystem scanning, platform adapters, integrations, generated artifacts, concrete transport behavior, and tooling-only behavior.
 
 ## Package identity
 
-- Monorepo source path: `framework/packages/core/contracts`
-- Split repository: `coretsia/core-contracts`
+- Path: `framework/packages/core/contracts`
 - Package id: `core/contracts`
 - Composer name: `coretsia/core-contracts`
 - Namespace: `Coretsia\Contracts\*` (PSR-4: `src/`)
 - Kind: library
 
-Versioning is monorepo-wide.
+Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
-The monorepo tag `vMAJOR.MINOR.PATCH` is the single version source of truth, and the split repository receives the same tag for the corresponding package subtree.
+The corresponding split repository is `coretsia/core-contracts` and receives the same tag for the package subtree.
 
 Per-package independent versions MUST NOT be used.
 
@@ -39,8 +38,10 @@ Per-package independent versions MUST NOT be used.
 
 This package is boundary-only and MUST stay lightweight.
 
-- Depends on: PHP only
+- Depends on:
+  - PHP only
 - Forbidden:
+  - `core/*` runtime implementations
   - `platform/*`
   - `integrations/*`
   - `devtools/*`
@@ -51,83 +52,217 @@ Contracts MUST remain:
 
 - stable;
 - minimal;
-- format-neutral;
+- format-neutral where the boundary is transport-independent;
 - deterministic where they expose exported shapes;
-- safe to depend on from runtime packages.
+- safe to depend on from runtime packages;
+- free of implementation-owned lifecycle, discovery, wiring, and transport policy.
 
-## Contract areas
+## Contract responsibilities
 
-This package contains contracts for cross-package capabilities such as:
+This package provides the canonical public boundaries shared across Coretsia packages.
 
-- CLI command/input/output boundaries;
+Contract areas include:
+
+- CLI command, input, and output boundaries;
 - module identity, descriptors, manifests, and mode preset access;
-- config, env, source tracking, and validation result shapes;
-- runtime reset and unit-of-work hooks;
-- read-only runtime context access and public context key identifiers;
-- observability, health, profiling, and error descriptor boundaries;
+- config, environment, source-tracking, and validation result shapes;
+- runtime reset and UnitOfWork lifecycle ports;
+- runtime hook boundaries;
+- read-only runtime context access;
+- public context key identifiers;
+- observability ports and shapes;
+- health and profiling boundaries;
+- error descriptor boundaries;
 - routing and HTTP application ports;
 - validation ports;
 - filesystem ports;
-- database and migrations ports;
-- rate limit ports;
+- database and migration ports;
+- rate-limit ports;
 - mail ports;
-- secrets ports.
+- secrets ports;
+- transport-neutral Worker task-source and task-settlement ports.
 
-Implementations live outside `core/contracts`.
+`core/contracts` owns boundary vocabulary and public cross-package shapes only.
+
+Concrete behavior belongs to implementation owner packages.
+
+## Ownership boundaries
+
+Importing a contract does not transfer ownership of the corresponding runtime behavior.
+
+Implementation packages MAY depend on `core/contracts`.
+
+`core/contracts` MUST NOT depend back on implementation packages.
+
+Typical implementation owners include:
+
+- `core/foundation`;
+- `core/kernel`;
+- `platform/cli`;
+- `platform/http`;
+- `platform/worker`;
+- integration packages that implement a contracts-owned port.
+
+Contract-level vocabulary MUST NOT become an alternate implementation layer.
+
+In particular, `core/contracts` does not own:
+
+- dependency injection wiring;
+- service discovery;
+- runtime service tags;
+- config defaults;
+- config validation execution;
+- lifecycle execution;
+- reset discovery;
+- hook discovery;
+- filesystem or Composer scanning;
+- transport adapters;
+- HTTP response construction;
+- queue acknowledgement, retry, requeue, or dead-letter policy;
+- observability exporters or backends;
+- generated artifact production;
+- tooling policy enforcement.
+
+Implementation owners MUST enforce their own lifecycle, write, propagation, transport, safety, and redaction rules at their respective boundaries.
 
 ## CLI ports
 
-CLI contracts prevent package-local cross-package interfaces and keep CLI behavior implementation-owned.
+CLI contracts prevent package-local cross-package interface drift while keeping CLI parsing, rendering, and terminal behavior implementation-owned.
 
 ### `Cli\Input\InputInterface`
 
-- Exposes raw input tokens only.
-- MUST NOT freeze parsing semantics.
-- Flags, options, argv rules, and command-line policy are owned by CLI implementations.
+`Cli\Input\InputInterface` exposes raw input tokens only.
+
+It MUST NOT freeze:
+
+- flag parsing semantics;
+- option parsing semantics;
+- argv policy;
+- command-line validation policy;
+- terminal behavior.
+
+Those responsibilities belong to CLI implementation packages.
 
 ### `Cli\Output\OutputInterface`
 
-Output adapters MUST enforce:
+Output implementations MUST enforce their own:
 
 - deterministic output behavior;
 - redaction safety;
-- no secrets or PII leakage.
+- secret and PII protection.
 
-The interface intentionally does not define styling, verbosity, formatting, or terminal capability policy.
+The contracts-owned output boundary intentionally does not define:
+
+- styling;
+- verbosity;
+- formatting policy;
+- terminal capability detection;
+- concrete output backends.
 
 ### `Cli\Command\CommandInterface`
 
-- Provides a stable command identifier via `name(): string`.
-- Executes via `run(InputInterface $input, OutputInterface $output): int`.
-- Returns a standard process exit code.
+A command contract:
+
+- exposes a stable command identifier through `name(): string`;
+- executes through `run(InputInterface $input, OutputInterface $output): int`;
+- returns a standard process exit code.
+
+Command discovery, command catalog construction, argument parsing, output rendering, and binary dispatch remain implementation-owned.
 
 ## Runtime contracts
 
 Runtime contracts are format-neutral and transport-neutral.
 
-Examples include:
+Core runtime boundaries include:
 
-- `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
-- `Coretsia\Contracts\Runtime\UnitOfWorkHandle`
-- `Coretsia\Contracts\Runtime\ResetInterface`
-- `Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface`
-- `Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface`
+```text
+Coretsia\Contracts\Runtime\KernelRuntimeInterface
+Coretsia\Contracts\Runtime\UnitOfWorkHandle
+Coretsia\Contracts\Runtime\ResetInterface
+Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface
+Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface
+```
+
+### UnitOfWork handle
 
 `UnitOfWorkHandle` is a contracts-owned opaque low-level lifecycle handle.
 
-It is not a Kernel context/result schema object.
+It is not a Kernel context or result schema object.
 
-It may expose only the normalized safe context array through `UnitOfWorkHandle::context()`.
+It may expose only the normalized safe context array through:
 
-A runtime implementation may associate private lifecycle state with the exact handle object identity.
+```php
+UnitOfWorkHandle::context()
+```
 
-Such state is not part of the contracts-owned handle context shape and MUST NOT be exposed through `UnitOfWorkHandle::context()`.
+A runtime implementation MAY associate private lifecycle state with the exact handle object identity.
 
-It MUST NOT expose Stopwatch tokens, wall-clock timestamps, transport objects, service instances, mutable runtime state, or Kernel-owned runtime internals.
+That private state is not part of the contracts-owned handle shape and MUST NOT be exposed through `UnitOfWorkHandle::context()`.
 
-The contracts package does not own DI tags, reset discovery, hook discovery, lifecycle execution, lifecycle timing state, config defaults, config rules, or provider wiring.
+The handle MUST NOT expose:
 
-Runtime discovery and execution are owned by runtime implementation packages.
+- Stopwatch tokens;
+- wall-clock timestamps;
+- transport objects;
+- service instances;
+- mutable runtime state;
+- Kernel-owned runtime internals.
+
+The contracts package does not own:
+
+- UnitOfWork execution;
+- lifecycle timing;
+- hook discovery;
+- reset discovery;
+- service tags;
+- provider wiring;
+- runtime driver implementation.
+
+Runtime discovery and execution remain implementation-owned.
+
+## Worker task-source contracts
+
+The public Worker task-source SPI is transport-neutral and lives under:
+
+```text
+Coretsia\Contracts\Worker
+```
+
+The canonical contracts include:
+
+```text
+WorkerTaskType
+WorkerTaskSourceInterface
+WorkerTaskSourceContextInterface
+WorkerTaskInterface
+```
+
+`WorkerTaskSourceInterface` represents blocking or cancellable acquisition of real work.
+
+`WorkerTaskInterface` represents one acquired unit of work together with transport-owned success or failure settlement.
+
+The contracts package does not own:
+
+- task-source discovery;
+- DI tags;
+- Worker child orchestration;
+- Worker process supervision;
+- queue clients;
+- HTTP runtime APIs;
+- broker semantics;
+- response emission;
+- acknowledgement policy;
+- retry policy;
+- requeue policy;
+- dead-letter policy.
+
+Transport and runtime implementations remain outside `core/contracts`.
+
+Canonical task-source runtime semantics are defined by:
+
+```text
+docs/ssot/worker-task-sources.md
+```
 
 ## Context contracts
 
@@ -141,7 +276,7 @@ Coretsia\Contracts\Context\ContextKeys
 
 `ContextKeys` defines stable key identifiers only.
 
-Importing `ContextKeys` does not grant write ownership over context values.
+Importing `ContextKeys` does not grant write ownership over the corresponding values.
 
 The read-only context access port is:
 
@@ -151,97 +286,202 @@ Coretsia\Contracts\Context\ContextAccessorInterface
 
 Runtime readers SHOULD depend on `ContextAccessorInterface` when they need access to current context values.
 
-Runtime readers MAY import `ContextKeys` to avoid raw string key drift.
+Runtime readers MAY import `ContextKeys` to avoid raw-string key drift.
 
-The contracts package does not own context storage, mutable context writes, write validation, reset behavior, lifecycle writes, context propagation, logging, tracing, or export policy.
+The contracts package does not own:
 
-Those responsibilities are owned by runtime implementation packages.
+- context storage;
+- mutable context writes;
+- context write validation;
+- context reset behavior;
+- lifecycle writes;
+- context propagation;
+- logging;
+- tracing;
+- context export policy.
 
 Known implementation owners include:
 
 - `core/foundation` for `ContextStore`, `ContextBag`, `ContextStorePolicy`, and accessor binding;
 - `core/kernel` for base UnitOfWork context writes;
-- platform packages for transport/runtime-specific context enrichment.
+- platform packages for transport- or runtime-specific context enrichment.
 
-## Config and env contracts
+Context vocabulary ownership and runtime write ownership are separate concerns.
 
-Config and env contracts define stable ports and safe shapes for:
+## Config and environment contracts
 
-- merged config access;
-- env-derived values;
+Config and environment contracts define stable ports and safe shapes for:
+
+- merged configuration access;
+- environment-derived values;
 - config source tracking;
 - config validation results;
 - config validation violations;
 - declarative ruleset boundaries.
 
-The contracts package does not implement config loading, config merging, env loading, ruleset discovery, validation execution, or generated config artifacts.
+The contracts package does not implement:
+
+- config loading;
+- config merging;
+- environment loading;
+- ruleset discovery;
+- validation execution;
+- package config defaults;
+- generated config artifacts.
 
 Package `config/rules.php` files are implementation-owned by their package owners and MUST remain declarative data.
 
-## Observability and errors contracts
+Contract interfaces MUST NOT acquire implementation-specific config loading or filesystem discovery behavior.
 
-Observability and error contracts define boundaries and safe shapes only.
+## Module and manifest contracts
 
-They MUST NOT require concrete logger, tracer, metrics, HTTP, database, queue, or vendor-specific clients.
+Module-related contracts provide cross-package vocabulary for:
 
-Diagnostic shapes MUST NOT expose:
+- module identity;
+- module descriptors;
+- module manifests;
+- mode preset access.
 
-- raw payloads;
-- secrets;
-- credentials;
-- tokens;
-- cookies;
-- authorization headers;
-- private customer data;
-- absolute local paths;
-- host-specific bytes.
+The contracts package defines public shapes only.
 
-## Notes for implementers
+Module discovery, manifest loading, dependency resolution, mode resolution, graph policy, provider discovery, and generated module artifacts remain implementation-owned.
 
-Implementations belong in owner packages such as:
+Canonical module and manifest semantics are defined by the corresponding monorepo SSoT documents.
 
-- `core/foundation`
-- `core/kernel`
-- `platform/cli`
-- `platform/http`
-- additional platform or integration packages
+## Routing and HTTP application contracts
 
-Implementation packages MAY depend on `core/contracts`.
+Routing and HTTP application contracts define cross-package ports without owning concrete transport integration.
 
-`core/contracts` MUST NOT depend back on implementation packages.
+The contracts package MUST NOT become the implementation owner for:
 
-Importing contract-level vocabulary classes such as `Coretsia\Contracts\Context\ContextKeys` does not imply ownership of the corresponding runtime behavior.
+- PSR-7 request or response construction;
+- PSR-15 middleware execution;
+- HTTP status-code selection;
+- concrete router implementations;
+- server adapters;
+- runtime driver adapters.
 
-Implementation packages MUST enforce their own write, lifecycle, propagation, and safety rules at their owner boundaries.
+Concrete HTTP behavior remains owned by platform and integration packages.
+
+## Validation and infrastructure ports
+
+The package also provides contract boundaries for reusable capabilities including:
+
+- validation;
+- filesystem access;
+- database access;
+- migrations;
+- rate limiting;
+- mail;
+- secrets.
+
+These contracts define public ports and cross-package shapes only.
+
+Concrete clients, adapters, drivers, persistence behavior, external service integrations, and operational policy remain implementation-owned.
 
 ## Observability
 
 This package does not emit telemetry directly.
 
-It defines observability-related contract boundaries and safe shapes only.
+It defines observability-related public boundaries and safe contract shapes only.
+
+Contracts MAY define ports for capabilities such as:
+
+- tracing;
+- metrics;
+- error reporting;
+- profiling;
+- health reporting;
+- correlation access.
+
+Contracts MUST NOT require concrete:
+
+- logger implementations;
+- tracer implementations;
+- metrics backends;
+- exporters;
+- HTTP clients;
+- database clients;
+- queue clients;
+- vendor-specific observability SDKs.
+
+Observability contracts MUST remain usable without selecting a concrete backend.
+
+Telemetry production, lifecycle instrumentation, exporter selection, backend integration, sampling, buffering, and transport remain implementation-owned.
 
 ## Errors
 
-This package does not define runtime error mapping behavior directly.
+This package does not own runtime error mapping or transport-specific error rendering.
 
-Error mapping, exception normalization, and transport-specific error responses are owned by higher layers.
+It may define contract-level error descriptor boundaries and safe diagnostic shapes required for cross-package interoperability.
+
+Higher-level implementation packages own:
+
+- exception normalization;
+- runtime failure mapping;
+- error reporting;
+- HTTP error responses;
+- CLI error rendering;
+- transport-specific error representation.
+
+Contract-owned diagnostic shapes MUST be deterministic and safe by construction.
+
+They MUST NOT require exposing implementation-specific exception internals or raw runtime payloads.
 
 ## Security / Redaction
 
-This package does not process sensitive runtime payloads directly.
+`core/contracts` does not process sensitive runtime payloads directly.
 
-Contracts that expose diagnostic or exported shapes MUST be safe by construction and MUST NOT require storing raw secrets, raw env values, raw request data, raw response data, credentials, tokens, cookies, authorization headers, private customer data, or absolute local paths.
+Public contracts MUST nevertheless be designed so that safe implementations do not require leaking sensitive data across package boundaries.
+
+Contracts that expose diagnostic, context, observability, validation, or exported shapes MUST NOT require storing or exposing:
+
+- raw secrets;
+- raw environment values;
+- credentials;
+- passwords;
+- private keys;
+- bearer tokens;
+- session ids;
+- cookies;
+- Authorization headers;
+- raw request payloads;
+- raw response payloads;
+- raw queue payloads;
+- raw SQL;
+- private customer data;
+- direct PII;
+- absolute local paths;
+- host-specific bytes;
+- transport objects;
+- runtime service objects;
+- mutable runtime storage.
 
 Context contracts expose key identifiers and read-only access only.
 
-They MUST NOT require exposing secrets, credentials, tokens, cookies, authorization headers, raw request payloads, raw response payloads, raw SQL, private customer data, transport objects, runtime objects, or mutable context storage.
+They MUST NOT require exposing mutable context storage or implementation-owned context lifecycle state.
+
+Diagnostic contracts SHOULD prefer bounded safe values such as:
+
+```text
+stable enums
+stable reason tokens
+safe ids
+counts
+lengths
+hashes
+bounded status/category values
+```
+
+Unsafe runtime values SHOULD be omitted, normalized, redacted, or represented through owner-defined safe diagnostics before crossing a contracts-owned boundary.
+
+Concrete redaction policy remains an implementation-owner responsibility.
 
 ## References
 
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Contracts package source](https://github.com/coretsia/monorepo/tree/main/framework/packages/core/contracts)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
-- [Roadmap](https://github.com/coretsia/monorepo/blob/main/docs/roadmap/ROADMAP.md)
 - [Modules and manifests SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modules-and-manifests.md)
 - [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
 - [UoW and Reset Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-and-reset-contracts.md)
@@ -254,3 +494,4 @@ They MUST NOT require exposing secrets, credentials, tokens, cookies, authorizat
 - [Rate Limit Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/rate-limit-contracts.md)
 - [Mail Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/mail-contracts.md)
 - [Secrets Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/secrets-contracts.md)
+- [Worker Task Sources SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/worker-task-sources.md)

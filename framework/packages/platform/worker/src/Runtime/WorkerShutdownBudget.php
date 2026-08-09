@@ -27,6 +27,7 @@ final class WorkerShutdownBudget
 {
     public const int CLEANUP_TIMEOUT_MS = 2_000;
 
+    private const int TASK_SOURCE_MAX_BLOCKING_WAIT_MS = 1_000;
     private const int MAX_TIMEOUT_MS = 86_400_000;
 
     private function __construct()
@@ -43,6 +44,22 @@ final class WorkerShutdownBudget
         return $stopTimeoutMs
             + (2 * $forceKillTimeoutMs)
             + self::CLEANUP_TIMEOUT_MS;
+    }
+
+    /**
+     * Returns the maximum continuous task-source blocking interval before the
+     * source must regain control and re-check cooperative cancellation.
+     *
+     * @return positive-int
+     */
+    public static function taskSourceBlockingWaitMs(int $stopTimeoutMs): int
+    {
+        self::assertTimeout($stopTimeoutMs);
+
+        return \min(
+            self::TASK_SOURCE_MAX_BLOCKING_WAIT_MS,
+            $stopTimeoutMs,
+        );
     }
 
     private static function assertTimeout(int $timeoutMs): void

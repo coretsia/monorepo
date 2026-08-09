@@ -86,6 +86,7 @@ Resolution is single-choice. The first matching rule wins. Exact-match rules and
 | `cli.*`             | `platform/cli`    | Canonical CLI discovery namespace.                                 |
 | `error.*`           | `platform/errors` | Canonical error discovery namespace.                               |
 | `health.*`          | `platform/health` | Reserved now; owner package may be introduced later.               |
+| `worker.*`          | `platform/worker` | Worker task-source extension namespace.                            |
 
 ## Reserved Tag Registry (MUST)
 
@@ -95,24 +96,25 @@ Stability enum is single-choice:
 - `experimental`
 - `deprecated`
 
-| tag                           | owner package_id  | purpose                                     | stability      | notes                                                   |
-|-------------------------------|-------------------|---------------------------------------------|----------------|---------------------------------------------------------|
-| `cli.command`                 | `platform/cli`    | CLI command discovery.                      | `stable`       | Canonical CLI discovery tag.                            |
-| `error.mapper`                | `platform/errors` | Error mapper discovery.                     | `stable`       | Canonical discovery point for error mapping components. |
-| `health.check`                | `platform/health` | Health check discovery.                     | `experimental` | Reserved baseline row; owner package is future-facing.  |
-| `http.middleware.app`         | `platform/http`   | Main application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.app_post`    | `platform/http`   | Post-application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.app_pre`     | `platform/http`   | Pre-application middleware slot.            | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.route`       | `platform/http`   | Main route-scoped middleware slot.          | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.route_post`  | `platform/http`   | Post-route middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.route_pre`   | `platform/http`   | Pre-route middleware slot.                  | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.system`      | `platform/http`   | Main system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.system_post` | `platform/http`   | Post-system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `http.middleware.system_pre`  | `platform/http`   | Pre-system middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                            |
-| `kernel.hook.after_uow`       | `core/kernel`     | Post-unit-of-work lifecycle hook discovery. | `stable`       | Canonical kernel lifecycle hook.                        |
-| `kernel.hook.before_uow`      | `core/kernel`     | Pre-unit-of-work lifecycle hook discovery.  | `stable`       | Canonical kernel lifecycle hook.                        |
-| `kernel.reset`                | `core/foundation` | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.    |
-| `kernel.stateful`             | `core/foundation` | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                               |
+| tag                           | owner package_id  | purpose                                     | stability      | notes                                                       |
+|-------------------------------|-------------------|---------------------------------------------|----------------|-------------------------------------------------------------|
+| `cli.command`                 | `platform/cli`    | CLI command discovery.                      | `stable`       | Canonical CLI discovery tag.                                |
+| `error.mapper`                | `platform/errors` | Error mapper discovery.                     | `stable`       | Canonical discovery point for error mapping components.     |
+| `health.check`                | `platform/health` | Health check discovery.                     | `experimental` | Reserved baseline row; owner package is future-facing.      |
+| `http.middleware.app`         | `platform/http`   | Main application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.app_post`    | `platform/http`   | Post-application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.app_pre`     | `platform/http`   | Pre-application middleware slot.            | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.route`       | `platform/http`   | Main route-scoped middleware slot.          | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.route_post`  | `platform/http`   | Post-route middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.route_pre`   | `platform/http`   | Pre-route middleware slot.                  | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.system`      | `platform/http`   | Main system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.system_post` | `platform/http`   | Post-system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.system_pre`  | `platform/http`   | Pre-system middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `kernel.hook.after_uow`       | `core/kernel`     | Post-unit-of-work lifecycle hook discovery. | `stable`       | Canonical kernel lifecycle hook.                            |
+| `kernel.hook.before_uow`      | `core/kernel`     | Pre-unit-of-work lifecycle hook discovery.  | `stable`       | Canonical kernel lifecycle hook.                            |
+| `kernel.reset`                | `core/foundation` | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.        |
+| `kernel.stateful`             | `core/foundation` | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                                   |
+| `worker.task_source`          | `platform/worker` | Worker task-source discovery.               | `experimental` | Exact-one selection; metadata per `worker-task-sources.md`. |
 
 ## Forbidden Non-canonical Tags (MUST)
 

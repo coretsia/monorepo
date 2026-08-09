@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class EnvPolicyPrecedenceContractTest extends TestCase
 {
-    public function test_env_policy_values_are_canonical_and_ordered(): void
+    public function testEnvPolicyValuesAreCanonicalAndOrdered(): void
     {
         self::assertSame(
             [
@@ -40,7 +40,7 @@ final class EnvPolicyPrecedenceContractTest extends TestCase
         self::assertSame('defaulted', EnvPolicy::Defaulted->value);
     }
 
-    public function test_required_policy_treats_missing_value_as_validation_violation(): void
+    public function testRequiredPolicyTreatsMissingValueAsValidationViolation(): void
     {
         $policy = EnvPolicy::Required;
 
@@ -50,7 +50,7 @@ final class EnvPolicyPrecedenceContractTest extends TestCase
         self::assertTrue($policy->presentValueWins());
     }
 
-    public function test_optional_policy_keeps_missing_value_missing(): void
+    public function testOptionalPolicyKeepsMissingValueMissing(): void
     {
         $policy = EnvPolicy::Optional;
 
@@ -60,7 +60,7 @@ final class EnvPolicyPrecedenceContractTest extends TestCase
         self::assertTrue($policy->presentValueWins());
     }
 
-    public function test_defaulted_policy_allows_safe_default_only_for_missing_value(): void
+    public function testDefaultedPolicyAllowsSafeDefaultOnlyForMissingValue(): void
     {
         $policy = EnvPolicy::Defaulted;
 
@@ -70,7 +70,7 @@ final class EnvPolicyPrecedenceContractTest extends TestCase
         self::assertTrue($policy->presentValueWins());
     }
 
-    public function test_present_empty_string_wins_over_default_for_every_policy(): void
+    public function testPresentEmptyStringWinsOverDefaultForEveryPolicy(): void
     {
         $value = EnvValue::present('');
 
@@ -83,7 +83,7 @@ final class EnvPolicyPrecedenceContractTest extends TestCase
         }
     }
 
-    public function test_policy_known_check_is_strict(): void
+    public function testPolicyKnownCheckIsStrict(): void
     {
         self::assertTrue(EnvPolicy::isKnown('required'));
         self::assertTrue(EnvPolicy::isKnown('optional'));

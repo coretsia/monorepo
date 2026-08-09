@@ -27,7 +27,7 @@ use stdClass;
 
 final class RouteDefinitionShapeContractTest extends TestCase
 {
-    public function test_constructor_shape_is_stable(): void
+    public function testConstructorShapeIsStable(): void
     {
         $reflection = new ReflectionClass(RouteDefinition::class);
         $constructor = $reflection->getConstructor();
@@ -67,7 +67,7 @@ final class RouteDefinitionShapeContractTest extends TestCase
         self::assertSame([], $parameters[6]->getDefaultValue());
     }
 
-    public function test_accessors_and_array_shape_are_stable(): void
+    public function testAccessorsAndArrayShapeAreStable(): void
     {
         $route = new RouteDefinition(
             name: 'users.show',
@@ -165,7 +165,7 @@ final class RouteDefinitionShapeContractTest extends TestCase
         );
     }
 
-    public function test_methods_are_normalized_uppercase_unique_and_sorted(): void
+    public function testMethodsAreNormalizedUppercaseUniqueAndSorted(): void
     {
         $route = new RouteDefinition(
             name: 'users.index',
@@ -177,7 +177,7 @@ final class RouteDefinitionShapeContractTest extends TestCase
         self::assertSame(['GET', 'PATCH', 'POST'], $route->methods());
     }
 
-    public function test_path_template_must_start_with_slash(): void
+    public function testPathTemplateMustStartWithSlash(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -189,7 +189,7 @@ final class RouteDefinitionShapeContractTest extends TestCase
         );
     }
 
-    public function test_identity_fields_reject_whitespace(): void
+    public function testIdentityFieldsRejectWhitespace(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -201,7 +201,7 @@ final class RouteDefinitionShapeContractTest extends TestCase
         );
     }
 
-    public function test_json_like_maps_reject_invalid_values(): void
+    public function testJsonLikeMapsRejectInvalidValues(): void
     {
         $invalidCases = [
             'defaults-root-list' => [

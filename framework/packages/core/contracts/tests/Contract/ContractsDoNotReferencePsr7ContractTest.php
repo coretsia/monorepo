@@ -25,7 +25,7 @@ use RecursiveIteratorIterator;
 
 final class ContractsDoNotReferencePsr7ContractTest extends TestCase
 {
-    public function test_core_contracts_source_does_not_reference_psr7_types(): void
+    public function testCoreContractsSourceDoesNotReferencePsr7Types(): void
     {
         $sourceDirectory = dirname(__DIR__, 2) . '/src';
 

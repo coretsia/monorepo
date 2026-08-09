@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigDirectiveInvariantsContractTest extends TestCase
 {
-    public function test_directive_names_are_canonical_and_ordered(): void
+    public function testDirectiveNamesAreCanonicalAndOrdered(): void
     {
         self::assertSame(
             [
@@ -38,7 +38,7 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         );
     }
 
-    public function test_directive_keys_are_canonical_and_ordered(): void
+    public function testDirectiveKeysAreCanonicalAndOrdered(): void
     {
         self::assertSame(
             [
@@ -52,14 +52,14 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         );
     }
 
-    public function test_directive_key_is_prefixed_name(): void
+    public function testDirectiveKeyIsPrefixedName(): void
     {
         foreach (ConfigDirective::cases() as $directive) {
             self::assertSame('@' . $directive->value, $directive->key());
         }
     }
 
-    public function test_allowed_name_detection_is_strict(): void
+    public function testAllowedNameDetectionIsStrict(): void
     {
         self::assertTrue(ConfigDirective::isAllowedName('append'));
         self::assertTrue(ConfigDirective::isAllowedName('prepend'));
@@ -74,7 +74,7 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         self::assertFalse(ConfigDirective::isAllowedName(''));
     }
 
-    public function test_allowed_key_detection_is_strict(): void
+    public function testAllowedKeyDetectionIsStrict(): void
     {
         self::assertTrue(ConfigDirective::isAllowedKey('@append'));
         self::assertTrue(ConfigDirective::isAllowedKey('@prepend'));
@@ -89,7 +89,7 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         self::assertFalse(ConfigDirective::isAllowedKey(''));
     }
 
-    public function test_reserved_directive_namespace_detection_is_prefix_based(): void
+    public function testReservedDirectiveNamespaceDetectionIsPrefixBased(): void
     {
         self::assertTrue(ConfigDirective::isReservedDirectiveKey('@append'));
         self::assertTrue(ConfigDirective::isReservedDirectiveKey('@set'));
@@ -101,7 +101,7 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         self::assertFalse(ConfigDirective::isReservedDirectiveKey(''));
     }
 
-    public function test_try_from_key_resolves_only_allowed_directive_keys(): void
+    public function testTryFromKeyResolvesOnlyAllowedDirectiveKeys(): void
     {
         self::assertSame(ConfigDirective::Append, ConfigDirective::tryFromKey('@append'));
         self::assertSame(ConfigDirective::Prepend, ConfigDirective::tryFromKey('@prepend'));
@@ -115,7 +115,7 @@ final class ConfigDirectiveInvariantsContractTest extends TestCase
         self::assertNull(ConfigDirective::tryFromKey(''));
     }
 
-    public function test_from_key_rejects_unknown_or_unprefixed_keys(): void
+    public function testFromKeyRejectsUnknownOrUnprefixedKeys(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid config directive key.');

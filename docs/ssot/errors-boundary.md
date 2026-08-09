@@ -397,6 +397,45 @@ Mappers MUST NOT place raw exception messages into `ErrorDescriptor.message` whe
 
 Mappers SHOULD convert implementation-specific exceptions into stable error codes.
 
+Mappers MUST derive safe, bounded `ErrorDescriptor` extension metadata before descriptor construction.
+
+Mappers MUST NOT rely on `ErrorDescriptor` to redact arbitrary producer input.
+
+Known forbidden extension channels are rejected by `ErrorDescriptor` itself, but producer-owned derivation remains mandatory for arbitrary source values.
+
+Mappers MUST NOT rely on `ErrorDescriptor` to truncate, drop, resize, or otherwise repair oversized producer metadata.
+
+`ErrorDescriptor` enforces the canonical extension resource budget fail-closed. The canonical limits are owned by `docs/ssot/error-descriptor.md`.
+
+Correlation metadata is context, not normalized error-descriptor data.
+
+When available, a safe correlation identifier MUST remain in `ErrorHandlingContext.correlationId` or another owner-approved runtime context channel.
+
+Mappers MUST NOT duplicate `correlationId` or `requestId` into `ErrorDescriptor.extensions`.
+
+A runtime adapter that needs a safe request identifier MAY read it from the owning runtime context when that adapter's policy explicitly permits the use.
+
+Safe mapper-owned extension metadata MAY include:
+
+```text
+operation
+outcome
+reason
+count
+hash(value)
+len(value)
+```
+
+Unsafe mapper input MUST NOT be copied as descriptor extensions, including:
+
+```text
+raw throwable message
+raw SQL
+raw request body
+raw credential
+raw path
+```
+
 ## Stability requirements
 
 The canonical error normalization flow MUST remain stable across runtime boundaries.
@@ -414,6 +453,8 @@ Current contracts-level enforcement evidence includes:
 ```text
 framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
 framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php

@@ -48,7 +48,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         'responseBody',
     ];
 
-    public function test_constructor_does_not_accept_raw_value_arguments(): void
+    public function testConstructorDoesNotAcceptRawValueArguments(): void
     {
         $constructor = new ReflectionMethod(ConfigValueSource::class, '__construct');
 
@@ -71,7 +71,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         );
     }
 
-    public function test_model_properties_do_not_store_raw_config_or_env_values(): void
+    public function testModelPropertiesDoNotStoreRawConfigOrEnvValues(): void
     {
         $class = new ReflectionClass(ConfigValueSource::class);
 
@@ -94,7 +94,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         );
     }
 
-    public function test_exported_source_trace_contains_only_safe_contract_keys(): void
+    public function testExportedSourceTraceContainsOnlySafeContractKeys(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::Env,
@@ -131,7 +131,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         self::assertTrue($exported['redacted']);
     }
 
-    public function test_exported_source_trace_is_json_like_without_floats_objects_resources_or_callables(): void
+    public function testExportedSourceTraceIsJsonLikeWithoutFloatsObjectsResourcesOrCallables(): void
     {
         $source = new ConfigValueSource(
             type: ConfigSourceType::GeneratedArtifact,
@@ -153,7 +153,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         self::assertJsonLikeWithoutForbiddenRuntimeValues($source->toArray());
     }
 
-    public function test_source_trace_rejects_absolute_paths_urls_and_traversal_identifiers(): void
+    public function testSourceTraceRejectsAbsolutePathsUrlsAndTraversalIdentifiers(): void
     {
         foreach (['/tmp/config.php', 'C:\\app\\config.php', 'https://example.test/config', '../secret'] as $unsafe) {
             try {
@@ -186,7 +186,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         }
     }
 
-    public function test_meta_rejects_float_object_resource_and_closure_values(): void
+    public function testMetaRejectsFloatObjectResourceAndClosureValues(): void
     {
         $resource = fopen('php://memory', 'rb');
         self::assertIsResource($resource);
@@ -218,7 +218,7 @@ final class ConfigTraceModelNeverContainsRawValuesContractTest extends TestCase
         }
     }
 
-    public function test_redaction_marker_is_metadata_not_raw_value_storage(): void
+    public function testRedactionMarkerIsMetadataNotRawValueStorage(): void
     {
         $redacted = new ConfigValueSource(
             type: ConfigSourceType::Env,

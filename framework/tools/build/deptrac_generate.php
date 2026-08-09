@@ -832,6 +832,7 @@ final class DeptracGenerateTool
         $out .= "# GENERATED FILE (deterministic). Do not edit manually.\n";
         $out .= "# Regenerate: php framework/tools/build/deptrac_generate.php --apply\n\n";
         $out .= "deptrac:\n";
+        $out .= "  cache_file: 'var/deptrac/.deptrac.cache'\n\n";
 
         $out .= "  paths:\n";
         foreach ($model['paths'] as $path) {

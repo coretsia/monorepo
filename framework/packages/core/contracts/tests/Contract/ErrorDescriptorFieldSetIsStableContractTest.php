@@ -25,7 +25,7 @@ use ReflectionClass;
 
 final class ErrorDescriptorFieldSetIsStableContractTest extends TestCase
 {
-    public function test_error_descriptor_declared_property_field_set_is_stable(): void
+    public function testErrorDescriptorDeclaredPropertyFieldSetIsStable(): void
     {
         $reflection = new ReflectionClass(ErrorDescriptor::class);
 
@@ -57,7 +57,7 @@ final class ErrorDescriptorFieldSetIsStableContractTest extends TestCase
         }
     }
 
-    public function test_error_descriptor_public_array_field_set_and_order_are_stable(): void
+    public function testErrorDescriptorPublicArrayFieldSetAndOrderAreStable(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -82,7 +82,7 @@ final class ErrorDescriptorFieldSetIsStableContractTest extends TestCase
         );
     }
 
-    public function test_error_descriptor_does_not_expose_throwable_or_transport_fields(): void
+    public function testErrorDescriptorDoesNotExposeThrowableOrTransportFields(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',

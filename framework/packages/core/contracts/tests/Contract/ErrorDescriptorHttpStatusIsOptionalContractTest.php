@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
 {
-    public function test_http_status_defaults_to_null(): void
+    public function testHttpStatusDefaultsToNull(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -35,7 +35,7 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
         self::assertNull($descriptor->toArray()['httpStatus']);
     }
 
-    public function test_http_status_accepts_valid_hint_range(): void
+    public function testHttpStatusAcceptsValidHintRange(): void
     {
         foreach ([100, 200, 404, 500, 599] as $status) {
             $descriptor = new ErrorDescriptor(
@@ -50,7 +50,7 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
         }
     }
 
-    public function test_http_status_rejects_values_outside_http_status_range(): void
+    public function testHttpStatusRejectsValuesOutsideHttpStatusRange(): void
     {
         foreach ([0, 99, 600, 999] as $status) {
             try {
@@ -67,7 +67,7 @@ final class ErrorDescriptorHttpStatusIsOptionalContractTest extends TestCase
         }
     }
 
-    public function test_http_status_is_only_a_hint_field_in_public_shape(): void
+    public function testHttpStatusIsOnlyAHintFieldInPublicShape(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',

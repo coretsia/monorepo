@@ -94,6 +94,97 @@ final class ConfigValidatorRelativeSafePathTypeTest extends TestCase
         self::assertStringNotContainsString('\u0000', $diagnostics);
     }
 
+    public function testAppliesForbiddenPathPrefixes(): void
+    {
+        $config = self::kernelGlobalConfig();
+        $config['kernel']['modes']['defaults_path'] = 'skeleton/config/modes';
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [self::kernelRulesetWithPathConstraints()],
+        );
+
+        self::assertTrue($result->isFailure());
+        self::assertCount(1, $result->violations());
+
+        $violation = $result->violations()[0];
+
+        self::assertSame('kernel', $violation->root());
+        self::assertSame('modes.defaults_path', $violation->path());
+        self::assertSame('relative-safe-path', $violation->reason());
+        self::assertSame('relative-safe-path', $violation->expected());
+        self::assertSame('string', $violation->actualType());
+    }
+
+    public function testAppliesForbiddenSegmentPrefixes(): void
+    {
+        $config = self::kernelGlobalConfig();
+        $config['kernel']['modes']['defaults_path'] = 'config/@private/modes';
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [self::kernelRulesetWithPathConstraints()],
+        );
+
+        self::assertTrue($result->isFailure());
+        self::assertCount(1, $result->violations());
+
+        $violation = $result->violations()[0];
+
+        self::assertSame('kernel', $violation->root());
+        self::assertSame('modes.defaults_path', $violation->path());
+        self::assertSame('relative-safe-path', $violation->reason());
+        self::assertSame('relative-safe-path', $violation->expected());
+        self::assertSame('string', $violation->actualType());
+    }
+
+    public function testAcceptsPathWhenOptionalConstraintsDoNotMatch(): void
+    {
+        $config = self::kernelGlobalConfig();
+        $config['kernel']['modes']['defaults_path'] = 'config/private/modes';
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [self::kernelRulesetWithPathConstraints()],
+        );
+
+        self::assertTrue($result->isSuccess());
+        self::assertSame([], $result->violations());
+    }
+
+    #[DataProvider('invalidPathConstraintRuleProvider')]
+    public function testRejectsInvalidPathConstraintRuleShape(
+        string $ruleKey,
+        mixed $ruleValue,
+        string $path,
+        string $reason,
+        string $expected,
+        string $actualType,
+    ): void {
+        $config = self::kernelGlobalConfig();
+        $rules = require self::kernelRulesPath();
+
+        self::assertIsArray($rules);
+
+        $rules['keys']['modes']['keys']['defaults_path'][$ruleKey] = $ruleValue;
+
+        $result = new ConfigValidator()->validate(
+            $config,
+            [ConfigRuleset::fromArray('kernel', $rules)],
+        );
+
+        self::assertTrue($result->isFailure());
+        self::assertCount(1, $result->violations());
+
+        $violation = $result->violations()[0];
+
+        self::assertSame('kernel', $violation->root());
+        self::assertSame($path, $violation->path());
+        self::assertSame($reason, $violation->reason());
+        self::assertSame($expected, $violation->expected());
+        self::assertSame($actualType, $violation->actualType());
+    }
+
     public function testAcceptsConfigurableDefaultArtifactsCacheDir(): void
     {
         $config = self::kernelGlobalConfig();
@@ -131,6 +222,48 @@ final class ConfigValidatorRelativeSafePathTypeTest extends TestCase
             $violation->path(),
         );
         self::assertSame('relative-safe-path', $violation->reason());
+    }
+
+    /**
+     * @return iterable<string, array{0:string,1:mixed,2:string,3:string,4:string,5:string}>
+     */
+    public static function invalidPathConstraintRuleProvider(): iterable
+    {
+        yield 'forbidden-prefixes-must-be-list' => [
+            'forbiddenPrefixes',
+            'skeleton/',
+            'keys.modes.keys.defaults_path.forbiddenPrefixes',
+            'rule-forbidden-prefixes-type',
+            'list',
+            'string',
+        ];
+
+        yield 'forbidden-segment-prefixes-must-be-list' => [
+            'forbiddenSegmentPrefixes',
+            '@',
+            'keys.modes.keys.defaults_path.forbiddenSegmentPrefixes',
+            'rule-forbidden-segment-prefixes-type',
+            'list',
+            'string',
+        ];
+
+        yield 'forbidden-prefix-must-be-non-empty' => [
+            'forbiddenPrefixes',
+            [''],
+            'keys.modes.keys.defaults_path.forbiddenPrefixes[0]',
+            'rule-forbidden-prefix-type',
+            'non-empty-string',
+            'string',
+        ];
+
+        yield 'forbidden-segment-prefix-must-be-string' => [
+            'forbiddenSegmentPrefixes',
+            [1],
+            'keys.modes.keys.defaults_path.forbiddenSegmentPrefixes[0]',
+            'rule-forbidden-segment-prefix-type',
+            'non-empty-string',
+            'int',
+        ];
     }
 
     /**
@@ -194,6 +327,22 @@ final class ConfigValidatorRelativeSafePathTypeTest extends TestCase
         yield 'double-slash' => [
             'config//modes',
         ];
+    }
+
+    private static function kernelRulesetWithPathConstraints(): ConfigRuleset
+    {
+        $rules = require self::kernelRulesPath();
+
+        self::assertIsArray($rules);
+
+        $rules['keys']['modes']['keys']['defaults_path']['forbiddenPrefixes'] = [
+            'skeleton/',
+        ];
+        $rules['keys']['modes']['keys']['defaults_path']['forbiddenSegmentPrefixes'] = [
+            '@',
+        ];
+
+        return ConfigRuleset::fromArray('kernel', $rules);
     }
 
     /**

@@ -14,6 +14,44 @@
 
 # Worker Architecture
 
+## Guardian-owned worker generation
+
+The mandatory `WorkerProcessGuardian` is the process-generation failure boundary below the foreground supervisor. It owns `worker.lock`, PCNTL child fork/wait/signal/reap operations, proc-host lifetime, and supervisor-death cleanup. The foreground `WorkerSupervisor` remains the owner of control, state, locator, readiness, recycle policy, and graceful shutdown orchestration.
+
+If only the supervisor dies, the guardian retains the fence until the old worker generation is gone. A racing replacement therefore cannot overlap the old generation. External deployment remains responsible for restart policy and for containing guardian or whole-unit failure.
+
+This document describes the current pre-stable Worker process topology and ownership boundaries.
+
+The canonical generation fence has these semantics:
+
+```text
+worker.lock held
+-> one Coretsia worker generation is active or recovering
+
+worker.lock free
+-> no Coretsia-owned active or recovering worker generation exists
+```
+
+The guardian MUST NOT release the generation fence until every worker it owns has exited and been reaped or closed. For the proc backend, the nested `WorkerProcProcessHost` must also have no owned worker resources before fence release.
+
+The guardian does not own supervisor state, lifecycle locator, control socket or listener, or cooperative stop-signal artifacts. Those artifacts may remain stale after abrupt supervisor death. A free generation fence remains authoritative for `NOT_RUNNING`, and the next successful start replaces stale supervisor-owned artifacts.
+
+No public `RECOVERING` state is introduced. While the generation fence is held and the supervisor endpoint is unavailable:
+
+```text
+status / health / stop
+-> CORETSIA_WORKER_COMMUNICATION_FAILED
+
+new worker:start
+-> CORETSIA_WORKER_ALREADY_RUNNING
+```
+
+Restart policy remains external. Coretsia does not automatically respawn the foreground supervisor.
+
+If the guardian itself dies, or the complete externally managed service unit is terminated, process-group, cgroup, container, or job-object containment remains the responsibility of deployment infrastructure. For the proc backend, `WorkerProcProcessHost` additionally performs fallback cleanup when its authenticated guardian connection disappears.
+
+Process containment does not imply application transaction recovery. The Worker runtime does not guarantee rollback, idempotency, delivery acknowledgement, or correctness of arbitrary application side effects after abrupt process termination.
+
 ## Purpose
 
 This document is the architecture overview for the `platform/worker` long-running runtime package.
@@ -23,9 +61,9 @@ It explains:
 - package ownership;
 - process model;
 - driver selection;
-- manager and application-worker boundaries;
+- supervisor, process-driver, and application-worker boundaries;
 - declarative runtime container wiring;
-- lazy manager and task-factory resolution;
+- lazy supervisor and task-source resolution;
 - runtime path seed ownership;
 - UnitOfWork and reset discipline;
 - worker state ownership;
@@ -59,7 +97,7 @@ docs/ssot/runtime-drivers.md
 Worker runtime architecture is decided by:
 
 ```text
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 ```
 
 ADR-0017 records that `platform/worker` owns long-running worker runtime orchestration while Kernel and Foundation retain UnitOfWork, hook, and reset semantics.
@@ -67,7 +105,7 @@ ADR-0017 records that `platform/worker` owns long-running worker runtime orchest
 If this document conflicts with any of the following, the SSoT or ADR wins:
 
 ```text
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/adr/ADR-0029-kernel-container-compile-artifact.md
 docs/ssot/compiled-container.md
@@ -118,13 +156,15 @@ It must not wrap values in a repeated root key such as:
 
 ## Compile-time dependency boundary
 
-`platform/worker` may depend on:
+Among Coretsia packages, `platform/worker` may depend only on:
 
 ```text
 core/contracts
 core/foundation
 core/kernel
 ```
+
+The package may additionally depend on PSR interfaces used strictly as ports.
 
 `platform/worker` must not depend on:
 
@@ -136,7 +176,7 @@ integrations/*
 
 The worker package may contribute CLI command services, but CLI discovery, catalog construction, binary dispatch, and command UX remain owned by `platform/cli`.
 
-The worker package may preflight HTTP task mode through `Psr\Http\Server\RequestHandlerInterface`, but HTTP adapters and HTTP request production remain outside `platform/worker` and are owned by platform/runtime adapters.
+The worker package consumes the transport-neutral Worker task-source contracts from `core/contracts`. Real queue and HTTP acquisition is implemented by integration/runtime adapter packages.
 
 ## Architecture components
 
@@ -146,39 +186,76 @@ The main worker architecture components are:
 WorkerModule
 WorkerServiceProvider
 WorkerServiceFactory
-WorkerManagerResolverInterface
-ContainerWorkerManagerResolver
-RuntimePathContext
+
 WorkerStartCommand
 WorkerStopCommand
 WorkerStatusCommand
-WorkerManager
-WorkerManagerDriverInterface
-PcntlWorkerManagerDriver
-ProcWorkerManagerDriver
+WorkerHealthCommand
+
+WorkerSupervisorInterface
+WorkerSupervisorResolverInterface
+ContainerWorkerSupervisorResolver
+WorkerSupervisor
+WorkerChildTable
+WorkerSignalController
+
+WorkerProcessCapabilities
+WorkerProcessDriverInterface
+WorkerProcessDriverResolverInterface
+ContainerWorkerProcessDriverResolver
+WorkerChildCommandBuilder
+PcntlWorkerProcessDriver
+ProcWorkerProcessDriver
+
+WorkerProcessGuardianInterface
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianRuntime
+
+WorkerProcProcessHostProtocol
+WorkerProcProcessHostClient
+WorkerProcProcessHostHandoffEndpoint
+WorkerProcProcessHostTransport
+
+WorkerControlClientInterface
+WorkerControlTransport
+WorkerControlProtocol
+WorkerControlServer
+WorkerControlClient
+WorkerChildReadinessChannel
+
+WorkerLifecyclePaths
+WorkerLifecycleLock
+WorkerLifecycleLocator
+WorkerLifecycleLocatorStore
+WorkerShutdownBudget
+WorkerStopSignal
 WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
 WorkerPoolState
+WorkerHealthState
 WorkerStateStore
-WorkerSocketServer
+WorkerRuntimeEntrypointGuard
+
 ApplicationWorker
-TaskFactoryInternalInterface
-QueueTaskFactory
-HttpTaskFactory
+WorkerTaskSourceContext
+WorkerTaskSourceResolver
 WorkerRuntimeDriverContributions
 ```
 
-The internal interfaces are package-local seams only:
+The canonical package-internal interfaces are:
 
 ```text
-Coretsia\Platform\Worker\Internal\WorkerManagerDriverInterface
-Coretsia\Platform\Worker\Internal\TaskFactoryInternalInterface
-Coretsia\Platform\Worker\Internal\WorkerManagerResolverInterface
+Coretsia\Platform\Worker\Internal\WorkerSupervisorInterface
+Coretsia\Platform\Worker\Internal\WorkerSupervisorResolverInterface
+Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface
+Coretsia\Platform\Worker\Internal\WorkerProcessDriverResolverInterface
+Coretsia\Platform\Worker\Internal\WorkerControlClientInterface
 ```
 
-`WorkerManagerResolverInterface` is the package-local seam between `WorkerStartCommand`, `ContainerWorkerManagerResolver`, and Worker tests.
+These interfaces are package-local architectural seams.
 
-It preserves lazy `WorkerManager` resolution and is not a public framework extension point.
+They are not public framework extension points and must not be moved to `core/contracts`. The Worker task-source SPI is intentionally different: it is a public cross-package contract owned by `core/contracts`.
 
 `RuntimePathContext` is Kernel-owned runtime infrastructure:
 
@@ -186,7 +263,9 @@ It preserves lazy `WorkerManager` resolution and is not a public framework exten
 Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-It is not a Worker extension point and is not owned by `platform/worker`.
+It supplies runtime-only skeleton and artifact roots to path-owning Worker services.
+
+It is not a Worker extension point, canonical definition value, artifact payload, or fingerprint input.
 
 The following helper is also package-internal:
 
@@ -194,13 +273,9 @@ The following helper is also package-internal:
 Coretsia\Platform\Worker\Internal\WorkerRuntimeDriverContributions
 ```
 
-It maps normalized Worker-owned task type state to the public Kernel `RuntimeDriverContributions` handoff object.
+It maps normalized Worker task type to Kernel-owned runtime-driver contributions.
 
-It is not a public Worker extension point.
-
-`WorkerManagerDriverInterface`, `TaskFactoryInternalInterface`, `WorkerManagerResolverInterface`, and `WorkerRuntimeDriverContributions` are package-internal seams.
-
-They must not be treated as public framework extension points or moved to `core/contracts`.
+It does not select the internal OS process driver.
 
 ## Declarative container wiring
 
@@ -213,7 +288,7 @@ ContainerDefinitionProviderInterface
 
 Its `define()` method is the only canonical source of Worker runtime wiring.
 
-Its `register()` method performs source-host validation and delegates the contribution through:
+Its `register()` method delegates through:
 
 ```php
 $builder->registerDefinitionProvider($this);
@@ -221,32 +296,77 @@ $builder->registerDefinitionProvider($this);
 
 It must not maintain a parallel imperative runtime graph.
 
-The Worker provider defines:
+The canonical Worker contribution defines:
 
 ```text
 WorkerServiceFactory
-WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
 StableJsonEncoder
 StableJsonDecoder
+
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
 WorkerStateStore
-WorkerSocketServer
-QueueTaskFactory
-HttpTaskFactory
-TaskFactoryInternalInterface
+WorkerLifecycleLock
+WorkerLifecycleLocatorStore
+WorkerStopSignal
+
+WorkerControlTransport
+WorkerControlProtocol
+WorkerControlServer
+WorkerControlClient
+WorkerControlClientInterface alias
+WorkerChildReadinessChannel
+
+WorkerChildTable
+WorkerSignalController
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianInterface alias
+WorkerChildCommandBuilder
+
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 ApplicationWorker
-PcntlWorkerManagerDriver
-ProcWorkerManagerDriver
-WorkerManager
-ContainerWorkerManagerResolver
-WorkerManagerResolverInterface alias
+
+PcntlWorkerProcessDriver
+ProcWorkerProcessDriver
+ContainerWorkerProcessDriverResolver
+WorkerProcessDriverResolverInterface alias
+
+WorkerSupervisor
+WorkerSupervisorInterface alias
+ContainerWorkerSupervisorResolver
+WorkerSupervisorResolverInterface alias
+
 WorkerStartCommand
 WorkerStopCommand
 WorkerStatusCommand
+WorkerHealthCommand
 cli.command tags
 ```
 
-Its required service ids are:
+The canonical aliases are:
+
+```text
+WorkerControlClientInterface
+    -> WorkerControlClient
+
+WorkerProcessDriverResolverInterface
+    -> ContainerWorkerProcessDriverResolver
+
+WorkerSupervisorInterface
+    -> WorkerSupervisor
+
+WorkerSupervisorResolverInterface
+    -> ContainerWorkerSupervisorResolver
+```
+
+`WorkerProcessDriverResolverInterface` maps the resolved process-driver id to exactly one concrete driver service.
+
+The resolver does not enumerate tags, does not fall back across drivers, and does not construct the unselected driver.
+
+The contribution declares these required runtime service ids:
 
 ```text
 ConfigRepositoryInterface
@@ -254,13 +374,16 @@ ModulePlan
 RuntimePathContext
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerProcessDriverResolverInterface
 ApplicationWorker
-WorkerManager
-QueueTaskFactory
-HttpTaskFactory
+WorkerSupervisorInterface
+WorkerControlClientInterface
+TagRegistry
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 ```
 
-The allowed entrypoint-owned external runtime seeds are:
+The allowed external runtime seeds are:
 
 ```text
 ConfigRepositoryInterface
@@ -268,90 +391,172 @@ ModulePlan
 RuntimePathContext
 ```
 
-These objects are materialized by the artifact-only runtime entrypoint and supplied to the compiled container through the exact Kernel-owned `RuntimeContainerSeedSet`.
+The remaining required ids must be supplied by the complete runtime graph.
 
-The explicit law is:
+`WorkerProcessDriverResolverInterface` is required because `WorkerSupervisor` performs a deferred lookup of only the selected concrete process driver.
 
-```text
-Runtime seeds are entrypoint-owned runtime objects.
-They are not provider definitions, artifact payloads, or fingerprint inputs.
-```
+`WorkerSupervisorInterface` is required because `ContainerWorkerSupervisorResolver` performs a deferred runtime-container lookup of that interface.
 
-Worker definitions may reference these service ids, but Worker providers must not define, instantiate, serialize, tag, or shadow the seed objects.
+`WorkerControlClientInterface` is the live control boundary used by the status, health, and stop commands.
 
-The remaining required ids must be defined by the complete runtime graph.
+`WorkerTaskSourceInterface` is required because `WorkerServiceFactory::workerTaskSource(...)` resolves exactly one selected source through `WorkerTaskSourceResolver` and `TagRegistry`. External task-source implementations remain lazy runtime dependencies.
 
-`QueueTaskFactory` and `HttpTaskFactory` are required because task-factory selection resolves one of them internally through `ContainerInterface`.
+Resolving `WorkerStartCommand` must not resolve `WorkerSupervisorInterface`.
 
-`WorkerManager` is required because `ContainerWorkerManagerResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerManager::class)` lookup.
-
-`RequestHandlerInterface` is not an unconditional required service. It is a mode-dependent HTTP preflight dependency and may be absent until HTTP task mode is actually validated.
-
-The Worker definition contribution contains no closures.
-
-The Foundation definition adapter may create source-container factory closures while applying canonical definitions.
-
-Worker runtime factories and services may create execution callbacks during runtime service construction or execution, after canonical definition production has completed, including:
+The required order is:
 
 ```text
-PcntlWorkerManagerDriver child runner
-task-work run callback
+build WorkerPoolSpec
+-> execute WorkerRuntimeEntrypointGuard
+-> resolve WorkerSupervisorInterface lazily
+-> run WorkerSupervisor
 ```
 
-Neither adapter-created closures nor Worker runtime callbacks may enter canonical Worker definitions, descriptor values, generated artifact payload values, or fingerprint input.
+The Worker contribution contains no closures.
 
-The Worker runtime graph does not depend on `BootstrapConfig`.
+The package-internal task-work callback may be created only after definition production and must not enter definitions, descriptor streams, generated artifacts, or fingerprint input.
 
-Production artifact compilation does not consume the Worker provider contribution.
-
-Any compilation orchestration that selects provider-produced definitions must consume the same `WorkerServiceProvider::define()` contribution.
+The PCNTL driver receives no child-bootstrap callback and captures no runtime container.
 
 ## Process model
 
-The worker runtime uses a master-plus-workers process model.
+The worker runtime uses one persistent foreground supervisor process.
 
-The lifecycle shape is:
+The externally managed process tree is:
 
 ```text
-worker:start command
+service manager / container runtime
+└─ worker:start
+   └─ WorkerSupervisor
+      ├─ owns private lifecycle locator
+      ├─ owns control listener
+      ├─ owns child table
+      ├─ owns readiness aggregation
+      ├─ owns state publication
+      ├─ owns signal intent
+      ├─ owns cooperative stop-signal writes
+      ├─ owns recycle policy
+      ├─ owns graceful and forced shutdown orchestration
+      ├─ owns supervisor-artifact cleanup
+      └─ WorkerProcessGuardian
+         ├─ owns canonical worker.lock generation fence
+         ├─ owns supervisor-death worker-generation containment
+         ├─ PCNTL
+         │  └─ owns worker fork / exec / signal / wait / reap
+         └─ PROC
+            └─ WorkerProcProcessHost
+               └─ owns raw proc_open worker resources
+```
+
+The complete startup lifecycle is:
+
+```text
+WorkerStartCommand
   -> WorkerServiceFactory::workerPoolSpec(...)
   -> WorkerPoolSpec
   -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
        -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
-       -> Kernel RuntimeEntrypointGuard::assertEntrypointAllowed(...)
-  -> WorkerManagerResolverInterface::resolve()
-       -> ContainerWorkerManagerResolver
-       -> runtime container get(WorkerManager)
-  -> WorkerManager::start(...)
-  -> selected process driver
-  -> master process state
-  -> N worker children
-  -> ApplicationWorker task loops
+       -> Kernel RuntimeEntrypointGuard
+  -> WorkerSupervisorResolverInterface::resolve()
+       -> ContainerWorkerSupervisorResolver
+       -> runtime container get(WorkerSupervisorInterface)
+  -> WorkerSupervisorInterface::run(...)
+       -> WorkerProcessDriverResolverInterface::resolve(WorkerPoolSpec)
+       -> launch and authenticate WorkerProcessGuardian
+       -> guardian claims canonical WorkerLifecycleLock
+       -> delete stale private lifecycle locator
+       -> delete stale state
+       -> clear stale cooperative stop signal
+       -> generate supervisor-instance control credential
+       -> open authenticated WorkerControlServer
+       -> install WorkerSignalController
+       -> publish state=starting
+       -> publish private WorkerLifecycleLocator
+       -> spawn configured child slots
+       -> wait for readiness from every child
+       -> publish state=running
+       -> emit one startup summary callback
+       -> enter persistent event loop
 ```
 
-`WorkerPoolSpec` is the normalized Worker-owned source of truth for `worker.task_type`.
+The persistent event loop is:
 
-Contribution mapping occurs only inside `WorkerRuntimeEntrypointGuard`, after `WorkerPoolSpec` construction and before Kernel compatibility validation.
+```text
+accept status / health / stop requests
+-> poll child readiness
+-> poll child exits
+-> recycle expected ready-child exits
+-> fail the complete pool on unexpected exits
+-> process signal-driven shutdown intent
+-> continue until shutdown is requested
+```
 
-Worker commands and launchers do not import or invoke the internal mapper directly.
+The shutdown lifecycle is:
 
-Kernel does not read the `worker` config root.
+```text
+transition state to stopping
+-> publish stopping state
+-> write cooperative stop signal
+-> wait up to stop_timeout_ms
+-> terminate remaining children
+-> wait up to force_kill_timeout_ms
+-> kill remaining children
+-> wait up to force_kill_timeout_ms
+-> reap and close every child
+-> delete state
+-> clear stop signal
+-> close control listener
+-> remove Unix socket when applicable
+-> delete private lifecycle locator
+-> guardian release
+   -> shut down ProcHost when applicable
+   -> verify no owned workers remain
+   -> release generation fence last
+-> send terminal stopped response
+-> exit with deterministic process code
+```
 
-The master process owns pool lifecycle orchestration through `WorkerManager`.
+The cooperative, terminate, and kill phases each create one monotonic deadline before their first process-driver operation. Every potentially blocking `pollExit`, `terminate`, `kill`, and `close` call receives only the remaining phase budget. Iterating over multiple children never restarts or extends a phase deadline.
 
-The selected process driver owns concrete process lifecycle behavior.
+Terminal guardian release receives the remaining cleanup budget defined by `WorkerShutdownBudget::CLEANUP_TIMEOUT_MS`.
 
-Each child process runs an `ApplicationWorker`.
+The supervisor launches and claims the mandatory guardian before publishing supervisor-owned runtime artifacts. For proc, the guardian starts the dedicated process host before accepting the supervisor ownership connection and before acquiring the generation fence, preventing proc children from inheriting those later resources.
 
-Each `ApplicationWorker` processes many tasks sequentially until:
+`WorkerPoolSpec` is the normalized Worker-owned source of truth for:
+
+```text
+task type
+OS process driver
+control transport
+configurable socket, state, and stop-signal paths
+worker count
+max requests
+lifecycle deadlines
+```
+
+The internal OS process driver is not a Kernel HTTP/background runtime driver.
+
+Each child runs one `ApplicationWorker`.
+
+`ApplicationWorker` processes tasks sequentially until:
 
 - `worker.max_requests` is reached;
-- a graceful stop flag is observed between tasks;
-- the process exits due to a deterministic worker failure.
+- the cooperative stop signal is observed outside in-flight tasks, including interruptible task acquisition;
+- task execution produces a terminal process failure.
 
-The worker control channel is lifecycle/control-only.
+The control channel is lifecycle-only and must not transport task payloads.
 
-It must not transport task payloads.
+## Runtime artifact ownership
+
+| Artifact                  | Path source                                    | Filesystem owner                                                              | Semantics                                                                           |
+|---------------------------|------------------------------------------------|-------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+| generation fence          | canonical `WorkerLifecyclePaths::LOCK`         | `WorkerProcessGuardian` via `WorkerLifecycleLock`                             | active/recovering-generation authority; persistent anchor file is not unlinked      |
+| private lifecycle locator | canonical `WorkerLifecyclePaths::LOCATOR`      | supervisor writes/deletes through `WorkerLifecycleLocatorStore`; client reads | active endpoint, control credential, and active stop deadlines; never public output |
+| locator temporary file    | canonical `WorkerLifecyclePaths::LOCATOR_TEMP` | `WorkerLifecycleLocatorStore`                                                 | fixed atomic-publication temporary file; deleted after publication or cleanup       |
+| Unix control socket       | `worker.socket_path` for a new start           | `WorkerControlTransport`                                                      | active control endpoint when transport is `unix`; configurable only for a new pool  |
+| diagnostic state          | `worker.state_path`                            | `WorkerStateStore`                                                            | redacted snapshot only; never liveness authority                                    |
+| state temporary file      | `worker.state_path + ".tmp"`                   | `WorkerStateStore`                                                            | atomic state-publication temporary file                                             |
+| cooperative stop signal   | `worker.stop_flag_path`                        | `WorkerStopSignal`                                                            | supervisor-written cooperative shutdown hint; observed outside in-flight tasks      |
 
 ## Driver selection
 
@@ -375,17 +580,18 @@ proc
 When `worker.driver=auto`, resolution is deterministic:
 
 ```text
-pcntl when pcntl_fork is available and the platform is not Windows
-proc otherwise
+pcntl when the required PCNTL fork/exec and POSIX capabilities are available and the platform is not Windows
+proc when the guardian and secure proc process-host capability are available
+deterministic lifecycle-validation failure when neither adapter is available
 ```
 
 The `pcntl` driver is Unix-like and fork-based.
 
-The `proc` driver is the cross-platform fallback and starts child workers through `proc_open()`.
+The `proc` driver is the cross-platform process adapter.
 
-`WorkerManager` does not perform runtime capability discovery itself.
+It delegates child ownership to the guardian; the guardian delegates raw `proc_open()` resources to the dedicated proc process host.
 
-It receives an already-built `WorkerPoolSpec` and selects a driver by the resolved driver id.
+`WorkerSupervisor` receives an already-built `WorkerPoolSpec` and delegates exact lazy driver resolution to `WorkerProcessDriverResolverInterface`.
 
 If no matching supported driver exists, lifecycle execution fails with a safe deterministic worker start failure.
 
@@ -411,19 +617,50 @@ tcp
 When `worker.control.transport=auto`, resolution is deterministic:
 
 ```text
-unix when the resolved driver is pcntl and unix domain sockets are supported
+unix when the platform is not Windows and unix domain sockets are supported
 tcp otherwise
 ```
 
+Control-transport selection is independent from the selected Worker OS process driver.
+
 The `unix` transport uses a skeleton-root-relative socket path.
 
-The `tcp` transport uses configured TCP host and port.
+The `tcp` transport uses the canonical IPv4 loopback host `127.0.0.1` and the explicitly configured deterministic TCP port.
+
+`worker.tcp.host` MUST be exactly `127.0.0.1`.
 
 TCP port `0` is forbidden because it would make endpoint identity and persisted worker state non-deterministic across runs.
 
 Raw socket paths, raw TCP hosts, and raw TCP ports must not appear in public diagnostics, logs, metrics, or public command output.
 
 Endpoint identity may be represented publicly only through a deterministic hash.
+
+## Control-channel authentication
+
+Every `status`, `health`, and `stop` request authenticates with one 256-bit supervisor-instance control credential.
+
+The credential is generated after stale lifecycle cleanup and before listener publication. It remains stable during child spawn and recycle, and rotates only when a new supervisor instance starts.
+
+The exact version-`1` request shape is:
+
+```json
+{
+  "credential": "<64 lowercase hexadecimal characters>",
+  "operation": "status",
+  "request_id": "request-123-1",
+  "version": 1
+}
+```
+
+The server decodes the exact request schema and validates the credential through `hash_equals()` before creating a `WorkerControlSession`. Missing, malformed, or non-matching credentials close the connection silently and execute no operation. Responses never contain the credential.
+
+Credential ownership is limited to supervisor memory, the active control server, the private lifecycle locator, and one private request frame. It must not enter state, endpoint hashes, logs, spans, metrics, CLI output, exceptions, child argv, or child environment.
+
+TCP remains restricted to `127.0.0.1`; no non-loopback opt-in exists. A Unix listener is created under `umask(0177)`, verified as mode `0600`, and published only after that verification. On Windows, deployment owns restrictive ACLs for the skeleton and runtime directory.
+
+The credential does not claim isolation from arbitrary processes running under the same compromised operating-system account.
+
+The normative Worker control-protocol, credential, locator-confidentiality, and local threat-boundary decisions are recorded in ADR-0017.
 
 ## Runtime-driver guard boundary
 
@@ -451,7 +688,6 @@ Worker runtime callers use the Worker-owned boundary:
 
 ```text
 WorkerStartCommand
-HttpTaskFactory
 bin/coretsia-worker
 ```
 
@@ -488,11 +724,11 @@ http  -> http.worker
 ```text
 build WorkerPoolSpec
 → call WorkerRuntimeEntrypointGuard
-→ call WorkerManagerResolverInterface::resolve()
-→ start WorkerManager
+→ call WorkerSupervisorResolverInterface::resolve()
+→ run WorkerSupervisorInterface
 ```
 
-Resolving the command service itself must not resolve `WorkerManager`, process drivers, `ApplicationWorker`, or the selected task factory.
+Resolving the command service itself must not resolve `WorkerSupervisorInterface`, process drivers, `ApplicationWorker`, or the selected task source.
 
 Worker callers must not:
 
@@ -506,117 +742,155 @@ Worker callers must not:
 - duplicate the `platform.http` requirement;
 - translate Kernel matrix failures into Worker driver failures.
 
-Missing or invalid `worker.task_type` is a Worker-owned start-validation failure:
+Missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
 
-HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before `RequestHandlerInterface` resolution.
+HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before HTTP task-source resolution/readiness.
 
-## Lazy WorkerManager resolution boundary
+## Lazy WorkerSupervisor resolution boundary
 
-`WorkerStartCommand` receives `WorkerManagerResolverInterface` instead of a closure factory or an eager `WorkerManager`.
+`WorkerStartCommand` receives:
+
+```text
+WorkerSupervisorResolverInterface
+```
+
+instead of a closure factory or an eagerly resolved supervisor.
 
 The canonical implementation is:
 
 ```text
-ContainerWorkerManagerResolver
+ContainerWorkerSupervisorResolver
 ```
 
 It stores only `ContainerInterface`.
 
 `resolve()`:
 
-1. requests `WorkerManager::class` from the active runtime container;
+1. requests `WorkerSupervisorInterface::class` from the active runtime container;
 2. validates the resolved type;
-3. returns the valid manager;
+3. returns the valid supervisor;
 4. maps container failures and invalid bindings to a safe deterministic Worker start failure.
 
-It must not expose service ids, container diagnostics, runtime paths, config values, environment values, or nested throwable messages.
-
-The resolver interface and implementation are package-internal and are not public Worker plugin APIs.
-
-## Worker manager boundary
-
-`WorkerManager` owns high-level lifecycle orchestration:
+Resolution occurs only after:
 
 ```text
-start
-stop
-status
+WorkerPoolSpec construction
+-> WorkerRuntimeEntrypointGuard validation
 ```
 
-`WorkerManager` accepts an already-built `WorkerPoolSpec`.
+The resolver interface and implementation are package-internal.
 
-It delegates process-specific behavior to package-internal process drivers.
+They are not public Worker plugin APIs.
 
-`WorkerManager` must not:
+## Worker supervisor boundary
 
-- fork;
-- call `proc_open()`;
-- open sockets directly;
-- write state files directly;
-- write stop files directly;
-- write socket files directly;
-- call `RuntimeDriverGuard`;
-- call `KernelRuntimeInterface` for task execution;
-- enumerate Kernel hook tags;
-- enumerate reset tags;
-- call `ResetOrchestrator::resetAll()`;
-- write stdout or stderr directly.
+`WorkerSupervisor` is the foreground worker-pool orchestration owner.
 
-`WorkerManager` may emit safe lifecycle observability summaries through injected ports.
+It owns:
 
-Observability failures must not alter lifecycle semantics or primary failure precedence.
+```text
+private lifecycle locator publication and deletion
+control server
+child table
+readiness aggregation
+diagnostic state publication
+signal intent
+cooperative stop-signal writes
+recycle policy
+graceful shutdown orchestration
+forced shutdown orchestration
+supervisor-owned runtime-artifact cleanup
+```
 
-## Process driver boundary
+It does not own:
 
-Process drivers own concrete process lifecycle behavior.
+- the canonical worker-generation fence;
+- raw PCNTL worker-process lifetime;
+- raw proc worker-process lifetime;
+- `WorkerProcProcessHost` lifetime;
+- deployment restart policy;
+- external process-group, cgroup, container, or job-object containment.
 
-The `pcntl` driver owns fork-based process startup and graceful shutdown when selected.
+It must not:
 
-The `proc` driver owns `proc_open()` process startup and graceful shutdown when selected.
-
-The process-driver factory methods receive runtime filesystem roots through `RuntimePathContext`.
-
-`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` extracts the normalized skeleton root and passes it to `PcntlWorkerManagerDriver`.
-
-`WorkerServiceFactory::procWorkerManagerDriver(...)` extracts the normalized skeleton root and derives one skeleton-root-relative artifact-root value from `RuntimePathContext::artifactRoot()`.
-
-An absolute artifact root MUST be a strict descendant of `RuntimePathContext::skeletonRoot()`; an equal root or an absolute root outside the skeleton fails deterministically. `ProcWorkerManagerDriver` then applies the canonical relative-safe lexical validation before storing the value.
-
-The concrete process drivers do not receive `RuntimePathContext` or `BootstrapConfig`.
-
-Process drivers may write stop flags, communicate over the control channel, and persist worker state through `WorkerStateStore`.
-
-Process drivers must not:
-
-- execute task bodies directly;
+- read or resolve the service container;
+- construct `WorkerPoolSpec`;
+- apply Kernel runtime-driver matrix policy;
+- execute task bodies;
 - call `KernelRuntimeInterface`;
-- know about CLI dispatch;
-- depend on `platform/cli`;
-- depend on `platform/http`;
-- log raw command lines;
-- expose raw socket paths;
-- expose raw TCP endpoints;
-- expose absolute paths;
-- expose environment values;
-- write stdout or stderr directly.
+- daemonize;
+- invoke shell background commands;
+- write stdout or stderr directly;
+- expose raw paths or endpoints.
 
-Process command construction for the `proc` driver is argv-vector based.
+`WorkerProcessGuardian` owns worker-generation process containment and the canonical generation fence.
 
-It must not construct an untrusted shell string.
+The supervisor uses process drivers only as strict one-child command/readiness adapters over the guardian boundary.
 
-## Proc child artifact-only boot boundary
+## Process-driver boundary
 
-The `proc` driver starts a fresh PHP child process.
+The canonical package-internal interface is:
 
-Unlike a forked `pcntl` child, the proc child does not inherit the already-built in-memory runtime container.
+```text
+WorkerProcessDriverInterface
+```
 
-The master passes exactly one skeleton-root-relative Kernel artifact root.
+Its operations are:
+
+```text
+name
+supports
+spawn
+pollExit
+terminate
+kill
+close
+```
+
+Process drivers do not own pool preparation, generation ownership, generation fencing, or terminal generation release.
+
+A process driver must not own:
+
+- lifecycle state;
+- `WorkerStateStore`;
+- the control listener;
+- control operation semantics;
+- the cooperative stop signal;
+- a pool-wide child registry;
+- recycle policy;
+- pool-wide observability.
+
+`PcntlWorkerProcessDriver` owns tokenized readiness-listener creation, child command construction, and translation between guardian child identity and `WorkerChildProcess`.
+
+It delegates fork, exec, signal, wait, reap, and raw PCNTL worker-process ownership to `WorkerProcessGuardianInterface`.
+
+It receives no `ContainerInterface` and no `ApplicationWorker`.
+
+`WorkerChildCommandBuilder` owns the exact shell-free argv shape shared by PCNTL and proc children.
+
+`ProcWorkerProcessDriver` owns tokenized readiness-listener creation, child command construction, and translation between guardian child identity and `WorkerChildProcess`.
+
+It delegates process ownership to `WorkerProcessGuardianInterface`.
+
+For the proc backend, the guardian owns `WorkerProcProcessHost` lifetime and delegates raw `proc_open()` resource ownership to that dedicated process host.
+
+Process command construction is argv-vector based and must not construct an untrusted shell string.
+
+## Process-child artifact-only boot boundary
+
+Both process drivers enter a fresh PHP runtime image before Worker runtime boot.
+
+Both drivers delegate process ownership to the guardian. The guardian forks PCNTL workers and immediately execs the child image after dropping guardian-owned descriptors; for proc it uses the nested process host.
+
+Neither child resolves `ApplicationWorker` from the supervisor container.
+
+`WorkerChildCommandBuilder` passes each newly spawned child exactly one skeleton-root-relative Kernel artifact root.
 
 The canonical child argv field is:
 
@@ -624,9 +898,13 @@ The canonical child argv field is:
 --coretsia-worker-artifact-root=<relative-safe-path>
 ```
 
+Each child receives a dedicated internal readiness endpoint and one independently generated 64-character lowercase hexadecimal readiness token.
+
+The readiness arguments are internal process-bootstrap arguments and must not appear in public diagnostics.
+
 The child argument parser uses an exact key allowlist.
 
-It MUST reject the legacy individual artifact arguments:
+It MUST reject individual artifact-path arguments:
 
 ```text
 --coretsia-worker-module-manifest
@@ -677,7 +955,7 @@ with that input only.
 
 These three objects form the exact entrypoint-owned runtime seed set.
 
-The proc child artifact-only boot path MUST NOT:
+The process-child artifact-only boot path MUST NOT:
 
 - accept individual artifact paths;
 - run Bootstrap Phase A;
@@ -707,50 +985,97 @@ The child validates that the received worker arguments match `WorkerPoolSpec` be
 
 All child boot failures MUST remain deterministic and redacted.
 
-The launcher emits exactly two normalized STDERR lines on failure:
+The launcher emits no stdout or stderr diagnostics.
 
-```text
-CORETSIA_WORKER_CHILD_BOOT_FAILED
-<safe-reason>
-```
+A boot failure terminates the child with a non-zero process code.
 
-Any `ArtifactRuntimeBooter` failure is collapsed to:
+The supervisor observes the child exit and maps startup failure to package-owned deterministic Worker exceptions.
 
-```text
-runtime-container-boot-failed
-```
+Raw artifact roots, generation paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages must not appear in public diagnostics.
 
 The launcher MUST NOT forward the nested `ArtifactRuntimeBootException` reason or message.
 
 Raw artifact roots, generation paths, config payloads, module-manifest payloads, container payloads, and nested throwable messages MUST NOT appear in public child diagnostics.
 
+Every PCNTL and proc spawn performs a fresh artifact-only boot.
+
+This includes replacement children created during max-request recycle.
+
+A recycled process child:
+
+```text
+receives the artifact root
+-> resolves current
+-> validates the selected generation
+-> hydrates the runtime from that generation
+-> resolves ApplicationWorker
+-> emits the exact readiness frame
+-> enters the task loop
+```
+
+A replacement process child must not inherit the previous child’s selected generation, loaded artifact snapshots, runtime container, or readiness state.
+
+## Process-exec descriptor boundary
+
+The PCNTL child performs the following owner-driven sequence before process-image replacement:
+
+```text
+forked PCNTL child
+  -> close current readiness listener
+  -> detach sibling readiness listeners
+  -> detach control listener
+  -> detach lifecycle lock
+  -> reset signal-controller state
+  -> exec package-owned child launcher
+```
+
+At the PCNTL fork boundary `WorkerProcessGuardian` closes only the Worker-owned guardian descriptors it knows: the supervisor ownership stream and generation-fence handle.
+
+```text
+known Worker-owned descriptor isolation != arbitrary application or integration descriptor isolation
+```
+
+Coretsia-owned local files that can coexist with process execution request close-on-exec on POSIX. Integration-owned descriptors must follow `docs/ssot/process-exec-descriptor-safety.md`.
+
+The proc process host starts before the guardian accepts the supervisor ownership connection, before lifecycle-lock acquisition, and before supervisor listeners are opened. This prevents inheritance of those later Worker-owned descriptors, but does not prove isolation from descriptors opened before process-host startup.
+
+For every proc spawn, the guardian-owned process-host client creates a one-shot tokenized handoff endpoint. The process host closes its current authenticated connection before `proc_open()` and establishes the replacement connection only after child launch. No proc-host protocol connection is open during `proc_open()`, so the same descriptor-isolation invariant applies on Windows and POSIX without `ext-sockets` or `SOCK_CLOEXEC`.
+
 ## Application worker boundary
 
 `ApplicationWorker` owns the child-process task loop.
 
-It processes tasks sequentially without restarting PHP between tasks.
+It processes real acquired tasks sequentially without restarting PHP between tasks.
 
-`WorkerServiceFactory::applicationWorker(...)` receives `RuntimePathContext` and passes the normalized value returned by `RuntimePathContext::skeletonRoot()` to `ApplicationWorker`.
+`WorkerServiceFactory::applicationWorker(...)` receives `WorkerStopSignal`, `KernelRuntimeInterface`, `WorkerTaskSourceInterface`, `Stopwatch`, `TracerPortInterface`, and `MeterPortInterface`.
 
-`ApplicationWorker` does not depend on `RuntimePathContext` or `BootstrapConfig`.
+`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, a raw skeleton root, or transport-specific queue/HTTP APIs.
+
+Before the child readiness frame is published, `ApplicationWorker::assertReady(...)` validates that the resolved source type matches `WorkerPoolSpec` and delegates source preflight to `WorkerTaskSourceInterface::assertReady(...)` using the safe `WorkerTaskSourceContextInterface` boundary.
 
 The loop shape is:
 
 ```text
 while processed < worker.max_requests:
-    if stop flag is present:
+    if cooperative cancellation is requested:
         break
 
-    run one task through KernelRuntimeInterface
+    task = source.receive(context)
+
+    if task is null and cancellation is requested:
+        break
+
+    if task is null without cancellation:
+        fail lifecycle
 
     processed++
+    execute task through KernelRuntimeInterface
+    settle success or failure through WorkerTaskInterface
 ```
 
-The stop flag is checked only between tasks.
+`worker.max_requests` counts real acquired task attempts. It does not count cooperative cancellation or transport wake-ups that do not produce a task.
 
-The worker must not interrupt an in-flight task.
-
-In-flight task cancellation is outside the Worker runtime contract.
+The worker must not interrupt an in-flight task. In-flight application cancellation remains outside the generic Worker task-source contract.
 
 Each task is executed by:
 
@@ -758,14 +1083,7 @@ Each task is executed by:
 Coretsia\Contracts\Runtime\KernelRuntimeInterface::runUnitOfWork(...)
 ```
 
-The resolved worker task type is passed as the UnitOfWork type.
-
-The safe task operation id used for observability is produced by package-local task work and is restricted to low-cardinality values such as:
-
-```text
-queue
-http
-```
+The resolved `WorkerTaskType` is passed as the UnitOfWork type and is also the bounded low-cardinality observability operation id.
 
 `ApplicationWorker` must not:
 
@@ -792,102 +1110,70 @@ The canonical flow is:
 ```text
 begin
   -> before hooks
-  -> task
+  -> task.execute()
   -> after hooks
   -> ResetOrchestrator::resetAll()
+  -> task.complete(result)
 ```
 
-`platform/worker` must not call hooks directly.
+When application/Kernel execution fails, `task.fail(original failure)` is invoked after the Kernel UoW has failed. If success settlement fails, `task.fail()` must not be invoked automatically.
 
-`platform/worker` must not call `ResetOrchestrator::resetAll()` directly.
+`platform/worker` must not call hooks directly, call `ResetOrchestrator::resetAll()` directly, enumerate reset tags, or redefine Foundation reset infrastructure.
 
-`platform/worker` must not enumerate reset tags.
-
-`platform/worker` must not redefine Foundation reset infrastructure.
-
-The worker runtime controls only the long-running worker loop.
-
-Kernel owns UnitOfWork lifecycle semantics.
-
-Foundation owns reset orchestration infrastructure.
+Kernel owns UnitOfWork lifecycle semantics. Foundation owns reset orchestration infrastructure. The worker runtime owns only acquisition orchestration, the long-running loop, max-request counting, and settlement sequencing.
 
 ## Task source boundary
 
-Task factories are package-internal.
-
-They produce task work for `ApplicationWorker`.
-
-Task work contains:
+The cross-package task-source SPI is owned by `core/contracts`:
 
 ```text
-operation_id
-run
+Coretsia\Contracts\Worker\WorkerTaskType
+Coretsia\Contracts\Worker\WorkerTaskSourceInterface
+Coretsia\Contracts\Worker\WorkerTaskSourceContextInterface
+Coretsia\Contracts\Worker\WorkerTaskInterface
 ```
 
-`operation_id` must be deterministic, low-cardinality, and safe for the observability metric label `operation`.
-
-`QueueTaskFactory` handles:
+Task sources are registered through the canonical reserved tag:
 
 ```text
-worker.task_type=queue
+worker.task_source
 ```
 
-It does not implement a real external queue adapter.
+Runtime code uses `ReservedTags::WORKER_TASK_SOURCE`.
 
-`HttpTaskFactory` handles:
+`WorkerTaskSourceResolver` selects exactly one source whose tag metadata contains exactly:
+
+```php
+[
+    'task_type' => 'queue', // or 'http'
+]
+```
+
+Selection semantics are:
 
 ```text
-worker.task_type=http
+0 matching sources  -> startup failure
+1 matching source   -> selected source
+2+ matching sources -> startup conflict
 ```
 
-It does not implement a real HTTP request source.
+Priority is not a source override mechanism.
 
-`HttpTaskFactory` receives the normalized `WorkerPoolSpec`.
+`receive()` returns one real `WorkerTaskInterface`, returns `null` only for cooperative cancellation, or throws on source/transport failure. It must not use a synthetic no-op task or `null` as an idle/no-work signal.
 
-It invokes `WorkerRuntimeEntrypointGuard` before resolving an HTTP request handler.
+Task acquisition must use transport-native blocking/event-loop waiting and remain cooperatively interruptible. Every source must bound each continuous transport wait by `WorkerTaskSourceContextInterface::maxBlockingWaitMs()` and regain control to re-check cancellation. Transport-native cancellation MAY wake the wait earlier but does not relax this bound. The Worker-owned bounded wait is `min(1000 ms, worker.stop_timeout_ms)`.
 
-The Worker-owned guard performs the internal contribution mapping and delegates to the Kernel guard.
-
-`HttpTaskFactory` must not import the mapper or call the Kernel guard directly.
-
-Only after compatibility passes may HTTP task mode require a resolvable:
+`WorkerTaskInterface` settlement is single-path:
 
 ```text
-Psr\Http\Server\RequestHandlerInterface
+UoW success  -> complete(result)
+UoW failure  -> fail(original failure)
+complete failure -> lifecycle settlement failure; do not call fail()
 ```
 
-`WorkerServiceFactory::taskFactory(...)` performs lazy task-factory selection.
+`platform/worker` ships no production queue or HTTP task source. Queue transports and HTTP runtime adapters are external integration/runtime packages and own their transport dependencies and settlement details.
 
-It receives:
-
-```text
-WorkerPoolSpec
-ContainerInterface
-```
-
-It selects the canonical service id:
-
-```text
-queue -> QueueTaskFactory
-http  -> HttpTaskFactory
-```
-
-It resolves only the selected service.
-
-The resolved service must:
-
-- implement `TaskFactoryInternalInterface`;
-- return `true` from `supports($spec)`.
-
-Closure-based queue-task-factory and HTTP-task-factory constructor arguments are forbidden.
-
-Resolution or validation failures are mapped to safe deterministic Worker start failures.
-
-The task-body closure produced by a valid task factory remains runtime work and is not part of declarative container wiring.
-
-Request-handler preflight failures must be deterministic and safe.
-
-The worker package must not import `Coretsia\Platform\Http\*`.
+The normative contract is `docs/ssot/worker-task-sources.md`.
 
 ## Safety limits
 
@@ -899,7 +1185,7 @@ The worker runtime has the following safety controls.
 
 `WorkerRuntimeEntrypointGuard` verifies that `platform.worker` is enabled before Worker runtime execution starts.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the child launcher reach this check through the same Worker-owned boundary.
+`WorkerStartCommand` and the child launcher reach this check through the same Worker-owned boundary. Task-source resolution/readiness occurs only after that Worker-owned compatibility guard passes.
 
 This owner precondition does not cause Kernel to discover or infer Worker runtime-driver contributions.
 
@@ -921,23 +1207,42 @@ The value must be a positive integer.
 
 ### `worker.max_requests`
 
-Controls the maximum number of tasks handled by one child worker process before the loop stops or the process is recycled by its supervisor/manager flow.
+Controls the maximum number of tasks handled by one child process before `ApplicationWorker` exits normally and the supervisor recycles that worker slot.
 
 The value must be a positive integer.
 
 ### `worker.stop_flag_path`
 
-Controls graceful shutdown between tasks.
+Controls cooperative shutdown observation outside in-flight tasks, including interruptible task acquisition.
 
-`ApplicationWorker` checks the stop flag only between tasks.
+The supervisor writes the cooperative stop signal.
+
+`ApplicationWorker` checks it before task acquisition. The selected task source may re-check it during interruptible `receive()` through `WorkerTaskSourceContextInterface`.
 
 It must not interrupt an in-flight task.
 
+### `worker.start_timeout_ms`
+
+Controls the complete startup deadline, including guardian launch/claim, generation-fence acquisition, child spawn, runtime boot, and readiness aggregation.
+
+The value must be a positive integer no greater than `86400000`.
+
 ### `worker.stop_timeout_ms`
 
-Controls the graceful stop timeout used by process-driver lifecycle logic.
+Controls the cooperative shutdown phase owned by the supervisor as a strict wall-clock budget for process-driver operations in that phase.
 
-The value must be a non-negative integer.
+The value must be a positive integer no greater than `86400000`.
+
+### `worker.force_kill_timeout_ms`
+
+Controls each post-cooperative shutdown phase as an independent strict wall-clock budget for process-driver operations:
+
+```text
+graceful terminate wait
+hard-kill wait
+```
+
+The value must be a positive integer no greater than `86400000`.
 
 ### Path safety
 
@@ -946,9 +1251,25 @@ Configured Worker-owned path values remain skeleton-root-relative configuration 
 These include:
 
 ```text
+worker.socket_path
 worker.state_path
 worker.stop_flag_path
-worker.control.socket_path
+```
+
+Lifecycle discovery artifacts are package-owned and non-configurable:
+
+```text
+var/tmp/worker.lock
+var/tmp/worker.lifecycle.json
+var/tmp/worker.lifecycle.json.tmp
+```
+
+The configurable socket, state, state temporary, and stop-signal paths must not overlap each other or any canonical lifecycle artifact.
+
+The derived state temporary path is:
+
+```text
+worker.state_path + ".tmp"
 ```
 
 Configured relative Worker paths must:
@@ -959,14 +1280,18 @@ Configured relative Worker paths must:
 - reject URI schemes;
 - reject parent traversal;
 - reject absolute Unix paths;
-- reject absolute Windows drive paths.
+- reject absolute Windows drive paths;
+- reject the `skeleton/` prefix;
+- reject every path segment beginning with `@`.
+
+Phase-B config validation declares the last two Worker-specific restrictions through `forbiddenPrefixes` and `forbiddenSegmentPrefixes` on the generic `relative-safe-path` type. `WorkerPoolSpec` repeats the same checks as a runtime defense-in-depth boundary.
 
 These relative config values are distinct from both:
 
-- the proc-child artifact-root argument;
+- the process-child artifact-root argument;
 - runtime roots carried by `RuntimePathContext`.
 
-The proc-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
+The process-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -1005,24 +1330,28 @@ All Worker path diagnostics remain redacted.
 
 ## State model and state file
 
-The worker state file is owned by `WorkerStateStore`.
+`WorkerStateStore` owns deterministic diagnostic state snapshots.
 
-The default path is:
+The default state path is:
 
 ```text
 var/tmp/worker.state.json
 ```
 
-There is no separate `worker.pid_path` config key.
+The canonical state schema version is:
 
-The master pid is stored inside the worker state schema.
+```text
+1
+```
 
-The persisted worker state schema contains only safe fields:
+The exact persisted fields are:
 
 ```text
 version
 pid
+status
 worker_count
+ready_worker_count
 driver_requested
 driver
 control_transport_requested
@@ -1030,78 +1359,239 @@ control_transport
 endpoint_hash
 ```
 
+The persistent status vocabulary is:
+
+```text
+starting
+running
+stopping
+```
+
+`stopped` is a terminal control response only and is not persisted.
+
+`pid` is the persistent supervisor PID.
+
+The state file is diagnostic only.
+
+It is not liveness authority.
+
+The liveness rules are:
+
+```text
+lifecycle lock free
+  -> no Coretsia-owned active or recovering worker generation exists
+  -> not running
+
+lifecycle lock held + valid private locator + reachable authenticated control endpoint
+  -> live supervisor determines starting, running, or stopping state
+
+lifecycle lock held + missing, unreadable, malformed, oversized, symlinked, or schema-invalid private locator
+  -> communication failure
+
+lifecycle lock held + unavailable or unauthenticated control endpoint
+  -> communication failure
+```
+
+A stale state file with a free lifecycle lock does not mean the pool is running.
+
+State writes use deterministic JSON and atomic temp-file plus rename publication.
+
+After complete shutdown, the state file is deleted.
+
 The state file must not contain:
 
 - timestamps;
-- environment values;
 - raw socket paths;
 - raw TCP hosts or ports;
 - absolute paths;
 - task payloads;
-- HTTP headers;
-- cookies;
-- Authorization values;
+- headers;
 - tokens;
-- raw endpoint identifiers.
+- environment values;
+- config dumps;
+- throwable messages.
 
-`WorkerStateStore` is the only worker runtime class allowed to write `worker.state.json`.
+Only `endpoint_hash` may identify the control endpoint in safe state and output.
 
-Process drivers must persist state only through `WorkerStateStore`.
+## Private lifecycle locator
 
-Missing state marker means the worker pool is not currently running.
+Lifecycle discovery deliberately separates three concepts:
 
-Existing but invalid state means invalid state, not not-running.
+```text
+WorkerPoolSpec = desired configuration for creating a new pool
+WorkerPoolState = redacted diagnostic snapshot of an active pool
+WorkerLifecycleLocator = private endpoint, control credential, and stop deadlines of the active supervisor
+```
 
-Invalid state includes:
+`WorkerLifecyclePaths` is the single source of truth for canonical lifecycle artifacts:
 
-- unreadable state marker;
-- non-file state path;
-- invalid JSON;
-- non-map JSON;
-- schema drift;
-- forbidden extra keys;
-- invalid value types;
-- invalid value domains.
+```text
+LOCK         = var/tmp/worker.lock
+LOCATOR      = var/tmp/worker.lifecycle.json
+LOCATOR_TEMP = var/tmp/worker.lifecycle.json.tmp
+```
 
-Public state-related failures must not expose raw state paths, absolute paths, endpoint identifiers, OS error text, decoded payloads, or previous throwable messages.
+The locator exact schema version is `1`.
+
+Unix locator fields are:
+
+```text
+version = 1
+control_credential = 64 lowercase hexadecimal characters
+control_transport = unix
+socket_path = non-empty relative-safe path
+tcp_host = null
+tcp_port = null
+stop_timeout_ms = positive bounded integer
+force_kill_timeout_ms = positive bounded integer
+```
+
+TCP locator fields are:
+
+```text
+version = 1
+control_credential = 64 lowercase hexadecimal characters
+control_transport = tcp
+socket_path = null
+tcp_host = 127.0.0.1
+tcp_port = 1..65535
+stop_timeout_ms = positive bounded integer
+force_kill_timeout_ms = positive bounded integer
+```
+
+Unknown keys, missing keys, numeric strings, unsupported versions, absolute or unsafe Unix paths, and non-null inactive transport fields are rejected.
+
+`WorkerLifecycleLocatorStore` is the exclusive filesystem owner. It:
+
+- encodes through `StableJsonEncoder`;
+- limits the complete locator to `4096` bytes;
+- creates the fixed temporary path under `umask(0177)` on POSIX;
+- verifies mode `0600` before writing credential bytes;
+- publishes by atomic rename;
+- rejects POSIX locator files whose effective permission bits are not exactly `0600`;
+- rejects symlinks and non-regular files on read;
+- maps client-side read failures to deterministic communication failure;
+- deletes both final and temporary locator paths idempotently.
+
+The locator is published only after the control listener, signal handling, and `starting` state are ready, but before child spawn. It is deleted before terminal guardian release; the guardian releases the canonical generation fence last.
+
+The locator is not liveness authority without the lock. It is not a protocol frame, must not enter `worker.state.json`, and its raw endpoint fields or control credential must not be logged or rendered by CLI commands. Endpoint identity and endpoint hash deliberately exclude the credential.
+
+The lifecycle-command sequence is:
+
+```text
+probe canonical lifecycle lock
+-> if free, return not running
+-> read private lifecycle locator
+-> connect to the active endpoint from the locator
+-> send an authenticated status, health, or stop request
+-> validate the response endpoint hash against the locator
+```
+
+`worker:status`, `worker:health`, and `worker:stop` do not construct `WorkerPoolSpec`. They probe the canonical lock, read the active locator, and connect to the endpoint recorded by the active supervisor. `worker:stop` derives its complete request timeout from the active locator:
+
+```text
+stop_timeout_ms + (2 * force_kill_timeout_ms) + WorkerShutdownBudget::CLEANUP_TIMEOUT_MS
+```
+
+Current worker configuration therefore cannot redirect lifecycle commands away from an already-running pool or shorten the active pool's shutdown deadline.
+
+### Crash recovery and stale locator semantics
+
+A crashed supervisor may leave diagnostic state, a private locator, or a Unix socket. If its guardian survives, the generation fence remains held until old workers are contained and is then released by the guardian.
+
+The canonical classifications remain:
+
+```text
+free lifecycle lock
+  -> not running
+  -> stale state and locator are ignored for liveness
+
+held lifecycle lock + missing or invalid locator
+  -> communication failure
+```
+
+A new start first constructs its own `WorkerPoolSpec` from current config. After its guardian acquires the canonical generation fence, the supervisor deletes the stale canonical locator before binding and publishing the new active endpoint.
+
+Configurable state, stop-signal, and Unix-socket cleanup uses the paths from the new start spec. The canonical lock and locator paths never drift with current config.
 
 ## Control channel
 
-`WorkerSocketServer` owns worker control-channel behavior.
-
-The control channel supports:
+The supervisor-owned control layer is split into:
 
 ```text
-unix
-tcp
+WorkerControlTransport
+WorkerControlProtocol
+WorkerControlServer
+WorkerControlClient
+WorkerControlClientInterface
 ```
 
-Control operations are payload-free.
+`WorkerControlTransport` owns:
 
-Allowed stable control operation tokens include:
+- address derivation;
+- `listen`;
+- `connect`;
+- timeout-aware `accept`;
+- bounded frame reads and writes;
+- close;
+- Unix socket cleanup.
+
+`WorkerControlProtocol` owns exact versioned request and response schemas.
+
+`WorkerControlServer` owns the live supervisor listener and typed sessions.
+
+`WorkerControlClient` owns canonical lifecycle-lock probing, private locator resolution, endpoint-consistency validation, and live command request-response behavior.
+
+The control protocol supports exactly:
+
+```text
+status
+health
+stop
+```
+
+It must not contain:
 
 ```text
 start
-stop
-status
-health
 ```
 
-The control channel must not transport task payloads.
+Pool startup belongs only to the foreground `worker:start` command.
 
-Control failures map to deterministic worker communication failures.
+The protocol is:
 
-Public diagnostics must not expose:
+- versioned;
+- newline framed;
+- deterministic JSON;
+- bounded to one frame;
+- exact-key;
+- payload-free;
+- strict about unknown operations and versions.
 
-- raw socket paths;
-- socket basenames;
-- raw TCP hosts;
-- raw TCP ports;
-- raw endpoint strings;
-- payloads;
-- headers;
-- tokens;
-- throwable messages.
+A stop request remains pending until:
+
+- all children have exited;
+- all child resources have been reaped or closed;
+- state is deleted;
+- the stop signal is cleared;
+- the listener is closed;
+- the Unix socket is removed when applicable;
+- the private lifecycle locator is deleted;
+- terminal guardian release has completed;
+- the canonical generation fence is released.
+
+Only then may the server return terminal:
+
+```text
+stopped
+```
+
+A disconnected status or health client must not terminate the supervisor.
+
+Control failures map to deterministic `WorkerCommunicationFailedException`.
+
+Public diagnostics must not expose raw endpoints, paths, payloads, headers, tokens, or throwable messages.
 
 ## Command output
 
@@ -1119,12 +1609,20 @@ Successful public summaries may include only safe fields:
 
 ```text
 status
+pool_status
 pid
 worker_count
+ready_worker_count
+healthy
+reason
 driver
 control_transport
 endpoint_hash
 ```
+
+`pool_status`, `healthy`, and `reason` are health-summary fields.
+
+`reason` must be a bounded package-owned token.
 
 Failure output must use deterministic error codes and reason tokens.
 
@@ -1183,6 +1681,10 @@ endpoint
 payload
 exception_class
 error_reason
+worker_index
+child_generation
+exit_code
+signal
 ```
 
 Worker logs are summary-only.
@@ -1222,8 +1724,12 @@ Safe runtime summaries may include:
 
 ```text
 status
+pool_status
 pid
 worker_count
+ready_worker_count
+healthy
+reason
 driver
 control_transport
 endpoint_hash
@@ -1231,6 +1737,10 @@ operation
 outcome
 duration_ms
 ```
+
+`reason` is allowed only as a bounded package-owned health or error token.
+
+Child PIDs and child generations are not public summary fields.
 
 Endpoint identity may be represented publicly only as a deterministic hash.
 
@@ -1248,7 +1758,7 @@ Operators may inspect it locally for debugging, but runtime public output must r
 
 The worker runtime does not introduce a separate pid file.
 
-The safe master pid value is part of `worker.state.json`.
+The safe persistent supervisor PID is part of `worker.state.json`.
 
 The pid may appear in allowed safe summaries and span/log attributes only where the observability policy allows it.
 
@@ -1266,21 +1776,54 @@ Neither transport may carry task payloads.
 
 Raw transport endpoint values are considered sensitive.
 
-### Graceful shutdown
+### Graceful and forced shutdown
 
-Graceful shutdown is requested through worker-owned lifecycle mechanisms such as the stop flag and the control channel.
+Shutdown may be requested through:
 
-`ApplicationWorker` observes the stop flag only between task iterations.
+```text
+live stop request
+SIGTERM
+SIGINT
+platform-native console control event
+```
 
-An in-flight UnitOfWork is allowed to finish.
+Signal handlers record shutdown intent only.
 
-`worker.stop_timeout_ms` bounds stop behavior in process-driver lifecycle logic.
+The synchronous supervisor event loop performs shutdown.
+
+The cooperative stop signal is written only by the supervisor.
+
+The worker child observes it only outside an in-flight UnitOfWork, so acquired application work is allowed to finish. `ApplicationWorker` checks before acquisition, and the selected source may re-check during interruptible `receive()`.
+
+The shutdown deadlines are:
+
+```text
+stop_timeout_ms
+force_kill_timeout_ms
+force_kill_timeout_ms
+```
+
+They apply to:
+
+```text
+cooperative exit
+-> graceful terminate
+-> hard kill
+```
+
+Successful shutdown requires all children to be reaped and all process resources to be closed.
+
+The stop signal is not primary control and is not terminal acknowledgement.
+
+The private lifecycle locator is deleted before terminal guardian release.
+
+The generation fence is released by the guardian only after every owned worker is reaped/closed and proc-host shutdown is complete when applicable.
 
 ### Cross-platform behavior
 
 `pcntl` is not assumed to exist on every platform.
 
-Windows resolves `worker.driver=auto` to `proc`.
+Every platform resolves `worker.driver=auto` to `proc` only when `proc_open()` and the bounded loopback process-host transport are available. Otherwise start validation fails deterministically.
 
 Unix-domain sockets are not assumed to exist on every PHP runtime.
 
@@ -1301,12 +1844,13 @@ This architecture document does not define:
 - middleware;
 - CLI binary dispatch;
 - command catalog construction;
-- external process supervision;
+- external service-manager configuration;
+- deployment restart policy;
+- process-group, job-object, or cgroup policy;
 - RoadRunner integration;
 - Swoole integration;
 - FrankenPHP integration;
 - public worker plugin APIs;
-- public task-source plugin APIs;
 - production artifact-compilation consumption of declarative provider definitions;
 - container artifact schema;
 - config merge implementation;
@@ -1315,16 +1859,16 @@ This architecture document does not define:
 
 ## Required update path
 
-Changing Worker declarative container wiring, required-service declarations, lazy manager resolution, lazy task-factory selection, or runtime path seed policy requires updating:
+Changing Worker declarative container wiring, required-service declarations, lazy supervisor resolution, task-source selection, or runtime path seed policy requires updating:
 
 ```text
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/architecture/worker.md
 docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/ssot/runtime-container-definitions.md
 ```
 
-Changing the proc-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
+Changing the process-child artifact-root input, artifact-generation selection, artifact-runtime hydration, runtime seed ownership, or child compiled-container boot requires updating:
 
 ```text
 docs/architecture/worker.md
@@ -1336,10 +1880,10 @@ framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherCon
 framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 ```
 
-Changing worker process ownership, manager/application-worker boundaries, state schema, task factory visibility, or process driver extension policy requires updating:
+Changing worker process ownership, supervisor/process-driver/application-worker boundaries, state schema, task-source SPI/selection semantics, or process-driver extension policy requires updating:
 
 ```text
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/architecture/worker.md
 ```
 
@@ -1368,6 +1912,19 @@ Changing the `worker` config root ownership or defaults/rules authority requires
 docs/ssot/config-roots.md
 ```
 
+Changing canonical lifecycle paths, locator schema, locator publication, lifecycle-command discovery, or active timeout ownership requires updating:
+
+```text
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
+docs/architecture/worker.md
+docs/ssot/observability.md
+framework/packages/platform/worker/README.md
+framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
+framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
+framework/packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
+```
+
 Changing worker spans, metrics, or allowed metric labels requires updating:
 
 ```text
@@ -1379,9 +1936,10 @@ docs/ssot/observability.md
 - [Runtime Driver Guard Architecture](./runtime-driver-guard.md)
 - [Config Roots Registry](../ssot/config-roots.md)
 - [Observability SSoT](../ssot/observability.md)
+- [Process-Exec Descriptor Safety SSoT](../ssot/process-exec-descriptor-safety.md)
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
 - [UnitOfWork and Reset Contracts SSoT](../ssot/uow-and-reset-contracts.md)
-- [ADR-0017: Worker manager and application worker](../adr/ADR-0017-worker-manager-application-worker.md)
+- [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
@@ -1390,3 +1948,4 @@ docs/ssot/observability.md
 - [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)
 - [Canonical Runtime Container Definitions SSoT](../ssot/runtime-container-definitions.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
+- [ADR-0032: Process-Exec Descriptor Safety](../adr/ADR-0032-process-exec-descriptor-safety.md)

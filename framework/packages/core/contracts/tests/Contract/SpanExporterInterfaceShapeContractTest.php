@@ -27,7 +27,7 @@ use ReflectionNamedType;
 
 final class SpanExporterInterfaceShapeContractTest extends TestCase
 {
-    public function test_span_exporter_interface_shape_is_stable(): void
+    public function testSpanExporterInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(SpanExporterInterface::class);
 
@@ -49,7 +49,7 @@ final class SpanExporterInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_span_exporter_accepts_iterable_of_span_interfaces(): void
+    public function testSpanExporterAcceptsIterableOfSpanInterfaces(): void
     {
         $span = new class() implements SpanInterface {
             /**

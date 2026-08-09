@@ -23,7 +23,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ErrorDescriptorSeverityEnumContractTest extends TestCase
 {
-    public function test_error_severity_cases_are_stable(): void
+    public function testErrorSeverityCasesAreStable(): void
     {
         self::assertSame(
             [
@@ -39,7 +39,7 @@ final class ErrorDescriptorSeverityEnumContractTest extends TestCase
         );
     }
 
-    public function test_error_severity_values_helper_is_stable(): void
+    public function testErrorSeverityValuesHelperIsStable(): void
     {
         self::assertSame(
             [
@@ -52,7 +52,7 @@ final class ErrorDescriptorSeverityEnumContractTest extends TestCase
         );
     }
 
-    public function test_error_severity_is_not_a_logger_level_enum(): void
+    public function testErrorSeverityIsNotALoggerLevelEnum(): void
     {
         self::assertNotContains('debug', ErrorSeverity::values());
         self::assertNotContains('notice', ErrorSeverity::values());

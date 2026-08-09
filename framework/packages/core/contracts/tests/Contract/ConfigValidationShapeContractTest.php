@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigValidationShapeContractTest extends TestCase
 {
-    public function test_config_validation_violation_exports_schema_version(): void
+    public function testConfigValidationViolationExportsSchemaVersion(): void
     {
         $violation = new ConfigValidationViolation(
             root: 'foundation',
@@ -61,7 +61,7 @@ final class ConfigValidationShapeContractTest extends TestCase
         );
     }
 
-    public function test_config_validation_result_exports_schema_version(): void
+    public function testConfigValidationResultExportsSchemaVersion(): void
     {
         $violation = new ConfigValidationViolation(
             root: 'foundation',
@@ -99,7 +99,7 @@ final class ConfigValidationShapeContractTest extends TestCase
         );
     }
 
-    public function test_success_result_exports_empty_versioned_shape(): void
+    public function testSuccessResultExportsEmptyVersionedShape(): void
     {
         $result = ConfigValidationResult::success();
 

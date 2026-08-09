@@ -82,9 +82,11 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — ssotVersion: 1 — scope: di,discovery,middleware,ordering,runtime,tags
 - [Json-like Runtime Values SSoT](./json-like-runtime-values.md) — owner: core/foundation — ssotVersion: 1 — scope: json-like,normalization,runtime,serialization,uow
 - [Middleware → ContextKeys map](./middleware-context-keys-map.md) — owner: platform/http — ssotVersion: 1 — scope: context,http,middleware,redaction,reference,runtime
+- [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md) — owner: repo — ssotVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
 - [Reset Tags SSoT](./reset-tags.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,tags,uow
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md) — owner: core/foundation — ssotVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [Runtime Drivers SSoT](./runtime-drivers.md) — owner: repo — ssotVersion: 1 — scope: background,drivers,http,long-running,matrix,runtime
+- [Worker Task Sources SSoT](./worker-task-sources.md) — owner: platform/worker — ssotVersion: 1 — scope: acquisition,contracts,runtime,settlement,task-source,worker
 - [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,uow,redaction
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md) — owner: core/foundation — ssotVersion: 1 — scope: clock,duration,ids,runtime,time
 

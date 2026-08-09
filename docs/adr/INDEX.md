@@ -51,7 +51,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](./ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md) — owner: core/foundation — adrVersion: 1 — scope: container,di,ordering,reset,runtime,tags
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](./ADR-0015-context-bag-context-store-correlation-id.md) — owner: core/foundation — adrVersion: 1 — scope: context,context-bag,context-store,correlation-id,runtime
 - [ADR-0016: Clock, IDs, and Stopwatch](./ADR-0016-clock-ids-stopwatch.md) — owner: core/foundation — adrVersion: 1 — scope: clock,duration,ids,runtime,time
-- [ADR-0017: Worker manager and application worker](./ADR-0017-worker-manager-application-worker.md) — owner: platform/worker — adrVersion: 1 — scope: application-worker,long-running,runtime,worker,worker-manager
+- [ADR-0017: Persistent worker supervisor and application worker](./ADR-0017-persistent-worker-supervisor-application-worker.md) — owner: platform/worker — adrVersion: 1 — scope: application-worker,control,long-running,process-driver,supervisor,worker
 - [ADR-0019: Enhanced reset for long-running services](./ADR-0019-enhanced-reset-long-running.md) — owner: core/foundation — adrVersion: 1 — scope: long-running,observability,reset,runtime
 - [ADR-0020: Kernel runtime UnitOfWork SPI](./ADR-0020-kernel-runtime-uow-spi.md) — owner: core/kernel — adrVersion: 1 — scope: contracts,hooks,kernel,runtime,spi,uow
 - [ADR-0021: UnitOfWork context shape](./ADR-0021-unit-of-work-context-shape.md) — owner: core/kernel — adrVersion: 1 — scope: context,kernel,shape,uow
@@ -65,6 +65,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0029: Kernel compiled container artifact](./ADR-0029-kernel-container-compile-artifact.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,boot,container,kernel,runtime
 - [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
+- [ADR-0032: Process-Exec Descriptor Safety](./ADR-0032-process-exec-descriptor-safety.md) — owner: repo — adrVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
 
 ## Cross-references
 

@@ -471,238 +471,98 @@ This factory:
 
 `WorkerServiceProvider::define()` is the canonical source for the complete Worker runtime contribution.
 
-It MUST define:
+It MUST define the Worker orchestration graph, including:
 
 ```text
 WorkerServiceFactory
-WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
 StableJsonEncoder
 StableJsonDecoder
+
+WorkerPoolSpec
+WorkerRuntimeEntrypointGuard
 WorkerStateStore
-WorkerSocketServer
-QueueTaskFactory
-HttpTaskFactory
-TaskFactoryInternalInterface
+WorkerLifecycleLock
+WorkerLifecycleLocatorStore
+WorkerStopSignal
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
 ApplicationWorker
-PcntlWorkerManagerDriver
-ProcWorkerManagerDriver
-WorkerManager
-ContainerWorkerManagerResolver
+
+WorkerControlTransport
+WorkerControlProtocol
+WorkerControlServer
+WorkerControlClient
+WorkerChildReadinessChannel
+
+WorkerChildTable
+WorkerSignalController
+WorkerProcessGuardianProtocol
+WorkerProcessGuardianTransport
+WorkerProcessGuardianClient
+WorkerProcessGuardianInterface alias
+WorkerChildCommandBuilder
+
+PcntlWorkerProcessDriver
+ProcWorkerProcessDriver
+ContainerWorkerProcessDriverResolver
+
+WorkerSupervisor
+ContainerWorkerSupervisorResolver
+
 WorkerStartCommand
 WorkerStopCommand
 WorkerStatusCommand
+WorkerHealthCommand
 ```
 
-It MUST define the alias:
+It MUST define the aliases:
 
 ```text
-WorkerManagerResolverInterface
-    -> ContainerWorkerManagerResolver
+WorkerControlClientInterface
+    -> WorkerControlClient
+
+WorkerProcessDriverResolverInterface
+    -> ContainerWorkerProcessDriverResolver
+
+WorkerSupervisorInterface
+    -> WorkerSupervisor
+
+WorkerSupervisorResolverInterface
+    -> ContainerWorkerSupervisorResolver
 ```
 
-It MUST contribute the canonical `cli.command` tags for:
-
-```text
-WorkerStartCommand
-WorkerStopCommand
-WorkerStatusCommand
-```
-
-The complete Worker contribution MUST contain no closure values.
-
-### Required Worker service ids
-
-The Worker contribution MUST declare:
+It MUST require the external/core runtime dependencies needed by the graph, including:
 
 ```text
 ConfigRepositoryInterface
 ModulePlan
 RuntimePathContext
+TagRegistry
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
+WorkerTaskSourceResolver
+WorkerTaskSourceInterface
+WorkerProcessDriverResolverInterface
 ApplicationWorker
-WorkerManager
-QueueTaskFactory
-HttpTaskFactory
+WorkerSupervisorInterface
+WorkerControlClientInterface
 ```
 
-through `requireService()`.
+`ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `TagRegistry` MAY be supplied by the surrounding runtime graph. `WorkerTaskSourceInterface` is a lazy selected runtime dependency resolved through `WorkerTaskSourceResolver` from `worker.task_source` contributions.
 
-The following MAY be external runtime seeds:
+The Worker contribution MUST NOT register a built-in queue, HTTP, synthetic, or no-op task source.
 
-```text
-ConfigRepositoryInterface
-ModulePlan
-RuntimePathContext
-```
+`WorkerTaskSourceResolver` MUST use `ReservedTags::WORKER_TASK_SOURCE`, match exact `task_type` metadata, resolve only the selected source, reject zero/multiple/invalid sources deterministically, and avoid first-wins priority selection.
 
-The following MUST be defined by the complete definition graph:
+Graph compilation MUST remain possible when no external source contribution exists. Missing selected-source capability is a child runtime startup failure before readiness, not a compile-host graph failure.
 
-```text
-WorkerPoolSpec
-WorkerRuntimeEntrypointGuard
-ApplicationWorker
-WorkerManager
-QueueTaskFactory
-HttpTaskFactory
-```
+`WorkerProcessDriverResolverInterface` remains required because `WorkerSupervisor` performs a deferred exact lookup of the selected process driver. `WorkerSupervisorInterface` remains required because `ContainerWorkerSupervisorResolver` resolves it lazily. `WorkerControlClientInterface` remains the live control dependency for stop/status/health commands.
 
-`QueueTaskFactory` and `HttpTaskFactory` MUST both be required because `WorkerServiceFactory::taskFactory(...)` performs a runtime `ContainerInterface` lookup against one of those canonical ids.
+`WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. `WorkerProcProcessHostTransport` remains proc-host-executable-owned infrastructure rather than a runtime-container service.
 
-`WorkerManager` MUST be required because `ContainerWorkerManagerResolver::resolve()` performs a deferred `ContainerInterface::get(WorkerManager::class)` lookup.
+The complete Worker contribution MUST contain no closure values. Task execution callbacks are no longer part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
 
-These declarations preserve all possible mandatory Worker container-graph edges without prescribing eager resolution order.
-
-`Psr\Http\Server\RequestHandlerInterface` is not an unconditional required service id.
-
-It is a mode-dependent HTTP preflight dependency that:
-
-- is irrelevant in queue mode;
-- is checked only after Worker runtime-driver compatibility passes;
-- may be absent so that HTTP preflight can produce its deterministic Worker start failure.
-
-A compiler or graph validator MUST NOT treat the unselected factory as an unnecessary declaration.
-
-The declarations describe possible runtime graph edges, not eager resolution order.
-
-### Worker task-factory selection
-
-`WorkerServiceFactory::taskFactory(...)` MUST receive:
-
-```text
-WorkerPoolSpec
-ContainerInterface
-```
-
-It MUST NOT receive closure factories.
-
-It MUST:
-
-1. select the canonical service id from `WorkerPoolSpec`;
-2. resolve only that selected service;
-3. validate `TaskFactoryInternalInterface`;
-4. validate `supports($spec)`;
-5. map lookup and validation failures to safe deterministic Worker start failures.
-
-The canonical mapping is:
-
-```text
-queue -> QueueTaskFactory
-http  -> HttpTaskFactory
-```
-
-Task-factory selection MUST NOT eagerly resolve both concrete factories.
-
-A task-body closure produced after successful runtime resolution is allowed runtime work.
-
-It MUST NOT enter:
-
-- provider output;
-- canonical operations;
-- canonical values;
-- descriptor streams;
-- generated container artifacts;
-- fingerprint input.
-
-### Lazy WorkerManager resolution
-
-`WorkerStartCommand` MUST depend on:
-
-```text
-WorkerManagerResolverInterface
-```
-
-It MUST NOT depend on a closure-valued manager factory.
-
-The canonical implementation is:
-
-```text
-ContainerWorkerManagerResolver
-```
-
-The resolver MUST:
-
-- retain only `ContainerInterface`;
-- resolve `WorkerManager` on demand;
-- validate the resolved type;
-- map container failures and invalid bindings to safe deterministic Worker start failures;
-- preserve guard-before-manager ordering.
-
-Resolving `WorkerStartCommand` MUST NOT resolve `WorkerManager`.
-
-The required order is:
-
-```text
-build WorkerPoolSpec
-→ validate WorkerRuntimeEntrypointGuard
-→ resolve WorkerManager
-→ start WorkerManager
-```
-
-### RuntimePathContext
-
-`RuntimePathContext` is an immutable runtime-only seed owned by Kernel.
-
-It MAY contain normalized absolute:
-
-```text
-skeletonRoot
-artifactRoot
-```
-
-It MUST NOT:
-
-- be part of `ContainerDefinitionContext`;
-- be represented as a literal or parameter operation;
-- be represented as a runtime-object definition value;
-- serialize its `skeletonRoot` or `artifactRoot` values into descriptor fields;
-- emit its runtime path values into generated artifact payload values;
-- include its runtime path values in fingerprint input;
-- be treated as a Bootstrap Phase A result;
-- be resolved from `BootstrapConfig` by Worker services.
-
-The canonical service id:
-
-```text
-Coretsia\Kernel\Runtime\RuntimePathContext
-```
-
-MAY appear in:
-
-- required-service declarations;
-- typed service references;
-- graph completeness metadata.
-
-The presence of this service id MUST NOT be interpreted as serialization of the runtime context object or its path values.
-
-The exact compiled-artifact representation of an external runtime-seed dependency is owned by `docs/ssot/compiled-container.md`.
-
-Source-mode orchestration constructs it from already-resolved Phase A values.
-
-Artifact-mode orchestration constructs it from explicit runtime input.
-
-The Worker runtime graph MUST consume `RuntimePathContext` as an external runtime seed and MUST NOT depend on:
-
-```text
-BootstrapConfig
-```
-
-The following factory methods MUST receive `RuntimePathContext`:
-
-```text
-WorkerServiceFactory::applicationWorker(...)
-WorkerServiceFactory::pcntlWorkerManagerDriver(...)
-WorkerServiceFactory::procWorkerManagerDriver(...)
-```
-
-`WorkerServiceFactory::applicationWorker(...)` MUST extract the normalized skeleton root and pass it to `ApplicationWorker`.
-
-`WorkerServiceFactory::pcntlWorkerManagerDriver(...)` MUST extract the normalized skeleton root and pass it to `PcntlWorkerManagerDriver`.
-
-`WorkerServiceFactory::procWorkerManagerDriver(...)` MUST extract the normalized skeleton root and derive the concrete compiled config and container artifact paths only from `RuntimePathContext::artifactRoot()`.
-
-The constructed Worker runtime services MUST NOT resolve `BootstrapConfig` or independently reconstruct runtime roots or generated artifact locations.
+Resolving `WorkerStartCommand` MUST NOT resolve the selected task source. Source resolution/readiness occurs in the child only after `WorkerRuntimeEntrypointGuard` passes.
 
 ## Definition context (MUST)
 
@@ -2051,8 +1911,8 @@ framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRun
 Worker lazy-resolution and runtime-seed behavior SHOULD additionally be locked by:
 
 ```text
-framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesManagerLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskFactorySelectsServiceLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
 framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
@@ -2103,8 +1963,12 @@ Additional tests SHOULD cover:
 - Kernel runtime service parity;
 - Worker runtime service parity;
 - Worker provider output containing no closures;
-- `WorkerManager` lazy-resolution ordering;
-- lazy selection of only the canonical task-factory service;
+- `WorkerSupervisorInterface` lazy-resolution ordering;
+- absence of legacy lifecycle compatibility services and duplicate control-server abstractions;
+- presence of `WorkerControlClientInterface` and `WorkerSupervisorInterface` aliases;
+- presence of `WorkerHealthCommand`;
+- exact lazy selected-driver resolution without process-driver tags;
+- lazy exact-one selection of only the matching task-source service;
 - `RuntimePathContext::class` remaining visible as a required service id;
 - runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
 - production artifact compilation consuming complete provider-produced definition sets;
@@ -2114,7 +1978,7 @@ Additional tests SHOULD cover:
 - missing service, parameter, factory-service, alias, tag, and required-service edges failing deterministically;
 - Kernel compile-host ids being absent from runtime definition operations and compiled graph topology;
 - mandatory and possible container-owned graph lookups resolved through `ContainerInterface` having matching required-service declarations;
-- optional mode-dependent preflight lookups remaining outside unconditional required-service declarations.
+- external task-source implementations remaining lazy and absent from canonical built-in Worker definitions.
 
 ## Runtime acceptance scenario
 
@@ -2131,16 +1995,17 @@ When a declarative runtime provider contributes canonical container definitions:
 9. service, alias, and parameter collisions use later-wins behavior;
 10. duplicate tag pairs use first-wins behavior;
 11. source-container factory closures created for definition application exist only inside the Foundation adapter;
-12. Worker execution callbacks, including the PCNTL child runner and task-work callback, are created only during runtime service construction or execution and never enter canonical definitions;
-13. Worker source mode consumes `WorkerServiceProvider::define()`;
-14. production compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
-15. provider planning uses module topological order followed by declared provider order and creates no provider instances;
-16. `RuntimeContainerGraphCompiler` instantiates providers in plan order and invokes the same canonical provider contributions;
-17. one immutable definition set is built per provider and all sets are merged in exact plan order;
-18. `ContainerCompiler` produces one deterministic `DefinitionGraph`;
-19. `ContainerGraphCompletenessValidator` rejects incomplete runtime topology before artifact write or expected-artifact comparison;
-20. `ArtifactCompiler` and `CacheVerifier` use the same graph-production path;
-21. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
+12. The task-work callback is created only during runtime service construction or execution and never enters canonical definitions; the PCNTL driver receives no child-bootstrap callback;
+13. Worker source wiring defines supervisor, mandatory process-guardian, lazy selected-driver resolver, child-command builder, control, lifecycle-lock probe, process-driver, readiness, and health-command services;
+14. Worker source mode consumes `WorkerServiceProvider::define()`;
+15. production compile-time orchestration obtains one `ModuleResolution` and resolves one ordered `ContainerProviderPlan`;
+16. provider planning uses module topological order followed by declared provider order and creates no provider instances;
+17. `RuntimeContainerGraphCompiler` instantiates providers in plan order and invokes the same canonical provider contributions;
+18. one immutable definition set is built per provider and all sets are merged in exact plan order;
+19. `ContainerCompiler` produces one deterministic `DefinitionGraph`;
+20. `ContainerGraphCompletenessValidator` rejects incomplete runtime topology before artifact write or expected-artifact comparison;
+21. `ArtifactCompiler` and `CacheVerifier` use the same graph-production path;
+22. production artifact-only boot consumes approved compiled artifacts and does not run providers as a fallback.
 
 Steps 1–13 describe the active source-runtime definition flow.
 
@@ -2153,12 +2018,14 @@ Step 21 remains the separate artifact-only runtime boot boundary.
 - [SSoT Index](./INDEX.md)
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
+- [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md)
 - [JSON-like Runtime Values](./json-like-runtime-values.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Config Merge Order](./config-merge-order.md)
 - [Kernel Bootstrap Phase A](../adr/ADR-0023-kernel-bootstrap-phase-a.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)
-- [ADR-0017: Worker manager and application worker](../adr/ADR-0017-worker-manager-application-worker.md)
+- [ADR-0032: Process-Exec Descriptor Safety](../adr/ADR-0032-process-exec-descriptor-safety.md)
+- [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [Worker Architecture](../architecture/worker.md)
 - [Modules and Manifests](./modules-and-manifests.md)
 - [ADR-0024: Kernel Module Plan Resolution](../adr/ADR-0024-kernel-module-plan-resolution.md)

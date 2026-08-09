@@ -23,7 +23,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigSourceTypeIsStableContractTest extends TestCase
 {
-    public function test_source_type_values_are_canonical_and_ordered(): void
+    public function testSourceTypeValuesAreCanonicalAndOrdered(): void
     {
         self::assertSame(
             [
@@ -40,7 +40,7 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
         );
     }
 
-    public function test_source_type_enum_cases_are_canonical(): void
+    public function testSourceTypeEnumCasesAreCanonical(): void
     {
         self::assertSame('package_default', ConfigSourceType::PackageDefault->value);
         self::assertSame('skeleton_config', ConfigSourceType::SkeletonConfig->value);
@@ -52,7 +52,7 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
         self::assertSame('generated_artifact', ConfigSourceType::GeneratedArtifact->value);
     }
 
-    public function test_source_type_cases_match_values_without_extra_cases(): void
+    public function testSourceTypeCasesMatchValuesWithoutExtraCases(): void
     {
         self::assertSame(
             ConfigSourceType::values(),
@@ -65,7 +65,7 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
         self::assertCount(8, ConfigSourceType::cases());
     }
 
-    public function test_source_type_values_are_lowercase_ascii_identifiers(): void
+    public function testSourceTypeValuesAreLowercaseAsciiIdentifiers(): void
     {
         foreach (ConfigSourceType::values() as $value) {
             self::assertMatchesRegularExpression('/^[a-z][a-z0-9_]*$/', $value);
@@ -77,7 +77,7 @@ final class ConfigSourceTypeIsStableContractTest extends TestCase
         }
     }
 
-    public function test_source_type_known_check_is_strict(): void
+    public function testSourceTypeKnownCheckIsStrict(): void
     {
         foreach (ConfigSourceType::values() as $value) {
             self::assertTrue(ConfigSourceType::isKnown($value));

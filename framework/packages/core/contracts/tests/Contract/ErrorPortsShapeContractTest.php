@@ -34,7 +34,7 @@ use Throwable;
 
 final class ErrorPortsShapeContractTest extends TestCase
 {
-    public function test_exception_mapper_interface_shape_is_stable(): void
+    public function testExceptionMapperInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ExceptionMapperInterface::class);
 
@@ -59,7 +59,7 @@ final class ErrorPortsShapeContractTest extends TestCase
         self::assertMethodReturnType($method, ErrorDescriptor::class, true);
     }
 
-    public function test_error_reporter_interface_shape_is_stable(): void
+    public function testErrorReporterInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ErrorReporterPortInterface::class);
 
@@ -84,7 +84,7 @@ final class ErrorPortsShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_error_handler_interface_shape_is_stable(): void
+    public function testErrorHandlerInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ErrorHandlerInterface::class);
 
@@ -109,7 +109,7 @@ final class ErrorPortsShapeContractTest extends TestCase
         self::assertMethodReturnType($method, ErrorDescriptor::class, false);
     }
 
-    public function test_error_ports_can_compose_through_format_neutral_contracts(): void
+    public function testErrorPortsCanComposeThroughFormatNeutralContracts(): void
     {
         $mapper = new class() implements ExceptionMapperInterface {
             public function map(

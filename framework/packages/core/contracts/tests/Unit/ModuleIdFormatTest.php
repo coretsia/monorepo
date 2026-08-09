@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ModuleIdFormatTest extends TestCase
 {
-    public function test_accepts_canonical_module_id(): void
+    public function testAcceptsCanonicalModuleId(): void
     {
         $id = ModuleId::fromString('platform.cli');
 
@@ -34,7 +34,7 @@ final class ModuleIdFormatTest extends TestCase
         self::assertSame('platform.cli', (string)$id);
     }
 
-    public function test_normalizes_ascii_case_without_locale(): void
+    public function testNormalizesAsciiCaseWithoutLocale(): void
     {
         $id = ModuleId::fromString('Platform.Http-Server');
 
@@ -43,7 +43,7 @@ final class ModuleIdFormatTest extends TestCase
         self::assertSame('http-server', $id->slug());
     }
 
-    public function test_builds_from_layer_and_slug(): void
+    public function testBuildsFromLayerAndSlug(): void
     {
         $id = ModuleId::fromLayerAndSlug('Presets', 'Enterprise-Api');
 
@@ -52,7 +52,7 @@ final class ModuleIdFormatTest extends TestCase
         self::assertSame('enterprise-api', $id->slug());
     }
 
-    public function test_compares_by_canonical_value(): void
+    public function testComparesByCanonicalValue(): void
     {
         $left = ModuleId::fromString('CORE.KERNEL');
         $right = ModuleId::fromLayerAndSlug('core', 'kernel');
@@ -62,14 +62,14 @@ final class ModuleIdFormatTest extends TestCase
         self::assertFalse($left->equals($other));
     }
 
-    public function test_rejects_non_ascii_locale_sensitive_letters(): void
+    public function testRejectsNonAsciiLocaleSensitiveLetters(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         ModuleId::fromString('İntegrations.redis');
     }
 
-    public function test_rejects_dot_inside_layer_or_slug_parts(): void
+    public function testRejectsDotInsideLayerOrSlugParts(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -77,7 +77,7 @@ final class ModuleIdFormatTest extends TestCase
     }
 
     #[DataProvider('invalidModuleIds')]
-    public function test_rejects_invalid_module_ids(string $value): void
+    public function testRejectsInvalidModuleIds(string $value): void
     {
         $this->expectException(\InvalidArgumentException::class);
 

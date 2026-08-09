@@ -24,7 +24,7 @@ use ReflectionClass;
 
 final class MergeStrategyInterfaceShapeContractTest extends TestCase
 {
-    public function test_merge_strategy_interface_exposes_merge_only(): void
+    public function testMergeStrategyInterfaceExposesMergeOnly(): void
     {
         $interface = new ReflectionClass(MergeStrategyInterface::class);
 
@@ -39,7 +39,7 @@ final class MergeStrategyInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_merge_method_shape_is_binary_node_merge_boundary(): void
+    public function testMergeMethodShapeIsBinaryNodeMergeBoundary(): void
     {
         $method = new \ReflectionMethod(MergeStrategyInterface::class, 'merge');
 
@@ -58,7 +58,7 @@ final class MergeStrategyInterfaceShapeContractTest extends TestCase
         self::assertSame('mixed', (string)$method->getReturnType());
     }
 
-    public function test_merge_method_docblock_cements_side_effect_free_binary_policy(): void
+    public function testMergeMethodDocblockCementsSideEffectFreeBinaryPolicy(): void
     {
         $method = new \ReflectionMethod(MergeStrategyInterface::class, 'merge');
 

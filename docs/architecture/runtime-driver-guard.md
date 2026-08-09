@@ -270,7 +270,7 @@ Expected direct caller categories include:
 - Kernel-owned production boot paths;
 - platform or integration package boundaries that already possess explicit `RuntimeDriverContributions`.
 
-Worker command surfaces, Worker HTTP task preflight, and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly.
+Worker command surfaces and the shipped Worker child launcher call `WorkerRuntimeEntrypointGuard`, not the Kernel guard directly. Worker task-source resolution/readiness occurs after this compatibility boundary succeeds.
 
 Every caller supplies:
 
@@ -310,7 +310,7 @@ Missing or invalid owner-package runtime input is not automatically a Kernel mat
 For the current Worker package, missing or invalid `worker.task_type` fails through Worker policy:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 The current Worker module-owner precondition is enforced before Kernel matrix evaluation.
@@ -448,7 +448,7 @@ Changes to Worker-owned task-type mapping or Worker entrypoint ownership must al
 
 ```text
 docs/architecture/worker.md
-docs/adr/ADR-0017-worker-manager-application-worker.md
+docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
 framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php

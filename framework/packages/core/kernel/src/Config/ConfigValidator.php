@@ -59,6 +59,8 @@ use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
  * - type
  * - items
  * - allowedValues
+ * - forbiddenPrefixes
+ * - forbiddenSegmentPrefixes
  *
  * Existing package rules also use:
  *
@@ -98,6 +100,10 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
     private const string REASON_CONFIG_ROOT_MISMATCH = 'rule-config-root-mismatch';
     private const string REASON_CONFIG_ROOT_MISSING = 'rule-config-root-missing';
     private const string REASON_CONFIG_ROOT_TYPE = 'rule-config-root-type';
+    private const string REASON_FORBIDDEN_PREFIX_TYPE = 'rule-forbidden-prefix-type';
+    private const string REASON_FORBIDDEN_PREFIXES_TYPE = 'rule-forbidden-prefixes-type';
+    private const string REASON_FORBIDDEN_SEGMENT_PREFIX_TYPE = 'rule-forbidden-segment-prefix-type';
+    private const string REASON_FORBIDDEN_SEGMENT_PREFIXES_TYPE = 'rule-forbidden-segment-prefixes-type';
     private const string REASON_ITEMS_TYPE = 'rule-items-type';
     private const string REASON_KEYS_TYPE = 'rule-keys-type';
     private const string REASON_MIN = 'min';
@@ -147,6 +153,8 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
         'additionalKeys' => true,
         'allowedValues' => true,
         'configRoot' => true,
+        'forbiddenPrefixes' => true,
+        'forbiddenSegmentPrefixes' => true,
         'items' => true,
         'keys' => true,
         'max' => true,
@@ -563,6 +571,25 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
             }
         }
 
+        self::validateNonEmptyStringListRuleField(
+            root: $root,
+            rule: $rule,
+            rulePath: $rulePath,
+            key: 'forbiddenPrefixes',
+            listReason: self::REASON_FORBIDDEN_PREFIXES_TYPE,
+            itemReason: self::REASON_FORBIDDEN_PREFIX_TYPE,
+            violations: $violations,
+        );
+        self::validateNonEmptyStringListRuleField(
+            root: $root,
+            rule: $rule,
+            rulePath: $rulePath,
+            key: 'forbiddenSegmentPrefixes',
+            listReason: self::REASON_FORBIDDEN_SEGMENT_PREFIXES_TYPE,
+            itemReason: self::REASON_FORBIDDEN_SEGMENT_PREFIX_TYPE,
+            violations: $violations,
+        );
+
         if (isset($rule['items'])) {
             if (!\is_array($rule['items']) || (\array_is_list($rule['items']) && $rule['items'] !== [])) {
                 $violations[] = self::violation(
@@ -617,6 +644,55 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
                     violations: $violations,
                 );
             }
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $rule
+     * @param list<ConfigValidationViolation> $violations
+     */
+    private static function validateNonEmptyStringListRuleField(
+        string $root,
+        array $rule,
+        string $rulePath,
+        string $key,
+        string $listReason,
+        string $itemReason,
+        array &$violations,
+    ): void {
+        if (!\array_key_exists($key, $rule)) {
+            return;
+        }
+
+        $value = $rule[$key];
+
+        if (!\is_array($value) || !\array_is_list($value)) {
+            $violations[] = self::violation(
+                root: $root,
+                path: self::appendPath($rulePath, $key),
+                reason: $listReason,
+                expected: self::EXPECTED_LIST,
+                actualType: self::actualType($value),
+            );
+
+            return;
+        }
+
+        foreach ($value as $index => $item) {
+            if (\is_string($item) && $item !== '') {
+                continue;
+            }
+
+            $violations[] = self::violation(
+                root: $root,
+                path: self::appendPath(
+                    self::appendPath($rulePath, $key),
+                    $index,
+                ),
+                reason: $itemReason,
+                expected: self::EXPECTED_NON_EMPTY_STRING,
+                actualType: self::actualType($item),
+            );
         }
     }
 
@@ -713,6 +789,22 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
                     ? self::REASON_RELATIVE_SAFE_PATH
                     : self::REASON_TYPE,
                 expected: self::expectedForType($type),
+                actualType: self::actualType($value),
+            );
+
+            return;
+        }
+
+        if (
+            $type === self::TYPE_RELATIVE_SAFE_PATH
+            && \is_string($value)
+            && !self::matchesRelativeSafePathConstraints($value, $rule)
+        ) {
+            $violations[] = self::violation(
+                root: $root,
+                path: $path,
+                reason: self::REASON_RELATIVE_SAFE_PATH,
+                expected: self::EXPECTED_RELATIVE_SAFE_PATH,
                 actualType: self::actualType($value),
             );
 
@@ -956,6 +1048,51 @@ final readonly class ConfigValidator implements ConfigValidatorInterface
         foreach (\explode('/', $value) as $segment) {
             if ($segment === '' || $segment === '.' || $segment === '..') {
                 return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array<string,mixed> $rule
+     */
+    private static function matchesRelativeSafePathConstraints(
+        string $value,
+        array $rule,
+    ): bool {
+        $forbiddenPrefixes = $rule['forbiddenPrefixes'] ?? [];
+
+        if (\is_array($forbiddenPrefixes) && \array_is_list($forbiddenPrefixes)) {
+            foreach ($forbiddenPrefixes as $prefix) {
+                if (
+                    \is_string($prefix)
+                    && $prefix !== ''
+                    && \str_starts_with($value, $prefix)
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        $forbiddenSegmentPrefixes = $rule['forbiddenSegmentPrefixes'] ?? [];
+
+        if (
+            !\is_array($forbiddenSegmentPrefixes)
+            || !\array_is_list($forbiddenSegmentPrefixes)
+        ) {
+            return true;
+        }
+
+        foreach (\explode('/', $value) as $segment) {
+            foreach ($forbiddenSegmentPrefixes as $prefix) {
+                if (
+                    \is_string($prefix)
+                    && $prefix !== ''
+                    && \str_starts_with($segment, $prefix)
+                ) {
+                    return false;
+                }
             }
         }
 

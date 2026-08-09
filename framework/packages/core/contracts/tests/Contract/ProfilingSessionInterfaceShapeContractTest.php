@@ -27,7 +27,7 @@ use ReflectionNamedType;
 
 final class ProfilingSessionInterfaceShapeContractTest extends TestCase
 {
-    public function test_profiling_session_interface_shape_is_stable(): void
+    public function testProfilingSessionInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ProfilingSessionInterface::class);
 
@@ -49,7 +49,7 @@ final class ProfilingSessionInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($stop, ProfileArtifact::class, true);
     }
 
-    public function test_session_stop_can_return_artifact_then_null(): void
+    public function testSessionStopCanReturnArtifactThenNull(): void
     {
         $artifact = new ProfileArtifact(
             name: 'core.profile',

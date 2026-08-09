@@ -30,7 +30,7 @@ use stdClass;
 
 final class ProfilingContractsShapeContractTest extends TestCase
 {
-    public function test_profile_artifact_shape_is_stable_and_payload_is_opaque(): void
+    public function testProfileArtifactShapeIsStableAndPayloadIsOpaque(): void
     {
         $artifact = new ProfileArtifact(
             name: 'core.profile',
@@ -87,7 +87,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
         self::assertNotContains('raw-private-profile-payload', $artifact->toArray());
     }
 
-    public function test_profile_artifact_rejects_invalid_metadata(): void
+    public function testProfileArtifactRejectsInvalidMetadata(): void
     {
         $invalidMetadataCases = [
             'root-list' => [
@@ -127,7 +127,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
         }
     }
 
-    public function test_profiler_port_interface_shape_is_stable(): void
+    public function testProfilerPortInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ProfilerPortInterface::class);
 
@@ -165,7 +165,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
         self::assertMethodReturnType($start, ProfilingSessionInterface::class, false);
     }
 
-    public function test_profile_exporter_interface_shape_is_stable(): void
+    public function testProfileExporterInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ProfileExporterInterface::class);
 
@@ -208,7 +208,7 @@ final class ProfilingContractsShapeContractTest extends TestCase
         self::assertMethodReturnType($export, 'void', false);
     }
 
-    public function test_profiler_session_and_exporter_implementations_can_compose_through_contracts(): void
+    public function testProfilerSessionAndExporterImplementationsCanComposeThroughContracts(): void
     {
         $profiler = new class() implements ProfilerPortInterface {
             /**

@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ModuleDescriptorSchemaVersionTest extends TestCase
 {
-    public function test_exposes_initial_schema_version(): void
+    public function testExposesInitialSchemaVersion(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug('core', 'kernel');
 
@@ -33,7 +33,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         self::assertSame(1, $descriptor->toArray()['schemaVersion']);
     }
 
-    public function test_exports_stable_descriptor_shape(): void
+    public function testExportsStableDescriptorShape(): void
     {
         $descriptor = ModuleDescriptor::fromLayerAndSlug(
             layer: 'platform',
@@ -77,7 +77,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
     }
 
     #[DataProvider('invalidMetadataValues')]
-    public function test_rejects_non_json_like_metadata_values(mixed $value): void
+    public function testRejectsNonJsonLikeMetadataValues(mixed $value): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -90,7 +90,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
-    public function test_descriptor_optional_strings_reject_unsafe_control_characters(): void
+    public function testDescriptorOptionalStringsRejectUnsafeControlCharacters(): void
     {
         self::assertInvalidArgument(
             static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
@@ -117,7 +117,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
-    public function test_descriptor_capabilities_reject_unsafe_control_characters(): void
+    public function testDescriptorCapabilitiesRejectUnsafeControlCharacters(): void
     {
         self::assertInvalidArgument(
             static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
@@ -144,7 +144,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
-    public function test_descriptor_metadata_keys_reject_unsafe_control_characters(): void
+    public function testDescriptorMetadataKeysRejectUnsafeControlCharacters(): void
     {
         self::assertInvalidArgument(
             static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
@@ -167,7 +167,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
-    public function test_descriptor_metadata_string_values_reject_unsafe_control_characters(): void
+    public function testDescriptorMetadataStringValuesRejectUnsafeControlCharacters(): void
     {
         self::assertInvalidArgument(
             static fn (): ModuleDescriptor => ModuleDescriptor::fromLayerAndSlug(
@@ -200,7 +200,7 @@ final class ModuleDescriptorSchemaVersionTest extends TestCase
         );
     }
 
-    public function test_rejects_resource_metadata_value(): void
+    public function testRejectsResourceMetadataValue(): void
     {
         $resource = fopen('php://memory', 'rb');
 

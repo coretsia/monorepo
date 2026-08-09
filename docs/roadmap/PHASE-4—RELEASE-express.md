@@ -40,7 +40,7 @@ config_roots_introduced:
 - "validation"
   artifacts_introduced: []
 
-adr: docs/adr/ADR-0050-validation-engine.md
+adr: docs/adr/ADR-XXXX-validation-engine.md
 ssot_refs:
 - docs/ssot/config-roots.md
 ---
@@ -67,7 +67,7 @@ ssot_refs:
   - `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php` — descriptor shape
   - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracer port
   - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — meter port
-  - `docs/adr/ADR-0050-validation-engine.md` — ADR locked before impl
+  - `docs/adr/ADR-XXXX-validation-engine.md` — ADR locked before impl
 
 - Required config roots/keys:
   - `validation` / `validation.enabled` — package enable flag
@@ -182,7 +182,7 @@ Forbidden:
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register ADR-0050
+- [ ] `docs/adr/INDEX.md` — register ADR-XXXX-validation-engine.md
 - [ ] `docs/ssot/config-roots.md` — add `validation` root row
 
 #### Package skeleton (if type=package)
@@ -309,7 +309,7 @@ N/A
 - [ ] Docs updated:
   - [ ] README
   - [ ] `docs/guides/validation.md`
-  - [ ] ADR-0050
+  - [ ] ADR-XXXX-validation-engine.md
 - [ ] No HTTP coupling
 - [ ] No DTO reflection/attributes
 - [ ] No database/file adapters
@@ -1516,7 +1516,7 @@ tags_introduced: []
 config_roots_introduced: ["http_client"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0051-http-client-outgoing.md
+adr: docs/adr/ADR-XXXX-http-client-outgoing.md
 ssot_refs: []
 ---
 
@@ -1533,7 +1533,7 @@ ssot_refs: []
   - (policy) Phase 1 redaction: never log Authorization/Cookie/Set-Cookie; never log raw URL/query (hash/len only)
 
 - Required deliverables (exact paths):
-  - `docs/adr/ADR-0051-http-client-outgoing.md` — ADR (locked before impl)
+  - `docs/adr/ADR-XXXX-http-client-outgoing.md` — ADR (locked before impl)
 
 - Required config roots/keys:
   - `http_client` / `http_client.*` — this epic introduces the root & keys
@@ -1644,7 +1644,7 @@ N/A
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0051-http-client-outgoing.md`
+  - [ ] `docs/adr/ADR-XXXX-http-client-outgoing.md`
 
 #### Package skeleton (if type=package)
 
@@ -1787,7 +1787,7 @@ tags_introduced: ["filesystem.disk_driver"]
 config_roots_introduced: ["filesystem", "filesystem_local"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0052-platform-filesystem-local-driver.md
+adr: docs/adr/ADR-XXXX-platform-filesystem-local-driver.md
 ssot_refs:
 - docs/ssot/filesystem-path-safety.md
 ---
@@ -1806,7 +1806,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `framework/packages/core/contracts/src/Filesystem/DiskInterface.php` — public port
-  - `docs/adr/ADR-0052-platform-filesystem-local-driver.md` — ADR (locked before impl)
+  - `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md` — ADR (locked before impl)
 
 - Required config roots/keys:
   - `filesystem` / `filesystem.*` — this epic introduces the root & keys
@@ -1952,7 +1952,7 @@ Driver:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/filesystem-path-safety.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0052-platform-filesystem-local-driver.md`
+  - [ ] `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md`
 
 #### Package skeleton (if type=package)
 
@@ -2203,7 +2203,7 @@ tags_introduced: []
 config_roots_introduced: ["uploads"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0053-multipart-parsing-validation-quarantine.md
+adr: docs/adr/ADR-XXXX-multipart-parsing-validation-quarantine.md
 ssot_refs:
 - docs/ssot/http-middleware-catalog.md
 ---
@@ -2221,7 +2221,7 @@ ssot_refs:
   - (policy) canonical error flow exists: ExceptionMapper → ErrorDescriptor → ProblemDetails (no direct rendering here)
 
 - Required deliverables (exact paths):
-  - `docs/adr/ADR-0053-multipart-parsing-validation-quarantine.md` — ADR (locked before impl)
+  - `docs/adr/ADR-XXXX-multipart-parsing-validation-quarantine.md` — ADR (locked before impl)
   - `docs/ssot/http-middleware-catalog.md` — catalog must include middleware row after wiring
 
 - Required config roots/keys:
@@ -2349,7 +2349,7 @@ Docs:
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `MultipartFormDataMiddleware` priority 80
   - [ ] row MUST use slot `http.middleware.app_pre` and priority `80`.
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0053-multipart-parsing-validation-quarantine.md`
+  - [ ] `docs/adr/ADR-XXXX-multipart-parsing-validation-quarantine.md`
 
 #### Package skeleton (if type=package)
 
@@ -2522,7 +2522,7 @@ tags_introduced: ["database.driver"]
 config_roots_introduced: ["database"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0054-database-core-driver-port-querybuilder.md
+adr: docs/adr/ADR-XXXX-database-core-driver-port-querybuilder.md
 ssot_refs:
 - docs/ssot/database-redaction.md
 - docs/ssot/database-pdo-options.md
@@ -2541,7 +2541,7 @@ ssot_refs:
   - (policy) migrations ordering determinism (id/filename ASC) is enforced in migrations layer (separate epic)
 
 - Required deliverables (exact paths):
-  - `docs/adr/ADR-0054-database-core-driver-port-querybuilder.md` — ADR (locked before impl)
+  - `docs/adr/ADR-XXXX-database-core-driver-port-querybuilder.md` — ADR (locked before impl)
   - `docs/ssot/database-redaction.md` — SSoT: no raw SQL; safe table label policy
 
 - Required config roots/keys:
@@ -2783,7 +2783,7 @@ Docs:
   - [ ] `docs/ssot/database-pdo-options.md`
   - [ ] `docs/ssot/database-config-schema.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0054-database-core-driver-port-querybuilder.md`
+  - [ ] `docs/adr/ADR-XXXX-database-core-driver-port-querybuilder.md`
 - [ ] `docs/ssot/tags.md` — add tag row:
   - tag: `database.driver`
   - owner: `platform/database`
@@ -4424,7 +4424,7 @@ config_roots_introduced:
 - "migrations"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-0055-migrations-driver-agnostic.md"
+adr: "docs/adr/ADR-XXXX-migrations-driver-agnostic.md"
 ssot_refs:
 - "docs/ssot/migrations-ordering.md"
 ---
@@ -4573,7 +4573,7 @@ Tests:
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/migrations-ordering.md`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0055-migrations-driver-agnostic.md`
+  - [ ] `docs/adr/ADR-XXXX-migrations-driver-agnostic.md`
 - [ ] `docs/guides/migrations.md` — how to add migrations paths via `@append`, how to run commands
 - [ ] `docs/ssot/config-roots.md` — register `migrations` root (owner `platform/migrations`)
 
@@ -4740,7 +4740,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0070-queue-ports-jobs-retry.md
+adr: docs/adr/ADR-XXXX-queue-ports-jobs-retry.md
 ssot_refs: []
 ---
 
@@ -4805,7 +4805,7 @@ N/A
 ### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0070-queue-ports-jobs-retry.md`
+  - [ ] `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
 
 ### Package skeleton (if type=package)
 
@@ -4873,7 +4873,7 @@ N/A
 - [ ] Ports/VO shapes stable + protected by contract tests
 - [ ] ADR exists and documents invariants (json-like payload, no PSR-7)
 - [ ] Docs updated:
-  - [ ] ADR: `docs/adr/ADR-0070-queue-ports-jobs-retry.md`
+  - [ ] ADR: `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
 - [ ] Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
 - [ ] When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
 - [ ] Problem this epic solves
@@ -5969,7 +5969,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0057-auth-session-security-lock-ports.md"
+adr: "docs/adr/ADR-XXXX-auth-session-security-lock-ports.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/config-and-env.md"
@@ -6053,7 +6053,7 @@ N/A
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0057-auth-session-security-lock-ports.md`
+  - [ ] `docs/adr/ADR-XXXX-auth-session-security-lock-ports.md`
 
 #### Package skeleton (if type=package)
 
@@ -6112,7 +6112,7 @@ N/A
 - [ ] Determinism: VO shapes stable + tests protect them
 - [ ] Tests green: contract tests pass
 - [ ] Docs updated:
-  - [ ] `docs/adr/ADR-0057-auth-session-security-lock-ports.md`
+  - [ ] `docs/adr/ADR-XXXX-auth-session-security-lock-ports.md`
   - [ ] `framework/packages/core/contracts/README.md` (if maintained)
 - [ ] Додавання HTTP-aware типів/Response у contracts (заборонено)
 - [ ] Contracts дозволяють реалізувати session/auth/security/lock у platform layer без змін contracts і без PSR-7 leakage.
@@ -6143,7 +6143,7 @@ tags_introduced: []
 config_roots_introduced: ["session"]
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0058-session-layer-file-storage.md"
+adr: "docs/adr/ADR-XXXX-session-layer-file-storage.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
@@ -6247,7 +6247,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0058-session-layer-file-storage.md`
+  - [ ] `docs/adr/ADR-XXXX-session-layer-file-storage.md`
 
 #### Package skeleton (if type=package)
 
@@ -6376,7 +6376,7 @@ Forbidden:
 - [ ] Determinism: storage schema stable + atomic writes; no nondeterministic outputs
 - [ ] Docs updated:
   - [ ] `framework/packages/platform/session/README.md`
-  - [ ] `docs/adr/ADR-0058-session-layer-file-storage.md`
+  - [ ] `docs/adr/ADR-XXXX-session-layer-file-storage.md`
 - [ ] Non-goals / out of scope
   - [ ] Redis session storage (Phase 6+ integration)
   - [ ] Будь-які auth/token механізми (це `platform/auth`)
@@ -6421,7 +6421,7 @@ tags_introduced: []
 config_roots_introduced: ["auth"]
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0059-session-auth-rbac.md"
+adr: "docs/adr/ADR-XXXX-session-auth-rbac.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
@@ -6540,7 +6540,7 @@ Forbidden:
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0059-session-auth-rbac.md`
+  - [ ] `docs/adr/ADR-XXXX-session-auth-rbac.md`
 
 #### Package skeleton (if type=package)
 
@@ -6669,7 +6669,7 @@ N/A
 - [ ] Determinism: mapper outputs deterministic codes/status; no random ids
 - [ ] Docs updated:
   - [ ] `framework/packages/platform/auth/README.md` (incl. middleware slot/priority + opt-in middlewares usage)
-  - [ ] `docs/adr/ADR-0059-session-auth-rbac.md`
+  - [ ] `docs/adr/ADR-XXXX-session-auth-rbac.md`
 - [ ] What problem this epic solves
   - [ ] Reference auth middleware (`AuthMiddleware`) який формує identity для UoW і пише safe `actor_id` у ContextStore
   - [ ] RBAC authorization engine як reference реалізація `AuthorizationInterface`
@@ -6721,7 +6721,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0060-token-bearer-jwt-guard.md"
+adr: "docs/adr/ADR-XXXX-token-bearer-jwt-guard.md"
 ssot_refs:
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/metrics-policy.md"
@@ -6810,7 +6810,7 @@ Forbidden:
 - [ ] `framework/packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — deterministic guard selection (no behavior randomness)
 - [ ] `framework/packages/platform/auth/README.md` — document guard selection + redaction policy
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0060-token-bearer-jwt-guard.md`
+  - [ ] `docs/adr/ADR-XXXX-token-bearer-jwt-guard.md`
 
 #### Package skeleton (if type=package)
 
@@ -6913,7 +6913,7 @@ N/A
 - [ ] Deterministic guard selection rules documented in README
 - [ ] Tests green
 - [ ] ADR updated:
-  - [ ] `docs/adr/ADR-0060-token-bearer-jwt-guard.md`
+  - [ ] `docs/adr/ADR-XXXX-token-bearer-jwt-guard.md`
 - [ ] Non-goals / out of scope
   - [ ] OIDC/JWKS discovery, enterprise SSO
   - [ ] Збереження plaintext токенів (заборонено)
@@ -6953,7 +6953,7 @@ tags_introduced: []
 config_roots_introduced: ["security"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0062-csrf-signed-urls.md
+adr: docs/adr/ADR-XXXX-csrf-signed-urls.md
 ssot_refs: []
 ---
 
@@ -7080,7 +7080,7 @@ Forbidden:
 - [ ] `framework/packages/platform/security/config/rules.php` — enforces updated/complete config shape (if expanded during impl)
 - [ ] `framework/packages/platform/security/README.md` — include middleware slot/priority + override/disable in manual HTTP mode
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0062-csrf-signed-urls.md`
+  - [ ] `docs/adr/ADR-XXXX-csrf-signed-urls.md`
 
 #### Package skeleton (if type=package)
 
@@ -7220,7 +7220,7 @@ N/A
 - [ ] Determinism: signed-url canonicalization stable; no random in outputs
 - [ ] Docs updated:
   - [ ] README includes middleware slot/priority + how to override/disable in http manual mode
-  - [ ] ADR present: `docs/adr/ADR-0062-csrf-signed-urls.md`
+  - [ ] ADR present: `docs/adr/ADR-XXXX-csrf-signed-urls.md`
 - [ ] Non-goals / out of scope
   - [ ] CAPTCHA/anti-bot та WAF (інший шар)
   - [ ] Вивід токенів/секретів в дебаг-ендпоінтах (заборонено)
@@ -7265,7 +7265,7 @@ tags_introduced: []
 config_roots_introduced: ["encryption"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0063-data-encryption-key-management.md
+adr: docs/adr/ADR-XXXX-data-encryption-key-management.md
 ssot_refs: []
 ---
 
@@ -7362,7 +7362,7 @@ N/A
 - [ ] `framework/packages/platform/encryption/README.md` — integration expectations + redaction policy
 - [ ] `framework/packages/platform/encryption/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0063-data-encryption-key-management.md`
+  - [ ] `docs/adr/ADR-XXXX-data-encryption-key-management.md`
 
 #### Package skeleton (if type=package)
 
@@ -7486,7 +7486,7 @@ N/A
 - [ ] No secret/payload leakage
 - [ ] Deterministic exception codes
 - [ ] If contracts ports were added: ADR merged + contracts tests updated
-- [ ] ADR present: `docs/adr/ADR-0063-data-encryption-key-management.md`
+- [ ] ADR present: `docs/adr/ADR-XXXX-data-encryption-key-management.md`
 - [ ] Non-goals / out of scope
   - [ ] KMS integrations (Vault/AWS KMS) — Phase 6+
   - [ ] Виносити crypto vendor namespaces у contracts (заборонено)
@@ -7530,7 +7530,7 @@ tags_introduced: []
 config_roots_introduced: []  # `http.*` root already exists in platform/http; epic extends it
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0064-rate-limiting-identity-aware.md
+adr: docs/adr/ADR-XXXX-rate-limiting-identity-aware.md
 ssot_refs: []
 ---
 
@@ -7645,7 +7645,7 @@ Forbidden:
 - [ ] `framework/packages/platform/http/README.md` — document middleware slot/priority + override instructions
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware + tag (evidence point for DI wiring)
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0064-rate-limiting-identity-aware.md`
+  - [ ] `docs/adr/ADR-XXXX-rate-limiting-identity-aware.md`
 
 #### Package skeleton (if type=package)
 
@@ -7763,7 +7763,7 @@ N/A
 - [ ] deterministic key building
 - [ ] no PII leakage
 - [ ] README updated with middleware slot/priority + override instructions
-- [ ] ADR present: `docs/adr/ADR-0064-rate-limiting-identity-aware.md`
+- [ ] ADR present: `docs/adr/ADR-XXXX-rate-limiting-identity-aware.md`
 - [ ] Solves:
   - [ ] Додати rate-limit middleware з deterministic ключами (actor_id або client_ip)
   - [ ] Забезпечити 429 з Retry-After без витоку PII
@@ -7803,7 +7803,7 @@ tags_introduced: []
 config_roots_introduced: ["hashing"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0065-password-hashing.md
+adr: docs/adr/ADR-XXXX-password-hashing.md
 ssot_refs: []
 ---
 
@@ -7884,7 +7884,7 @@ N/A
 
 - [ ] `framework/packages/platform/hashing/README.md` — document integration expectations for `platform/auth`
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0065-password-hashing.md`
+  - [ ] `docs/adr/ADR-XXXX-password-hashing.md`
 
 #### Package skeleton (if type=package)
 
@@ -7989,7 +7989,7 @@ N/A
 - [ ] password never logged
 - [ ] needsRehash policy tested
 - [ ] README documents integration expectations for `platform/auth`
-- [ ] ADR present: `docs/adr/ADR-0065-password-hashing.md`
+- [ ] ADR present: `docs/adr/ADR-XXXX-password-hashing.md`
 - [ ] Solves:
   - [ ] Надати reference `PasswordHasherInterface` (argon2id/bcrypt) з конфігом і deterministic error codes
   - [ ] Забезпечити, що `platform/auth` не реалізує hashing самостійно
@@ -8026,7 +8026,7 @@ tags_introduced: []
 config_roots_introduced: ["lock"]
 artifacts_introduced: []
 
-adr: docs/adr/ADR-0066-lock-factory-reference-drivers.md
+adr: docs/adr/ADR-XXXX-lock-factory-reference-drivers.md
 ssot_refs: []
 ---
 
@@ -8116,7 +8116,7 @@ N/A
 - [ ] `framework/packages/platform/lock/README.md` — driver options + redaction policy
 - [ ] `framework/packages/platform/lock/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0066-lock-factory-reference-drivers.md`
+  - [ ] `docs/adr/ADR-XXXX-lock-factory-reference-drivers.md`
 
 #### Package skeleton (if type=package)
 
@@ -8215,7 +8215,7 @@ N/A
 - [ ] Docs complete
 - [ ] file lock path safety enforced
 - [ ] key redaction enforced
-- [ ] ADR present: `docs/adr/ADR-0066-lock-factory-reference-drivers.md`
+- [ ] ADR present: `docs/adr/ADR-XXXX-lock-factory-reference-drivers.md`
 - [ ] Solves:
   - [ ] Reference lock factory (`in_memory`, `file`) через contracts `LockFactoryInterface`
   - [ ] Безпечні file locks через filesystem policy (no traversal/symlinks)
@@ -8253,7 +8253,7 @@ tags_introduced: []
 config_roots_introduced: ["cache"]
 artifacts_introduced: []  # runtime data is not a deterministic artifact
 
-adr: docs/adr/ADR-0067-cache-psr16-manager-stores.md
+adr: docs/adr/ADR-XXXX-cache-psr16-manager-stores.md
 ssot_refs: []
 ---
 
@@ -8351,7 +8351,7 @@ Forbidden:
 - [ ] `framework/packages/platform/cache/README.md` — driver options + redaction policy
 - [ ] `framework/packages/platform/cache/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0067-cache-psr16-manager-stores.md`
+  - [ ] `docs/adr/ADR-XXXX-cache-psr16-manager-stores.md`
 
 #### Package skeleton (if type=package)
 
@@ -8470,7 +8470,7 @@ N/A
 - [ ] no raw keys in logs
 - [ ] deterministic behavior for TTL semantics proven by tests
 - [ ] README documents driver options + redaction policy
-- [ ] ADR present: `docs/adr/ADR-0067-cache-psr16-manager-stores.md`
+- [ ] ADR present: `docs/adr/ADR-XXXX-cache-psr16-manager-stores.md`
 - [ ] Solves:
   - [ ] Єдиний cache layer (PSR-16) для інших пакетів (feature flags, inbox/outbox, rate limit stores тощо)
   - [ ] Reference stores (array/file/null) без integrations

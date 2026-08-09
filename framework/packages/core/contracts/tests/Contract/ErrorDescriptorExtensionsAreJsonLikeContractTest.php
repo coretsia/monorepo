@@ -25,7 +25,7 @@ use stdClass;
 
 final class ErrorDescriptorExtensionsAreJsonLikeContractTest extends TestCase
 {
-    public function test_extensions_accept_json_like_values_and_normalize_maps_deterministically(): void
+    public function testExtensionsAcceptJsonLikeValuesAndNormalizeMapsDeterministically(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -74,7 +74,7 @@ final class ErrorDescriptorExtensionsAreJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_extensions_preserve_list_order(): void
+    public function testExtensionsPreserveListOrder(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -101,7 +101,7 @@ final class ErrorDescriptorExtensionsAreJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_extensions_reject_non_empty_root_lists(): void
+    public function testExtensionsRejectNonEmptyRootLists(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
@@ -115,7 +115,7 @@ final class ErrorDescriptorExtensionsAreJsonLikeContractTest extends TestCase
         );
     }
 
-    public function test_extensions_reject_floats_nan_and_infinity(): void
+    public function testExtensionsRejectFloatsNanAndInfinity(): void
     {
         $invalidExtensions = [
             'float' => [
@@ -159,7 +159,7 @@ final class ErrorDescriptorExtensionsAreJsonLikeContractTest extends TestCase
         }
     }
 
-    public function test_extensions_reject_objects_closures_and_invalid_keys(): void
+    public function testExtensionsRejectObjectsClosuresAndInvalidKeys(): void
     {
         $invalidExtensions = [
             'object' => [

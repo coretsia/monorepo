@@ -28,7 +28,7 @@ use Throwable;
 
 final class SpanInterfaceShapeContractTest extends TestCase
 {
-    public function test_span_interface_shape_is_stable(): void
+    public function testSpanInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(SpanInterface::class);
 
@@ -54,7 +54,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_name_shape_is_stable(): void
+    public function testNameShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'name');
 
@@ -64,7 +64,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'string', false);
     }
 
-    public function test_set_attribute_shape_is_stable(): void
+    public function testSetAttributeShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'setAttribute');
 
@@ -89,7 +89,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_set_attributes_shape_is_stable(): void
+    public function testSetAttributesShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'setAttributes');
 
@@ -106,7 +106,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_add_event_shape_is_stable(): void
+    public function testAddEventShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'addEvent');
 
@@ -129,7 +129,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_record_exception_shape_is_stable(): void
+    public function testRecordExceptionShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'recordException');
 
@@ -152,7 +152,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_end_shape_is_stable(): void
+    public function testEndShapeIsStable(): void
     {
         $method = new ReflectionMethod(SpanInterface::class, 'end');
 
@@ -162,7 +162,7 @@ final class SpanInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($method, 'void', false);
     }
 
-    public function test_span_implementation_can_record_attributes_events_exception_and_end(): void
+    public function testSpanImplementationCanRecordAttributesEventsExceptionAndEnd(): void
     {
         $span = new class() implements SpanInterface {
             /**

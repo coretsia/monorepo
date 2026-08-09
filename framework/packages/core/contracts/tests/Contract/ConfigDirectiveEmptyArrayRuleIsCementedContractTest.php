@@ -37,7 +37,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         'replace' => self::EMPTY_ARRAY_REPLACES_TARGET,
     ];
 
-    public function test_empty_array_rule_covers_exactly_the_directive_allowlist(): void
+    public function testEmptyArrayRuleCoversExactlyTheDirectiveAllowlist(): void
     {
         self::assertSame(
             ConfigDirective::names(),
@@ -45,7 +45,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_append_empty_array_is_cemented_as_no_op(): void
+    public function testAppendEmptyArrayIsCementedAsNoOp(): void
     {
         self::assertSame(
             self::EMPTY_ARRAY_NO_OP,
@@ -53,7 +53,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_prepend_empty_array_is_cemented_as_no_op(): void
+    public function testPrependEmptyArrayIsCementedAsNoOp(): void
     {
         self::assertSame(
             self::EMPTY_ARRAY_NO_OP,
@@ -61,7 +61,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_remove_empty_array_is_cemented_as_no_op(): void
+    public function testRemoveEmptyArrayIsCementedAsNoOp(): void
     {
         self::assertSame(
             self::EMPTY_ARRAY_NO_OP,
@@ -69,7 +69,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_merge_empty_array_is_cemented_as_no_op(): void
+    public function testMergeEmptyArrayIsCementedAsNoOp(): void
     {
         self::assertSame(
             self::EMPTY_ARRAY_NO_OP,
@@ -77,7 +77,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_replace_empty_array_is_cemented_as_replaces_target_with_empty_array(): void
+    public function testReplaceEmptyArrayIsCementedAsReplacesTargetWithEmptyArray(): void
     {
         self::assertSame(
             self::EMPTY_ARRAY_REPLACES_TARGET,
@@ -85,7 +85,7 @@ final class ConfigDirectiveEmptyArrayRuleIsCementedContractTest extends TestCase
         );
     }
 
-    public function test_empty_array_payload_is_explicit_and_not_missing(): void
+    public function testEmptyArrayPayloadIsExplicitAndNotMissing(): void
     {
         $payload = [];
 

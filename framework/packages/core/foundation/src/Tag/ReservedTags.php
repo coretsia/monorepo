@@ -57,6 +57,8 @@ final class ReservedTags
     public const string KERNEL_RESET = 'kernel.reset';
     public const string KERNEL_STATEFUL = 'kernel.stateful';
 
+    public const string WORKER_TASK_SOURCE = 'worker.task_source';
+
     /**
      * @var list<non-empty-string>
      */
@@ -77,6 +79,7 @@ final class ReservedTags
         self::KERNEL_HOOK_BEFORE_UOW,
         self::KERNEL_RESET,
         self::KERNEL_STATEFUL,
+        self::WORKER_TASK_SOURCE,
     ];
 
     private function __construct()

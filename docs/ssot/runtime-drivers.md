@@ -24,6 +24,10 @@ owner: repo
 
 This document is the Single Source of Truth for Coretsia runtime driver compatibility.
 
+In this document, a runtime driver means a Kernel-level HTTP or background execution mode.
+
+It does not mean the package-internal OS process adapter selected by `platform/worker`.
+
 It defines which HTTP runtime drivers and background runtime drivers may be active together.
 
 The core invariant is:
@@ -57,6 +61,7 @@ This document owns:
 - deterministic Kernel runtime-driver matrix failure semantics;
 - canonical Kernel matrix error codes and reason tokens;
 - deterministic runtime-driver id ordering;
+- the distinction between Kernel runtime drivers and Worker-internal OS process drivers;
 - the boundary between owner input validation and Kernel matrix validation.
 
 This document does not own concrete guard implementation mechanics.
@@ -73,6 +78,20 @@ Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard
 `RuntimeDriverGuard` is the internal Kernel implementation detail.
 
 This document does not own runtime adapter implementation details.
+
+This document also does not own Worker OS process-driver selection.
+
+The Worker-internal values:
+
+```text
+auto
+pcntl
+proc
+```
+
+belong to `WorkerPoolSpec` and the `platform/worker` process-supervision architecture.
+
+They do not participate in the Kernel runtime-driver matrix.
 
 Runtime adapters are owned by later integration epics:
 
@@ -143,11 +162,29 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Terminology
 
-A runtime driver is an activated runtime execution mode.
+A Kernel runtime driver is an activated application execution mode represented by a canonical runtime driver id.
 
-An HTTP driver is a runtime driver whose Unit of Work is an HTTP request.
+An HTTP runtime driver is a Kernel runtime driver whose Unit of Work is an HTTP request.
 
-A background driver is a runtime driver whose Unit of Work is a background task, queue job, scheduled task, or similar non-HTTP cycle.
+A background runtime driver is a Kernel runtime driver whose Unit of Work is a background task, queue job, scheduled task, or similar non-HTTP cycle.
+
+A Worker OS process driver is a package-internal adapter that starts, polls, terminates, kills, and closes one operating-system child process.
+
+The canonical Worker OS process-driver implementations are:
+
+```text
+PcntlWorkerProcessDriver
+ProcWorkerProcessDriver
+```
+
+The canonical Worker OS process-driver ids are:
+
+```text
+pcntl
+proc
+```
+
+These ids are not Kernel runtime driver ids.
 
 A runtime-driver contribution is an already-selected canonical runtime driver supplied explicitly by an owner package through:
 
@@ -185,6 +222,84 @@ bg.scheduler
 Reserved future ids are not part of the current Phase 1 guard inputs.
 
 They MUST NOT be activated by the Phase 1 guard unless a later owner epic updates this SSoT.
+
+## Worker internal OS process-driver boundary
+
+Kernel runtime-driver selection and Worker OS process-driver selection are independent decisions.
+
+Kernel runtime-driver selection answers:
+
+```text
+Which HTTP execution mode is active?
+Which background execution modes are active?
+Is their composition compatible?
+```
+
+Worker OS process-driver selection answers:
+
+```text
+How does the foreground Worker supervisor create and control one child process on this operating system?
+```
+
+The Worker-owned config value:
+
+```text
+worker.driver
+```
+
+may request:
+
+```text
+auto
+pcntl
+proc
+```
+
+`WorkerPoolSpec` deterministically resolves it to:
+
+```text
+pcntl
+proc
+```
+
+This selection MUST NOT:
+
+- create a Kernel `HttpDriver`;
+- create a Kernel `BackgroundDriver`;
+- enter `RuntimeDriverContributions`;
+- affect HTTP-driver mutual exclusion;
+- affect the Kernel `platform.http` requirement;
+- introduce Kernel matrix error codes.
+
+Separately, Worker task type maps to Kernel runtime-driver contributions:
+
+```text
+worker.task_type=queue -> bg.worker_queue
+worker.task_type=http  -> http.worker
+```
+
+Therefore:
+
+```text
+worker.task_type
+  -> Kernel runtime-driver contribution
+
+worker.driver
+  -> internal OS process adapter
+```
+
+The Kernel guard does not select `pcntl` or `proc`.
+
+The Worker process supervisor does not independently evaluate the Kernel HTTP/background compatibility matrix.
+
+Invalid Worker OS process-driver configuration and unsupported platform capability are Worker-owned deterministic failures.
+
+Kernel runtime-driver conflicts remain Kernel-owned failures:
+
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+```
 
 ## Canonical matrix inputs
 
@@ -591,12 +706,12 @@ The Kernel guard MUST NOT treat omission of the contribution argument as an impl
 
 Owner packages own the presence, type, allowed values, defaults, and normalization of their own runtime inputs.
 
-For `platform/worker`, missing or invalid `worker.task_type` is a Worker-owned start-validation failure.
+For `platform/worker`, missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure.
 
 The current public failure is:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 
@@ -844,7 +959,7 @@ platform.worker
 
 before Worker runtime execution starts.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must use this boundary rather than performing independent module checks.
+`WorkerStartCommand` and the shipped Worker child launcher must use this boundary rather than performing independent module checks. Task-source resolution/readiness occurs only after the Worker-owned guard succeeds.
 
 A failed Worker owner precondition is surfaced as:
 
@@ -948,7 +1063,7 @@ worker-task-type-invalid
 Missing or invalid Worker task type uses Worker-owned failure semantics:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 
@@ -1180,7 +1295,7 @@ framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGua
 framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
 framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
 framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
-framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php
+framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
 ```
 
 ## Verification contract
@@ -1215,7 +1330,7 @@ Worker package tests MUST prove at minimum:
 - `WorkerRuntimeEntrypointGuard` maps `WorkerPoolSpec` to explicit contributions;
 - the Worker-owned boundary invokes the Kernel `RuntimeEntrypointGuard` with those explicit contributions;
 - Worker production callers do not import the internal mapper or invoke the Kernel guard directly;
-- HTTP task compatibility is checked through `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- HTTP task compatibility is checked through `WorkerRuntimeEntrypointGuard` before HTTP task-source resolution/readiness;
 - the child launcher invokes `WorkerRuntimeEntrypointGuard` before resolving `ApplicationWorker`;
 - Kernel guard failures are surfaced without reclassification as Worker failures.
 
@@ -1403,7 +1518,7 @@ worker.task_type = "scheduler"
 Failure:
 
 ```text
-CORETSIA_WORKER_START_FAILED
+CORETSIA_WORKER_LIFECYCLE_FAILED
 worker-invalid-state
 ```
 
@@ -1419,10 +1534,13 @@ This SSoT does not define:
 - concrete worker implementation;
 - concrete HTTP runtime entrypoint implementation;
 - concrete CLI command implementation;
-- runtime adapter process management;
-- socket binding;
-- port selection;
-- process supervision;
+- Worker OS process-driver implementation;
+- `WorkerProcessDriverInterface` mechanics;
+- PCNTL fork/wait/signal implementation;
+- proc process-host implementation;
+- Worker control socket binding;
+- Worker readiness transport;
+- Worker process supervision;
 - queue backend implementation;
 - scheduler implementation;
 - worker retry policy;
@@ -1449,3 +1567,5 @@ This SSoT does not define:
 - [Reset Tags SSoT](./reset-tags.md)
 - [Stateful Services SSoT](./stateful-services.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
+- [Worker Architecture](../architecture/worker.md)
+- [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)

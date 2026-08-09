@@ -37,6 +37,7 @@ use Psr\Log\LoggerInterface;
  * - exactly one final newline;
  * - temporary file creation in the same target directory;
  * - full temporary file write before rename;
+ * - POSIX close-on-exec for package-owned local file handles;
  * - atomic rename where supported by the filesystem/PHP runtime;
  * - best-effort temporary file cleanup on failure;
  * - best-effort write-time permissions.
@@ -429,7 +430,10 @@ final readonly class ArtifactWriter
             );
         }
 
-        $handle = @\fopen($targetPath, 'xb');
+        $handle = @\fopen(
+            $targetPath,
+            self::exclusiveCreateMode(),
+        );
 
         if (!\is_resource($handle)) {
             throw ArtifactWriteFailedException::withReason(
@@ -655,6 +659,19 @@ final readonly class ArtifactWriter
         return [
             'byte_count' => $byteCount,
         ];
+    }
+
+    /**
+     * Returns the exclusive local-file creation mode.
+     *
+     * POSIX runtimes request close-on-exec. Windows keeps the equivalent valid
+     * binary mode without the POSIX-only `e` flag.
+     */
+    private static function exclusiveCreateMode(): string
+    {
+        return \PHP_OS_FAMILY === 'Windows'
+            ? 'xb'
+            : 'xbe';
     }
 
     private static function normalizeTextBytes(string $bytes): string

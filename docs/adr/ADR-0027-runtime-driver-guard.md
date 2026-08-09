@@ -91,7 +91,7 @@ Therefore:
 - the current Kernel guard inspects `ModulePlan` only for the `platform.http` requirement;
 - Worker entrypoints may enforce Worker-owned module preconditions before invoking the Kernel entrypoint guard.
 
-Missing or invalid `worker.task_type` is a Worker-owned start-validation failure.
+Missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure.
 
 It is not a Kernel runtime-driver matrix invalid-config failure.
 
@@ -120,8 +120,7 @@ Owner packages select their own runtime drivers outside Kernel and pass them thr
 The Kernel matrix composes:
 
 ```text
-Kernel-selected HTTP driver
-+ explicit owner RuntimeDriverContributions
+Kernel-selected HTTP driver + explicit owner RuntimeDriverContributions
 ```
 
 `ModulePlan` MUST NOT be used to discover, infer, enable, disable, or synthesize owner contributions.
@@ -312,7 +311,7 @@ Missing or invalid Worker task type fails through Worker exception policy before
 
 That boundary validates the `platform.worker` module precondition, maps the already-normalized `WorkerPoolSpec` to explicit contributions through the package-internal mapper, and then invokes the Kernel entrypoint guard.
 
-`WorkerStartCommand`, `HttpTaskFactory`, and the shipped Worker child launcher must not perform that mapping or call the Kernel guard directly.
+`WorkerStartCommand` and the shipped Worker child launcher must not perform that mapping or call the Kernel guard directly. Task-source implementations are resolved only after the Worker-owned compatibility boundary passes.
 
 ## Method boundary decision
 
@@ -495,7 +494,7 @@ Missing or invalid `worker.task_type` is not a Kernel matrix invalid-config fail
 The current Worker package surfaces that owner-validation failure as:
 
 ```text
-CORETSIA_WORKER_START_FAILED: worker-invalid-state
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
 Diagnostics may expose only stable safe data:
@@ -584,7 +583,7 @@ Tests must verify:
 - Worker task type maps deterministically to `RuntimeDriverContributions`;
 - `WorkerRuntimeEntrypointGuard` performs the `platform.worker` precondition before runtime execution;
 - Worker production callers use `WorkerRuntimeEntrypointGuard` rather than importing the internal mapper or invoking the Kernel guard directly;
-- HTTP task preflight invokes `WorkerRuntimeEntrypointGuard` before request-handler resolution;
+- HTTP task-source readiness occurs only after `WorkerRuntimeEntrypointGuard` has passed;
 - `resolveEntrypointDrivers(...)` returns the same composed set that passed module compatibility validation;
 - `assertEntrypointAllowed(...)` is an assertion-only `void` wrapper.
 

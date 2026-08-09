@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 
 final class EnvMissingVsEmptyIsDistinctContractTest extends TestCase
 {
-    public function test_missing_value_is_not_present_and_has_no_string_value(): void
+    public function testMissingValueIsNotPresentAndHasNoStringValue(): void
     {
         $value = EnvValue::missing();
 
@@ -38,7 +38,7 @@ final class EnvMissingVsEmptyIsDistinctContractTest extends TestCase
         $value->value();
     }
 
-    public function test_present_empty_string_is_present_and_distinct_from_missing(): void
+    public function testPresentEmptyStringIsPresentAndDistinctFromMissing(): void
     {
         $value = EnvValue::present('');
 
@@ -48,7 +48,7 @@ final class EnvMissingVsEmptyIsDistinctContractTest extends TestCase
         self::assertSame('', $value->value());
     }
 
-    public function test_present_non_empty_string_is_present_and_not_empty_string(): void
+    public function testPresentNonEmptyStringIsPresentAndNotEmptyString(): void
     {
         $value = EnvValue::present('value');
 
@@ -58,7 +58,7 @@ final class EnvMissingVsEmptyIsDistinctContractTest extends TestCase
         self::assertSame('value', $value->value());
     }
 
-    public function test_missing_empty_string_and_non_empty_string_are_three_distinct_states(): void
+    public function testMissingEmptyStringAndNonEmptyStringAreThreeDistinctStates(): void
     {
         $missing = EnvValue::missing();
         $empty = EnvValue::present('');
@@ -80,7 +80,7 @@ final class EnvMissingVsEmptyIsDistinctContractTest extends TestCase
         self::assertSame('value', $nonEmpty->value());
     }
 
-    public function test_php_truthiness_must_not_define_env_presence(): void
+    public function testPhpTruthinessMustNotDefineEnvPresence(): void
     {
         $empty = EnvValue::present('');
 

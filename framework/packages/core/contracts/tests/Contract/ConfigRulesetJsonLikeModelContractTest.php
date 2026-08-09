@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigRulesetJsonLikeModelContractTest extends TestCase
 {
-    public function test_ruleset_accepts_json_like_declarative_rules_data(): void
+    public function testRulesetAcceptsJsonLikeDeclarativeRulesData(): void
     {
         $ruleset = new ConfigRuleset(
             'foundation',
@@ -96,7 +96,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         );
     }
 
-    public function test_ruleset_map_keys_are_sorted_deterministically_at_every_map_level(): void
+    public function testRulesetMapKeysAreSortedDeterministicallyAtEveryMapLevel(): void
     {
         $ruleset = new ConfigRuleset(
             'foundation',
@@ -122,7 +122,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         self::assertSame(['a', 'z'], array_keys($ruleset->rules()['z']['m']));
     }
 
-    public function test_ruleset_lists_preserve_declared_order(): void
+    public function testRulesetListsPreserveDeclaredOrder(): void
     {
         $ruleset = new ConfigRuleset(
             'foundation',
@@ -147,7 +147,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         );
     }
 
-    public function test_empty_ruleset_is_valid_empty_declarative_map(): void
+    public function testEmptyRulesetIsValidEmptyDeclarativeMap(): void
     {
         $ruleset = ConfigRuleset::fromArray('foundation', []);
 
@@ -165,7 +165,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
     }
 
     #[DataProvider('forbiddenFloatValues')]
-    public function test_float_values_are_forbidden_at_contract_boundary(mixed $value): void
+    public function testFloatValuesAreForbiddenAtContractBoundary(mixed $value): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid float config ruleset value at rules.invalid.');
@@ -179,7 +179,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
     }
 
     #[DataProvider('forbiddenNestedFloatValues')]
-    public function test_nested_float_values_are_forbidden_at_any_depth(array $rules, string $expectedPath): void
+    public function testNestedFloatValuesAreForbiddenAtAnyDepth(array $rules, string $expectedPath): void
     {
         try {
             new ConfigRuleset('foundation', $rules);
@@ -198,7 +198,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
     }
 
     #[DataProvider('forbiddenRuntimeValues')]
-    public function test_runtime_or_executable_values_are_forbidden_in_ruleset_data(mixed $value): void
+    public function testRuntimeOrExecutableValuesAreForbiddenInRulesetData(mixed $value): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid config ruleset value at rules.invalid.');
@@ -211,7 +211,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         );
     }
 
-    public function test_resource_values_are_forbidden_in_ruleset_data(): void
+    public function testResourceValuesAreForbiddenInRulesetData(): void
     {
         $resource = fopen('php://memory', 'rb');
 
@@ -236,7 +236,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         }
     }
 
-    public function test_root_rules_must_be_a_map_not_a_non_empty_list(): void
+    public function testRootRulesMustBeAMapNotANonEmptyList(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Config ruleset root rules must be a map.');
@@ -244,7 +244,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         new ConfigRuleset('foundation', ['not-a-map']);
     }
 
-    public function test_map_keys_must_be_non_empty_strings_without_control_bytes(): void
+    public function testMapKeysMustBeNonEmptyStringsWithoutControlBytes(): void
     {
         foreach (
             [
@@ -265,7 +265,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         }
     }
 
-    public function test_root_must_be_lowercase_config_root_identifier(): void
+    public function testRootMustBeLowercaseConfigRootIdentifier(): void
     {
         foreach (['', ' ', 'Foundation', 'foundation-root', 'foundation.root', '1foundation'] as $root) {
             try {
@@ -278,7 +278,7 @@ final class ConfigRulesetJsonLikeModelContractTest extends TestCase
         }
     }
 
-    public function test_exported_ruleset_shape_is_json_like_without_floats_objects_resources_or_callables(): void
+    public function testExportedRulesetShapeIsJsonLikeWithoutFloatsObjectsResourcesOrCallables(): void
     {
         $ruleset = new ConfigRuleset(
             'foundation',

@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ContractsDoNotDependOnPlatformTest extends TestCase
 {
-    public function test_contracts_source_has_no_forbidden_compile_time_dependencies(): void
+    public function testContractsSourceHasNoForbiddenCompileTimeDependencies(): void
     {
         $packageRoot = dirname(__DIR__, 2);
         $srcRoot = $packageRoot . '/src';

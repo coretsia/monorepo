@@ -27,7 +27,7 @@ use ReflectionParameter;
 
 final class MeterPortInterfaceShapeContractTest extends TestCase
 {
-    public function test_meter_port_interface_shape_is_stable(): void
+    public function testMeterPortInterfaceShapeIsStable(): void
     {
         $reflection = new ReflectionClass(MeterPortInterface::class);
 
@@ -90,7 +90,7 @@ final class MeterPortInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType($observe, 'void', false);
     }
 
-    public function test_meter_port_accepts_safe_bounded_scalar_label_values_without_null_labels(): void
+    public function testMeterPortAcceptsSafeBoundedScalarLabelValuesWithoutNullLabels(): void
     {
         $meter = new class() implements MeterPortInterface {
             /**
@@ -178,7 +178,7 @@ final class MeterPortInterfaceShapeContractTest extends TestCase
         );
     }
 
-    public function test_meter_label_phpdoc_documents_non_null_bounded_scalar_labels(): void
+    public function testMeterLabelPhpdocDocumentsNonNullBoundedScalarLabels(): void
     {
         $reflection = new ReflectionClass(MeterPortInterface::class);
 

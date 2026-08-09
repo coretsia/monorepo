@@ -45,17 +45,17 @@ final class DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest extends 
         '@replace',
     ];
 
-    public function test_directive_names_match_phase0_config_merge_lock(): void
+    public function testDirectiveNamesMatchPhase0ConfigMergeLock(): void
     {
         self::assertSame(self::PHASE0_DIRECTIVE_NAMES, ConfigDirective::names());
     }
 
-    public function test_directive_keys_match_phase0_config_merge_lock(): void
+    public function testDirectiveKeysMatchPhase0ConfigMergeLock(): void
     {
         self::assertSame(self::PHASE0_DIRECTIVE_KEYS, ConfigDirective::keys());
     }
 
-    public function test_directive_enum_cases_match_phase0_config_merge_lock_without_extra_cases(): void
+    public function testDirectiveEnumCasesMatchPhase0ConfigMergeLockWithoutExtraCases(): void
     {
         self::assertSame(
             self::PHASE0_DIRECTIVE_NAMES,
@@ -68,7 +68,7 @@ final class DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest extends 
         self::assertCount(5, ConfigDirective::cases());
     }
 
-    public function test_forbidden_legacy_or_non_phase0_directives_are_not_allowed(): void
+    public function testForbiddenLegacyOrNonPhase0DirectivesAreNotAllowed(): void
     {
         foreach (['set', 'delete', 'override', 'custom', 'env', 'clear', 'push'] as $name) {
             self::assertFalse(ConfigDirective::isAllowedName($name));
@@ -77,7 +77,7 @@ final class DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest extends 
         }
     }
 
-    public function test_directive_values_are_lowercase_ascii_and_unprefixed(): void
+    public function testDirectiveValuesAreLowercaseAsciiAndUnprefixed(): void
     {
         foreach (ConfigDirective::cases() as $directive) {
             self::assertMatchesRegularExpression('/^[a-z]+$/', $directive->value);

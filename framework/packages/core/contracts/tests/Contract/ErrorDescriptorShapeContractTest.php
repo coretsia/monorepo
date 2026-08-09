@@ -27,7 +27,7 @@ use ReflectionParameter;
 
 final class ErrorDescriptorShapeContractTest extends TestCase
 {
-    public function test_constructor_shape_is_stable(): void
+    public function testConstructorShapeIsStable(): void
     {
         $reflection = new ReflectionClass(ErrorDescriptor::class);
         $constructor = $reflection->getConstructor();
@@ -63,7 +63,7 @@ final class ErrorDescriptorShapeContractTest extends TestCase
         self::assertSame([], $parameters[4]->getDefaultValue());
     }
 
-    public function test_getters_and_array_shape_are_stable(): void
+    public function testGettersAndArrayShapeAreStable(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -117,7 +117,7 @@ final class ErrorDescriptorShapeContractTest extends TestCase
         );
     }
 
-    public function test_severity_defaults_to_error(): void
+    public function testSeverityDefaultsToError(): void
     {
         $descriptor = new ErrorDescriptor(
             code: 'core.example',
@@ -128,21 +128,21 @@ final class ErrorDescriptorShapeContractTest extends TestCase
         self::assertSame('error', $descriptor->toArray()['severity']);
     }
 
-    public function test_descriptor_rejects_empty_code(): void
+    public function testDescriptorRejectsEmptyCode(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ErrorDescriptor('', 'Example message.');
     }
 
-    public function test_descriptor_rejects_empty_message(): void
+    public function testDescriptorRejectsEmptyMessage(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ErrorDescriptor('core.example', '');
     }
 
-    public function test_descriptor_rejects_invalid_code_shape(): void
+    public function testDescriptorRejectsInvalidCodeShape(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 

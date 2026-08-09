@@ -594,6 +594,20 @@ This SSoT records the observability/error boundary, payload safety, redaction po
 
 This SSoT MUST NOT redefine a competing field-by-field `ErrorDescriptor` schema.
 
+`ErrorDescriptor` construction enforces the canonical extension redaction boundary defined by `docs/ssot/error-descriptor.md`, including recursive semantic-key rejection and absolute-local-path rejection.
+
+This enforcement does not replace producer responsibility: arbitrary raw producer values MUST be converted to safe owner-approved derivations before descriptor construction.
+
+`ErrorDescriptor` construction also enforces the mandatory extension resource budget defined by `docs/ssot/error-descriptor.md`.
+
+Excessive depth, node count, individual string size, aggregate string size, and recursive PHP-array structures MUST fail closed rather than cause unbounded normalization or process-level memory exhaustion.
+
+The extension resource-budget requirements are enforced by:
+
+```text
+framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+```
+
 `ErrorDescriptor` MUST NOT expose:
 
 - raw `Throwable` objects;
@@ -707,8 +721,7 @@ It MUST NOT contain:
 - private customer data;
 - absolute local paths.
 
-The canonical safe public array shape for `ErrorHandlingContext` contains
-exactly these top-level fields in deterministic byte-order key order:
+The canonical safe public array shape for `ErrorHandlingContext` contains exactly these top-level fields in deterministic byte-order key order:
 
 ```text
 correlationId

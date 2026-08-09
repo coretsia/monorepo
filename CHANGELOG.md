@@ -19,7 +19,7 @@ All notable changes to this monorepo are documented in this file.
 The format is based on Keep a Changelog, with a single-choice heading rule: released version sections MUST start with "## vMAJOR.MINOR.PATCH" (no brackets). The unreleased section remains "## [Unreleased]".
 
 > Version source of truth: monorepo git tags `vMAJOR.MINOR.PATCH` at the repository root.  
-> Per-package independent versions **MUST NOT** be used.
+> Per-package independent versions MUST NOT be used.
 
 ## [Unreleased]
 
@@ -46,6 +46,56 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 ### Security
 
 - _TBD_
+
+## v0.6.0
+
+### Added
+
+- Publish-ready `coretsia/platform-worker` split package for long-running worker orchestration, persistent supervision, process isolation, task execution, and deterministic runtime safety.
+- Persistent Worker supervisor lifecycle with readiness-gated startup, authenticated control transport, active-generation discovery, bounded shutdown, child reaping, and `max_requests` recycle.
+- Worker process guardian with a guardian-held generation fence for PCNTL/PROC process ownership, supervisor-death containment, and cleanup-before-lock-release semantics.
+- Cross-package Worker task-source SPI in `core/contracts` through `WorkerTaskType`, `WorkerTaskSourceInterface`, `WorkerTaskInterface`, and `WorkerTaskSourceContextInterface`, with exact-one discovery through the canonical `worker.task_source` reserved tag.
+- `UnitOfWorkHandle` as the low-level KernelRuntime lifecycle handle while keeping timing tokens private to Kernel.
+- Foundation-owned declarative runtime container definitions shared by source runtime registration, container compilation, and artifact-only boot.
+- Immutable fingerprint-addressed artifact generations with transactional publication, generation locking, validated active-generation resolution, and generation-aware cache verification.
+- SSoT/ADR document version metadata and documentation version drift validation.
+- Expanded contract, unit, integration, crash-recovery, artifact-generation, runtime-driver, and cross-platform regression coverage.
+
+### Changed
+
+- Worker task execution now consumes real work through `WorkerTaskSourceInterface::receive()` instead of synthetic queue or HTTP task factories; `max_requests` counts real acquired task attempts only.
+- Queue and HTTP task acquisition are transport/runtime adapter responsibilities. `platform/worker` owns orchestration, lifecycle, source selection, Kernel UnitOfWork execution, and deterministic settlement boundaries.
+- Worker startup now fails before READY when the selected task source is missing, ambiguous, invalid, unresolvable, or not ready.
+- Runtime-driver ownership is explicit: Kernel reads only Kernel-owned runtime configuration, HTTP selection uses `kernel.runtime.http_driver` with `http.classic` as the safe default, and Worker contributes its runtime driver through `RuntimeDriverContributions`.
+- KernelRuntime UnitOfWork lifecycle semantics now preserve explicit before/after/reset responsibility and deterministic primary-failure precedence while keeping timing state private.
+- Foundation, Kernel, and Worker runtime wiring now use canonical declarative container definitions, with compiled graphs derived directly from enabled module providers and included in artifact fingerprints.
+- Artifact publication now uses atomic immutable generations instead of independently mutable flat artifacts; artifact cache resolution occurs during Bootstrap Phase A and propagates through runtime and worker boot.
+- Foundation container and context ownership were tightened with strict `Container::has()` behavior, isolated concrete autowiring, deterministic object-free JSON-like normalization, and bounded context resource limits.
+- Runtime and Foundation telemetry now report success only after successful completion and preserve deterministic failure outcomes without replacing primary failures.
+- The monorepo release line moved to `0.6`, with workspace versions synchronized to `0.6.x-dev` and public internal package constraints to `^0.6.0`.
+
+### Removed
+
+- Worker-owned placeholder task factories: `TaskFactoryInternalInterface`, `QueueTaskFactory`, `HttpTaskFactory`, and synthetic/no-op task generation.
+- Direct PSR HTTP message/server-handler ownership from `platform/worker`; HTTP runtime adapters own their HTTP contracts and transport dependencies.
+- Legacy per-driver HTTP runtime booleans in favor of `kernel.runtime.http_driver`.
+- Public UnitOfWork started/finished timing tokens; `durationMs` remains the public elapsed-time value.
+- Worker-owned HTTP request-handler startup reasons tied to the removed generic HTTP task-factory boundary.
+
+### Fixed
+
+- Runtime entrypoint and driver compatibility checks now execute against validated configuration and explicit package-owned contributions before runtime-specific side effects.
+- KernelRuntime failure precedence is deterministic across context initialization, hooks, task execution, reset, and settlement.
+- ModulePlan, mode-preset, context, and container invariants now reject contradictory or unsafe state deterministically.
+- Artifact fingerprinting, path validation, generation publication, and artifact-only boot now prevent mixed or stale runtime generations.
+- Worker lifecycle operations are bound to the active generation, with deterministic handling of stale state, duplicate starts, config drift, readiness, control authentication, and supervisor crash recovery.
+- Error descriptor extensions now enforce deterministic shape, semantic-channel, path-safety, recursion, and resource-budget limits.
+
+### Security
+
+- Worker control and process boundaries use per-supervisor authentication, descriptor isolation, and generation fencing until all owned children are terminated and reaped.
+- Runtime, context, task-source, and error diagnostics reject or redact unsafe paths, identifiers, transport details, payloads, environment values, exception details, and other sensitive runtime data.
+- Observability failures remain isolated from application and lifecycle behavior and cannot replace the canonical primary failure.
 
 ## v0.5.0
 

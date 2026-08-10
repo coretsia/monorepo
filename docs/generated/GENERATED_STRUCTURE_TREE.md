@@ -622,7 +622,8 @@ Coretsia/
 │   │   │       │   │   │   └── ArtifactPathResolver.php
 │   │   │       │   │   ├── Php/
 │   │   │       │   │   │   ├── PhpArtifactReader.php
-│   │   │       │   │   │   └── StablePhpArrayDumper.php
+│   │   │       │   │   │   ├── StablePhpArrayDumper.php
+│   │   │       │   │   │   └── StablePhpArrayParser.php
 │   │   │       │   │   ├── Verifier/
 │   │   │       │   │   │   ├── ArtifactSchemaValidator.php
 │   │   │       │   │   │   └── CacheVerifier.php
@@ -799,6 +800,7 @@ Coretsia/
 │   │   │       │   │   ├── SpikePayloadNormalizerDeterministicOrderLockTest.php
 │   │   │       │   │   ├── SpikeStableJsonEncodingLockTest.php
 │   │   │       │   │   ├── StablePhpArrayDumperDeterministicEmissionContractTest.php
+│   │   │       │   │   ├── StablePhpArrayParserContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextAttributesAreJsonLikeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkContextShapeContractTest.php
 │   │   │       │   │   ├── UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
@@ -914,6 +916,7 @@ Coretsia/
 │   │   │       │   │   ├── ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php
 │   │   │       │   │   ├── ModuleResolutionContainsManifestAndPlanTest.php
 │   │   │       │   │   ├── OptionalMissingDoesNotFailTest.php
+│   │   │       │   │   ├── PhpArtifactReaderRejectsExecutableArtifactSyntaxTest.php
 │   │   │       │   │   ├── RequiredMissingFailsDeterministicallyTest.php
 │   │   │       │   │   ├── ReservedNamespaceWriteGuardTest.php
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
@@ -1790,16 +1793,22 @@ Coretsia/
 │   │   │   ├── release-line/
 │   │   │   │   ├── framework__composer.json.bak
 │   │   │   │   ├── framework__composer.json.bak.1
+│   │   │   │   ├── framework__composer.json.bak.2
 │   │   │   │   ├── framework__packages__core__foundation__composer.json.bak
 │   │   │   │   ├── framework__packages__core__foundation__composer.json.bak.1
+│   │   │   │   ├── framework__packages__core__foundation__composer.json.bak.2
 │   │   │   │   ├── framework__packages__core__kernel__composer.json.bak
+│   │   │   │   ├── framework__packages__core__kernel__composer.json.bak.1
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.1
 │   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.2
+│   │   │   │   ├── framework__packages__devtools__cli-spikes__composer.json.bak.3
 │   │   │   │   ├── framework__packages__platform__cli__composer.json.bak
 │   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.1
 │   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.2
-│   │   │   │   └── framework__packages__platform__worker__composer.json.bak
+│   │   │   │   ├── framework__packages__platform__cli__composer.json.bak.3
+│   │   │   │   ├── framework__packages__platform__worker__composer.json.bak
+│   │   │   │   └── framework__packages__platform__worker__composer.json.bak.1
 │   │   │   ├── workspace/
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak
 │   │   │   │   ├── coretsia-monorepo__composer.json.bak.1
@@ -1808,14 +1817,17 @@ Coretsia/
 │   │   │   │   ├── framework__composer.json.bak.2
 │   │   │   │   ├── framework__composer.json.bak.3
 │   │   │   │   ├── framework__composer.json.bak.4
+│   │   │   │   ├── framework__composer.json.bak.5
 │   │   │   │   ├── monorepo__composer.json.bak
 │   │   │   │   ├── monorepo__composer.json.bak.1
 │   │   │   │   ├── monorepo__composer.json.bak.2
+│   │   │   │   ├── monorepo__composer.json.bak.3
 │   │   │   │   ├── skeleton__composer.json.bak
 │   │   │   │   ├── skeleton__composer.json.bak.1
 │   │   │   │   ├── skeleton__composer.json.bak.2
 │   │   │   │   ├── skeleton__composer.json.bak.3
-│   │   │   │   └── skeleton__composer.json.bak.4
+│   │   │   │   ├── skeleton__composer.json.bak.4
+│   │   │   │   └── skeleton__composer.json.bak.5
 │   │   │   └── .gitignore
 │   │   ├── deptrac/
 │   │   └── .gitignore

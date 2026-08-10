@@ -271,6 +271,8 @@ CompiledConfigBuilder
 CompiledContainerBuilder
 ArtifactEnvelopeFactory
 StablePhpArrayDumper
+StablePhpArrayParser
+PhpArtifactReader
 ArtifactPublicationSet
 ArtifactGenerationManifestBuilder
 ArtifactGenerationManifestValidator
@@ -297,7 +299,9 @@ The artifact builders produce Kernel artifact envelopes for the Kernel-owned art
 
 `ArtifactEnvelopeFactory` is the Kernel service responsible for assembling Kernel artifact envelopes.
 
-`StablePhpArrayDumper` emits deterministic PHP artifact bytes.
+`StablePhpArrayDumper` emits deterministic PHP-array serialization bytes.
+
+`StablePhpArrayParser` decodes exactly that canonical serialization language without executing PHP source, and `PhpArtifactReader` owns filesystem byte reads plus delegation to that decoder.
 
 `ArtifactPublicationSet` binds the three canonical runtime artifact envelopes and exact byte strings to one shared generation id.
 
@@ -848,6 +852,30 @@ The factory must not instantiate `NoopLogger`, `NoopMeter`, `NoopTracer`, or oth
 The factory must not decide whether an observability dependency is real or Noop.
 
 Default real-vs-Noop binding belongs to the application/foundation composition layer.
+
+## Decision 20: Treat generated PHP artifacts as non-executable data
+
+Kernel-generated `.php` artifacts use PHP-array syntax only as a deterministic serialization encoding. Their file extension does not grant execution semantics to artifact readers, validators, cache verification, or artifact-only runtime boot.
+
+The canonical encoding boundary is:
+
+```text
+normalized artifact value
+  -> StablePhpArrayDumper
+  -> canonical PHP-array serialization bytes
+  -> StablePhpArrayParser
+  -> decoded array
+  -> generation/schema/fingerprint validation
+  -> runtime hydration
+```
+
+`StablePhpArrayDumper` is the canonical encoder. `StablePhpArrayParser` is the canonical decoder. The parser accepts only the exact serialization language emitted by the dumper: canonical document prefix/suffix, indentation, separators, null/bool/int/string scalar spellings, lists, and string-keyed maps in deterministic byte-order key order. Arbitrary PHP syntax is outside the artifact encoding.
+
+Artifact deserialization must not execute, evaluate, include, or require generated artifact bytes. Function calls, variables, constants, includes, requires, object construction, closures, operators, comments, alternate whitespace/layout, and other PHP source forms are invalid serialization rather than executable input.
+
+Malformed or non-canonical serialization fails deterministically with `artifact-serialization-invalid`. Serialization diagnostics do not expose raw bytes, literals, source fragments, parser offsets, paths, or decoded payloads.
+
+This decision does not change artifact identities, schema versions, envelope shapes, filenames, fingerprint semantics, generation layout, publication semantics, or canonical bytes emitted by `StablePhpArrayDumper`. Source configuration PHP files remain a separate executable source-input boundary and are not reclassified as generated artifacts.
 
 ## Security and redaction
 

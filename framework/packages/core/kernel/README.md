@@ -150,6 +150,7 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator`
   - `Coretsia\Kernel\Artifacts\Php\PhpArtifactReader`
   - `Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper`
+  - `Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser`
   - `Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator`
   - `Coretsia\Kernel\Artifacts\Verifier\CacheVerifier`
   - `Coretsia\Kernel\Boot\ArtifactRuntimeInput`
@@ -799,6 +800,8 @@ Production runtime boot MUST NOT:
 - write or repair artifacts;
 - silently fall back to provider-based container construction.
 
+Generated Kernel `.php` artifacts are serialized data. `StablePhpArrayDumper` emits the canonical encoding and `StablePhpArrayParser` decodes it without executing generated source bytes. Artifact validation and artifact-only boot consume decoded data only.
+
 `ArtifactRuntimeBooter` is the public artifact-only production runtime boot facade.
 
 It owns current-generation selection and consumed-snapshot validation for runtime boot.
@@ -813,6 +816,7 @@ External packages MUST NOT import or depend directly on Kernel artifact/containe
 
 ```text
 Coretsia\Kernel\Artifacts\Php\PhpArtifactReader
+Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser
 Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator
 Coretsia\Kernel\Container\CompiledContainerFactory
 ```

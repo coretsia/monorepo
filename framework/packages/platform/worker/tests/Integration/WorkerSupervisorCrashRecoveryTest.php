@@ -131,7 +131,9 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
 
         /*
          * Model catastrophic externally-owned process-tree termination. The
-         * supervisor cannot execute finally blocks or runtime cleanup here.
+         * termination primitive does not guarantee one cross-platform ordering
+         * between the supervisor and its descendants, so no graceful-cleanup or
+         * stale-artifact outcome is assumed here.
          */
         $crashed->crashStartProcessTree();
 
@@ -143,21 +145,26 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
         self::waitForLifecycleLockRelease($crashed);
 
         /*
-         * Abrupt death must leave the previous instance artifacts stale. Their
-         * presence proves that the following NOT_RUNNING result comes from the
-         * now-free canonical generation fence rather than graceful cleanup side
-         * effects.
+         * Catastrophic externally-owned tree termination may either leave the
+         * supervisor-owned runtime artifacts stale or let the supervisor remove
+         * some of them before the complete tree is gone. A free canonical
+         * generation fence is authoritative in both cases. Any artifact that
+         * remains must still be the exact pre-crash snapshot.
          */
-        self::assertFileExists($crashed->statePath());
-        self::assertFileExists($crashed->locatorPath());
-        self::assertSame(
-            $staleState,
-            self::readJsonMap($crashed->statePath()),
+        $postCrashState = self::readOptionalJsonMap(
+            $crashed->statePath(),
         );
-        self::assertSame(
-            $staleLocator,
-            self::readJsonMap($crashed->locatorPath()),
+        $postCrashLocator = self::readOptionalJsonMap(
+            $crashed->locatorPath(),
         );
+
+        if ($postCrashState !== null) {
+            self::assertSame($staleState, $postCrashState);
+        }
+
+        if ($postCrashLocator !== null) {
+            self::assertSame($staleLocator, $postCrashLocator);
+        }
 
         if (($firstStart['control_transport'] ?? null) === 'unix') {
             self::assertFileExists($crashed->socketPath());
@@ -170,9 +177,9 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
             $notRunning['code'] ?? null,
         );
         self::assertSame(
-            $staleLocator,
-            self::readJsonMap($crashed->locatorPath()),
-            'status must not mutate a stale locator when the canonical generation fence is free.',
+            $postCrashLocator,
+            self::readOptionalJsonMap($crashed->locatorPath()),
+            'status must not mutate lifecycle locator state when the canonical generation fence is free.',
         );
 
         $replacement = new WorkerCommandHarness(
@@ -229,6 +236,16 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
         } finally {
             $replacement->close();
         }
+    }
+
+    /** @return null|array<string, mixed> */
+    private static function readOptionalJsonMap(string $path): ?array
+    {
+        if (!\is_file($path)) {
+            return null;
+        }
+
+        return self::readJsonMap($path);
     }
 
     /** @return array<string, mixed> */

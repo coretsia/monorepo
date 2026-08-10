@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
+use Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser;
 use PHPUnit\Framework\TestCase;
 
 final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCase
@@ -39,7 +40,7 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
 
     public function testPreservesCanonicalEnvelopeTopLevelShapeWithoutWrapper(): void
     {
-        $returned = self::includePhpReturn(self::dumper()->dumpEnvelope([
+        $envelope = self::parseArtifactBytes(self::dumper()->dumpEnvelope([
             'payload' => [
                 'status' => 'ok',
             ],
@@ -51,16 +52,16 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
             ],
         ]));
 
-        self::assertSame(['_meta', 'payload'], \array_keys($returned));
-        self::assertArrayHasKey('name', $returned['_meta']);
-        self::assertArrayHasKey('status', $returned['payload']);
-        self::assertArrayNotHasKey('artifact', $returned);
-        self::assertArrayNotHasKey('envelope', $returned);
+        self::assertSame(['_meta', 'payload'], \array_keys($envelope));
+        self::assertArrayHasKey('name', $envelope['_meta']);
+        self::assertArrayHasKey('status', $envelope['payload']);
+        self::assertArrayNotHasKey('artifact', $envelope);
+        self::assertArrayNotHasKey('envelope', $envelope);
     }
 
     public function testPreservesListOrder(): void
     {
-        $returned = self::includePhpReturn(self::dumper()->dumpEnvelope([
+        $envelope = self::parseArtifactBytes(self::dumper()->dumpEnvelope([
             '_meta' => [
                 'name' => 'config',
                 'schemaVersion' => 1,
@@ -84,13 +85,13 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
                 2,
                 'kept-in-list-order',
             ],
-            $returned['payload']['items'],
+            $envelope['payload']['items'],
         );
     }
 
     public function testPreservesNormalizedMapOrder(): void
     {
-        $returned = self::includePhpReturn(self::dumper()->dumpEnvelope([
+        $envelope = self::parseArtifactBytes(self::dumper()->dumpEnvelope([
             '_meta' => [
                 'schemaVersion' => 1,
                 'name' => 'config',
@@ -109,8 +110,8 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
             ],
         ]));
 
-        self::assertSame(['alpha', 'middle', 'zeta'], \array_keys($returned['payload']['map']));
-        self::assertSame(['a', 'z'], \array_keys($returned['payload']['map']['middle']));
+        self::assertSame(['alpha', 'middle', 'zeta'], \array_keys($envelope['payload']['map']));
+        self::assertSame(['a', 'z'], \array_keys($envelope['payload']['map']['middle']));
     }
 
     public function testEmitsStableBytesOnRepeatedRuns(): void
@@ -168,31 +169,11 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
     /**
      * @return array<string, mixed>
      */
-    private static function includePhpReturn(string $bytes): array
+    private static function parseArtifactBytes(string $bytes): array
     {
-        $path = \tempnam(\sys_get_temp_dir(), 'coretsia-artifact-');
+        $decoded = new StablePhpArrayParser()->parse($bytes);
 
-        if ($path === false) {
-            self::fail('Failed to create temporary artifact file.');
-        }
-
-        try {
-            \file_put_contents($path, $bytes);
-
-            $returned = (static function (string $__path): mixed {
-                return include $__path;
-            })(
-                $path
-            );
-
-            self::assertIsArray($returned);
-
-            /** @var array<string, mixed> $returned */
-            return $returned;
-        } finally {
-            if (\is_file($path)) {
-                \unlink($path);
-            }
-        }
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
     }
 }

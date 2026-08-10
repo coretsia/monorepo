@@ -22,6 +22,7 @@ use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
+use Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use PHPUnit\Framework\TestCase;
@@ -69,7 +70,7 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
         );
     }
 
-    public function testDumpedContainerArtifactReturnsCanonicalEnvelopeWithCanonicalHeader(): void
+    public function testDumpedContainerArtifactDecodesToCanonicalEnvelopeWithCanonicalHeader(): void
     {
         $envelope = self::compiledContainerBuilder()->build(
             graph: DefinitionGraph::empty(),
@@ -85,11 +86,11 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
         self::assertStringNotContainsString('generatedAt', $bytes);
         self::assertStringNotContainsString('createdAt', $bytes);
 
-        $returned = self::includePhpReturn($bytes);
+        $envelope = self::parseArtifactBytes($bytes);
 
-        self::assertSame(['_meta', 'payload'], \array_keys($returned));
+        self::assertSame(['_meta', 'payload'], \array_keys($envelope));
 
-        $header = $returned['_meta'] ?? null;
+        $header = $envelope['_meta'] ?? null;
 
         self::assertIsArray($header);
         self::assertSame(
@@ -103,7 +104,7 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
         self::assertSame('core/kernel/artifacts', $header['generator']);
 
         new ArtifactSchemaValidator()->validateExpected(
-            envelope: $returned,
+            envelope: $envelope,
             expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
             expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
         );
@@ -155,31 +156,11 @@ final class ContainerArtifactHeaderShapeContractTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private static function includePhpReturn(string $bytes): array
+    private static function parseArtifactBytes(string $bytes): array
     {
-        $path = \tempnam(\sys_get_temp_dir(), 'coretsia-container-artifact-');
+        $decoded = new StablePhpArrayParser()->parse($bytes);
 
-        if ($path === false) {
-            self::fail('Failed to create temporary artifact file.');
-        }
-
-        try {
-            \file_put_contents($path, $bytes);
-
-            $returned = (static function (string $__path): mixed {
-                return include $__path;
-            })(
-                $path
-            );
-
-            self::assertIsArray($returned);
-
-            /** @var array<string, mixed> $returned */
-            return $returned;
-        } finally {
-            if (\is_file($path)) {
-                \unlink($path);
-            }
-        }
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
     }
 }

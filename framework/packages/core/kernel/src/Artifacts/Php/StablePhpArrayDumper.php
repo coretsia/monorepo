@@ -23,9 +23,9 @@ use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 
 /**
- * Deterministic PHP array artifact dumper.
+ * Deterministic PHP-array artifact serialization encoder.
  *
- * This dumper emits PHP files that return a single array expression:
+ * This dumper emits one canonical data serialization using PHP-array syntax:
  *
  *     <?php
  *
@@ -33,7 +33,9 @@ use Coretsia\Kernel\Artifacts\PayloadNormalizer;
  *         ...
  *     ];
  *
- * The emitted artifact bytes are intentionally narrow:
+ * The emitted artifact bytes are decoded by StablePhpArrayParser and MUST be
+ * treated as serialized data rather than executable PHP source. The canonical
+ * encoding is intentionally narrow:
  *
  * - no generated comments;
  * - no timestamps;
@@ -50,10 +52,12 @@ use Coretsia\Kernel\Artifacts\PayloadNormalizer;
  * ordering, scalar preservation, and rejected-type semantics remain aligned
  * with the canonical stable JSON rules.
  *
- * The dumper does not validate artifact envelope semantics. It emits the array
- * it receives after normalization and MUST NOT wrap the envelope in another root
- * key. Envelope construction belongs to ArtifactEnvelopeFactory, and envelope
- * validation belongs to ArtifactSchemaValidator.
+ * StablePhpArrayDumper and StablePhpArrayParser are the paired encoder/decoder
+ * for this serialization format. The dumper does not validate artifact envelope
+ * semantics. It emits the array it receives after normalization and MUST NOT
+ * wrap the envelope in another root key. Envelope construction belongs to
+ * ArtifactEnvelopeFactory, and envelope validation belongs to
+ * ArtifactSchemaValidator.
  *
  * @internal
  */
@@ -67,7 +71,7 @@ final class StablePhpArrayDumper
     }
 
     /**
-     * Dumps a PHP file returning the normalized array.
+     * Encodes the normalized array into canonical PHP-array artifact bytes.
      *
      * @param array<int|string, mixed> $array
      *
@@ -80,10 +84,10 @@ final class StablePhpArrayDumper
     }
 
     /**
-     * Dumps a PHP file returning the normalized canonical envelope array.
+     * Encodes the normalized canonical envelope into PHP-array artifact bytes.
      *
      * This method intentionally does not wrap the envelope in another root key.
-     * The returned PHP file returns the normalized envelope array unchanged.
+     * Decoding the emitted bytes yields the normalized envelope array unchanged.
      *
      * @param array<int|string, mixed> $envelope
      *

@@ -225,10 +225,9 @@ Existing generation files are read through `PhpArtifactReader`.
 For generation-aware verification the reader MUST support:
 
 - exact byte reads without CRLF/CR normalization;
-- PHP-returned array parsing by evaluating one already-read exact byte snapshot in an isolated scope;
-- rejection of artifact files that emit output;
-- rejection of non-array returned values;
-- deterministic conversion of filesystem/evaluation/parse failures.
+- non-executing canonical decoding of one already-read exact byte snapshot through `StablePhpArrayParser`;
+- deterministic rejection of malformed or non-canonical serialization with `artifact-serialization-invalid`;
+- deterministic conversion of filesystem read failures.
 
 `CacheVerifier` uses exact-byte reads for comparison.
 
@@ -236,13 +235,14 @@ LF-normalized reads are not part of generation-aware clean/dirty semantics.
 
 The reader MUST NOT:
 
+- execute, evaluate, include, or require generated artifact bytes;
 - resolve generation paths;
 - locate `current`;
 - validate generation or artifact schemas;
 - calculate fingerprints;
 - compare expected and existing bytes;
 - emit logs, spans, metrics, stdout, or stderr;
-- expose raw paths, warning text, emitted output, returned payloads, stack traces, or previous throwable messages.
+- expose raw paths, warning text, source fragments, serialized bytes, decoded payloads, stack traces, or previous throwable messages.
 
 Generation validation belongs to `ArtifactGenerationValidator`.
 
@@ -315,8 +315,7 @@ Invalid causes include:
 - generation or parent-directory symlink substitution;
 - missing or additional generation files;
 - artifact-file symlink substitution;
-- invalid PHP return behavior;
-- emitted output;
+- invalid or non-canonical artifact serialization;
 - invalid generation manifest;
 - byte-length mismatch;
 - SHA-256 mismatch;

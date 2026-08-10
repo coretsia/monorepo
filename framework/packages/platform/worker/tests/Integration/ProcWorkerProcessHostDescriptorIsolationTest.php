@@ -326,16 +326,25 @@ final class ProcWorkerProcessHostDescriptorIsolationTest extends PackageTestCase
             );
 
             self::waitUntil(
-                static fn (): bool => \is_file($pidFile),
+                static function () use ($pidFile): bool {
+                    $pidBytes = @\file_get_contents($pidFile);
+
+                    return \is_string($pidBytes) && \preg_match('/\A[1-9][0-9]*\r?\n\z/D', $pidBytes) === 1;
+                },
                 2_000,
-                'The failed-handoff child did not publish its PID.',
+                'The failed-handoff child did not publish a valid PID.',
             );
 
             $pidBytes = @\file_get_contents($pidFile);
+
             self::assertIsString($pidBytes);
+
             $pidValue = \trim($pidBytes);
+
             self::assertTrue(\ctype_digit($pidValue));
+
             $childPid = (int)$pidValue;
+
             self::assertGreaterThan(0, $childPid);
 
             self::waitUntil(

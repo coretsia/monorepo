@@ -933,6 +933,8 @@ Filesystem identity and byte-to-file comparison are owned by `ArtifactGeneration
 
 `ArtifactGenerationValidator` validates one complete staged or finalized generation.
 
+Every generation member MUST be decoded as data through the canonical non-executing artifact reader/parser boundary before schema validation. Generation validation MUST NOT execute, evaluate, include, or require any generation member.
+
 It MUST validate:
 
 - generation directory identity;

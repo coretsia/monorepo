@@ -26,34 +26,24 @@ final class ArtifactRuntimeBootRejectsMixedGenerationTest extends TestCase
 {
     public function testRejectsConfigArtifactCopiedFromAnotherGeneration(): void
     {
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'artifact-runtime-mixed-generation',
-        );
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-runtime-mixed-generation');
 
         try {
             ArtifactPipelineTestSupport::compileArtifacts(
                 testCase: $this,
                 skeletonRoot: $root,
-                config: ArtifactPipelineTestSupport::defaultConfig(
-                    'generation-one',
-                ),
+                config: ArtifactPipelineTestSupport::defaultConfig('generation-one'),
             );
 
-            $firstGeneration = ArtifactPipelineTestSupport::currentGeneration(
-                $root,
-            );
+            $firstGeneration = ArtifactPipelineTestSupport::currentGeneration($root);
 
             ArtifactPipelineTestSupport::compileArtifacts(
                 testCase: $this,
                 skeletonRoot: $root,
-                config: ArtifactPipelineTestSupport::defaultConfig(
-                    'generation-two',
-                ),
+                config: ArtifactPipelineTestSupport::defaultConfig('generation-two'),
             );
 
-            $currentGeneration = ArtifactPipelineTestSupport::currentGeneration(
-                $root,
-            );
+            $currentGeneration = ArtifactPipelineTestSupport::currentGeneration($root);
 
             self::assertNotSame(
                 $firstGeneration->generationId()->value(),
@@ -89,9 +79,7 @@ final class ArtifactRuntimeBootRejectsMixedGenerationTest extends TestCase
                     skeletonRoot: $root,
                 );
 
-                self::fail(
-                    'Expected mixed-generation artifact rejection.',
-                );
+                self::fail('Expected mixed-generation artifact rejection.');
             } catch (ArtifactRuntimeBootException $exception) {
                 self::assertGenerationInvalid($exception, $root);
             }
@@ -105,7 +93,7 @@ final class ArtifactRuntimeBootRejectsMixedGenerationTest extends TestCase
         string $basename,
         string $bytes,
     ): void {
-        $manifest = self::readPhpArray(
+        $manifest = ArtifactPipelineTestSupport::readArtifactEnvelope(
             $generation->generationManifestPath(),
         );
         $payload = $manifest['payload'] ?? null;
@@ -124,23 +112,10 @@ final class ArtifactRuntimeBootRejectsMixedGenerationTest extends TestCase
         $payload['artifacts'] = $artifacts;
         $manifest['payload'] = $payload;
 
-        ArtifactPipelineTestSupport::writePhpReturn(
+        ArtifactPipelineTestSupport::writeArtifactEnvelope(
             path: $generation->generationManifestPath(),
-            value: $manifest,
+            envelope: $manifest,
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function readPhpArray(string $path): array
-    {
-        $value = require $path;
-
-        self::assertIsArray($value);
-
-        /** @var array<string, mixed> $value */
-        return $value;
     }
 
     private static function assertGenerationInvalid(

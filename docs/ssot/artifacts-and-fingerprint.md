@@ -593,14 +593,15 @@ Proc Worker artifact-root handoff semantics remain owned by `docs/architecture/w
 
 ### `StablePhpArrayDumper`
 
-`StablePhpArrayDumper` owns deterministic PHP array emission for Kernel artifact files.
+`StablePhpArrayDumper` owns deterministic PHP-array serialization emission for Kernel artifact files.
 
 It MUST:
 
-- emit PHP files that return a single array expression;
+- emit the single canonical serialization shape `<?php\n\nreturn <array>;\n`;
 - preserve the received canonical envelope without wrapping it in another root key;
 - use LF-only output;
 - emit exactly one final newline;
+- encode only null, bool, int, string, list, and string-keyed map values accepted by the canonical json-like normalization boundary;
 - avoid generated comments, timestamps, tool versions, absolute paths, hostnames, usernames, and process-specific bytes;
 - use Kernel/Foundation json-like normalization rules before emission.
 
@@ -610,18 +611,39 @@ It MUST NOT:
 - calculate fingerprints;
 - read or write files.
 
+### `StablePhpArrayParser`
+
+`StablePhpArrayParser` is the canonical decoder for bytes emitted by `StablePhpArrayDumper`.
+
+It MUST:
+
+- parse artifact bytes as serialized data without executing PHP source;
+- accept only the canonical document prefix, suffix, indentation, separators, scalar spellings, string escapes, list shape, and string-keyed map shape emitted by `StablePhpArrayDumper`;
+- preserve list order;
+- require map keys in strict byte-order `strcmp` ascending order;
+- reject duplicate map keys, numeric-coercing map keys, mixed list/map syntax, non-canonical integer spellings, and non-canonical string escapes;
+- fail with `artifact-serialization-invalid` for malformed or non-canonical serialization;
+- keep diagnostics free of raw bytes, literals, source fragments, parser offsets, paths, and decoded payloads.
+
+It MUST NOT:
+
+- use PHP source execution as a decoding mechanism;
+- evaluate expressions, constants, variables, function calls, includes, requires, object construction, closures, operators, or other PHP language constructs;
+- validate artifact envelope or payload schemas.
+
+The accepted parser language MUST equal the canonical output language of `StablePhpArrayDumper`.
+
 ### `PhpArtifactReader`
 
-`PhpArtifactReader` owns safe artifact byte reading and PHP artifact parsing.
+`PhpArtifactReader` owns safe artifact byte reading and delegation to the canonical non-executing PHP-array decoder.
 
 Its exact snapshot API MUST:
 
 1. reject symlinks and non-regular or unreadable files;
 2. read the file bytes once;
-3. parse the returned artifact envelope from those exact bytes;
-4. reject emitted output;
-5. return both exact bytes and the parsed envelope;
-6. use deterministic read, evaluation, parse, output, and return-type failure reasons.
+3. decode the artifact envelope from those exact bytes through `StablePhpArrayParser`;
+4. return both exact bytes and the decoded envelope;
+5. use deterministic filesystem-read and serialization failure reasons.
 
 The canonical exact snapshot shape is:
 
@@ -630,19 +652,20 @@ bytes
 envelope
 ```
 
-`ArtifactGenerationValidator` and `ArtifactRuntimeBooter` MUST use `PhpArtifactReader::readExact(...)` so schema validation and byte/hash validation operate on the same byte snapshot.
+`ArtifactGenerationValidator` and `ArtifactRuntimeBooter` MUST use `PhpArtifactReader::readExact(...)` so serialization decoding, schema validation, and byte/hash validation operate on the same byte snapshot.
 
 `CacheVerifier` MUST use `PhpArtifactReader::readExactBytes(...)` for persisted-byte comparison after `ArtifactGenerationLocator` has validated the selected generation.
 
-LF-normalized reader APIs MAY remain for compatibility, but they MUST NOT participate in generation validation, artifact-only runtime boot, or generation-aware clean/dirty classification.
+LF-normalized reader APIs MAY remain for compatibility. A normalized reader MUST normalize CRLF/CR to LF before decoding that normalized snapshot. Normalized reader APIs MUST NOT participate in generation validation, artifact-only runtime boot, or generation-aware clean/dirty classification.
 
 `PhpArtifactReader` MUST NOT:
 
+- execute, evaluate, include, or require generated artifact bytes;
 - resolve artifact or generation paths;
 - locate `current`;
 - validate artifact schema;
 - calculate fingerprints;
-- expose raw artifact bytes in diagnostics.
+- expose raw artifact bytes or decoded payloads in diagnostics.
 
 ### `ArtifactSchemaValidator`
 

@@ -25,18 +25,22 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
 {
     public function testSupervisorOnlyDeathIsContainedByGuardianAndAllowsReplacement(): void
     {
-        if (
-            \PHP_OS_FAMILY !== 'Windows'
-            && (
-                !\defined('SIGKILL')
-                || !\function_exists('posix_kill')
-                || !\function_exists('posix_setsid')
-                || !\function_exists('posix_getpgid')
-            )
-        ) {
-            self::markTestSkipped(
-                'POSIX whole-process-tree crash coverage requires '
-                . 'posix_kill(), posix_setsid(), posix_getpgid(), and SIGKILL.',
+        if (\PHP_OS_FAMILY !== 'Windows') {
+            self::assertTrue(
+                \defined('SIGKILL'),
+                'POSIX whole-process-tree crash coverage requires SIGKILL.',
+            );
+            self::assertTrue(
+                \function_exists('posix_kill'),
+                'POSIX whole-process-tree crash coverage requires posix_kill().',
+            );
+            self::assertTrue(
+                \function_exists('posix_setsid'),
+                'POSIX whole-process-tree crash coverage requires posix_setsid().',
+            );
+            self::assertTrue(
+                \function_exists('posix_getpgid'),
+                'POSIX whole-process-tree crash coverage requires posix_getpgid().',
             );
         }
 
@@ -93,7 +97,10 @@ final class WorkerSupervisorCrashRecoveryTest extends SupervisorIntegrationTestC
             self::assertNotSame($staleCredential, $freshLocator['control_credential'] ?? null);
 
             foreach ($oldPids as $oldPid) {
-                self::assertFalse(self::processExists($oldPid), 'Old worker generation survived replacement startup.');
+                self::assertFalse(
+                    self::processExists($oldPid),
+                    'Old worker generation survived replacement startup.',
+                );
             }
 
             self::assertSame('stopped', self::onlyPayload($replacement->invoke('stop'))['status']);

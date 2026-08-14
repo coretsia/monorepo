@@ -26,7 +26,7 @@ Coretsia needs a long-running runtime package that can process many units of wor
 
 The worker runtime must support:
 
-- one deterministic owner for the complete worker-pool lifecycle;
+- one deterministic ownership model separating foreground pool orchestration from worker-generation fencing and process containment;
 - cross-platform child-process execution;
 - foreground operation under an external service manager or container runtime;
 - safe start, stop, status, and health commands;
@@ -132,7 +132,7 @@ pcntl
 proc
 ```
 
-describe how the Worker supervisor creates and controls child processes.
+identify the package-internal worker-child process backend selected for the pool. `WorkerSupervisor` selects the matching process-driver adapter, while low-level worker-process ownership remains below the Supervisor behind the mandatory Guardian.
 
 They are not Kernel runtime-driver ids.
 
@@ -175,15 +175,21 @@ ContainerWorkerProcessDriverResolver
 WorkerChildCommandBuilder
 PcntlWorkerProcessDriver
 ProcWorkerProcessDriver
+WorkerProcessBootstrapProtocol
+WorkerProcessBootstrapEndpoint
+WorkerProcessBootstrapClient
+WorkerProcessBootstrapLauncher
+WorkerProcessBootstrapFailure
 WorkerProcessGuardianInterface
 WorkerProcessGuardianClient
 WorkerProcessGuardianProtocol
-WorkerProcessGuardianTransport
 WorkerProcessGuardianRuntime
 WorkerProcProcessHostProtocol
 WorkerProcProcessHostClient
 WorkerProcProcessHostHandoffEndpoint
 WorkerProcProcessHostTransport
+WorkerProcProcessHostEntrypointRuntime
+WorkerProcProcessHostEntrypointFailure
 
 WorkerControlClientInterface
 WorkerControlTransport
@@ -227,6 +233,8 @@ The package does not expose lifecycle facades, static process registries, or dup
 - control transport and protocol;
 - package-internal OS process drivers;
 - package-internal lazy selected-process-driver resolution;
+- Worker-specific initial process-bootstrap protocol and authenticated-child launcher;
+- Guardian and ProcHost bootstrap credential-domain ownership;
 - canonical shell-free process-child command construction;
 - PCNTL fork-exec child-runtime isolation;
 - proc process-host infrastructure;
@@ -336,8 +344,6 @@ It defines:
 
 ```text
 WorkerServiceFactory
-StableJsonEncoder
-StableJsonDecoder
 
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
@@ -356,7 +362,6 @@ WorkerChildReadinessChannel
 WorkerChildTable
 WorkerSignalController
 WorkerProcessGuardianProtocol
-WorkerProcessGuardianTransport
 WorkerProcessGuardianClient
 WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
@@ -381,6 +386,8 @@ WorkerStatusCommand
 WorkerHealthCommand
 cli.command tags
 ```
+
+`StableJsonEncoder` and `StableJsonDecoder` are Foundation-owned stateless deterministic primitives consumed directly through their canonical static API. They are not Worker runtime services and are not required-service dependencies. The package-internal `WorkerProcessBootstrap*` classes are executable/process construction infrastructure and are likewise not runtime-container services.
 
 The canonical aliases are:
 
@@ -554,8 +561,11 @@ The canonical startup order is:
 build WorkerPoolSpec
 -> invoke WorkerRuntimeEntrypointGuard
 -> resolve WorkerSupervisorInterface
--> launch and authenticate WorkerProcessGuardian
--> guardian claims canonical generation fence
+-> launch exact Guardian through WorkerProcessBootstrapLauncher
+-> authenticate Guardian through retained parent bootstrap endpoint
+-> send CLAIM
+-> Guardian acquires canonical WorkerLifecycleLock
+-> receive and validate CLAIM ACK
 ```
 
 `WorkerStartCommand` and the shipped child launcher must use this Worker-owned boundary. Task-source resolution/readiness occurs only after the child compatibility guard succeeds.
@@ -674,8 +684,11 @@ The supervisor lifecycle is:
 
 ```text
 resolve selected process driver
--> launch and authenticate mandatory WorkerProcessGuardian
--> guardian claims canonical lifecycle lock
+-> launch exact WorkerProcessGuardian through WorkerProcessBootstrapLauncher
+-> authenticate Guardian through retained Supervisor-owned bootstrap endpoint
+-> send CLAIM
+-> Guardian acquires canonical lifecycle lock
+-> receive and validate CLAIM ACK
 -> delete stale private lifecycle locator
 -> delete stale diagnostic state
 -> clear stale cooperative stop signal
@@ -703,9 +716,9 @@ resolve selected process driver
 -> return a deterministic process exit code
 ```
 
-Guardian claim occurs after runtime-entrypoint validation and before supervisor-owned state/control artifacts are published.
+Guardian claim occurs after runtime-entrypoint validation and authenticated Guardian bootstrap, and before supervisor-owned state/control artifacts are published. Successful `WorkerLifecycleLock::acquire()` is the Guardian commit point for generation ownership. A valid received `CLAIM ACK` is only the Supervisor observation point; it does not create generation ownership.
 
-For the proc backend the guardian starts the proc process host before accepting the supervisor ownership connection and before acquiring the generation fence. This ordering prevents proc children from inheriting the guardian-supervisor connection or `worker.lock`.
+For the proc backend the Guardian consumes and closes its private bootstrap stdin, starts and authenticates the proc process host through the same common process-bootstrap abstraction, and only then connects back to the retained Supervisor-owned bootstrap endpoint. The Guardian acquires the generation fence only after the authenticated Supervisor connection exists and a valid `CLAIM` is received. This ordering prevents the ProcHost from inheriting Guardian bootstrap stdin, the Guardian-Supervisor runtime connection, or `worker.lock`.
 
 The startup callback is invoked exactly once.
 
@@ -729,6 +742,7 @@ AND state == running
 | `WorkerControlProtocol`             | exact versioned request/response encoding and decoding                                                                                                                                           | process lifecycle, endpoint ownership, task payload transport                                |
 | `WorkerControlServer`               | supervisor-side listener and typed sessions                                                                                                                                                      | startup decisions, health policy, shutdown orchestration                                     |
 | `WorkerControlClient`               | lifecycle-lock probing, private locator reads, endpoint-consistency validation, and status/health/stop request-response flow                                                                     | listener creation, state authority, locator writes, stop-signal writes, child lifecycle      |
+| `WorkerProcessBootstrapLauncher`    | exact Guardian/ProcHost launch, private bootstrap stdin publication, pre-auth direct-child cleanup, authenticated launch result                                                                  | generation fencing, runtime container wiring, public API                                     |
 | `WorkerProcessDriverInterface`      | capability checks and one-child spawn/poll/terminate/kill/close adaptation                                                                                                                       | generation ownership, pool preparation/shutdown, state store, control server, recycle policy |
 | `WorkerChildTable`                  | typed mapping of worker slot, child generation, readiness, and shutdown state                                                                                                                    | OS process operations, state persistence, control communication                              |
 | `WorkerStateStore`                  | atomic diagnostic state write/read/delete                                                                                                                                                        | liveness authority, control decisions, process ownership                                     |
@@ -827,19 +841,64 @@ The `pcntl` driver is selected only when:
 
 ```text
 resolved driver == pcntl
-AND required PCNTL/POSIX capabilities are available
+AND common Worker process-bootstrap capability is available
+AND required PCNTL/POSIX worker-child capabilities are available
 AND platform != Windows
 ```
 
 The `proc` driver is the cross-platform process adapter.
 
-Proc selection requires `proc_open()` and the complete bounded loopback stream capability on every platform. Descriptor isolation does not depend on `ext-sockets` or `SOCK_CLOEXEC`.
+Proc selection requires `proc_open()` and the complete bounded loopback transport capability on every platform. On Windows, Worker-owned retained loopback listeners used by initial process bootstrap, per-worker ProcHost handoff, and child readiness additionally require the sockets extension and `SO_EXCLUSIVEADDRUSE` for exclusive address ownership. The per-worker ProcHost handoff descriptor-isolation sequence remains stream-based and does not rely on `ext-sockets` or `SOCK_CLOEXEC` for descriptor isolation.
 
 Driver auto-resolution must be deterministic. It selects proc only when the process-host stream capability is available and fails start validation when neither process adapter is available.
 
 Support checks must depend only on the normalized `WorkerPoolSpec`, injected platform and capability values, and exact required runtime-function availability.
 
 They must not read Worker configuration or inspect filesystem state, ports, environment variables, external processes, or application services.
+
+## Initial process-bootstrap decision
+
+Guardian launch is always performed through the common package-internal `WorkerProcessBootstrapLauncher`, including when `worker.driver=pcntl`. `pcntl` identifies the worker-child backend; it does not describe how the Guardian process itself is launched.
+
+The same initial bootstrap authority model is used for:
+
+```text
+Supervisor -> Guardian
+Guardian -> ProcHost
+```
+
+For each initial child launch:
+
+```text
+proc_open exact child
+-> create and retain loopback listener only after child launch
+-> create fresh independent 256-bit bootstrap credential
+-> publish exact bounded bootstrap frame through private child stdin
+-> child receives and validates frame
+-> child closes bootstrap stdin
+-> child authenticates back to continuously parent-owned listener
+-> listener and remaining candidate sockets close
+-> one-shot capability state is invalidated
+```
+
+The parent MUST NOT reserve a port, close the listener, and require the child to rebind. The bootstrap credential MUST NOT be passed through argv or environment and MUST NOT be sent by the parent to an unauthenticated network peer.
+
+Bootstrap authentication proves possession of a fresh one-shot capability delivered exclusively through the exact child's private launch channel. It is not OS-level PID attestation and it is not generation ownership.
+
+The descriptor barrier is:
+
+```text
+Guardian bootstrap stdin closes before ProcHost launch or any PCNTL worker fork
+ProcHost bootstrap stdin closes before any worker proc_open()
+```
+
+Composer autoload MAY execute child-side before bootstrap-frame consumption. After `proc_open()`, parent listener preparation and child Composer startup are concurrent; only the causal ownership barriers above are normative.
+
+The complete Supervisor-to-Guardian startup uses one monotonic overall deadline. Nested ProcHost bootstrap receives only the remaining Guardian startup budget; no nested phase receives a fresh full timeout.
+
+Before successful bootstrap authentication, `WorkerProcessBootstrapLauncher` owns direct-child failure cleanup. After Guardian authentication but before Supervisor observes a valid `CLAIM ACK`, Supervisor MUST keep `claimed=false`. A missing ACK is an uncertain-commit state because Guardian may already have acquired `WorkerLifecycleLock`; Supervisor closes the authenticated Guardian connection and allows Guardian-owned cleanup rather than force-killing the potentially generation-owning Guardian as rollback.
+
+The normative bootstrap trust, candidate-admission, credential-domain, timeout, failure-containment, and claim-ambiguity rules are defined by `docs/ssot/worker-process-bootstrap.md`.
 
 ## PCNTL process decision
 
@@ -878,13 +937,15 @@ WorkerSupervisor
       -> proc worker children
 ```
 
-The guardian executable starts `WorkerProcProcessHost` before it accepts the authenticated supervisor ownership connection and before it acquires `worker.lock`. The process host therefore cannot inherit the guardian-supervisor ownership stream or the generation-fence descriptor.
+The Guardian receives and validates its private bootstrap frame, closes bootstrap stdin, then launches and authenticates `WorkerProcProcessHost` through `WorkerProcessBootstrapLauncher` before establishing the authenticated Supervisor connection and before acquiring `worker.lock`. The process host therefore cannot inherit Guardian bootstrap stdin, the Guardian-Supervisor runtime connection, or the generation-fence descriptor.
 
 For every proc worker-child launch, the guardian-owned `WorkerProcProcessHostClient` creates a one-shot handoff listener with a fresh token. The process host validates the spawn request, closes its current authenticated guardian connection, calls `proc_open()`, and only then establishes and authenticates the replacement connection.
 
-No proc-host protocol connection is open during worker-child launch. This invariant is identical on Windows and POSIX and requires only bounded loopback stream operations.
+No proc-host protocol connection is open during worker-child launch. This descriptor-isolation invariant is identical on Windows and POSIX and uses bounded loopback stream operations. On Windows, the retained handoff listener separately requires exclusive address ownership through the sockets extension and `SO_EXCLUSIVEADDRUSE`.
 
 The process host owns raw proc resources, non-blocking polling, terminate/kill, resource closure, and fallback child cleanup if its guardian connection disappears. It does not own the canonical generation fence, state publication, readiness policy, lifecycle control, or recycle policy.
+
+Outside the intentional per-worker handoff transition, unexpected EOF or loss of the authenticated Guardian connection is terminal ProcHost owner loss. ProcHost MUST terminate and reap every registered worker child, close owned process resources, and exit non-zero. Failure to establish or authenticate the replacement handoff connection after a worker child has been created is treated as the same terminal owner-loss-equivalent boundary.
 
 ## Process-child artifact-only boot decision
 
@@ -1063,7 +1124,7 @@ The control protocol must not transport:
 - queue payloads;
 - headers;
 - cookies;
-- readiness or proc-host tokens;
+- readiness credentials, ProcHost bootstrap credentials, or ProcHost handoff credentials;
 - credentials other than the required supervisor-instance control credential;
 - environment values;
 - raw filesystem paths;
@@ -1086,18 +1147,21 @@ The following credentials and tokens belong to distinct authority domains and MU
 
 ```text
 supervisor control credential
-!= guardian ownership token
-!= proc-host token or handoff token
-!= child-readiness token
+!= Guardian bootstrap credential
+!= ProcHost bootstrap credential
+!= ProcHost handoff credential
+!= child-readiness credential
 ```
 
-The guardian ownership token authenticates only the private supervisor-to-guardian channel.
+Guardian and ProcHost bootstrap credentials authenticate only their corresponding initial child-process bootstrap channels. Each initial bootstrap receives an independent fresh credential.
 
-Guardian tokens, proc-host tokens, handoff tokens, and readiness tokens MUST NOT be published in the lifecycle locator, diagnostic state, logs, spans, metrics, CLI output, or public exceptions unless a narrower owning contract explicitly permits a private transport use.
+Bootstrap credentials, ProcHost handoff credentials, and readiness credentials MUST NOT be published in the lifecycle locator, diagnostic state, logs, spans, metrics, CLI output, public exceptions, child argv, or child environment unless a narrower owning contract explicitly permits a private transport use.
 
 ## Lifecycle-lock authority decision
 
 `WorkerLifecycleLock` is the sole worker-generation ownership and fencing authority.
+
+Initial Guardian bootstrap authentication does not acquire generation ownership. The Guardian commit point is successful `WorkerLifecycleLock::acquire()` while processing a valid `CLAIM`. Supervisor observes that commit only after receiving and validating the corresponding `CLAIM ACK`. Missing or lost ACK therefore does not prove that the lock was not acquired.
 
 A held generation fence does not by itself prove that the foreground supervisor is reachable. Live supervisor availability additionally requires a valid private lifecycle locator and a reachable authenticated control endpoint.
 
@@ -1273,6 +1337,8 @@ Readiness occurs only after:
 Readiness occurs before `ApplicationWorker::run()` enters the long-running task loop.
 
 PCNTL and proc children use a dedicated per-child loopback TCP readiness endpoint.
+
+On Windows, the retained readiness listener requires exclusive address ownership through the sockets extension and `SO_EXCLUSIVEADDRUSE`; the Worker MUST fail closed rather than create a non-exclusive readiness listener.
 
 The readiness frame is:
 
@@ -2122,6 +2188,9 @@ framework/packages/platform/worker/tests/Unit/WorkerSupervisorLifecycleTest.php
 framework/packages/platform/worker/tests/Unit/ContainerWorkerProcessDriverResolverTest.php
 framework/packages/platform/worker/tests/Unit/WorkerChildCommandBuilderTest.php
 framework/packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
+framework/packages/platform/worker/tests/Unit/WorkerProcessBootstrapProtocolTest.php
+framework/packages/platform/worker/tests/Unit/WorkerProcessGuardianProtocolTest.php
+framework/packages/platform/worker/tests/Unit/WorkerProcProcessHostProtocolTest.php
 
 framework/packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php
@@ -2140,12 +2209,21 @@ framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSchemaCon
 framework/packages/platform/worker/tests/Contract/ProcWorkerProcessDriverSafetyContractTest.php
 framework/packages/platform/worker/tests/Contract/PcntlWorkerContainerIsolationContractTest.php
 framework/packages/platform/worker/tests/Contract/WorkerLocalFileOpenModeContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerProcessBootstrapBoundaryContractTest.php
+framework/packages/platform/worker/tests/Contract/WorkerProcessGuardianBoundaryContractTest.php
 
 framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
 framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
 framework/packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php
 framework/packages/platform/worker/tests/Integration/WorkerControlTransportTest.php
 framework/packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest.php
+framework/packages/platform/worker/tests/Integration/ProcWorkerProcessHostDescriptorIsolationTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcProcessHostGuardianDeathTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcessBootstrapChannelTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcessBootstrapFailureContainmentTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlTest.php
+framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianProcTest.php
+framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
 framework/packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
@@ -2182,7 +2260,18 @@ These tests are expected to verify:
 - TCP control remains exactly loopback-only;
 - Unix control socket creation uses restrictive umask and mode `0600`;
 - the POSIX private locator uses restrictive creation, exact `0600` permissions, and rejects symlinks and non-regular files;
-- supervisor control, guardian, proc-host/handoff, and readiness credentials remain distinct authority domains;
+- supervisor control, Guardian bootstrap, ProcHost bootstrap, ProcHost handoff, and readiness credentials remain distinct authority domains;
+- Guardian and ProcHost initial bootstrap use the shared production `WorkerProcessBootstrapLauncher`;
+- the parent retained bootstrap listener is created only after exact child launch and remains continuously owned until successful authentication or failure cleanup;
+- the parent never discloses bootstrap credentials to unauthenticated network candidates;
+- wrong-role, wrong-credential, oversized, silent, expired, and excess candidates cannot consume one-shot bootstrap authority;
+- Guardian and ProcHost bootstrap credentials are independent one-shot domains and do not appear in argv, environment, diagnostics, or public payloads;
+- Guardian bootstrap stdin closes before ProcHost launch or any PCNTL worker fork;
+- ProcHost bootstrap stdin closes before any worker `proc_open()`;
+- pre-auth bootstrap failure leaves no Guardian, ProcHost, bootstrap listener, worker descendant, or generation fence;
+- explicit already-running rejection keeps Supervisor `claimed=false`, cleans the candidate Guardian/ProcHost topology, and does not disturb the existing generation fence;
+- lost `CLAIM ACK` after an independently observed lock commit keeps Supervisor `claimed=false`, performs Guardian-owned cleanup, releases the generation fence last, and permits replacement only after cleanup;
+- Worker runtime definitions contain no Bootstrap services, no Worker-owned Stable JSON services, and no removed legacy Guardian bootstrap transport service;
 - worker config root shape is a subtree;
 - invalid scalar, path, timeout, driver, and transport values are rejected;
 - process-driver and control-transport auto-resolution is deterministic;
@@ -2209,7 +2298,8 @@ These tests are expected to verify:
 - process drivers do not call KernelRuntime;
 - process drivers do not own state, control, recycle, or shutdown policy;
 - process children do not retain Worker-owned supervisor resources;
-- current readiness, sibling readiness, and control listeners do not cross PCNTL exec;
+- the authenticated Guardian-Supervisor connection and generation-fence descriptor do not cross PCNTL exec;
+- Supervisor-owned readiness listeners, control listener, child table, and signal-controller state are not part of the Guardian PCNTL fork boundary;
 - PCNTL children replace the forked process image before runtime boot;
 - PCNTL and proc children perform artifact-only runtime boot;
 - only the selected process driver is resolved;
@@ -2259,6 +2349,7 @@ These tests are expected to verify:
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/context-keys.md`
 - `docs/ssot/context-store.md`
+- `docs/ssot/worker-process-bootstrap.md`
 - `docs/ssot/worker-task-sources.md`
 
 ## Related ADRs

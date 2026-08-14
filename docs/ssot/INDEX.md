@@ -86,9 +86,10 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Reset Tags SSoT](./reset-tags.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,tags,uow
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md) — owner: core/foundation — ssotVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [Runtime Drivers SSoT](./runtime-drivers.md) — owner: repo — ssotVersion: 1 — scope: background,drivers,http,long-running,matrix,runtime
-- [Worker Task Sources SSoT](./worker-task-sources.md) — owner: platform/worker — ssotVersion: 1 — scope: acquisition,contracts,runtime,settlement,task-source,worker
 - [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,uow,redaction
 - [Time, IDs, and Duration SSoT](./time-ids-and-duration.md) — owner: core/foundation — ssotVersion: 1 — scope: clock,duration,ids,runtime,time
+- [Worker Process Bootstrap SSoT](./worker-process-bootstrap.md) — owner: platform/worker — ssotVersion: 1 — scope: authority,bootstrap,guardian,process,proc-host,worker
+- [Worker Task Sources SSoT](./worker-task-sources.md) — owner: platform/worker — ssotVersion: 1 — scope: acquisition,contracts,runtime,settlement,task-source,worker
 
 ## Tooling and CI Contracts
 

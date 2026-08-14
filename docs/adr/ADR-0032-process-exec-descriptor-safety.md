@@ -25,8 +25,10 @@ owner: repo
 Coretsia Worker children use fresh process images:
 
 ```text
-PCNTL: fork -> detach Worker-owned resources -> exec child launcher
-proc: guardian -> pre-lock process host -> proc_open child launcher
+initial Guardian: proc_open exact Guardian -> private bootstrap stdin -> retained parent listener -> authenticated Guardian
+initial ProcHost: proc_open exact ProcHost -> private bootstrap stdin -> retained parent listener -> authenticated ProcHost
+PCNTL worker: Guardian fork -> detach Worker-owned resources -> exec child launcher
+proc worker: ProcHost handoff -> proc_open child launcher -> authenticated handoff replacement
 ```
 
 Process-image replacement removes the inherited PHP object graph as active runtime state, including the parent container, resolved DI cache, `ApplicationWorker`, static PHP state, and extension process memory.
@@ -79,11 +81,13 @@ These policies are defense in depth. They do not replace explicit closure by the
 
 ### Decision 3: Explicitly detach known package-owned resources
 
-Known Worker-owned listeners, sessions, locks, child readiness endpoints, and signal state are detached by their exact owners before PCNTL exec.
+Initial Guardian and ProcHost bootstrap use private one-shot child stdin plus a parent-owned retained loopback listener. The parent bootstrap listener does not exist at child creation time; it is created and retained only after `proc_open()` has launched the corresponding exact child. On Windows, that retained listener is created through the sockets extension with `SO_EXCLUSIVEADDRUSE` before being exported to the common stream API; if exclusive retained-listener ownership is unavailable, secure Worker process bootstrap fails closed. The parent publishes the bootstrap frame only after retaining that listener.
 
-The PCNTL guardian explicitly closes its supervisor-ownership connection and detaches `WorkerLifecycleLock` in the forked child before exec. No supervisor-side fork-isolation aggregate remains because the foreground supervisor no longer forks worker children.
+Guardian bootstrap stdin MUST close before the Guardian launches ProcHost or forks any PCNTL worker. ProcHost bootstrap stdin MUST close before the process host calls `proc_open()` for any worker child. In PROC topology, ProcHost bootstrap and authentication complete before Guardian establishes the authenticated Supervisor connection. Composer autoload is allowed before bootstrap consumption because the descriptor invariant concerns descendant creation, not autoload ordering.
 
-For every proc spawn, the guardian-owned process-host client creates a one-shot loopback handoff listener with a fresh 256-bit token. After validating the complete spawn request, the process host closes its current authenticated guardian connection, calls `proc_open()` with no proc-host protocol connection open, and only then connects to the handoff listener and publishes the exact spawn response. The same stream-based invariant applies on Windows and POSIX without `ext-sockets`, `SOCK_CLOEXEC`, FFI, or a native launcher.
+At the PCNTL worker fork boundary, only Guardian-owned resources can be inherited by the forked child. The Guardian closes its authenticated supervisor-ownership connection, detaches `WorkerLifecycleLock`, and resets Guardian-installed signal handlers before exec. Supervisor-owned `WorkerChildTable`, worker-readiness listeners, `WorkerControlServer`, and `WorkerSignalController` remain in the separate foreground Supervisor process and are not part of this fork boundary.
+
+Initial Guardian-to-ProcHost bootstrap does not replace the existing per-worker handoff. For every proc spawn, the guardian-owned process-host client creates a one-shot loopback handoff listener with a fresh 256-bit token. After validating the complete spawn request, the process host closes its current authenticated guardian connection, calls `proc_open()` with no proc-host protocol connection open, and only then connects to the handoff listener and publishes the exact spawn response. This per-worker ProcHost handoff descriptor-isolation invariant applies on Windows and POSIX without relying on `ext-sockets`, `SOCK_CLOEXEC`, FFI, or a native launcher for descriptor isolation. On Windows, the retained handoff listener separately requires the sockets extension and `SO_EXCLUSIVEADDRUSE` for exclusive address ownership.
 
 A failed child launch still rotates the connection and returns `child-start-failed`. A failed replacement handoff causes the process host to terminate and reap all registered children and exit non-zero, because the guardian cannot safely retain a child whose identity was not delivered.
 
@@ -162,6 +166,7 @@ This decision requires no generic descriptor registry, post-fork DI cleanup, or 
 ## Related SSoT
 
 - `docs/ssot/process-exec-descriptor-safety.md`
+- `docs/ssot/worker-process-bootstrap.md`
 - `docs/ssot/runtime-container-definitions.md`
 - `docs/ssot/artifact-generations.md`
 

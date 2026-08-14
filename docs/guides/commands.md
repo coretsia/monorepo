@@ -303,33 +303,49 @@ Outputs:
 
 Determinism:
 
-| Mode / flags                       | Determinism   | Notes                                                       |
-|------------------------------------|---------------|-------------------------------------------------------------|
-| default                            | deterministic | Delegates to `framework` test runner; no discovery banners. |
-| `composer test -- --list-packages` | deterministic | Prints discovered package test directories before PHPUnit.  |
+| Mode / flags           | Determinism   | Notes                                                               |
+|------------------------|---------------|---------------------------------------------------------------------|
+| default                | deterministic | Runs the complete discovered framework/packages PHPUnit suite once. |
+| `--list-packages`      | deterministic | Prints discovered package test directories before PHPUnit.          |
+| `--file=<path>`        | deterministic | Runs one validated framework-relative test file.                    |
+| `--package=<selector>` | deterministic | Runs one package, package family, or unique package basename.       |
+| `--repeat=<N>`         | deterministic | Repeats the resolved PHPUnit target `N` times in fresh processes.   |
 
 Notes:
 - `composer test` is the canonical repo-root entrypoint for framework/packages tests.
 - Execution order is cemented:
   1) `composer package:phpunit:gate`
   2) framework package-discovery PHPUnit runner
-- Runner semantics (deterministic):
-  - default success output does not include package discovery banners
+- Runner semantics:
+  - default mode runs the complete discovered suite once and emits no package discovery banners
   - `--list-packages` prints discovered package test directories as `package: <framework-relative-tests-dir>`
-  - generates `framework/var/phpunit/phpunit.discovered.xml` *(gitignored runtime artifact)*
-  - runs PHPUnit once (single process) using the generated config
+  - `--file=<path>` accepts one test file under `framework/packages/*/*/tests/**` or `framework/tools/tests/**`; paths are framework-relative and validated fail-closed
+  - `--package=<selector>` accepts an exact package id (`core/kernel`), unique package basename (`kernel`), or package family (`core`); missing or ambiguous selectors fail closed
+  - `--file` and `--package` are mutually exclusive
+  - `--repeat=<N>` accepts `1..1000`, may be combined with `--file` or `--package`, and runs every iteration in a fresh PHPUnit process
+  - repeat mode runs all requested iterations, returns non-zero if any iteration fails, and emits a deterministic final summary
+  - PHPUnit-native arguments such as `--filter`, `--group`, and `--testsuite` continue to be forwarded to PHPUnit
+  - generates `framework/var/phpunit/phpunit.discovered.xml` once per runner invocation
 - Policy:
   - package-local `phpunit.xml` / `phpunit.dist.xml` under `framework/packages/*/*` are forbidden
   - canonical source of truth for framework/packages PHPUnit config is `framework/tools/testing/phpunit.xml`
   - generated artifact `framework/var/phpunit/phpunit.discovered.xml` is runtime-only and MUST NOT be hand-edited
-- `--strict` is forwarded to the framework runner, but MUST NOT be interpreted as a requirement for package-local PHPUnit config files.
+  - package/file targeting does not introduce package-local or target-specific PHPUnit config files
+- `--strict` is consumed by the framework runner, but MUST NOT be interpreted as a requirement for package-local PHPUnit config files.
 
 Usage (repo root):
 - `composer test`
 - `composer test -- --list-packages`
+- `composer test -- --file=packages/platform/worker/tests/Integration/WorkerSupervisorGuardianFenceRaceTest.php`
+- `composer test -- --package=worker`
+- `composer test -- --package=core/kernel`
+- `composer test -- --package=core`
+- `composer test -- --repeat=20`
+- `composer test -- --repeat=20 --package=kernel`
+- `composer test -- --repeat=50 --file=packages/platform/worker/tests/Integration/WorkerSupervisorGuardianFenceRaceTest.php`
 - `composer test -- --filter <pattern>`
-- `composer test -- --testsuite all`
 - `composer test -- --group contract`
+- `composer test -- --testsuite all`
 
 ---
 

@@ -29,8 +29,6 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
-use Coretsia\Foundation\Serialization\StableJsonDecoder;
-use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
@@ -56,7 +54,6 @@ use Coretsia\Platform\Worker\Process\Driver\PcntlWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Driver\ProcWorkerProcessDriver;
 use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianClient;
 use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianProtocol;
-use Coretsia\Platform\Worker\Process\Guardian\WorkerProcessGuardianTransport;
 use Coretsia\Platform\Worker\Process\WorkerChildCommandBuilder;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLocatorStore;
 use Coretsia\Platform\Worker\Runtime\WorkerLifecycleLock;
@@ -130,8 +127,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
             ->requireService(WorkerControlClientInterface::class)
             ->requireService(TagRegistry::class)
             ->classService(WorkerServiceFactory::class, WorkerServiceFactory::class)
-            ->classService(StableJsonEncoder::class, StableJsonEncoder::class)
-            ->classService(StableJsonDecoder::class, StableJsonDecoder::class)
             ->serviceMethodFactory(
                 WorkerPoolSpec::class,
                 WorkerServiceFactory::class,
@@ -154,8 +149,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 'workerStateStore',
                 [
                     ContainerValueReference::service(RuntimePathContext::class),
-                    ContainerValueReference::service(StableJsonEncoder::class),
-                    ContainerValueReference::service(StableJsonDecoder::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -164,8 +157,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 'workerLifecycleLocatorStore',
                 [
                     ContainerValueReference::service(RuntimePathContext::class),
-                    ContainerValueReference::service(StableJsonEncoder::class),
-                    ContainerValueReference::service(StableJsonDecoder::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -197,8 +188,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 WorkerServiceFactory::class,
                 'workerControlProtocol',
                 [
-                    ContainerValueReference::service(StableJsonEncoder::class),
-                    ContainerValueReference::service(StableJsonDecoder::class),
                 ],
             )
             ->serviceMethodFactory(
@@ -285,14 +274,7 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 WorkerServiceFactory::class,
                 'workerProcessGuardianProtocol',
                 [
-                    ContainerValueReference::service(StableJsonEncoder::class),
-                    ContainerValueReference::service(StableJsonDecoder::class),
                 ],
-            )
-            ->serviceMethodFactory(
-                WorkerProcessGuardianTransport::class,
-                WorkerServiceFactory::class,
-                'workerProcessGuardianTransport',
             )
             ->serviceMethodFactory(
                 WorkerProcessGuardianClient::class,
@@ -301,7 +283,6 @@ final class WorkerServiceProvider implements ServiceProviderInterface, Container
                 [
                     ContainerValueReference::service(RuntimePathContext::class),
                     ContainerValueReference::service(WorkerProcessGuardianProtocol::class),
-                    ContainerValueReference::service(WorkerProcessGuardianTransport::class),
                 ],
             )
             ->alias(

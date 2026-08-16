@@ -38,7 +38,7 @@ use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
 use Coretsia\Kernel\Runtime\Exception\UnitOfWorkContextInvalidException;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -57,19 +57,44 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertTrue($container->has(KernelRuntime::class));
         self::assertTrue($container->has(HookInvoker::class));
         self::assertTrue($container->has(KernelRuntimeInterface::class));
-        self::assertTrue($container->has(RuntimeEntrypointGuard::class));
+        self::assertTrue($container->has(RuntimeDriverResolver::class));
 
         $runtime = $container->get(KernelRuntime::class);
         $hooks = $container->get(HookInvoker::class);
         $runtimePort = $container->get(KernelRuntimeInterface::class);
-        $entrypointGuard = $container->get(RuntimeEntrypointGuard::class);
+        $runtimeDriverResolver = $container->get(RuntimeDriverResolver::class);
 
         self::assertInstanceOf(KernelRuntime::class, $runtime);
         self::assertInstanceOf(HookInvoker::class, $hooks);
         self::assertInstanceOf(KernelRuntime::class, $runtimePort);
         self::assertInstanceOf(KernelRuntimeInterface::class, $runtimePort);
         self::assertSame($runtime, $runtimePort);
-        self::assertInstanceOf(RuntimeEntrypointGuard::class, $entrypointGuard);
+        self::assertInstanceOf(RuntimeDriverResolver::class, $runtimeDriverResolver);
+    }
+
+    public function testRuntimeDriverResolverIsStatelessAndDoesNotResolveDuringContainerBuild(): void
+    {
+        $config = self::validConfig();
+        $config['kernel']['runtime']['http_driver'] = 'http.invalid-for-resolution';
+
+        $builder = self::builder($config);
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+
+        $container = $builder->build();
+        $resolver = $container->get(RuntimeDriverResolver::class);
+
+        self::assertInstanceOf(RuntimeDriverResolver::class, $resolver);
+
+        $reflection = new \ReflectionClass(RuntimeDriverResolver::class);
+        $constructor = $reflection->getConstructor();
+
+        self::assertTrue(
+            $constructor === null || $constructor->getNumberOfRequiredParameters() === 0,
+        );
+        self::assertSame([], $reflection->getProperties());
     }
 
     public function testKernelRuntimeReceivesRequiredDependenciesThroughDi(): void

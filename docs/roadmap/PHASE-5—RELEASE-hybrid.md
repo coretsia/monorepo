@@ -1176,6 +1176,8 @@ Forbidden:
 
 #### Creates
 
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+
 - [ ] `framework/packages/platform/queue/src/Module/QueueModule.php`
 - [ ] `framework/packages/platform/queue/src/Provider/QueueServiceProvider.php`
 - [ ] `framework/packages/platform/queue/src/Provider/QueueServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).

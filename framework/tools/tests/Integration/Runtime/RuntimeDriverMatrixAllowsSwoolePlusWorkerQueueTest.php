@@ -20,8 +20,8 @@ namespace Coretsia\Tools\Tests\Integration\Runtime;
 
 final class RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest extends RuntimeDriverMatrixTestSupport
 {
-    public function testSwooleHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard(): void
+    public function testSwooleHttpPlusWorkerQueueFixtureMatchesRuntimeDriverResolver(): void
     {
-        $this->assertRuntimeDriverMatrixFixtureMatchesGuard('SwoolePlusWorkerQueueApp');
+        $this->assertRuntimeDriverMatrixFixtureMatchesResolver('SwoolePlusWorkerQueueApp');
     }
 }

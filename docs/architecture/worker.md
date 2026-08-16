@@ -200,7 +200,7 @@ docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/adr/ADR-0030-canonical-runtime-container-definitions.md
 docs/adr/ADR-0029-kernel-container-compile-artifact.md
 docs/ssot/compiled-container.md
-docs/adr/ADR-0027-runtime-driver-guard.md
+docs/adr/ADR-0027-runtime-driver-resolution.md
 docs/ssot/config-roots.md
 docs/ssot/observability.md
 docs/ssot/process-exec-descriptor-safety.md
@@ -554,7 +554,7 @@ WorkerStartCommand
   -> WorkerPoolSpec
   -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
        -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
-       -> Kernel RuntimeEntrypointGuard
+       -> RuntimeDriverResolver
   -> WorkerSupervisorResolverInterface::resolve()
        -> ContainerWorkerSupervisorResolver
        -> runtime container get(WorkerSupervisorInterface)
@@ -761,20 +761,14 @@ The credential does not claim isolation from arbitrary processes running under t
 
 The normative Worker control-protocol, credential, locator-confidentiality, and local threat-boundary decisions are recorded in ADR-0017.
 
-## Runtime-driver guard boundary
+## Runtime-driver resolution boundary
 
-Runtime-driver composition and module compatibility are Kernel-owned policy.
+Kernel and Worker ownership are deliberately separate.
 
-The public Kernel boundary is:
-
-```text
-Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
-```
-
-The public Kernel contribution handoff object is:
+The public Kernel matrix boundary is:
 
 ```text
-Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver
 ```
 
 The public Worker-owned runtime entrypoint boundary is:
@@ -798,58 +792,64 @@ ModulePlan
 WorkerPoolSpec
 ```
 
-`WorkerRuntimeEntrypointGuard` owns:
+The flow is:
 
-- validation that `platform.worker` participates in the resolved `ModulePlan`;
-- delegation to the package-internal `WorkerRuntimeDriverContributions::fromSpec(...)` mapper;
-- construction of explicit Kernel `RuntimeDriverContributions`;
-- delegation to the Kernel `RuntimeEntrypointGuard::assertEntrypointAllowed(...)`.
+```text
+WorkerRuntimeEntrypointGuard
+    |-- platform.worker owner precondition
+    |-- WorkerPoolSpec -> WorkerRuntimeDriverContributions
+    |       queue -> bg.worker_queue
+    |       http  -> http.worker
+    v
+RuntimeDriverResolver
+    `-- Kernel selector + contributions + conflict matrix only
+```
 
 The Worker package owns:
 
 ```text
 worker.task_type
+platform.worker precondition
 ```
 
-The normalized task type is read from `WorkerPoolSpec` and mapped internally:
+The concrete HTTP task-source owner owns:
 
 ```text
-queue -> bg.worker_queue
-http  -> http.worker
+package/module prerequisites
+transport prerequisites
+readiness
 ```
 
-`WorkerStartCommand` uses this order:
+Kernel owns:
 
 ```text
-build WorkerPoolSpec
-→ call WorkerRuntimeEntrypointGuard
-→ call WorkerSupervisorResolverInterface::resolve()
-→ run WorkerSupervisorInterface
+kernel.runtime.http_driver
+canonical runtime-driver vocabulary
+contribution composition
+HTTP conflict matrix
+Kernel selector invalid-config semantics
 ```
 
-Resolving the command service itself must not resolve `WorkerSupervisorInterface`, process drivers, `ApplicationWorker`, or the selected task source.
+`http.worker` does not imply `platform.http` inside Kernel.
 
-Worker callers must not:
+A concrete HTTP task-source owner owns any package/module/transport prerequisite required for its implementation.
 
-- ask Kernel to read `worker.task_type`;
-- import `WorkerRuntimeDriverContributions`;
-- call `WorkerRuntimeDriverContributions::fromSpec(...)` directly;
-- call the Kernel `RuntimeEntrypointGuard` directly;
-- call `RuntimeDriverGuard` directly;
-- infer contributions from `ModulePlan`;
-- duplicate runtime-driver composition;
-- duplicate the `platform.http` requirement;
-- translate Kernel matrix failures into Worker driver failures.
+The Worker package must not gain a direct `platform/http` dependency merely to satisfy Kernel matrix resolution.
 
-Missing or invalid `worker.task_type` is a Worker-owned lifecycle-validation failure:
+Worker module participation failure is:
 
 ```text
-CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
+CORETSIA_WORKER_START_FAILED: worker-module-not-enabled
 ```
 
-Runtime-driver conflicts and missing `platform.http` remain Kernel runtime-driver failures.
+Kernel matrix/config failures remain:
 
-HTTP Worker mode must pass `WorkerRuntimeEntrypointGuard` compatibility before HTTP task-source resolution/readiness.
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+```
+
+`RuntimeDriverResolver` does not select `pcntl` or `proc` and does not evaluate OS child-process capability.
 
 ## Lazy WorkerSupervisor resolution boundary
 
@@ -1989,9 +1989,9 @@ docs/architecture/worker.md
 Changing runtime-driver ids, Kernel selector rules, contribution composition, compatibility rules, or runtime-driver matrix failure semantics requires updating:
 
 ```text
-docs/adr/ADR-0027-runtime-driver-guard.md
+docs/adr/ADR-0027-runtime-driver-resolution.md
 docs/ssot/runtime-drivers.md
-docs/architecture/runtime-driver-guard.md
+docs/architecture/runtime-driver-resolution.md
 docs/architecture/worker.md
 ```
 
@@ -2032,7 +2032,7 @@ docs/ssot/observability.md
 
 ## Cross-references
 
-- [Runtime Driver Guard Architecture](./runtime-driver-guard.md)
+- [Runtime Driver Resolution Architecture](./runtime-driver-resolution.md)
 - [Config Roots Registry](../ssot/config-roots.md)
 - [Observability SSoT](../ssot/observability.md)
 - [Process-Exec Descriptor Safety SSoT](../ssot/process-exec-descriptor-safety.md)
@@ -2042,7 +2042,7 @@ docs/ssot/observability.md
 - [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [ADR-0019: Enhanced reset for long-running services](../adr/ADR-0019-enhanced-reset-long-running.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)
-- [ADR-0027: Runtime driver guard](../adr/ADR-0027-runtime-driver-guard.md)
+- [ADR-0027: Runtime driver resolution and compatibility matrix](../adr/ADR-0027-runtime-driver-resolution.md)
 - [Artifact Generations SSoT](../ssot/artifact-generations.md)
 - [Compiled Container SSoT](../ssot/compiled-container.md)
 - [ADR-0029: Kernel compiled container artifact](../adr/ADR-0029-kernel-container-compile-artifact.md)

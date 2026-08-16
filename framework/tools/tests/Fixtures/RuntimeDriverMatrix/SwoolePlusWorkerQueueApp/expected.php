@@ -25,5 +25,4 @@ return [
         'http.swoole',
     ],
     'conflictingDriverIds' => [],
-    'requiredModuleIds' => [],
 ];

@@ -1499,6 +1499,8 @@ Forbidden:
 
 #### Creates
 
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+
 - [ ] `framework/packages/platform/http/src/Module/HttpModule.php` — module entry
   - [ ] MUST declare canonical provided capability `runtime.http`
   - [ ] MUST use `RuntimeCapability::HTTP->value` or prove exact equality to that canonical id
@@ -1583,9 +1585,9 @@ Docs:
   - [ ] replace the temporary direct `platform.http` module-id check with the finalized HTTP runtime provider contract;
   - [ ] remove `TODO(platform-http-3.50.0)` only after replacement tests are green.
 
-- [ ] `docs/adr/ADR-0027-runtime-driver-guard.md`
+- [ ] `docs/adr/ADR-0027-runtime-driver-resolution.md`
 - [ ] `docs/ssot/runtime-drivers.md`
-- [ ] `docs/architecture/runtime-driver-guard.md`
+- [ ] `docs/architecture/runtime-driver-resolution.md`
 
 #### Package skeleton (if type=package)
 
@@ -1958,6 +1960,8 @@ Forbidden:
 ### Deliverables (MUST)
 
 #### Creates
+
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 Test-only harness/support:
 - [ ] `framework/packages/platform/http/tests/Support/LongRunningSafetyProbe.php` — helper used only by tests
@@ -4419,6 +4423,8 @@ Forbidden:
 ### Deliverables (MUST)
 
 #### Creates
+
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 App config (minimal, для demo):
 - [ ] `skeleton/apps/web/config/app.php`

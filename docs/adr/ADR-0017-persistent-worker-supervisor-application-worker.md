@@ -107,10 +107,10 @@ Kernel owns:
 
 Runtime-driver composition must be checked before worker-pool startup.
 
-The canonical public Kernel runtime-entrypoint compatibility boundary is:
+The canonical public Kernel runtime-driver resolution boundary is:
 
 ```text
-Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver
 ```
 
 The Worker-owned boundary used by Worker runtime paths is:
@@ -119,7 +119,7 @@ The Worker-owned boundary used by Worker runtime paths is:
 Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
 ```
 
-`WorkerRuntimeEntrypointGuard` maps an already-normalized `WorkerPoolSpec` to explicit Kernel `RuntimeDriverContributions` and delegates canonical matrix and module compatibility validation to the Kernel boundary.
+`WorkerRuntimeEntrypointGuard` validates the Worker-owned module precondition, maps an already-normalized `WorkerPoolSpec` to explicit Kernel `RuntimeDriverContributions`, and delegates only canonical matrix validation to `RuntimeDriverResolver`.
 
 The worker package must not duplicate runtime-driver matrix policy.
 
@@ -532,7 +532,7 @@ The PCNTL and proc drivers pass the normalized skeleton root as the worker worki
 
 The constructed Worker services must not depend on `BootstrapConfig` or independently reconstruct generated artifact locations.
 
-## Runtime entrypoint guard decision
+## Worker runtime entrypoint boundary decision
 
 Worker runtime paths must use:
 
@@ -553,13 +553,15 @@ It owns:
 - validation that `platform.worker` participates in the resolved `ModulePlan`;
 - delegation to `WorkerRuntimeDriverContributions::fromSpec(...)`;
 - construction of explicit Kernel `RuntimeDriverContributions`;
-- delegation to `RuntimeEntrypointGuard::assertEntrypointAllowed(...)`.
+- delegation of canonical matrix validation to `RuntimeDriverResolver::resolve(...)`.
 
 The canonical startup order is:
 
 ```text
 build WorkerPoolSpec
 -> invoke WorkerRuntimeEntrypointGuard
+-> validate platform.worker owner precondition
+-> resolve Kernel runtime-driver matrix
 -> resolve WorkerSupervisorInterface
 -> launch exact Guardian through WorkerProcessBootstrapLauncher
 -> authenticate Guardian through retained parent bootstrap endpoint
@@ -568,16 +570,21 @@ build WorkerPoolSpec
 -> receive and validate CLAIM ACK
 ```
 
-`WorkerStartCommand` and the shipped child launcher must use this Worker-owned boundary. Task-source resolution/readiness occurs only after the child compatibility guard succeeds.
+`WorkerStartCommand` and the shipped child launcher use this Worker-owned boundary. Task-source resolution/readiness occurs only after the Worker-owned boundary succeeds.
 
 They must not:
 
-- call the Kernel-internal `RuntimeDriverGuard`;
 - resolve the runtime-driver matrix independently;
-- infer `platform.http` compatibility independently;
+- ask Kernel to interpret `platform.worker` or `platform.http` package topology;
 - translate Kernel driver conflicts into unrelated Worker errors.
 
-Runtime-driver matrix failures retain the Kernel error codes:
+Worker module participation failure is Worker-owned:
+
+```text
+CORETSIA_WORKER_START_FAILED: worker-module-not-enabled
+```
+
+Kernel matrix/config failures retain the Kernel error codes:
 
 ```text
 CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
@@ -586,7 +593,7 @@ CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
 
 The Worker OS process-driver selection is independent.
 
-The Kernel guard does not select:
+`RuntimeDriverResolver` does not select:
 
 ```text
 pcntl
@@ -1027,7 +1034,7 @@ The protocol uses:
 - silent rejection before session creation;
 - payload-free operations.
 
-The control request schema and private lifecycle-locator schema remain version `1` while the project is pre-stable. Historical unauthenticated shapes are not compatibility inputs and MUST be rejected through exact schema validation.
+The control request schema and private lifecycle-locator schema are version `1`. Exact schema validation MUST accept only the canonical authenticated shapes defined by this ADR and reject any non-conforming shape.
 
 The canonical request shape is:
 
@@ -2271,7 +2278,7 @@ These tests are expected to verify:
 - pre-auth bootstrap failure leaves no Guardian, ProcHost, bootstrap listener, worker descendant, or generation fence;
 - explicit already-running rejection keeps Supervisor `claimed=false`, cleans the candidate Guardian/ProcHost topology, and does not disturb the existing generation fence;
 - lost `CLAIM ACK` after an independently observed lock commit keeps Supervisor `claimed=false`, performs Guardian-owned cleanup, releases the generation fence last, and permits replacement only after cleanup;
-- Worker runtime definitions contain no Bootstrap services, no Worker-owned Stable JSON services, and no removed legacy Guardian bootstrap transport service;
+- Worker runtime definitions contain no Bootstrap services or Worker-owned Stable JSON services; process-bootstrap infrastructure remains package-internal executable infrastructure rather than runtime-container services;
 - worker config root shape is a subtree;
 - invalid scalar, path, timeout, driver, and transport values are rejected;
 - process-driver and control-transport auto-resolution is deterministic;
@@ -2357,7 +2364,7 @@ These tests are expected to verify:
 - `docs/adr/ADR-0016-clock-ids-stopwatch.md`
 - `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 - `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
-- `docs/adr/ADR-0027-runtime-driver-guard.md`
+- `docs/adr/ADR-0027-runtime-driver-resolution.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
 - `docs/adr/ADR-0031-atomic-artifact-generations.md`
 - `docs/adr/ADR-0032-process-exec-descriptor-safety.md`

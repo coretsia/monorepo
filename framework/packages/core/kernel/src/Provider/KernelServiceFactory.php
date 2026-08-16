@@ -82,7 +82,7 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -1308,15 +1308,15 @@ final class KernelServiceFactory
     }
 
     /**
-     * Creates the Kernel-owned runtime entrypoint guard.
+     * Creates the Kernel-owned runtime-driver resolver.
      *
      * This factory performs construction only. It does not read config values,
-     * does not resolve ModulePlan, does not detect active drivers, does not start
-     * runtime execution, and keeps no mutable runtime state.
+     * resolve ModulePlan, discover packages or adapters, resolve runtime drivers,
+     * start runtime execution, or keep mutable runtime state.
      */
-    public static function runtimeEntrypointGuard(): RuntimeEntrypointGuard
+    public static function runtimeDriverResolver(): RuntimeDriverResolver
     {
-        return new RuntimeEntrypointGuard();
+        return new RuntimeDriverResolver();
     }
 
     /**

@@ -38,8 +38,8 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
 - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
 - `Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions`
+- `Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver`
 - `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
-- `Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard`
 - `Coretsia\Kernel\Runtime\Outcome`
 - `Coretsia\Kernel\Runtime\UnitOfWorkType`
 - `Coretsia\Kernel\Runtime\UnitOfWorkContext`

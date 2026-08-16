@@ -374,7 +374,7 @@ The Foundation provider MUST NOT maintain a parallel imperative registration of 
 `KernelServiceProvider::define()` is the canonical source for:
 
 ```text
-RuntimeEntrypointGuard
+RuntimeDriverResolver
 HookInvoker
 KernelRuntime
 KernelRuntimeInterface alias
@@ -561,7 +561,7 @@ Graph compilation MUST remain possible when no external source contribution exis
 
 `WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. `WorkerProcProcessHostTransport` remains proc-host-executable-owned infrastructure rather than a runtime-container service.
 
-The complete Worker contribution MUST contain no closure values. Task execution callbacks are no longer part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
+The complete Worker contribution MUST contain no closure values. Task execution callbacks are not part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
 
 Resolving `WorkerStartCommand` MUST NOT resolve the selected task source. Source resolution/readiness occurs in the child only after `WorkerRuntimeEntrypointGuard` passes.
 
@@ -1964,10 +1964,10 @@ Additional tests SHOULD cover:
 - Foundation runtime service parity;
 - Kernel runtime service parity;
 - Worker runtime service parity;
-- absence of Worker Bootstrap classes, Worker-owned Stable JSON services, and the removed legacy Guardian bootstrap transport service from the Worker runtime graph and required-service set;
+- absence of Worker Bootstrap classes and Worker-owned Stable JSON services from the Worker runtime graph and required-service set;
 - Worker provider output containing no closures;
 - `WorkerSupervisorInterface` lazy-resolution ordering;
-- absence of legacy lifecycle compatibility services and duplicate control-server abstractions;
+- Worker runtime definitions containing only canonical lifecycle services and no duplicate control-server abstractions;
 - presence of `WorkerControlClientInterface` and `WorkerSupervisorInterface` aliases;
 - presence of `WorkerHealthCommand`;
 - exact lazy selected-driver resolution without process-driver tags;

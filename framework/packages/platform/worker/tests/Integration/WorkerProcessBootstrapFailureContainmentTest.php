@@ -593,10 +593,15 @@ final class WorkerProcessBootstrapFailureContainmentTest extends PackageTestCase
                 )
             );
 
-            self::waitUntil(
-                static fn (): bool => $probe->isHeld(),
-                2_000,
-                'Guardian did not commit WorkerLifecycleLock before ACK-loss injection.',
+            self::waitUntilReadable(
+                $session['connection'],
+                5_000,
+                'Guardian did not publish CLAIM ACK after committing WorkerLifecycleLock.',
+            );
+
+            self::assertTrue(
+                $probe->isHeld(),
+                'CLAIM ACK became readable before WorkerLifecycleLock was committed.',
             );
 
             if ($procHostPid !== null) {
@@ -963,6 +968,52 @@ final class WorkerProcessBootstrapFailureContainmentTest extends PackageTestCase
             $remaining = \substr($remaining, $written);
         }
         @\fflush($stream);
+    }
+
+    /** @param resource $stream */
+    private static function waitUntilReadable(
+        mixed $stream,
+        int $timeoutMs,
+        string $failureMessage,
+    ): void {
+        $deadlineNs = \hrtime(true)
+            + ($timeoutMs * 1_000_000);
+
+        do {
+            $remainingNs = $deadlineNs - \hrtime(true);
+
+            if ($remainingNs <= 0) {
+                break;
+            }
+
+            $read = [$stream];
+            $write = null;
+            $except = null;
+            $remainingUs = (int)\max(
+                1,
+                \min(
+                    100_000,
+                    \intdiv(
+                        $remainingNs,
+                        1_000,
+                    ),
+                ),
+            );
+
+            $selected = @\stream_select(
+                $read,
+                $write,
+                $except,
+                0,
+                $remainingUs,
+            );
+
+            if ($selected === 1) {
+                return;
+            }
+        } while (\hrtime(true) < $deadlineNs);
+
+        self::fail($failureMessage);
     }
 
     /** @param resource $stream */

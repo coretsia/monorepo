@@ -26,7 +26,7 @@ use Coretsia\Contracts\Worker\WorkerTaskSourceInterface;
 use Coretsia\Contracts\Worker\WorkerTaskType;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Communication\WorkerControlClient;
@@ -113,9 +113,9 @@ final class WorkerServiceFactory
     }
 
     public function workerRuntimeEntrypointGuard(
-        RuntimeEntrypointGuard $guard,
+        RuntimeDriverResolver $resolver,
     ): WorkerRuntimeEntrypointGuard {
-        return new WorkerRuntimeEntrypointGuard($guard);
+        return new WorkerRuntimeEntrypointGuard($resolver);
     }
 
     public function workerStateStore(

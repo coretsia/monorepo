@@ -6959,6 +6959,8 @@ Unexpected failure containment:
 
 #### Creates
 
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+
 - [ ] `skeleton/bootstrap/HttpFrontController.php`
   - [ ] declares final class `Coretsia\Skeleton\Bootstrap\HttpFrontController`
   - [ ] file is outside every public docroot

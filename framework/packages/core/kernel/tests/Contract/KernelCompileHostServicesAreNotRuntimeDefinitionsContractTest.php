@@ -89,7 +89,7 @@ use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -213,9 +213,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                     definitions: ContainerDefinitionSet::empty(),
                 );
 
-                self::fail(
-                    'Expected compile-host service binding to be rejected.',
-                );
+                self::fail('Expected compile-host service binding to be rejected.');
             } catch (ContainerDefinitionInvalidException $exception) {
                 self::assertSame(
                     ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID,
@@ -277,7 +275,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
 
         self::assertSame(
             self::sorted([
-                RuntimeEntrypointGuard::class,
+                RuntimeDriverResolver::class,
                 HookInvoker::class,
                 KernelRuntime::class,
                 KernelRuntimeInterface::class,

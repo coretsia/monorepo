@@ -25,7 +25,7 @@ use RuntimeException;
 /**
  * In-memory ConfigRepositoryInterface used only by runtime-driver matrix tests.
  *
- * Unsupported source/introspection methods throw intentionally. RuntimeDriverGuard
+ * Unsupported source/introspection methods throw intentionally. RuntimeDriverResolver
  * must not call them.
  */
 final readonly class RuntimeDriverMatrixConfigRepository implements ConfigRepositoryInterface

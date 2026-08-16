@@ -20,8 +20,8 @@ namespace Coretsia\Tools\Tests\Integration\Runtime;
 
 final class RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest extends RuntimeDriverMatrixTestSupport
 {
-    public function testFrankenphpHttpPlusWorkerHttpFixtureMatchesRuntimeDriverGuard(): void
+    public function testFrankenphpHttpPlusWorkerHttpFixtureMatchesRuntimeDriverResolver(): void
     {
-        $this->assertRuntimeDriverMatrixFixtureMatchesGuard('FrankenphpPlusWorkerHttpApp');
+        $this->assertRuntimeDriverMatrixFixtureMatchesResolver('FrankenphpPlusWorkerHttpApp');
     }
 }

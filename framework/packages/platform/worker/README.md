@@ -232,7 +232,7 @@ WorkerStartCommand
   -> WorkerPoolSpec
   -> WorkerRuntimeEntrypointGuard
        -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
-       -> Kernel RuntimeEntrypointGuard
+       -> RuntimeDriverResolver
   -> WorkerSupervisorResolverInterface::resolve()
   -> WorkerSupervisorInterface::run(...)
        -> WorkerProcessDriverResolverInterface::resolve(WorkerPoolSpec)
@@ -405,7 +405,7 @@ worker.task_type
   -> Kernel runtime-driver contribution
 ```
 
-The Kernel runtime-driver guard does not select `pcntl` or `proc`.
+`RuntimeDriverResolver` does not select `pcntl` or `proc`.
 
 ## Process-child artifact-only boot
 
@@ -746,7 +746,7 @@ WorkerStartCommand
   -> WorkerPoolSpec
   -> WorkerRuntimeEntrypointGuard::assertEntrypointAllowed(...)
        -> WorkerRuntimeDriverContributions::fromSpec(...) [internal]
-       -> Kernel RuntimeEntrypointGuard::assertEntrypointAllowed(...)
+       -> RuntimeDriverResolver::resolve(...)
   -> WorkerSupervisorResolverInterface::resolve()
   -> WorkerSupervisorInterface::run(...)
 ```
@@ -837,14 +837,14 @@ Child PIDs are not public command-summary fields.
 
 Raw socket paths, raw TCP endpoints, config values, payloads, headers, tokens, readiness tokens, absolute paths, and throwable messages MUST NOT be exposed.
 
-## Runtime-driver guard boundary
+## Runtime-driver resolution boundary
 
-Runtime-driver matrix and module-compatibility policy are Kernel-owned.
+Kernel runtime-driver matrix/config policy and Worker owner prerequisites are separate failure domains.
 
-The public Kernel boundary is:
+The public Kernel matrix boundary is:
 
 ```text
-Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard
+Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver
 ```
 
 The public Kernel contribution handoff object is:
@@ -853,15 +853,13 @@ The public Kernel contribution handoff object is:
 Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions
 ```
 
-Worker runtime callers do not invoke this Kernel boundary directly.
-
-The public Worker-owned entrypoint boundary is:
+Worker runtime callers use the Worker-owned entrypoint boundary:
 
 ```text
 Coretsia\Platform\Worker\Runtime\WorkerRuntimeEntrypointGuard
 ```
 
-The following Worker-owned runtime paths use this boundary:
+The following runtime paths use it:
 
 ```text
 WorkerStartCommand
@@ -887,15 +885,14 @@ WorkerPoolSpec
 - the `platform.worker` ModulePlan participation check;
 - delegation to the package-internal `WorkerRuntimeDriverContributions::fromSpec(...)` mapper;
 - construction of explicit Kernel `RuntimeDriverContributions`;
-- delegation to the public Kernel `RuntimeEntrypointGuard`.
+- delegation of canonical matrix validation to `RuntimeDriverResolver`.
 
 Worker callers MUST NOT:
 
-- import `WorkerRuntimeDriverContributions`;
+- import `WorkerRuntimeDriverContributions` from command/child surfaces;
 - call `WorkerRuntimeDriverContributions::fromSpec(...)` directly;
-- call the Kernel `RuntimeEntrypointGuard` directly;
-- call both Worker and Kernel guards for one entrypoint attempt;
-- independently resolve the active runtime-driver set.
+- bypass the Worker module precondition;
+- independently resolve or duplicate the Kernel runtime-driver matrix.
 
 The shipped `bin/coretsia-worker` executable MUST NOT import classes from:
 
@@ -903,15 +900,13 @@ The shipped `bin/coretsia-worker` executable MUST NOT import classes from:
 Coretsia\Platform\Worker\Internal\*
 ```
 
-The Kernel assertion method delegates internally to the canonical `RuntimeEntrypointGuard::resolveEntrypointDrivers(...)` implementation.
-
 The Worker package owns:
 
 ```text
 worker.task_type
 ```
 
-The Worker package maps task type to Kernel runtime-driver contributions:
+and maps:
 
 ```text
 worker.task_type=queue -> bg.worker_queue
@@ -927,35 +922,34 @@ worker.driver=proc  -> WorkerProcessDriverResolverInterface -> ProcWorkerProcess
 
 `pcntl` and `proc` MUST NOT enter `RuntimeDriverContributions`.
 
-The Kernel runtime-driver guard does not evaluate OS child-process capability.
+`RuntimeDriverResolver` does not select `pcntl` or `proc` and does not evaluate OS child-process capability.
 
-The Worker supervisor does not independently evaluate the Kernel HTTP/background compatibility matrix.
-
-This mapping is package-local and is owned by:
+Missing or invalid `worker.task_type` is Worker-owned lifecycle invalid state:
 
 ```text
-WorkerRuntimeDriverContributions
+CORETSIA_WORKER_LIFECYCLE_FAILED: worker-invalid-state
 ```
 
-The Worker package MUST NOT ask Kernel to read `worker.task_type`.
+Missing `platform.worker` is Worker-owned startup failure:
 
-The Worker package MUST NOT make `RuntimeDriverGuard` read the `worker` config root.
+```text
+CORETSIA_WORKER_START_FAILED: worker-module-not-enabled
+```
 
-The Worker package MUST NOT call `RuntimeDriverGuard` directly.
+Kernel runtime-driver matrix/config failures remain Kernel-owned:
 
-`RuntimeDriverGuard` remains a Kernel-internal implementation detail behind `RuntimeEntrypointGuard`.
+```text
+CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT
+CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG
+```
 
-Missing or invalid `worker.task_type` is Worker-owned invalid state and must fail through Worker exception policy.
+The Worker package MUST NOT reclassify those Kernel failures as Worker failures.
 
-Runtime-driver matrix conflicts and module-compatibility failures remain Kernel runtime-driver guard failures.
+`http.worker` does not imply `platform.http` inside Kernel.
 
-The worker package MUST NOT duplicate runtime-driver matrix logic.
+Any concrete HTTP task-source package/module prerequisite is owned and validated by the concrete HTTP task-source owner before readiness/execution.
 
-The worker package MUST NOT reclassify Kernel runtime-driver guard failures as worker exceptions.
-
-HTTP worker mode must pass Kernel runtime entrypoint compatibility before HTTP task-source resolution/readiness.
-
-Missing `platform.http` for `http.worker` must fail through the Kernel runtime entrypoint guard before HTTP task-source resolution/readiness.
+`platform/worker` MUST NOT depend on `platform/http` merely to satisfy runtime-driver matrix resolution.
 
 ## UnitOfWork and reset boundary
 
@@ -1368,7 +1362,7 @@ Worker exception messages MUST NOT include previous throwable messages, stack tr
 
 `worker:start`, `worker:status`, `worker:health`, and `worker:stop` preserve the error code and reason of concrete `WorkerException` instances. Unknown throwables are mapped to command-specific safe catch-all errors.
 
-Runtime-driver matrix failures remain Kernel runtime-driver guard failures.
+Runtime-driver matrix/config failures remain Kernel-owned `RuntimeDriverResolver` failures.
 
 They must not be reclassified as worker exceptions.
 
@@ -1517,7 +1511,7 @@ This package does not provide:
 ## References
 
 - [Worker Architecture](https://github.com/coretsia/monorepo/tree/main/docs/architecture/worker.md)
-- [Runtime Driver Guard Architecture](https://github.com/coretsia/monorepo/tree/main/docs/architecture/runtime-driver-guard.md)
+- [Runtime Driver Resolution Architecture](https://github.com/coretsia/monorepo/tree/main/docs/architecture/runtime-driver-resolution.md)
 - [ADR-0017: Persistent worker supervisor and application worker](https://github.com/coretsia/monorepo/tree/main/docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [Config Roots Registry](https://github.com/coretsia/monorepo/tree/main/docs/ssot/config-roots.md)
 - [Observability SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/observability.md)

@@ -60,7 +60,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0024: Kernel module plan resolution](./ADR-0024-kernel-module-plan-resolution.md) — owner: core/kernel — adrVersion: 1 — scope: composer,discovery,kernel,module-plan,presets,resolution
 - [ADR-0025: Kernel module conflicts and optional-missing policy](./ADR-0025-kernel-conflicts-optional-missing-policy.md) — owner: core/kernel — adrVersion: 1 — scope: conflicts,graph,kernel,module-plan,optional-missing,policy
 - [ADR-0026: Config Kernel Merge, Directives, and Reserved Namespaces](./ADR-0026-config-kernel-merge-directives-reserved-namespaces.md) — owner: core/kernel — adrVersion: 1 — scope: config,directives,kernel,merge,reserved-namespaces
-- [ADR-0027: Runtime driver and entrypoint guard](./ADR-0027-runtime-driver-guard.md) — owner: core/kernel — adrVersion: 1 — scope: guard,kernel,matrix,runtime,runtime-drivers
+- [ADR-0027: Runtime driver resolution and compatibility matrix](./ADR-0027-runtime-driver-resolution.md) — owner: core/kernel — adrVersion: 1 — scope: kernel,matrix,resolution,runtime,runtime-drivers
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](./ADR-0028-kernel-artifacts-fingerprint-cache-verify.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,cache-verify,fingerprint,kernel
 - [ADR-0029: Kernel compiled container artifact](./ADR-0029-kernel-container-compile-artifact.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,boot,container,kernel,runtime
 - [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime

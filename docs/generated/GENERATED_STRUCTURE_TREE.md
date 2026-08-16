@@ -56,7 +56,7 @@ Coretsia/
 │   │   ├── ADR-0024-kernel-module-plan-resolution.md
 │   │   ├── ADR-0025-kernel-conflicts-optional-missing-policy.md
 │   │   ├── ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
-│   │   ├── ADR-0027-runtime-driver-guard.md
+│   │   ├── ADR-0027-runtime-driver-resolution.md
 │   │   ├── ADR-0028-kernel-artifacts-fingerprint-cache-verify.md
 │   │   ├── ADR-0029-kernel-container-compile-artifact.md
 │   │   ├── ADR-0030-canonical-runtime-container-definitions.md
@@ -67,7 +67,7 @@ Coretsia/
 │   │   ├── BRANDING.md
 │   │   ├── PACKAGING.md
 │   │   ├── STRUCTURE.md
-│   │   ├── runtime-driver-guard.md
+│   │   ├── runtime-driver-resolution.md
 │   │   └── worker.md
 │   ├── assets/
 │   │   └── branding/
@@ -720,10 +720,8 @@ Coretsia/
 │   │   │       │       │   ├── BackgroundDriver.php
 │   │   │       │       │   ├── HttpDriver.php
 │   │   │       │       │   ├── RuntimeDriverContributions.php
-│   │   │       │       │   ├── RuntimeDriverGuard.php
+│   │   │       │       │   ├── RuntimeDriverResolver.php
 │   │   │       │       │   └── RuntimeDrivers.php
-│   │   │       │       ├── Entrypoint/
-│   │   │       │       │   └── RuntimeEntrypointGuard.php
 │   │   │       │       ├── Exception/
 │   │   │       │       │   ├── KernelRuntimeException.php
 │   │   │       │       │   ├── RuntimeDriverConflictException.php
@@ -770,10 +768,10 @@ Coretsia/
 │   │   │       │   │   ├── KernelJsonLikePolicyMatchesFoundationContractTest.php
 │   │   │       │   │   ├── KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php
 │   │   │       │   │   ├── KernelPublicApiDoesNotExposePsr7Test.php
-│   │   │       │   │   ├── KernelRuntimeDriverAndEntrypointPublicApiContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverConfigDefaultsContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverConfigRulesContractTest.php
 │   │   │       │   │   ├── KernelRuntimeDriverNoForbiddenDepsContractTest.php
+│   │   │       │   │   ├── KernelRuntimeDriverPublicApiContractTest.php
 │   │   │       │   │   ├── KernelRuntimeResetResponsibilityContractTest.php
 │   │   │       │   │   ├── KernelRuntimeStopwatchFailurePolicyContractTest.php
 │   │   │       │   │   ├── KernelServiceFactoryUnitOfWorkAttributeLimitsContractTest.php
@@ -925,8 +923,6 @@ Coretsia/
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
 │   │   │       │   │   ├── RuntimeContainerGraphCompilerUsesProviderPlanTest.php
 │   │   │       │   │   ├── RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
-│   │   │       │   │   ├── RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php
-│   │   │       │   │   ├── RuntimeEntrypointGuardPreventsRuntimeStartTest.php
 │   │   │       │   │   └── UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
 │   │   │       │   ├── Support/
 │   │   │       │   │   └── AppBuilder.php
@@ -954,14 +950,14 @@ Coretsia/
 │   │   │       │       ├── HookContextNormalizerRequiresKernelOwnedShapesTest.php
 │   │   │       │       ├── HookInvokerDeterministicOrderTest.php
 │   │   │       │       ├── PayloadNormalizerRejectsUnsafeValuesTest.php
-│   │   │       │       ├── RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php
-│   │   │       │       ├── RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php
-│   │   │       │       ├── RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php
-│   │   │       │       ├── RuntimeDriverGuardIgnoresOwnerScopedRuntimeInputsTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidHttpDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsInvalidRuntimeDriverConfigTest.php
-│   │   │       │       ├── RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
-│   │   │       │       ├── RuntimeDriverGuardResolvesRuntimeDriverContributionsTest.php
+│   │   │       │       ├── RuntimeDriverResolverConflictDiagnosticsAreDeterministicallySortedTest.php
+│   │   │       │       ├── RuntimeDriverResolverIgnoresOwnerScopedRuntimeInputsTest.php
+│   │   │       │       ├── RuntimeDriverResolverRejectsInvalidHttpDriverConfigTest.php
+│   │   │       │       ├── RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest.php
+│   │   │       │       ├── RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
+│   │   │       │       ├── RuntimeDriverResolverResolvesClassicWithEmptyContributionsTest.php
+│   │   │       │       ├── RuntimeDriverResolverResolvesRoadrunnerFromKernelConfigTest.php
+│   │   │       │       ├── RuntimeDriverResolverResolvesRuntimeDriverContributionsTest.php
 │   │   │       │       ├── RuntimePathContextValidationTest.php
 │   │   │       │       └── TopologicalSorterDeterministicOrderTest.php
 │   │   │       ├── LICENSE
@@ -1307,6 +1303,7 @@ Coretsia/
 │   │           │       ├── WorkerProcessBootstrapProtocolTest.php
 │   │           │       ├── WorkerProcessGuardianProtocolTest.php
 │   │           │       ├── WorkerRuntimeDriverContributionsTest.php
+│   │           │       ├── WorkerRuntimeEntrypointGuardTest.php
 │   │           │       ├── WorkerShutdownBudgetTest.php
 │   │           │       ├── WorkerStateStoreStateFactoryTest.php
 │   │           │       ├── WorkerSupervisorLifecycleTest.php
@@ -1646,68 +1643,52 @@ Coretsia/
 │   │       │   ├── RuntimeDriverMatrix/
 │   │       │   │   ├── ClassicHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── FrankenphpHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── FrankenphpPlusWorkerHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── FrankenphpPlusWorkerQueueApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── FrankenphpWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── RoadrunnerHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── RoadrunnerPlusWorkerHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── RoadrunnerPlusWorkerQueueApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── RoadrunnerWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── SwooleHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── SwoolePlusWorkerHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── SwoolePlusWorkerQueueApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── SwooleWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   ├── WorkerHttpApp/
 │   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
-│   │       │   │   ├── WorkerHttpWithoutPlatformHttpModuleApp/
-│   │       │   │   │   ├── config.php
-│   │       │   │   │   ├── expected.php
-│   │       │   │   │   └── modules.php
+│   │       │   │   │   ├── contributions.php
+│   │       │   │   │   └── expected.php
 │   │       │   │   └── WorkerQueueApp/
 │   │       │   │       ├── config.php
-│   │       │   │       ├── expected.php
-│   │       │   │       └── modules.php
+│   │       │   │       ├── contributions.php
+│   │       │   │       └── expected.php
 │   │       │   ├── package_bad/
 │   │       │   │   └── packages/
 │   │       │   │       ├── core/
@@ -1774,16 +1755,16 @@ Coretsia/
 │   │       │   ├── Runtime/
 │   │       │   │   ├── Support/
 │   │       │   │   │   └── RuntimeDriverMatrixConfigRepository.php
-│   │       │   │   ├── RuntimeDriverMatrixAllFixturesMatchGuardTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllFixturesMatchResolverTest.php
 │   │       │   │   ├── RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php
 │   │       │   │   ├── RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php
 │   │       │   │   ├── RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php
 │   │       │   │   ├── RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php
+│   │       │   │   ├── RuntimeDriverMatrixAllowsWorkerHttpTest.php
 │   │       │   │   ├── RuntimeDriverMatrixDefaultClassicIsAllowedTest.php
 │   │       │   │   ├── RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php
 │   │       │   │   ├── RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php
 │   │       │   │   ├── RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php
-│   │       │   │   ├── RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php
 │   │       │   │   └── RuntimeDriverMatrixTestSupport.php
 │   │       │   ├── AtomicWriteGateTest.php
 │   │       │   ├── ComposerAuditGateTest.php

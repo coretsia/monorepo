@@ -20,8 +20,8 @@ namespace Coretsia\Tools\Tests\Integration\Runtime;
 
 final class RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest extends RuntimeDriverMatrixTestSupport
 {
-    public function testRoadrunnerHttpPlusWorkerQueueFixtureMatchesRuntimeDriverGuard(): void
+    public function testRoadrunnerHttpPlusWorkerQueueFixtureMatchesRuntimeDriverResolver(): void
     {
-        $this->assertRuntimeDriverMatrixFixtureMatchesGuard('RoadrunnerPlusWorkerQueueApp');
+        $this->assertRuntimeDriverMatrixFixtureMatchesResolver('RoadrunnerPlusWorkerQueueApp');
     }
 }

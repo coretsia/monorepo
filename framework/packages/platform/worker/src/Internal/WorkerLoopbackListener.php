@@ -71,6 +71,12 @@ final class WorkerLoopbackListener
             return null;
         }
 
+        $exclusiveAddressUse = \constant('SO_EXCLUSIVEADDRUSE');
+
+        if (!\is_int($exclusiveAddressUse)) {
+            return null;
+        }
+
         $socket = @\socket_create(
             \AF_INET,
             \SOCK_STREAM,
@@ -86,8 +92,7 @@ final class WorkerLoopbackListener
                 !@\socket_set_option(
                     $socket,
                     \SOL_SOCKET,
-                    // Windows-only ext-sockets constant; self::available() guards its presence.
-                    \SO_EXCLUSIVEADDRUSE,
+                    $exclusiveAddressUse,
                     1,
                 )
                 || !@\socket_bind(

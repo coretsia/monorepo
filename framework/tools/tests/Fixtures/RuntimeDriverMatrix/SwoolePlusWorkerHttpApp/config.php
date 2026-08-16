@@ -18,5 +18,4 @@ declare(strict_types=1);
 
 return [
     'kernel.runtime.http_driver' => 'http.swoole',
-    'worker.task_type' => 'http',
 ];

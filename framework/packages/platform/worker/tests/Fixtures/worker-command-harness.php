@@ -21,7 +21,7 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Platform\Worker\Communication\WorkerChildReadinessChannel;
 use Coretsia\Platform\Worker\Communication\WorkerControlClient;
 use Coretsia\Platform\Worker\Communication\WorkerControlProtocol;
@@ -255,7 +255,7 @@ if ($operation === 'start') {
         config: $repository,
         modulePlan: coretsia_worker_test_module_plan(),
         runtimeEntrypointGuard: new WorkerRuntimeEntrypointGuard(
-            new RuntimeEntrypointGuard(),
+            new RuntimeDriverResolver(),
         ),
         factory: $factory,
         supervisorResolver: $resolver,

@@ -7324,6 +7324,8 @@ Forbidden:
 
 #### Creates
 
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+
 - [ ] `framework/packages/integrations/runtime-frankenphp/src/Runtime/FrankenphpKernelRunner.php` — bridge FrankenPHP request lifecycle to HttpKernel
 - [ ] `framework/packages/integrations/runtime-frankenphp/src/Runtime/FrankenphpServerRequestFactory.php` — builds PSR-7 request deterministically (no superglobals beyond allowed entrypoint)
 - [ ] `framework/packages/integrations/runtime-frankenphp/src/Runtime/FrankenphpResponseEmitter.php` — emits response safely (deterministic headers policy)
@@ -7581,6 +7583,8 @@ Forbidden:
 ### Deliverables (MUST)
 
 #### Creates
+
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 - [ ] `framework/packages/integrations/runtime-swoole/src/Runtime/SwooleKernelRunner.php` — bridge Swoole lifecycle to HttpKernel
 - [ ] `framework/packages/integrations/runtime-swoole/src/Runtime/SwooleServerFactory.php` — server factory (deterministic config)
@@ -7861,6 +7865,8 @@ Forbidden:
 ### Deliverables (MUST)
 
 #### Creates
+
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 - [ ] `framework/packages/integrations/runtime-roadrunner/src/Module/RuntimeRoadrunnerModule.php` — module entry (runtime)
 - [ ] `framework/packages/integrations/runtime-roadrunner/src/Provider/RuntimeRoadrunnerServiceProvider.php` — DI wiring

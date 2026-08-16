@@ -25,5 +25,4 @@ return [
         'http.roadrunner',
     ],
     'conflictingDriverIds' => [],
-    'requiredModuleIds' => [],
 ];

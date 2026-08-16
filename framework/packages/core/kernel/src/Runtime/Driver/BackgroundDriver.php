@@ -25,7 +25,7 @@ namespace Coretsia\Kernel\Runtime\Driver;
  *
  * It intentionally contains no config-reading logic, no runtime detection
  * logic, and no compatibility matrix logic. Driver selection and matrix
- * validation are owned by RuntimeDriverGuard and the runtime drivers SSoT.
+ * validation are owned by RuntimeDriverResolver and the runtime drivers SSoT.
  */
 enum BackgroundDriver: string
 {

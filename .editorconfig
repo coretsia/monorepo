@@ -54,6 +54,12 @@ indent_size = 2
 trim_trailing_whitespace = false
 max_line_length = off
 
+# HTML documents
+[*.{html,htm}]
+indent_style = space
+indent_size = 2
+max_line_length = off
+
 # JS / TS / CSS / SCSS assets
 [*.{js,ts,tsx,css,scss}]
 indent_style = space
@@ -73,6 +79,12 @@ indent_size = 2
 [*.xml]
 indent_style = space
 indent_size = 2
+
+# Graphviz DOT files
+[*.dot]
+indent_style = space
+indent_size = 2
+max_line_length = off
 
 # Shell scripts
 [*.{sh,bash,zsh}]

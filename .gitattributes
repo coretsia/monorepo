@@ -49,10 +49,12 @@ framework/packages/*/*/NOTICE text eol=lf
 *.scss  text eol=lf
 
 # -----------------------------------------------------------------------------
-# Docs (force LF)
+# Docs / markup (force LF)
 # -----------------------------------------------------------------------------
 *.md    text eol=lf
 *.txt   text eol=lf
+*.html  text eol=lf
+*.htm   text eol=lf
 
 # -----------------------------------------------------------------------------
 # Config (force LF)
@@ -85,9 +87,10 @@ framework/packages/*/*/bin/* text eol=lf
 *.cmd   text eol=crlf
 
 # -----------------------------------------------------------------------------
-# Vector (keep diffable + LF)
+# Vector / graph artifacts (keep diffable + LF)
 # -----------------------------------------------------------------------------
 *.svg   text eol=lf
+*.dot   text eol=lf
 
 # -----------------------------------------------------------------------------
 # Images (explicit -text)

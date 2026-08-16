@@ -95,8 +95,8 @@ final class GraphArtifactBuilder
     {
         $graph = self::buildGraph($index);
 
-        $lines = [];
-        $lines[] = '// Coretsia Deptrac graph (Epic 0.80.0) - deterministic artifact.';
+        $lines = self::licenseHeaderSlashLines();
+        $lines[] = '// Coretsia Deptrac graph - deterministic artifact.';
         $lines[] = '// fixture: ' . self::safeHeaderFixtureRef($fixtureRelativeHint);
         $lines[] = 'digraph "coretsia_deptrac" {';
         $lines[] = '  rankdir=LR;';
@@ -130,8 +130,10 @@ final class GraphArtifactBuilder
         $width = 1200;
         $height = \max(180, $paddingTop + (\count($report) * $lineHeight) + 20);
 
-        $lines = [];
-        $lines[] = '<?xml version="1.0" encoding="UTF-8"?>';
+        $lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            ...self::licenseHeaderHtmlLines(),
+        ];
         $lines[] = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $width . '" height="' . $height . '" viewBox="0 0 ' . $width . ' ' . $height . '">';
         $lines[] = '  <rect x="0" y="0" width="' . $width . '" height="' . $height . '" fill="white"/>';
         $lines[] = '  <g font-family="monospace" font-size="14" fill="black">';
@@ -160,7 +162,7 @@ final class GraphArtifactBuilder
         $edges = $graph['edges'];
         $adj = $graph['adjacency'];
 
-        $lines = [];
+        $lines = self::licenseHeaderHtmlLines();
         $lines[] = '<!doctype html>';
         $lines[] = '<html lang="en">';
         $lines[] = '<head>';
@@ -460,6 +462,50 @@ final class GraphArtifactBuilder
         }
 
         return 'fixture';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function licenseHeaderSlashLines(): array
+    {
+        return [
+            '// Coretsia Framework (Monorepo)',
+            '//',
+            '// Project: Coretsia Framework (Monorepo)',
+            '// Authors: Vladyslav Mudrichenko and contributors',
+            '// Copyright (c) 2026 Vladyslav Mudrichenko',
+            '//',
+            '// SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko',
+            '// SPDX-License-Identifier: Apache-2.0',
+            '//',
+            '// For contributors list, see git history.',
+            '// See LICENSE and NOTICE in the project root for full license information.',
+            '',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function licenseHeaderHtmlLines(): array
+    {
+        return [
+            '<!--',
+            '  Coretsia Framework (Monorepo)',
+            '',
+            '  Project: Coretsia Framework (Monorepo)',
+            '  Authors: Vladyslav Mudrichenko and contributors',
+            '  Copyright (c) 2026 Vladyslav Mudrichenko',
+            '',
+            '  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko',
+            '  SPDX-License-Identifier: Apache-2.0',
+            '',
+            '  For contributors list, see git history.',
+            '  See LICENSE and NOTICE in the project root for full license information.',
+            '-->',
+            '',
+        ];
     }
 
     private static function dotEscape(string $s): string

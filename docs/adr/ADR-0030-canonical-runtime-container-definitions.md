@@ -32,9 +32,9 @@ Kernel container compilation
 artifact-only runtime boot
 ```
 
-Before this decision, Foundation source providers could register runtime definitions imperatively through `ContainerBuilder`, while the Kernel container compiler consumed a separate descriptor-oriented input model.
+Foundation source runtime and Kernel container compilation MUST consume the same canonical runtime-definition model.
 
-Keeping those models independent would allow the source runtime and compiled runtime to drift in:
+Independent imperative and descriptor-oriented runtime models are forbidden because they would allow the source runtime and compiled runtime to drift in:
 
 - service construction semantics;
 - factory semantics;
@@ -503,7 +503,7 @@ WorkerContainerDescriptorProvider
 `KernelServiceProvider::define()` remains the canonical source for:
 
 ```text
-RuntimeEntrypointGuard
+RuntimeDriverResolver
 HookInvoker
 KernelRuntime
 KernelRuntimeInterface alias
@@ -696,7 +696,7 @@ The per-provider sets are an orchestration detail. They MUST NOT be applied inde
 ### Positive consequences
 
 - Source runtime wiring and production artifact compilation use the same provider-owned canonical semantic model.
-- Foundation, Kernel, and Worker runtime wiring no longer have parallel imperative and declarative sources.
+- Foundation, Kernel, and Worker runtime wiring each use one provider-owned canonical semantic source; parallel imperative and declarative runtime graphs are forbidden.
 - Existing Foundation, Kernel, and Worker service providers are the canonical definition providers.
 - Kernel compile-host wiring remains explicitly separated from runtime graph wiring.
 - Foundation remains independent from Kernel.
@@ -844,7 +844,7 @@ This decision should be locked by tests covering:
 - Worker provider output contains no closure values;
 - Worker `register()` delegates the same contribution produced by `define()`;
 - Worker required-service declarations cover the deferred supervisor interface, live control client interface, task-source resolver, selected task-source interface, and canonical tag registry;
-- Worker provider definitions contain no legacy lifecycle compatibility services or duplicate control-server abstractions;
+- Worker provider definitions contain only canonical lifecycle services and no duplicate control-server abstractions;
 - Worker process drivers are resolved through the exact package-owned `WorkerProcessDriverResolverInterface` mapping, and only the selected concrete driver is constructed;
 - `WorkerHealthCommand` is defined and tagged as a canonical CLI command;
 - `WorkerSupervisorInterface` remains unresolved until after runtime entrypoint validation;

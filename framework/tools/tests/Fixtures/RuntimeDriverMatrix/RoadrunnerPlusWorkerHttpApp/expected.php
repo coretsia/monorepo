@@ -28,5 +28,4 @@ return [
         'http.roadrunner',
         'http.worker',
     ],
-    'requiredModuleIds' => [],
 ];

@@ -974,7 +974,7 @@ They are not runtime services consumed by the compiled application container.
 `KernelServiceProvider::define()` is limited to Kernel runtime definitions such as:
 
 ```text
-RuntimeEntrypointGuard
+RuntimeDriverResolver
 HookInvoker
 KernelRuntime
 KernelRuntimeInterface alias

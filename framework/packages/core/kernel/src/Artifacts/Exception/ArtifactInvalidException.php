@@ -22,7 +22,7 @@ namespace Coretsia\Kernel\Artifacts\Exception;
  * Deterministic Kernel artifact read/validation failure.
  *
  * This exception is used by PhpArtifactReader, ArtifactSchemaValidator, and
- * CacheVerifier when an existing artifact cannot be read, parsed, or validated.
+ * CacheVerifier when an existing artifact cannot be read, decoded, or validated.
  *
  * The message is intentionally stable and safe. It contains only the package
  * error code and a stable reason token:
@@ -30,7 +30,7 @@ namespace Coretsia\Kernel\Artifacts\Exception;
  *     CORETSIA_ARTIFACT_INVALID: reason-token
  *
  * The message MUST NOT include absolute paths, input path strings, raw artifact
- * bytes, raw PHP payloads, config values, env values, secrets, PHP warning text,
+ * bytes, raw serialization payloads, config values, env values, secrets, PHP warning text,
  * stack traces, object dumps, filesystem details, or previous throwable
  * messages.
  *
@@ -46,7 +46,7 @@ final class ArtifactInvalidException extends \RuntimeException
     public const string REASON_INVALID = 'artifact-invalid';
     public const string REASON_UNREADABLE = 'artifact-unreadable';
     public const string REASON_READ_FAILED = 'artifact-read-failed';
-    public const string REASON_PHP_RETURN_TYPE_INVALID = 'artifact-php-return-type-invalid';
+    public const string REASON_SERIALIZATION_INVALID = 'artifact-serialization-invalid';
     public const string REASON_ENVELOPE_INVALID = 'artifact-envelope-invalid';
     public const string REASON_HEADER_INVALID = 'artifact-header-invalid';
     public const string REASON_PAYLOAD_INVALID = 'artifact-payload-invalid';
@@ -62,7 +62,7 @@ final class ArtifactInvalidException extends \RuntimeException
         self::REASON_INVALID => true,
         self::REASON_UNREADABLE => true,
         self::REASON_READ_FAILED => true,
-        self::REASON_PHP_RETURN_TYPE_INVALID => true,
+        self::REASON_SERIALIZATION_INVALID => true,
         self::REASON_ENVELOPE_INVALID => true,
         self::REASON_HEADER_INVALID => true,
         self::REASON_PAYLOAD_INVALID => true,

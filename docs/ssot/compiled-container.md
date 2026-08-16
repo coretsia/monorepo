@@ -1219,7 +1219,7 @@ public function boot(
 
 1. locate `current` through `ArtifactGenerationLocator`;
 2. require one valid selected `ArtifactGeneration`;
-3. read exact bytes and envelopes for `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`;
+3. read exact bytes and decode envelopes through the canonical non-executing Kernel artifact reader/parser for `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`;
 4. validate `module-manifest@1`, `config@1`, `container@1`, and `artifact-generation@1`;
 5. require generation-manifest byte-length and SHA-256 metadata to match the exact runtime artifact bytes;
 6. require every artifact envelope fingerprint to equal the selected generation id;
@@ -1228,6 +1228,8 @@ public function boot(
 9. create `RuntimePathContext`;
 10. create the exact `RuntimeContainerSeedSet`;
 11. build the runtime Foundation container from the already-read `container@1` envelope.
+
+`ArtifactRuntimeBooter` and its artifact readers MUST NOT execute, evaluate, include, or require generated artifact bytes during generation validation, runtime seed hydration, or compiled-container construction. `container.php` is a compiled declarative data structure; only its validated decoded model may drive runtime container construction.
 
 `ArtifactRuntimeBooter` MUST NOT accept caller-selected individual artifact paths.
 

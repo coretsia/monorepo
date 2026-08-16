@@ -95,6 +95,8 @@ This law applies to any JSON-like artifact body or header and also to any code g
 - Serialized output MUST use unescaped slashes and unescaped unicode.
 - Serialization and code generation MUST NOT depend on locale.
 - Artifacts MUST be rerun-no-diff and MUST NOT embed timestamps, absolute paths, or environment-specific bytes.
+- Artifact encodings are data representations. Artifact readers, validators, runtime boot paths, and other consumers MUST NOT deserialize artifacts by executing, evaluating, including, or requiring artifact bytes.
+- Every owner-defined artifact encoding MUST have a non-executing decoding path constrained to that encoding's canonical serialization rules.
 
 ## Empty Array Rule (Cemented) (MUST)
 

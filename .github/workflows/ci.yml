@@ -35,7 +35,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
 
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
@@ -100,7 +99,31 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
 
       - name: "Windows rails: verify PHP symlink capability (MUST)"
         shell: bash
@@ -153,7 +176,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
 
       - name: "Setup: Gitleaks"
         shell: bash
@@ -236,7 +258,31 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
 
       - name: "Setup: Gitleaks"
         shell: bash
@@ -313,7 +359,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
 
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
@@ -405,7 +450,31 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
 
       - name: "Windows rails: verify PHP symlink capability (MUST)"
         shell: bash
@@ -465,7 +534,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
 
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
@@ -533,7 +601,31 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
 
       - name: "Windows rails: verify PHP symlink capability (MUST)"
         shell: bash
@@ -586,7 +678,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
 
       - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
         shell: bash
@@ -651,7 +742,31 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
-          extensions: imagick
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
 
       - name: "Windows rails: verify PHP symlink capability (MUST)"
         shell: bash

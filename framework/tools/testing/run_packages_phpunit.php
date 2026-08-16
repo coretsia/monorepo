@@ -27,61 +27,31 @@ declare(strict_types=1);
 
     $phpunitBin = $frameworkRoot . '/vendor/bin/phpunit';
     if (!is_file($phpunitBin)) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: missing framework/vendor/bin/phpunit'
-        );
-        exit(1);
+        self_testRunnerFail('missing framework/vendor/bin/phpunit');
     }
 
     $baseConfigAbs = $frameworkRoot . '/tools/testing/phpunit.xml';
     if (!is_file($baseConfigAbs)) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/phpunit.xml'
-        );
-        exit(1);
+        self_testRunnerFail('missing framework/tools/testing/phpunit.xml');
     }
 
     $bootstrap = $frameworkRoot . '/tools/testing/bootstrap.php';
     if (!is_file($bootstrap)) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: missing framework/tools/testing/bootstrap.php'
-        );
-        exit(1);
+        self_testRunnerFail('missing framework/tools/testing/bootstrap.php');
     }
 
-    $strict = false;
-    $listPackages = false;
-
-    /** @var list<string> $forwardArgs */
-    $forwardArgs = [];
-
-    $args = array_slice($argv, 1);
-    $stopParsingFlags = false;
-
-    foreach ($args as $a) {
-        $a = (string)$a;
-
-        if ($a === '') {
-            continue;
-        }
-
-        if ($a === '--') {
-            $stopParsingFlags = true;
-            continue;
-        }
-
-        if (!$stopParsingFlags && $a === '--strict') {
-            $strict = true;
-            continue;
-        }
-
-        if (!$stopParsingFlags && $a === '--list-packages') {
-            $listPackages = true;
-            continue;
-        }
-
-        $forwardArgs[] = $a;
+    try {
+        $options = self_parseRunnerOptions(array_slice($argv, 1));
+    } catch (RuntimeException $exception) {
+        self_testRunnerFail($exception->getMessage());
     }
+
+    $strict = $options['strict'];
+    $listPackages = $options['listPackages'];
+    $repeat = $options['repeat'];
+    $fileSelector = $options['file'];
+    $packageSelector = $options['package'];
+    $forwardArgs = $options['forwardArgs'];
 
     $packageDirs = glob($frameworkRoot . '/packages/*/*', GLOB_ONLYDIR);
     if ($packageDirs === false) {
@@ -92,7 +62,7 @@ declare(strict_types=1);
     $packageDirs = array_map(static fn (string $p): string => rtrim(str_replace('\\', '/', $p), '/'), $packageDirs);
     sort($packageDirs, SORT_STRING);
 
-    /** @var list<array{pkg:string,testsRel:string}> $pkgEntries */
+    /** @var list<array{id:string,pkg:string,testsRel:string}> $pkgEntries */
     $pkgEntries = [];
 
     /** @var list<string> $testsDirsRel */
@@ -107,7 +77,20 @@ declare(strict_types=1);
         $pkgRel = self_relFromFramework($pkgDir, $frameworkRoot);
         $testsRel = $pkgRel . '/tests';
 
+        if (!str_starts_with($pkgRel, 'packages/')) {
+            self_testRunnerFail('discovered package path is outside framework/packages');
+        }
+
+        $packageId = substr($pkgRel, strlen('packages/'));
+
+        if (
+            preg_match('/\A[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+\z/D', $packageId) !== 1
+        ) {
+            self_testRunnerFail('discovered package id is invalid: ' . $packageId);
+        }
+
         $pkgEntries[] = [
+            'id' => $packageId,
             'pkg' => $pkgRel,
             'testsRel' => $testsRel,
         ];
@@ -121,13 +104,26 @@ declare(strict_types=1);
 
     usort(
         $pkgEntries,
-        static fn (array $a, array $b): int => strcmp($a['pkg'], $b['pkg'])
+        static fn (array $a, array $b): int => strcmp($a['id'], $b['id'])
     );
 
     if ($listPackages) {
         foreach ($pkgEntries as $e) {
             \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("package: {$e['pkg']}/tests", false);
         }
+    }
+
+    /** @var list<string> $selectionArgs */
+    $selectionArgs = [];
+
+    try {
+        if ($fileSelector !== null) {
+            $selectionArgs[] = self_resolveTestFile($fileSelector, $frameworkRoot);
+        } elseif ($packageSelector !== null) {
+            $selectionArgs = self_resolvePackageTests($packageSelector, $pkgEntries);
+        }
+    } catch (RuntimeException $exception) {
+        self_testRunnerFail($exception->getMessage());
     }
 
     $genDir = $frameworkRoot . '/var/phpunit';
@@ -137,10 +133,7 @@ declare(strict_types=1);
         @mkdir($genDir, 0777, true);
     }
     if (!is_dir($genDir)) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: cannot create framework/var/phpunit'
-        );
-        exit(1);
+        self_testRunnerFail('cannot create framework/var/phpunit');
     }
 
     $generatedConfigAbs = $genDir . '/phpunit.discovered.xml';
@@ -153,19 +146,13 @@ declare(strict_types=1);
             $testsDirsRel,
         );
     } catch (Throwable) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: cannot render generated phpunit config'
-        );
-        exit(1);
+        self_testRunnerFail('cannot render generated phpunit config');
     }
 
     try {
         \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($generatedConfigAbs, $xml);
     } catch (Throwable) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: cannot write var/phpunit/phpunit.discovered.xml'
-        );
-        exit(1);
+        self_testRunnerFail('cannot write var/phpunit/phpunit.discovered.xml');
     }
 
     $cmd = array_merge(
@@ -176,29 +163,413 @@ declare(strict_types=1);
             $generatedConfigAbs,
             '--do-not-cache-result',
         ],
-        $forwardArgs
+        $forwardArgs,
+        $selectionArgs,
     );
 
+    if ($repeat === 1) {
+        exit(self_runPhpUnit($cmd, $frameworkRoot));
+    }
+
+    /** @var list<int> $failedRuns */
+    $failedRuns = [];
+    $finalExitCode = 0;
+
+    for ($run = 1; $run <= $repeat; $run++) {
+        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+            "repeat: {$run}/{$repeat}",
+            false,
+        );
+
+        $code = self_runPhpUnit($cmd, $frameworkRoot);
+
+        if ($code !== 0) {
+            $failedRuns[] = $run;
+
+            if ($finalExitCode === 0) {
+                $finalExitCode = $code >= 1 && $code <= 255
+                    ? $code
+                    : 1;
+            }
+        }
+    }
+
+    $summary = 'repeat-summary: runs:'
+        . $repeat
+        . ' failures:'
+        . count($failedRuns);
+
+    if ($failedRuns !== []) {
+        $summary .= ' failed-runs:' . implode(',', $failedRuns);
+    }
+
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+        $summary,
+        false,
+    );
+
+    exit($finalExitCode);
+})(
+    $argv
+);
+
+/**
+ * @param array<int, mixed> $args
+ * @return array{
+ *     strict: bool,
+ *     listPackages: bool,
+ *     repeat: int<1, 1000>,
+ *     file: non-empty-string|null,
+ *     package: non-empty-string|null,
+ *     forwardArgs: list<string>
+ * }
+ */
+function self_parseRunnerOptions(array $args): array
+{
+    $strict = false;
+    $listPackages = false;
+    $repeat = 1;
+    $repeatSeen = false;
+    $file = null;
+    $package = null;
+
+    /** @var list<string> $forwardArgs */
+    $forwardArgs = [];
+
+    $stopParsingFlags = false;
+    $count = count($args);
+
+    for ($i = 0; $i < $count; $i++) {
+        $arg = (string)$args[$i];
+
+        if ($arg === '') {
+            continue;
+        }
+
+        if ($stopParsingFlags) {
+            $forwardArgs[] = $arg;
+            continue;
+        }
+
+        if ($arg === '--') {
+            $stopParsingFlags = true;
+            continue;
+        }
+
+        if ($arg === '--strict') {
+            $strict = true;
+            continue;
+        }
+
+        if ($arg === '--list-packages') {
+            $listPackages = true;
+            continue;
+        }
+
+        if ($arg === '--repeat' || str_starts_with($arg, '--repeat=')) {
+            if ($repeatSeen) {
+                throw new RuntimeException('duplicate --repeat option');
+            }
+
+            $value = self_runnerOptionValue(
+                $args,
+                $i,
+                $arg,
+                '--repeat',
+            );
+
+            $repeat = self_parseRepeat($value);
+            $repeatSeen = true;
+            continue;
+        }
+
+        if ($arg === '--file' || str_starts_with($arg, '--file=')) {
+            if ($file !== null) {
+                throw new RuntimeException('duplicate --file option');
+            }
+
+            $file = self_nonEmptyRunnerOptionValue(
+                self_runnerOptionValue(
+                    $args,
+                    $i,
+                    $arg,
+                    '--file',
+                ),
+                '--file',
+            );
+            continue;
+        }
+
+        if ($arg === '--package' || str_starts_with($arg, '--package=')) {
+            if ($package !== null) {
+                throw new RuntimeException('duplicate --package option');
+            }
+
+            $package = self_nonEmptyRunnerOptionValue(
+                self_runnerOptionValue(
+                    $args,
+                    $i,
+                    $arg,
+                    '--package',
+                ),
+                '--package',
+            );
+            continue;
+        }
+
+        $forwardArgs[] = $arg;
+    }
+
+    if ($file !== null && $package !== null) {
+        throw new RuntimeException('--file and --package are mutually exclusive');
+    }
+
+    /** @var int<1, 1000> $repeat */
+    return [
+        'strict' => $strict,
+        'listPackages' => $listPackages,
+        'repeat' => $repeat,
+        'file' => $file,
+        'package' => $package,
+        'forwardArgs' => $forwardArgs,
+    ];
+}
+
+/**
+ * @param array<int, mixed> $args
+ */
+function self_runnerOptionValue(
+    array $args,
+    int &$index,
+    string $arg,
+    string $name,
+): string {
+    $prefix = $name . '=';
+
+    if (str_starts_with($arg, $prefix)) {
+        return substr($arg, strlen($prefix));
+    }
+
+    $next = $index + 1;
+
+    if (!isset($args[$next])) {
+        throw new RuntimeException("{$name} requires a value");
+    }
+
+    $value = (string)$args[$next];
+
+    if ($value === '' || $value === '--') {
+        throw new RuntimeException("{$name} requires a value");
+    }
+
+    $index = $next;
+
+    return $value;
+}
+
+/** @return non-empty-string */
+function self_nonEmptyRunnerOptionValue(
+    string $value,
+    string $name,
+): string {
+    if (
+        $value === ''
+        || trim($value) !== $value
+        || str_contains($value, "\0")
+    ) {
+        throw new RuntimeException("invalid {$name} value");
+    }
+
+    return $value;
+}
+
+/** @return int<1, 1000> */
+function self_parseRepeat(string $value): int
+{
+    if (
+        preg_match('/\A(?:[1-9][0-9]{0,2}|1000)\z/D', $value) !== 1
+    ) {
+        throw new RuntimeException('--repeat must be an integer from 1 to 1000');
+    }
+
+    /** @var int<1, 1000> $repeat */
+    $repeat = (int)$value;
+
+    return $repeat;
+}
+
+/**
+ * @param list<array{id:string,pkg:string,testsRel:string}> $pkgEntries
+ * @return list<string>
+ */
+function self_resolvePackageTests(
+    string $selector,
+    array $pkgEntries,
+): array {
+    $selector = str_replace('\\', '/', $selector);
+
+    if (
+        trim($selector) !== $selector
+        || preg_match('/\A[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)?\z/D', $selector) !== 1
+    ) {
+        throw new RuntimeException('invalid package selector: ' . $selector);
+    }
+
+    if (str_contains($selector, '/')) {
+        foreach ($pkgEntries as $entry) {
+            if ($entry['id'] === $selector) {
+                return [$entry['testsRel']];
+            }
+        }
+
+        throw new RuntimeException('package selector not found: ' . $selector);
+    }
+
+    /** @var list<string> $familyMatches */
+    $familyMatches = [];
+
+    foreach ($pkgEntries as $entry) {
+        if (str_starts_with($entry['id'], $selector . '/')) {
+            $familyMatches[] = $entry['testsRel'];
+        }
+    }
+
+    if ($familyMatches !== []) {
+        sort($familyMatches, SORT_STRING);
+
+        return $familyMatches;
+    }
+
+    /** @var list<array{id:string,pkg:string,testsRel:string}> $basenameMatches */
+    $basenameMatches = [];
+
+    foreach ($pkgEntries as $entry) {
+        $parts = explode('/', $entry['id']);
+
+        if (count($parts) === 2 && $parts[1] === $selector) {
+            $basenameMatches[] = $entry;
+        }
+    }
+
+    if (count($basenameMatches) === 1) {
+        return [$basenameMatches[0]['testsRel']];
+    }
+
+    if (count($basenameMatches) > 1) {
+        $matches = array_map(
+            static fn (array $entry): string => $entry['id'],
+            $basenameMatches,
+        );
+        sort($matches, SORT_STRING);
+
+        throw new RuntimeException(
+            'ambiguous package selector: '
+            . $selector
+            . ' matches='
+            . implode(',', $matches),
+        );
+    }
+
+    throw new RuntimeException('package selector not found: ' . $selector);
+}
+
+function self_resolveTestFile(
+    string $selector,
+    string $frameworkRoot,
+): string {
+    if (
+        trim($selector) !== $selector
+        || $selector === ''
+        || str_contains($selector, "\0")
+        || self_isAbsolutePath($selector)
+    ) {
+        throw new RuntimeException('invalid test file selector');
+    }
+
+    $relative = str_replace('\\', '/', $selector);
+    $parts = explode('/', $relative);
+
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.' || $part === '..') {
+            throw new RuntimeException('invalid test file selector');
+        }
+    }
+
+    if (!str_ends_with($relative, '.php')) {
+        throw new RuntimeException('test file selector must reference a .php file');
+    }
+
+    $candidate = $frameworkRoot . '/' . $relative;
+    $real = realpath($candidate);
+
+    if (!is_string($real) || !is_file($real) || !is_readable($real)) {
+        throw new RuntimeException('test file not found: ' . $relative);
+    }
+
+    $real = str_replace('\\', '/', $real);
+    $frameworkRoot = rtrim(str_replace('\\', '/', $frameworkRoot), '/');
+
+    if (!str_starts_with($real, $frameworkRoot . '/')) {
+        throw new RuntimeException('test file resolves outside framework root');
+    }
+
+    $resolvedRelative = self_relFromFramework($real, $frameworkRoot);
+
+    $packageTest = preg_match(
+        '~\Apackages/[^/]+/[^/]+/tests(?:/[^/]+)+\.php\z~D',
+        $resolvedRelative,
+    ) === 1;
+
+    $toolsTest = preg_match(
+        '~\Atools/tests(?:/[^/]+)+\.php\z~D',
+        $resolvedRelative,
+    ) === 1;
+
+    if (!$packageTest && !$toolsTest) {
+        throw new RuntimeException(
+            'test file is outside canonical package/tool test roots: '
+            . $resolvedRelative,
+        );
+    }
+
+    return $resolvedRelative;
+}
+
+/**
+ * @param non-empty-list<string> $cmd
+ */
+function self_runPhpUnit(
+    array $cmd,
+    string $frameworkRoot,
+): int {
     $descriptors = [
         0 => ['file', 'php://stdin', 'r'],
         1 => ['file', 'php://stdout', 'w'],
         2 => ['file', 'php://stderr', 'w'],
     ];
 
-    $proc = proc_open($cmd, $descriptors, $pipes, $frameworkRoot);
+    $pipes = [];
+
+    $proc = proc_open(
+        $cmd,
+        $descriptors,
+        $pipes,
+        $frameworkRoot,
+    );
 
     if (!is_resource($proc)) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
-            'CORETSIA_TEST_RUNNER_FAILED: cannot start phpunit process'
-        );
-        exit(1);
+        self_testRunnerFail('cannot start phpunit process');
     }
 
-    $code = proc_close($proc);
-    exit($code);
-})(
-    $argv
-);
+    return proc_close($proc);
+}
+
+function self_testRunnerFail(string $reason): never
+{
+    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('CORETSIA_TEST_RUNNER_FAILED: ' . $reason);
+
+    exit(1);
+}
 
 /** exists AND has any meaningful contents (any .php file OR any non-dot directory). */
 function self_hasNonEmptyTestsTree(string $testsDir): bool

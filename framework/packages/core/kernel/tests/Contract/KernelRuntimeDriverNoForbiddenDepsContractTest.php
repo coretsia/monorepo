@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -34,6 +34,71 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
         'Psr\\Http\\Server\\',
         'Coretsia\\Contracts\\Observability\\',
         'Psr\\Log\\LoggerInterface',
+    ];
+
+    /**
+     * @var list<non-empty-string>
+     */
+    private const array FORBIDDEN_RUNTIME_PACKAGE_SEMANTICS = [
+        'platform.http',
+        'platform.worker',
+        'worker.task_type',
+        'Coretsia\\Platform\\',
+        'Coretsia\\Integrations\\',
+    ];
+
+    /**
+     * @var list<non-empty-string>
+     */
+    private const array FORBIDDEN_RESOLVER_STRUCTURAL_REFERENCES = [
+        /*
+         * Module participation / module graph lookup.
+         */
+        'Coretsia\\Kernel\\Module\\ModulePlan',
+        'Coretsia\\Kernel\\Module\\',
+        'Coretsia\\Contracts\\Module\\',
+        'hasEnabledModule(',
+        'ModulePlanResolver',
+        'ModuleGraphResolver',
+
+        /*
+         * Package / runtime implementation discovery.
+         */
+        'ComposerManifestReader',
+        'Composer\\',
+        'InstalledVersions',
+        'class_exists(',
+        'interface_exists(',
+        'trait_exists(',
+        'function_exists(',
+        'extension_loaded(',
+        'defined(',
+
+        /*
+         * Service-container probing.
+         */
+        'Psr\\Container\\',
+        'Coretsia\\Foundation\\Container\\',
+        'ContainerInterface',
+
+        /*
+         * Filesystem / executable adapter probing.
+         */
+        'file_exists(',
+        'file_get_contents(',
+        'is_file(',
+        'is_readable(',
+        'is_executable(',
+        'realpath(',
+        'fopen(',
+        'opendir(',
+        'glob(',
+        'scandir(',
+        'stat(',
+        'lstat(',
+        'FilesystemIterator',
+        'DirectoryIterator',
+        'SplFileInfo',
     ];
 
     public function testKernelRuntimeDriverSourceDoesNotReferenceAnyForbiddenDependency(): void
@@ -66,6 +131,54 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
         ]);
     }
 
+    public function testKernelRuntimeSourceDoesNotEncodeExternalPackageSemantics(): void
+    {
+        foreach (self::runtimeSourceFiles() as $file) {
+            $source = \file_get_contents($file);
+
+            self::assertIsString($source);
+
+            foreach (self::FORBIDDEN_RUNTIME_PACKAGE_SEMANTICS as $forbiddenReference) {
+                self::assertStringNotContainsString(
+                    $forbiddenReference,
+                    $source,
+                    \sprintf(
+                        'Kernel runtime source file "%s" must not encode external-package semantic "%s".',
+                        self::normalizePath($file),
+                        $forbiddenReference,
+                    ),
+                );
+            }
+        }
+    }
+
+    public function testRuntimeDriverResolverHasOnlyMatrixResolutionDependencies(): void
+    {
+        $file = new ReflectionClass(RuntimeDriverResolver::class)->getFileName();
+
+        self::assertIsString($file);
+
+        $source = \file_get_contents($file);
+
+        self::assertIsString($source);
+
+        foreach (self::FORBIDDEN_RESOLVER_STRUCTURAL_REFERENCES as $forbiddenReference) {
+            self::assertStringNotContainsString(
+                $forbiddenReference,
+                $source,
+                \sprintf(
+                    'RuntimeDriverResolver must not contain structural dependency "%s".',
+                    $forbiddenReference,
+                ),
+            );
+        }
+
+        self::assertDoesNotMatchRegularExpression(
+            '/\\bModulePlan\\s+\\$[A-Za-z_][A-Za-z0-9_]*/',
+            $source,
+        );
+    }
+
     public function testRuntimeDriverSourceScanCoversDriverAndRuntimeDriverExceptionFiles(): void
     {
         $relativeFiles = [];
@@ -79,7 +192,7 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
                 'src/Runtime/Driver/BackgroundDriver.php',
                 'src/Runtime/Driver/HttpDriver.php',
                 'src/Runtime/Driver/RuntimeDriverContributions.php',
-                'src/Runtime/Driver/RuntimeDriverGuard.php',
+                'src/Runtime/Driver/RuntimeDriverResolver.php',
                 'src/Runtime/Driver/RuntimeDrivers.php',
                 'src/Runtime/Exception/RuntimeDriverConflictException.php',
                 'src/Runtime/Exception/RuntimeDriverInvalidConfigException.php',
@@ -185,6 +298,52 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
     /**
      * @return list<non-empty-string>
      */
+    private static function runtimeSourceFiles(): array
+    {
+        $root = self::kernelPackageRoot() . '/src/Runtime';
+
+        self::assertDirectoryExists($root);
+
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(
+                $root,
+                \FilesystemIterator::SKIP_DOTS,
+            ),
+        );
+
+        foreach ($iterator as $fileInfo) {
+            if (!$fileInfo instanceof \SplFileInfo || !$fileInfo->isFile()) {
+                continue;
+            }
+
+            if ($fileInfo->getExtension() !== 'php') {
+                continue;
+            }
+
+            $path = $fileInfo->getPathname();
+
+            if ($path === '') {
+                continue;
+            }
+
+            $files[] = self::normalizePath($path);
+        }
+
+        \usort(
+            $files,
+            static fn (string $left, string $right): int => \strcmp($left, $right),
+        );
+
+        self::assertNotSame([], $files);
+
+        /** @var list<non-empty-string> $files */
+        return $files;
+    }
+
+    /**
+     * @return list<non-empty-string>
+     */
     private static function runtimeDriverSourceRoots(): array
     {
         return [
@@ -205,7 +364,7 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
 
     private static function kernelPackageRoot(): string
     {
-        $file = new ReflectionClass(RuntimeDriverGuard::class)->getFileName();
+        $file = new ReflectionClass(RuntimeDriverResolver::class)->getFileName();
 
         self::assertIsString($file);
 

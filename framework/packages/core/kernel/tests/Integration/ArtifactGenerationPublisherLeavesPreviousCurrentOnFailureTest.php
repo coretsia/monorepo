@@ -419,12 +419,8 @@ FAKE_PATH_RESOLVER);
 }
 
 $normalizer = new \Coretsia\Kernel\Artifacts\PayloadNormalizer();
-$envelopeFactory = new \Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory(
-    $normalizer,
-);
-$dumper = new \Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper(
-    $normalizer,
-);
+$envelopeFactory = new \Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory($normalizer);
+$dumper = new \Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper($normalizer);
 $modulePlan = new \Coretsia\Kernel\Module\ModulePlan(
     app: 'web',
     preset: 'default',
@@ -447,83 +443,45 @@ $compiledConfig = [
     'owners' => [],
     'envOverlayMappings' => [],
     'configSourceFiles' => [],
-    'validation' =>
-        \Coretsia\Contracts\Config\ConfigValidationResult::success(),
+    'validation' => \Coretsia\Contracts\Config\ConfigValidationResult::success(),
     'validationSubjects' => [
         'unvalidated' => [],
         'validated' => [],
     ],
 ];
-$moduleManifestEnvelope = (
-    new \Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder(
-        $envelopeFactory,
-    )
-)->build(
+$moduleManifestEnvelope = new \Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder($envelopeFactory)->build(
     modulePlan: $modulePlan,
     fingerprint: $fingerprint,
 );
-$configEnvelope = (
-    new \Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder(
-        $envelopeFactory,
-    )
-)->build(
+$configEnvelope = new \Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder($envelopeFactory)->build(
     compiledConfig: $compiledConfig,
     fingerprint: $fingerprint,
 );
-$containerEnvelope = (
-    new \Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder(
-        $envelopeFactory,
-    )
-)->build(
-    graph:
-        \Coretsia\Kernel\Container\Definition\DefinitionGraph::empty(),
+$containerEnvelope = new \Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder($envelopeFactory)->build(
+    graph: \Coretsia\Kernel\Container\Definition\DefinitionGraph::empty(),
     fingerprint: $fingerprint,
 );
-$publicationSet =
-    new \Coretsia\Kernel\Artifacts\Generation\ArtifactPublicationSet(
+$publicationSet = new \Coretsia\Kernel\Artifacts\Generation\ArtifactPublicationSet(
         moduleManifestEnvelope: $moduleManifestEnvelope,
-        moduleManifestBytes: $dumper->dumpEnvelope(
-            $moduleManifestEnvelope,
-        ),
+        moduleManifestBytes: $dumper->dumpEnvelope($moduleManifestEnvelope),
         configEnvelope: $configEnvelope,
-        configBytes: $dumper->dumpEnvelope(
-            $configEnvelope,
-        ),
+        configBytes: $dumper->dumpEnvelope($configEnvelope),
         containerEnvelope: $containerEnvelope,
-        containerBytes: $dumper->dumpEnvelope(
-            $containerEnvelope,
-        ),
+        containerBytes: $dumper->dumpEnvelope($containerEnvelope),
     );
-$pathResolver =
-    new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver();
-$schemaValidator =
-    new \Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator();
-$validator =
-    new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator(
-        artifactReader:
-            new \Coretsia\Kernel\Artifacts\Php\PhpArtifactReader(),
+$pathResolver = new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver();
+$schemaValidator = new \Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator();
+$validator = new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator(
+        artifactReader: new \Coretsia\Kernel\Artifacts\Php\PhpArtifactReader(),
         schemaValidator: $schemaValidator,
-        manifestValidator:
-            new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator(
-                $schemaValidator,
-            ),
+        manifestValidator: new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator($schemaValidator),
     );
-$publisher =
-    new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher(
-        artifactWriter:
-            new \Coretsia\Kernel\Artifacts\ArtifactWriter(
-                $scenario,
-            ),
+$publisher = new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher(
+        artifactWriter: new \Coretsia\Kernel\Artifacts\ArtifactWriter($scenario),
         phpArrayDumper: $dumper,
-        manifestBuilder:
-            new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder(
-                $envelopeFactory,
-            ),
+        manifestBuilder: new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestBuilder($envelopeFactory),
         validator: $validator,
-        lock:
-            new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock(
-                $pathResolver,
-            ),
+        lock: new \Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock($pathResolver),
         pathResolver: $pathResolver,
     );
 
@@ -541,10 +499,7 @@ try {
     );
 
     exit(2);
-} catch (
-    \Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException
-        $exception
-) {
+} catch (\Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException $exception) {
     echo \json_encode(
         [
             'status' => 'failed',

@@ -1097,7 +1097,8 @@ final class DeptracGenerateTool
      */
     private static function renderDot(array $nodes, array $edges): string
     {
-        $out = "digraph deptrac {\n";
+        $out = implode("\n", self::licenseHeaderSlashLines()) . "\n";
+        $out .= "digraph deptrac {\n";
         $out .= "  graph [rankdir=\"LR\"];\n";
 
         foreach ($nodes as $node) {
@@ -1166,7 +1167,7 @@ final class DeptracGenerateTool
 
         $height = max(180, $y + $bottomPadding);
 
-        $lines = [];
+        $lines = self::licenseHeaderHtmlLines();
         $lines[] = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $width . '" height="' . $height . '" viewBox="0 0 ' . $width . ' ' . $height . '">';
         $lines[] = '<text x="' . $headingX . '" y="' . $titleY . '">Coretsia deptrac graph (generated)</text>';
         $lines[] = '<text x="' . $headingX . '" y="' . $nodesHeadingY . '">Nodes (' . count($nodes) . ')</text>';
@@ -1200,7 +1201,7 @@ final class DeptracGenerateTool
      */
     private static function renderHtml(array $nodes, array $edges, string $dot): string
     {
-        $out = '';
+        $out = implode("\n", self::licenseHeaderHtmlLines()) . "\n";
         $out .= "<!doctype html>\n";
         $out .= "<html lang=\"en\">\n";
         $out .= "<head>\n";
@@ -1231,6 +1232,50 @@ final class DeptracGenerateTool
         $out .= "</html>\n";
 
         return $out;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function licenseHeaderSlashLines(): array
+    {
+        return [
+            '// Coretsia Framework (Monorepo)',
+            '//',
+            '// Project: Coretsia Framework (Monorepo)',
+            '// Authors: Vladyslav Mudrichenko and contributors',
+            '// Copyright (c) 2026 Vladyslav Mudrichenko',
+            '//',
+            '// SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko',
+            '// SPDX-License-Identifier: Apache-2.0',
+            '//',
+            '// For contributors list, see git history.',
+            '// See LICENSE and NOTICE in the project root for full license information.',
+            '',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function licenseHeaderHtmlLines(): array
+    {
+        return [
+            '<!--',
+            '  Coretsia Framework (Monorepo)',
+            '',
+            '  Project: Coretsia Framework (Monorepo)',
+            '  Authors: Vladyslav Mudrichenko and contributors',
+            '  Copyright (c) 2026 Vladyslav Mudrichenko',
+            '',
+            '  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko',
+            '  SPDX-License-Identifier: Apache-2.0',
+            '',
+            '  For contributors list, see git history.',
+            '  See LICENSE and NOTICE in the project root for full license information.',
+            '-->',
+            '',
+        ];
     }
 
     private static function dotEscape(string $value): string

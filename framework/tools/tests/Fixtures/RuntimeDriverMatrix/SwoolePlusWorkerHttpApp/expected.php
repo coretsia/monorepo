@@ -28,5 +28,4 @@ return [
         'http.swoole',
         'http.worker',
     ],
-    'requiredModuleIds' => [],
 ];

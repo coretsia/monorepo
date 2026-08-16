@@ -24,5 +24,4 @@ return [
         'http.worker',
     ],
     'conflictingDriverIds' => [],
-    'requiredModuleIds' => [],
 ];

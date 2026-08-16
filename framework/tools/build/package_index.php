@@ -182,6 +182,23 @@ final class PackageIndexTool
         return $items;
     }
 
+    private static function licenseHeaderPhp(): string
+    {
+        return "/*\n"
+            . " * Coretsia Framework (Monorepo)\n"
+            . " *\n"
+            . " * Project: Coretsia Framework (Monorepo)\n"
+            . " * Authors: Vladyslav Mudrichenko and contributors\n"
+            . " * Copyright (c) 2026 Vladyslav Mudrichenko\n"
+            . " *\n"
+            . " * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko\n"
+            . " * SPDX-License-Identifier: Apache-2.0\n"
+            . " *\n"
+            . " * For contributors list, see git history.\n"
+            . " * See LICENSE and NOTICE in the project root for full license information.\n"
+            . " */\n\n";
+    }
+
     private static function renderPhpReturnFile(array $payload): string
     {
         $payload = self::normalizePayload($payload);
@@ -191,6 +208,7 @@ final class PackageIndexTool
 
         $out = "<?php\n\n";
         $out .= "declare(strict_types=1);\n\n";
+        $out .= self::licenseHeaderPhp();
         $out .= "/*\n";
         $out .= " * GENERATED FILE (tooling-only).\n";
         $out .= " * MUST NOT be used by runtime.\n";

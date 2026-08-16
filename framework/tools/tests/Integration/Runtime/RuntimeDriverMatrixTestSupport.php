@@ -18,13 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Tests\Integration\Runtime;
 
-use Coretsia\Contracts\Module\ModuleId;
-use Coretsia\Kernel\Module\ModulePlan;
-use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Driver\BackgroundDriver;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
-use Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException;
 use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
@@ -37,43 +34,23 @@ use RuntimeException;
  * This support class intentionally:
  *
  * - loads fixture arrays from framework/tools/tests/Fixtures/RuntimeDriverMatrix;
- * - validates fixture shape before invoking RuntimeDriverGuard;
- * - builds an in-memory ConfigRepositoryInterface;
- * - builds a minimal caller-provided ModulePlan;
- * - maps fixture owner inputs to explicit RuntimeDriverContributions;
- * - invokes RuntimeDriverGuard directly;
- * - asserts only deterministic outcome, error code, reason token, driver ids,
- *   and required module ids.
+ * - validates fixture shape before invoking RuntimeDriverResolver;
+ * - builds an in-memory ConfigRepositoryInterface containing Kernel-owned config only;
+ * - maps explicit canonical fixture driver ids to RuntimeDriverContributions;
+ * - invokes RuntimeDriverResolver directly;
+ * - asserts only deterministic outcome, error code, reason token, and driver ids.
  *
- * It must not shell out, read environment variables, depend on runtime adapters,
- * start runtime loops, or write artifacts.
+ * It must not inspect ModulePlan, map owner config, shell out, read environment
+ * variables, depend on runtime adapters, start runtime loops, or write artifacts.
  */
 abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
 {
     /**
-     * @var array<string, true>
+     * @var list<string>
      */
-    private const array CONFIG_KEYS = [
-        'kernel.runtime.http_driver' => true,
-        'worker.task_type' => true,
-    ];
-
-    /**
-     * @var array<string, true>
-     */
-    private const array WORKER_TASK_TYPES = [
-        'http' => true,
-        'queue' => true,
-    ];
-
-    /**
-     * @var array<string, true>
-     */
-    private const array HTTP_DRIVER_IDS = [
-        'http.classic' => true,
-        'http.frankenphp' => true,
-        'http.roadrunner' => true,
-        'http.swoole' => true,
+    private const array CONTRIBUTION_KEYS = [
+        'httpDriverIds',
+        'backgroundDriverIds',
     ];
 
     /**
@@ -85,7 +62,6 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         'reason',
         'activeDriverIds',
         'conflictingDriverIds',
-        'requiredModuleIds',
     ];
 
     /**
@@ -101,15 +77,34 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      * @var array<string, true>
      */
     private const array CONFLICT_REASONS = [
-        'multiple-http-drivers' => true,
-        'worker-http-conflicts-with-http-driver' => true,
+        RuntimeDriverConflictException::REASON_MULTIPLE_HTTP_DRIVERS => true,
+        RuntimeDriverConflictException::REASON_WORKER_HTTP_CONFLICTS_WITH_HTTP_DRIVER => true,
     ];
 
     /**
      * @var array<string, true>
      */
     private const array INVALID_CONFIG_REASONS = [
-        'requires-platform-http-module' => true,
+        RuntimeDriverInvalidConfigException::REASON_CONFIG_KEY_MISSING => true,
+        RuntimeDriverInvalidConfigException::REASON_CONFIG_KEY_INVALID => true,
+    ];
+
+    /**
+     * @var array<string, true>
+     */
+    private const array HTTP_DRIVER_IDS = [
+        'http.classic' => true,
+        'http.frankenphp' => true,
+        'http.roadrunner' => true,
+        'http.swoole' => true,
+        'http.worker' => true,
+    ];
+
+    /**
+     * @var array<string, true>
+     */
+    private const array BACKGROUND_DRIVER_IDS = [
+        'bg.worker_queue' => true,
     ];
 
     /**
@@ -122,13 +117,6 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         'http.roadrunner' => true,
         'http.swoole' => true,
         'http.worker' => true,
-    ];
-
-    /**
-     * @var array<string, true>
-     */
-    private const array CANONICAL_REQUIRED_MODULE_IDS = [
-        'platform.http' => true,
     ];
 
     /**
@@ -159,16 +147,16 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     }
 
     /**
-     * Loads a fixture, validates it, invokes the guard, and asserts deterministic
+     * Loads a fixture, validates it, invokes the resolver, and asserts deterministic
      * expected output.
      */
-    protected function assertRuntimeDriverMatrixFixtureMatchesGuard(string $fixtureName): void
+    protected function assertRuntimeDriverMatrixFixtureMatchesResolver(string $fixtureName): void
     {
         $fixture = $this->loadRuntimeDriverMatrixFixture($fixtureName);
 
         $actual = $this->runRuntimeDriverMatrix(
             config: $fixture['config'],
-            moduleIds: $fixture['modules'],
+            contributions: $fixture['contributions'],
         );
 
         self::assertSame(
@@ -183,14 +171,16 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      *
      * @return array{
      *     config: array<string, mixed>,
-     *     modules: list<string>,
+     *     contributions: array{
+     *         httpDriverIds: list<string>,
+     *         backgroundDriverIds: list<string>
+     *     },
      *     expected: array{
      *         outcome: string,
      *         code: ?string,
      *         reason: ?string,
      *         activeDriverIds: list<string>,
-     *         conflictingDriverIds: list<string>,
-     *         requiredModuleIds: list<string>
+     *         conflictingDriverIds: list<string>
      *     }
      * }
      */
@@ -199,47 +189,42 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         $fixtureName = self::normalizeFixtureName($fixtureName);
 
         $config = $this->loadRuntimeDriverMatrixArrayFixture($fixtureName, 'config.php');
-        $modules = $this->loadRuntimeDriverMatrixArrayFixture($fixtureName, 'modules.php');
+        $contributions = $this->loadRuntimeDriverMatrixArrayFixture($fixtureName, 'contributions.php');
         $expected = $this->loadRuntimeDriverMatrixArrayFixture($fixtureName, 'expected.php');
 
         $this->validateRuntimeDriverMatrixConfig($fixtureName, $config);
-        $this->validateRuntimeDriverMatrixModules($fixtureName, $modules);
+        $this->validateRuntimeDriverMatrixContributions($fixtureName, $contributions);
         $this->validateRuntimeDriverMatrixExpected($fixtureName, $expected);
 
         return [
             'config' => $config,
-            'modules' => $modules,
+            'contributions' => $contributions,
             'expected' => $expected,
         ];
     }
 
     /**
-     * Runs RuntimeDriverGuard against already validated fixture arrays.
+     * Runs RuntimeDriverResolver against already validated fixture arrays.
      *
      * @param array<string, mixed> $config
-     * @param list<string> $moduleIds
+     * @param array{httpDriverIds: list<string>, backgroundDriverIds: list<string>} $contributions
      *
      * @return array{
      *     outcome: string,
      *     code: ?string,
      *     reason: ?string,
      *     activeDriverIds: list<string>,
-     *     conflictingDriverIds: list<string>,
-     *     requiredModuleIds: list<string>
+     *     conflictingDriverIds: list<string>
      * }
      */
-    protected function runRuntimeDriverMatrix(array $config, array $moduleIds): array
+    protected function runRuntimeDriverMatrix(array $config, array $contributions): array
     {
-        $cfg = new RuntimeDriverMatrixConfigRepository($config);
-        $plan = $this->buildRuntimeDriverMatrixModulePlan($moduleIds);
-        $contributions = self::runtimeDriverContributionsFromConfig($config);
-        $guard = new RuntimeDriverGuard();
+        $resolver = new RuntimeDriverResolver();
 
         try {
-            $drivers = $guard->resolveForModules(
-                cfg: $cfg,
-                plan: $plan,
-                contributions: $contributions,
+            $drivers = $resolver->resolve(
+                config: new RuntimeDriverMatrixConfigRepository($config),
+                contributions: self::runtimeDriverContributions($contributions),
             );
 
             return [
@@ -248,7 +233,6 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
                 'reason' => null,
                 'activeDriverIds' => $drivers->driverIds(),
                 'conflictingDriverIds' => [],
-                'requiredModuleIds' => [],
             ];
         } catch (RuntimeDriverConflictException $exception) {
             return [
@@ -257,46 +241,33 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
                 'reason' => $exception->reason(),
                 'activeDriverIds' => $exception->activeDriverIds(),
                 'conflictingDriverIds' => $exception->conflictingDriverIds(),
-                'requiredModuleIds' => [],
             ];
         } catch (RuntimeDriverInvalidConfigException $exception) {
             return [
                 'outcome' => 'invalid_config',
                 'code' => $exception->errorCode(),
                 'reason' => $exception->reason(),
-                'activeDriverIds' => $exception->activeDriverIds(),
+                'activeDriverIds' => [],
                 'conflictingDriverIds' => [],
-                'requiredModuleIds' => $exception->requiredModuleIds(),
             ];
         }
     }
 
-    private static function runtimeDriverContributionsFromConfig(array $config): RuntimeDriverContributions
+    /**
+     * @param array{httpDriverIds: list<string>, backgroundDriverIds: list<string>} $fixture
+     */
+    private static function runtimeDriverContributions(array $fixture): RuntimeDriverContributions
     {
-        $workerTaskType = $config['worker.task_type'] ?? null;
-
-        if ($workerTaskType === null) {
-            return RuntimeDriverContributions::fromDrivers(
-                httpDrivers: [],
-                backgroundDrivers: [],
-            );
-        }
-
-        return match ($workerTaskType) {
-            'queue' => RuntimeDriverContributions::fromDrivers(
-                httpDrivers: [],
-                backgroundDrivers: [BackgroundDriver::WORKER_QUEUE],
+        return RuntimeDriverContributions::fromDrivers(
+            httpDrivers: array_map(
+                static fn (string $driverId): HttpDriver => HttpDriver::from($driverId),
+                $fixture['httpDriverIds'],
             ),
-
-            'http' => RuntimeDriverContributions::fromDrivers(
-                httpDrivers: [HttpDriver::WORKER],
-                backgroundDrivers: [],
+            backgroundDrivers: array_map(
+                static fn (string $driverId): BackgroundDriver => BackgroundDriver::from($driverId),
+                $fixture['backgroundDriverIds'],
             ),
-
-            default => throw new RuntimeException(
-                'Runtime driver matrix worker.task_type fixture value must be "http" or "queue".'
-            ),
-        };
+        );
     }
 
     private function runtimeDriverMatrixFixtureRoot(): string
@@ -346,61 +317,36 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     {
         $label = self::runtimeDriverMatrixFixtureRelativePath($fixtureName, 'config.php');
 
-        foreach ($config as $key => $value) {
-            if (!is_string($key) || !isset(self::CONFIG_KEYS[$key])) {
+        foreach ($config as $key => $_value) {
+            if ($key !== 'kernel.runtime.http_driver') {
                 throw new RuntimeException('Runtime driver matrix config key invalid: ' . $label);
             }
-
-            if ($key === 'worker.task_type') {
-                if (!is_string($value) || !isset(self::WORKER_TASK_TYPES[$value])) {
-                    throw new RuntimeException(
-                        'Runtime driver matrix worker.task_type must be "http" or "queue": ' . $label
-                    );
-                }
-
-                continue;
-            }
-
-            if ($key === 'kernel.runtime.http_driver') {
-                if (!\is_string($value) || !isset(self::HTTP_DRIVER_IDS[$value])) {
-                    throw new RuntimeException(
-                        'Runtime driver matrix kernel.runtime.http_driver invalid: ' . $label
-                    );
-                }
-
-                continue;
-            }
-
-            throw new RuntimeException('Runtime driver matrix config key validation incomplete: ' . $label);
         }
     }
 
     /**
-     * @param array<mixed> $modules
+     * @param array<mixed> $contributions
      */
-    private function validateRuntimeDriverMatrixModules(string $fixtureName, array $modules): void
+    private function validateRuntimeDriverMatrixContributions(string $fixtureName, array $contributions): void
     {
-        $label = self::runtimeDriverMatrixFixtureRelativePath($fixtureName, 'modules.php');
+        $label = self::runtimeDriverMatrixFixtureRelativePath($fixtureName, 'contributions.php');
 
-        if (!array_is_list($modules)) {
-            throw new RuntimeException('Runtime driver matrix modules fixture must be list<string>: ' . $label);
+        if (array_keys($contributions) !== self::CONTRIBUTION_KEYS) {
+            throw new RuntimeException('Runtime driver matrix contribution keys invalid: ' . $label);
         }
 
-        $seen = [];
-
-        foreach ($modules as $moduleId) {
-            if (!is_string($moduleId) || $moduleId === '' || !ModuleId::isValid($moduleId)) {
-                throw new RuntimeException('Runtime driver matrix module id invalid: ' . $label);
-            }
-
-            if (isset($seen[$moduleId])) {
-                throw new RuntimeException('Runtime driver matrix module id duplicate: ' . $label);
-            }
-
-            $seen[$moduleId] = true;
-        }
-
-        self::assertSortedStringList(array_keys($seen), $label);
+        self::assertDriverIdList(
+            value: $contributions['httpDriverIds'],
+            field: 'httpDriverIds',
+            allowedDriverIds: self::HTTP_DRIVER_IDS,
+            label: $label,
+        );
+        self::assertDriverIdList(
+            value: $contributions['backgroundDriverIds'],
+            field: 'backgroundDriverIds',
+            allowedDriverIds: self::BACKGROUND_DRIVER_IDS,
+            label: $label,
+        );
     }
 
     /**
@@ -427,55 +373,48 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
         $conflictingDriverIds = self::assertCanonicalDriverIdList(
             $expected['conflictingDriverIds'],
             'conflictingDriverIds',
-            $label
+            $label,
         );
-        $requiredModuleIds = self::assertRequiredModuleIdList($expected['requiredModuleIds'], $label);
 
         if ($outcome === 'allowed') {
-            self::assertAllowedExpectedShape($expected, $conflictingDriverIds, $requiredModuleIds, $label);
+            self::assertAllowedExpectedShape($expected, $activeDriverIds, $conflictingDriverIds, $label);
 
             return;
         }
 
         if ($outcome === 'conflict') {
-            self::assertConflictExpectedShape(
-                $expected,
-                $activeDriverIds,
-                $conflictingDriverIds,
-                $requiredModuleIds,
-                $label
-            );
+            self::assertConflictExpectedShape($expected, $activeDriverIds, $conflictingDriverIds, $label);
 
             return;
         }
 
-        self::assertInvalidConfigExpectedShape($expected, $conflictingDriverIds, $label);
+        self::assertInvalidConfigExpectedShape($expected, $activeDriverIds, $conflictingDriverIds, $label);
     }
 
     /**
      * @param array<mixed> $expected
+     * @param list<string> $activeDriverIds
      * @param list<string> $conflictingDriverIds
-     * @param list<string> $requiredModuleIds
      */
     private static function assertAllowedExpectedShape(
         array $expected,
+        array $activeDriverIds,
         array $conflictingDriverIds,
-        array $requiredModuleIds,
         string $label,
     ): void {
         if ($expected['code'] !== null || $expected['reason'] !== null) {
             throw new RuntimeException('Runtime driver matrix allowed expected code/reason must be null: ' . $label);
         }
 
-        if ($conflictingDriverIds !== []) {
+        if ($activeDriverIds === []) {
             throw new RuntimeException(
-                'Runtime driver matrix allowed expected conflictingDriverIds must be empty: ' . $label
+                'Runtime driver matrix allowed expected activeDriverIds must be non-empty: ' . $label
             );
         }
 
-        if ($requiredModuleIds !== []) {
+        if ($conflictingDriverIds !== []) {
             throw new RuntimeException(
-                'Runtime driver matrix allowed expected requiredModuleIds must be empty: ' . $label
+                'Runtime driver matrix allowed expected conflictingDriverIds must be empty: ' . $label
             );
         }
     }
@@ -484,13 +423,11 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
      * @param array<mixed> $expected
      * @param list<string> $activeDriverIds
      * @param list<string> $conflictingDriverIds
-     * @param list<string> $requiredModuleIds
      */
     private static function assertConflictExpectedShape(
         array $expected,
         array $activeDriverIds,
         array $conflictingDriverIds,
-        array $requiredModuleIds,
         string $label,
     ): void {
         if ($expected['code'] !== RuntimeDriverConflictException::ERROR_CODE) {
@@ -512,20 +449,16 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
                 'Runtime driver matrix conflict expected conflictingDriverIds must be non-empty: ' . $label
             );
         }
-
-        if ($requiredModuleIds !== []) {
-            throw new RuntimeException(
-                'Runtime driver matrix conflict expected requiredModuleIds must be empty: ' . $label
-            );
-        }
     }
 
     /**
      * @param array<mixed> $expected
+     * @param list<string> $activeDriverIds
      * @param list<string> $conflictingDriverIds
      */
     private static function assertInvalidConfigExpectedShape(
         array $expected,
+        array $activeDriverIds,
         array $conflictingDriverIds,
         string $label,
     ): void {
@@ -537,51 +470,17 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
             throw new RuntimeException('Runtime driver matrix invalid-config expected reason invalid: ' . $label);
         }
 
+        if ($activeDriverIds !== []) {
+            throw new RuntimeException(
+                'Runtime driver matrix invalid-config expected activeDriverIds must be empty: ' . $label
+            );
+        }
+
         if ($conflictingDriverIds !== []) {
             throw new RuntimeException(
                 'Runtime driver matrix invalid-config expected conflictingDriverIds must be empty: ' . $label
             );
         }
-    }
-
-    /**
-     * @param list<string> $moduleIds
-     */
-    private function buildRuntimeDriverMatrixModulePlan(array $moduleIds): ModulePlan
-    {
-        usort(
-            $moduleIds,
-            static fn (string $left, string $right): int => strcmp($left, $right),
-        );
-
-        $enabled = [];
-        $entries = [];
-
-        foreach ($moduleIds as $moduleIdString) {
-            $moduleId = ModuleId::fromString($moduleIdString);
-
-            $enabled[] = $moduleId;
-            $entries[] = new ModulePlanEntry(
-                moduleId: $moduleId,
-                composerName: self::composerNameForModuleId($moduleId),
-            );
-        }
-
-        return new ModulePlan(
-            app: 'web',
-            preset: 'micro',
-            enabled: $enabled,
-            disabled: [],
-            optionalMissing: [],
-            topologicalOrder: $enabled,
-            modules: $entries,
-            warnings: [],
-        );
-    }
-
-    private static function composerNameForModuleId(ModuleId $moduleId): string
-    {
-        return 'coretsia/' . str_replace('.', '-', $moduleId->value());
     }
 
     private static function normalizeFixtureName(string $fixtureName): string
@@ -612,26 +511,32 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     }
 
     /**
+     * @param array<string, true> $allowedDriverIds
+     *
      * @return list<string>
      */
-    private static function assertCanonicalDriverIdList(mixed $value, string $field, string $label): array
-    {
+    private static function assertDriverIdList(
+        mixed $value,
+        string $field,
+        array $allowedDriverIds,
+        string $label,
+    ): array {
         if (!is_array($value) || !array_is_list($value)) {
-            throw new RuntimeException('Runtime driver matrix expected ' . $field . ' must be list<string>: ' . $label);
+            throw new RuntimeException('Runtime driver matrix ' . $field . ' must be list<string>: ' . $label);
         }
 
         $seen = [];
 
         foreach ($value as $driverId) {
-            if (!is_string($driverId) || !isset(self::CANONICAL_DRIVER_IDS[$driverId])) {
+            if (!is_string($driverId) || !isset($allowedDriverIds[$driverId])) {
                 throw new RuntimeException(
-                    'Runtime driver matrix expected ' . $field . ' driver id invalid: ' . $label
+                    'Runtime driver matrix ' . $field . ' driver id invalid: ' . $label
                 );
             }
 
             if (isset($seen[$driverId])) {
                 throw new RuntimeException(
-                    'Runtime driver matrix expected ' . $field . ' driver id duplicate: ' . $label
+                    'Runtime driver matrix ' . $field . ' driver id duplicate: ' . $label
                 );
             }
 
@@ -647,34 +552,14 @@ abstract class RuntimeDriverMatrixTestSupport extends ToolContractTestCase
     /**
      * @return list<string>
      */
-    private static function assertRequiredModuleIdList(mixed $value, string $label): array
+    private static function assertCanonicalDriverIdList(mixed $value, string $field, string $label): array
     {
-        if (!is_array($value) || !array_is_list($value)) {
-            throw new RuntimeException(
-                'Runtime driver matrix expected requiredModuleIds must be list<string>: ' . $label
-            );
-        }
-
-        $seen = [];
-
-        foreach ($value as $moduleId) {
-            if (!is_string($moduleId) || !isset(self::CANONICAL_REQUIRED_MODULE_IDS[$moduleId])) {
-                throw new RuntimeException(
-                    'Runtime driver matrix expected requiredModuleIds module id invalid: ' . $label
-                );
-            }
-
-            if (isset($seen[$moduleId])) {
-                throw new RuntimeException('Runtime driver matrix expected requiredModuleIds duplicate: ' . $label);
-            }
-
-            $seen[$moduleId] = true;
-        }
-
-        $moduleIds = array_keys($seen);
-        self::assertSortedStringList($moduleIds, $label);
-
-        return $moduleIds;
+        return self::assertDriverIdList(
+            value: $value,
+            field: 'expected ' . $field,
+            allowedDriverIds: self::CANONICAL_DRIVER_IDS,
+            label: $label,
+        );
     }
 
     /**

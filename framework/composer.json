@@ -101,7 +101,8 @@
       "@package-compliance:gate",
       "@package-publish-safety:gate",
       "@atomic-write:gate",
-      "@doc-version-drift:gate"
+      "@doc-version-drift:gate",
+      "@license-header:gate"
     ],
     "security": [
       "@composer-audit:gate",
@@ -132,6 +133,7 @@
     "package-publish-safety:gate": "@php tools/gates/package_publish_safety_gate.php",
     "atomic-write:gate": "@php tools/gates/atomic_write_gate.php",
     "doc-version-drift:gate": "@php tools/gates/doc_version_drift_gate.php",
+    "license-header:gate": "@php tools/gates/license_header_gate.php",
     "spike:gate": "@php tools/gates/spikes_boundary_gate.php",
     "toolkit:gate": "@php tools/gates/internal_toolkit_no_dup_gate.php",
     "tools:ia": "@php tools/gates/tools_invalid_argument_exception_gate.php",

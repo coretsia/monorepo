@@ -39,7 +39,7 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
 
             $generation = ArtifactPipelineTestSupport::currentGeneration($root);
             $containerPath = $generation->containerPath();
-            $envelope = self::readPhpArray($containerPath);
+            $envelope = ArtifactPipelineTestSupport::readArtifactEnvelope($containerPath);
 
             $envelope['payload'] = [
                 'compiled' => false,
@@ -97,7 +97,7 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
 
             $generation = ArtifactPipelineTestSupport::currentGeneration($root);
             $containerPath = $generation->containerPath();
-            $envelope = self::readPhpArray($containerPath);
+            $envelope = ArtifactPipelineTestSupport::readArtifactEnvelope($containerPath);
             $payload = $envelope['payload'] ?? null;
 
             self::assertIsArray($payload);
@@ -151,11 +151,9 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
         }
     }
 
-    public function testArtifactOnlyBootRejectsContainerEvaluationFailureWithoutLeakingWarningText(): void
+    public function testArtifactOnlyBootRejectsNonCanonicalContainerSourceWithoutSideEffects(): void
     {
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'invalid-container-artifact-warning',
-        );
+        $root = ArtifactPipelineTestSupport::temporaryRoot('invalid-container-artifact-source');
 
         try {
             ArtifactPipelineTestSupport::compileArtifacts(
@@ -166,15 +164,16 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
 
             $generation = ArtifactPipelineTestSupport::currentGeneration($root);
             $containerPath = $generation->containerPath();
-            $secretPath = $root . '/secret/source.php';
+            $sentinelPath = $root . '/artifact-source-executed';
+            $bytes = "<?php\n\n"
+                . 'file_put_contents('
+                . \var_export($sentinelPath, true)
+                . ", 'executed');\n\n"
+                . "return [];\n";
 
             self::rewriteContainerBytes(
                 generation: $generation,
-                bytes: "<?php\n\n"
-                . "trigger_error('failed to open stream: "
-                . \addslashes($secretPath)
-                . "', E_USER_WARNING);\n\n"
-                . "return [];\n",
+                bytes: $bytes,
             );
 
             try {
@@ -190,20 +189,17 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
                     containerPath: $containerPath,
                 );
 
+                self::assertFileDoesNotExist($sentinelPath);
                 self::assertStringNotContainsString(
-                    $secretPath,
+                    $sentinelPath,
                     $exception->getMessage(),
                 );
                 self::assertStringNotContainsString(
-                    'failed to open stream',
+                    'file_put_contents',
                     $exception->getMessage(),
                 );
                 self::assertStringNotContainsString(
-                    'trigger_error',
-                    $exception->getMessage(),
-                );
-                self::assertStringNotContainsString(
-                    'E_USER_WARNING',
+                    'executed',
                     $exception->getMessage(),
                 );
             }
@@ -219,9 +215,9 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
         ArtifactGeneration $generation,
         array $envelope,
     ): void {
-        ArtifactPipelineTestSupport::writePhpReturn(
+        ArtifactPipelineTestSupport::writeArtifactEnvelope(
             path: $generation->containerPath(),
-            value: $envelope,
+            envelope: $envelope,
         );
 
         self::updateContainerManifestMetadata($generation);
@@ -250,7 +246,7 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
 
         self::assertIsString($containerBytes);
 
-        $manifest = self::readPhpArray(
+        $manifest = ArtifactPipelineTestSupport::readArtifactEnvelope(
             $generation->generationManifestPath(),
         );
         $payload = $manifest['payload'] ?? null;
@@ -268,23 +264,10 @@ final class ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTe
         $payload['artifacts'] = $artifacts;
         $manifest['payload'] = $payload;
 
-        ArtifactPipelineTestSupport::writePhpReturn(
+        ArtifactPipelineTestSupport::writeArtifactEnvelope(
             path: $generation->generationManifestPath(),
-            value: $manifest,
+            envelope: $manifest,
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function readPhpArray(string $path): array
-    {
-        $value = require $path;
-
-        self::assertIsArray($value);
-
-        /** @var array<string, mixed> $value */
-        return $value;
     }
 
     private static function assertArtifactRuntimeFailure(

@@ -303,33 +303,49 @@ Outputs:
 
 Determinism:
 
-| Mode / flags                       | Determinism   | Notes                                                       |
-|------------------------------------|---------------|-------------------------------------------------------------|
-| default                            | deterministic | Delegates to `framework` test runner; no discovery banners. |
-| `composer test -- --list-packages` | deterministic | Prints discovered package test directories before PHPUnit.  |
+| Mode / flags           | Determinism   | Notes                                                               |
+|------------------------|---------------|---------------------------------------------------------------------|
+| default                | deterministic | Runs the complete discovered framework/packages PHPUnit suite once. |
+| `--list-packages`      | deterministic | Prints discovered package test directories before PHPUnit.          |
+| `--file=<path>`        | deterministic | Runs one validated framework-relative test file.                    |
+| `--package=<selector>` | deterministic | Runs one package, package family, or unique package basename.       |
+| `--repeat=<N>`         | deterministic | Repeats the resolved PHPUnit target `N` times in fresh processes.   |
 
 Notes:
 - `composer test` is the canonical repo-root entrypoint for framework/packages tests.
 - Execution order is cemented:
   1) `composer package:phpunit:gate`
   2) framework package-discovery PHPUnit runner
-- Runner semantics (deterministic):
-  - default success output does not include package discovery banners
+- Runner semantics:
+  - default mode runs the complete discovered suite once and emits no package discovery banners
   - `--list-packages` prints discovered package test directories as `package: <framework-relative-tests-dir>`
-  - generates `framework/var/phpunit/phpunit.discovered.xml` *(gitignored runtime artifact)*
-  - runs PHPUnit once (single process) using the generated config
+  - `--file=<path>` accepts one test file under `framework/packages/*/*/tests/**` or `framework/tools/tests/**`; paths are framework-relative and validated fail-closed
+  - `--package=<selector>` accepts an exact package id (`core/kernel`), unique package basename (`kernel`), or package family (`core`); missing or ambiguous selectors fail closed
+  - `--file` and `--package` are mutually exclusive
+  - `--repeat=<N>` accepts `1..1000`, may be combined with `--file` or `--package`, and runs every iteration in a fresh PHPUnit process
+  - repeat mode runs all requested iterations, returns non-zero if any iteration fails, and emits a deterministic final summary
+  - PHPUnit-native arguments such as `--filter`, `--group`, and `--testsuite` continue to be forwarded to PHPUnit
+  - generates `framework/var/phpunit/phpunit.discovered.xml` once per runner invocation
 - Policy:
   - package-local `phpunit.xml` / `phpunit.dist.xml` under `framework/packages/*/*` are forbidden
   - canonical source of truth for framework/packages PHPUnit config is `framework/tools/testing/phpunit.xml`
   - generated artifact `framework/var/phpunit/phpunit.discovered.xml` is runtime-only and MUST NOT be hand-edited
-- `--strict` is forwarded to the framework runner, but MUST NOT be interpreted as a requirement for package-local PHPUnit config files.
+  - package/file targeting does not introduce package-local or target-specific PHPUnit config files
+- `--strict` is consumed by the framework runner, but MUST NOT be interpreted as a requirement for package-local PHPUnit config files.
 
 Usage (repo root):
 - `composer test`
 - `composer test -- --list-packages`
+- `composer test -- --file=packages/platform/worker/tests/Integration/WorkerSupervisorGuardianFenceRaceTest.php`
+- `composer test -- --package=worker`
+- `composer test -- --package=core/kernel`
+- `composer test -- --package=core`
+- `composer test -- --repeat=20`
+- `composer test -- --repeat=20 --package=kernel`
+- `composer test -- --repeat=50 --file=packages/platform/worker/tests/Integration/WorkerSupervisorGuardianFenceRaceTest.php`
 - `composer test -- --filter <pattern>`
-- `composer test -- --testsuite all`
 - `composer test -- --group contract`
+- `composer test -- --testsuite all`
 
 ---
 
@@ -910,6 +926,87 @@ Notes:
 Usage (repo root):
 - `composer doc-version-drift:gate`
 - `composer doc-version-drift:gate -- --path=framework/tools/tests/Fixtures/DocVersion/Pass`
+
+---
+
+### License header compliance gate
+
+Id: `tool.license_header_gate` \
+Entrypoint: `composer license-header:gate` \
+Category: repo policy / licensing guard \
+Outputs:
+- none on success
+- deterministic error code and diagnostics on failure
+
+Determinism:
+
+| Mode / flags                                         | Determinism   | Notes                                                            |
+|------------------------------------------------------|---------------|------------------------------------------------------------------|
+| `composer license-header:gate`                       | deterministic | Read-only; scans the repository for canonical license headers.   |
+| `composer license-header:gate -- --path=<scan-root>` | deterministic | Read-only scan override for tests/tools; path must stay in repo. |
+
+Notes:
+- Purpose: enforces the canonical Coretsia source-license header on repository-owned textual files whose supported format permits an in-file comment header.
+- The gate is read-only and MUST NOT create, modify, or delete files.
+- Default scan root is the repo root.
+- Optional `--path=<scan-root>`:
+  - accepts a repo-relative or absolute existing directory;
+  - resolved path MUST remain inside the repo root;
+  - is intended for targeted verification, fixtures, and tooling tests.
+- The gate skips non-source/runtime/dependency directories including:
+  - `.git`
+  - `.idea`
+  - `.vscode`
+  - `.fleet`
+  - `.osp`
+  - `vendor`
+  - `node_modules`
+  - `var`
+  - `tmp`
+  - `coverage`
+  - known tool cache directories
+- `LICENSE` and `NOTICE` files are intrinsically exempt from in-file header validation.
+- Supported canonical comment profiles include:
+  - C-style block headers for PHP, JavaScript, TypeScript, TSX, CSS, and SCSS;
+  - HTML comment headers for Markdown, HTML/HTM, XML, and SVG;
+  - `#` comment headers for YAML, TOML, NEON, INI, shell-family scripts, PowerShell, `.env*`, `.editorconfig`, `.gitattributes`, `.gitignore`, and `.gitleaks.toml`;
+  - `//` line-comment headers for Graphviz DOT files;
+  - shebang scripts are classified according to their executable content.
+- Formats without a supported in-file comment profile are not treated as license-header violations by this gate.
+- Canonical header policy:
+  - project marker MUST be `Coretsia Framework (Monorepo)`;
+  - project line MUST be `Project: Coretsia Framework (Monorepo)`;
+  - `Authors:` MUST contain a non-empty value;
+  - `Copyright (c)` MUST contain a non-empty copyright payload;
+  - `SPDX-FileCopyrightText:` MUST contain the same copyright payload as `Copyright (c)`;
+  - `SPDX-License-Identifier:` MUST be exactly `Apache-2.0`;
+  - contributor/history and root `LICENSE`/`NOTICE` reference lines MUST match the canonical header shape.
+- The gate MUST NOT require a specific author or copyright holder:
+  - package/source ownership MAY belong to another contributor or organization;
+  - the actual owner payload is validated structurally rather than hard-coded to `Vladyslav Mudrichenko`.
+- Failure output policy:
+  - policy violation: line 1 is stable code `CORETSIA_LICENSE_HEADER_VIOLATION`
+  - unexpected gate/scanner failure: line 1 is stable code `CORETSIA_LICENSE_HEADER_GATE_FAILED`
+- Stable violation reason tokens are:
+  - `license-header-missing`
+  - `license-header-invalid`
+  - `license-header-copyright-mismatch`
+- Diagnostics contain only a safe repo-relative path and one stable reason token.
+- Non-ASCII path bytes are percent-encoded in diagnostics so output remains safe and deterministic.
+- Diagnostics are deduplicated and sorted by byte-order `strcmp`.
+- Diagnostics MUST NOT expose absolute paths, source contents, exception messages, stack traces, secrets, tokens, credentials, or environment values.
+- Aggregate rail integration:
+  - `composer gates` includes this gate after `composer doc-version-drift:gate`.
+  - `composer ci` therefore enforces the license-header policy through the canonical gates rail.
+- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
+  - `@composer --working-dir=framework run-script license-header:gate --`
+- Framework implementation detail: `@php tools/gates/license_header_gate.php`.
+- Direct call `php framework/tools/gates/license_header_gate.php` is NOT a canonical entrypoint.
+
+Usage (repo root):
+- `composer license-header:gate`
+- `composer license-header:gate -- --path=framework`
+- `composer license-header:gate -- --path=framework/tools`
 
 ---
 
@@ -1968,6 +2065,7 @@ Notes:
   15) `composer package-publish-safety:gate`
   16) `composer atomic-write:gate`
   17) `composer doc-version-drift:gate`
+  18) `composer license-header:gate`
 - Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
   - `@composer --working-dir=framework run-script gates --`
   - framework implementation detail: aggregate `gates` script in `framework/composer.json`

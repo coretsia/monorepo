@@ -36,7 +36,7 @@ use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Tests\Fixtures\KernelRuntimeDefinitionProviderFixture;
@@ -50,7 +50,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
      * @var list<class-string>
      */
     private const array SERVICE_IDS = [
-        RuntimeEntrypointGuard::class,
+        RuntimeDriverResolver::class,
         HookInvoker::class,
         KernelRuntime::class,
     ];
@@ -244,8 +244,9 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
         return \array_values(
             \array_filter(
                 $operations,
-                static fn (array $operation): bool => ($operation['kind'] ?? null)
-                    === ContainerDefinitionKind::TAG->value,
+                static fn (
+                    array $operation
+                ): bool => ($operation['kind'] ?? null) === ContainerDefinitionKind::TAG->value,
             ),
         );
     }

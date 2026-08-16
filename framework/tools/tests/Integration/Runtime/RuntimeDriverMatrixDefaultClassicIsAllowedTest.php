@@ -20,8 +20,8 @@ namespace Coretsia\Tools\Tests\Integration\Runtime;
 
 final class RuntimeDriverMatrixDefaultClassicIsAllowedTest extends RuntimeDriverMatrixTestSupport
 {
-    public function testDefaultClassicHttpFixtureMatchesRuntimeDriverGuard(): void
+    public function testDefaultClassicHttpFixtureMatchesRuntimeDriverResolver(): void
     {
-        $this->assertRuntimeDriverMatrixFixtureMatchesGuard('ClassicHttpApp');
+        $this->assertRuntimeDriverMatrixFixtureMatchesResolver('ClassicHttpApp');
     }
 }

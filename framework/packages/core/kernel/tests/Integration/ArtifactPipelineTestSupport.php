@@ -130,6 +130,38 @@ final class ArtifactPipelineTestSupport
         );
     }
 
+    /**
+     * @param array<int|string, mixed> $envelope
+     */
+    public static function writeArtifactEnvelope(string $path, array $envelope): void
+    {
+        $directory = \dirname($path);
+
+        if (!\is_dir($directory)) {
+            \mkdir($directory, 0777, true);
+        }
+
+        \file_put_contents(
+            $path,
+            new StablePhpArrayDumper()->dumpEnvelope($envelope),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function readArtifactEnvelope(string $path): array
+    {
+        $read = new PhpArtifactReader()->readExact($path);
+
+        TestCase::assertIsArray($read['envelope']);
+
+        /** @var array<string, mixed> $envelope */
+        $envelope = $read['envelope'];
+
+        return $envelope;
+    }
+
     public static function removeTree(string $path): void
     {
         if (\is_link($path)) {
@@ -636,14 +668,7 @@ final class ArtifactPipelineTestSupport
     private static function artifactEnvelopeFromPath(
         string $path,
     ): array {
-        $read = new PhpArtifactReader()->read($path);
-
-        TestCase::assertIsArray($read['envelope']);
-
-        /** @var array<string, mixed> $envelope */
-        $envelope = $read['envelope'];
-
-        return $envelope;
+        return self::readArtifactEnvelope($path);
     }
 
     /**
@@ -774,13 +799,8 @@ final class ArtifactPipelineTestSupport
 
         $seedFactory = new ArtifactRuntimeSeedFactory();
 
-        $configRepository = $seedFactory->hydrateConfigRepository(
-            $configPayload,
-        );
-
-        $modulePlan = $seedFactory->hydrateModulePlan(
-            $moduleManifestPayload,
-        );
+        $configRepository = $seedFactory->hydrateConfigRepository($configPayload);
+        $modulePlan = $seedFactory->hydrateModulePlan($moduleManifestPayload);
 
         $seeds = $seedFactory->create(
             input: new ArtifactRuntimeInput(

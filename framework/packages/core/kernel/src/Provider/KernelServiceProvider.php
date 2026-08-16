@@ -86,7 +86,7 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
-use Coretsia\Kernel\Runtime\Entrypoint\RuntimeEntrypointGuard;
+use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -127,11 +127,11 @@ use Psr\Log\LoggerInterface;
  * - registering cache services does not run cache verification;
  * - registering artifact/fingerprint/cache services does not emit spans,
  *   metrics, logs, stdout, or stderr;
- * - RuntimeEntrypointGuard is registered as a factory-only stateless runtime
- *   boundary;
- * - registering RuntimeEntrypointGuard does not run runtime driver detection;
- * - registering RuntimeEntrypointGuard does not inspect config values;
- * - registering RuntimeEntrypointGuard does not resolve ModulePlan;
+ * - RuntimeDriverResolver is registered as a factory-only stateless runtime
+ *   service;
+ * - registering RuntimeDriverResolver does not run runtime-driver resolution;
+ * - registering RuntimeDriverResolver does not inspect config values;
+ * - registering RuntimeDriverResolver does not resolve ModulePlan;
  * - FilesystemModePresetLoader is not registered globally because skeleton
  *   override path resolution is BootstrapConfig-specific;
  * - ModePresetLoaderInterface is not bound globally for the same reason;
@@ -687,9 +687,9 @@ final class KernelServiceProvider implements
             ->requireService(TracerPortInterface::class)
             ->requireService(MeterPortInterface::class)
             ->classMethodFactory(
-                id: RuntimeEntrypointGuard::class,
+                id: RuntimeDriverResolver::class,
                 factoryClass: KernelServiceFactory::class,
-                method: 'runtimeEntrypointGuard',
+                method: 'runtimeDriverResolver',
             )
             ->classMethodFactory(
                 id: HookInvoker::class,

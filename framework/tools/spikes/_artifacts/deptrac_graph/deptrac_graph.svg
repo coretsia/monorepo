@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Coretsia Framework (Monorepo)
+
+  Project: Coretsia Framework (Monorepo)
+  Authors: Vladyslav Mudrichenko and contributors
+  Copyright (c) 2026 Vladyslav Mudrichenko
+
+  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+  SPDX-License-Identifier: Apache-2.0
+
+  For contributors list, see git history.
+  See LICENSE and NOTICE in the project root for full license information.
+-->
+
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="276" viewBox="0 0 1200 276">
   <rect x="0" y="0" width="1200" height="276" fill="white"/>
   <g font-family="monospace" font-size="14" fill="black">

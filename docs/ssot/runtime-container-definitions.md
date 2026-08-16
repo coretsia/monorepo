@@ -374,7 +374,7 @@ The Foundation provider MUST NOT maintain a parallel imperative registration of 
 `KernelServiceProvider::define()` is the canonical source for:
 
 ```text
-RuntimeEntrypointGuard
+RuntimeDriverResolver
 HookInvoker
 KernelRuntime
 KernelRuntimeInterface alias
@@ -475,8 +475,6 @@ It MUST define the Worker orchestration graph, including:
 
 ```text
 WorkerServiceFactory
-StableJsonEncoder
-StableJsonDecoder
 
 WorkerPoolSpec
 WorkerRuntimeEntrypointGuard
@@ -497,7 +495,6 @@ WorkerChildReadinessChannel
 WorkerChildTable
 WorkerSignalController
 WorkerProcessGuardianProtocol
-WorkerProcessGuardianTransport
 WorkerProcessGuardianClient
 WorkerProcessGuardianInterface alias
 WorkerChildCommandBuilder
@@ -550,6 +547,10 @@ WorkerControlClientInterface
 
 `ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `TagRegistry` MAY be supplied by the surrounding runtime graph. `WorkerTaskSourceInterface` is a lazy selected runtime dependency resolved through `WorkerTaskSourceResolver` from `worker.task_source` contributions.
 
+`StableJsonEncoder` and `StableJsonDecoder` are Foundation-owned stateless deterministic primitives consumed through their canonical static API. Their package ownership does not require runtime-container service definitions. The Worker contribution MUST NOT define or require either Stable JSON primitive, and Foundation MUST NOT register them as runtime services solely for Worker process bootstrap.
+
+`WorkerProcessBootstrapProtocol`, `WorkerProcessBootstrapEndpoint`, `WorkerProcessBootstrapClient`, `WorkerProcessBootstrapLauncher`, and `WorkerProcessBootstrapFailure` are package-internal construction and process-bootstrap infrastructure. They MUST NOT be added to the Worker runtime container contribution or required-service set.
+
 The Worker contribution MUST NOT register a built-in queue, HTTP, synthetic, or no-op task source.
 
 `WorkerTaskSourceResolver` MUST use `ReservedTags::WORKER_TASK_SOURCE`, match exact `task_type` metadata, resolve only the selected source, reject zero/multiple/invalid sources deterministically, and avoid first-wins priority selection.
@@ -560,7 +561,7 @@ Graph compilation MUST remain possible when no external source contribution exis
 
 `WorkerControlCredential` MUST NOT be declared as a container service, alias, tagged service, factory output, or runtime seed. `WorkerProcProcessHostTransport` remains proc-host-executable-owned infrastructure rather than a runtime-container service.
 
-The complete Worker contribution MUST contain no closure values. Task execution callbacks are no longer part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
+The complete Worker contribution MUST contain no closure values. Task execution callbacks are not part of Worker container wiring; real application execution is represented by `WorkerTaskInterface::execute()` after task acquisition.
 
 Resolving `WorkerStartCommand` MUST NOT resolve the selected task source. Source resolution/readiness occurs in the child only after `WorkerRuntimeEntrypointGuard` passes.
 
@@ -1708,7 +1709,7 @@ The complete set is applied once.
 ### Registering declarative providers in source mode
 
 ```php
-$container = (new ContainerBuilder($compiledConfig))
+$container = new ContainerBuilder($compiledConfig)
     ->register(
         new FoundationServiceProvider(),
         new KernelServiceProvider(),
@@ -1905,6 +1906,7 @@ framework/packages/core/foundation/tests/Integration/FoundationProviderSourceDef
 framework/packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
 framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
 framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
+framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 ```
 
@@ -1962,9 +1964,10 @@ Additional tests SHOULD cover:
 - Foundation runtime service parity;
 - Kernel runtime service parity;
 - Worker runtime service parity;
+- absence of Worker Bootstrap classes and Worker-owned Stable JSON services from the Worker runtime graph and required-service set;
 - Worker provider output containing no closures;
 - `WorkerSupervisorInterface` lazy-resolution ordering;
-- absence of legacy lifecycle compatibility services and duplicate control-server abstractions;
+- Worker runtime definitions containing only canonical lifecycle services and no duplicate control-server abstractions;
 - presence of `WorkerControlClientInterface` and `WorkerSupervisorInterface` aliases;
 - presence of `WorkerHealthCommand`;
 - exact lazy selected-driver resolution without process-driver tags;
@@ -2019,6 +2022,7 @@ Step 21 remains the separate artifact-only runtime boot boundary.
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
 - [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md)
+- [Worker Process Bootstrap SSoT](./worker-process-bootstrap.md)
 - [JSON-like Runtime Values](./json-like-runtime-values.md)
 - [Artifact Header and Schema Registry](./artifacts.md)
 - [Config Merge Order](./config-merge-order.md)

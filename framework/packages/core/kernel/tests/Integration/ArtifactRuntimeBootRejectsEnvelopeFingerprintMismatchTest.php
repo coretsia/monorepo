@@ -26,9 +26,7 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
 {
     public function testRejectsEnvelopeFingerprintDifferentFromGenerationId(): void
     {
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'artifact-runtime-envelope-fingerprint-mismatch',
-        );
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-runtime-envelope-fingerprint-mismatch');
 
         try {
             ArtifactPipelineTestSupport::compileArtifacts(
@@ -39,7 +37,7 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
 
             $generation = ArtifactPipelineTestSupport::currentGeneration($root);
             $configPath = $generation->configPath();
-            $envelope = self::readPhpArray($configPath);
+            $envelope = ArtifactPipelineTestSupport::readArtifactEnvelope($configPath);
             $meta = $envelope['_meta'] ?? null;
 
             self::assertIsArray($meta);
@@ -54,9 +52,9 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
             $meta['fingerprint'] = $mismatchedFingerprint;
             $envelope['_meta'] = $meta;
 
-            ArtifactPipelineTestSupport::writePhpReturn(
+            ArtifactPipelineTestSupport::writeArtifactEnvelope(
                 path: $configPath,
-                value: $envelope,
+                envelope: $envelope,
             );
 
             $configBytes = \file_get_contents($configPath);
@@ -74,9 +72,7 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
                     skeletonRoot: $root,
                 );
 
-                self::fail(
-                    'Expected envelope fingerprint mismatch rejection.',
-                );
+                self::fail('Expected envelope fingerprint mismatch rejection.');
             } catch (ArtifactRuntimeBootException $exception) {
                 self::assertSame(
                     ArtifactRuntimeBootException::ERROR_CODE,
@@ -115,7 +111,7 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
         string $basename,
         string $bytes,
     ): void {
-        $manifest = self::readPhpArray(
+        $manifest = ArtifactPipelineTestSupport::readArtifactEnvelope(
             $generation->generationManifestPath(),
         );
         $payload = $manifest['payload'] ?? null;
@@ -134,22 +130,9 @@ final class ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest extends Te
         $payload['artifacts'] = $artifacts;
         $manifest['payload'] = $payload;
 
-        ArtifactPipelineTestSupport::writePhpReturn(
+        ArtifactPipelineTestSupport::writeArtifactEnvelope(
             path: $generation->generationManifestPath(),
-            value: $manifest,
+            envelope: $manifest,
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function readPhpArray(string $path): array
-    {
-        $value = require $path;
-
-        self::assertIsArray($value);
-
-        /** @var array<string, mixed> $value */
-        return $value;
     }
 }

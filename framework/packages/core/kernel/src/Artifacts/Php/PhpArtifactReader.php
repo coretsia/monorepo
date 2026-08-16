@@ -21,15 +21,15 @@ namespace Coretsia\Kernel\Artifacts\Php;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 
 /**
- * Reads existing Kernel-owned PHP artifact files.
+ * Reads existing Kernel-owned PHP-array artifact files as serialized data.
  *
  * PhpArtifactReader is intentionally narrow:
  *
  * - reads existing artifact bytes;
- * - normalizes read bytes for cache byte comparison by converting CRLF/CR to LF;
- * - parses PHP-returned artifact arrays;
- * - returns normalized bytes and parsed envelope data to CacheVerifier;
- * - converts filesystem/evaluation/parse failures into deterministic
+ * - normalizes read bytes for compatibility byte comparison when requested;
+ * - decodes canonical StablePhpArrayDumper serialization without executing PHP;
+ * - returns the same decoded byte snapshot and envelope data to callers;
+ * - converts filesystem/serialization failures into deterministic
  *   ArtifactInvalidException reason tokens.
  *
  * This reader intentionally does not:
@@ -39,6 +39,7 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
  * - validate envelope/header/payload schemas;
  * - calculate fingerprints;
  * - compare expected/current bytes;
+ * - execute, evaluate, include, or require generated artifact source;
  * - emit logs/spans/metrics;
  * - print output.
  *
@@ -46,16 +47,16 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
  * Cache clean/dirty/invalid orchestration belongs to CacheVerifier.
  *
  * Diagnostics are intentionally safe. Exceptions produced by this reader MUST
- * NOT include absolute paths, input path strings, PHP warning text, emitted
- * artifact output, stack traces, previous throwable messages, raw artifact
- * bytes, returned PHP payloads, config values, env values, or secrets.
+ * NOT include absolute paths, input path strings, PHP warning text, raw artifact
+ * bytes, decoded payloads, source fragments, config values, env values, secrets,
+ * stack traces, parser offsets, or previous throwable messages.
  *
  * @internal
  */
 final readonly class PhpArtifactReader
 {
     /**
-     * Reads normalized artifact bytes and parses the PHP-returned artifact data.
+     * Reads LF-normalized artifact bytes and decodes that normalized snapshot.
      *
      * The returned `bytes` value is LF-normalized only:
      *
@@ -79,16 +80,19 @@ final readonly class PhpArtifactReader
      */
     public function read(string $path): array
     {
-        $read = $this->readExact($path);
+        $bytes = self::normalizeBytes(
+            $this->readRawBytes($path)
+        );
 
         return [
-            'bytes' => self::normalizeBytes($read['bytes']),
-            'envelope' => $read['envelope'],
+            'bytes' => $bytes,
+            'envelope' => StablePhpArrayParser::parseStable($bytes),
         ];
     }
 
     /**
-     * Reads exact artifact bytes and parses the envelope from those exact bytes.
+     * Reads exact artifact bytes and decodes the envelope from that exact byte
+     * snapshot without newline normalization.
      *
      * @param non-empty-string $path
      *
@@ -106,7 +110,7 @@ final readonly class PhpArtifactReader
 
         return [
             'bytes' => $bytes,
-            'envelope' => self::parseReturnedArray($bytes),
+            'envelope' => StablePhpArrayParser::parseStable($bytes),
         ];
     }
 
@@ -132,133 +136,6 @@ final readonly class PhpArtifactReader
     public function readNormalizedBytes(string $path): string
     {
         return self::normalizeBytes($this->readRawBytes($path));
-    }
-
-    /**
-     * Parses an existing PHP artifact and returns the returned array.
-     *
-     * @param non-empty-string $path
-     *
-     * @return array<int|string, mixed>
-     *
-     * @throws ArtifactInvalidException
-     */
-    public function readReturnedArray(
-        string $path,
-    ): array {
-        return self::parseReturnedArray(
-            $this->readRawBytes($path),
-        );
-    }
-
-    /**
-     * Parses one already-read PHP artifact byte snapshot.
-     *
-     * @return array<int|string, mixed>
-     *
-     * @throws ArtifactInvalidException
-     */
-    private static function parseReturnedArray(
-        string $bytes,
-    ): array {
-        $initialOutputBufferLevel = \ob_get_level();
-        $artifactEmittedOutput = false;
-        $returned = null;
-        $cleanupFailed = false;
-
-        self::installSafeErrorHandler(
-            ArtifactInvalidException::REASON_READ_FAILED,
-        );
-
-        try {
-            if (\ob_start() !== true) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_READ_FAILED,
-                );
-            }
-
-            try {
-                $returned = self::evaluateArtifactBytes($bytes);
-            } catch (\Throwable) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_READ_FAILED,
-                );
-            }
-
-            if (\ob_get_level() <= $initialOutputBufferLevel) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_READ_FAILED,
-                );
-            }
-
-            while (\ob_get_level() > $initialOutputBufferLevel + 1) {
-                $nestedOutput = \ob_get_contents();
-
-                if ($nestedOutput === false) {
-                    throw ArtifactInvalidException::withReason(
-                        ArtifactInvalidException::REASON_READ_FAILED,
-                    );
-                }
-
-                if ($nestedOutput !== '') {
-                    $artifactEmittedOutput = true;
-                }
-
-                if (@\ob_end_clean() !== true) {
-                    throw ArtifactInvalidException::withReason(
-                        ArtifactInvalidException::REASON_READ_FAILED,
-                    );
-                }
-            }
-
-            if (\ob_get_level() <= $initialOutputBufferLevel) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_READ_FAILED,
-                );
-            }
-
-            $capturedOutput = \ob_get_contents();
-
-            if ($capturedOutput === false) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_READ_FAILED,
-                );
-            }
-
-            if ($capturedOutput !== '') {
-                $artifactEmittedOutput = true;
-            }
-        } finally {
-            while (\ob_get_level() > $initialOutputBufferLevel) {
-                if (@\ob_end_clean() !== true) {
-                    $cleanupFailed = true;
-
-                    break;
-                }
-            }
-
-            \restore_error_handler();
-        }
-
-        if ($cleanupFailed) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_READ_FAILED,
-            );
-        }
-
-        if ($artifactEmittedOutput) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_INVALID,
-            );
-        }
-
-        if (!\is_array($returned)) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_PHP_RETURN_TYPE_INVALID,
-            );
-        }
-
-        return $returned;
     }
 
     /**
@@ -320,40 +197,6 @@ final readonly class PhpArtifactReader
     private static function normalizeBytes(string $bytes): string
     {
         return \str_replace(["\r\n", "\r"], "\n", $bytes);
-    }
-
-    /**
-     * Evaluates one already-read PHP artifact byte snapshot.
-     *
-     * @throws ArtifactInvalidException
-     */
-    private static function evaluateArtifactBytes(
-        string $bytes,
-    ): mixed {
-        $replacementCount = 0;
-
-        $source = \preg_replace(
-            '/\A<\?php(?:\r\n|\r|\n)?/',
-            '',
-            $bytes,
-            1,
-            $replacementCount,
-        );
-
-        if (
-            !\is_string($source)
-            || $replacementCount !== 1
-        ) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_READ_FAILED,
-            );
-        }
-
-        return (static function (
-            string $__coretsiaArtifactSource,
-        ): mixed {
-            return eval($__coretsiaArtifactSource);
-        })($source);
     }
 
     private static function installSafeErrorHandler(string $reason): void

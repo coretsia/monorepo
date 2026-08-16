@@ -155,26 +155,40 @@ The owner MUST define:
 
 ## Worker boundary (MUST)
 
-The PCNTL child sequence is:
+Initial Guardian and ProcHost bootstrap descriptors obey these rules:
 
 ```text
-close current child readiness listener
--> WorkerChildTable detaches sibling readiness listeners
--> WorkerControlServer detaches the control listener
--> WorkerLifecycleLock detaches the lifecycle-lock handle
--> WorkerSignalController resets inherited signal state
+Parent bootstrap listener does not exist at child creation time.
+Parent bootstrap listener is created and retained only after the corresponding child process has been launched.
+Parent bootstrap listener is retained before the private bootstrap frame is published.
+Guardian bootstrap stdin is closed before ProcHost launch or any PCNTL worker fork.
+ProcHost bootstrap stdin is closed before any worker proc_open().
+In PROC topology, ProcHost bootstrap and authentication complete before Guardian establishes the authenticated Supervisor connection.
+```
+
+Composer autoload MAY execute before initial bootstrap consumption. The normative descriptor barrier is bootstrap-stdin closure before descendant creation.
+
+Initial Worker process-bootstrap trust, credential, candidate-admission, timeout, and failure-containment semantics are owned by `docs/ssot/worker-process-bootstrap.md`.
+
+The PCNTL worker child is forked by `WorkerProcessGuardian`, not by the foreground Supervisor. The fork-child sequence is:
+
+```text
+forked Guardian worker child
+-> close inherited authenticated Guardian-Supervisor connection
+-> detach inherited WorkerLifecycleLock descriptor
+-> reset Guardian-installed signal handlers
 -> pcntl_exec package-owned child launcher
 ```
 
-The PCNTL guardian fork boundary owns only Worker-known guardian resources. It MUST close the guardian-supervisor connection and detach the `WorkerLifecycleLock` descriptor before exec.
+Supervisor-owned `WorkerChildTable`, worker-readiness listeners, `WorkerControlServer`, and `WorkerSignalController` remain in the separate foreground Supervisor process and are not part of the Guardian PCNTL fork boundary.
 
-It MUST NOT enumerate or close arbitrary application, integration, extension, deployment, or third-party descriptors.
+The PCNTL Guardian fork boundary owns only Worker-known Guardian resources. It MUST NOT enumerate or close arbitrary application, integration, extension, deployment, or third-party descriptors.
 
-The proc process host starts inside the guardian before the guardian accepts the supervisor ownership connection and before Worker lifecycle-lock acquisition. This prevents inheritance of those later Worker-owned resources, but it does not prove isolation from descriptors opened before process-host startup.
+The proc process host starts only after Guardian bootstrap stdin has been consumed and closed, but before Guardian establishes the authenticated Supervisor runtime connection and before Worker lifecycle-lock acquisition. This prevents inheritance of Guardian bootstrap stdin and those later Worker-owned resources, but it does not prove isolation from descriptors opened before process-host startup.
 
 The proc process host MUST prevent its authenticated guardian connection from crossing worker-child launch.
 
-For every spawn request, the guardian-owned process-host client MUST create a one-shot loopback handoff listener after process-host startup and MUST authenticate it with a fresh 256-bit token.
+The existing per-worker ProcHost handoff remains unchanged by initial process bootstrap. For every spawn request, the guardian-owned process-host client MUST create a one-shot loopback handoff listener after process-host startup and MUST authenticate it with a fresh 256-bit token.
 
 After validating the complete spawn request, the process host MUST close its current authenticated guardian connection before calling `proc_open()`.
 
@@ -186,7 +200,7 @@ A failed child launch MUST still restore the authenticated connection and return
 
 If the replacement connection cannot be established or authenticated after a child was created, the process host MUST terminate and reap every registered child and MUST exit non-zero. The guardian MUST treat the handoff failure as a process-host failure and MUST NOT retain an unidentified child.
 
-The proc process-host transport is available only when `proc_open()` and every required bounded loopback stream operation are available. It MUST NOT require `ext-sockets` or `SOCK_CLOEXEC` for descriptor isolation.
+The per-worker ProcHost handoff transport is available only when `proc_open()` and every required bounded loopback operation are available. Its descriptor-isolation sequence MUST NOT rely on `ext-sockets` or `SOCK_CLOEXEC`; however, on Windows the retained handoff listener requires the sockets extension and `SO_EXCLUSIVEADDRUSE` for exclusive address ownership. Initial Guardian and ProcHost bootstrap and supervisor-owned worker-readiness listeners use the same Windows exclusive retained-listener ownership prerequisite.
 
 Starting the host before lifecycle-lock acquisition does not satisfy this requirement for descriptors owned by the process host itself; the per-spawn connection handoff is the owner-specific isolation boundary.
 
@@ -240,6 +254,7 @@ Changing process-exec descriptor ownership, local-file open modes, guardian fork
 
 ```text
 docs/ssot/process-exec-descriptor-safety.md
+docs/ssot/worker-process-bootstrap.md
 docs/adr/ADR-0032-process-exec-descriptor-safety.md
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/architecture/worker.md
@@ -251,6 +266,7 @@ framework/packages/platform/worker/README.md
 
 - [SSoT Index](./INDEX.md)
 - [Runtime Container Definitions](./runtime-container-definitions.md)
+- [Worker Process Bootstrap SSoT](./worker-process-bootstrap.md)
 - [Artifact Generations](./artifact-generations.md)
 - [ADR-0017: Persistent worker supervisor and application worker](../adr/ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [ADR-0032: Process-Exec Descriptor Safety](../adr/ADR-0032-process-exec-descriptor-safety.md)

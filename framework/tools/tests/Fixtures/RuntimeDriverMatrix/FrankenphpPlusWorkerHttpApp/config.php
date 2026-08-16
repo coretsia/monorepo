@@ -18,5 +18,4 @@ declare(strict_types=1);
 
 return [
     'kernel.runtime.http_driver' => 'http.frankenphp',
-    'worker.task_type' => 'http',
 ];

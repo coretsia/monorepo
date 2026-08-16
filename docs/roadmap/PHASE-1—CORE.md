@@ -15196,7 +15196,7 @@ tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-0027-runtime-driver-guard.md"
+adr: "docs/adr/ADR-0027-runtime-driver-resolution.md"
 
 ssot_refs:
 - "docs/ssot/runtime-drivers.md"
@@ -15426,7 +15426,7 @@ Errors:
   - [x] MUST NOT expose ModulePlan dumps, config dumps, paths, env values, adapter internals, stack traces, previous throwable messages, or payload dumps
 
 Docs:
-- [x] `docs/adr/ADR-0027-runtime-driver-guard.md` — decision record for runtime driver guard, deterministic codes, public API boundary, and matrix ownership
+- [x] `docs/adr/ADR-0027-runtime-driver-resolution.md` — decision record for runtime driver guard, deterministic codes, public API boundary, and matrix ownership
   - [x] MUST record that `RuntimeDriverGuard` is public Kernel API
   - [x] MUST record that no new `core/contracts` runtime-driver port is introduced by this epic
   - [x] MUST record that `docs/ssot/runtime-drivers.md` remains the single canonical source for driver ids, config keys, and matrix rules
@@ -15434,7 +15434,7 @@ Docs:
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
 
-- [x] `docs/architecture/runtime-driver-guard.md` — architecture overview
+- [x] `docs/architecture/runtime-driver-resolution.md` — architecture overview
   - [x] API surface + callers + deterministic error codes
   - [x] MUST NOT duplicate the canonical matrix/rules
   - [x] MUST state that the canonical source for compatibility matrix and decision rules is `docs/ssot/runtime-drivers.md`
@@ -15525,7 +15525,7 @@ Tooling support:
 #### Modifies
 
 - [x] `docs/adr/INDEX.md` — register:
-  - [x] `docs/adr/ADR-0027-runtime-driver-guard.md`
+  - [x] `docs/adr/ADR-0027-runtime-driver-resolution.md`
 
 - [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [x] registers `RuntimeDriverGuard`
@@ -15841,8 +15841,8 @@ Tooling:
   - [x] no generated outputs; rerun-no-diff applies only to fixtures/docs/source stability
   - [x] diagnostics sorted by canonical ids using `strcmp`
 - [x] Docs updated:
-  - [x] `docs/adr/ADR-0027-runtime-driver-guard.md`
-  - [x] `docs/architecture/runtime-driver-guard.md`
+  - [x] `docs/adr/ADR-0027-runtime-driver-resolution.md`
+  - [x] `docs/architecture/runtime-driver-resolution.md`
   - [x] `docs/adr/INDEX.md`
   - [x] `framework/packages/core/kernel/PUBLIC_API.md`
 

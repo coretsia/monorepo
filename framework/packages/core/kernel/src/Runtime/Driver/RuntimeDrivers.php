@@ -26,7 +26,7 @@ namespace Coretsia\Kernel\Runtime\Driver;
  *
  * It intentionally contains no config-reading logic, no runtime detection
  * logic, no module compatibility rules, and no compatibility matrix logic.
- * Driver selection and matrix validation are owned by RuntimeDriverGuard and
+ * Driver selection and matrix validation are owned by RuntimeDriverResolver and
  * the runtime drivers SSoT.
  */
 final readonly class RuntimeDrivers

@@ -15,7 +15,9 @@ declare(strict_types=1);
  *
  * For contributors list, see git history.
  * See LICENSE and NOTICE in the project root for full license information.
- *
+ */
+
+/*
  * Deterministic split plan generator (CI evidence artifact; MUST NOT be committed).
  *
  * Usage:

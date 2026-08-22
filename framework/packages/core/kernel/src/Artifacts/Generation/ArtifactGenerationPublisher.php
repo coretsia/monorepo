@@ -165,14 +165,20 @@ final readonly class ArtifactGenerationPublisher
                 throw new \RuntimeException('invalid');
             }
 
-            if (!@\is_dir($generationsDirectory)) {
-                if (
-                    @\file_exists($generationsDirectory)
-                    || (!@\mkdir($generationsDirectory, self::DIRECTORY_PERMISSIONS, true)
-                        && !@\is_dir($generationsDirectory))
-                ) {
-                    throw new \RuntimeException('invalid');
-                }
+            if (
+                !@\is_dir($generationsDirectory)
+                && !@\mkdir(
+                    $generationsDirectory,
+                    self::DIRECTORY_PERMISSIONS,
+                    true,
+                )
+                && !self::isSafeDirectory($generationsDirectory)
+            ) {
+                throw new \RuntimeException('invalid');
+            }
+
+            if (!self::isSafeDirectory($generationsDirectory)) {
+                throw new \RuntimeException('invalid');
             }
 
             $stagingDirectory = $this->pathResolver->newStagingDirectory(
@@ -462,6 +468,14 @@ final readonly class ArtifactGenerationPublisher
         }
 
         return @\unlink($path);
+    }
+
+    /**
+     * @phpstan-impure
+     */
+    private static function isSafeDirectory(string $directory): bool
+    {
+        return @\is_dir($directory) && !@\is_link($directory);
     }
 
     private static function randomBasename(

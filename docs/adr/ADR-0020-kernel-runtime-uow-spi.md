@@ -79,7 +79,7 @@ Platform, worker, scheduler, queue, and custom adapters need the contracts port,
 
 ## Decision
 
-Coretsia will define the external UnitOfWork runtime SPI in `core/contracts`.
+Coretsia defines the external UnitOfWork runtime SPI in `core/contracts`.
 
 The contracts package owns:
 
@@ -154,6 +154,55 @@ Low-level adapters receive weaker lifecycle guarantees and must use `try/finally
 The `try/finally` completion responsibility starts only after `beginUnitOfWork()` returns a `UnitOfWorkHandle` successfully.
 
 If `beginUnitOfWork()` throws, no open lifecycle handle exists and the adapter MUST NOT call `afterUnitOfWork()` for that failed begin attempt.
+
+For one `KernelRuntime` boundary, at most one UnitOfWork may be active at a time.
+
+Until the active lifecycle completes, the following transitions are forbidden on that same boundary:
+
+```text
+run   → run
+run   → begin
+begin → run
+begin → begin
+```
+
+A second UnitOfWork start MUST fail before:
+
+- UnitOfWork id generation;
+- type or attributes validation for the attempted nested UnitOfWork;
+- `UnitOfWorkContext` creation;
+- base `ContextStore` writes.
+
+A rejected overlapping start MUST NOT invoke before-uow hooks, the external body, after-uow hooks, or reset orchestration.
+
+It MUST NOT mutate, reset, complete, or release the existing active UnitOfWork.
+
+The high-level ownership sequence is:
+
+```text
+runUnitOfWork() acquires runtime boundary
+→ entire UnitOfWork lifecycle
+→ required reset attempt
+→ runtime boundary release
+```
+
+The low-level ownership sequence is:
+
+```text
+beginUnitOfWork() acquires runtime boundary
+→ exact UnitOfWorkHandle carries completion responsibility
+→ afterUnitOfWork(exact handle)
+→ required reset attempt
+→ runtime boundary release
+```
+
+A foreign or already-consumed `UnitOfWorkHandle` MUST NOT release another active lifecycle.
+
+For the canonical `KernelRuntime` implementation, an overlapping start is rejected with stable reason:
+
+```text
+kernel-runtime-uow-already-active
+```
 
 Adapters that require Kernel-owned before-hook failure handling SHOULD use `runUnitOfWork()`.
 
@@ -656,7 +705,7 @@ Rejected.
 
 Parameterless hooks are insufficient for Kernel-owned lifecycle payload delivery.
 
-The runtime now has a stable normalized exported UnitOfWork context/result shape, and hooks need that safe payload at the lifecycle boundary.
+The runtime has a stable normalized exported UnitOfWork context/result shape, and hooks need that safe payload at the lifecycle boundary.
 
 Deferring payload-aware hooks would force either hidden side channels or a second future breaking change to hook signatures.
 
@@ -721,7 +770,7 @@ This ADR does not define:
 
 ## Verification evidence
 
-Expected verification includes:
+Verification evidence includes:
 
 ```text
 framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
@@ -729,6 +778,7 @@ framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlat
 framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php
 framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
 framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php
+framework/packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
 framework/packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
@@ -737,11 +787,12 @@ framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedH
 framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
 framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 ```
 
-These tests are expected to verify:
+These tests verify:
 
 - `core/contracts` owns the external `KernelRuntimeInterface`;
 - `core/kernel` owns the `KernelRuntime` implementation;
@@ -756,6 +807,11 @@ These tests are expected to verify:
 - a before-hook throwable remains the exact surfaced throwable when reset also fails;
 - reset failure is surfaced only when no earlier lifecycle failure exists;
 - a surfaced reset failure preserves the original reset throwable through in-process previous-throwable chaining;
+- one `KernelRuntime` boundary rejects `run → run`, `run → begin`, `begin → run`, and `begin → begin` while a UnitOfWork is active;
+- rejected overlapping starts do not create a second UnitOfWork or mutate/reset/release the active lifecycle;
+- lifecycle exclusivity is acquired before UnitOfWork context creation and base `ContextStore` writes;
+- the runtime boundary remains reserved through the required reset attempt;
+- foreign or already-consumed low-level handles cannot release another active lifecycle;
 - adapters consume the contracts port;
 - Kernel does not define a competing runtime interface;
 - Kernel does not expose PSR-7/15 in public runtime APIs;

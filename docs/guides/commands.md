@@ -73,46 +73,6 @@ Each new command is added as a separate section under `## Commands` (the format 
 
 ## Commands
 
-### Project structure generator
-
-Id: `tool.generate_structure` \
-Entrypoint: `composer docs:structure` \
-Category: documentation generator \
-Outputs:
-- `docs/generated/GENERATED_STRUCTURE.md` (full structure, includes PHP symbols)
-- `docs/generated/GENERATED_STRUCTURE_TREE.md` (tree-only, no PHP symbols)
-
-Determinism:
-
-| Mode / flags                                  | Determinism      | Notes                         |
-|-----------------------------------------------|------------------|-------------------------------|
-| `composer docs:structure`                     | deterministic    | writes both outputs           |
-| `composer docs:structure:tree`                | deterministic    | writes tree-only output       |
-| `composer docs:structure:full`                | deterministic    | writes full output            |
-| `composer docs:structure -- --timestamp`      | NONDETERMINISTIC | injects timestamp into output |
-| `composer docs:structure:tree -- --timestamp` | NONDETERMINISTIC | tree-only + timestamp         |
-| `composer docs:structure:full -- --timestamp` | NONDETERMINISTIC | full + timestamp              |
-
-Notes:
-- Under the hood (implementation detail): repo-root wrapper delegates to framework workspace script:
-  - `@composer --working-dir=framework run-script docs:structure --`
-  - `@composer --working-dir=framework run-script docs:structure:tree --`
-  - `@composer --working-dir=framework run-script docs:structure:full --`
-- Framework implementation detail: `@php tools/build/generate_structure.php` (framework workspace).
-- Failure output policy:
-  - on unexpected failure, line 1 starts with stable code: `CORETSIA_STRUCTURE_GENERATE_FAILED`
-- Direct call `php framework/tools/build/generate_structure.php` is NOT a canonical entrypoint (kept as implementation detail only).
-
-Usage (repo root):
-- `composer docs:structure`
-- `composer docs:structure:tree`
-- `composer docs:structure:full`
-- `composer docs:structure -- --timestamp`
-- `composer docs:structure:tree -- --timestamp`
-- `composer docs:structure:full -- --timestamp`
-
----
-
 ### Monorepo workspace setup
 
 Id: `project.setup` \

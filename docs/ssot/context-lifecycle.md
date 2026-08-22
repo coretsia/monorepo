@@ -102,6 +102,16 @@ The canonical invariant is:
 1 UoW = 1 logical context
 ```
 
+The complementary runtime-boundary invariant is:
+
+```text
+1 KernelRuntime boundary
+=
+0 or 1 active UoW
+```
+
+Two overlapping UnitOfWork lifecycles MUST NOT share one `KernelRuntime` boundary and mutate or read the same UnitOfWork-local `ContextStore` state.
+
 `ContextStore` values MUST NOT leak across units of work.
 
 At the start of each unit of work, the runtime owner MUST establish a fresh logical context.
@@ -112,7 +122,7 @@ The next unit of work MUST NOT see any `ContextStore` values written by the prev
 
 ## Unit of Work lifecycle
 
-The canonical lifecycle is:
+For a UnitOfWork that reaches after-UoW lifecycle handling, the canonical context lifecycle is:
 
 1. Kernel runtime begins a unit of work.
 2. Kernel runtime writes base context keys.
@@ -123,6 +133,8 @@ The canonical lifecycle is:
 7. Kernel runtime calls Foundation reset orchestration.
 8. `ContextStore::reset()` clears all context.
 9. The next unit of work starts with no previous context values.
+
+The next UnitOfWork MUST NOT start until the current lifecycle has completed its reset responsibility.
 
 The canonical read port is:
 
@@ -377,7 +389,7 @@ Forbidden observability output includes:
 
 Safe ids MAY appear in logs or tracing correlation only when the relevant owner policy allows that use.
 
-Safe ids MUST NOT be metric labels unless a future observability SSoT explicitly permits them.
+Safe ids MUST NOT be metric labels unless `docs/ssot/observability.md` explicitly permits the corresponding label key.
 
 ## Reset execution
 
@@ -417,7 +429,7 @@ The reset-responsibility boundary is crossed only after Kernel runtime has writt
 
 A failed begin attempt before base context keys are written MUST NOT trigger reset.
 
-The expected lifecycle is:
+For a UnitOfWork that reaches after-phase eligibility, the canonical reset lifecycle is:
 
 1. Kernel runtime runs `AfterUoW` hooks discovered through:
 
@@ -431,6 +443,8 @@ kernel.hook.after_uow
 Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 ```
 
+If a UnitOfWork crosses the reset-responsibility boundary but fails before after-phase eligibility, such as on a before-uow hook failure, Kernel runtime MUST skip after-uow hooks and call `ResetOrchestrator::resetAll()` exactly once.
+
 Kernel runtime MUST NOT iterate `kernel.reset` tagged services by itself.
 
 Kernel runtime MUST NOT use `kernel.stateful` as an execution mechanism.
@@ -439,7 +453,7 @@ Kernel runtime MUST NOT use `kernel.stateful` as an execution mechanism.
 
 ### Reset formula
 
-The lifecycle formula is:
+For a UnitOfWork that reaches after-phase eligibility, the lifecycle formula is:
 
 ```text
 KernelRuntime writes base ContextStore keys successfully
@@ -448,6 +462,17 @@ KernelRuntime writes base ContextStore keys successfully
 → ResetOrchestrator::resetAll()
 → effective reset discovery tag from foundation.reset.tag
 → reserved default value: kernel.reset (`ReservedTags::KERNEL_RESET`)
+→ ContextStore::reset()
+→ next UoW starts without previous values
+```
+
+For a UnitOfWork that fails after the reset-responsibility boundary but before after-phase eligibility:
+
+```text
+KernelRuntime writes base ContextStore keys successfully
+→ before-uow failure
+→ no afterUoW phase
+→ ResetOrchestrator::resetAll()
 → ContextStore::reset()
 → next UoW starts without previous values
 ```
@@ -494,7 +519,7 @@ with canonical discovery order:
 priority DESC, id ASC
 ```
 
-- when `foundation.reset.priority.enabled=true`, reset executes in the planned enhanced reset order:
+- when `foundation.reset.priority.enabled=true`, reset executes in the enhanced reset order:
 
 ```text
 priority DESC, group ASC, serviceId ASC
@@ -512,9 +537,13 @@ Reset MUST still run if an `after-uow` hook throws.
 
 The original failure MUST be surfaced only after the reset attempt completes.
 
-If after-UoW handling fails and reset also fails, the owning Kernel runtime must surface failure deterministically according to its own later runtime policy.
+If after-UoW handling fails and reset also fails, the owning Kernel runtime MUST apply the canonical lifecycle failure-precedence policy from:
 
-This document does not define concrete Kernel exception aggregation behavior.
+```text
+docs/ssot/uow-outcome-policy.md
+```
+
+This document does not redefine Kernel lifecycle failure-precedence behavior.
 
 ### What does reset clear?
 
@@ -532,6 +561,8 @@ Typical stateful services discovered through the effective reset discovery tag i
 The following states are policy violations:
 
 - a unit of work starts and can observe previous unit-of-work `ContextStore` values;
+- two UnitsOfWork are active on the same `KernelRuntime` boundary and can mutate or read the same UnitOfWork-local `ContextStore` state;
+- a rejected overlapping UnitOfWork start resets or mutates the currently active UnitOfWork context;
 - a stateful service keeps per-request payloads, headers, cookies, Authorization values, tokens, session ids, or secrets in memory after reset;
 - reset execution prints, logs, traces, exports, or serializes raw context data;
 - Kernel runtime directly iterates `kernel.reset` services instead of using `ResetOrchestrator`;
@@ -707,9 +738,9 @@ Writers MUST use safe opaque ids, omission, `hash(value)`, or `len(value)` when 
 
 This document is doc-only.
 
-It defines policy that must be enforced by owner package tests and gates.
+It defines policy that MUST be enforced by owner package tests and repository gates.
 
-Expected enforcement rails include:
+Enforcement rails include:
 
 ```text
 framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
@@ -726,7 +757,7 @@ afterUoW
 
 The cross-cutting contract gate MUST validate forbidden context writes and lifecycle-policy drift where that is statically enforceable.
 
-The gate/test should check at least:
+The enforcement rails SHOULD cover at least:
 
 - no legacy Foundation-owned context key registry references;
 - no unauthorized direct `ContextStore` ownership or construction outside owner boundaries;
@@ -736,7 +767,7 @@ The gate/test should check at least:
 - runtime reset does not enumerate `kernel.reset` services directly;
 - context reset occurs after every unit of work.
 
-Concrete test/gate implementation is owned by the corresponding owner epics.
+Concrete enforcement is owned by the corresponding owner packages and repository tooling.
 
 ## Non-goals
 

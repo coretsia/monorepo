@@ -1277,19 +1277,57 @@ Low-level adapters MUST structure external body execution with a `finally`-equiv
 
 A low-level adapter MUST NOT start another UnitOfWork on the same runtime boundary before the previous successful `beginUnitOfWork()` has been completed with `afterUnitOfWork()`.
 
+The canonical `KernelRuntime` enforces this contract.
+
+For one `KernelRuntime` instance, at most one UnitOfWork may be active.
+
+While the runtime boundary is active, another `runUnitOfWork()` or `beginUnitOfWork()` attempt is rejected before a second UnitOfWork is created.
+
+The canonical Kernel rejection reason is:
+
+```text
+kernel-runtime-uow-already-active
+```
+
+A matching exact `afterUnitOfWork()` completion attempt returns the runtime boundary to idle after required reset cleanup, even when completion surfaces a lifecycle failure.
+
 ## KernelRuntime lifecycle
 
 The canonical high-level lifecycle is:
 
 ```text
+reserve KernelRuntime UnitOfWork boundary
+↓
 begin UnitOfWork
+↓
 write base ContextStore keys
+↓
 invoke before-uow hooks
+↓
 run external runtime body
+↓
 build UnitOfWork result
+↓
 invoke after-uow hooks
+↓
 ResetOrchestrator.resetAll()
+↓
+release KernelRuntime UnitOfWork boundary
+↓
 surface result or primary failure
+```
+
+The boundary cleanup policy is:
+
+```text
+failed start before reset responsibility
+→ no reset
+→ release boundary
+
+failure after reset responsibility
+→ reset attempt
+→ release boundary
+→ surface selected primary failure
 ```
 
 This linear sequence describes executions whose before-uow hooks complete successfully.
@@ -1812,19 +1850,26 @@ generated artifacts
 persistence payloads
 ```
 
-`KernelRuntime` maintains two separate lifecycle channels:
+`KernelRuntime` maintains separate runtime lifecycle state and timing/export channels:
 
 ```text
+UnitOfWorkLifecycleGate
+  -> per-KernelRuntime single-active-UoW state
+
 UnitOfWorkContext::toArray()
   -> normalized exported context
   -> UnitOfWorkHandle::context()
 
-UnitOfWorkContext::startedAtToken()
-  -> private WeakMap<UnitOfWorkHandle, int>
+WeakMap<UnitOfWorkHandle, int>
+  -> exact open low-level handle registry
+  -> one-shot completion/consumption state
+  -> private startedAtToken storage
   -> duration calculation during afterUnitOfWork()
 ```
 
 The `WeakMap` is keyed by the exact handle object identity.
+
+The `WeakMap` is not the runtime-wide exclusivity gate.
 
 `afterUnitOfWork()` retrieves the private timing token from that map. It does not read timing state from `UnitOfWorkHandle::context()`.
 
@@ -2152,13 +2197,17 @@ ResetOrchestrator::resetAll()
 
 The reset discovery tag is owned by `core/foundation`.
 
-The canonical lifecycle position is:
+For a UnitOfWork that enters after-phase handling, the canonical reset position is:
 
 ```text
 after-uow hooks → ResetOrchestrator.resetAll()
 ```
 
 For every UnitOfWork lifecycle that reaches reset responsibility, `KernelRuntime` MUST call `ResetOrchestrator::resetAll()` exactly once.
+
+The `KernelRuntime` UnitOfWork boundary remains reserved through the required reset attempt.
+
+A reset failure MUST NOT leave the `KernelRuntime` boundary permanently active.
 
 If an earlier primary failure exists and reset also fails, the earlier primary failure remains surfaced.
 

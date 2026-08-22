@@ -274,6 +274,37 @@ final class KernelRuntimeAlwaysResetsAfterUowTest extends TestCase
             $recorder->events,
         );
         self::assertAfterRanBeforeReset($recorder);
+
+        try {
+            $runtime->runUnitOfWork(
+                UnitOfWorkType::HTTP,
+                static function () use ($recorder): string {
+                    $recorder->events[] = 'body';
+
+                    return 'second-body-value';
+                },
+            );
+
+            self::fail('Expected the second UnitOfWork to surface reset failure.');
+        } catch (KernelRuntimeException $exception) {
+            self::assertSame(KernelRuntimeException::ERROR_CODE, $exception->errorCode());
+            self::assertSame(KernelRuntimeException::REASON_RESET_FAILED, $exception->reason());
+        }
+
+        self::assertSame(2, $recorder->resetCount);
+        self::assertSame(
+            [
+                'before',
+                'body',
+                'after',
+                'reset',
+                'before',
+                'body',
+                'after',
+                'reset',
+            ],
+            $recorder->events,
+        );
     }
 
     public function testBeforeHookThrowablePreventsBodySkipsAfterPhaseAndRunsReset(): void
@@ -436,6 +467,66 @@ final class KernelRuntimeAlwaysResetsAfterUowTest extends TestCase
         self::assertFalse($contextStore->has(ContextKeys::CORRELATION_ID));
         self::assertFalse($contextStore->has(ContextKeys::UOW_ID));
         self::assertFalse($contextStore->has(ContextKeys::UOW_TYPE));
+
+        try {
+            $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+            self::fail('Expected the second beginUnitOfWork() to surface the before-hook throwable.');
+        } catch (\RuntimeException $throwable) {
+            self::assertSame($beforeFailure, $throwable);
+        }
+
+        self::assertSame(2, $recorder->resetCount);
+        self::assertSame([], $recorder->afterResults);
+        self::assertSame(
+            [
+                'before',
+                'reset',
+                'before',
+                'reset',
+            ],
+            $recorder->events,
+        );
+        self::assertFalse($contextStore->has(ContextKeys::CORRELATION_ID));
+        self::assertFalse($contextStore->has(ContextKeys::UOW_ID));
+        self::assertFalse($contextStore->has(ContextKeys::UOW_TYPE));
+    }
+
+    public function testLowLevelBeginBeforeHookFailureReleasesGateWhenResetAlsoFails(): void
+    {
+        $recorder = new KernelRuntimeAlwaysResetsAfterUowRecorder();
+
+        $beforeFailure = new \RuntimeException('before-hook-failure');
+        $resetFailure = new \RuntimeException('reset-failure');
+
+        $runtime = self::runtime(
+            recorder: $recorder,
+            beforeFailure: $beforeFailure,
+            resetFailure: $resetFailure,
+        );
+
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+                self::fail('Expected beginUnitOfWork() to surface the before-hook throwable.');
+            } catch (\RuntimeException $throwable) {
+                self::assertSame($beforeFailure, $throwable);
+            }
+
+            self::assertSame($attempt, $recorder->resetCount);
+        }
+
+        self::assertSame([], $recorder->afterResults);
+        self::assertSame(
+            [
+                'before',
+                'reset',
+                'before',
+                'reset',
+            ],
+            $recorder->events,
+        );
     }
 
     public function testHighLevelRunAndLowLevelBeginShareBeforeHookFailureLifecycleSemantics(): void

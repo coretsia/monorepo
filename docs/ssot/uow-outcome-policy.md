@@ -38,10 +38,16 @@ framework/packages/core/kernel/src/Runtime/Outcome.php
 framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php
 ```
 
-The future runtime lifecycle executor owner is:
+The runtime lifecycle executor owner is:
 
 ```text
 core/kernel
+```
+
+The canonical lifecycle implementation is:
+
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
 ```
 
 The canonical Foundation reset executor referenced by this policy is:
@@ -200,7 +206,7 @@ The values MUST be compared byte-for-byte.
 
 The values MUST NOT be translated, localized, title-cased, or vendor-mapped.
 
-No other outcome value is canonical in this epic.
+No other outcome value is canonical.
 
 Adding a new outcome token requires direct update of this SSoT and the corresponding contract tests.
 
@@ -220,26 +226,43 @@ Adding a new outcome token requires direct update of this SSoT and the correspon
 
 ## Lifecycle phases
 
-The canonical conceptual lifecycle is:
+For a UnitOfWork that reaches after-phase eligibility, the canonical conceptual lifecycle is:
 
 ```text
+reserve UnitOfWork runtime boundary
+↓
 beginUow()
+↓
 before_uow hooks
+↓
 run external runtime (http/cli/queue/scheduler/...)
+↓
 after_uow hooks
+↓
 ResetOrchestrator.resetAll()
+↓
 endUoW()
+↓
+release UnitOfWork runtime boundary
 ```
 
-The single-choice reset trigger position is:
+For a UnitOfWork that enters after-phase handling, the single-choice reset trigger position is:
 
 ```text
 after hooks → ResetOrchestrator.resetAll() → endUoW
 ```
 
+Runtime-boundary reserve/release is lifecycle policy, not a public adapter API.
+
+The UnitOfWork runtime boundary MUST remain reserved while reset responsibility for the active UnitOfWork is still being completed.
+
+If reset responsibility has been crossed, boundary release MUST NOT occur before `ResetOrchestrator.resetAll()` has been attempted.
+
+For a failure before the reset-responsibility boundary, reset MUST NOT run, but the failed start attempt MUST still release its runtime-boundary reservation.
+
 This ordering is canonical.
 
-Runtime implementations MUST NOT move reset before after hooks.
+For a UnitOfWork that enters after-phase handling, runtime implementations MUST NOT move reset before after hooks.
 
 Runtime implementations MUST NOT move `endUoW()` before reset.
 
@@ -291,6 +314,24 @@ uow_type
 ```
 
 Reset responsibility MUST NOT start before this base context boundary is crossed.
+
+For one `KernelRuntime` boundary, at most one UnitOfWork may be active.
+
+If that runtime boundary is already reserved by an active UnitOfWork, a new UnitOfWork start MUST be rejected before:
+
+- UnitOfWork id generation;
+- UnitOfWork type validation for the attempted nested lifecycle;
+- attributes validation for the attempted nested lifecycle;
+- `UnitOfWorkContext` creation;
+- base `ContextStore` writes;
+- before-uow hook execution.
+
+The rejected overlapping start MUST NOT:
+
+- reset the already-active UnitOfWork;
+- mutate the already-active UnitOfWork context;
+- complete the already-active UnitOfWork;
+- release the already-active UnitOfWork runtime boundary.
 
 ## Before-hook invariant
 
@@ -430,15 +471,17 @@ This exactly-once reset requirement applies even if an after-uow hook throws.
 
 The next UnitOfWork MUST start clean.
 
-`core/kernel` runtime is the trigger point owner for this lifecycle in the future runtime executor epic.
+`core/kernel` owns the lifecycle trigger point through:
 
-`1.270.0` defines this policy and its contract evidence only.
+```text
+Coretsia\Kernel\Runtime\KernelRuntime
+```
 
-Runtime lifecycle implementation is introduced by a later Kernel runtime epic.
+`KernelRuntime` applies this lifecycle failure-precedence and reset discipline directly.
 
 ## Reset tag boundary
 
-This epic MUST NOT introduce reset DI tag identifier constants.
+`core/kernel` MUST NOT define competing reset DI tag identifier constants.
 
 Framework-reserved reset and hook tag identifier constants are declared only in:
 
@@ -446,9 +489,7 @@ Framework-reserved reset and hook tag identifier constants are declared only in:
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-This epic MUST NOT depend on reset tag naming.
-
-This epic MUST NOT reference `TagRegistry` enumeration logic.
+Kernel lifecycle code MUST NOT depend on raw reset tag naming or enumerate reset services through `TagRegistry`.
 
 Reset discovery remains owned by `core/foundation`.
 
@@ -472,6 +513,19 @@ It MUST NOT duplicate Foundation reset discovery implementation details.
 ```text
 ResetOrchestrator.resetAll()
 ```
+
+The implementation-owned runtime-boundary release MUST NOT make the next UnitOfWork startable before the active lifecycle has completed its reset responsibility.
+
+A reset failure MUST NOT leave the runtime boundary permanently reserved.
+
+After the reset attempt completes, lifecycle cleanup MUST return the runtime boundary to an idle state regardless of whether the reset failure:
+
+- is surfaced as the primary lifecycle failure; or
+- is suppressed by an earlier primary lifecycle failure according to the canonical failure-precedence policy.
+
+Runtime-boundary release is finally-equivalent implementation cleanup.
+
+It MUST execute after the required reset attempt even when lifecycle completion is leaving through an exception path.
 
 The runtime owner MAY perform implementation-owned cleanup after `endUoW()` only if it does not invalidate the canonical UnitOfWork result or leak state into the next UnitOfWork.
 
@@ -611,7 +665,7 @@ Rules:
 - Exit code other than `0` MUST map to `handled_error` when no uncaught exception occurred.
 - An uncaught exception MUST map to `fatal_error`.
 - `fatal_error` MUST take precedence over exit-code mapping.
-- Kernel MUST NOT execute CLI commands directly in this policy epic.
+- Kernel MUST NOT execute CLI commands directly.
 - Kernel MUST NOT render CLI output.
 - CLI adapters MAY attach safe CLI-specific attributes or extensions only through Kernel-owned shapes.
 
@@ -628,20 +682,18 @@ Examples:
 
 ## Queue and scheduler mapping boundary
 
-This epic does not define queue outcome mapping.
+This SSoT does not define queue or scheduler outcome mapping.
 
-This epic does not define scheduler outcome mapping.
+Queue or scheduler outcome mappings are non-canonical unless they are defined by this SSoT and protected by corresponding contract tests.
 
-Future queue or scheduler owner epics MAY define mappings only by updating this SSoT and corresponding contract tests.
-
-Until then, only the following mapping policies are canonical:
+The canonical transport-specific mapping policies defined here are:
 
 ```text
 HTTP
 CLI
 ```
 
-The outcome token vocabulary still applies to all future UnitOfWork types.
+The outcome token vocabulary applies to every UnitOfWork type.
 
 ## UnitOfWorkResult policy
 
@@ -790,9 +842,9 @@ UnitOfWorkContext.attributes
 
 Stack traces MUST NOT be emitted through Kernel hook/export arrays.
 
-If an owner implementation reports stack traces in an internal development-only channel later, that channel MUST be explicitly owned by a future policy and MUST NOT reuse `result.extensions`.
+Any internal development-only channel that reports stack traces MUST be explicitly owned by a dedicated policy and MUST NOT reuse `result.extensions`.
 
-This epic introduces no such channel.
+No such channel is defined by this SSoT.
 
 ## Raw payload policy
 
@@ -857,9 +909,9 @@ IDs MUST NOT be used as metric labels unless the observability SSoT explicitly a
 
 ## Observability policy
 
-This SSoT introduces no metrics, spans, or logs.
+This SSoT does not define metrics, spans, or logs.
 
-Future runtime owners MAY derive observability signals from UnitOfWork outcome data only when emissions comply with:
+Runtime owners MAY derive observability signals from UnitOfWork outcome data only when emissions comply with:
 
 ```text
 docs/ssot/observability.md
@@ -868,7 +920,7 @@ docs/ssot/observability-and-errors.md
 
 Allowed candidate label keys are limited by the observability label allowlist.
 
-Potential safe mappings where a future metric catalog explicitly allows them:
+Potential safe mappings where the canonical metric catalog explicitly allows them:
 
 ```text
 operation = UnitOfWork type token
@@ -896,7 +948,7 @@ property
 
 ## Config policy
 
-This SSoT introduces no new config root.
+This SSoT defines no additional config root.
 
 The existing config root is:
 
@@ -904,11 +956,11 @@ The existing config root is:
 kernel
 ```
 
-This SSoT introduces no outcome mapping config keys.
+This SSoT defines no outcome mapping config keys.
 
 Outcome mapping is canonical policy, not runtime configuration.
 
-The following config keys MUST NOT be introduced by this epic:
+The following outcome-mapping config keys are forbidden:
 
 ```text
 kernel.uow.outcomes.*
@@ -918,7 +970,7 @@ kernel.http.outcome.*
 kernel.cli.outcome.*
 ```
 
-The Kernel config keys introduced by epic `1.270.0` are limited to:
+The UnitOfWork shape-limit config keys referenced by this SSoT are:
 
 ```text
 kernel.uow.attributes.max_depth
@@ -933,9 +985,9 @@ docs/ssot/uow-shapes.md
 
 ## Tag policy
 
-This SSoT introduces no new tags.
+This SSoT does not define or own additional tags.
 
-This SSoT introduces no DI tag identifier constants.
+This SSoT does not define or own DI tag identifier constants.
 
 Existing framework-reserved DI tag identifier constants are declared only in:
 
@@ -973,11 +1025,9 @@ docs/ssot/uow-and-reset-contracts.md
 
 ## Artifact policy
 
-This epic introduces no artifacts.
+This SSoT defines no generated artifact schema.
 
-This SSoT introduces no generated artifact schema.
-
-If future runtime owners export UnitOfWork results into artifacts, those artifacts MUST use normalized json-like exported shapes and MUST follow:
+Runtime owners that export UnitOfWork results into generated artifacts MUST use normalized json-like exported shapes and MUST follow:
 
 ```text
 docs/ssot/artifacts.md
@@ -1150,7 +1200,7 @@ Then the before-uow hook failure remains the surfaced primary failure.
 
 ## Contract enforcement evidence
 
-Expected Kernel contract enforcement includes:
+Kernel contract enforcement includes:
 
 ```text
 framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
@@ -1177,13 +1227,34 @@ framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJson
 framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 ```
 
-Kernel reset-responsibility boundary enforcement is owned by:
+Kernel reset-responsibility and runtime-boundary lifecycle enforcement is owned by:
 
 ```text
 framework/packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
 ```
 
-This test verifies that `KernelRuntime` sets reset responsibility only after the helper that creates the UnitOfWork context and writes base `ContextStore` keys returns successfully.
+`KernelRuntimeResetResponsibilityContractTest` verifies that `KernelRuntime` acquires lifecycle exclusivity before UnitOfWork context creation/base writes and sets reset responsibility only after the canonical context-write helper returns successfully.
+
+`KernelRuntimeEnforcesSingleActiveUnitOfWorkTest` owns behavioral enforcement for:
+
+```text
+single-active state machine
+rejected-start side effects
+runtime boundary remains reserved through reset
+```
+
+`KernelRuntimeAlwaysResetsAfterUowTest` verifies lifecycle release after before-hook and reset failure paths.
+
+`KernelRuntimeRejectsInvalidUnitOfWorkHandleTest` verifies:
+
+```text
+exact-handle completion ownership
+foreign/stale handle isolation
+completion failure does not leak an active lifecycle
+```
 
 Those tests are governed by:
 

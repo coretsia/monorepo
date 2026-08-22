@@ -30,6 +30,8 @@ use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
 use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
+use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
@@ -72,8 +74,10 @@ final class AppBuilder
             preset: self::PRESET_MICRO,
         );
 
+        $modePresetLoaderFactory = self::modePresetLoaderFactory();
         $moduleResolution = self::modulePlanResolver(
             manifest: self::microFixtureManifest(),
+            modePresetLoaderFactory: $modePresetLoaderFactory,
         )->resolveResolution($bootstrapConfig);
         $modulePlan = $moduleResolution->plan();
 
@@ -82,7 +86,7 @@ final class AppBuilder
             skeletonRoot: $skeletonRoot,
             bootstrapConfig: $bootstrapConfig,
             moduleResolution: $moduleResolution,
-            presetName: self::PRESET_MICRO,
+            modePresetLoaderFactory: $modePresetLoaderFactory,
         );
 
         $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths(
@@ -94,9 +98,7 @@ final class AppBuilder
         $container = new ArtifactRuntimeBooter()->boot(
             input: new ArtifactRuntimeInput(
                 skeletonRoot: $skeletonRoot,
-                artifactRoot: ArtifactPipelineTestSupport::artifactRoot(
-                    $skeletonRoot,
-                ),
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot($skeletonRoot),
             ),
         );
 
@@ -224,14 +226,14 @@ final class AppBuilder
         );
     }
 
-    private static function modulePlanResolver(ModuleManifest $manifest): ModulePlanResolver
-    {
+    private static function modulePlanResolver(
+        ModuleManifest $manifest,
+        ?ModePresetLoaderFactory $modePresetLoaderFactory = null,
+    ): ModulePlanResolver {
+        $modePresetLoaderFactory ??= self::modePresetLoaderFactory();
+
         return new ModulePlanResolver(
-            presetLoaderFactory: new ModePresetLoaderFactory(
-                packageRoot: self::packageRoot(),
-                modesConfig: self::modesConfig(),
-                schemaValidator: new ModePresetSchemaValidator(),
-            ),
+            presetLoaderFactory: $modePresetLoaderFactory,
             manifestReader: self::manifestReader($manifest),
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
             meter: self::meter(),
@@ -246,11 +248,23 @@ final class AppBuilder
         string $skeletonRoot,
         BootstrapConfig $bootstrapConfig,
         ModuleResolution $moduleResolution,
-        string $presetName,
+        ModePresetLoaderFactory $modePresetLoaderFactory,
     ): void {
         ArtifactPipelineTestSupport::writeRootConfig(
             skeletonRoot: $skeletonRoot,
             config: ArtifactPipelineTestSupport::defaultConfig(),
+        );
+
+        $sourceBuilder = new ConfigSourceLocationBuilder(
+            installPathResolver: new ComposerPackageInstallPathResolver([
+                'coretsia/core-foundation' => self::foundationPackageRoot(),
+                'coretsia/core-kernel' => self::packageRoot(),
+            ]),
+            modePresetLoaderFactory: $modePresetLoaderFactory,
+        );
+        $configSources = $sourceBuilder->build(
+            $bootstrapConfig,
+            $moduleResolution,
         );
 
         ArtifactPipelineTestSupport::artifactCompiler($testCase)->compile(
@@ -258,12 +272,7 @@ final class AppBuilder
             moduleResolution: $moduleResolution,
             env: ArtifactPipelineTestSupport::envRepository(),
             kernelConfig: self::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: self::frameworkModePresetSourceCandidates($presetName),
+            configSources: $configSources,
         );
     }
 
@@ -281,8 +290,7 @@ final class AppBuilder
                 'generation-manifest.php',
             ] as $basename
         ) {
-            $path =
-                $artifactPaths[$basename] ?? null;
+            $path = $artifactPaths[$basename] ?? null;
 
             if (
                 !\is_string($path)
@@ -327,6 +335,15 @@ final class AppBuilder
         return $kernelConfig;
     }
 
+    private static function modePresetLoaderFactory(): ModePresetLoaderFactory
+    {
+        return new ModePresetLoaderFactory(
+            packageRoot: self::packageRoot(),
+            modesConfig: self::modesConfig(),
+            schemaValidator: new ModePresetSchemaValidator(),
+        );
+    }
+
     /**
      * @return array<string,mixed>
      */
@@ -350,26 +367,6 @@ final class AppBuilder
                 'allowed_sources' => [
                     'composer',
                 ],
-            ],
-        ];
-    }
-
-    /**
-     * @return list<array{
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId: string,
-     *     precedence: int
-     * }>
-     */
-    private static function frameworkModePresetSourceCandidates(string $presetName): array
-    {
-        return [
-            [
-                'path' => 'kernel.modes.' . $presetName,
-                'filesystemPath' => self::frameworkModeFile($presetName),
-                'sourceId' => 'core/kernel:resources/modes/' . $presetName . '.php',
-                'precedence' => 10,
             ],
         ];
     }
@@ -401,18 +398,36 @@ final class AppBuilder
 
     private static function descriptor(string $moduleId): ModuleDescriptor
     {
+        $metadata = [
+            'providers' => self::providers($moduleId),
+            'requires' => self::requires($moduleId),
+            'conflicts' => [],
+        ];
+        $defaultsConfigPath = self::defaultsConfigPath($moduleId);
+
+        if ($defaultsConfigPath !== null) {
+            $metadata['defaultsConfigPath'] = $defaultsConfigPath;
+        }
+
         return new ModuleDescriptor(
             id: ModuleId::fromString($moduleId),
             composerName: self::composerName($moduleId),
             packageKind: 'runtime',
             moduleClass: null,
             capabilities: [],
-            metadata: [
-                'providers' => self::providers($moduleId),
-                'requires' => self::requires($moduleId),
-                'conflicts' => [],
-            ],
+            metadata: $metadata,
         );
+    }
+
+    private static function defaultsConfigPath(string $moduleId): ?string
+    {
+        return match ($moduleId) {
+            self::MODULE_CORE_FOUNDATION => 'config/foundation.php',
+            self::MODULE_CORE_KERNEL => 'config/kernel.php',
+            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_HTTP => null,
+            default => throw new \LogicException('app-builder-fixture-module-unknown'),
+        };
     }
 
     private static function composerName(string $moduleId): string
@@ -505,6 +520,11 @@ final class AppBuilder
         );
 
         return $moduleIds;
+    }
+
+    private static function foundationPackageRoot(): string
+    {
+        return \dirname(self::packageRoot()) . '/foundation';
     }
 
     private static function packageRoot(): string

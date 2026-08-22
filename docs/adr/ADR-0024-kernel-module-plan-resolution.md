@@ -98,23 +98,42 @@ It MUST NOT call `resolve()` and then read the installed manifest again.
 
 ## Compile-time consumer boundary
 
-Direct invocation of `ModulePlanResolver::resolveResolution()` belongs to Kernel-owned compile-time operation orchestration.
+Direct invocation of `ModulePlanResolver::resolveResolution()` for the canonical artifact compile/verify path belongs to:
+
+```text
+Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
+```
 
 CLI command classes, HTTP runtime code, database runtime code, and other transport or adapter layers MUST NOT invoke `ModulePlanResolver` directly.
 
-Lower-level compilation services MUST receive already-resolved operation inputs. In particular, `ArtifactCompiler`, `FingerprintCalculator`, and `CacheVerifier` MUST NOT:
+For one compile or verify operation, `KernelArtifactOperation` MUST:
+
+1. invoke `resolveResolution()` exactly once;
+2. retain the returned `ModuleResolution` as the operation snapshot;
+3. pass that same `ModuleResolution` to `ConfigSourceLocationBuilder`;
+4. pass that same `ModuleResolution` to `ArtifactCompiler` or `CacheVerifier` together with the `ConfigSourceSet` built for that operation.
+
+The canonical law is:
+
+```text
+one compile / verify operation
+  -> one resolveResolution()
+  -> one ModuleResolution
+  -> ConfigSourceLocationBuilder
+  -> ArtifactCompiler / CacheVerifier
+```
+
+Lower-level compilation services MUST receive already-resolved operation inputs. In particular, `ArtifactCompiler`, `CacheVerifier`, `ConfigFingerprintInputBuilder`, and `ConfigKernel` MUST NOT:
 
 - invoke `ModulePlanResolver`;
-- invoke `ContainerProviderPlanResolver`;
 - invoke `ManifestReaderInterface::read()`;
 - reconstruct `ModuleResolution`;
-- independently discover module providers.
+- reread Composer installed metadata;
+- independently discover module providers or config-source locations.
 
-The compile-time orchestration owner MUST:
+`RuntimeContainerGraphCompiler` MAY pass the already-supplied `ModuleResolution` to `ContainerProviderPlanResolver`; this does not introduce another module-resolution or manifest-discovery run.
 
-1. invoke `resolveResolution()` at most once for one operation;
-2. pass the returned `ModuleResolution` directly to `ContainerProviderPlanResolver`;
-3. reuse the same `ModuleResolution::plan()` for all downstream work belonging to that operation.
+All downstream work belonging to one operation MUST use the `ModulePlan` contained in that same `ModuleResolution` snapshot.
 
 At the current integration state, the module-resolution and provider-plan resolvers are available as compile-host services. Production artifact compilation does not yet collect provider-produced definitions from `ContainerProviderPlan`.
 

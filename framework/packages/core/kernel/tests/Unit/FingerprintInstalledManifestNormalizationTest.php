@@ -27,6 +27,7 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
@@ -35,13 +36,7 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
 {
     public function testPackageSourceCandidatesAreSortedByLogicalSourceId(): void
     {
-        $input = self::builder()->build(
-            bootstrapConfig: self::bootstrapConfig(),
-            modulePlan: self::modulePlan(),
-            containerGraph: DefinitionGraph::empty(),
-            env: self::envRepository(),
-            kernelConfig: self::kernelConfig(),
-            compiledConfig: self::compiledConfig(),
+        $configSources = new ConfigSourceSet(
             packageDefaultSources: [
                 [
                     'root' => 'kernel',
@@ -63,6 +58,20 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
                 ],
             ],
             packageRuleSources: [],
+            splitRoots: [],
+            explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
+            modePresetSourceCandidates: [],
+        );
+
+        $input = self::builder()->build(
+            bootstrapConfig: self::bootstrapConfig(),
+            modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
+            env: self::envRepository(),
+            kernelConfig: self::kernelConfig(),
+            compiledConfig: self::compiledConfig(),
+            configSources: $configSources,
         );
 
         self::assertSame(
@@ -76,13 +85,7 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
 
     public function testMissingInstalledManifestCandidatesStayLogicalAndDoNotLeakFilesystemPaths(): void
     {
-        $input = self::builder()->build(
-            bootstrapConfig: self::bootstrapConfig(),
-            modulePlan: self::modulePlan(),
-            containerGraph: DefinitionGraph::empty(),
-            env: self::envRepository(),
-            kernelConfig: self::kernelConfig(),
-            compiledConfig: self::compiledConfig(),
+        $configSources = new ConfigSourceSet(
             packageDefaultSources: [
                 [
                     'root' => 'kernel',
@@ -95,6 +98,20 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
                 ],
             ],
             packageRuleSources: [],
+            splitRoots: [],
+            explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
+            modePresetSourceCandidates: [],
+        );
+
+        $input = self::builder()->build(
+            bootstrapConfig: self::bootstrapConfig(),
+            modulePlan: self::modulePlan(),
+            containerGraph: DefinitionGraph::empty(),
+            env: self::envRepository(),
+            kernelConfig: self::kernelConfig(),
+            compiledConfig: self::compiledConfig(),
+            configSources: $configSources,
         );
 
         $candidate = $input['sourceCandidates']['package_config'][0];

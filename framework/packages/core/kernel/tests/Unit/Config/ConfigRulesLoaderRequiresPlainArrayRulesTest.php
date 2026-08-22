@@ -19,8 +19,11 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Unit\Config;
 
 use Coretsia\Contracts\Config\ConfigRuleset;
+use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Config\ConfigRulesLoader;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
+use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ModulePlanEntry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -149,7 +152,7 @@ PHP
         self::assertArrayHasKey('kernel', $result['sources']);
         self::assertSame('kernel', $result['sources']['kernel']->root());
         self::assertSame('core/kernel/config/rules/kernel', $result['sources']['kernel']->sourceId());
-        self::assertSame('framework/packages/core/kernel/config/rules.php', $result['sources']['kernel']->path());
+        self::assertSame('config/rules.php', $result['sources']['kernel']->path());
         self::assertSame(10, $result['sources']['kernel']->precedence());
 
         self::assertSame(
@@ -157,13 +160,63 @@ PHP
                 'kernel' => [
                     'moduleId' => null,
                     'packageId' => 'core/kernel',
-                    'path' => 'framework/packages/core/kernel/config/rules.php',
+                    'path' => 'config/rules.php',
                     'root' => 'kernel',
                     'sourceId' => 'core/kernel/config/rules/kernel',
                 ],
             ],
             $result['owners'],
         );
+    }
+
+    public function testPackageRulesRequireExactPackageRelativeRulesPath(): void
+    {
+        $rulesFile = $this->writeRulesFile(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+return [
+    'configRoot' => 'kernel',
+    'schemaVersion' => 1,
+    'additionalKeys' => true,
+    'keys' => [],
+];
+PHP
+        );
+
+        $loader = new ConfigRulesLoader();
+        $accepted = $loader->loadPackageRulesets(
+            modulePlan: self::modulePlan(),
+            sources: [
+                self::packageSource($rulesFile, 'config/rules.php'),
+            ],
+        );
+
+        self::assertCount(1, $accepted['rulesets']);
+
+        try {
+            $loader->loadPackageRulesets(
+                modulePlan: self::modulePlan(),
+                sources: [
+                    self::packageSource($rulesFile, 'foo/config/rules.php'),
+                ],
+            );
+
+            self::fail('Expected package-owned non-canonical rules path to fail.');
+        } catch (ConfigInvalidException $exception) {
+            self::assertSame(
+                ConfigInvalidException::REASON_SOURCE_INVALID,
+                $exception->reason(),
+            );
+        }
+
+        $explicit = $loader->loadRulesets([
+            self::explicitSource($rulesFile, 'foo/config/rules.php'),
+        ]);
+
+        self::assertCount(1, $explicit['rulesets']);
     }
 
     /**
@@ -214,11 +267,75 @@ PHP
             'root' => 'kernel',
             'packageId' => 'core/kernel',
             'moduleId' => null,
-            'path' => 'framework/packages/core/kernel/config/rules.php',
+            'path' => 'config/rules.php',
             'filesystemPath' => $filesystemPath,
             'sourceId' => 'core/kernel/config/rules/kernel',
             'precedence' => 10,
         ];
+    }
+
+    /**
+     * @return array{
+     *     root: string,
+     *     packageId: string,
+     *     moduleId: string,
+     *     path: string,
+     *     filesystemPath: string,
+     *     sourceId: string,
+     *     precedence: int
+     * }
+     */
+    private static function packageSource(string $filesystemPath, string $path): array
+    {
+        return [
+            'root' => 'kernel',
+            'packageId' => 'core/kernel',
+            'moduleId' => 'core.kernel',
+            'path' => $path,
+            'filesystemPath' => $filesystemPath,
+            'sourceId' => 'core/kernel/config/rules/kernel',
+            'precedence' => 10,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     root: string,
+     *     packageId: string,
+     *     moduleId: null,
+     *     path: string,
+     *     filesystemPath: string,
+     *     sourceId: string,
+     *     precedence: int
+     * }
+     */
+    private static function explicitSource(string $filesystemPath, string $path): array
+    {
+        $source = self::source($filesystemPath);
+        $source['path'] = $path;
+
+        return $source;
+    }
+
+    private static function modulePlan(): ModulePlan
+    {
+        $moduleId = ModuleId::fromString('core.kernel');
+
+        return new ModulePlan(
+            app: 'web',
+            preset: 'micro',
+            enabled: [$moduleId],
+            disabled: [],
+            optionalMissing: [],
+            topologicalOrder: [$moduleId],
+            modules: [
+                new ModulePlanEntry(
+                    moduleId: $moduleId,
+                    composerName: 'coretsia/core-kernel',
+                ),
+            ],
+            warnings: [],
+        );
     }
 
     private static function removeTree(string $path): void

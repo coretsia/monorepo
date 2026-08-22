@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Module;
 
 use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 
 /**
  * Creates per-resolution filesystem mode preset loaders.
@@ -51,6 +52,8 @@ final readonly class ModePresetLoaderFactory
 {
     private const int SUPPORTED_SCHEMA_VERSION = 1;
     private const int MAX_RELATIVE_PATH_BYTES = 256;
+    private const int SOURCE_PRECEDENCE_FRAMEWORK_DEFAULT = 10;
+    private const int SOURCE_PRECEDENCE_SKELETON_OVERRIDE = 20;
 
     private string $packageRoot;
     private string $defaultsPath;
@@ -86,26 +89,89 @@ final readonly class ModePresetLoaderFactory
 
     public function createFor(BootstrapConfig $bootstrapConfig): FilesystemModePresetLoader
     {
+        $resolvedPaths = $this->resolvedPaths($bootstrapConfig);
+
+        return new FilesystemModePresetLoader(
+            frameworkDefaultsPath: $resolvedPaths['frameworkDefaultsPath'],
+            skeletonOverridesPath: $resolvedPaths['skeletonOverridesPath'],
+            schemaValidator: $this->schemaValidator,
+        );
+    }
+
+    /**
+     * Returns both declared preset source candidates for fingerprint topology.
+     * Candidate existence does not affect emission.
+     *
+     * @return list<array{
+     *     path: string,
+     *     filesystemPath: string,
+     *     sourceId: string,
+     *     precedence: int
+     * }>
+     */
+    public function sourceCandidatesFor(
+        BootstrapConfig $bootstrapConfig,
+    ): array {
+        $preset = $bootstrapConfig->preset();
+
+        if (!self::isSafePresetName($preset)) {
+            throw ModePresetNotFoundException::invalidPresetName();
+        }
+
+        $resolvedPaths = $this->resolvedPaths($bootstrapConfig);
+        $overrideLogicalPath = $this->overridesPath . '/' . $preset . '.php';
+        $frameworkLogicalPath = $this->defaultsPath . '/' . $preset . '.php';
+
+        return [
+            [
+                'path' => $overrideLogicalPath,
+                'filesystemPath' => self::joinPath(
+                    root: $resolvedPaths['skeletonOverridesPath'],
+                    relativePath: $preset . '.php',
+                ),
+                'sourceId' => 'skeleton:' . $overrideLogicalPath,
+                'precedence' => self::SOURCE_PRECEDENCE_SKELETON_OVERRIDE,
+            ],
+            [
+                'path' => $frameworkLogicalPath,
+                'filesystemPath' => self::joinPath(
+                    root: $resolvedPaths['frameworkDefaultsPath'],
+                    relativePath: $preset . '.php',
+                ),
+                'sourceId' => 'core/kernel:' . $frameworkLogicalPath,
+                'precedence' => self::SOURCE_PRECEDENCE_FRAMEWORK_DEFAULT,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     frameworkDefaultsPath: string,
+     *     skeletonOverridesPath: string
+     * }
+     */
+    private function resolvedPaths(BootstrapConfig $bootstrapConfig): array
+    {
         $skeletonRoot = self::normalizeRootBoundary(
             root: $bootstrapConfig->skeletonRoot(),
             reason: 'mode-preset-loader-factory-skeleton-root-invalid',
         );
 
-        $frameworkDefaultsPath = self::joinPath(
-            root: $this->packageRoot,
-            relativePath: $this->defaultsPath,
-        );
+        return [
+            'frameworkDefaultsPath' => self::joinPath(
+                root: $this->packageRoot,
+                relativePath: $this->defaultsPath,
+            ),
+            'skeletonOverridesPath' => self::joinPath(
+                root: $skeletonRoot,
+                relativePath: $this->overridesPath,
+            ),
+        ];
+    }
 
-        $skeletonOverridesPath = self::joinPath(
-            root: $skeletonRoot,
-            relativePath: $this->overridesPath,
-        );
-
-        return new FilesystemModePresetLoader(
-            frameworkDefaultsPath: $frameworkDefaultsPath,
-            skeletonOverridesPath: $skeletonOverridesPath,
-            schemaValidator: $this->schemaValidator,
-        );
+    private static function isSafePresetName(string $preset): bool
+    {
+        return \preg_match('/\A[a-z][a-z0-9-]{0,63}\z/D', $preset) === 1;
     }
 
     /**

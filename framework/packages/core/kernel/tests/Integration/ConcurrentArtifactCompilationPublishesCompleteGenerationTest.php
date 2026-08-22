@@ -218,21 +218,14 @@ $frameworkRoot = \dirname(
     2,
 );
 
-$foundationConfig = require $frameworkRoot
-    . '/packages/core/foundation/config/foundation.php';
+$foundationConfig = require $frameworkRoot . '/packages/core/foundation/config/foundation.php';
+$kernelProviderConfig = require $frameworkRoot . '/packages/core/kernel/config/kernel.php';
 
-$kernelProviderConfig = require $frameworkRoot
-    . '/packages/core/kernel/config/kernel.php';
+$foundationConfig['container']['autowire_concrete'] = true;
+$foundationConfig['container']['allow_reflection_for_concrete'] = true;
+$foundationConfig['reset']['tag'] = \Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET;
 
-$foundationConfig['container']
-    ['autowire_concrete'] = true;
-$foundationConfig['container']
-    ['allow_reflection_for_concrete'] = true;
-$foundationConfig['reset']['tag'] =
-    \Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET;
-
-$builder =
-    new \Coretsia\Foundation\Container\ContainerBuilder(
+$builder = new \Coretsia\Foundation\Container\ContainerBuilder(
         config: [
             'foundation' => $foundationConfig,
             'kernel' => $kernelProviderConfig,
@@ -245,42 +238,24 @@ $builder->register(
 );
 
 $container = $builder->build();
+$compiler = $container->get(\Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler::class);
 
-$compiler = $container->get(
-    \Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler::class,
-);
-
-if (
-    !$compiler instanceof
-        \Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler
-) {
-    throw new \RuntimeException(
-        'artifact-compiler-service-invalid',
-    );
+if (!$compiler instanceof \Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler) {
+    throw new \RuntimeException('artifact-compiler-service-invalid');
 }
 
-$moduleId =
-    \Coretsia\Contracts\Module\ModuleId::fromString(
-        'core.fixture',
-    );
-$composerName =
-    'coretsia/core-kernel-test-fixture';
+$moduleId = \Coretsia\Contracts\Module\ModuleId::fromString('core.fixture');
+$composerName = 'coretsia/core-kernel-test-fixture';
 
-$moduleResolution =
-    new \Coretsia\Kernel\Module\ModuleResolution(
-        manifest:
-            new \Coretsia\Contracts\Module\ModuleManifest(
+$moduleResolution = new \Coretsia\Kernel\Module\ModuleResolution(
+        manifest: new \Coretsia\Contracts\Module\ModuleManifest(
                 [
                     new \Coretsia\Contracts\Module\ModuleDescriptor(
                         id: $moduleId,
-                        composerName:
-                            $composerName,
-                        packageKind:
-                            'runtime',
-                        moduleClass:
-                            null,
-                        capabilities:
-                            [],
+                        composerName: $composerName,
+                        packageKind: 'runtime',
+                        moduleClass: null,
+                        capabilities: [],
                         metadata: [
                             'providers' => [
                                 \Coretsia\Kernel\Tests\Fixtures\ContainerDefinitionProviderFixture::class,
@@ -289,8 +264,7 @@ $moduleResolution =
                     ),
                 ],
             ),
-        plan:
-            new \Coretsia\Kernel\Module\ModulePlan(
+        plan: new \Coretsia\Kernel\Module\ModulePlan(
                 app: 'web',
                 preset: 'default',
                 enabled: [
@@ -303,32 +277,25 @@ $moduleResolution =
                 ],
                 modules: [
                     new \Coretsia\Kernel\Module\ModulePlanEntry(
-                        moduleId:
-                            $moduleId,
-                        composerName:
-                            $composerName,
+                        moduleId: $moduleId,
+                        composerName: $composerName,
                     ),
                 ],
                 warnings: [],
             ),
     );
 
-$env =
-    new class() implements
+$env = new class() implements
         \Coretsia\Contracts\Env\EnvRepositoryInterface
     {
-        public function has(
-            string $name,
-        ): bool {
+        public function has(string $name): bool
+        {
             return false;
         }
 
-        public function get(
-            string $name,
-        ): \Coretsia\Contracts\Env\EnvValue {
-            throw new \LogicException(
-                'concurrent-compiler-env-read-forbidden',
-            );
+        public function get(string $name): \Coretsia\Contracts\Env\EnvValue
+        {
+            throw new \LogicException('concurrent-compiler-env-read-forbidden');
         }
 
         public function all(): array
@@ -336,33 +303,42 @@ $env =
             return [];
         }
 
-        public function sourceOf(
-            string $name,
-        ): ?\Coretsia\Contracts\Config\ConfigValueSource {
+        public function sourceOf(string $name): ?\Coretsia\Contracts\Config\ConfigValueSource
+        {
             return null;
         }
     };
 
-$bootstrapConfig =
-    new \Coretsia\Kernel\Boot\BootstrapConfig(
+$bootstrapConfig = new \Coretsia\Kernel\Boot\BootstrapConfig(
         appEnv: 'prod',
         preset: 'default',
         debug: false,
         artifactsCacheDir: 'var/cache',
-        envSourcePolicy:
-            \Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy::StrictDotenv,
-        appTarget:
-            \Coretsia\Kernel\Boot\AppTarget::Web,
-        skeletonRoot:
-            $skeletonRoot,
+        envSourcePolicy: \Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy::StrictDotenv,
+        appTarget: \Coretsia\Kernel\Boot\AppTarget::Web,
+        skeletonRoot: $skeletonRoot,
     );
 
 try {
+    $configSources = new \Coretsia\Kernel\Config\Source\ConfigSourceSet(
+            packageDefaultSources: [],
+            packageRuleSources: [],
+            splitRoots: [],
+            explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
+            modePresetSourceCandidates: [
+                [
+                    'path' => 'concurrent-inputs/variant-' . $variant . '.php',
+                    'filesystemPath' => $sourcePath,
+                    'sourceId' => 'test.concurrent.' . $variant,
+                    'precedence' => $variant,
+                ],
+            ],
+        );
+
     $result = $compiler->compile(
-        bootstrapConfig:
-            $bootstrapConfig,
-        moduleResolution:
-            $moduleResolution,
+        bootstrapConfig: $bootstrapConfig,
+        moduleResolution: $moduleResolution,
         env: $env,
         kernelConfig: [
             'env' => [
@@ -376,31 +352,7 @@ try {
                 ],
             ],
         ],
-        packageDefaultSources: [],
-        packageRuleSources: [],
-        splitRoots: [],
-        explicitRuleSources: [],
-        explicitEnvOverlayMappings: [],
-        modePresetSourceCandidates: [
-            [
-                'root' => 'kernel',
-                'packageId' =>
-                    'coretsia/core-kernel-test-fixture',
-                'moduleId' =>
-                    'core.fixture',
-                'path' =>
-                    'concurrent-inputs/variant-'
-                    . $variant
-                    . '.php',
-                'filesystemPath' =>
-                    $sourcePath,
-                'sourceId' =>
-                    'test.concurrent.'
-                    . $variant,
-                'precedence' =>
-                    $variant,
-            ],
-        ],
+        configSources: $configSources,
     );
 
     echo \json_encode(
@@ -415,8 +367,7 @@ try {
         [
             'status' => 'failed',
             'type' => $exception::class,
-            'message' =>
-                $exception->getMessage(),
+            'message' => $exception->getMessage(),
         ],
         \JSON_THROW_ON_ERROR,
     );
@@ -459,7 +410,7 @@ CHILD;
                 $fixturePath,
                 $skeletonRoot,
                 $sourcePath,
-                (string)$variant,
+                (string) $variant,
             ],
             [
                 0 => ['pipe', 'r'],

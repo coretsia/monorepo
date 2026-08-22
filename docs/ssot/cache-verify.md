@@ -128,20 +128,23 @@ The expected generation manifest is derived from that publication set.
 
 ## Verification Inputs (MUST)
 
-Cache verification consumes already-supplied resolved inputs.
+Normal compile-host verification starts from `BootstrapInput` and delegates input preparation to:
 
-The verifier receives:
+```text
+KernelArtifactOperation
+```
+
+`KernelArtifactOperation` resolves `BootstrapConfig`, builds `EnvRepositoryInterface`, resolves one `ModuleResolution`, builds one `ConfigSourceSet`, and then routes those already-prepared inputs to `CacheVerifier`.
+
+The low-level verifier receives:
 
 - resolved `BootstrapConfig`;
 - one resolved `ModuleResolution`;
 - `EnvRepositoryInterface`;
 - Kernel config subtree;
-- explicit package default source candidates;
-- explicit package rules source candidates;
-- split roots;
-- explicit rule sources;
-- explicit env overlay mappings;
-- mode preset source candidates.
+- one already-built `ConfigSourceSet`.
+
+`CacheVerifier` consumes that source set; it does not discover package installation roots, construct config-source locations, or rebuild an equivalent source set from separate arrays.
 
 The verifier derives the current `ModulePlan` only through:
 
@@ -159,6 +162,8 @@ Cache verification MUST NOT:
 - perform a second module resolution;
 - replace the `ModulePlan` contained in the supplied `ModuleResolution`;
 - build `EnvRepositoryInterface`;
+- invoke `ConfigSourceLocationBuilder`;
+- resolve Composer package install roots;
 - run Bootstrap Phase A;
 - run module discovery;
 - scan arbitrary package directories;

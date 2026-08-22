@@ -34,6 +34,7 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Module\ModulePlan;
 use Psr\Log\LoggerInterface;
 
@@ -98,16 +99,6 @@ final readonly class ConfigKernel
     private const string ENTRY_KIND_PACKAGE_DEFAULT = 'package_default';
     private const string ENTRY_KIND_ENV_OVERLAY = 'env_overlay';
 
-    /**
-     * @param list<array{
-     *     path: string,
-     *     env: string,
-     *     type: string,
-     *     sourceId?: string|null,
-     *     precedence?: int|null,
-     *     allowedValues?: list<null|bool|int|string>
-     * }> $defaultExplicitEnvOverlayMappings
-     */
     public function __construct(
         private ConfigMerger $merger,
         private ConfigRulesLoader $rulesLoader,
@@ -120,54 +111,15 @@ final readonly class ConfigKernel
         private TracerPortInterface $tracer,
         private Stopwatch $stopwatch,
         private LoggerInterface $logger,
-        private array $defaultExplicitEnvOverlayMappings = [],
     ) {
-        self::assertExplicitEnvOverlayMappings($this->defaultExplicitEnvOverlayMappings);
     }
 
     /**
      * Runs the full Phase B config pipeline.
      *
-     * Source candidate arrays are explicit inputs supplied by the Kernel
-     * config-location source builder. ConfigKernel does not infer package paths
-     * and does not scan directories.
-     *
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageDefaultSources
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageRuleSources
-     * @param list<non-empty-string> $splitRoots
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId?: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $explicitRuleSources
-     * @param list<array{
-     *     path: string,
-     *     env: string,
-     *     type: string,
-     *     sourceId?: string|null,
-     *     precedence?: int|null,
-     *     allowedValues?: list<null|bool|int|string>
-     * }> $explicitEnvOverlayMappings
+     * ConfigSourceSet is an explicit already-built input supplied by the Kernel
+     * config-location source builder. ConfigKernel does not discover or infer
+     * source locations.
      *
      * @return array{
      *     config: array<string,mixed>,
@@ -206,11 +158,7 @@ final readonly class ConfigKernel
         BootstrapConfig $bootstrapConfig,
         ModulePlan $modulePlan,
         EnvRepositoryInterface $env,
-        array $packageDefaultSources,
-        array $packageRuleSources,
-        array $splitRoots = [],
-        array $explicitRuleSources = [],
-        array $explicitEnvOverlayMappings = [],
+        ConfigSourceSet $configSources,
         bool $explain = false,
     ): array {
         $startedAt = $this->safeStartTimer();
@@ -225,21 +173,13 @@ final readonly class ConfigKernel
                     $bootstrapConfig,
                     $modulePlan,
                     $env,
-                    $packageDefaultSources,
-                    $packageRuleSources,
-                    $splitRoots,
-                    $explicitRuleSources,
-                    $explicitEnvOverlayMappings
+                    $configSources
                 ): array {
                     $compiled = $this->compileWithoutExplain(
                         bootstrapConfig: $bootstrapConfig,
                         modulePlan: $modulePlan,
                         env: $env,
-                        packageDefaultSources: $packageDefaultSources,
-                        packageRuleSources: $packageRuleSources,
-                        splitRoots: $splitRoots,
-                        explicitRuleSources: $explicitRuleSources,
-                        explicitEnvOverlayMappings: $explicitEnvOverlayMappings,
+                        configSources: $configSources,
                     );
 
                     return $compiled;
@@ -377,12 +317,6 @@ final readonly class ConfigKernel
     }
 
     /**
-     * @param list<array<string,mixed>> $packageDefaultSources
-     * @param list<array<string,mixed>> $packageRuleSources
-     * @param list<non-empty-string> $splitRoots
-     * @param list<array<string,mixed>> $explicitRuleSources
-     * @param list<array<string,mixed>> $explicitEnvOverlayMappings
-     *
      * @return array{
      *     config: array<string,mixed>,
      *     effectiveSources: array<string, ConfigValueSource>,
@@ -421,12 +355,14 @@ final readonly class ConfigKernel
         BootstrapConfig $bootstrapConfig,
         ModulePlan $modulePlan,
         EnvRepositoryInterface $env,
-        array $packageDefaultSources,
-        array $packageRuleSources,
-        array $splitRoots,
-        array $explicitRuleSources,
-        array $explicitEnvOverlayMappings,
+        ConfigSourceSet $configSources,
     ): array {
+        $packageDefaultSources = $configSources->packageDefaultSources();
+        $packageRuleSources = $configSources->packageRuleSources();
+        $splitRoots = $configSources->splitRoots();
+        $explicitRuleSources = $configSources->explicitRuleSources();
+        $explicitEnvOverlayMappings = $configSources->explicitEnvOverlayMappings();
+
         self::assertSourceCandidateList($packageDefaultSources);
         self::assertSourceCandidateList($packageRuleSources);
         self::assertSourceCandidateList($explicitRuleSources);
@@ -460,10 +396,7 @@ final readonly class ConfigKernel
             splitRoots: $splitRoots,
         );
 
-        $envMappings = self::mergeExplicitEnvOverlayMappings(
-            $this->defaultExplicitEnvOverlayMappings,
-            $explicitEnvOverlayMappings,
-        );
+        $envMappings = $configSources->explicitEnvOverlayMappings();
 
         $envOverlay = $this->environmentOverlayLoader->load(
             env: $env,
@@ -1324,46 +1257,6 @@ final readonly class ConfigKernel
         \ksort($byRoot, \SORT_STRING);
 
         return \array_values($byRoot);
-    }
-
-    /**
-     * @param list<array<string,mixed>> $defaultMappings
-     * @param list<array<string,mixed>> $runtimeMappings
-     *
-     * @return list<array<string,mixed>>
-     *
-     * @throws ConfigInvalidException
-     */
-    private static function mergeExplicitEnvOverlayMappings(
-        array $defaultMappings,
-        array $runtimeMappings,
-    ): array {
-        self::assertExplicitEnvOverlayMappings($defaultMappings);
-        self::assertExplicitEnvOverlayMappings($runtimeMappings);
-
-        $merged = [];
-
-        foreach ([...$defaultMappings, ...$runtimeMappings] as $mapping) {
-            $path = $mapping['path'] ?? null;
-
-            if (!\is_string($path) || $path === '') {
-                throw ConfigInvalidException::withReason(
-                    ConfigInvalidException::REASON_SOURCE_INVALID,
-                );
-            }
-
-            if (isset($merged[$path])) {
-                throw ConfigInvalidException::withReason(
-                    ConfigInvalidException::REASON_SOURCE_INVALID,
-                );
-            }
-
-            $merged[$path] = $mapping;
-        }
-
-        \ksort($merged, \SORT_STRING);
-
-        return \array_values($merged);
     }
 
     /**

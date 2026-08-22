@@ -330,6 +330,16 @@ final readonly class ComposerManifestReader implements ManifestReaderInterface
             throw ModuleManifestInvalidException::coretsiaMetadataInvalid();
         }
 
+        $matches = [];
+
+        if (\preg_match('/\Aconfig\/([a-z][a-z0-9_]*)\.php\z/D', $value, $matches) !== 1) {
+            throw ModuleManifestInvalidException::coretsiaMetadataInvalid();
+        }
+
+        if ($matches[1] === 'roots') {
+            throw ModuleManifestInvalidException::coretsiaMetadataInvalid();
+        }
+
         return $value;
     }
 

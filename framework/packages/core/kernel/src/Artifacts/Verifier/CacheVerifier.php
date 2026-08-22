@@ -44,6 +44,7 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
@@ -114,49 +115,6 @@ final readonly class CacheVerifier
 
     /**
      * @param array<string,mixed> $kernelConfig
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageDefaultSources
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageRuleSources
-     * @param list<non-empty-string> $splitRoots
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId?: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $explicitRuleSources
-     * @param list<array{
-     *     path: string,
-     *     env: string,
-     *     type: string,
-     *     sourceId?: string|null,
-     *     precedence?: int|null,
-     *     allowedValues?: list<null|bool|int|string>
-     * }> $explicitEnvOverlayMappings
-     * @param list<array{
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int|null
-     * }> $modePresetSourceCandidates
-     *
      * @return array{
      *     schemaVersion: int,
      *     outcome: non-empty-string,
@@ -203,12 +161,7 @@ final readonly class CacheVerifier
         ModuleResolution $moduleResolution,
         EnvRepositoryInterface $env,
         array $kernelConfig,
-        array $packageDefaultSources,
-        array $packageRuleSources,
-        array $splitRoots = [],
-        array $explicitRuleSources = [],
-        array $explicitEnvOverlayMappings = [],
-        array $modePresetSourceCandidates = [],
+        ConfigSourceSet $configSources,
     ): array {
         $modulePlan = $moduleResolution->plan();
         $startedAt = $this->safeStartTimer();
@@ -222,11 +175,7 @@ final readonly class CacheVerifier
                 bootstrapConfig: $bootstrapConfig,
                 modulePlan: $modulePlan,
                 env: $env,
-                packageDefaultSources: $packageDefaultSources,
-                packageRuleSources: $packageRuleSources,
-                splitRoots: $splitRoots,
-                explicitRuleSources: $explicitRuleSources,
-                explicitEnvOverlayMappings: $explicitEnvOverlayMappings,
+                configSources: $configSources,
                 explain: false,
             );
 
@@ -248,11 +197,7 @@ final readonly class CacheVerifier
                 env: $env,
                 kernelConfig: $kernelConfig,
                 compiledConfig: $compiledConfig,
-                packageDefaultSources: $packageDefaultSources,
-                packageRuleSources: $packageRuleSources,
-                splitRoots: $splitRoots,
-                explicitRuleSources: $explicitRuleSources,
-                modePresetSourceCandidates: $modePresetSourceCandidates,
+                configSources: $configSources,
             );
 
             $fingerprint = $this->fingerprintCalculator->calculate($fingerprintInput);

@@ -131,6 +131,48 @@ Non-owner packages:
 - MUST NOT define competing `config/rules.php` authority for an existing reserved root
 - MUST NOT redefine ownership of an existing reserved root
 
+## Runtime Package Root Declaration (MUST)
+
+A runtime package that owns a reserved config root MUST declare its package default file in Composer metadata:
+
+```json
+{
+  "extra": {
+    "coretsia": {
+      "defaultsConfigPath": "config/<root>.php"
+    }
+  }
+}
+```
+
+The declaration is logical package-relative metadata. It does not contain a package installation path.
+
+Canonical config ownership identity is derived from module identity:
+
+```text
+package_id
+= <module-layer>/<module-slug>
+```
+
+The Composer package name is not the config `package_id`; it is used only to resolve the exact physical package installation root during compile-host source construction.
+
+Example:
+
+```text
+moduleId: platform.problem-details
+package_id: platform/problem-details
+root: problem_details
+defaults: config/problem_details.php
+rules: config/rules.php
+```
+
+This example intentionally demonstrates that the module slug and config root need not use the same spelling convention:
+
+```text
+module slug: problem-details
+config root: problem_details
+```
+
 ## Reserved Config Roots (MUST)
 
 | root              | owner package_id           | defaults file                                                            | rules file                                                     | notes                             |
@@ -154,6 +196,7 @@ A later owner epic MUST:
 1. add or update the canonical registry row in `docs/ssot/config-roots.md`
 2. define the owner package defaults file for that root
 3. define the owner package rules file for that root
+4. declare `extra.coretsia.defaultsConfigPath` as the package-relative `config/<root>.php` path in the owning runtime package
 
 Parallel placeholder notes are not a substitute for updating the canonical registry.
 

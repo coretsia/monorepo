@@ -93,6 +93,8 @@ extra.coretsia.providers
 
 `extra.coretsia.providers` is compile-time provider-planning metadata.
 
+`extra.coretsia.defaultsConfigPath` declares logical package-relative config-source metadata and does not carry a physical package installation path.
+
 None of these fields is a module identity input.
 
 Only fields explicitly defined by the descriptor exported shape MAY be exported by `ModuleDescriptor::toArray()`.
@@ -169,7 +171,7 @@ In particular, packages under the tooling layer are not runtime modules.
 
 Runtime module dependency metadata is the canonical input for Kernel-owned ModulePlan graph resolution.
 
-The canonical Composer metadata fields are:
+The canonical runtime graph Composer metadata fields are:
 
 ```text
 extra.coretsia.requires
@@ -180,7 +182,17 @@ extra.coretsia.conflicts
 
 `extra.coretsia.conflicts` is the canonical module conflict metadata source.
 
-These fields MUST contain runtime module ids only.
+The optional compile-time package-config declaration is:
+
+```text
+extra.coretsia.defaultsConfigPath
+```
+
+It declares the owning runtime package default-config file for Kernel compile-time config source-location construction.
+
+`defaultsConfigPath` is not a dependency edge, provider declaration, module identity input, runtime `ModulePlan` field, or physical filesystem install path.
+
+`extra.coretsia.requires` and `extra.coretsia.conflicts` MUST contain runtime module ids only.
 
 They MUST NOT contain:
 
@@ -367,14 +379,15 @@ kind
 moduleClass
 ```
 
-Runtime module graph metadata and compile-time provider metadata are intentionally not part of the Phase 0 package-index lock-source shape.
+Runtime module graph metadata, compile-time provider metadata, and compile-time package default-config metadata are intentionally not part of the Phase 0 package-index lock-source shape.
 
-Composer metadata MAY provide runtime graph and provider metadata through:
+Composer metadata MAY provide these fields through:
 
 ```text
 extra.coretsia.requires
 extra.coretsia.conflicts
 extra.coretsia.providers
+extra.coretsia.defaultsConfigPath
 ```
 
 When a runtime manifest reader consumes those Composer fields, it MUST normalize them into `ModuleDescriptor.metadata()`.
@@ -383,7 +396,8 @@ The canonical semantics are:
 
 - `requires`: duplicate-collapsed and `strcmp`-sorted module-id set;
 - `conflicts`: duplicate-collapsed and `strcmp`-sorted module-id set;
-- `providers`: duplicate-free declaration-ordered FQCN list.
+- `providers`: duplicate-free declaration-ordered FQCN list;
+- `defaultsConfigPath`: optional validated logical package-relative `config/<root>.php` string.
 
 A future package-index owner MAY promote runtime graph metadata into tooling output, but until a future SSoT explicitly does so, the Phase 0 package-index shape remains unchanged.
 
@@ -487,6 +501,52 @@ Compile-time provider metadata, when provided by a manifest reader, MUST be stor
 ```text
 providers
 ```
+
+Package default-config metadata, when provided by a manifest reader, MUST be stored under:
+
+```text
+metadata.defaultsConfigPath
+```
+
+When present, `metadata.defaultsConfigPath` MUST be a non-empty string with exact form:
+
+```text
+config/<root>.php
+```
+
+where `<root>` MUST match:
+
+```text
+[a-z][a-z0-9_]*
+```
+
+and `<root>` MUST NOT equal:
+
+```text
+roots
+```
+
+Valid examples:
+
+```text
+config/kernel.php
+config/foundation.php
+config/problem_details.php
+```
+
+Invalid examples:
+
+```text
+resources/kernel.php
+config/foo/kernel.php
+config/roots.php
+config/Kernel.php
+config/problem-details.php
+```
+
+A missing `metadata.defaultsConfigPath` means the module contributes no package default-config root.
+
+`metadata.defaultsConfigPath` MUST NOT contain or imply a Composer installation path.
 
 `metadata.providers` MUST be a declaration-ordered list of safe provider FQCN strings.
 
@@ -681,6 +741,14 @@ providers
 
 its value MUST be a list of safe provider FQCN strings.
 
+When descriptor metadata contains:
+
+```text
+defaultsConfigPath
+```
+
+its value MUST be the already-validated logical package-relative string `config/<root>.php`, with `<root>` matching `[a-z][a-z0-9_]*` and `<root> != roots`.
+
 For `providers`:
 
 - declaration order is semantic;
@@ -689,7 +757,7 @@ For `providers`:
 - duplicates are invalid;
 - the list MUST NOT contain provider instances or callable values.
 
-These lists are stable string sets:
+For `requires` and `conflicts`, metadata values are deterministic module-id sets:
 
 - duplicate module ids MUST be collapsed;
 - exported module ids MUST be sorted by byte-order `strcmp`;
@@ -831,6 +899,20 @@ A manifest reader implementation MAY read from:
 
 When a manifest reader implementation reads Composer metadata, it MAY consume `extra.coretsia` fields.
 
+`ComposerManifestReader` MUST consume `extra.coretsia.defaultsConfigPath` when present.
+
+It MUST validate the exact `config/<root>.php` grammar before storing the value as:
+
+```text
+ModuleDescriptor::metadata()['defaultsConfigPath']
+```
+
+Invalid `defaultsConfigPath` metadata MUST use the existing deterministic metadata failure boundary:
+
+```text
+ModuleManifestInvalidException::coretsiaMetadataInvalid()
+```
+
 When a manifest reader implementation consumes Composer runtime module graph metadata, it MUST normalize:
 
 ```text
@@ -925,12 +1007,13 @@ Kernel-owned Composer metadata discovery MUST NOT instantiate module classes to 
 
 Kernel-owned Composer metadata discovery MUST NOT derive module identity from filesystem paths.
 
-Kernel-owned Composer metadata discovery MAY normalize runtime graph metadata from:
+Kernel-owned Composer metadata discovery MAY normalize runtime graph and compile-time declaration metadata from:
 
 ```text
 extra.coretsia.requires
 extra.coretsia.conflicts
 extra.coretsia.providers
+extra.coretsia.defaultsConfigPath
 ```
 
 into descriptor metadata keys:
@@ -939,6 +1022,31 @@ into descriptor metadata keys:
 requires
 conflicts
 providers
+defaultsConfigPath
+```
+
+`defaultsConfigPath` is metadata-only logical package-relative information.
+
+Composer discovery MUST NOT resolve or export package installation paths through `ModuleDescriptor` or `ModulePlan`.
+
+Physical install-root resolution belongs to the later compile-host boundary:
+
+```text
+ConfigSourceLocationBuilder
+  -> ComposerPackageInstallPathResolver
+```
+
+The ownership chain is therefore:
+
+```text
+ModuleDescriptor metadata
+  -> logical defaults declaration only
+
+ModulePlan
+  -> remains path-free
+
+ConfigSourceLocationBuilder
+  -> physical location handoff
 ```
 
 Kernel-owned Composer discovery MUST preserve `providers` list order and MUST continue canonical sorting only for `requires` and `conflicts`.

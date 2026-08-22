@@ -197,11 +197,21 @@ Artifact-only runtime receives only the artifact root, locates `current` through
 
 ## Decision 3: Keep artifact production and cache verification separate
 
-Kernel artifact production orchestration is owned by `ArtifactCompiler`.
+Kernel artifact production semantics are owned by `ArtifactCompiler`.
 
 Transactional generation publication is owned by `ArtifactGenerationPublisher`.
 
-Kernel cache verification is owned by `CacheVerifier`.
+Kernel cache verification semantics are owned by `CacheVerifier`.
+
+Normal compile-host input preparation and routing are owned by:
+
+```text
+KernelArtifactOperation
+```
+
+`KernelArtifactOperation` accepts `BootstrapInput`, resolves the operation inputs, builds the canonical config-source set, and routes to `ArtifactCompiler` or `CacheVerifier`.
+
+It MUST NOT absorb artifact production, generation publication, or cache verification semantics from those owners.
 
 Current-generation location and validation are owned by:
 
@@ -323,7 +333,7 @@ This split keeps graph production, graph identity, fingerprint construction, env
 
 ## Decision 5: Use REAL compiled-container semantics for `container@1`
 
-Kernel artifact production now materializes `container@1` as a REAL compiled-container artifact.
+Kernel artifact production materializes `container@1` as a REAL compiled-container artifact.
 
 The `container@1` payload is produced from canonical provider definitions selected through one `ModuleResolution`:
 
@@ -379,9 +389,22 @@ The builder consumes already-resolved or already-produced inputs:
 - `ModulePlan`;
 - the canonical compiled runtime `DefinitionGraph`;
 - `ConfigKernel::compile(...)` result;
-- explicit config source candidate arrays;
+- one canonical `ConfigSourceSet`;
 - `EnvRepositoryInterface` source metadata;
 - Kernel config subtree.
+
+The `ConfigSourceSet` passed to `ConfigFingerprintInputBuilder` MUST be the same instance that `ArtifactCompiler` or `CacheVerifier` passed to `ConfigKernel` for that operation.
+
+The operation MUST NOT compile config from source set A and fingerprint source set B.
+
+Mode-preset source topology inside that source set contains both declared candidates in deterministic precedence order:
+
+```text
+skeleton override candidate
+framework default candidate
+```
+
+Both candidates are fingerprint-relevant even when the skeleton override file is absent. Candidate presence is part of fingerprint identity, so two otherwise semantically equivalent operations that differ only in skeleton-override file presence MUST produce different fingerprint input.
 
 The supplied `DefinitionGraph` must be the exact graph returned by `RuntimeContainerGraphCompiler` for the current artifact operation.
 
@@ -953,13 +976,13 @@ They must not invoke ResetOrchestrator.
 
 They must not start or complete a UnitOfWork.
 
-Later CLI or build tooling may call these services explicitly, but the services themselves remain Kernel-owned runtime services and keep their deterministic and safety boundaries.
+CLI or build tooling may invoke these operations explicitly, but `ArtifactCompiler`, `CacheVerifier`, and their supporting artifact/fingerprint services remain Kernel-owned compile-host services with deterministic and safety boundaries.
 
 ## Consequences
 
 ### Positive
 
-Kernel artifacts now have a deterministic production boundary.
+Kernel artifacts have a deterministic production boundary.
 
 Artifact output location is configurable during Bootstrap Phase A without introducing a dependency on ConfigKernel Phase B.
 
@@ -971,7 +994,7 @@ Changing the package fallback itself remains a fingerprinted config-source chang
 
 Fingerprint calculation is explicit, safe, and independent from generated artifact files.
 
-The artifact fingerprint now covers the canonical compiled runtime container graph.
+The artifact fingerprint covers the canonical compiled runtime container graph.
 
 Semantic changes to compiled services, factories, references, parameters, aliases, tags, or lifecycle flags invalidate all Kernel artifacts through the shared artifact fingerprint.
 
@@ -979,7 +1002,7 @@ Compiler and verifier use the same graph-production and graph-fingerprint path.
 
 The same canonical `DefinitionGraph` is used for both fingerprint identity and the REAL `container@1` payload.
 
-Production publication now activates one complete immutable generation through one locked `current` pointer replacement.
+Production publication activates one complete immutable generation through one locked `current` pointer replacement.
 
 Concurrent compilers cannot expose a mixed three-artifact production set.
 
@@ -987,7 +1010,7 @@ A failed publication before the successful pointer replacement leaves the previo
 
 Existing content-addressed generations may be reused only after full validation and exact equality with the newly staged four-file generation.
 
-Cache verification now validates and compares the selected immutable generation, including `generation-manifest.php`.
+Cache verification validates and compares the selected immutable generation, including `generation-manifest.php`.
 
 Cache verification can report `clean`, `dirty`, and `invalid` without mutating the cache.
 
@@ -1007,7 +1030,7 @@ Generated artifacts remain compatible with the global artifact envelope and dete
 
 Cache verification rebuilds expected artifacts in memory instead of reusing generated files.
 
-Publication now requires staging directories, durable writes, generation validation, a persistent process-shared lock, and pointer replacement.
+Publication requires staging directories, durable writes, generation validation, a persistent process-shared lock, and pointer replacement.
 
 Multiple immutable generations may remain on disk because successful publication intentionally preserves previous generations.
 
@@ -1029,7 +1052,7 @@ A malformed pointer or invalid selected generation is invalid rather than silent
 
 Filesystem metadata is intentionally ignored even when it could be useful for ad hoc debugging.
 
-The `container@1` artifact now uses REAL compiled-container semantics. Empty compiled graphs are valid and are represented as empty deterministic maps for `aliases`, `parameters`, `services`, and `tags`.
+The `container@1` artifact uses REAL compiled-container semantics. Empty compiled graphs are valid and are represented as empty deterministic maps for `aliases`, `parameters`, `services`, and `tags`.
 
 Observability emits only safe summaries, so raw debugging context must be obtained through controlled local investigation, not runtime logs or metrics.
 

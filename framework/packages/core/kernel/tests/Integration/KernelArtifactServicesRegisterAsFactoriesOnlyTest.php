@@ -47,6 +47,9 @@ final class KernelArtifactServicesRegisterAsFactoriesOnlyTest extends TestCase
                 'StablePhpArrayDumper::class',
                 'ArtifactSchemaValidator::class',
                 'CacheVerifier::class',
+                'ComposerPackageInstallPathResolver::class',
+                'ConfigSourceLocationBuilder::class',
+                'KernelArtifactOperation::class',
             ] as $serviceClassReference
         ) {
             self::assertStringContainsString(
@@ -107,6 +110,11 @@ final class KernelArtifactServicesRegisterAsFactoriesOnlyTest extends TestCase
         self::assertStringNotContainsString('get(ModulePlan::class)', $source);
         self::assertStringNotContainsString('$container->get(BootstrapConfig::class)', $source);
         self::assertStringNotContainsString('$container->get(ModulePlan::class)', $source);
+        self::assertStringNotContainsString('InstalledVersions::getInstallPath(', $source);
+        self::assertStringNotContainsString('resolveResolution(', $source);
+        self::assertStringNotContainsString('ConfigSourceLocationBuilder::build(', $source);
+        self::assertStringNotContainsString('KernelArtifactOperation::compile(', $source);
+        self::assertStringNotContainsString('KernelArtifactOperation::verify(', $source);
     }
 
     public function testProviderRegistrationDoesNotRunConfigKernelCompile(): void
@@ -115,6 +123,13 @@ final class KernelArtifactServicesRegisterAsFactoriesOnlyTest extends TestCase
 
         self::assertStringNotContainsString('->compile(', $source);
         self::assertStringNotContainsString('ConfigKernel::compile(', $source);
+    }
+
+    public function testConfigSourceSetIsNotRegisteredAsContainerService(): void
+    {
+        $source = self::providerSource();
+
+        self::assertStringNotContainsString('ConfigSourceSet::class', $source);
     }
 
     private static function providerSource(): string

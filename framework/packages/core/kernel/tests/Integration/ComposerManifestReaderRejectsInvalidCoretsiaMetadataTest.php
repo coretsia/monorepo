@@ -186,6 +186,76 @@ final class ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest extends Tes
             'expectedContext' => [],
         ];
 
+        yield 'defaults config path must use config directory' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'resources/kernel.php',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'defaults config path must be direct child' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/foo/kernel.php',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'aggregate roots path is reserved' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/roots.php',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'defaults config root must be lowercase' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/Kernel.php',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'defaults config root must use underscore not hyphen' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/problem-details.php',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'defaults config path must include php suffix' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/kernel',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
+        yield 'defaults config path must not have trailing segments' => [
+            'coretsia' => [
+                'moduleId' => 'core.kernel',
+                'kind' => 'runtime',
+                'defaultsConfigPath' => 'config/kernel.php/extra',
+            ],
+            'expectedReason' => ModuleManifestInvalidException::REASON_CORETSIA_METADATA_INVALID,
+            'expectedContext' => [],
+        ];
+
         yield 'requires must be a list' => [
             'coretsia' => [
                 'moduleId' => 'core.kernel',

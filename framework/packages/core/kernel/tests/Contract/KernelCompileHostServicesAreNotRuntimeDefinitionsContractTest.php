@@ -55,6 +55,7 @@ use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
+use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -74,6 +75,8 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
+use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
@@ -125,6 +128,8 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         SkeletonConfigLoader::class,
         EnvironmentOverlayLoader::class,
         ConfigKernel::class,
+        ComposerPackageInstallPathResolver::class,
+        ConfigSourceLocationBuilder::class,
         PayloadNormalizer::class,
         StablePhpArrayDumper::class,
         ArtifactEnvelopeFactory::class,
@@ -153,6 +158,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         RuntimeContainerGraphCompiler::class,
         ArtifactCompiler::class,
         CacheVerifier::class,
+        KernelArtifactOperation::class,
     ];
 
     public function testKernelCompileHostServicesAreExcludedFromRuntimeDefinitions(): void

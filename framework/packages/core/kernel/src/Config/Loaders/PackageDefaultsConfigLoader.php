@@ -80,15 +80,16 @@ final readonly class PackageDefaultsConfigLoader
      * ```php
      * [
      *     'root' => 'kernel',
-     *     'packageId' => 'coretsia/core-kernel',
+     *     'packageId' => 'core/kernel',
      *     'moduleId' => 'core.kernel',
-     *     'path' => 'framework/packages/core/kernel/config/kernel.php',
-     *     'filesystemPath' => '/absolute/runtime/path/to/config/kernel.php',
+     *     'path' => 'config/kernel.php',
+     *     'filesystemPath' => '/physical/install/root/config/kernel.php',
      * ]
      * ```
      *
-     * `path` is safe repo-relative/logical metadata.
-     * `filesystemPath` is used only for `require`; it is never returned.
+     * `path` is package-relative stable logical metadata.
+     * `filesystemPath` is the local physical read path used only for `require`;
+     * it is never returned.
      *
      * @param list<array{
      *     root: string,

@@ -26,6 +26,7 @@ use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 
@@ -39,9 +40,12 @@ use Coretsia\Kernel\Module\ModulePlan;
  * - resolved ModulePlan;
  * - compiled runtime container DefinitionGraph;
  * - ConfigKernel::compile(...) result;
- * - the same explicit source candidate arrays passed to ConfigKernel::compile(...);
+ * - the same ConfigSourceSet passed to ConfigKernel::compile(...);
  * - EnvRepositoryInterface source metadata needed for env-overlay provenance;
  * - kernel config subtree for canonical dotenv file templates.
+ *
+ * Explicit env-overlay mappings are not fingerprinted as a duplicate source
+ * bucket: their resolved form is already represented by compiledConfig.
  *
  * It MUST NOT:
  *
@@ -150,41 +154,6 @@ final readonly class ConfigFingerprintInputBuilder
      *         validated: list<array{root: non-empty-string, ownership: string, validation: string}>
      *     }
      * } $compiledConfig
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageDefaultSources
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $packageRuleSources
-     * @param list<non-empty-string> $splitRoots
-     * @param list<array{
-     *     root: string,
-     *     packageId: string,
-     *     moduleId?: string|null,
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int
-     * }> $explicitRuleSources
-     * @param list<array{
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId?: string|null,
-     *     precedence?: int|null
-     * }> $modePresetSourceCandidates
-     *
      * @return array<string, mixed>
      *
      * @throws JsonFloatForbiddenException
@@ -197,13 +166,15 @@ final readonly class ConfigFingerprintInputBuilder
         EnvRepositoryInterface $env,
         array $kernelConfig,
         array $compiledConfig,
-        array $packageDefaultSources,
-        array $packageRuleSources,
-        array $splitRoots = [],
-        array $explicitRuleSources = [],
-        array $modePresetSourceCandidates = [],
+        ConfigSourceSet $configSources,
     ): array {
         self::assertCompiledConfigShape($compiledConfig);
+
+        $packageDefaultSources = $configSources->packageDefaultSources();
+        $packageRuleSources = $configSources->packageRuleSources();
+        $splitRoots = $configSources->splitRoots();
+        $explicitRuleSources = $configSources->explicitRuleSources();
+        $modePresetSourceCandidates = $configSources->modePresetSourceCandidates();
 
         $skeletonRoot = self::normalizeSkeletonRoot($bootstrapConfig->skeletonRoot());
         $configuredSkeletonIgnorePrefixes = self::skeletonIgnorePrefixes(

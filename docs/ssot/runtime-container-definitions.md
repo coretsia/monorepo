@@ -431,11 +431,14 @@ dotenv loaders
 Composer metadata readers
 ModulePlanResolver
 ContainerProviderPlanResolver
+ComposerPackageInstallPathResolver
+ConfigSourceLocationBuilder
 ConfigKernel
 artifact builders
 ArtifactCompiler
 fingerprint services
 CacheVerifier
+KernelArtifactOperation
 artifact readers and writers
 CompiledContainerFactory
 ContainerCompiler
@@ -445,9 +448,18 @@ RuntimeContainerGraphCompiler
 
 Compile-host services MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
-`ModuleResolution` and `ContainerProviderPlan` are per-operation compile-time values produced by those services.
+`ModuleResolution`, `ContainerProviderPlan`, and `ConfigSourceSet` are per-operation compile-time values produced or consumed by those services.
 
-They MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
+`ConfigSourceSet` specifically is:
+
+```text
+per-operation value
+not a DI service
+not a runtime seed
+not a runtime definition
+```
+
+These values MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
 Kernel source-host orchestration MAY additionally register a factory for:
 

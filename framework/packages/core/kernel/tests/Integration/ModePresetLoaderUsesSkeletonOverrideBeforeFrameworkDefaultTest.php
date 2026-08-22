@@ -19,8 +19,14 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 use Coretsia\Kernel\Module\FilesystemModePresetLoader;
+use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest extends TestCase
@@ -147,6 +153,129 @@ final class ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest exten
         );
     }
 
+    public function testFactoryReturnsSkeletonAndFrameworkFingerprintCandidates(): void
+    {
+        $packageRoot = $this->tempRoot . '/package';
+        $skeletonRoot = $this->tempRoot . '/skeleton';
+        \mkdir($packageRoot, 0777, true);
+        \mkdir($skeletonRoot, 0777, true);
+
+        $factory = self::factory($packageRoot);
+        $candidates = $factory->sourceCandidatesFor(
+            self::bootstrapConfig($skeletonRoot, 'micro'),
+        );
+
+        self::assertSame(
+            [
+                [
+                    'path' => 'config/modes/micro.php',
+                    'filesystemPath' => $skeletonRoot
+                        . \DIRECTORY_SEPARATOR
+                        . 'config'
+                        . \DIRECTORY_SEPARATOR
+                        . 'modes'
+                        . \DIRECTORY_SEPARATOR
+                        . 'micro.php',
+                    'sourceId' => 'skeleton:config/modes/micro.php',
+                    'precedence' => 20,
+                ],
+                [
+                    'path' => 'resources/modes/micro.php',
+                    'filesystemPath' => $packageRoot
+                        . \DIRECTORY_SEPARATOR
+                        . 'resources'
+                        . \DIRECTORY_SEPARATOR
+                        . 'modes'
+                        . \DIRECTORY_SEPARATOR
+                        . 'micro.php',
+                    'sourceId' => 'core/kernel:resources/modes/micro.php',
+                    'precedence' => 10,
+                ],
+            ],
+            $candidates,
+        );
+    }
+
+    public function testFactoryReturnsMissingSkeletonOverrideCandidate(): void
+    {
+        $packageRoot = $this->tempRoot . '/package';
+        $skeletonRoot = $this->tempRoot . '/skeleton';
+        \mkdir($packageRoot, 0777, true);
+        \mkdir($skeletonRoot, 0777, true);
+
+        $candidates = self::factory($packageRoot)->sourceCandidatesFor(
+            self::bootstrapConfig($skeletonRoot, 'micro'),
+        );
+
+        self::assertCount(2, $candidates);
+        self::assertSame('skeleton:config/modes/micro.php', $candidates[0]['sourceId']);
+        self::assertFileDoesNotExist($candidates[0]['filesystemPath']);
+    }
+
+    public function testFactoryCandidateConstructionDoesNotChangeLoaderPrecedence(): void
+    {
+        $packageRoot = $this->tempRoot . '/package';
+        $skeletonRoot = $this->tempRoot . '/skeleton';
+        $frameworkDefaultsPath = $packageRoot . '/resources/modes';
+        $skeletonOverridesPath = $skeletonRoot . '/config/modes';
+
+        self::writePresetFile(
+            directory: $frameworkDefaultsPath,
+            name: 'micro',
+            payload: self::presetPayload('framework-default'),
+        );
+        self::writePresetFile(
+            directory: $skeletonOverridesPath,
+            name: 'micro',
+            payload: self::presetPayload('skeleton-override'),
+        );
+
+        $factory = self::factory($packageRoot);
+        $bootstrapConfig = self::bootstrapConfig($skeletonRoot, 'micro');
+
+        self::assertCount(2, $factory->sourceCandidatesFor($bootstrapConfig));
+
+        $preset = $factory->createFor($bootstrapConfig)->load('micro');
+
+        self::assertSame('skeleton-override', $preset->metadata()['source'] ?? null);
+    }
+
+    #[DataProvider('invalidPresetNames')]
+    public function testFactoryRejectsInvalidPresetNamesWhenBuildingFingerprintCandidates(
+        string $preset,
+    ): void {
+        $packageRoot = $this->tempRoot . '/package';
+        $skeletonRoot = $this->tempRoot . '/skeleton';
+        \mkdir($packageRoot, 0777, true);
+        \mkdir($skeletonRoot, 0777, true);
+
+        try {
+            self::factory($packageRoot)->sourceCandidatesFor(
+                self::bootstrapConfig($skeletonRoot, $preset),
+            );
+
+            self::fail('Expected invalid mode preset name to fail.');
+        } catch (ModePresetNotFoundException $exception) {
+            self::assertSame(
+                ModePresetNotFoundException::REASON_PRESET_NAME_INVALID,
+                $exception->reason(),
+            );
+            self::assertSame(['preset' => 'invalid'], $exception->context());
+        }
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function invalidPresetNames(): iterable
+    {
+        yield 'leading digit' => ['1micro'];
+        yield 'leading hyphen' => ['-micro'];
+        yield 'uppercase' => ['Micro'];
+        yield 'underscore' => ['micro_mode'];
+        yield 'traversal' => ['../micro'];
+    }
+
     /**
      * @param list<ModuleId> $moduleIds
      *
@@ -158,6 +287,53 @@ final class ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest exten
             static fn (ModuleId $moduleId): string => $moduleId->value(),
             $moduleIds,
         );
+    }
+
+    private static function factory(string $packageRoot): ModePresetLoaderFactory
+    {
+        return new ModePresetLoaderFactory(
+            packageRoot: $packageRoot,
+            modesConfig: [
+                'schema_version' => 1,
+                'defaults_path' => 'resources/modes',
+                'overrides_path' => 'config/modes',
+            ],
+            schemaValidator: new ModePresetSchemaValidator(),
+        );
+    }
+
+    private static function bootstrapConfig(string $skeletonRoot, string $preset): BootstrapConfig
+    {
+        return new BootstrapConfig(
+            appEnv: 'local',
+            preset: $preset,
+            debug: false,
+            artifactsCacheDir: 'var/cache',
+            envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
+            appTarget: AppTarget::Web,
+            skeletonRoot: $skeletonRoot,
+        );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function presetPayload(string $source): array
+    {
+        return [
+            'schemaVersion' => 1,
+            'name' => 'micro',
+            'description' => 'Factory precedence fixture.',
+            'required' => [
+                'core.kernel',
+            ],
+            'optional' => [],
+            'disabled' => [],
+            'featureBundles' => [],
+            'metadata' => [
+                'source' => $source,
+            ],
+        ];
     }
 
     /**

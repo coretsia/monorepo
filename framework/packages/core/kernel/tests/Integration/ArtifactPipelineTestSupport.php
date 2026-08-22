@@ -69,6 +69,7 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
@@ -353,7 +354,7 @@ final class ArtifactPipelineTestSupport
 
             public function get(string $name): EnvValue
             {
-                throw new \LogicException('Env values must not be read by artifact integration tests.');
+                return EnvValue::missing();
             }
 
             public function all(): array
@@ -389,12 +390,7 @@ final class ArtifactPipelineTestSupport
             moduleResolution: $moduleResolution,
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: [],
+            configSources: ConfigSourceSet::empty(),
         );
     }
 
@@ -414,12 +410,7 @@ final class ArtifactPipelineTestSupport
             moduleResolution: $moduleResolution,
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: [],
+            configSources: ConfigSourceSet::empty(),
         );
     }
 
@@ -436,16 +427,13 @@ final class ArtifactPipelineTestSupport
         $moduleResolution ??= self::moduleResolution();
         $modulePlan = $moduleResolution->plan();
         $env = self::envRepository();
+        $configSources = ConfigSourceSet::empty();
 
         $compiled = self::configKernel($testCase)->compile(
             bootstrapConfig: $bootstrapConfig,
             modulePlan: $modulePlan,
             env: $env,
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
+            configSources: $configSources,
             explain: false,
         );
 
@@ -461,11 +449,7 @@ final class ArtifactPipelineTestSupport
             env: $env,
             kernelConfig: self::kernelConfig(),
             compiledConfig: $compiled,
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            modePresetSourceCandidates: [],
+            configSources: $configSources,
         );
 
         return self::fingerprintCalculator($testCase)->calculate($input);
@@ -893,7 +877,6 @@ final class ArtifactPipelineTestSupport
             tracer: self::tracer($testCase),
             stopwatch: new Stopwatch(),
             logger: self::logger(),
-            defaultExplicitEnvOverlayMappings: [],
         );
     }
 

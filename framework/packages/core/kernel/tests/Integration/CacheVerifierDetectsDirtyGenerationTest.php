@@ -28,6 +28,7 @@ use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -65,17 +66,14 @@ final class CacheVerifierDetectsDirtyGenerationTest extends TestCase
                 ArtifactPipelineTestSupport::defaultConfig('initial-value'),
             );
 
+            $compileConfigSources = ConfigSourceSet::empty();
+
             $compiler->compile(
                 bootstrapConfig: $bootstrapConfig,
                 moduleResolution: $moduleResolution,
                 env: $env,
                 kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-                packageDefaultSources: [],
-                packageRuleSources: [],
-                splitRoots: [],
-                explicitRuleSources: [],
-                explicitEnvOverlayMappings: [],
-                modePresetSourceCandidates: [],
+                configSources: $compileConfigSources,
             );
 
             $pathResolver = new ArtifactGenerationPathResolver();
@@ -111,17 +109,14 @@ final class CacheVerifierDetectsDirtyGenerationTest extends TestCase
                 skeletonRoot: $root,
             );
 
+            $verifyConfigSources = ConfigSourceSet::empty();
+
             $result = $verifier->verify(
                 bootstrapConfig: $bootstrapConfig,
                 moduleResolution: $moduleResolution,
                 env: $env,
                 kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-                packageDefaultSources: [],
-                packageRuleSources: [],
-                splitRoots: [],
-                explicitRuleSources: [],
-                explicitEnvOverlayMappings: [],
-                modePresetSourceCandidates: [],
+                configSources: $verifyConfigSources,
             );
 
             self::assertSame('dirty', $result['outcome']);

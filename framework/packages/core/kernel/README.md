@@ -111,6 +111,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir`
   - internal portable and bounded artifact-root policy
 - Kernel-owned ConfigKernel Phase B (full configuration orchestration):
+  - `Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver`
+  - `Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder`
+  - `Coretsia\Kernel\Config\Source\ConfigSourceSet` (per-operation value; not a container service)
   - `Coretsia\Kernel\Config\ConfigKernel`
   - `Coretsia\Kernel\Config\ConfigRulesLoader`
   - `Coretsia\Kernel\Config\ConfigValidator`
@@ -130,6 +133,7 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder`
   - `Coretsia\Kernel\Container\ContainerCompiler`
   - `Coretsia\Kernel\Container\CompiledContainerFactory`
+  - `Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation`
   - `Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler`
   - `Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder`
   - `Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister`
@@ -245,7 +249,7 @@ immutable EnvRepositoryInterface snapshot
 
 Phase A is not a full config merge phase.
 
-Full config file discovery, merge, directives, validation, explain output, and environment overlays are owned by ConfigKernel Phase B.
+Package config-source locations are constructed by `ConfigSourceLocationBuilder`. `ConfigKernel` Phase B owns config loading from those prepared locations, skeleton/app config loading, merge orchestration, directives, validation, explain output, and environment overlays.
 
 Phase A MAY read only one bootstrap-only skeleton config file:
 
@@ -318,7 +322,15 @@ allow_system
 
 It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
 
-Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package. Entrypoint and platform owners compose the explicit Phase A services through DI.
+Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package.
+
+For normal artifact compile/verify entrypoints, transport and CLI owners construct `BootstrapInput` and delegate compile-host orchestration to internal:
+
+```text
+Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
+```
+
+`KernelArtifactOperation` is an internal artifact compile-host operation, not a public Phase-A facade or aggregate Phase-A result.
 
 ## ConfigKernel Phase B — full configuration pipeline
 
@@ -336,11 +348,12 @@ ConfigKernel Phase B consumes:
 BootstrapConfig
 ModulePlan
 immutable EnvRepositoryInterface snapshot
-explicit package default source candidates
-explicit package rules source candidates
-explicit skeleton/app split-root names
-optional explicit env overlay mappings
+ConfigSourceSet
 ```
+
+`ConfigSourceLocationBuilder` constructs source locations and one canonical `ConfigSourceSet` before ConfigKernel runs.
+
+`ConfigKernel` consumes that already-built source set. It does not discover Composer install roots, scan package directories, or reconstruct package source locations.
 
 ConfigKernel Phase B MUST NOT read:
 
@@ -366,7 +379,19 @@ package defaults
 → optional explain
 ```
 
-Package defaults are loaded only from enabled ModulePlan modules.
+Package defaults are loaded only for enabled modules whose descriptor in the operation's `ModuleResolution` manifest declares `defaultsConfigPath` metadata.
+
+The canonical package config-location handoff is:
+
+```text
+ModuleResolution descriptor defaultsConfigPath
+  -> ComposerPackageInstallPathResolver
+  -> ConfigSourceLocationBuilder
+  -> package-relative path + private filesystemPath
+  -> ConfigSourceSet
+```
+
+Config ownership `packageId` is derived from `ModuleId` as `<module-layer>/<module-slug>`. Composer package name is used only for exact physical install-root lookup.
 
 Skeleton/app config uses:
 
@@ -393,7 +418,7 @@ Config directives are processed per file before merge:
 
 Directive application happens during merge, when the previous/base value is known.
 
-Environment overlays are generated only from the immutable `EnvRepositoryInterface` snapshot and only for known ruleset-backed or explicitly mapped config paths.
+Environment overlays are generated only from the immutable `EnvRepositoryInterface` snapshot and only for ruleset-derived mappings whose rule type is env-overlay-capable or for explicitly mapped config paths. Valid validation-only rule types that are not env-overlay-capable do not create automatic env overlay mappings.
 
 Example projection:
 
@@ -523,6 +548,20 @@ docs/ssot/compiled-container.md
 ```
 
 `routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
+
+Normal artifact compile/verify preparation is owned by internal `KernelArtifactOperation`:
+
+```text
+BootstrapInput
+→ prepared BootstrapConfig / EnvRepositoryInterface / ModuleResolution / ConfigSourceSet
+→ ArtifactCompiler or CacheVerifier
+```
+
+`KernelArtifactOperation` prepares and routes inputs only.
+
+`ArtifactCompiler` remains the Kernel artifact production owner, and `CacheVerifier` remains the verification owner.
+
+Within either operation, the same `ConfigSourceSet` instance is used for config compilation and fingerprint construction.
 
 `ArtifactCompiler` owns Kernel artifact production orchestration.
 
@@ -819,6 +858,16 @@ Coretsia\Kernel\Container\CompiledContainerFactory
 Those classes remain Kernel implementation details.
 
 Kernel artifact/fingerprint/container-compile/cache services are registered by `KernelServiceProvider` as factories only.
+
+The compile-host service set includes:
+
+```text
+ComposerPackageInstallPathResolver
+ConfigSourceLocationBuilder
+KernelArtifactOperation
+```
+
+`ConfigSourceSet` is not registered as a service. It is created per compile/verify operation and passed through the canonical source-set boundary.
 
 Artifact/fingerprint/container-compile/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
 
@@ -1664,6 +1713,14 @@ framework/packages/<vendor>/<package>/config/<root>.php
 ```
 
 Package default config files MUST return the subtree for `<root>`.
+
+Owning runtime modules declare the logical package-relative file through:
+
+```text
+extra.coretsia.defaultsConfigPath = config/<root>.php
+```
+
+`ConfigSourceLocationBuilder` combines that declaration with the exact physical package root resolved by `ComposerPackageInstallPathResolver`; the physical `filesystemPath` remains compile-host source-reading data and is not module identity.
 
 Package defaults MUST NOT use:
 

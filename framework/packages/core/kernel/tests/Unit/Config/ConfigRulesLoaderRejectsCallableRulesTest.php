@@ -149,7 +149,7 @@ PHP
             'root' => 'kernel',
             'packageId' => 'core/kernel',
             'moduleId' => null,
-            'path' => 'framework/packages/core/kernel/config/rules.php',
+            'path' => 'config/rules.php',
             'filesystemPath' => $filesystemPath,
             'sourceId' => 'core/kernel/config/rules/kernel',
             'precedence' => 10,

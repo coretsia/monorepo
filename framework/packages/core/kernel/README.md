@@ -735,18 +735,20 @@ Container compilation is based on the canonical Foundation-owned declarative def
 The production graph flow is:
 
 ```text
-enabled ModulePlan modules
-→ canonical provider plan
-→ one ContainerDefinitionBuilder
-→ one ContainerDefinitionSet
+ModuleResolution + compiled Phase-B config
 → RuntimeContainerGraphCompiler
 → DefinitionGraph
-→ container@1
+→ CompiledContainerBuilder
+→ container@1 artifact envelope
 ```
 
-`ContainerCompiler` consumes the deterministic graph representation and produces the compiled-container payload.
+`RuntimeContainerGraphCompiler` resolves one ordered `ContainerProviderPlan`, executes declarative provider contributions in plan order, merges the resulting `ContainerDefinitionSet` values, delegates deterministic graph compilation to `ContainerCompiler`, and validates final graph completeness.
 
-It MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
+`ContainerCompiler` consumes the merged canonical `ContainerDefinitionSet` and produces the deterministic `DefinitionGraph`.
+
+`CompiledContainerBuilder` receives that `DefinitionGraph` together with the already-calculated fingerprint and builds the canonical `container@1` artifact envelope.
+
+`ContainerCompiler` MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
 
 Production runtime container construction is artifact-only.
 

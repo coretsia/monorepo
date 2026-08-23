@@ -374,7 +374,7 @@ reset can never throw
 
 Reset may throw if cleanup fails or if a service detects an invalid internal state.
 
-Reset failure semantics are owned by Foundation reset orchestration and later reset-planning epics.
+Reset failure semantics are owned by Foundation reset orchestration.
 
 Error reporting MUST remain safe and deterministic.
 
@@ -708,12 +708,25 @@ This document is doc-only.
 
 It defines policy that MUST be enforced by owner package tests, integration checks, gates, and static analysis.
 
-Expected enforcement rails include:
+The canonical build-time enforcement rail for stateful-service tag discipline is:
 
 ```text
 framework/tools/gates/cross_cutting_contract_gate.php
-phpstan rule: kernel.stateful ⇒ implements ResetInterface
 ```
+
+It MUST enforce:
+
+```text
+kernel.stateful
+→ implements Coretsia\Contracts\Runtime\ResetInterface
+→ discoverable through the effective Foundation reset discovery tag
+```
+
+The repository-wide PHPStan baseline provides generic static analysis. It does not own DI tag or effective reset-tag resolution for this invariant.
+
+No dedicated PHPStan custom rule is part of this invariant's enforcement model.
+
+The cross-cutting gate is the canonical enforcement owner for stateful-service tag discipline.
 
 CI MUST fail if a service is tagged:
 

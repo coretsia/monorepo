@@ -36,7 +36,7 @@ stateful service
 → reset after every UoW
 ```
 
-This document also owns the Foundation reset semantics introduced by epic `1.250.0`:
+This document also owns the following Foundation reset semantics:
 
 ```text
 foundation.reset.priority.enabled
@@ -67,9 +67,9 @@ foundation.reset.priority.enabled
 foundation.reset.group.default
 ```
 
-It owns the reset-specific deterministic failure mapping introduced by `1.250.0`.
+It owns the reset-specific deterministic failure mapping.
 
-It owns reset-specific observability usage introduced by `1.250.0`.
+It owns reset-specific observability usage.
 
 It does not own the canonical span naming policy, canonical metrics catalog, metric-specific catalog labels, or the global observability label allowlist. Those are owned by:
 
@@ -199,7 +199,7 @@ The canonical code-level identifier for this framework-reserved DI tag is:
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
-Legacy/base reset mode is reset execution with enhanced priority/group planning disabled:
+Base reset mode is reset execution with enhanced priority/group planning disabled:
 
 ```text
 foundation.reset.priority.enabled = false
@@ -246,7 +246,7 @@ Enhanced reset planning is controlled by:
 foundation.reset.priority.enabled
 ```
 
-The default value introduced by epic `1.250.0` is:
+The default value is:
 
 ```text
 true
@@ -272,7 +272,7 @@ The default enhanced reset group is controlled by:
 foundation.reset.group.default
 ```
 
-The default value introduced by epic `1.250.0` is:
+The default value is:
 
 ```text
 default
@@ -526,7 +526,7 @@ Kernel after-UoW phase
 
 ### Base mode
 
-Legacy/base mode is selected when:
+Base mode is selected when:
 
 ```text
 foundation.reset.priority.enabled = false
@@ -1080,7 +1080,6 @@ framework/tools/gates/reserved_tags_registry_gate.php
 framework/tools/gates/cross_cutting_contract_gate.php
 framework/tools/gates/observability_span_naming_gate.php
 framework/tools/gates/observability_metric_catalog_gate.php
-phpstan rule: kernel.stateful ⇒ implements ResetInterface
 ```
 
 `reserved_tags_registry_gate.php` enforces that framework-reserved DI tag identifiers are declared in `Coretsia\Foundation\Tag\ReservedTags` and that runtime package source does not define additional code-level registries for those identifiers.
@@ -1088,6 +1087,16 @@ phpstan rule: kernel.stateful ⇒ implements ResetInterface
 `observability_span_naming_gate.php` validates reset span naming policy for `foundation.reset`.
 
 `observability_metric_catalog_gate.php` validates that reset metric emissions use names and metric-specific labels registered in the canonical metrics catalog.
+
+`cross_cutting_contract_gate.php` is the canonical build-time enforcement rail for the stateful reset-discipline relation:
+
+```text
+kernel.stateful
+→ implements Coretsia\Contracts\Runtime\ResetInterface
+→ discoverable through the effective Foundation reset discovery tag
+```
+
+The repository-wide PHPStan baseline provides generic static analysis. It does not own DI tag or effective reset-tag resolution for this invariant.
 
 CI MUST fail if a service is tagged:
 

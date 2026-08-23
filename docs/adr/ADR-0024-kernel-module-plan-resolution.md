@@ -135,7 +135,11 @@ Lower-level compilation services MUST receive already-resolved operation inputs.
 
 All downstream work belonging to one operation MUST use the `ModulePlan` contained in that same `ModuleResolution` snapshot.
 
-At the current integration state, the module-resolution and provider-plan resolvers are available as compile-host services. Production artifact compilation does not yet collect provider-produced definitions from `ContainerProviderPlan`.
+For the production container-compilation boundary, `ADR-0030: Canonical Runtime Container Definitions` is authoritative.
+
+Production artifact compilation and cache verification consume provider-produced canonical definitions through `RuntimeContainerGraphCompiler`.
+
+This ADR defines `ModuleResolution`, module-provider metadata, `ContainerProviderPlan` resolution, and provider ordering semantics.
 
 ## Resolution inputs
 

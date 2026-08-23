@@ -77,6 +77,10 @@ Those rules remain owned by their canonical SSoT documents.
 - Changing `kernel.boot.default_artifacts_cache_dir` in package config is also a fingerprinted config-source change and MAY therefore change the fingerprint through normal config provenance.
 - Kernel artifacts MUST NOT embed timestamps, absolute paths, hostnames, usernames, process ids, raw env values, secrets, PII, raw payloads, raw SQL, stack traces, mtimes, permissions, owners, or filesystem-order-dependent bytes.
 - Kernel fingerprint input MUST be safe, deterministic, and derived only from already-resolved Kernel inputs.
+- Normal artifact compile/verify input preparation MUST be owned by `KernelArtifactOperation` and MUST begin from `BootstrapInput`.
+- `ConfigSourceLocationBuilder` MUST construct one canonical `ConfigSourceSet` for each compile or verify operation.
+- ArtifactCompiler and CacheVerifier consume one already-built ConfigSourceSet.
+- Within one compiler or verifier operation, the exact same `ConfigSourceSet` instance MUST be supplied to `ConfigKernel` and `ConfigFingerprintInputBuilder`.
 - Kernel fingerprint input MUST include a safe deterministic bucket for the canonical compiled runtime `DefinitionGraph`.
 - The container-graph bucket MUST be derived from `DefinitionGraph::toArray()`, stable JSON encoding, and SHA-256.
 - The raw compiled graph MUST NOT be duplicated inside fingerprint input.
@@ -341,6 +345,26 @@ ArtifactGenerationPathResolver
 ## Artifact Production Responsibilities (MUST)
 
 Kernel artifact production is split into narrow services.
+
+### `KernelArtifactOperation`
+
+`KernelArtifactOperation` owns normal compile-host input preparation and routing for artifact compile and cache verify entrypoints.
+
+Its canonical compile flow is:
+
+```text
+BootstrapInput
+  -> BootstrapConfigResolver
+  -> EnvRepositoryBuilder
+  -> ModulePlanResolver::resolveResolution()
+  -> ConfigSourceLocationBuilder
+  -> ConfigSourceSet
+  -> ArtifactCompiler
+```
+
+Verification uses the same preparation semantics and routes the prepared inputs to `CacheVerifier`.
+
+`KernelArtifactOperation` MUST NOT take ownership of artifact envelope construction, fingerprint calculation, generation publication, current-generation comparison, or verification classification.
 
 ### `ArtifactCompiler`
 
@@ -736,9 +760,21 @@ It consumes only already-resolved or already-produced inputs:
 - resolved `ModulePlan`;
 - canonical compiled runtime `DefinitionGraph`;
 - `ConfigKernel::compile(...)` result;
-- explicit source candidate arrays supplied to `ConfigKernel`;
+- one canonical `ConfigSourceSet` prepared by `ConfigSourceLocationBuilder`;
 - `EnvRepositoryInterface` source metadata;
 - Kernel config subtree.
+
+The config compilation and fingerprint invariants are:
+
+```text
+ConfigKernel input source set
+=
+fingerprint source set
+```
+
+A compiler or verifier MUST NOT compile from source set A and fingerprint from source set B.
+
+The same `ConfigSourceSet` instance supplied to `ConfigKernel` MUST be forwarded to `ConfigFingerprintInputBuilder` within that operation.
 
 It MUST NOT:
 
@@ -864,6 +900,7 @@ The following semantic changes MUST change the graph SHA-256 and the complete Ke
 - parameter value;
 - alias target;
 - effective tag priority;
+- deterministic owner-defined tag metadata;
 - shared lifecycle flag.
 
 Inputs that compile to the same canonical `DefinitionGraph::toArray()` value MUST produce the same graph bucket regardless of non-semantic insertion or source-object identity differences.
@@ -901,12 +938,21 @@ Fingerprint input MUST include safe deterministic representation of:
 - config ownership metadata;
 - config validation summary;
 - validation subject metadata;
-- explicit source candidates;
-- split roots;
+- canonical source candidates from `ConfigSourceSet`;
+- split roots from `ConfigSourceSet`;
 - canonical dotenv candidates;
 - env overlay mappings;
 - env source metadata;
 - fingerprint policy.
+
+Mode-preset source candidates in `ConfigSourceSet` MUST represent both declared locations in deterministic order:
+
+```text
+skeleton override candidate
+framework default candidate
+```
+
+Candidate file presence or absence is fingerprint-relevant state. The fingerprint input MUST distinguish an absent skeleton override from a present skeleton override even when the effective preset payload and resulting `ModulePlan` are semantically identical.
 
 The container-graph bucket binds all three Kernel-owned artifact envelopes to the canonical runtime graph used to build the REAL `container@1` payload.
 
@@ -1296,13 +1342,13 @@ kernel.fingerprint.skeleton_ignore_prefixes
 
 These are key namespaces under the existing `kernel` root, not independent config roots.
 
-There is no:
+The Kernel config contract defines no:
 
 ```text
 kernel.artifacts.*
 ```
 
-subtree in the current Kernel config contract.
+subtree.
 
 Application-level artifact cache directory override belongs only to:
 
@@ -1338,9 +1384,9 @@ This document does not redefine config root ownership.
 - Detailed runtime seed hydration and compiled-container construction are owned by `docs/ssot/compiled-container.md`.
 - Detailed Worker launcher and process lifecycle semantics are owned by `docs/architecture/worker.md`.
 - This document does not define generation retention or garbage collection.
-- `container@1` is not a deterministic stub artifact in current Kernel artifact production.
+- Kernel artifact production MUST NOT produce `container@1` as a deterministic stub artifact.
 - Kernel-produced `container@1` artifacts use the REAL compiled-container payload shape: `kind = compiled` and `compiled = true`.
-- Stub container payloads (`kind = stub`, `compiled = false`) are invalid for current Kernel-produced `container@1` artifacts.
+- Stub container payloads (`kind = stub`, `compiled = false`) are invalid for Kernel-produced `container@1` artifacts.
 
 ## Cross-references
 

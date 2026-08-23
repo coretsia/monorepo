@@ -98,7 +98,17 @@ ConfigValidator
 ConfigExplainer
 ```
 
-`ConfigKernel` MUST receive explicit source candidates and deterministic path lists from the Kernel config-location source builder.
+The canonical config-location handoff is:
+
+```text
+ConfigSourceLocationBuilder
+  -> ConfigSourceSet
+  -> ConfigKernel
+```
+
+`ConfigKernel` MUST receive one already-built `ConfigSourceSet` for the operation.
+
+It consumes source locations but does not discover package installation roots, construct package config locations, or reconstruct the source set from independent caller-supplied arrays.
 
 `ConfigKernel` MUST NOT:
 
@@ -226,7 +236,7 @@ docs/ssot/config-merge-order.md
 docs/ssot/config-precedence-matrix.md
 ```
 
-The current active order is:
+The active order is:
 
 ```text
 package defaults
@@ -245,19 +255,45 @@ package defaults
 
 ### 6. Package defaults use only config/<root>.php
 
-Package defaults MUST be loaded only from package-owned files:
+Package defaults MUST be loaded only from package-owned files declared by runtime module metadata with the exact form:
 
 ```text
 config/<root>.php
 ```
 
-Package defaults MUST NOT use:
+`<root>` MUST match:
+
+```text
+[a-z][a-z0-9_]*
+```
+
+The reserved aggregate name `roots` MUST NOT be used as a package default declaration, so:
 
 ```text
 config/roots.php
 ```
 
+is forbidden for `defaultsConfigPath`.
+
 Package default files return only the subtree for `<root>`.
+
+Canonical source ownership is derived from `ModuleId`, not from Composer package name:
+
+```text
+ModuleId core.kernel
+  -> package_id core/kernel
+
+Composer package coretsia/core-kernel
+  -> exact physical install-root lookup only
+```
+
+For every declared package default root, the fixed package-owned rules sibling is:
+
+```text
+config/rules.php
+```
+
+`ConfigSourceLocationBuilder` constructs both candidates from the same enabled module declaration and exact installed package root.
 
 Package defaults are weaker than skeleton, app, and env overlay config sources.
 
@@ -296,8 +332,24 @@ At the same layer, split root files are stronger than aggregate `roots.php` file
 Env overlays are generated from:
 
 - the immutable `EnvRepositoryInterface` snapshot produced by Bootstrap Phase A;
-- loaded declarative config rulesets;
+- ruleset-derived mappings for env-overlay-capable scalar rule types;
 - optional explicit env overlay mappings.
+
+For ruleset-derived mappings, the active env-overlay-capable scalar types are:
+
+```text
+string
+non-empty-string
+non-empty-string-no-ws
+bool
+int
+```
+
+A ruleset leaf whose type is valid for semantic config validation but is not an env-overlay-capable scalar type MUST NOT produce an automatic env overlay mapping.
+
+Such a validation-only rule type MUST NOT make config compilation fail solely because `EnvironmentOverlayLoader` does not support env coercion for that type.
+
+`map` and `list` rules do not produce automatic env overlay mappings.
 
 Env overlays MUST NOT read process/global env directly.
 
@@ -511,7 +563,9 @@ The following invariants are accepted by this ADR.
 - Env overlays use only immutable `EnvRepositoryInterface` snapshots.
 - Env overlays do not read global/process env directly.
 - Unknown env vars do not create config keys.
-- Env values are coerced according to declarative rules.
+- Ruleset-derived env mappings are created only for env-overlay-capable scalar rule types.
+- Validation-only rule types that are not env-overlay-capable do not create automatic env mappings and do not fail config compilation solely for that reason.
+- Env values for resolved env-overlay mappings are coerced according to the mapping's supported scalar type.
 
 ### Explain invariants
 

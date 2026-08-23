@@ -61,6 +61,8 @@ The merge pipeline must make it clear:
 
 `ConfigKernel` owns orchestration of the active Phase B pipeline.
 
+`ConfigSourceLocationBuilder` is the canonical compile-host authority for package config-source locations and the initial deterministic split-root set derived from enabled module metadata.
+
 `ConfigMerger` owns only the deterministic two-node merge operation.
 
 Config loaders own loading and per-file normalization for their source category.
@@ -68,6 +70,7 @@ Config loaders own loading and per-file normalization for their source category.
 The canonical runtime implementation paths are:
 
 ```text
+framework/packages/core/kernel/src/Config/Source/ConfigSourceLocationBuilder.php
 framework/packages/core/kernel/src/Config/ConfigKernel.php
 framework/packages/core/kernel/src/Config/ConfigMerger.php
 framework/packages/core/kernel/src/Config/DirectiveProcessor.php
@@ -251,7 +254,37 @@ return [
 ];
 ```
 
-Package default source candidates are supplied by the Kernel config-location source builder.
+Package default source candidates are constructed by `ConfigSourceLocationBuilder` from one enabled `ModuleResolution` snapshot.
+
+The canonical handoff is:
+
+```text
+enabled ModuleResolution metadata
+  -> defaultsConfigPath
+  -> exact Composer install root
+  -> canonical package default/rules source candidates
+```
+
+`ConfigSourceLocationBuilder` MUST NOT scan package directories to discover config files.
+
+Canonical package source identity is:
+
+```text
+packageId
+= <module-layer>/<module-slug>
+
+path
+= package-relative config/<root>.php
+
+filesystemPath
+= local physical path used only for source reading
+```
+
+Composer package name is used only for exact physical install-root lookup; it is not the config ownership `packageId`.
+
+Every enabled package that declares a valid package default contributes its declared root to the deterministic `splitRoots` list. The initial package-owned list is unique and byte-order sorted.
+
+Aggregate `roots.php` files at skeleton/app loading layers MAY add user-owned roots to the effective split-root set. That later aggregate-root behavior does not change package ownership or package source discovery.
 
 Package default loading MUST NOT scan arbitrary package directories.
 
@@ -584,8 +617,24 @@ Env overlays are stronger than all active file config layers.
 
 Env overlay generation is allowlisted by:
 
-- loaded declarative config rulesets;
+- ruleset-derived mappings for env-overlay-capable scalar rule types;
 - optional explicit env overlay mappings supplied by a future user/module mapping mechanism.
+
+The active env-overlay-capable scalar rule types are:
+
+```text
+string
+non-empty-string
+non-empty-string-no-ws
+bool
+int
+```
+
+A ruleset leaf with any other valid semantic-validation type does not create an automatic env overlay mapping.
+
+Validation-only rule types MUST NOT cause `EnvironmentOverlayLoader` to reject config compilation solely because they are not env-overlay-capable.
+
+`map` and `list` rules do not create automatic env overlay mappings.
 
 Unknown env vars MUST NOT create config keys automatically.
 
@@ -595,7 +644,7 @@ Env overlays win only where all of the following are true:
 
 1. a ruleset-derived or explicit env overlay mapping exists;
 2. the env value exists in the immutable `EnvRepositoryInterface` snapshot;
-3. the env value can be coerced according to the declared scalar rule type.
+3. the env value can be coerced according to the mapping's supported scalar type.
 
 Env overlays MUST NOT read:
 

@@ -123,7 +123,7 @@ final readonly class CompiledContainerBuilder
      *     kind: 'compiled',
      *     parameters: array<string, mixed>,
      *     services: array<string, array<string, mixed>>,
-     *     tags: array<string, list<array{id: string, priority: int}>>
+     *     tags: array<string, list<array{id: string, meta: array<string, mixed>, priority: int}>>
      * }
      *
      * @throws JsonFloatForbiddenException

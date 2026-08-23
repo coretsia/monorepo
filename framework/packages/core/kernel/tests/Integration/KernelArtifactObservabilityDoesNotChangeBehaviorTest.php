@@ -58,6 +58,7 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
@@ -137,12 +138,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: [],
+            configSources: ConfigSourceSet::empty(),
         );
 
         self::assertSame('clean', $result['outcome']);
@@ -292,12 +288,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: [],
+            configSources: ConfigSourceSet::empty(),
         );
 
         self::assertSame('clean', $result['outcome']);
@@ -334,12 +325,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             moduleResolution: ArtifactPipelineTestSupport::moduleResolution(),
             env: self::envRepository(),
             kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: [],
-            explicitRuleSources: [],
-            explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: [],
+            configSources: ConfigSourceSet::empty(),
         );
     }
 
@@ -474,7 +460,6 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             tracer: self::noopTracer(),
             stopwatch: new Stopwatch(),
             logger: self::noopLogger(),
-            defaultExplicitEnvOverlayMappings: [],
         );
     }
 

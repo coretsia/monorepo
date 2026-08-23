@@ -185,6 +185,22 @@ final class ContainerGraphChangesFingerprintTest extends TestCase
                     priority: 20,
                 ),
             ],
+            'tag metadata change' => [
+                $tagBase->withTag(
+                    tag: 'kernel.test.graph',
+                    serviceId: ContainerGraphFingerprintServiceA::class,
+                    meta: [
+                        'mode' => 'alpha',
+                    ],
+                ),
+                $tagBase->withTag(
+                    tag: 'kernel.test.graph',
+                    serviceId: ContainerGraphFingerprintServiceA::class,
+                    meta: [
+                        'mode' => 'beta',
+                    ],
+                ),
+            ],
             'shared flag change' => [
                 DefinitionGraph::empty()->withService(
                     ServiceDefinition::class(

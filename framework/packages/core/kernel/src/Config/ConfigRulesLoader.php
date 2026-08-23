@@ -81,13 +81,14 @@ final readonly class ConfigRulesLoader
      *     'root' => 'kernel',
      *     'packageId' => 'core/kernel',
      *     'moduleId' => 'core.kernel',
-     *     'path' => 'framework/packages/core/kernel/config/rules.php',
-     *     'filesystemPath' => '/absolute/runtime/path/to/config/rules.php',
+     *     'path' => 'config/rules.php',
+     *     'filesystemPath' => '/physical/install/root/config/rules.php',
      * ]
      * ```
      *
-     * `path` is safe repo-relative/logical metadata.
-     * `filesystemPath` is used only for `require`; it is never exposed through
+     * `path` is package-relative stable logical metadata.
+     * `filesystemPath` is the local physical read path used only for `require`;
+     * it is never exposed through
      * diagnostics or returned metadata.
      *
      * @param list<array{
@@ -315,7 +316,25 @@ final readonly class ConfigRulesLoader
             self::assertSafeRelativePath($path);
             self::assertSafeFilesystemPathForRead($filesystemPath);
 
-            if (!\str_ends_with(\str_replace('\\', '/', $path), '/config/' . self::RULES_FILE_BASENAME)) {
+            $normalizedPath = \str_replace('\\', '/', $path);
+
+            if (
+                $requireEnabledModule
+                && $normalizedPath !== 'config/' . self::RULES_FILE_BASENAME
+            ) {
+                throw ConfigInvalidException::withReason(
+                    ConfigInvalidException::REASON_SOURCE_INVALID,
+                );
+            }
+
+            if (
+                !$requireEnabledModule
+                && $normalizedPath !== 'config/' . self::RULES_FILE_BASENAME
+                && !\str_ends_with(
+                    $normalizedPath,
+                    '/config/' . self::RULES_FILE_BASENAME,
+                )
+            ) {
                 throw ConfigInvalidException::withReason(
                     ConfigInvalidException::REASON_SOURCE_INVALID,
                 );

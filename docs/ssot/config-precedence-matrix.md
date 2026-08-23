@@ -325,8 +325,10 @@ ConfigSourceType::Env
 
 Env overlays are generated only from:
 
-- loaded declarative config rulesets;
+- ruleset-derived mappings for env-overlay-capable scalar rule types;
 - optional explicit env overlay mappings supplied by a future user/module mapping mechanism.
+
+A valid ruleset leaf does not imply an env overlay mapping. Validation-only rule types that are not env-overlay-capable do not participate in automatic env overlay generation.
 
 Env overlays are stronger than all file config sources.
 
@@ -336,7 +338,7 @@ Env overlays apply only where:
 
 1. a ruleset-derived or explicit env overlay mapping exists;
 2. an env value exists in the immutable `EnvRepositoryInterface` snapshot;
-3. the env value can be coerced according to the declared scalar rule type.
+3. the env value can be coerced according to the mapping's supported scalar type.
 
 User-owned/custom roots without rulesets MUST NOT receive env overlays automatically.
 

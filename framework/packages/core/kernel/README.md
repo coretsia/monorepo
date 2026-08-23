@@ -111,6 +111,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir`
   - internal portable and bounded artifact-root policy
 - Kernel-owned ConfigKernel Phase B (full configuration orchestration):
+  - `Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver`
+  - `Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder`
+  - `Coretsia\Kernel\Config\Source\ConfigSourceSet` (per-operation value; not a container service)
   - `Coretsia\Kernel\Config\ConfigKernel`
   - `Coretsia\Kernel\Config\ConfigRulesLoader`
   - `Coretsia\Kernel\Config\ConfigValidator`
@@ -130,6 +133,7 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder`
   - `Coretsia\Kernel\Container\ContainerCompiler`
   - `Coretsia\Kernel\Container\CompiledContainerFactory`
+  - `Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation`
   - `Coretsia\Kernel\Artifacts\Compiler\ArtifactCompiler`
   - `Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder`
   - `Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister`
@@ -245,7 +249,7 @@ immutable EnvRepositoryInterface snapshot
 
 Phase A is not a full config merge phase.
 
-Full config file discovery, merge, directives, validation, explain output, and environment overlays are owned by ConfigKernel Phase B.
+Package config-source locations are constructed by `ConfigSourceLocationBuilder`. `ConfigKernel` Phase B owns config loading from those prepared locations, skeleton/app config loading, merge orchestration, directives, validation, explain output, and environment overlays.
 
 Phase A MAY read only one bootstrap-only skeleton config file:
 
@@ -318,7 +322,15 @@ allow_system
 
 It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
 
-Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package. Entrypoint and platform owners compose the explicit Phase A services through DI.
+Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package.
+
+For normal artifact compile/verify entrypoints, transport and CLI owners construct `BootstrapInput` and delegate compile-host orchestration to internal:
+
+```text
+Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
+```
+
+`KernelArtifactOperation` is an internal artifact compile-host operation, not a public Phase-A facade or aggregate Phase-A result.
 
 ## ConfigKernel Phase B — full configuration pipeline
 
@@ -336,11 +348,12 @@ ConfigKernel Phase B consumes:
 BootstrapConfig
 ModulePlan
 immutable EnvRepositoryInterface snapshot
-explicit package default source candidates
-explicit package rules source candidates
-explicit skeleton/app split-root names
-optional explicit env overlay mappings
+ConfigSourceSet
 ```
+
+`ConfigSourceLocationBuilder` constructs source locations and one canonical `ConfigSourceSet` before ConfigKernel runs.
+
+`ConfigKernel` consumes that already-built source set. It does not discover Composer install roots, scan package directories, or reconstruct package source locations.
 
 ConfigKernel Phase B MUST NOT read:
 
@@ -366,7 +379,19 @@ package defaults
 → optional explain
 ```
 
-Package defaults are loaded only from enabled ModulePlan modules.
+Package defaults are loaded only for enabled modules whose descriptor in the operation's `ModuleResolution` manifest declares `defaultsConfigPath` metadata.
+
+The canonical package config-location handoff is:
+
+```text
+ModuleResolution descriptor defaultsConfigPath
+  -> ComposerPackageInstallPathResolver
+  -> ConfigSourceLocationBuilder
+  -> package-relative path + private filesystemPath
+  -> ConfigSourceSet
+```
+
+Config ownership `packageId` is derived from `ModuleId` as `<module-layer>/<module-slug>`. Composer package name is used only for exact physical install-root lookup.
 
 Skeleton/app config uses:
 
@@ -393,7 +418,7 @@ Config directives are processed per file before merge:
 
 Directive application happens during merge, when the previous/base value is known.
 
-Environment overlays are generated only from the immutable `EnvRepositoryInterface` snapshot and only for known ruleset-backed or explicitly mapped config paths.
+Environment overlays are generated only from the immutable `EnvRepositoryInterface` snapshot and only for ruleset-derived mappings whose rule type is env-overlay-capable or for explicitly mapped config paths. Valid validation-only rule types that are not env-overlay-capable do not create automatic env overlay mappings.
 
 Example projection:
 
@@ -523,6 +548,20 @@ docs/ssot/compiled-container.md
 ```
 
 `routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
+
+Normal artifact compile/verify preparation is owned by internal `KernelArtifactOperation`:
+
+```text
+BootstrapInput
+→ prepared BootstrapConfig / EnvRepositoryInterface / ModuleResolution / ConfigSourceSet
+→ ArtifactCompiler or CacheVerifier
+```
+
+`KernelArtifactOperation` prepares and routes inputs only.
+
+`ArtifactCompiler` remains the Kernel artifact production owner, and `CacheVerifier` remains the verification owner.
+
+Within either operation, the same `ConfigSourceSet` instance is used for config compilation and fingerprint construction.
 
 `ArtifactCompiler` owns Kernel artifact production orchestration.
 
@@ -696,18 +735,20 @@ Container compilation is based on the canonical Foundation-owned declarative def
 The production graph flow is:
 
 ```text
-enabled ModulePlan modules
-→ canonical provider plan
-→ one ContainerDefinitionBuilder
-→ one ContainerDefinitionSet
+ModuleResolution + compiled Phase-B config
 → RuntimeContainerGraphCompiler
 → DefinitionGraph
-→ container@1
+→ CompiledContainerBuilder
+→ container@1 artifact envelope
 ```
 
-`ContainerCompiler` consumes the deterministic graph representation and produces the compiled-container payload.
+`RuntimeContainerGraphCompiler` resolves one ordered `ContainerProviderPlan`, executes declarative provider contributions in plan order, merges the resulting `ContainerDefinitionSet` values, delegates deterministic graph compilation to `ContainerCompiler`, and validates final graph completeness.
 
-It MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
+`ContainerCompiler` consumes the merged canonical `ContainerDefinitionSet` and produces the deterministic `DefinitionGraph`.
+
+`CompiledContainerBuilder` receives that `DefinitionGraph` together with the already-calculated fingerprint and builds the canonical `container@1` artifact envelope.
+
+`ContainerCompiler` MUST NOT discover runtime providers, discover modules, read source config, read generated artifacts, write artifacts, instantiate runtime services, or use provider fallback.
 
 Production runtime container construction is artifact-only.
 
@@ -819,6 +860,16 @@ Coretsia\Kernel\Container\CompiledContainerFactory
 Those classes remain Kernel implementation details.
 
 Kernel artifact/fingerprint/container-compile/cache services are registered by `KernelServiceProvider` as factories only.
+
+The compile-host service set includes:
+
+```text
+ComposerPackageInstallPathResolver
+ConfigSourceLocationBuilder
+KernelArtifactOperation
+```
+
+`ConfigSourceSet` is not registered as a service. It is created per compile/verify operation and passed through the canonical source-set boundary.
 
 Artifact/fingerprint/container-compile/cache registration happens after ConfigKernel Phase B service registrations and before Kernel runtime service registrations.
 
@@ -1021,11 +1072,20 @@ ModulePlan resolution itself does not write artifacts. Kernel artifact productio
 ModulePlan resolution emits safe observability:
 
 ```text
+span:   kernel.modules_resolve
 metric: kernel.modules_resolve_total
 metric: kernel.modules_resolve_duration_ms
-labels: operation, outcome
+
+summary attributes/labels:
+operation
+outcome
+
 operation: resolve
 ```
+
+The span wraps one `resolveResolution()` operation.
+
+Tracer failures are observability-isolated and do not change ModulePlan resolution behavior or failure precedence.
 
 Allowed `outcome` values are:
 
@@ -1277,19 +1337,57 @@ Low-level adapters MUST structure external body execution with a `finally`-equiv
 
 A low-level adapter MUST NOT start another UnitOfWork on the same runtime boundary before the previous successful `beginUnitOfWork()` has been completed with `afterUnitOfWork()`.
 
+The canonical `KernelRuntime` enforces this contract.
+
+For one `KernelRuntime` instance, at most one UnitOfWork may be active.
+
+While the runtime boundary is active, another `runUnitOfWork()` or `beginUnitOfWork()` attempt is rejected before a second UnitOfWork is created.
+
+The canonical Kernel rejection reason is:
+
+```text
+kernel-runtime-uow-already-active
+```
+
+A matching exact `afterUnitOfWork()` completion attempt returns the runtime boundary to idle after required reset cleanup, even when completion surfaces a lifecycle failure.
+
 ## KernelRuntime lifecycle
 
 The canonical high-level lifecycle is:
 
 ```text
+reserve KernelRuntime UnitOfWork boundary
+↓
 begin UnitOfWork
+↓
 write base ContextStore keys
+↓
 invoke before-uow hooks
+↓
 run external runtime body
+↓
 build UnitOfWork result
+↓
 invoke after-uow hooks
+↓
 ResetOrchestrator.resetAll()
+↓
+release KernelRuntime UnitOfWork boundary
+↓
 surface result or primary failure
+```
+
+The boundary cleanup policy is:
+
+```text
+failed start before reset responsibility
+→ no reset
+→ release boundary
+
+failure after reset responsibility
+→ reset attempt
+→ release boundary
+→ surface selected primary failure
 ```
 
 This linear sequence describes executions whose before-uow hooks complete successfully.
@@ -1627,6 +1725,14 @@ framework/packages/<vendor>/<package>/config/<root>.php
 
 Package default config files MUST return the subtree for `<root>`.
 
+Owning runtime modules declare the logical package-relative file through:
+
+```text
+extra.coretsia.defaultsConfigPath = config/<root>.php
+```
+
+`ConfigSourceLocationBuilder` combines that declaration with the exact physical package root resolved by `ComposerPackageInstallPathResolver`; the physical `filesystemPath` remains compile-host source-reading data and is not module identity.
+
 Package defaults MUST NOT use:
 
 ```text
@@ -1812,19 +1918,26 @@ generated artifacts
 persistence payloads
 ```
 
-`KernelRuntime` maintains two separate lifecycle channels:
+`KernelRuntime` maintains separate runtime lifecycle state and timing/export channels:
 
 ```text
+UnitOfWorkLifecycleGate
+  -> per-KernelRuntime single-active-UoW state
+
 UnitOfWorkContext::toArray()
   -> normalized exported context
   -> UnitOfWorkHandle::context()
 
-UnitOfWorkContext::startedAtToken()
-  -> private WeakMap<UnitOfWorkHandle, int>
+WeakMap<UnitOfWorkHandle, int>
+  -> exact open low-level handle registry
+  -> one-shot completion/consumption state
+  -> private startedAtToken storage
   -> duration calculation during afterUnitOfWork()
 ```
 
 The `WeakMap` is keyed by the exact handle object identity.
+
+The `WeakMap` is not the runtime-wide exclusivity gate.
 
 `afterUnitOfWork()` retrieves the private timing token from that map. It does not read timing state from `UnitOfWorkHandle::context()`.
 
@@ -2152,13 +2265,17 @@ ResetOrchestrator::resetAll()
 
 The reset discovery tag is owned by `core/foundation`.
 
-The canonical lifecycle position is:
+For a UnitOfWork that enters after-phase handling, the canonical reset position is:
 
 ```text
 after-uow hooks → ResetOrchestrator.resetAll()
 ```
 
 For every UnitOfWork lifecycle that reaches reset responsibility, `KernelRuntime` MUST call `ResetOrchestrator::resetAll()` exactly once.
+
+The `KernelRuntime` UnitOfWork boundary remains reserved through the required reset attempt.
+
+A reset failure MUST NOT leave the `KernelRuntime` boundary permanently active.
 
 If an earlier primary failure exists and reset also fails, the earlier primary failure remains surfaced.
 

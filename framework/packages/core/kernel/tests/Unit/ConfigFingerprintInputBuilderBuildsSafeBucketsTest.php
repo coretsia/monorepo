@@ -29,6 +29,7 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Definition\ServiceDefinition;
 use Coretsia\Kernel\Module\ModulePlan;
@@ -41,7 +42,7 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
         $input = self::buildInput();
 
         self::assertSame(
-            'package-default/kernel',
+            'core/kernel/config/defaults/kernel',
             $input['sourceCandidates']['package_config'][0]['sourceId'],
         );
 
@@ -53,6 +54,11 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
         self::assertSame(
             'config/kernel.php',
             $input['sourceCandidates']['package_config'][0]['path'],
+        );
+
+        self::assertSame(
+            'core/kernel',
+            $input['sourceCandidates']['package_config'][0]['packageId'],
         );
 
         self::assertSame(
@@ -154,21 +160,15 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
             containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
         );
 
-        return $builder->build(
-            bootstrapConfig: self::bootstrapConfig(),
-            modulePlan: self::modulePlan(),
-            containerGraph: self::containerGraph(),
-            env: self::envRepository(),
-            kernelConfig: self::kernelConfig(),
-            compiledConfig: self::compiledConfig(),
+        $configSources = new ConfigSourceSet(
             packageDefaultSources: [
                 [
                     'root' => 'kernel',
-                    'packageId' => 'core.kernel',
+                    'packageId' => 'core/kernel',
                     'moduleId' => 'core.kernel',
                     'path' => 'config/kernel.php',
                     'filesystemPath' => self::missingPath('kernel-default.php'),
-                    'sourceId' => 'package-default/kernel',
+                    'sourceId' => 'core/kernel/config/defaults/kernel',
                     'precedence' => 10,
                 ],
             ],
@@ -178,7 +178,18 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
                 'kernel',
             ],
             explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
             modePresetSourceCandidates: [],
+        );
+
+        return $builder->build(
+            bootstrapConfig: self::bootstrapConfig(),
+            modulePlan: self::modulePlan(),
+            containerGraph: self::containerGraph(),
+            env: self::envRepository(),
+            kernelConfig: self::kernelConfig(),
+            compiledConfig: self::compiledConfig(),
+            configSources: $configSources,
         );
     }
 
@@ -282,8 +293,8 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
                 new ConfigValueSource(
                     type: ConfigSourceType::PackageDefault,
                     root: 'kernel',
-                    sourceId: 'package-default/kernel',
-                    path: 'framework/packages/core/kernel/config/kernel.php',
+                    sourceId: 'core/kernel/config/defaults/kernel',
+                    path: 'config/kernel.php',
                     keyPath: 'kernel.safe',
                     directive: null,
                     precedence: 10,

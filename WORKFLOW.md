@@ -88,7 +88,6 @@ git diff                                   # show unstaged diff
 Run before staging when the current task may affect source files, composer manifests, package structure, dependency policy, release-line policy, publishing metadata, or generated rails:
 
 ```bash
-composer docs:structure                    # regenerate docs structure output
 composer cs:fix                            # apply code style fixes
 composer sync:check                        # check managed composer repositories
 ```

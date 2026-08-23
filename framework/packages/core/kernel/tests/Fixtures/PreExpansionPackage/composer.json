@@ -1,0 +1,23 @@
+{
+  "name": "coretsia/kernel-pre-expansion-fixture",
+  "type": "library",
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Kernel\\Tests\\Fixtures\\PreExpansionPackage\\": ""
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.pre-expansion-fixture",
+      "providers": [
+        "Coretsia\\Kernel\\Tests\\Fixtures\\PreExpansionPackage\\PreExpansionFixtureServiceProvider"
+      ],
+      "requires": [
+        "core.kernel"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/pre_expansion.php"
+    }
+  }
+}

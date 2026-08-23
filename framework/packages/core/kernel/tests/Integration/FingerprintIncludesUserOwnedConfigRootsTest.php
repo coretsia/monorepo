@@ -38,6 +38,7 @@ use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Config\ConfigValidator;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
@@ -221,6 +222,15 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
      */
     private static function fingerprintInputForConfig(array $config): array
     {
+        $configSources = new ConfigSourceSet(
+            packageDefaultSources: [],
+            packageRuleSources: [],
+            splitRoots: \array_keys($config),
+            explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
+            modePresetSourceCandidates: [],
+        );
+
         return new ConfigFingerprintInputBuilder(
             containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
         )->build(
@@ -230,11 +240,7 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
             compiledConfig: self::compiledConfig($config),
-            packageDefaultSources: [],
-            packageRuleSources: [],
-            splitRoots: \array_keys($config),
-            explicitRuleSources: [],
-            modePresetSourceCandidates: [],
+            configSources: $configSources,
         );
     }
 

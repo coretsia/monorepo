@@ -26,9 +26,7 @@ final class ArtifactCompilerUsesProductionContainerGraphTest extends TestCase
 {
     public function testWritesProviderProducedGraphWithoutRawDescriptorInput(): void
     {
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'artifact-compiler-production-container-graph',
-        );
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-compiler-production-container-graph');
 
         try {
             ArtifactPipelineTestSupport::compileArtifacts(
@@ -60,6 +58,7 @@ final class ArtifactCompilerUsesProductionContainerGraphTest extends TestCase
                 [
                     [
                         'id' => ContainerDefinitionFixtureService::class,
+                        'meta' => [],
                         'priority' => 25,
                     ],
                 ],

@@ -71,20 +71,20 @@ The contracts package defines only:
 
 The contracts package MUST NOT implement reset orchestration, hook execution, DI discovery, worker loops, scheduler loops, queue consumers, HTTP middleware, CLI commands, or runtime wiring.
 
-## Phase 0 lock-source alignment
+## Cross-cutting policy alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following cross-cutting invariants:
 
-- `0.20.0` no-secrets output policy applies to reset and hook diagnostics.
-- `0.60.0` presence-sensitive runtime behavior MUST NOT collapse distinct states when a future owner adds metadata or context around reset/hook execution.
-- `0.70.0` json-like payloads, if introduced by a future owner around reset/hook diagnostics, MUST forbid floats, preserve list order, and sort map keys deterministically.
-- `0.90.0` safe diagnostics MUST NOT expose raw values and MAY expose only safe derivations such as `hash(value)` or `len(value)`.
+- reset and hook diagnostics MUST follow the no-secrets output policy;
+- presence-sensitive runtime behavior MUST NOT collapse distinct states when metadata or context is present around reset/hook execution;
+- any json-like payloads or diagnostics defined around reset/hook execution MUST forbid floats, preserve list order, and sort map keys deterministically according to the owning normalization policy;
+- safe diagnostics MUST NOT expose raw values and MAY expose only safe derivations such as `hash(value)` or `len(value)`.
 
-Epic `1.120.0` introduced the original reset and hook contract boundary.
+`KernelRuntimeInterface` is the canonical external UnitOfWork runtime port.
 
-ADR-0020 updates the hook boundary to normalized array payload signatures and introduces the external Kernel runtime port.
+Before- and after-UoW hooks use normalized exported array payload signatures.
 
-The contracts package still does not own a concrete UnitOfWork object model, hook payload producer, hook payload normalizer, hook discovery implementation, reset orchestration implementation, or tag metadata schema.
+The contracts package does not own a concrete UnitOfWork object model, hook payload producer, hook payload normalizer, hook discovery implementation, reset orchestration implementation, or tag metadata schema.
 
 ## Unit of work
 
@@ -143,6 +143,25 @@ It MUST NOT return the exported UnitOfWork result array.
 `UnitOfWorkHandle::context()` returns the normalized exported UnitOfWork context array.
 
 `afterUnitOfWork()` accepts the exact `UnitOfWorkHandle` returned by `beginUnitOfWork()` and returns the normalized exported UnitOfWork result array.
+
+A single runtime boundary MUST NOT have more than one active UnitOfWork.
+
+For the low-level lifecycle, the canonical reservation sequence is:
+
+```text
+successful begin
+→ exact open lifecycle handle
+→ runtime boundary remains reserved
+→ no next run/begin
+→ matching exact afterUnitOfWork() completion attempt
+→ required reset attempt
+→ runtime boundary returns to idle
+→ next run/begin may start
+```
+
+The matching `afterUnitOfWork()` completion attempt MAY itself surface a lifecycle failure.
+
+Such a failure MUST NOT keep the runtime boundary permanently reserved after required lifecycle cleanup has completed.
 
 A successful `beginUnitOfWork()` return is the only signal that a low-level adapter has received an open lifecycle handle.
 
@@ -228,7 +247,9 @@ The contracts package MUST NOT implement:
 - config rules;
 - package providers.
 
-Runtime owner packages implement concrete discovery, ordering, execution, failure handling, and integration behavior later.
+Concrete discovery, ordering, execution, failure handling, and integration behavior are owned by the corresponding runtime packages.
+
+The canonical Kernel lifecycle implementation is provided by `core/kernel` behind `KernelRuntimeInterface`.
 
 ## Contract package dependency policy
 
@@ -300,7 +321,7 @@ DTO gates apply only to classes explicitly marked with:
 #[Coretsia\Dto\Attribute\Dto]
 ```
 
-Interfaces introduced by epic `1.120.0` MUST NOT be treated as DTOs.
+These runtime contract interfaces MUST NOT be treated as DTOs.
 
 ## Reset interface
 
@@ -566,12 +587,31 @@ For the canonical Kernel implementation, `core/kernel` owns lifecycle orchestrat
 Coretsia\Kernel\Runtime\KernelRuntime
 ```
 
-A runtime that processes repeated units of work is expected to ensure:
+A runtime that processes repeated units of work MUST ensure:
 
 1. before-UoW hooks are executed before each unit of work;
 2. the unit of work is processed by the runtime owner;
 3. after-UoW hooks are executed after each unit of work according to owner lifecycle policy;
 4. reset-capable services are reset before mutable state can leak into the next unit of work.
+
+UoWs are sequential with respect to one `KernelRuntime` lifecycle boundary.
+
+This does not require the whole application to be globally single-threaded or to have only one active UnitOfWork across all runtime instances.
+
+Separate runtime boundaries MAY process UnitOfWork lifecycles concurrently:
+
+```text
+runtime instance A → UoW A
+runtime instance B → UoW B
+```
+
+The forbidden state is:
+
+```text
+same KernelRuntime instance
+    ├── active UoW A
+    └── active UoW B
+```
 
 The concrete orchestration order across kernel hook execution and foundation reset orchestration is runtime-owned.
 
@@ -593,7 +633,7 @@ The contracts package does not define a priority schema, metadata schema, servic
 
 ## DI tag policy
 
-Epic `1.120.0` introduces no DI tags.
+The contracts package does not define or own DI tags.
 
 The contracts package MUST NOT declare public tag constants for:
 
@@ -730,7 +770,7 @@ Its canonical code-level identifier is:
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 ```
 
-A Kernel hook executor is expected to discover hook services through these tags and call:
+The canonical Kernel hook executor discovers hook services through these tags and calls:
 
 ```text
 BeforeUowHookInterface::beforeUow(array $context): void
@@ -759,21 +799,19 @@ The contracts package does not define:
 
 ## Config policy
 
-Epic `1.120.0` introduces no config roots and no config keys.
+The contracts package defines no config roots or config keys for reset or hook contracts.
 
 The contracts package MUST NOT require package config files for reset or hook contracts.
 
-No files under package `config/` are introduced by this epic.
-
-Future runtime owner packages MAY introduce config roots or config keys only through their own owner epics and the config roots registry process.
+Runtime owner packages MAY define config roots or config keys only through their owning configuration policy and the config roots registry process.
 
 ## Artifact policy
 
-Epic `1.120.0` introduces no artifacts.
+The contracts package defines no generated artifacts for reset, hooks, worker lifecycle, or runtime lifecycle.
 
 The contracts package MUST NOT generate reset artifacts, hook artifacts, worker lifecycle artifacts, or runtime lifecycle artifacts.
 
-A future runtime owner MAY introduce generated artifacts only through its own owner epic and the artifact registry process.
+Runtime owner packages MAY define generated artifacts only through their owning artifact policy and the artifact registry process.
 
 ## Observability and diagnostics policy
 
@@ -822,7 +860,7 @@ Metric labels MUST remain within the canonical allowlist from:
 docs/ssot/observability.md
 ```
 
-Epic `1.120.0` introduces no new metric label keys.
+This contracts SSoT defines no metric label keys.
 
 Foundation reset observability MAY expose only summary-safe reset diagnostics.
 
@@ -882,7 +920,7 @@ The concrete worker loop, tag discovery, hook executor, reset orchestrator, erro
 
 ## Verification evidence
 
-Contracts-level enforcement evidence for this epic includes:
+Contracts-level enforcement evidence includes:
 
 ```text
 framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php
@@ -895,9 +933,21 @@ Kernel implementation evidence additionally includes:
 
 ```text
 framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
 ```
 
-These tests are expected to verify:
+`KernelRuntimeEnforcesSingleActiveUnitOfWorkTest` verifies the single-active state machine, including the four forbidden transitions:
+
+```text
+run   → run
+run   → begin
+begin → run
+begin → begin
+```
+
+It also verifies that rejected overlapping starts have no UnitOfWork lifecycle side effects and that the active runtime boundary remains reserved through required reset cleanup.
+
+These tests verify:
 
 - `ResetInterface` exists and exposes only `reset(): void`;
 - `KernelRuntimeInterface` exists and exposes `runUnitOfWork()`, `beginUnitOfWork()`, and `afterUnitOfWork()`;
@@ -918,7 +968,7 @@ These tests are expected to verify:
 - hook interfaces do not depend on Kernel-owned runtime classes;
 - reset, runtime, and hook contracts stay format-neutral.
 
-Architecture gates are expected to verify that `core/contracts` does not introduce forbidden compile-time dependencies.
+Architecture gates MUST verify that `core/contracts` does not introduce forbidden compile-time dependencies.
 
 ## Non-goals
 

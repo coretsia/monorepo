@@ -126,19 +126,34 @@ final readonly class ArtifactGenerationLock
 
     private function ensureDirectory(string $directory): bool
     {
+        if (self::isSafeDirectory($directory)) {
+            return true;
+        }
+
         if (@\is_link($directory)) {
             return false;
         }
 
-        if (@\is_dir($directory)) {
-            return true;
-        }
-
-        if (@\file_exists($directory)) {
+        if (
+            !@\mkdir(
+                $directory,
+                self::DIRECTORY_PERMISSIONS,
+                true,
+            )
+            && !self::isSafeDirectory($directory)
+        ) {
             return false;
         }
 
-        return @\mkdir($directory, self::DIRECTORY_PERMISSIONS, true) || @\is_dir($directory);
+        return self::isSafeDirectory($directory);
+    }
+
+    /**
+     * @phpstan-impure
+     */
+    private static function isSafeDirectory(string $directory): bool
+    {
+        return @\is_dir($directory) && !@\is_link($directory);
     }
 
     private static function lockFailed(): ArtifactGenerationPublishException

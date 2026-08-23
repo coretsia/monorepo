@@ -44,11 +44,13 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 {
     public function testAfterUnitOfWorkRejectsForeignHandle(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
 
         $runtime = self::runtime(
             recorder: $recorder,
         );
+
+        $handleA = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $foreignHandle = new UnitOfWorkHandle([
             'attributes' => [],
@@ -67,26 +69,53 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
         self::assertSame(0, $recorder->resetCount);
         self::assertSafeValidationFailure($exception);
+
+        self::assertKernelRuntimeFailure(
+            callback: static fn () => $runtime->beginUnitOfWork(UnitOfWorkType::CLI),
+            expectedReason: KernelRuntimeException::REASON_UOW_ALREADY_ACTIVE,
+        );
+
+        self::assertSame(0, $recorder->resetCount);
+
+        $runtime->afterUnitOfWork(
+            handle: $handleA,
+            outcome: Outcome::SUCCESS,
+        );
+
+        self::assertSame(1, $recorder->resetCount);
+
+        $handleB = $runtime->beginUnitOfWork(UnitOfWorkType::CLI);
+
+        $runtime->afterUnitOfWork(
+            handle: $handleB,
+            outcome: Outcome::SUCCESS,
+        );
+
+        self::assertSame(2, $recorder->resetCount);
     }
 
     public function testAfterUnitOfWorkRejectsAlreadyCompletedHandle(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
 
         $runtime = self::runtime(
             recorder: $recorder,
         );
 
-        $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+        $handleA = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
 
         $runtime->afterUnitOfWork(
-            handle: $handle,
+            handle: $handleA,
             outcome: Outcome::SUCCESS,
         );
 
+        self::assertSame(1, $recorder->resetCount);
+
+        $handleB = $runtime->beginUnitOfWork(UnitOfWorkType::CLI);
+
         $exception = self::assertKernelRuntimeFailure(
             callback: static fn (): array => $runtime->afterUnitOfWork(
-                handle: $handle,
+                handle: $handleA,
                 outcome: Outcome::SUCCESS,
             ),
             expectedReason: KernelRuntimeException::REASON_INVALID_CONTEXT,
@@ -94,11 +123,25 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
         self::assertSame(1, $recorder->resetCount);
         self::assertSafeValidationFailure($exception);
+
+        self::assertKernelRuntimeFailure(
+            callback: static fn () => $runtime->beginUnitOfWork(UnitOfWorkType::QUEUE),
+            expectedReason: KernelRuntimeException::REASON_UOW_ALREADY_ACTIVE,
+        );
+
+        self::assertSame(1, $recorder->resetCount);
+
+        $runtime->afterUnitOfWork(
+            handle: $handleB,
+            outcome: Outcome::SUCCESS,
+        );
+
+        self::assertSame(2, $recorder->resetCount);
     }
 
     public function testRunUnitOfWorkRejectsInvalidTypeSafelyBeforeResetResponsibility(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
         $runtime = self::runtime($recorder);
 
         $bodyWasCalled = false;
@@ -122,7 +165,7 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
     public function testAfterUnitOfWorkRejectsInvalidOutcomeAndResetsOnce(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
         $runtime = self::runtime($recorder);
 
         $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
@@ -137,11 +180,20 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
         self::assertSame(1, $recorder->resetCount);
         self::assertSafeValidationFailure($exception);
+
+        $handleB = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        $runtime->afterUnitOfWork(
+            handle: $handleB,
+            outcome: Outcome::SUCCESS,
+        );
+
+        self::assertSame(2, $recorder->resetCount);
     }
 
     public function testAfterUnitOfWorkRejectsInvalidExtensionsWithInvalidResultAndResetsOnce(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
         $runtime = self::runtime($recorder);
 
         $handle = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
@@ -164,7 +216,7 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
     public function testInvalidOutcomeFailureRemainsPrimaryWhenResetAlsoFails(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
 
         $runtime = self::runtime(
             recorder: $recorder,
@@ -185,11 +237,23 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
         self::assertSame(1, $recorder->resetCount);
         self::assertSafeValidationFailure($exception);
+
+        $handleB = $runtime->beginUnitOfWork(UnitOfWorkType::HTTP);
+
+        self::assertKernelRuntimeFailure(
+            callback: static fn (): array => $runtime->afterUnitOfWork(
+                handle: $handleB,
+                outcome: Outcome::SUCCESS,
+            ),
+            expectedReason: KernelRuntimeException::REASON_RESET_FAILED,
+        );
+
+        self::assertSame(2, $recorder->resetCount);
     }
 
     public function testInvalidResultFailureRemainsPrimaryWhenResetAlsoFails(): void
     {
-        $recorder = new KernelRuntimeRejectsInvalidExportedContextRecorder();
+        $recorder = new KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder();
 
         $runtime = self::runtime(
             recorder: $recorder,
@@ -217,13 +281,13 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
     }
 
     private static function runtime(
-        KernelRuntimeRejectsInvalidExportedContextRecorder $recorder,
+        KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder $recorder,
         ?\Throwable $resetFailure = null,
     ): KernelRuntime {
         $contextStore = new ContextStore();
 
-        $container = new KernelRuntimeRejectsInvalidExportedContextContainer([
-            KernelRuntimeRejectsInvalidExportedContextResetService::class => new KernelRuntimeRejectsInvalidExportedContextResetService(
+        $container = new KernelRuntimeRejectsInvalidUnitOfWorkHandleContainer([
+            KernelRuntimeRejectsInvalidUnitOfWorkHandleResetService::class => new KernelRuntimeRejectsInvalidUnitOfWorkHandleResetService(
                 contextStore: $contextStore,
                 recorder: $recorder,
                 failure: $resetFailure,
@@ -234,7 +298,7 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
 
         $resetRegistry->add(
             ReservedTags::KERNEL_RESET,
-            KernelRuntimeRejectsInvalidExportedContextResetService::class,
+            KernelRuntimeRejectsInvalidUnitOfWorkHandleResetService::class,
         );
 
         return new KernelRuntime(
@@ -244,15 +308,15 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
                 tagRegistry: $resetRegistry,
             ),
             stopwatch: new Stopwatch(),
-            uowIds: new KernelRuntimeRejectsInvalidExportedContextIdGenerator(
+            uowIds: new KernelRuntimeRejectsInvalidUnitOfWorkHandleIdGenerator(
                 '01ARZ3NDEKTSV4RRFFQ69G5FAV',
             ),
-            correlationIdProvider: new KernelRuntimeRejectsInvalidExportedContextCorrelationIdProvider(
+            correlationIdProvider: new KernelRuntimeRejectsInvalidUnitOfWorkHandleCorrelationIdProvider(
                 '01B7X3NDEKTSV4RRFFQ69G5FAV',
             ),
             correlationIds: new CorrelationIdGenerator(new UlidGenerator()),
             hooks: new HookInvoker(
-                container: new KernelRuntimeRejectsInvalidExportedContextContainer([]),
+                container: new KernelRuntimeRejectsInvalidUnitOfWorkHandleContainer([]),
                 tags: new TagRegistry(),
             ),
             logger: new NullLogger(),
@@ -316,16 +380,16 @@ final class KernelRuntimeRejectsInvalidUnitOfWorkHandleTest extends TestCase
     }
 }
 
-final class KernelRuntimeRejectsInvalidExportedContextRecorder
+final class KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder
 {
     public int $resetCount = 0;
 }
 
-final readonly class KernelRuntimeRejectsInvalidExportedContextResetService implements ResetInterface
+final readonly class KernelRuntimeRejectsInvalidUnitOfWorkHandleResetService implements ResetInterface
 {
     public function __construct(
         private ContextStore $contextStore,
-        private KernelRuntimeRejectsInvalidExportedContextRecorder $recorder,
+        private KernelRuntimeRejectsInvalidUnitOfWorkHandleRecorder $recorder,
         private ?\Throwable $failure = null,
     ) {
     }
@@ -342,7 +406,7 @@ final readonly class KernelRuntimeRejectsInvalidExportedContextResetService impl
     }
 }
 
-final readonly class KernelRuntimeRejectsInvalidExportedContextIdGenerator implements IdGeneratorInterface
+final readonly class KernelRuntimeRejectsInvalidUnitOfWorkHandleIdGenerator implements IdGeneratorInterface
 {
     /**
      * @param non-empty-string $id
@@ -358,7 +422,7 @@ final readonly class KernelRuntimeRejectsInvalidExportedContextIdGenerator imple
     }
 }
 
-final readonly class KernelRuntimeRejectsInvalidExportedContextCorrelationIdProvider implements CorrelationIdProviderInterface
+final readonly class KernelRuntimeRejectsInvalidUnitOfWorkHandleCorrelationIdProvider implements CorrelationIdProviderInterface
 {
     /**
      * @param non-empty-string|null $correlationId
@@ -374,7 +438,7 @@ final readonly class KernelRuntimeRejectsInvalidExportedContextCorrelationIdProv
     }
 }
 
-final readonly class KernelRuntimeRejectsInvalidExportedContextContainer implements ContainerInterface
+final readonly class KernelRuntimeRejectsInvalidUnitOfWorkHandleContainer implements ContainerInterface
 {
     /**
      * @param array<string, mixed> $services

@@ -49,6 +49,7 @@ use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
+use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -69,6 +70,8 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
+use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
@@ -272,6 +275,48 @@ final class KernelServiceFactory
     }
 
     /**
+     * Creates the exact Composer package install-root resolver.
+     *
+     * This factory performs construction only. It does not query Composer or
+     * resolve any package path during provider registration.
+     */
+    public static function composerPackageInstallPathResolver(): ComposerPackageInstallPathResolver
+    {
+        return new ComposerPackageInstallPathResolver();
+    }
+
+    /**
+     * Creates the canonical config source-location builder.
+     *
+     * This factory performs wiring only. It does not resolve package install
+     * paths and does not build ConfigSourceSet during provider registration.
+     */
+    public static function configSourceLocationBuilder(
+        ContainerInterface $container,
+    ): ConfigSourceLocationBuilder {
+        $installPathResolver = self::configService(
+            $container,
+            ComposerPackageInstallPathResolver::class,
+        );
+        $modePresetLoaderFactory = self::modulePlanService(
+            $container,
+            ModePresetLoaderFactory::class,
+        );
+
+        if (
+            !$installPathResolver instanceof ComposerPackageInstallPathResolver
+            || !$modePresetLoaderFactory instanceof ModePresetLoaderFactory
+        ) {
+            throw new ContainerException('kernel-config-dependency-invalid');
+        }
+
+        return new ConfigSourceLocationBuilder(
+            installPathResolver: $installPathResolver,
+            modePresetLoaderFactory: $modePresetLoaderFactory,
+        );
+    }
+
+    /**
      * Creates the deterministic topological sorter.
      *
      * This factory performs construction only and keeps no graph state.
@@ -330,6 +375,7 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-module-plan-dependency-invalid');
         }
 
+        $tracer = self::tracer($container);
         $meter = self::meter($container);
         $stopwatch = self::stopwatch($container);
         $logger = self::modulePlanLogger($container);
@@ -339,6 +385,7 @@ final class KernelServiceFactory
             presetLoaderFactory: $presetLoaderFactory,
             manifestReader: $manifestReader,
             graphResolver: $graphResolver,
+            tracer: $tracer,
             meter: $meter,
             stopwatch: $stopwatch,
             logger: $logger,
@@ -1304,6 +1351,63 @@ final class KernelServiceFactory
             meter: self::meter($container),
             logger: self::logger($container),
             stopwatch: self::stopwatch($container),
+        );
+    }
+
+    /**
+     * Creates the canonical Kernel compile-host artifact operation.
+     *
+     * This factory performs wiring only. It does not resolve BootstrapConfig,
+     * build EnvRepository, resolve ModuleResolution, build ConfigSourceSet,
+     * compile artifacts, or verify cache during provider registration.
+     */
+    public static function kernelArtifactOperation(
+        ContainerInterface $container,
+    ): KernelArtifactOperation {
+        $bootstrapConfigResolver = self::bootService(
+            $container,
+            BootstrapConfigResolver::class,
+        );
+        $envRepositoryBuilder = self::bootService(
+            $container,
+            EnvRepositoryBuilder::class,
+        );
+        $modulePlanResolver = self::modulePlanService(
+            $container,
+            ModulePlanResolver::class,
+        );
+        $configSourceLocationBuilder = self::configService(
+            $container,
+            ConfigSourceLocationBuilder::class,
+        );
+        $artifactCompiler = self::artifactService(
+            $container,
+            ArtifactCompiler::class,
+        );
+        $cacheVerifier = self::artifactService(
+            $container,
+            CacheVerifier::class,
+        );
+
+        if (
+            !$bootstrapConfigResolver instanceof BootstrapConfigResolver
+            || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
+            || !$modulePlanResolver instanceof ModulePlanResolver
+            || !$configSourceLocationBuilder instanceof ConfigSourceLocationBuilder
+            || !$artifactCompiler instanceof ArtifactCompiler
+            || !$cacheVerifier instanceof CacheVerifier
+        ) {
+            throw new ContainerException('kernel-artifacts-dependency-invalid');
+        }
+
+        return new KernelArtifactOperation(
+            bootstrapConfigResolver: $bootstrapConfigResolver,
+            envRepositoryBuilder: $envRepositoryBuilder,
+            modulePlanResolver: $modulePlanResolver,
+            configSourceLocationBuilder: $configSourceLocationBuilder,
+            artifactCompiler: $artifactCompiler,
+            cacheVerifier: $cacheVerifier,
+            kernelConfig: self::kernelConfig($container),
         );
     }
 

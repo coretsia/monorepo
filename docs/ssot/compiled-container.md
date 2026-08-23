@@ -361,7 +361,8 @@ It MUST therefore cover semantic values contained by the graph, including:
 - parameter values;
 - alias targets;
 - tag membership;
-- effective tag priority.
+- effective tag priority;
+- deterministic owner-defined tag metadata.
 
 The graph representation MUST NOT contain filesystem paths, runtime instances, provider instances, runtime seeds, or process-specific object identity.
 
@@ -722,6 +723,7 @@ The `tags` payload field MUST be a deterministic map:
     '<tag-name>' => [
         [
             'id' => '<service-id>',
+            'meta' => <string-keyed-deterministic-map>,
             'priority' => <int>,
         ],
     ],
@@ -742,6 +744,7 @@ Each tag entry MUST contain exactly these fields:
 
 ```text
 id
+meta
 priority
 ```
 
@@ -754,6 +757,25 @@ A tagged service id MUST NOT resolve to a canonical external runtime seed.
 A tagged service id MUST NOT reference a compile-host service.
 
 A tagged alias chain MUST NOT be cyclic.
+
+The `meta` field MUST be an empty array or a string-keyed deterministic map.
+
+Tag metadata is owner-defined runtime discovery data. It MUST preserve the canonical metadata already normalized by Foundation declarative container definitions so artifact-only runtime consumers observe the same metadata without provider fallback.
+
+Tag metadata values MAY contain only deterministic schema values:
+
+```text
+null
+bool
+int
+string
+list<value>
+map<string, value>
+```
+
+Tag metadata MUST NOT contain service/parameter/class references, closures, callable objects, raw callable arrays, object instances, resources, reflection objects, source snippets, absolute paths, raw env values, or secrets.
+
+Tag metadata map keys MUST be deterministic safe map keys. Map keys are normalized recursively by byte-order `strcmp`; list order remains semantic and MUST be preserved.
 
 The `priority` field MUST be an integer.
 
@@ -770,9 +792,11 @@ Duplicate service ids inside the same tag list MUST be rejected in existing arti
 
 Compile-time tag duplicate handling MUST preserve canonical Foundation first-wins semantics per `(tag, serviceId)`.
 
-Tag metadata MUST NOT be emitted into the compiled-container tag payload.
+Deterministic owner-defined tag metadata MUST be emitted into the compiled-container tag payload and restored into the runtime Foundation `TagRegistry`.
 
-Owner-defined tag metadata may exist in compile-time descriptor input or Foundation `TagRegistry`, but the REAL `container@1` tag payload requires only deterministic service id and priority data.
+This is a generic Kernel transport guarantee. Kernel MUST NOT interpret owner-specific metadata keys such as Worker task-source `task_type` or CLI command metadata. Ownership and semantic validation remain with the consuming package.
+
+Because compiled tag metadata is part of canonical `DefinitionGraph::toArray()`, any semantic tag-metadata change MUST change the `containerGraph` fingerprint bucket and therefore the complete artifact generation id.
 
 ## Foundation Tag and Reset Linkage (MUST)
 
@@ -786,7 +810,7 @@ Reset discovery semantics remain Foundation/reset-owned.
 
 The reset discovery tag identifier is the framework-reserved DI tag string `kernel.reset`, declared by `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET` and registered in `docs/ssot/tags.md`.
 
-The compiled-container payload may carry the service ids and priorities required for reset discovery, but it MUST NOT redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
+The compiled-container payload may carry the service ids, priorities, and deterministic owner-defined metadata required for runtime discovery, but it MUST NOT redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
 
 Those rules are owned by:
 
@@ -1018,6 +1042,7 @@ At minimum, fingerprint coverage MUST detect changes to:
 - parameter value;
 - alias target;
 - effective tag priority;
+- deterministic owner-defined tag metadata;
 - shared lifecycle flag.
 
 Repeated graph compilation that produces the same canonical exported graph MUST produce the same graph fingerprint identity.

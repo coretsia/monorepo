@@ -36,11 +36,17 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
                 tag: 'kernel.reset',
                 serviceId: 'test.reset.beta',
                 priority: 10,
+                meta: [
+                    'owner' => 'first',
+                ],
             )
             ->tag(
                 tag: 'kernel.reset',
                 serviceId: 'test.reset.beta',
                 priority: 999,
+                meta: [
+                    'owner' => 'second',
+                ],
             )
             ->build();
 
@@ -53,6 +59,9 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
                 'kernel.reset' => [
                     [
                         'id' => 'test.reset.beta',
+                        'meta' => [
+                            'owner' => 'first',
+                        ],
                         'priority' => 10,
                     ],
                 ],
@@ -97,14 +106,17 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
             [
                 [
                     'id' => 'test.reset.gamma',
+                    'meta' => [],
                     'priority' => 50,
                 ],
                 [
                     'id' => 'test.reset.alpha',
+                    'meta' => [],
                     'priority' => 10,
                 ],
                 [
                     'id' => 'test.reset.beta',
+                    'meta' => [],
                     'priority' => 10,
                 ],
             ],
@@ -113,7 +125,7 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
         );
     }
 
-    public function testTagMetadataIsAcceptedAtCompileInputButNotEmittedInCompiledPayload(): void
+    public function testTagMetadataIsPreservedAsDeterministicCompiledPayloadData(): void
     {
         $definitions = new ContainerDefinitionBuilder()
             ->tag(
@@ -135,14 +147,15 @@ final class CompiledContainerPreservesTagDedupeFirstWinsTest extends TestCase
                 'kernel.reset' => [
                     [
                         'id' => 'test.reset.alpha',
+                        'meta' => [
+                            'safe_flag' => true,
+                        ],
                         'priority' => 1,
                     ],
                 ],
             ],
             $payload['tags'],
         );
-
-        self::assertArrayNotHasKey('meta', $payload['tags']['kernel.reset'][0]);
     }
 
     private static function compiler(): ContainerCompiler

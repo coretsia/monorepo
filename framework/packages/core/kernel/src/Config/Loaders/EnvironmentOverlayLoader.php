@@ -424,29 +424,33 @@ final readonly class EnvironmentOverlayLoader
             return;
         }
 
-        if (isset($rule['type']) && \is_string($rule['type']) && isset(self::SUPPORTED_ENV_TYPES[$rule['type']])) {
-            $envName = self::envNameForConfigPath($path);
+        $type = $rule['type'] ?? null;
 
-            self::addMapping(
-                mappings: $mappings,
-                path: $path,
-                env: $envName,
-                type: $rule['type'],
-                kind: self::MAPPING_KIND_RULESET,
-                precedence: $precedence,
-                sourceId: 'env-overlay/ruleset/' . $envName,
-                allowedValues: self::normalizeAllowedValues($rule['allowedValues'] ?? null),
+        if ($type === null || $type === 'map' || $type === 'list') {
+            return;
+        }
+
+        if (!\is_string($type)) {
+            throw ConfigInvalidException::withReason(
+                ConfigInvalidException::REASON_SOURCE_INVALID,
             );
+        }
 
+        if (!isset(self::SUPPORTED_ENV_TYPES[$type])) {
             return;
         }
 
-        if (!isset($rule['type']) || $rule['type'] === 'map' || $rule['type'] === 'list') {
-            return;
-        }
+        $envName = self::envNameForConfigPath($path);
 
-        throw ConfigInvalidException::withReason(
-            ConfigInvalidException::REASON_SOURCE_INVALID,
+        self::addMapping(
+            mappings: $mappings,
+            path: $path,
+            env: $envName,
+            type: $type,
+            kind: self::MAPPING_KIND_RULESET,
+            precedence: $precedence,
+            sourceId: 'env-overlay/ruleset/' . $envName,
+            allowedValues: self::normalizeAllowedValues($rule['allowedValues'] ?? null),
         );
     }
 

@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
@@ -64,6 +65,7 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
             ),
             manifestReader: $manifestReader,
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            tracer: new NoopTracer(),
             meter: $meter,
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),

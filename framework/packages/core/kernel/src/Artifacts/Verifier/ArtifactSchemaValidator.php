@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Artifacts\Verifier;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Container\Definition\TagMetadataNormalizer;
 
 /**
  * Validates parsed Kernel-owned PHP artifact schemas.
@@ -1337,7 +1338,7 @@ final readonly class ArtifactSchemaValidator
                     );
                 }
 
-                self::assertExactMapKeys($entry, ['id', 'priority']);
+                self::assertExactMapKeys($entry, ['id', 'meta', 'priority']);
                 self::assertMapKeysSortedByByteOrder($entry);
 
                 if (!\is_string($entry['id']) || !self::isSafeContainerId($entry['id'])) {
@@ -1346,7 +1347,24 @@ final readonly class ArtifactSchemaValidator
                     );
                 }
 
-                if (!\is_int($entry['priority'])) {
+                $meta = $entry['meta'];
+
+                if (!\is_array($meta) || !self::isMapArray($meta)) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                /** @var array<string, mixed> $meta */
+                try {
+                    $normalizedMeta = TagMetadataNormalizer::normalize($meta);
+                } catch (\InvalidArgumentException) {
+                    throw ArtifactInvalidException::withReason(
+                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                if ($normalizedMeta !== $meta || !\is_int($entry['priority'])) {
                     throw ArtifactInvalidException::withReason(
                         ArtifactInvalidException::REASON_SCHEMA_INVALID,
                     );

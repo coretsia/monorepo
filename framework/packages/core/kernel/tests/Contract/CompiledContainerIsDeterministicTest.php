@@ -27,6 +27,7 @@ use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
+use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
@@ -88,14 +89,90 @@ final class CompiledContainerIsDeterministicTest extends TestCase
             [
                 [
                     'id' => 'Coretsia\\Tests\\Fixture\\AlphaService',
+                    'meta' => [
+                        'flags' => [
+                            'a' => 1,
+                            'b' => 2,
+                        ],
+                        'mode' => 'runtime',
+                    ],
                     'priority' => 20,
                 ],
                 [
                     'id' => 'Coretsia\\Tests\\Fixture\\BetaService',
+                    'meta' => [],
                     'priority' => 10,
                 ],
             ],
             $payload['tags']['kernel.reset'],
+        );
+    }
+
+    public function testContainerArtifactRejectsTagEntryWithoutMetadataField(): void
+    {
+        $envelope = self::containerEnvelope(self::containerDefinitions());
+
+        unset($envelope['payload']['tags']['kernel.reset'][0]['meta']);
+
+        $this->expectException(ArtifactInvalidException::class);
+        $this->expectExceptionMessage(
+            ArtifactInvalidException::ERROR_CODE
+            . ': '
+            . ArtifactInvalidException::REASON_SCHEMA_INVALID,
+        );
+
+        new ArtifactSchemaValidator()->validateExpected(
+            envelope: $envelope,
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
+            expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
+        );
+    }
+
+    public function testContainerArtifactRejectsNonCanonicalTagMetadataOrdering(): void
+    {
+        $envelope = self::containerEnvelope(self::containerDefinitions());
+
+        $envelope['payload']['tags']['kernel.reset'][0]['meta'] = [
+            'mode' => 'runtime',
+            'flags' => [
+                'a' => 1,
+                'b' => 2,
+            ],
+        ];
+
+        $this->expectException(ArtifactInvalidException::class);
+        $this->expectExceptionMessage(
+            ArtifactInvalidException::ERROR_CODE
+            . ': '
+            . ArtifactInvalidException::REASON_SCHEMA_INVALID,
+        );
+
+        new ArtifactSchemaValidator()->validateExpected(
+            envelope: $envelope,
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
+            expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
+        );
+    }
+
+    public function testContainerArtifactRejectsUnsafeTagMetadataValue(): void
+    {
+        $envelope = self::containerEnvelope(self::containerDefinitions());
+
+        $envelope['payload']['tags']['kernel.reset'][0]['meta'] = [
+            'weight' => 1.5,
+        ];
+
+        $this->expectException(ArtifactInvalidException::class);
+        $this->expectExceptionMessage(
+            ArtifactInvalidException::ERROR_CODE
+            . ': '
+            . ArtifactInvalidException::REASON_SCHEMA_INVALID,
+        );
+
+        new ArtifactSchemaValidator()->validateExpected(
+            envelope: $envelope,
+            expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
+            expectedSchemaVersion: ArtifactEnvelopeFactory::SCHEMA_VERSION_CONTAINER,
         );
     }
 
@@ -241,6 +318,13 @@ final class CompiledContainerIsDeterministicTest extends TestCase
                 tag: 'kernel.reset',
                 serviceId: 'Coretsia\Tests\Fixture\AlphaService',
                 priority: 20,
+                meta: [
+                    'mode' => 'runtime',
+                    'flags' => [
+                        'b' => 2,
+                        'a' => 1,
+                    ],
+                ],
             )
             ->build();
     }

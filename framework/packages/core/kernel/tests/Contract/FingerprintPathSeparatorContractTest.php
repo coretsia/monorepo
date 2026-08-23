@@ -28,6 +28,7 @@ use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintExplainer;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,19 @@ final class FingerprintPathSeparatorContractTest extends TestCase
         self::assertSame(
             'config/kernel.php',
             $input['sourceCandidates']['package_config'][0]['path'],
+        );
+
+        self::assertSame(
+            'core/kernel',
+            $input['sourceCandidates']['package_config'][0]['packageId'],
+        );
+        self::assertSame(
+            'core.kernel',
+            $input['sourceCandidates']['package_config'][0]['moduleId'],
+        );
+        self::assertSame(
+            'core/kernel/config/defaults/kernel',
+            $input['sourceCandidates']['package_config'][0]['sourceId'],
         );
 
         self::assertSame(
@@ -81,6 +95,25 @@ final class FingerprintPathSeparatorContractTest extends TestCase
      */
     private static function buildInputWithBackslashPaths(): array
     {
+        $configSources = new ConfigSourceSet(
+            packageDefaultSources: [
+                [
+                    'root' => 'kernel',
+                    'packageId' => 'core/kernel',
+                    'moduleId' => 'core.kernel',
+                    'path' => 'config\\kernel.php',
+                    'filesystemPath' => self::missingPath('kernel.php'),
+                    'sourceId' => 'core/kernel/config/defaults/kernel',
+                    'precedence' => 10,
+                ],
+            ],
+            packageRuleSources: [],
+            splitRoots: [],
+            explicitRuleSources: [],
+            explicitEnvOverlayMappings: [],
+            modePresetSourceCandidates: [],
+        );
+
         return new ConfigFingerprintInputBuilder(
             containerGraphBucketBuilder: new ContainerGraphFingerprintBucketBuilder(),
         )->build(
@@ -121,18 +154,7 @@ final class FingerprintPathSeparatorContractTest extends TestCase
                     ],
                 ],
             ],
-            packageDefaultSources: [
-                [
-                    'root' => 'kernel',
-                    'packageId' => 'core.kernel',
-                    'moduleId' => 'core.kernel',
-                    'path' => 'config\\kernel.php',
-                    'filesystemPath' => self::missingPath('kernel.php'),
-                    'sourceId' => 'package-default/kernel',
-                    'precedence' => 10,
-                ],
-            ],
-            packageRuleSources: [],
+            configSources: $configSources,
         );
     }
 

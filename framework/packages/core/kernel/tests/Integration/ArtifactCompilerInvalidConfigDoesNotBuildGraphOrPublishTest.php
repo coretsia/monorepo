@@ -23,15 +23,14 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
+use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use PHPUnit\Framework\TestCase;
 
 final class ArtifactCompilerInvalidConfigDoesNotBuildGraphOrPublishTest extends TestCase
 {
     public function testInvalidConfigStopsBeforeContainerGraphAndPublication(): void
     {
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'artifact-compiler-invalid-config-gate',
-        );
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-compiler-invalid-config-gate');
         $artifactRoot = ArtifactPipelineTestSupport::artifactRoot($root);
 
         ArtifactCompilerInvalidConfigGraphSentinelProvider::$defineCalls = 0;
@@ -43,6 +42,14 @@ final class ArtifactCompilerInvalidConfigDoesNotBuildGraphOrPublishTest extends 
             );
 
             $explicitRuleSources = self::writeFailingRuleset($root);
+            $configSources = new ConfigSourceSet(
+                packageDefaultSources: [],
+                packageRuleSources: [],
+                splitRoots: [],
+                explicitRuleSources: $explicitRuleSources,
+                explicitEnvOverlayMappings: [],
+                modePresetSourceCandidates: [],
+            );
 
             try {
                 ArtifactPipelineTestSupport::artifactCompiler($this)->compile(
@@ -52,12 +59,7 @@ final class ArtifactCompilerInvalidConfigDoesNotBuildGraphOrPublishTest extends 
                     ]),
                     env: ArtifactPipelineTestSupport::envRepository(),
                     kernelConfig: ArtifactPipelineTestSupport::kernelConfig(),
-                    packageDefaultSources: [],
-                    packageRuleSources: [],
-                    splitRoots: [],
-                    explicitRuleSources: $explicitRuleSources,
-                    explicitEnvOverlayMappings: [],
-                    modePresetSourceCandidates: [],
+                    configSources: $configSources,
                 );
 
                 self::fail('Expected ConfigInvalidException was not thrown.');
@@ -154,8 +156,6 @@ final class ArtifactCompilerInvalidConfigGraphSentinelProvider implements Contai
     ): void {
         ++self::$defineCalls;
 
-        throw new \LogicException(
-            'artifact-compiler-container-graph-must-not-run-after-invalid-config',
-        );
+        throw new \LogicException('artifact-compiler-container-graph-must-not-run-after-invalid-config');
     }
 }

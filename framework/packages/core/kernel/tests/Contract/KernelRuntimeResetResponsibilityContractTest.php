@@ -85,6 +85,36 @@ final class KernelRuntimeResetResponsibilityContractTest extends TestCase
         }
     }
 
+    public function testLifecycleGateIsAcquiredBeforeContextCreationAndWrites(): void
+    {
+        $source = self::stripPhpComments(
+            self::sourceFile('src/Runtime/KernelRuntime.php'),
+        );
+
+        $gateAcquire = '$this->unitOfWorkLifecycleGate->acquire();';
+        $contextStart = '$context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);';
+
+        foreach (['runUnitOfWork', 'beginUnitOfWork'] as $methodName) {
+            $methodBody = self::methodBody($source, $methodName);
+
+            self::assertStringContainsString($gateAcquire, $methodBody);
+            self::assertStringContainsString($contextStart, $methodBody);
+
+            $gateAcquireOffset = \strpos($methodBody, $gateAcquire);
+            $contextStartOffset = \strpos($methodBody, $contextStart);
+
+            self::assertIsInt($gateAcquireOffset);
+            self::assertIsInt($contextStartOffset);
+
+            self::assertLessThan(
+                $contextStartOffset,
+                $gateAcquireOffset,
+                $methodName
+                . '() must acquire UnitOfWork lifecycle exclusivity before context creation or base context writes.',
+            );
+        }
+    }
+
     public function testRunUnitOfWorkMarksAfterPhaseRequiredOnlyAfterBeforeHooksComplete(): void
     {
         $source = self::stripPhpComments(

@@ -42,7 +42,7 @@ immutable EnvRepositoryInterface snapshot
 
 Phase A must not become a full configuration merge phase.
 
-Full configuration discovery, merge, directives, environment overlays, validation, explain output, and application config file discovery are owned by ConfigKernel Phase B.
+`ConfigSourceLocationBuilder` owns package config-source location construction before Phase B. `ConfigKernel` Phase B owns orchestration of config loading from those prepared locations, skeleton/app config loading, directives, deterministic merge, environment overlays, semantic validation, and explain output.
 
 Phase A needs to support:
 
@@ -802,7 +802,7 @@ The message must not contain:
 - stack traces;
 - environment-specific data.
 
-## Decision 14: Provider wiring registers Phase A services only
+## Decision 14: Provider wiring registers Phase A services as factories only
 
 `KernelServiceFactory` may provide deterministic constructors/factories for Bootstrap Phase A services.
 
@@ -895,16 +895,33 @@ BootstrapConfig
 EnvRepositoryInterface
 ```
 
-The current design keeps public API stable and minimal:
+The design keeps the public API stable and minimal:
 
 - entrypoints construct `BootstrapInput`;
 - internal resolver returns `BootstrapConfig`;
 - internal builder returns `EnvRepositoryInterface`;
-- entrypoint/platform owners compose these services explicitly.
+- normal artifact compile/verify entrypoints delegate compile-host orchestration to internal `KernelArtifactOperation`.
+
+For artifact compile/verify, the transport/CLI owner MUST NOT manually reconstruct the full compile-host pipeline.
+
+The canonical handoff is:
+
+```text
+transport / CLI owner
+  -> BootstrapInput
+  -> KernelArtifactOperation
+  -> BootstrapConfigResolver
+  -> EnvRepositoryBuilder
+  -> ModulePlanResolver::resolveResolution()
+  -> ConfigSourceLocationBuilder
+  -> ArtifactCompiler / CacheVerifier
+```
+
+`KernelArtifactOperation` is an internal Kernel compile-host operation.
+
+It is not a Phase-A result object, not a public bootstrap facade, and not a replacement for the narrow Phase A result values `BootstrapConfig` and `EnvRepositoryInterface`.
 
 A public bootstrap orchestration facade may be introduced only if an actual platform entrypoint contract requires it.
-
-For the current CLI use case, command owners can orchestrate explicit DI services without requiring a public `Bootstrapper` type.
 
 Example future CLI commands:
 
@@ -913,7 +930,7 @@ coretsia config:compile
 coretsia cache:verify
 ```
 
-may invoke the relevant boot/config services through DI while keeping Phase A resolution and env snapshot boundaries unchanged.
+may pass `BootstrapInput` to `KernelArtifactOperation` while keeping Phase A resolution, env snapshot construction, config-source location construction, artifact production, and cache verification ownership boundaries explicit.
 
 ## Decision 16: Phase A and Kernel compile-host services are not runtime graph definitions
 
@@ -958,14 +975,21 @@ DotenvLoader
 EnvRepositoryBuilder
 Composer metadata readers
 ModulePlanResolver
+ComposerPackageInstallPathResolver
+ConfigSourceLocationBuilder
 ConfigKernel
 artifact builders
 ArtifactCompiler
 fingerprint services
 CacheVerifier
+KernelArtifactOperation
 artifact readers and writers
 ContainerCompiler
 ```
+
+`ConfigSourceSet` is not a compile-host service.
+
+It is one immutable per-operation value produced by `ConfigSourceLocationBuilder` and consumed during one compile or verify operation. It MUST NOT be registered as a DI service or contributed to the runtime definition graph.
 
 These services may construct, compile, write, read, or verify runtime artifacts.
 
@@ -1143,7 +1167,7 @@ The public API remains small.
 
 There is no one-call public bootstrap facade.
 
-Entrypoints or platform packages must compose the resolver and builder through DI because no public bootstrap orchestration facade is defined.
+Entrypoints or platform packages that need only the narrow Phase A values may compose `BootstrapConfigResolver` and `EnvRepositoryBuilder` through DI. Normal artifact compile/verify entrypoints MUST instead pass `BootstrapInput` to internal `KernelArtifactOperation` and MUST NOT reconstruct the compile-host pipeline themselves.
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
@@ -1173,7 +1197,7 @@ Putting resolution logic into `BootstrapConfig` would mix data representation wi
 
 Rejected.
 
-Full config discovery and merge are owned by ConfigKernel Phase B.
+`ConfigSourceLocationBuilder` owns package config-source location construction, while `ConfigKernel` Phase B owns config loading and merge orchestration from already-prepared source locations.
 
 Reading full skeleton config during Phase A would create ordering drift, duplicate merge behavior, and risk reading application config before the minimal boot boundary is stable.
 
@@ -1229,9 +1253,9 @@ Rejected.
 
 A public `Bootstrapper` would compose multiple Phase A steps and would likely return both resolved config and env repository state.
 
-No current public platform entrypoint contract requires that one-call facade.
+No public platform entrypoint contract defined by this ADR requires that one-call facade.
 
-Introducing it now would freeze orchestration prematurely and could grow into a hidden lifecycle/config merge owner.
+Introducing a public one-call facade without a concrete platform entrypoint requirement would freeze orchestration prematurely and could grow into a hidden lifecycle/config merge owner.
 
 The accepted design keeps orchestration explicit and keeps `BootstrapConfigResolver` narrow and internal.
 

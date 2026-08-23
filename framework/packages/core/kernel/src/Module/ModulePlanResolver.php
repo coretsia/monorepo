@@ -21,6 +21,8 @@ namespace Coretsia\Kernel\Module;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Tracing\SpanInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
@@ -74,6 +76,8 @@ final readonly class ModulePlanResolver
 {
     private const string DISCOVERY_SOURCE_COMPOSER = 'composer';
     private const string INVALID_SOURCE_PLACEHOLDER = 'invalid';
+    private const string SPAN_MODULES_RESOLVE = 'kernel.modules_resolve';
+    private const string OPERATION_RESOLVE = 'resolve';
     private const string OUTCOME_SUCCESS = 'success';
     private const string OUTCOME_UNEXPECTED_FAILURE = 'unexpected_failure';
 
@@ -91,6 +95,7 @@ final readonly class ModulePlanResolver
         private ModePresetLoaderFactory $presetLoaderFactory,
         private ManifestReaderInterface $manifestReader,
         private ModuleGraphResolver $graphResolver,
+        private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
         private Stopwatch $stopwatch,
         private LoggerInterface $logger,
@@ -108,6 +113,7 @@ final readonly class ModulePlanResolver
     public function resolveResolution(
         BootstrapConfig $bootstrapConfig,
     ): ModuleResolution {
+        $span = $this->safeStartSpan();
         $startedAt = $this->safeStartTimer();
 
         try {
@@ -148,7 +154,8 @@ final readonly class ModulePlanResolver
 
             $this->logOptionalMissingWarnings($plan);
 
-            $this->emitResolutionSummaryForStartedAt(
+            $this->emitResolutionObservabilityForStartedAt(
+                span: $span,
                 startedAt: $startedAt,
                 outcome: self::OUTCOME_SUCCESS,
             );
@@ -165,14 +172,16 @@ final readonly class ModulePlanResolver
                 $bootstrapConfig,
             );
 
-            $this->emitResolutionSummaryForStartedAt(
+            $this->emitResolutionObservabilityForStartedAt(
+                span: $span,
                 startedAt: $startedAt,
                 outcome: $outcome,
             );
 
             throw $exception;
         } catch (\Throwable $exception) {
-            $this->emitResolutionSummaryForStartedAt(
+            $this->emitResolutionObservabilityForStartedAt(
+                span: $span,
                 startedAt: $startedAt,
                 outcome: self::OUTCOME_UNEXPECTED_FAILURE,
             );
@@ -191,6 +200,20 @@ final readonly class ModulePlanResolver
                 source: $this->discoverySource,
                 allowedSources: $this->allowedDiscoverySources,
             );
+        }
+    }
+
+    private function safeStartSpan(): ?SpanInterface
+    {
+        try {
+            return $this->tracer->startSpan(
+                self::SPAN_MODULES_RESOLVE,
+                [
+                    'operation' => self::OPERATION_RESOLVE,
+                ],
+            );
+        } catch (\Throwable) {
+            return null;
         }
     }
 
@@ -226,11 +249,58 @@ final readonly class ModulePlanResolver
         }
     }
 
-    private function emitResolutionSummaryForStartedAt(mixed $startedAt, string $outcome): void
-    {
+    private function emitResolutionObservabilityForStartedAt(
+        ?SpanInterface $span,
+        mixed $startedAt,
+        string $outcome,
+    ): void {
         $durationMs = $this->safeStopTimer($startedAt);
 
-        $this->emitResolutionSummary($outcome, $durationMs);
+        $this->safeFinishSpan(
+            $span,
+            $outcome,
+        );
+
+        $this->emitResolutionSummary(
+            $outcome,
+            $durationMs,
+        );
+    }
+
+    private function safeFinishSpan(
+        ?SpanInterface $span,
+        string $outcome,
+    ): void {
+        if ($span === null) {
+            return;
+        }
+
+        try {
+            $span->setAttributes(
+                self::resolutionObservabilityAttributes($outcome),
+            );
+        } catch (\Throwable) {
+        }
+
+        try {
+            $span->end();
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * @return array{
+     *     operation: string,
+     *     outcome: string
+     * }
+     */
+    private static function resolutionObservabilityAttributes(
+        string $outcome,
+    ): array {
+        return [
+            'operation' => self::OPERATION_RESOLVE,
+            'outcome' => $outcome,
+        ];
     }
 
     /**
@@ -253,7 +323,7 @@ final readonly class ModulePlanResolver
     private function emitResolutionSummary(string $outcome, int $durationMs): void
     {
         $labels = [
-            'operation' => 'resolve',
+            'operation' => self::OPERATION_RESOLVE,
             'outcome' => $outcome,
         ];
 

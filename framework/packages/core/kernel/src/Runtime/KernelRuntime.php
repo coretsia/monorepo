@@ -33,6 +33,7 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
 use Coretsia\Kernel\Runtime\Hook\HookContextNormalizer;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
+use Coretsia\Kernel\Runtime\Internal\UnitOfWorkLifecycleGate;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -43,8 +44,14 @@ use Psr\Log\LoggerInterface;
  * hook invocation, result export, and reset orchestration.
  *
  * The class is shallow-readonly: dependency and state-holder references are
- * fixed after construction, while the privately owned WeakMap maintains
- * mutable lifecycle state associated with active UnitOfWorkHandle instances.
+ * fixed after construction.
+ *
+ * The privately owned UnitOfWorkLifecycleGate maintains per-KernelRuntime
+ * single-active-UnitOfWork state.
+ *
+ * The privately owned WeakMap maintains exact open low-level handle identity,
+ * one-shot completion state, and the private Stopwatch token associated with
+ * each open UnitOfWorkHandle.
  *
  * Diagnostics are intentionally stable and safe. Runtime validation failures
  * surface KernelRuntimeException messages that contain only the package error
@@ -59,9 +66,17 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
 
     private const int TIMER_UNAVAILABLE = 0;
 
+    private UnitOfWorkLifecycleGate $unitOfWorkLifecycleGate;
+
     /**
-     * Private lifecycle timing state associated with the exact opaque handle
-     * instance returned by beginUnitOfWork().
+     * Canonical registry of exact open low-level lifecycle handles. Presence of
+     * the exact handle means it may still be completed; consuming it makes
+     * afterUnitOfWork() one-shot. The mapped value is the private Stopwatch
+     * token associated with that handle.
+     *
+     * UnitOfWorkLifecycleGate is the sole owner of runtime-wide single-active
+     * UnitOfWork exclusivity. This WeakMap does not determine whether the
+     * KernelRuntime as a whole currently has an active UnitOfWork.
      *
      * Stopwatch tokens are never copied into UnitOfWorkHandle::context() or any
      * exported hook, result, observability, diagnostic, or persistence payload.
@@ -84,6 +99,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         private int $attributesMaxDepth,
         private int $attributesMaxKeys,
     ) {
+        $this->unitOfWorkLifecycleGate = new UnitOfWorkLifecycleGate();
         $this->openUnitOfWorkStartTokens = new \WeakMap();
 
         if ($attributesMaxDepth < 1) {
@@ -109,45 +125,51 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         callable $body,
         array $attributes = [],
     ): mixed {
-        $context = null;
-        $bodyResult = null;
-        $primaryFailure = null;
-        $resetRequired = false;
-        $afterPhaseRequired = false;
+        $this->unitOfWorkLifecycleGate->acquire();
 
         try {
-            $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
-            $resetRequired = true;
+            $context = null;
+            $bodyResult = null;
+            $primaryFailure = null;
+            $resetRequired = false;
+            $afterPhaseRequired = false;
 
-            $contextPayload = HookContextNormalizer::normalizeContext($context);
+            try {
+                $context = $this->createUnitOfWorkContextAndWriteBaseKeys($type, $attributes);
+                $resetRequired = true;
 
-            $this->hooks->invokeBeforeHooks($contextPayload);
+                $contextPayload = HookContextNormalizer::normalizeContext($context);
 
-            $afterPhaseRequired = true;
-            $primaryFailure = $this->runBodyAndCaptureFailure($body, $bodyResult);
-        } catch (\Throwable $throwable) {
-            $primaryFailure = $throwable;
-        }
+                $this->hooks->invokeBeforeHooks($contextPayload);
 
-        if ($context !== null && $afterPhaseRequired) {
-            $primaryFailure = $this->runAfterPhaseAndSelectFailure($context, $primaryFailure);
-        }
+                $afterPhaseRequired = true;
+                $primaryFailure = $this->runBodyAndCaptureFailure($body, $bodyResult);
+            } catch (\Throwable $throwable) {
+                $primaryFailure = $throwable;
+            }
 
-        if ($resetRequired) {
-            $failure = $this->resetAndSelectFailure($primaryFailure);
+            if ($context !== null && $afterPhaseRequired) {
+                $primaryFailure = $this->runAfterPhaseAndSelectFailure($context, $primaryFailure);
+            }
 
-            if ($failure !== null) {
-                throw $failure;
+            if ($resetRequired) {
+                $failure = $this->resetAndSelectFailure($primaryFailure);
+
+                if ($failure !== null) {
+                    throw $failure;
+                }
+
+                return $bodyResult;
+            }
+
+            if ($primaryFailure !== null) {
+                throw $primaryFailure;
             }
 
             return $bodyResult;
+        } finally {
+            $this->unitOfWorkLifecycleGate->release();
         }
-
-        if ($primaryFailure !== null) {
-            throw $primaryFailure;
-        }
-
-        return $bodyResult;
     }
 
     /**
@@ -159,6 +181,9 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         string $type,
         array $attributes = [],
     ): UnitOfWorkHandle {
+        $this->unitOfWorkLifecycleGate->acquire();
+
+        $releaseGate = true;
         $context = null;
         $resetRequired = false;
 
@@ -181,6 +206,11 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
                 $context->startedAtToken(),
             );
 
+            // The exact handle is now the canonical open low-level lifecycle
+            // handle. Completion ownership transfers to the caller only after
+            // successful registration.
+            $releaseGate = false;
+
             return $handle;
         } catch (\Throwable $throwable) {
             if ($resetRequired) {
@@ -192,6 +222,10 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
             }
 
             throw $throwable;
+        } finally {
+            if ($releaseGate) {
+                $this->unitOfWorkLifecycleGate->release();
+            }
         }
     }
 
@@ -208,41 +242,41 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         ?\Throwable $error = null,
         array $extensions = [],
     ): array {
-        $primaryFailure = null;
-        $resultPayload = null;
-        $resetRequired = false;
+        $startedAtToken = $this->consumeStartedAtTokenForHandle($handle);
 
         try {
-            $startedAtToken = $this->startedAtTokenForHandle($handle);
-            $resetRequired = true;
+            $primaryFailure = null;
+            $resultPayload = null;
 
-            $unitOfWorkContext = $this->contextFromHandle($handle, $startedAtToken);
+            try {
+                $unitOfWorkContext = $this->contextFromHandle($handle, $startedAtToken);
 
-            $resultPayload = $this->runAfterPhase(
-                context: $unitOfWorkContext,
-                outcome: $outcome,
-                error: $error,
-                extensions: $extensions,
-            );
-        } catch (\Throwable $throwable) {
-            $primaryFailure = $throwable;
+                $resultPayload = $this->runAfterPhase(
+                    context: $unitOfWorkContext,
+                    outcome: $outcome,
+                    error: $error,
+                    extensions: $extensions,
+                );
+            } catch (\Throwable $throwable) {
+                $primaryFailure = $throwable;
+            }
+
+            $failure = $this->resetAndSelectFailure($primaryFailure);
+
+            if ($failure !== null) {
+                throw $failure;
+            }
+
+            if ($resultPayload === null) {
+                throw KernelRuntimeException::withReason(
+                    KernelRuntimeException::REASON_INVALID_RESULT,
+                );
+            }
+
+            return $resultPayload;
+        } finally {
+            $this->unitOfWorkLifecycleGate->release();
         }
-
-        $failure = $resetRequired
-            ? $this->resetAndSelectFailure($primaryFailure)
-            : $primaryFailure;
-
-        if ($failure !== null) {
-            throw $failure;
-        }
-
-        if ($resultPayload === null) {
-            throw KernelRuntimeException::withReason(
-                KernelRuntimeException::REASON_INVALID_RESULT,
-            );
-        }
-
-        return $resultPayload;
     }
 
     /**
@@ -466,7 +500,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
         );
     }
 
-    private function startedAtTokenForHandle(UnitOfWorkHandle $handle): int
+    private function consumeStartedAtTokenForHandle(UnitOfWorkHandle $handle): int
     {
         if (!$this->openUnitOfWorkStartTokens->offsetExists($handle)) {
             throw KernelRuntimeException::withReason(

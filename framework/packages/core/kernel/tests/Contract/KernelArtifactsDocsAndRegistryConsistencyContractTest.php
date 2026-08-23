@@ -101,12 +101,8 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
 
     public function testCompilerAndVerifierOperationResultContractsAreDocumented(): void
     {
-        $artifactSource = self::repoFile(
-            'docs/ssot/artifacts-and-fingerprint.md',
-        );
-        $cacheVerifySource = self::repoFile(
-            'docs/ssot/cache-verify.md',
-        );
+        $artifactSource = self::repoFile('docs/ssot/artifacts-and-fingerprint.md');
+        $cacheVerifySource = self::repoFile('docs/ssot/cache-verify.md');
 
         foreach (
             [
@@ -143,6 +139,39 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
                 $requiredText,
                 $cacheVerifySource,
             );
+        }
+    }
+
+    public function testCanonicalConfigSourceOperationBoundaryIsDocumented(): void
+    {
+        $artifactSource = self::repoFile('docs/ssot/artifacts-and-fingerprint.md');
+        $cacheVerifySource = self::repoFile('docs/ssot/cache-verify.md');
+        $readme = self::repoFile('framework/packages/core/kernel/README.md');
+        $docs = $artifactSource . "\n" . $cacheVerifySource;
+
+        foreach (
+            [
+                'ConfigSourceSet',
+                'ConfigSourceLocationBuilder',
+                'KernelArtifactOperation',
+            ] as $requiredText
+        ) {
+            self::assertStringContainsString($requiredText, $docs);
+        }
+
+        self::assertStringContainsString(
+            'ArtifactCompiler and CacheVerifier consume one already-built ConfigSourceSet',
+            $docs,
+        );
+
+        foreach (
+            [
+                'ComposerPackageInstallPathResolver',
+                'ConfigSourceLocationBuilder',
+                'KernelArtifactOperation',
+            ] as $compileHostService
+        ) {
+            self::assertStringContainsString($compileHostService, $readme);
         }
     }
 
@@ -228,18 +257,10 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
 
     public function testCompiledContainerUsesGenerationAwareKernelArtifactPathPolicy(): void
     {
-        $pathResolver = self::kernelSource(
-            'src/Artifacts/Paths/ArtifactPathResolver.php',
-        );
-        $artifactGeneration = self::kernelSource(
-            'src/Artifacts/Generation/ArtifactGeneration.php',
-        );
-        $artifactCompiler = self::kernelSource(
-            'src/Artifacts/Compiler/ArtifactCompiler.php',
-        );
-        $cacheVerifier = self::kernelSource(
-            'src/Artifacts/Verifier/CacheVerifier.php',
-        );
+        $pathResolver = self::kernelSource('src/Artifacts/Paths/ArtifactPathResolver.php');
+        $artifactGeneration = self::kernelSource('src/Artifacts/Generation/ArtifactGeneration.php');
+        $artifactCompiler = self::kernelSource('src/Artifacts/Compiler/ArtifactCompiler.php');
+        $cacheVerifier = self::kernelSource('src/Artifacts/Verifier/CacheVerifier.php');
 
         self::assertStringContainsString(
             '$bootstrapConfig->artifactsCacheDir()',
@@ -367,12 +388,8 @@ final class KernelArtifactsDocsAndRegistryConsistencyContractTest extends TestCa
 
     public function testCompilerAndVerifierAssertCompiledValidationBeforeDownstreamWork(): void
     {
-        $artifactCompiler = self::kernelSource(
-            'src/Artifacts/Compiler/ArtifactCompiler.php',
-        );
-        $cacheVerifier = self::kernelSource(
-            'src/Artifacts/Verifier/CacheVerifier.php',
-        );
+        $artifactCompiler = self::kernelSource('src/Artifacts/Compiler/ArtifactCompiler.php');
+        $cacheVerifier = self::kernelSource('src/Artifacts/Verifier/CacheVerifier.php');
 
         foreach (
             [

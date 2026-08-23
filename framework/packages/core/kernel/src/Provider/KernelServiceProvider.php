@@ -55,6 +55,7 @@ use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationManifestValidator;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPathResolver;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationPublisher;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationValidator;
+use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
@@ -74,6 +75,8 @@ use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Loaders\SkeletonConfigLoader;
+use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
+use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
 use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
@@ -121,10 +124,15 @@ use Psr\Log\LoggerInterface;
  * - registering ConfigKernel services does not load skeleton/app config files;
  * - registering ConfigKernel services does not build env overlays;
  * - registering ConfigKernel services does not merge, validate, or explain config;
+ * - config-location compile-host services are registered as factories only;
+ * - registration does not resolve Composer package install roots or build a
+ *   ConfigSourceSet;
  * - artifact/fingerprint/cache services are registered as factories only;
  * - registering artifact services does not write or read generated artifacts;
  * - registering fingerprint services does not calculate fingerprints;
  * - registering cache services does not run cache verification;
+ * - registering KernelArtifactOperation does not execute it, resolve
+ *   ModuleResolution, compile artifacts, or verify cache;
  * - registering artifact/fingerprint/cache services does not emit spans,
  *   metrics, logs, stdout, or stderr;
  * - RuntimeDriverResolver is registered as a factory-only stateless runtime
@@ -405,6 +413,28 @@ final class KernelServiceProvider implements
         );
 
         /*
+         * Register compile-host config-location services.
+         *
+         * These bindings are factories only. Registration does not query
+         * Composer install paths and does not build ConfigSourceSet.
+         */
+        $builder->factory(
+            ComposerPackageInstallPathResolver::class,
+            static fn (
+                Container $_container
+            ): ComposerPackageInstallPathResolver => KernelServiceFactory::composerPackageInstallPathResolver(),
+        );
+
+        $builder->factory(
+            ConfigSourceLocationBuilder::class,
+            static fn (
+                Container $container
+            ): ConfigSourceLocationBuilder => KernelServiceFactory::configSourceLocationBuilder(
+                container: $container,
+            ),
+        );
+
+        /*
          * Register Kernel artifact/fingerprint/cache services.
          *
          * These bindings are factories only. They do not write artifacts, read
@@ -650,6 +680,15 @@ final class KernelServiceProvider implements
             static fn (
                 Container $container
             ): CacheVerifier => KernelServiceFactory::cacheVerifier(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            KernelArtifactOperation::class,
+            static fn (
+                Container $container
+            ): KernelArtifactOperation => KernelServiceFactory::kernelArtifactOperation(
                 container: $container,
             ),
         );

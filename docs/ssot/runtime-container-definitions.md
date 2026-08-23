@@ -431,11 +431,14 @@ dotenv loaders
 Composer metadata readers
 ModulePlanResolver
 ContainerProviderPlanResolver
+ComposerPackageInstallPathResolver
+ConfigSourceLocationBuilder
 ConfigKernel
 artifact builders
 ArtifactCompiler
 fingerprint services
 CacheVerifier
+KernelArtifactOperation
 artifact readers and writers
 CompiledContainerFactory
 ContainerCompiler
@@ -445,9 +448,18 @@ RuntimeContainerGraphCompiler
 
 Compile-host services MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
-`ModuleResolution` and `ContainerProviderPlan` are per-operation compile-time values produced by those services.
+`ModuleResolution`, `ContainerProviderPlan`, and `ConfigSourceSet` are per-operation compile-time values produced or consumed by those services.
 
-They MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
+`ConfigSourceSet` specifically is:
+
+```text
+per-operation value
+not a DI service
+not a runtime seed
+not a runtime definition
+```
+
+These values MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
 Kernel source-host orchestration MAY additionally register a factory for:
 
@@ -920,6 +932,8 @@ Coretsia\Foundation\Tag\Internal\TagNamePolicy
 `meta` MUST NOT be a non-empty list.
 
 Typed service, parameter, and class references are not allowed in tag metadata.
+
+When canonical definitions are compiled into Kernel `DefinitionGraph` / REAL `container@1`, deterministic tag metadata MUST be preserved and MUST be restored into the artifact-runtime `TagRegistry`. Compile-time-to-runtime transport MUST NOT reinterpret owner-defined metadata keys.
 
 Tag application MUST delegate to `TagRegistry`.
 

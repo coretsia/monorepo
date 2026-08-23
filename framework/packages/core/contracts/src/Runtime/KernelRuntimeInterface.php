@@ -40,6 +40,12 @@ namespace Coretsia\Contracts\Runtime;
  * - reset orchestration;
  * - safe lifecycle result export.
  *
+ * A concrete runtime boundary MUST have at most one active unit of work. While
+ * one unit of work is active, implementations MUST reject another
+ * runUnitOfWork() or beginUnitOfWork() start on that same runtime boundary.
+ * Rejected nested or overlapping starts are not new units of work and MUST be
+ * rejected before another lifecycle starts.
+ *
  * The preferred adapter API is {@see runUnitOfWork()} because it lets the
  * runtime enforce after/reset behavior with try/finally semantics.
  *
@@ -65,6 +71,11 @@ interface KernelRuntimeInterface
     /**
      * Runs an external unit-of-work body inside KernelRuntime lifecycle
      * orchestration.
+     *
+     * Implementations MUST reject a new start while another unit of work is
+     * active on the same runtime boundary. Rejection MUST happen before another
+     * lifecycle starts, so a rejected nested or overlapping call is not a new
+     * unit of work.
      *
      * Implementations MUST begin a unit of work before invoking the body.
      * Implementations MUST enforce after-unit-of-work and reset behavior after
@@ -106,7 +117,13 @@ interface KernelRuntimeInterface
      *
      * If this method returns successfully, the caller MUST treat the returned
      * handle as an open lifecycle handle and MUST attempt exactly one matching
-     * afterUnitOfWork() call.
+     * afterUnitOfWork() call. A successful begin reserves the runtime boundary,
+     * and that reservation remains in effect after the exact open handle is
+     * returned. Another beginUnitOfWork() or runUnitOfWork() start on that same
+     * runtime boundary MUST be rejected until the matching afterUnitOfWork()
+     * completion attempt performs the required lifecycle cleanup. Whether that
+     * completion attempt succeeds or fails, the runtime boundary MUST return
+     * to an idle state after the required reset attempt.
      *
      * @param array<string, mixed> $attributes Format-neutral adapter-provided
      *                                         attributes for the unit of work.
@@ -123,6 +140,14 @@ interface KernelRuntimeInterface
      * Exported unit-of-work context/result arrays are lifecycle hook payloads.
      * Low-level adapters that need the exported result array MUST use this
      * method directly.
+     *
+     * Only the exact open handle may transfer completion ownership for the
+     * low-level lifecycle to this method. Once that exact handle is accepted,
+     * the completion attempt MUST reach the required reset attempt and return
+     * the runtime boundary to an idle state even if completion fails.
+     *
+     * A foreign or already-consumed handle MUST NOT complete, reset, or unlock
+     * another active lifecycle.
      *
      * Implementations MUST invoke after-unit-of-work hooks and reset
      * orchestration according to runtime lifecycle policy.

@@ -37,6 +37,7 @@ use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
@@ -168,6 +169,40 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertInstanceOf(NoopMeter::class, $container->get(MeterPortInterface::class));
 
         self::assertInstanceOf(KernelRuntime::class, $container->get(KernelRuntime::class));
+    }
+
+    public function testModulePlanResolverReceivesContainerTracerThroughFactory(): void
+    {
+        $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
+
+        $container = self::container(
+            $resetSpy,
+            self::validModulePlanConfig(),
+        );
+
+        $resolver = $container->get(ModulePlanResolver::class);
+
+        self::assertInstanceOf(
+            ModulePlanResolver::class,
+            $resolver,
+        );
+
+        $tracer = $container->get(TracerPortInterface::class);
+
+        self::assertInstanceOf(
+            TracerPortInterface::class,
+            $tracer,
+        );
+
+        $tracerProperty = new \ReflectionProperty(
+            ModulePlanResolver::class,
+            'tracer',
+        );
+
+        self::assertSame(
+            $tracer,
+            $tracerProperty->getValue($resolver),
+        );
     }
 
     public function testProviderDoesNotStartUnitOfWorkOrTriggerResetDuringRegistrationBuildOrResolution(): void
@@ -452,6 +487,26 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
                 ],
             ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function validModulePlanConfig(): array
+    {
+        $config = self::validConfig();
+
+        $kernelConfig = require \dirname(__DIR__, 2)
+            . \DIRECTORY_SEPARATOR
+            . 'config'
+            . \DIRECTORY_SEPARATOR
+            . 'kernel.php';
+
+        self::assertIsArray($kernelConfig);
+
+        $config['kernel'] = $kernelConfig;
+
+        return $config;
     }
 
     private static function service(Container $container, string $id): object

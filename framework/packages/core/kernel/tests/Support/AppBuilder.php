@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
@@ -236,6 +237,7 @@ final class AppBuilder
             presetLoaderFactory: $modePresetLoaderFactory,
             manifestReader: self::manifestReader($manifest),
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            tracer: new NoopTracer(),
             meter: self::meter(),
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),

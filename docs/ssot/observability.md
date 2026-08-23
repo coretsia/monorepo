@@ -224,19 +224,24 @@ This cross-reference MUST NOT introduce additional reset metric names, reset met
 
 Kernel ModulePlan resolution observability is owned by `core/kernel`.
 
-The canonical metrics are:
+The canonical span is:
 
 ```text
-kernel.modules_resolve_total
-kernel.modules_resolve_duration_ms
+kernel.modules_resolve
 ```
 
-These metric families MUST use only the following labels:
+The span MUST wrap one complete `ModulePlanResolver::resolveResolution()` operation.
+
+`ModulePlanResolver::resolve()` delegates to `resolveResolution()` and MUST NOT introduce a second nested canonical span.
+
+The ModulePlan resolver owns only the following safe summary span attributes:
 
 ```text
 operation
 outcome
 ```
+
+No additional ModulePlan-owned span attributes are allowed on this boundary.
 
 The only allowed `operation` value is:
 
@@ -258,15 +263,50 @@ cycle
 unexpected_failure
 ```
 
+When `TracerPortInterface::startSpan()` succeeds, the initial ModulePlan-owned span attributes MUST contain only:
+
+```text
+operation = resolve
+```
+
+On completion, the resolver MUST attempt one final span attribute update with:
+
+```text
+operation = resolve
+outcome = <stable outcome token>
+```
+
+If the final span attribute update succeeds, the ModulePlan-owned final span attributes MUST contain only `operation` and `outcome`.
+
+If the final span attribute update fails, the failure MUST be swallowed and `SpanInterface::end()` MUST still be attempted exactly once.
+
+The canonical metrics are:
+
+```text
+kernel.modules_resolve_total
+kernel.modules_resolve_duration_ms
+```
+
+These metric families MUST use only the following labels:
+
+```text
+operation
+outcome
+```
+
 `success` MUST be emitted only after full successful `ModulePlan` resolution.
 
 Known deterministic `ModuleResolutionException` failures MUST emit their mapped outcome token.
 
 Unexpected non-`ModuleResolutionException` throwables MUST emit `unexpected_failure` and MUST be rethrown unchanged.
 
-ModulePlan resolution observability MUST NOT expose module ids, preset names, app targets, filesystem paths, raw Composer metadata, raw preset payloads, raw exception messages, previous throwable messages, stack traces, secrets, or PII.
+The `kernel.modules_resolve` span MUST NOT expose module ids, preset names, app targets, filesystem paths, raw Composer metadata, raw preset payloads, raw exception messages, previous throwables, stack traces, secrets, or PII.
 
-ModulePlan resolution observability failures and stopwatch failures MUST NOT change `ModulePlan` resolution behavior or failure precedence.
+`SpanInterface::recordException()` MUST NOT be called on this boundary. Failure classification is represented only by the bounded canonical `outcome` attribute. This ModulePlan-resolution owner policy does not change the global `SpanInterface` contract.
+
+ModulePlan resolution observability failures and stopwatch failures MUST NOT change `ModulePlan` resolution behavior or failure precedence. This includes failures from `TracerPortInterface::startSpan()`, `SpanInterface::setAttributes()`, `SpanInterface::end()`, `MeterPortInterface`, `LoggerInterface`, and `Stopwatch`.
+
+Observability failures MUST NOT trigger recursive observability reporting on this boundary.
 
 ### Kernel config metrics label policy
 

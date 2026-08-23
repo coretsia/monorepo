@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
@@ -99,6 +100,7 @@ final class ModulePlanResolverLogsDoNotLeakPathsTest extends TestCase
                 ]),
             ),
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            tracer: new NoopTracer(),
             meter: self::nullMeter(),
             stopwatch: new Stopwatch(),
             logger: $logger,

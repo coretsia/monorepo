@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\AppTarget;
@@ -225,6 +226,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
             presetLoaderFactory: $modePresetLoaderFactory,
             manifestReader: $manifestReader,
             graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            tracer: new NoopTracer(),
             meter: self::meter(),
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),

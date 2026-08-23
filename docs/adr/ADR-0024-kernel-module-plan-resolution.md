@@ -643,11 +643,74 @@ The canonical failure key definitions for graph-policy failures are specified by
 
 ## Observability
 
-`ModulePlanResolver` emits metrics through:
+`ModulePlanResolver` emits a canonical operation span through:
+
+```text
+Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+```
+
+and metrics through:
 
 ```text
 Coretsia\Contracts\Observability\Metrics\MeterPortInterface
 ```
+
+The canonical span is:
+
+```text
+kernel.modules_resolve
+```
+
+Its lifecycle is:
+
+```text
+resolveResolution()
+↓
+start kernel.modules_resolve
+↓
+module resolution
+↓
+stable outcome classification
+↓
+attempt final safe span attributes
+↓
+attempt span end
+↓
+return/rethrow primary result
+```
+
+`resolve()` delegates to `resolveResolution()` and does not create a separate span.
+
+ModulePlan-owned span attributes are limited to:
+
+```text
+operation
+outcome
+```
+
+The stable operation value is:
+
+```text
+operation = resolve
+```
+
+Allowed outcome values are stable tokens:
+
+```text
+success
+preset_not_found
+preset_invalid
+manifest_invalid
+discovery_source_unsupported
+conflict
+required_missing
+cycle
+unexpected_failure
+```
+
+When span start succeeds, the initial ModulePlan-owned span attributes contain only `operation = resolve`.
+
+On completion, the resolver attempts final safe span attributes containing `operation = resolve` and the stable `outcome` token, then attempts to end the span.
 
 It records:
 
@@ -669,20 +732,6 @@ The `operation` label value is the stable token:
 resolve
 ```
 
-Allowed outcome values are stable tokens:
-
-```text
-success
-preset_not_found
-preset_invalid
-manifest_invalid
-discovery_source_unsupported
-conflict
-required_missing
-cycle
-unexpected_failure
-```
-
 `success` MUST be emitted only after full successful `ModulePlan` resolution.
 
 Known `ModuleResolutionException` failures MUST emit the mapped deterministic outcome token.
@@ -697,25 +746,33 @@ and MUST be rethrown unchanged.
 
 Unexpected throwables MUST NOT be logged through the deterministic module-resolution failure logger because that logger owns only safe `ModuleResolutionException` diagnostics.
 
-Metric labels for module-plan resolution are summary-only and fixed to:
+Span attributes and metric labels for module-plan resolution are summary-only and fixed to:
 
 ```text
 operation = resolve
 outcome = <stable outcome token>
 ```
 
-Metric labels MUST NOT contain:
+They MUST NOT contain:
 
 - module ids;
 - preset names;
-- paths;
+- app targets;
+- filesystem paths;
+- raw Composer metadata;
+- raw preset payloads;
 - raw errors;
 - exception messages;
+- previous throwables;
 - stack traces;
 - secrets;
 - PII.
 
-Metric backend failures MUST NOT affect module plan resolution and MUST NOT replace deterministic module resolution exceptions.
+`SpanInterface::recordException()` MUST NOT be called on the ModulePlan resolution boundary. Failure classification is represented only by the stable `outcome` token.
+
+Tracer and meter backend failures MUST NOT affect module plan resolution and MUST NOT replace deterministic module resolution exceptions.
+
+Span finalization failure MUST NOT replace the primary resolution result or exception. A `SpanInterface::setAttributes()` failure MUST NOT prevent the resolver from attempting `SpanInterface::end()` exactly once.
 
 `Stopwatch` start/stop failures used for module-plan duration metrics MUST NOT affect `ModulePlan` resolution and MUST NOT replace deterministic module resolution exceptions.
 

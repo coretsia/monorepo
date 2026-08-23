@@ -375,6 +375,7 @@ final class KernelServiceFactory
             throw new ContainerException('kernel-module-plan-dependency-invalid');
         }
 
+        $tracer = self::tracer($container);
         $meter = self::meter($container);
         $stopwatch = self::stopwatch($container);
         $logger = self::modulePlanLogger($container);
@@ -384,6 +385,7 @@ final class KernelServiceFactory
             presetLoaderFactory: $presetLoaderFactory,
             manifestReader: $manifestReader,
             graphResolver: $graphResolver,
+            tracer: $tracer,
             meter: $meter,
             stopwatch: $stopwatch,
             logger: $logger,

@@ -122,6 +122,7 @@ final class WorkerArtifactPipelineTestSupport
             graphResolver: new ModuleGraphResolver(
                 new TopologicalSorter(),
             ),
+            tracer: new NoopTracer(),
             meter: new NoopMeter(),
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),

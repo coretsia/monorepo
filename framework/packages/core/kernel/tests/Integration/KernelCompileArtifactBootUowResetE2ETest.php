@@ -22,6 +22,7 @@ use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
+use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
@@ -216,6 +217,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 graphResolver: new ModuleGraphResolver(
                     new TopologicalSorter(),
                 ),
+                tracer: new NoopTracer(),
                 meter: new NoopMeter(),
                 stopwatch: new Stopwatch(),
                 logger: new NullLogger(),
@@ -821,6 +823,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 graphResolver: new ModuleGraphResolver(
                     new TopologicalSorter(),
                 ),
+                tracer: new NoopTracer(),
                 meter: new NoopMeter(),
                 stopwatch: new Stopwatch(),
                 logger: new NullLogger(),
@@ -895,6 +898,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 graphResolver: new ModuleGraphResolver(
                     new TopologicalSorter(),
                 ),
+                tracer: new NoopTracer(),
                 meter: new NoopMeter(),
                 stopwatch: new Stopwatch(),
                 logger: new NullLogger(),

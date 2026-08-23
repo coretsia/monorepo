@@ -1070,11 +1070,20 @@ ModulePlan resolution itself does not write artifacts. Kernel artifact productio
 ModulePlan resolution emits safe observability:
 
 ```text
+span:   kernel.modules_resolve
 metric: kernel.modules_resolve_total
 metric: kernel.modules_resolve_duration_ms
-labels: operation, outcome
+
+summary attributes/labels:
+operation
+outcome
+
 operation: resolve
 ```
+
+The span wraps one `resolveResolution()` operation.
+
+Tracer failures are observability-isolated and do not change ModulePlan resolution behavior or failure precedence.
 
 Allowed `outcome` values are:
 

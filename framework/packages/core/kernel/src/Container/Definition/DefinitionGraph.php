@@ -95,7 +95,7 @@ final readonly class DefinitionGraph
      * @param array<string, array<string, mixed>> $services
      * @param array<string, string> $aliases
      * @param array<string, mixed> $parameters
-     * @param array<string, array<string, array{id: string, priority: int}>> $tags
+     * @param array<string, array<string, array{id: string, meta: array<string, mixed>, priority: int}>> $tags
      */
     private function __construct(
         private array $services,
@@ -325,12 +325,26 @@ final readonly class DefinitionGraph
      * Duplicate `(tag, serviceId)` registrations are ignored. This preserves
      * canonical Foundation first-wins tag dedupe semantics.
      *
+     * @param array<string, mixed> $meta
+     *
      * @throws ContainerCompileFailedException
      */
-    public function withTag(string $tag, string $serviceId, int $priority = 0): self
-    {
+    public function withTag(
+        string $tag,
+        string $serviceId,
+        int $priority = 0,
+        array $meta = [],
+    ): self {
         self::assertTag($tag);
         self::assertServiceId($serviceId);
+
+        try {
+            $meta = TagMetadataNormalizer::normalize($meta);
+        } catch (\InvalidArgumentException) {
+            throw ContainerCompileFailedException::withReason(
+                ContainerCompileFailedException::REASON_TAG_INVALID,
+            );
+        }
 
         $tags = $this->tags;
 
@@ -340,6 +354,7 @@ final readonly class DefinitionGraph
 
         $tags[$tag][$serviceId] = [
             'id' => $serviceId,
+            'meta' => $meta,
             'priority' => $priority,
         ];
 
@@ -372,9 +387,9 @@ final readonly class DefinitionGraph
      * Imports tags from the canonical Foundation TagRegistry without storing the
      * registry object or TaggedService objects.
      *
-     * Tag metadata is intentionally not emitted by this graph. Discovery payload
-     * requires stable service id + priority only; owner-defined meta is not
-     * required for container resolution and may contain non-payload values.
+     * Owner-defined tag metadata is retained only after it has been normalized
+     * to deterministic artifact-safe schema data. Runtime discovery consumers
+     * therefore observe the same canonical metadata after artifact-only boot.
      *
      * @throws ContainerCompileFailedException
      */
@@ -394,6 +409,7 @@ final readonly class DefinitionGraph
                     tag: $tag,
                     serviceId: $service->id(),
                     priority: $service->priority(),
+                    meta: $service->meta(),
                 );
             }
         }
@@ -426,7 +442,7 @@ final readonly class DefinitionGraph
      *     aliases: array<string, string>,
      *     parameters: array<string, mixed>,
      *     services: array<string, array<string, mixed>>,
-     *     tags: array<string, list<array{id: string, priority: int}>>
+     *     tags: array<string, list<array{id: string, meta: array<string, mixed>, priority: int}>>
      * }
      */
     public function toArray(): array
@@ -440,7 +456,7 @@ final readonly class DefinitionGraph
     }
 
     /**
-     * @return array<string, list<array{id: string, priority: int}>>
+     * @return array<string, list<array{id: string, meta: array<string, mixed>, priority: int}>>
      */
     private function tagsForExport(): array
     {
@@ -458,8 +474,18 @@ final readonly class DefinitionGraph
             $out[$tag] = [];
 
             foreach ($sorted as $item) {
+                $meta = $item['meta'] ?? null;
+
+                if (!\is_array($meta) || ($meta !== [] && \array_is_list($meta))) {
+                    throw ContainerCompileFailedException::withReason(
+                        ContainerCompileFailedException::REASON_TAG_INVALID,
+                    );
+                }
+
+                /** @var array<string, mixed> $meta */
                 $out[$tag][] = [
                     'id' => (string)$item['id'],
+                    'meta' => $meta,
                     'priority' => (int)$item['priority'],
                 ];
             }

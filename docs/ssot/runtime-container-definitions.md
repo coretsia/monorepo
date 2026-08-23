@@ -933,6 +933,8 @@ Coretsia\Foundation\Tag\Internal\TagNamePolicy
 
 Typed service, parameter, and class references are not allowed in tag metadata.
 
+When canonical definitions are compiled into Kernel `DefinitionGraph` / REAL `container@1`, deterministic tag metadata MUST be preserved and MUST be restored into the artifact-runtime `TagRegistry`. Compile-time-to-runtime transport MUST NOT reinterpret owner-defined metadata keys.
+
 Tag application MUST delegate to `TagRegistry`.
 
 For duplicate `(tag, serviceId)` registrations:

@@ -387,6 +387,8 @@ final readonly class ContainerCompiler
             ['kind', 'meta', 'priority', 'serviceId', 'tag'],
         );
 
+        $meta = [];
+
         if (\array_key_exists('meta', $descriptor)) {
             $meta = $descriptor['meta'];
 
@@ -399,10 +401,12 @@ final readonly class ContainerCompiler
             self::assertDescriptorValue($meta, 0);
         }
 
+        /** @var array<string, mixed> $meta */
         return $graph->withTag(
             tag: self::requiredString($descriptor, 'tag'),
             serviceId: self::requiredString($descriptor, 'serviceId'),
             priority: self::optionalInt($descriptor, 'priority', 0),
+            meta: $meta,
         );
     }
 

@@ -26,6 +26,7 @@ use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
+use Coretsia\Kernel\Container\Definition\TagMetadataNormalizer;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -261,7 +262,7 @@ final readonly class CompiledContainerFactory
         /** @var array<string, array<string, mixed>> $services */
         $services = $payload[self::PAYLOAD_KEY_SERVICES];
 
-        /** @var array<string, list<array{id: string, priority: int}>> $tags */
+        /** @var array<string, list<array{id: string, meta: array<string, mixed>, priority: int}>> $tags */
         $tags = $payload[self::PAYLOAD_KEY_TAGS];
 
         self::assertRuntimeGraphMap($parameters, 0);
@@ -351,7 +352,7 @@ final readonly class CompiledContainerFactory
     }
 
     /**
-     * @param array<string, list<array{id: string, priority: int}>> $tags
+     * @param array<string, list<array{id: string, meta: array<string, mixed>, priority: int}>> $tags
      *
      * @throws ContainerArtifactInvalidException
      */
@@ -379,10 +380,33 @@ final readonly class CompiledContainerFactory
                     );
                 }
 
+                self::assertExactTagEntryKeys($entry);
+
                 $serviceId = $entry['id'] ?? null;
                 $priority = $entry['priority'] ?? null;
+                $meta = $entry['meta'] ?? null;
 
-                if (!\is_string($serviceId) || !\is_int($priority)) {
+                if (
+                    !\is_string($serviceId)
+                    || !\is_int($priority)
+                    || !\is_array($meta)
+                    || !self::isMapArray($meta)
+                ) {
+                    throw ContainerArtifactInvalidException::withReason(
+                        ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                /** @var array<string, mixed> $meta */
+                try {
+                    $normalizedMeta = TagMetadataNormalizer::normalize($meta);
+                } catch (\InvalidArgumentException) {
+                    throw ContainerArtifactInvalidException::withReason(
+                        ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+                    );
+                }
+
+                if ($normalizedMeta !== $meta) {
                     throw ContainerArtifactInvalidException::withReason(
                         ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
                     );
@@ -393,6 +417,7 @@ final readonly class CompiledContainerFactory
                         tag: $tag,
                         serviceId: $serviceId,
                         priority: $priority,
+                        meta: $normalizedMeta,
                     );
                 } catch (\Throwable) {
                     throw ContainerArtifactInvalidException::withReason(
@@ -403,6 +428,32 @@ final readonly class CompiledContainerFactory
         }
 
         return $tagRegistry;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @throws ContainerArtifactInvalidException
+     */
+    private static function assertExactTagEntryKeys(array $entry): void
+    {
+        $keys = \array_keys($entry);
+
+        foreach ($keys as $key) {
+            if (!\is_string($key)) {
+                throw ContainerArtifactInvalidException::withReason(
+                    ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+                );
+            }
+        }
+
+        \sort($keys, \SORT_STRING);
+
+        if ($keys !== ['id', 'meta', 'priority']) {
+            throw ContainerArtifactInvalidException::withReason(
+                ContainerArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
     }
 
     /**

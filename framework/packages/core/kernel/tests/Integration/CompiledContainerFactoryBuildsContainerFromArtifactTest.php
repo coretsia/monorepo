@@ -78,10 +78,27 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactTest extends Test
             );
             self::assertSame('service-factory:from-compiled-parameter', $serviceFactoryProduct->value);
 
+            $tagRegistry = $container->get(TagRegistry::class);
+
             self::assertInstanceOf(
                 TagRegistry::class,
-                $container->get(TagRegistry::class),
+                $tagRegistry,
                 'Compiled runtime container must expose the TagRegistry runtime support instance.',
+            );
+
+            $resetServices = $tagRegistry->all('kernel.reset');
+
+            self::assertCount(1, $resetServices);
+            self::assertSame(
+                [
+                    'mode' => 'compiled-runtime',
+                    'nested' => [
+                        'alpha' => 1,
+                        'beta' => 2,
+                    ],
+                ],
+                $resetServices[0]->meta(),
+                'Compiled runtime tag discovery must preserve deterministic owner-defined metadata.',
             );
         } finally {
             ArtifactPipelineTestSupport::removeTree($root);
@@ -186,6 +203,13 @@ final class CompiledContainerFactoryBuildsContainerFromArtifactProvider implemen
                 tag: 'kernel.reset',
                 serviceId: CompiledContainerFactoryBuildsContainerFromArtifactService::class,
                 priority: 50,
+                meta: [
+                    'nested' => [
+                        'beta' => 2,
+                        'alpha' => 1,
+                    ],
+                    'mode' => 'compiled-runtime',
+                ],
             );
     }
 }

@@ -183,7 +183,9 @@ The compiled graph must preserve Foundation-aligned semantics:
 - later alias binding overrides earlier alias binding for the same alias;
 - later parameter binding overrides earlier parameter binding for the same parameter name;
 - tag duplicate handling remains first-wins per `(tag, serviceId)`;
-- tag discovery order remains `priority DESC, id ASC`.
+- tag discovery order remains `priority DESC, id ASC`;
+- deterministic owner-defined tag metadata survives graph compilation and artifact-only runtime hydration unchanged;
+- Kernel transports tag metadata generically and does not interpret owner-specific metadata keys.
 
 Before the graph can be written or used as expected cache state, `ContainerGraphCompletenessValidator` must reject:
 
@@ -624,6 +626,17 @@ This decision should be locked by tests covering:
 - runtime boot does not run module discovery;
 - runtime boot does not run provider fallback;
 - runtime boot does not compile a new container;
+- at least one canonical end-to-end integration acceptance test uses a
+  package-shaped fixture that declares a module dependency,
+  `defaultsConfigPath`, a container-definition provider, a validated
+  ruleset-owned config root, and a shared `ResetInterface` service; the test
+  starts from `BootstrapInput`, performs Composer-backed module resolution,
+  compiles package defaults and rules plus provider-produced runtime
+  definitions, publishes and clean-verifies one immutable generation, boots
+  that generation through `ArtifactRuntimeBooter`, resolves the fixture
+  service from the compiled container, and proves reset isolation across two
+  sequential KernelRuntime UnitOfWork lifecycles without source-config,
+  mode-resolution, provider-execution, or container-compilation fallback;
 - production compilation resolves enabled providers from one `ModuleResolution`;
 - provider definitions are collected in exact provider-plan order and merged without re-sorting;
 - `ArtifactCompiler` and `CacheVerifier` use `RuntimeContainerGraphCompiler` and expose no raw descriptor iterable;
@@ -638,6 +651,8 @@ This decision should be locked by tests covering:
 - parameter changes change the fingerprint;
 - alias target changes change the fingerprint;
 - effective tag priority changes change the fingerprint;
+- deterministic tag metadata changes change the fingerprint;
+- artifact-only runtime `TagRegistry` preserves deterministic owner-defined tag metadata without provider fallback;
 - shared lifecycle flag changes change the fingerprint;
 - incomplete graphs fail before artifact write or expected-artifact comparison;
 - canonical definition input rejects closures and callable payloads before artifact write;

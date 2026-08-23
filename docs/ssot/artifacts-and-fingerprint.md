@@ -900,6 +900,7 @@ The following semantic changes MUST change the graph SHA-256 and the complete Ke
 - parameter value;
 - alias target;
 - effective tag priority;
+- deterministic owner-defined tag metadata;
 - shared lifecycle flag.
 
 Inputs that compile to the same canonical `DefinitionGraph::toArray()` value MUST produce the same graph bucket regardless of non-semantic insertion or source-object identity differences.

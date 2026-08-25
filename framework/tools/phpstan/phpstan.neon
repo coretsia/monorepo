@@ -21,7 +21,7 @@ parameters:
         - ../../tools/testing
 
     bootstrapFiles:
-        - ../spikes/_support/bootstrap.php
+        - ../support/bootstrap.php
 
     tmpDir: ../../var/phpstan
 

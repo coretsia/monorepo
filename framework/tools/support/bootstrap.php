@@ -19,7 +19,7 @@ declare(strict_types=1);
 (static function (): void {
     $bootstrapDir = __DIR__;
 
-    $frameworkRoot = realpath($bootstrapDir . '/../../..');
+    $frameworkRoot = realpath($bootstrapDir . '/../..');
     $frameworkRoot = \is_string($frameworkRoot)
         ? rtrim(str_replace('\\', '/', $frameworkRoot), '/')
         : null;
@@ -57,7 +57,7 @@ declare(strict_types=1);
     }
 
     // Deterministic failure: do not leak absolute paths.
-    $consolePath = $bootstrapDir . '/../../support/ConsoleOutput.php';
+    $consolePath = $bootstrapDir . '/ConsoleOutput.php';
     if (\is_file($consolePath) && \is_readable($consolePath)) {
         require_once $consolePath;
 

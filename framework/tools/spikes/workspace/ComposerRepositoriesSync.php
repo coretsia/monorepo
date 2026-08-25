@@ -18,9 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\workspace;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 
 final class ComposerRepositoriesSync
 {
@@ -72,7 +72,7 @@ final class ComposerRepositoriesSync
         try {
             $originalBytes = DeterministicFile::readBytesExact($composerJsonPath);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED, $e);
         }
 
         $composerJson = self::decodeComposerJsonOrFail($originalBytes);
@@ -118,13 +118,13 @@ final class ComposerRepositoriesSync
         try {
             DeterministicFile::writeBytesExact($backupPath, $originalBytes);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
 
         try {
             DeterministicFile::writeTextLf($composerJsonPath, $syncedBytes);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
 
         return true;
@@ -326,7 +326,7 @@ final class ComposerRepositoriesSync
         try {
             $raw = DeterministicFile::readBytesExact($path);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED, $e);
         }
 
         $data = self::decodeComposerJsonOrFail(self::stripUtf8Bom($raw));

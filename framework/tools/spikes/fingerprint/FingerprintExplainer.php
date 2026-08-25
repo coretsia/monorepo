@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Tools\Spikes\fingerprint;
 
 use Coretsia\Devtools\InternalToolkit\Path;
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes;
 
 /**
  * Safe, deterministic explain builder for the fingerprint spike.

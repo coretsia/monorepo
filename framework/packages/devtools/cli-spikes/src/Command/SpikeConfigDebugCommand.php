@@ -25,9 +25,9 @@ use Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrap;
 use Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrapFailedException;
 use Coretsia\Devtools\CliSpikes\Spikes\SpikesExitCodeMapper;
 use Coretsia\Platform\Cli\Error\ErrorCodes as CliErrorCodes;
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\ErrorCodes as SpikeErrorCodes;
 use Coretsia\Tools\Spikes\config_merge\ConfigDebugWorkflow;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes as ToolsErrorCodes;
 
 /**
  * Phase 0 spike command: debug config merge trace for a dot-key.
@@ -110,7 +110,7 @@ final class SpikeConfigDebugCommand implements CommandInterface
             return SpikesExitCodeMapper::success();
         } catch (DeterministicException $e) {
             if (
-                $e->code() === SpikeErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID
+                $e->code() === ToolsErrorCodes::CORETSIA_SPIKES_FIXTURE_PATH_INVALID
                 && self::isCliConfigInvalidMessage($e->getMessage())
             ) {
                 $output->error(CliErrorCodes::CORETSIA_CLI_CONFIG_INVALID, $e->getMessage());

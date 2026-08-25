@@ -16,11 +16,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class DeterministicFileEolNormalizationContractTest extends TestCase
@@ -31,7 +31,7 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
     {
         $this->root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
-            . 'coretsia-spikes-deterministicfile-'
+            . 'coretsia-tools-deterministicfile-'
             . substr(hash('sha256', __FILE__), 0, 16);
 
         $this->rmDir($this->root);
@@ -91,8 +91,8 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
             DeterministicFile::readTextNormalizedEol($path);
             self::fail('Expected DeterministicException was not thrown.');
         } catch (DeterministicException $e) {
-            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED);
-            self::assertSame('spikes-io-read-failed', $e->getMessage());
+            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED);
+            self::assertSame('tools-io-read-failed', $e->getMessage());
             self::assertNull($e->getPrevious());
 
             self::assertStringNotContainsString($token, $e->getMessage());
@@ -112,8 +112,8 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
             DeterministicFile::readTextNormalizedEol($path);
             self::fail('Expected DeterministicException was not thrown.');
         } catch (DeterministicException $e) {
-            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED);
-            self::assertSame('spikes-io-read-failed', $e->getMessage());
+            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED);
+            self::assertSame('tools-io-read-failed', $e->getMessage());
             self::assertNull($e->getPrevious());
 
             // No path/token leak.
@@ -147,8 +147,8 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
             DeterministicFile::writeBytesExact($dirAsFile, 'abc');
             self::fail('Expected DeterministicException was not thrown.');
         } catch (DeterministicException $e) {
-            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
-            self::assertSame('spikes-io-write-failed', $e->getMessage());
+            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
+            self::assertSame('tools-io-write-failed', $e->getMessage());
             self::assertNull($e->getPrevious());
 
             self::assertStringNotContainsString($token, $e->getMessage());
@@ -168,8 +168,8 @@ final class DeterministicFileEolNormalizationContractTest extends TestCase
             DeterministicFile::writeBytesExact($path, 'abc');
             self::fail('Expected DeterministicException was not thrown.');
         } catch (DeterministicException $e) {
-            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
-            self::assertSame('spikes-io-write-failed', $e->getMessage());
+            $this->assertDeterministicCode($e, ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
+            self::assertSame('tools-io-write-failed', $e->getMessage());
             self::assertNull($e->getPrevious());
 
             // No path/token leak.

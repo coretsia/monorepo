@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\deptrac;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes;
 
 /**
  * Tools-only workflow for deptrac graph artifact generation.
@@ -210,7 +210,7 @@ final class DeptracGraphWorkflow
             \restore_error_handler();
 
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 'output-dir-create-failed',
                 $e,
             );
@@ -220,7 +220,7 @@ final class DeptracGraphWorkflow
 
         if ($hadPhpError || ($ok !== true && !\is_dir($outputDirAbs))) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 'output-dir-create-failed',
             );
         }

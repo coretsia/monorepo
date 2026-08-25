@@ -126,10 +126,6 @@ final class ConsoleOutputReservedForGatesOnlyTest extends TestCase
     {
         $path = \str_replace('\\', '/', $absPath);
 
-        if (\str_ends_with($path, '/framework/tools/spikes/_support/ConsoleOutput.php')) {
-            return true;
-        }
-
         if (\str_ends_with($path, '/framework/tools/spikes/_support/DeterminismRunner.php')) {
             return true;
         }

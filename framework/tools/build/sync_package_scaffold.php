@@ -43,11 +43,11 @@ declare(strict_types=1);
     });
 
     if ($toolsRootRuntime === null) {
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED',
                 [],
             );
@@ -56,17 +56,17 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
-    $deterministicExceptionFile = $toolsRootRuntime . '/spikes/_support/DeterministicException.php';
-    $deterministicFileFile = $toolsRootRuntime . '/spikes/_support/DeterministicFile.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
+    $deterministicExceptionFile = $toolsRootRuntime . '/support/DeterministicException.php';
+    $deterministicFileFile = $toolsRootRuntime . '/support/DeterministicFile.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     $fallbackOutOfSync = 'CORETSIA_PACKAGE_SCAFFOLD_OUT_OF_SYNC';
     $fallbackSyncFailed = 'CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED';
@@ -861,7 +861,7 @@ function coretsia_sync_package_scaffold_write_file_exact(string $path, string $c
 {
     coretsia_sync_package_scaffold_ensure_dir(\dirname($path));
 
-    \Coretsia\Tools\Spikes\_support\DeterministicFile::writeBytesExact($path, $contents);
+    \Coretsia\Tools\Support\DeterministicFile::writeBytesExact($path, $contents);
 }
 
 function coretsia_sync_package_scaffold_ensure_dir(string $dir): void

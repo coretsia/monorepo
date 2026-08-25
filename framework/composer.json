@@ -51,7 +51,8 @@
   "autoload-dev": {
     "psr-4": {
       "Coretsia\\Tools\\Tests\\": "tools/tests/",
-      "Coretsia\\Tools\\Spikes\\": "tools/spikes/"
+      "Coretsia\\Tools\\Spikes\\": "tools/spikes/",
+      "Coretsia\\Tools\\Support\\": "tools/support/"
     },
     "exclude-from-classmap": [
       "tools/spikes/fixtures/",

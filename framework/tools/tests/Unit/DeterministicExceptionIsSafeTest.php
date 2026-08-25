@@ -16,10 +16,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class DeterministicExceptionIsSafeTest extends TestCase

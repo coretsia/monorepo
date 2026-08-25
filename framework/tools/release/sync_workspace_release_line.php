@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class SyncWorkspaceReleaseLine
 {
@@ -49,7 +49,7 @@ final class SyncWorkspaceReleaseLine
 
         if ($check) {
             if ($changed) {
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_OUT_OF_SYNC,
                     [self::rel($repoRoot, $frameworkComposerPath)],
                 );
@@ -59,10 +59,10 @@ final class SyncWorkspaceReleaseLine
             return 0;
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
 
         if ($changed) {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $frameworkComposerPath), false);
+            \Coretsia\Tools\Support\ConsoleOutput::line(self::rel($repoRoot, $frameworkComposerPath), false);
         }
 
         return 0;
@@ -277,7 +277,7 @@ final class SyncWorkspaceReleaseLine
 
         if ($changed && $apply) {
             self::writeBackupIfNeeded($frameworkComposerPath, $originalBytes, $repoRoot);
-            \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($frameworkComposerPath, $newJson);
+            \Coretsia\Tools\Support\DeterministicFile::writeTextLf($frameworkComposerPath, $newJson);
         }
 
         return $changed;
@@ -348,7 +348,7 @@ final class SyncWorkspaceReleaseLine
             }
         }
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeBytesExact($dst, $originalBytes);
+        \Coretsia\Tools\Support\DeterministicFile::writeBytesExact($dst, $originalBytes);
     }
 
     /**
@@ -668,6 +668,6 @@ try {
     exit(SyncWorkspaceReleaseLine::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(SyncWorkspaceReleaseLine::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(SyncWorkspaceReleaseLine::CODE_FAILED . ": {$msg}");
     exit(1);
 }

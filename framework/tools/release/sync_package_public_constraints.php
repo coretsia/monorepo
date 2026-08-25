@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class SyncPackagePublicConstraints
 {
@@ -56,7 +56,7 @@ final class SyncPackagePublicConstraints
 
         if ($check) {
             if ($changedFiles !== []) {
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_OUT_OF_SYNC,
                     $changedFiles,
                 );
@@ -67,8 +67,8 @@ final class SyncPackagePublicConstraints
             return 0;
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::lines($changedFiles, false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::lines($changedFiles, false);
 
         return 0;
     }
@@ -283,7 +283,7 @@ final class SyncPackagePublicConstraints
 
         if ($apply) {
             self::writeBackupIfNeeded($composerJsonPath, $originalBytes, $repoRoot);
-            \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($composerJsonPath, $newJson);
+            \Coretsia\Tools\Support\DeterministicFile::writeTextLf($composerJsonPath, $newJson);
         }
 
         return true;
@@ -355,7 +355,7 @@ final class SyncPackagePublicConstraints
             }
         }
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeBytesExact($dst, $originalBytes);
+        \Coretsia\Tools\Support\DeterministicFile::writeBytesExact($dst, $originalBytes);
     }
 
     /**
@@ -675,6 +675,6 @@ try {
     exit(SyncPackagePublicConstraints::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(SyncPackagePublicConstraints::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(SyncPackagePublicConstraints::CODE_FAILED . ": {$msg}");
     exit(1);
 }

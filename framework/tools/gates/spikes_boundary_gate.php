@@ -44,11 +44,11 @@ declare(strict_types=1);
     // Bootstrap discovery/loading MUST be independent from --path (scan-only).
     if ($toolsRootRuntime === null) {
         // Best-effort local include (tools-only); do not leak absolute paths.
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
                 [],
             );
@@ -85,15 +85,15 @@ declare(strict_types=1);
         break;
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
 
     // If bootstrap missing/unreadable: MUST print SCAN_FAILED using ConsoleOutput (tools-only include), exit 1.
     if (!\is_file($bootstrap) || !\is_readable($bootstrap)) {
-        $consolePath = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
+        $consolePath = $toolsRootRuntime . '/support/ConsoleOutput.php';
         if (\is_file($consolePath) && \is_readable($consolePath)) {
             require_once $consolePath;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
                 [],
             );
@@ -105,8 +105,8 @@ declare(strict_types=1);
     // NOTE (cemented): if bootstrap exists but terminates (e.g. autoload missing), its output is authoritative.
     require_once $bootstrap;
 
-    $consolePath = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesPath = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $consolePath = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesPath = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     if (
         !\is_file($consolePath)
@@ -117,7 +117,7 @@ declare(strict_types=1);
         if (\is_file($consolePath) && \is_readable($consolePath)) {
             require_once $consolePath;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED',
                 [],
             );
@@ -129,8 +129,8 @@ declare(strict_types=1);
     require_once $consolePath;
     require_once $errorCodesPath;
 
-    $ConsoleOutput = \Coretsia\Tools\Spikes\_support\ConsoleOutput::class;
-    $ErrorCodes = \Coretsia\Tools\Spikes\_support\ErrorCodes::class;
+    $ConsoleOutput = \Coretsia\Tools\Support\ConsoleOutput::class;
+    $ErrorCodes = \Coretsia\Tools\Support\ErrorCodes::class;
 
     /**
      * Forbidden namespace roots (cemented).

@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Tools\Spikes\payload;
 
 use Coretsia\Devtools\InternalToolkit\Json;
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes;
 
 /**
  * Thin stable JSON encoder wrapper for the payload spike (Epic 0.70.0).

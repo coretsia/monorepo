@@ -23,9 +23,9 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleOutputFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleOutputFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     $scanRoot = $toolsRootRuntime;
     $override = coretsia_spikes_output_gate_parse_scan_root_override($argv);
@@ -62,7 +62,7 @@ declare(strict_types=1);
     require_once $errorCodesFile;
 
     /** @var class-string $errorCodesFqcn */
-    $errorCodesFqcn = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $errorCodesFqcn = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     try {
         $scanRootNorm = rtrim(str_replace('\\', '/', $scanRoot), '/');
@@ -81,7 +81,7 @@ declare(strict_types=1);
             }
         }
 
-        $allowlistedRel = 'spikes/_support/ConsoleOutput.php';
+        $allowlistedRel = 'support/ConsoleOutput.php';
 
         $directSinks = coretsia_spikes_output_gate_build_direct_output_sinks();
         $bypassFiles = [];
@@ -163,7 +163,7 @@ function coretsia_spikes_output_gate_safe_emit_scan_failed(string $consoleOutput
     if (is_file($errorCodesFile) && is_readable($errorCodesFile)) {
         require_once $errorCodesFile;
 
-        $errorCodesFqcn = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+        $errorCodesFqcn = 'Coretsia\\Tools\\Support\\ErrorCodes';
         $constantName = $errorCodesFqcn . '::CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED';
 
         if (defined($constantName)) {
@@ -572,8 +572,8 @@ function coretsia_spikes_output_gate_safe_emit_lines(array $lines): void
         return;
     }
 
-    /** @var class-string<\Coretsia\Tools\Spikes\_support\ConsoleOutput> $fqcn */
-    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    /** @var class-string<\Coretsia\Tools\Support\ConsoleOutput> $fqcn */
+    $fqcn = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     if (!class_exists($fqcn)) {
         return;

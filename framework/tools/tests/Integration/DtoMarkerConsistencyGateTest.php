@@ -228,7 +228,7 @@ PHP,
         $fixtureRoot = $this->tempDir('dto-marker-missing-bootstrap');
         $toolsRoot = $fixtureRoot . '/tools';
         $gateDir = $toolsRoot . '/gates';
-        $supportDir = $toolsRoot . '/spikes/_support';
+        $supportDir = $toolsRoot . '/support';
 
         $this->writeBytesExact(
             $gateDir . '/dto_marker_consistency_gate.php',
@@ -237,12 +237,12 @@ PHP,
 
         $this->writeBytesExact(
             $supportDir . '/ConsoleOutput.php',
-            $this->readBytes($this->frameworkRoot() . '/tools/spikes/_support/ConsoleOutput.php'),
+            $this->readBytes($this->frameworkRoot() . '/tools/support/ConsoleOutput.php'),
         );
 
         $this->writeBytesExact(
             $supportDir . '/ErrorCodes.php',
-            $this->readBytes($this->frameworkRoot() . '/tools/spikes/_support/ErrorCodes.php'),
+            $this->readBytes($this->frameworkRoot() . '/tools/support/ErrorCodes.php'),
         );
 
         $scanRoot = $this->syntheticFrameworkRoot('dto-marker-bootstrap-scan-root');

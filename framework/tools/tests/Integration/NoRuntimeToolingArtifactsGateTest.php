@@ -352,8 +352,8 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         );
 
         $this->copyDir(
-            $this->frameworkRoot() . '/tools/spikes/_support',
-            $sandbox . '/framework/tools/spikes/_support',
+            $this->frameworkRoot() . '/tools/support',
+            $sandbox . '/framework/tools/support',
         );
 
         if ($includeRuntimePackageRoot) {

@@ -18,10 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\deptrac;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
 use Coretsia\Tools\Spikes\_support\FixtureRoot;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 
 /**
  * GraphArtifactBuilder (Epic 0.80.0) [SPIKE]:

@@ -619,7 +619,7 @@ PHP,
         $fixtureRoot = $this->tempDir('dto-no-logic-missing-bootstrap');
         $toolsRoot = $fixtureRoot . '/tools';
         $gateDir = $toolsRoot . '/gates';
-        $supportDir = $toolsRoot . '/spikes/_support';
+        $supportDir = $toolsRoot . '/support';
 
         $this->writeBytesExact(
             $gateDir . '/dto_no_logic_gate.php',
@@ -628,12 +628,12 @@ PHP,
 
         $this->writeBytesExact(
             $supportDir . '/ConsoleOutput.php',
-            $this->readBytes($this->frameworkRoot() . '/tools/spikes/_support/ConsoleOutput.php'),
+            $this->readBytes($this->frameworkRoot() . '/tools/support/ConsoleOutput.php'),
         );
 
         $this->writeBytesExact(
             $supportDir . '/ErrorCodes.php',
-            $this->readBytes($this->frameworkRoot() . '/tools/spikes/_support/ErrorCodes.php'),
+            $this->readBytes($this->frameworkRoot() . '/tools/support/ErrorCodes.php'),
         );
 
         $scanRoot = $this->syntheticFrameworkRoot('dto-no-logic-bootstrap-scan-root');

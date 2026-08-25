@@ -82,7 +82,7 @@ Tooling **MUST NOT** duplicate these primitives anywhere under `framework/tools/
 
 - Spike business logic **MUST** be output-free (no direct stdout/stderr writes).
 - The only allowlisted writer for Phase 0 rails is:
-  - `framework/tools/spikes/_support/ConsoleOutput.php`
+  - `framework/tools/support/ConsoleOutput.php`
 
 Reserved usage (single-choice):
 
@@ -177,7 +177,7 @@ The spikes PHPUnit config is **dedicated** and MUST remain repo-write-free:
 
 ## Bootstrap rules (tools rails bootstrap)
 
-`framework/tools/spikes/_support/bootstrap.php` is the canonical bootstrap for:
+`framework/tools/support/bootstrap.php` is the canonical bootstrap for:
 
 - spikes test suite
 - gates (they `require_once` bootstrap before scanning)
@@ -189,7 +189,7 @@ Autoload probing is **ordered fallback** (single-choice):
 
 No other probing is allowed. If autoload is missing, bootstrap fails deterministically:
 
-- line 1: `CORETSIA_SPIKES_BOOTSTRAP_AUTOLOAD_MISSING`
+- line 1: `CORETSIA_TOOLS_BOOTSTRAP_AUTOLOAD_MISSING`
 - line 2: `autoload-missing`
 - exit code: `1`
 
@@ -245,14 +245,14 @@ The Windows job must run in an environment that allows symlink creation.
 ## Error codes (deterministic, shared)
 
 Phase 0 rails use deterministic string error codes (stable identifiers).
-They are owned by `framework/tools/spikes/_support/ErrorCodes.php`.
+They are owned by `framework/tools/support/ErrorCodes.php`.
 
 Key codes (initial registry for 0.20.0):
 
 - `CORETSIA_DETERMINISM_GIT_REQUIRED`
 - `CORETSIA_DETERMINISM_WORKTREE_DIRTY`
 - `CORETSIA_DETERMINISM_RERUN_FAILED`
-- `CORETSIA_SPIKES_BOOTSTRAP_AUTOLOAD_MISSING`
+- `CORETSIA_TOOLS_BOOTSTRAP_AUTOLOAD_MISSING`
 - `CORETSIA_SPIKES_FIXTURE_PATH_INVALID`
 - `CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED`
 - `CORETSIA_SPIKES_OUTPUT_GATE_SCAN_FAILED`
@@ -319,7 +319,7 @@ fwrite(STDOUT, "x"); // forbidden (stdout/stderr sink)
 
 declare(strict_types=1);
 
-use Coretsia\Tools\Spikes\_support\ConsoleOutput;
+use Coretsia\Tools\Support\ConsoleOutput;
 
 // allowed ONLY in rails (gates/runner/bootstrap diagnostics)
 ConsoleOutput::line('SOME_DETERMINISTIC_CODE');

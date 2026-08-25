@@ -18,10 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\tests;
 
-use Coretsia\Tools\Spikes\_support\ConsoleOutput;
 use Coretsia\Tools\Spikes\_support\DeterminismRunner;
 use Coretsia\Tools\Spikes\_support\ProcessResult;
 use Coretsia\Tools\Spikes\_support\ProcessRunnerInterface;
+use Coretsia\Tools\Support\ConsoleOutput;
 use PHPUnit\Framework\TestCase;
 
 final class DeterminismRunnerSafeIntegrationTest extends TestCase
@@ -43,7 +43,7 @@ final class DeterminismRunnerSafeIntegrationTest extends TestCase
         parent::setUp();
 
         // Ensure classes are loaded in a deterministic way for stream swapping.
-        require_once __DIR__ . '/../_support/ConsoleOutput.php';
+        require_once __DIR__ . '/../../support/ConsoleOutput.php';
         require_once __DIR__ . '/../_support/ProcessResult.php';
         require_once __DIR__ . '/../_support/ProcessRunnerInterface.php';
         require_once __DIR__ . '/../_support/DeterminismRunner.php';

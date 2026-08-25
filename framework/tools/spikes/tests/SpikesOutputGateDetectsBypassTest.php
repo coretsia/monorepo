@@ -53,7 +53,7 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
 
                 declare(strict_types=1);
 
-                use Coretsia\Tools\Spikes\_support\ConsoleOutput;
+                use Coretsia\Tools\Support\ConsoleOutput;
 
                 // This is scan-only; the gate must NOT treat ConsoleOutput usage as a bypass.
                 ConsoleOutput::line('ok');
@@ -62,7 +62,7 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
 
             // Cement the NOTE: If gate incorrectly loads bootstrap from scan-root, this would terminate.
             self::writePhp(
-                $tmpRoot . '/spikes/_support/bootstrap.php',
+                $tmpRoot . '/support/bootstrap.php',
                 <<<'PHP'
                 <?php
                 exit(123);
@@ -154,9 +154,9 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
 
         $tmpRoot = self::createTempScanRoot();
         try {
-            // Cement: allowlisted file spikes/_support/ConsoleOutput.php is ignored by the gate.
+            // Cement: allowlisted file support/ConsoleOutput.php is ignored by the gate.
             self::writePhp(
-                $tmpRoot . '/spikes/_support/ConsoleOutput.php',
+                $tmpRoot . '/support/ConsoleOutput.php',
                 <<<'PHP'
                 <?php
 
@@ -419,7 +419,7 @@ final class SpikesOutputGateDetectsBypassTest extends TestCase
         self::mkdirp($dir . '/gates');
 
         // Keep expected structure ready (includes + excludes + allowlist paths).
-        self::mkdirp($dir . '/spikes/_support');
+        self::mkdirp($dir . '/support');
         self::mkdirp($dir . '/spikes/tests');
         self::mkdirp($dir . '/spikes/fixtures');
         self::mkdirp($dir . '/gates/tests');

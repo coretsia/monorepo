@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\tests;
 
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

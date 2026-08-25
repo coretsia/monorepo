@@ -16,9 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class ErrorCodesRegistryIsConsistentTest extends TestCase
@@ -143,7 +143,7 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
     public function testCodesReferencedByRunnerAndGatesExistInRegistry(): void
     {
         // (optional but recommended) Codes used by DeterminismRunner/Gates should exist in registry.
-        // Best-effort scan: only enforce prefixes owned by Phase 0 rails.
+        // Best-effort scan: enforce selected ErrorCodes families used by the scanned tooling.
         $toolsRoot = realpath(__DIR__ . '/../..'); // framework/tools
         if (!is_string($toolsRoot) || $toolsRoot === '') {
             self::markTestSkipped('tools-root-unresolvable');
@@ -151,7 +151,9 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
 
         $candidates = [
             $toolsRoot . '/spikes/_support/DeterminismRunner.php',
-            $toolsRoot . '/spikes/_support/bootstrap.php',
+            $toolsRoot . '/support/bootstrap.php',
+            $toolsRoot . '/support/DeterministicFile.php',
+            $toolsRoot . '/gates/spikes_io_policy_gate.php',
             $toolsRoot . '/gates/spikes_output_gate.php',
             $toolsRoot . '/gates/repo_text_normalization_gate.php',
         ];
@@ -160,8 +162,10 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
         // Do NOT include broad "CORETSIA_SPIKES_" because it also matches env vars like CORETSIA_SPIKES_TMP.
         $prefixes = [
             'CORETSIA_DETERMINISM_',
-            'CORETSIA_SPIKES_BOOTSTRAP_',
+            'CORETSIA_TOOLS_BOOTSTRAP_',
+            'CORETSIA_TOOLS_IO_',
             'CORETSIA_SPIKES_FIXTURE_',
+            'CORETSIA_SPIKES_IO_POLICY_',
             'CORETSIA_SPIKES_OUTPUT_',
             'CORETSIA_REPO_TEXT_',
         ];

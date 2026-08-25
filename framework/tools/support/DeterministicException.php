@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\_support;
+namespace Coretsia\Tools\Support;
 
 final class DeterministicException extends \RuntimeException
 {
@@ -50,7 +50,7 @@ final class DeterministicException extends \RuntimeException
 
     private static function assertSafeMessage(string $message): void
     {
-        // Enforce single-line and block obvious leak vectors (Phase 0 rails strictness).
+        // Enforce single-line and block obvious leak vectors for repository tooling.
         if (
             $message === ''
             || str_contains($message, "\0")

@@ -26,7 +26,7 @@ use Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrapFailedException;
 use Coretsia\Devtools\CliSpikes\Spikes\SpikesExitCodeMapper;
 use Coretsia\Devtools\CliSpikes\Spikes\SpikesPaths;
 use Coretsia\Platform\Cli\Error\ErrorCodes as CliErrorCodes;
-use Coretsia\Tools\Spikes\_support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicException;
 
 final class DoctorCommand implements CommandInterface
 {

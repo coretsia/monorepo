@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\tests\fingerprint;
 
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
 use Coretsia\Tools\Spikes\fingerprint\FingerprintCalculator;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class FingerprintDeterministicExceptionCodesTest extends TestCase
@@ -137,11 +137,11 @@ final class FingerprintDeterministicExceptionCodesTest extends TestCase
 
         // Match both:
         //   new DeterministicException(...)
-        //   new \Coretsia\Tools\Spikes\_support\DeterministicException(...)
+        //   new \Coretsia\Tools\Support\DeterministicException(...)
         //
         // Capture ONLY the first argument before the first comma.
         preg_match_all(
-            '~new\s+(?:\\\\?Coretsia\\\\Tools\\\\Spikes\\\\_support\\\\)?DeterministicException\s*\(\s*(.+?)\s*,~s',
+            '~new\s+(?:\\\\?Coretsia\\\\Tools\\\\Support\\\\)?DeterministicException\s*\(\s*(.+?)\s*,~s',
             $src,
             $matches,
         );
@@ -164,13 +164,13 @@ final class FingerprintDeterministicExceptionCodesTest extends TestCase
     /**
      * Accepts expressions like:
      *   ErrorCodes::FOO
-     *   \Coretsia\Tools\Spikes\_support\ErrorCodes::FOO
+     *   \Coretsia\Tools\Support\ErrorCodes::FOO
      *
      * Returns "FOO" or null.
      */
     private function extractErrorCodesConstantName(string $expr): ?string
     {
-        if (\preg_match('~(?:\\\\?Coretsia\\\\Tools\\\\Spikes\\\\_support\\\\)?ErrorCodes::([A-Z0-9_]+)\z~', $expr, $m) === 1) {
+        if (\preg_match('~(?:\\\\?Coretsia\\\\Tools\\\\Support\\\\)?ErrorCodes::([A-Z0-9_]+)\z~', $expr, $m) === 1) {
             return (string)$m[1];
         }
 

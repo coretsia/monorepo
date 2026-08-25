@@ -227,10 +227,6 @@ final class ToolsSpikesDoNotWriteToStdoutTest extends TestCase
     {
         $path = \str_replace('\\', '/', $absPath);
 
-        if (\str_ends_with($path, '/framework/tools/spikes/_support/ConsoleOutput.php')) {
-            return true;
-        }
-
         if (\str_contains($path, '/framework/tools/spikes/tests/')) {
             return true;
         }

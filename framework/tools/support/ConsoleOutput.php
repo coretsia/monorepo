@@ -16,13 +16,13 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\_support;
+namespace Coretsia\Tools\Support;
 
 /**
- * Stable console writer for Phase 0 tooling rails (spikes + gates).
+ * Stable console writer for repository tooling rails.
  *
  * Policy (cemented by roadmap):
- * - This is the ONLY allowlisted stdout/stderr writer for Phase 0 tooling rails.
+ * - This is the ONLY allowlisted stdout/stderr writer for repository tooling rails.
  * - Callers MUST NOT print secrets/PII; only deterministic codes + normalized repo-relative paths.
  * - Output MUST be stable across OS (LF-only, no CRLF, no absolute paths, no env values).
  *

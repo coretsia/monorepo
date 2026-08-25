@@ -43,7 +43,7 @@ final class SpikeModulesDoNotUseConsoleOutputTest extends TestCase
 
     /**
      * Token-based scan of framework/tools/spikes/** excluding:
-     *  - framework/tools/spikes/_support/**
+     *  - framework/tools/support/**
      *  - framework/tools/spikes/tests/**
      *  - framework/tools/spikes/fixtures/**
      *

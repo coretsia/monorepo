@@ -18,10 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\workspace\tests;
 
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
 use Coretsia\Tools\Spikes\workspace\ComposerJsonCanonicalizer;
 use Coretsia\Tools\Spikes\workspace\NewPackageWorkflow;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class NewPackageAtomicWorkflowPrototypeTest extends TestCase

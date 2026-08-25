@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\config_merge\tests;
 
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
 use Coretsia\Tools\Spikes\config_merge\DirectiveProcessor;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\TestCase;
 
 final class DirectivesTypingRulesTest extends TestCase

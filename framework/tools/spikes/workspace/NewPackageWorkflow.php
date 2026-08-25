@@ -18,9 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\workspace;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 
 final class NewPackageWorkflow
 {
@@ -134,7 +134,7 @@ final class NewPackageWorkflow
         } catch (DeterministicException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         } finally {
             // Best-effort cleanup; MUST NOT mask the primary error.
             try {
@@ -250,7 +250,7 @@ final class NewPackageWorkflow
         try {
             DeterministicFile::writeTextLf(self::joinPath($packageDir, 'composer.json'), $composerJsonBytes);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
     }
 
@@ -378,7 +378,7 @@ final class NewPackageWorkflow
             throw $e;
         } catch (\Throwable $e) {
             self::rollbackOrFail($rollback);
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
     }
 
@@ -469,7 +469,7 @@ final class NewPackageWorkflow
                 \array_pop($rollback['files']);
             }
 
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
     }
 
@@ -484,13 +484,13 @@ final class NewPackageWorkflow
 
         $ok = self::guardWrite(static fn (): bool => \unlink($path));
         if ($ok !== true) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
         }
     }
 
     /**
      * Rollback MUST restore pre-run bytes and remove created artifacts using rename/move only (no in-place writes).
-     * If rollback fails, it throws CORETSIA_SPIKES_IO_WRITE_FAILED.
+     * If rollback fails, it throws CORETSIA_TOOLS_IO_WRITE_FAILED.
      *
      * @param array{
      *   files:list<array{target:string, backup:string, applied:bool}>,
@@ -594,7 +594,7 @@ final class NewPackageWorkflow
 
         $ok = self::guardWrite(static fn (): bool => \rmdir($path));
         if ($ok !== true) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
         }
     }
 
@@ -641,7 +641,7 @@ final class NewPackageWorkflow
         try {
             return DeterministicFile::readBytesExact($path);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED, $e);
         }
     }
 
@@ -655,7 +655,7 @@ final class NewPackageWorkflow
         try {
             DeterministicFile::writeBytesExact($dst, $bytes);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
     }
 
@@ -738,7 +738,7 @@ final class NewPackageWorkflow
 
         $ok = self::guardWrite(static fn (): bool => \mkdir($dir, 0777, true));
         if ($ok !== true && !\is_dir($dir)) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
         }
     }
 
@@ -748,7 +748,7 @@ final class NewPackageWorkflow
     private static function renameOrFail(string $from, string $to): void
     {
         if (!\file_exists($from) || \file_exists($to)) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
         }
 
         if (\is_dir($from)) {
@@ -765,7 +765,7 @@ final class NewPackageWorkflow
             return;
         }
 
-        self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+        self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
     }
 
     private static function removeFileBestEffort(string $path): void
@@ -879,13 +879,13 @@ final class NewPackageWorkflow
             $result = $operation();
         } catch (\Throwable $e) {
             \restore_error_handler();
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED, $e);
         }
 
         \restore_error_handler();
 
         if ($hadPhpError) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED);
         }
 
         return $result;

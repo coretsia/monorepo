@@ -18,9 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\fingerprint\tests;
 
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
 use Coretsia\Tools\Spikes\_support\FixtureRoot;
 use Coretsia\Tools\Spikes\fingerprint\FingerprintCalculator;
+use Coretsia\Tools\Support\DeterministicFile;
 use PHPUnit\Framework\TestCase;
 
 /**

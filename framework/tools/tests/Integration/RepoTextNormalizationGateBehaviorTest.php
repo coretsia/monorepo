@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 
@@ -59,7 +59,7 @@ final class RepoTextNormalizationGateBehaviorTest extends TestCase
 
     private static function gateScriptPath(): string
     {
-        // __DIR__ = framework/tools/spikes/tests; dirname(..., 2) => framework/tools
+        // __DIR__ = framework/tools/tests/Integration; dirname(..., 2) => framework/tools
         $toolsRoot = realpath(\dirname(__DIR__, 2));
         if (!\is_string($toolsRoot) || $toolsRoot === '') {
             throw new \RuntimeException('tools-root-missing');

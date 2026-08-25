@@ -18,6 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\_support;
 
+use Coretsia\Tools\Support\ConsoleOutput;
+use Coretsia\Tools\Support\ErrorCodes;
+
 /**
  * DeterminismRunner (Phase 0 rails):
  * - Runs `composer spike:test` twice (rerun-no-diff policy).
@@ -94,8 +97,8 @@ final class DeterminismRunner
     public static function main(): int
     {
         // Local tools-only includes (CWD-independent).
-        require_once __DIR__ . '/ConsoleOutput.php';
-        require_once __DIR__ . '/ErrorCodes.php';
+        require_once __DIR__ . '/../../support/ConsoleOutput.php';
+        require_once __DIR__ . '/../../support/ErrorCodes.php';
         require_once __DIR__ . '/RunnerFailure.php';
         require_once __DIR__ . '/ProcessResult.php';
         require_once __DIR__ . '/ProcessRunnerInterface.php';

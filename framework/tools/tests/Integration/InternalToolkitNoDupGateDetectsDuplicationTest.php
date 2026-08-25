@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Integration;
 
 use FilesystemIterator;
 use PHPUnit\Framework\TestCase;
@@ -165,7 +165,7 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
         }
 
         $gate = $toolsRoot . '/gates/internal_toolkit_no_dup_gate.php';
-        $bootstrap = $toolsRoot . '/spikes/_support/bootstrap.php';
+        $bootstrap = $toolsRoot . '/support/bootstrap.php';
 
         if (!\is_file($gate) || !\is_readable($gate)) {
             self::markTestSkipped('gate_missing_or_unreadable');

@@ -18,8 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\workspace\tests;
 
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
 use Coretsia\Tools\Spikes\workspace\ComposerRepositoriesSync;
+use Coretsia\Tools\Support\DeterministicFile;
 use PHPUnit\Framework\TestCase;
 
 final class ComposerSyncIdempotentNoDiffTest extends TestCase

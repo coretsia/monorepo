@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class NewPackage
 {
@@ -82,8 +82,8 @@ final class NewPackage
 
         self::runPackageScaffoldSync($repoRoot, $packageDir);
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("framework/packages/$layer/$slug", false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::line("framework/packages/$layer/$slug", false);
 
         return 0;
     }
@@ -457,7 +457,7 @@ final class NewPackage
     {
         $content = self::normalizeToLfFinalNewline($content);
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
+        \Coretsia\Tools\Support\DeterministicFile::writeTextLf($path, $content);
     }
 
     private static function mkdir(string $path): void
@@ -601,6 +601,6 @@ try {
     exit(NewPackage::main($argv));
 } catch (Throwable $e) {
     $msg = \str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(NewPackage::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(NewPackage::CODE_FAILED . ": {$msg}");
     exit(1);
 }

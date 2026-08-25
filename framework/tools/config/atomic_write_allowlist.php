@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 return [
     [
-        'path' => 'tools/spikes/_support/ConsoleOutput.php',
+        'path' => 'tools/support/ConsoleOutput.php',
         'reason' => 'owned-console-writer',
     ],
 ];

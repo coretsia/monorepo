@@ -18,6 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\_support;
 
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\ErrorCodes;
+
 final class FixtureRoot
 {
     private const string INVALID_MESSAGE = 'fixture-path-invalid';

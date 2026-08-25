@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\deptrac\tests;
 
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
+use Coretsia\Tools\Support\DeterministicFile;
 use PHPUnit\Framework\TestCase;
 
 final class GraphArtifactBuilderDoesNotInvokeExternalProcessFunctionsTest extends TestCase

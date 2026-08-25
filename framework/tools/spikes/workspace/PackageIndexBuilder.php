@@ -18,9 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Spikes\workspace;
 
-use Coretsia\Tools\Spikes\_support\DeterministicException;
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\DeterministicException;
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\ErrorCodes;
 
 final class PackageIndexBuilder
 {
@@ -141,7 +141,7 @@ final class PackageIndexBuilder
         try {
             $bytes = DeterministicFile::readBytesExact($composerJsonPath);
         } catch (\Throwable $e) {
-            self::fail(ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED, $e);
+            self::fail(ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED, $e);
         }
 
         try {

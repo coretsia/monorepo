@@ -16,9 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\RepoTextNormalizationScanner;
+use Coretsia\Tools\Support\RepoTextNormalizationScanner;
 use PHPUnit\Framework\TestCase;
 
 final class RepoTextNormalizationScannerTest extends TestCase

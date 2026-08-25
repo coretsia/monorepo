@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class SyncComposerRepositories
 {
@@ -80,7 +80,7 @@ final class SyncComposerRepositories
 
         if ($check) {
             if ($invalidBlockFiles !== []) {
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_MANAGED_BLOCK_INVALID,
                     $invalidBlockFiles,
                 );
@@ -88,7 +88,7 @@ final class SyncComposerRepositories
             }
 
             if ($changedFiles !== []) {
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_MANAGED_REPOS_OUT_OF_SYNC,
                     $changedFiles,
                 );
@@ -98,8 +98,8 @@ final class SyncComposerRepositories
             return 0;
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::lines($changedFiles, false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::lines($changedFiles, false);
         return 0;
     }
 
@@ -193,7 +193,7 @@ final class SyncComposerRepositories
 
         if ($apply) {
             self::writeBackupIfNeeded($composerJsonPath, $originalBytes, $repoRoot);
-            \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($composerJsonPath, $newJson);
+            \Coretsia\Tools\Support\DeterministicFile::writeTextLf($composerJsonPath, $newJson);
         }
 
         return ['changed' => true, 'invalidManagedBlock' => $invalidManagedBlock];
@@ -683,7 +683,7 @@ final class SyncComposerRepositories
         }
 
         // writeBytesExact: do not normalize EOL/BOM/etc.
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeBytesExact($dst, $originalBytes);
+        \Coretsia\Tools\Support\DeterministicFile::writeBytesExact($dst, $originalBytes);
     }
 
     private static function normalizeEol(string $s): string
@@ -830,6 +830,6 @@ try {
     exit(SyncComposerRepositories::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(SyncComposerRepositories::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(SyncComposerRepositories::CODE_FAILED . ": {$msg}");
     exit(1);
 }

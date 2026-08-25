@@ -16,12 +16,12 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\_support;
+namespace Coretsia\Tools\Support;
 
 final class DeterministicFile
 {
-    private const string MSG_READ_FAILED = 'spikes-io-read-failed';
-    private const string MSG_WRITE_FAILED = 'spikes-io-write-failed';
+    private const string MSG_READ_FAILED = 'tools-io-read-failed';
+    private const string MSG_WRITE_FAILED = 'tools-io-write-failed';
 
     private function __construct()
     {
@@ -43,7 +43,7 @@ final class DeterministicFile
         } catch (\Throwable) {
             // MUST NOT leak $path or OS-specific errors.
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
                 self::MSG_READ_FAILED,
             );
         }
@@ -60,7 +60,7 @@ final class DeterministicFile
         } catch (\Throwable) {
             // MUST NOT leak $path or OS-specific errors.
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
                 self::MSG_READ_FAILED,
             );
         }
@@ -74,7 +74,7 @@ final class DeterministicFile
             $hash = hash('sha256', $normalized);
             if ($hash === false || $hash === '') {
                 throw new DeterministicException(
-                    ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+                    ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
                     self::MSG_READ_FAILED,
                 );
             }
@@ -86,7 +86,7 @@ final class DeterministicFile
         } catch (\Throwable) {
             // MUST NOT leak $path or OS-specific errors.
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
                 self::MSG_READ_FAILED,
             );
         }
@@ -107,7 +107,7 @@ final class DeterministicFile
         } catch (\Throwable) {
             // MUST NOT leak $path or OS-specific errors.
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -123,7 +123,7 @@ final class DeterministicFile
         } catch (\Throwable) {
             // MUST NOT leak $path or OS-specific errors.
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -145,7 +145,7 @@ final class DeterministicFile
 
         if ($result === false) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
                 self::MSG_READ_FAILED,
             );
         }
@@ -176,7 +176,7 @@ final class DeterministicFile
 
         if ($ok === false) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -187,7 +187,7 @@ final class DeterministicFile
 
         if ($existsAfter !== true) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -199,7 +199,7 @@ final class DeterministicFile
 
         if ($tmpPath === $path) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -212,7 +212,7 @@ final class DeterministicFile
 
         if ($fp === false) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -233,7 +233,7 @@ final class DeterministicFile
 
             if ($renamed !== true) {
                 throw new DeterministicException(
-                    ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                    ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                     self::MSG_WRITE_FAILED,
                 );
             }
@@ -264,7 +264,7 @@ final class DeterministicFile
 
         if ($base === '' || $base === '.' || $base === '..') {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -295,7 +295,7 @@ final class DeterministicFile
 
             if ($n === false || $n === 0) {
                 throw new DeterministicException(
-                    ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                    ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                     self::MSG_WRITE_FAILED,
                 );
             }
@@ -315,7 +315,7 @@ final class DeterministicFile
 
         if ($flushed !== true) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -332,7 +332,7 @@ final class DeterministicFile
 
         if ($closed !== true) {
             throw new DeterministicException(
-                ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+                ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
                 self::MSG_WRITE_FAILED,
             );
         }
@@ -366,7 +366,7 @@ final class DeterministicFile
     private static function guardRead(callable $operation): mixed
     {
         return self::guard(
-            ErrorCodes::CORETSIA_SPIKES_IO_READ_FAILED,
+            ErrorCodes::CORETSIA_TOOLS_IO_READ_FAILED,
             self::MSG_READ_FAILED,
             $operation,
         );
@@ -380,7 +380,7 @@ final class DeterministicFile
     private static function guardWrite(callable $operation): mixed
     {
         return self::guard(
-            ErrorCodes::CORETSIA_SPIKES_IO_WRITE_FAILED,
+            ErrorCodes::CORETSIA_TOOLS_IO_WRITE_FAILED,
             self::MSG_WRITE_FAILED,
             $operation,
         );

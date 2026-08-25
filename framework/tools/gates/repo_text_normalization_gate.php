@@ -24,10 +24,10 @@ declare(strict_types=1);
     }
 
     $repoRootRuntime = realpath($toolsRootRuntime . '/..' . '/..');
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleOutputFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
-    $scannerFile = $toolsRootRuntime . '/spikes/_support/RepoTextNormalizationScanner.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleOutputFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
+    $scannerFile = $toolsRootRuntime . '/support/RepoTextNormalizationScanner.php';
 
     if ($repoRootRuntime === false) {
         coretsia_repo_text_safe_emit_scan_failed($consoleOutputFile);
@@ -73,10 +73,10 @@ declare(strict_types=1);
 
     try {
         /** @var class-string $errorCodesFqcn */
-        $errorCodesFqcn = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+        $errorCodesFqcn = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
         /** @var class-string $scannerFqcn */
-        $scannerFqcn = 'Coretsia\\Tools\\Spikes\\_support\\RepoTextNormalizationScanner';
+        $scannerFqcn = 'Coretsia\\Tools\\Support\\RepoTextNormalizationScanner';
 
         /** @var list<string> $diagnostics */
         $diagnostics = $scannerFqcn::scan($repoRootRuntime, $scanRoot);
@@ -198,8 +198,8 @@ function coretsia_repo_text_safe_emit_lines(array $lines): void
         return;
     }
 
-    /** @var class-string<\Coretsia\Tools\Spikes\_support\ConsoleOutput> $fqcn */
-    $fqcn = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    /** @var class-string<\Coretsia\Tools\Support\ConsoleOutput> $fqcn */
+    $fqcn = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     if (!class_exists($fqcn)) {
         return;

@@ -16,9 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Tools\Spikes\tests;
+namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\ConsoleOutput;
+use Coretsia\Tools\Support\ConsoleOutput;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

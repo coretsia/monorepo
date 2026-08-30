@@ -22,7 +22,7 @@ use Coretsia\Kernel\Artifacts\Exception\FingerprintSymlinkForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
 use PHPUnit\Framework\TestCase;
 
-final class SpikeFingerprintSymlinkForbiddenLockTest extends TestCase
+final class FingerprintFileListerSymlinkForbiddenContractTest extends TestCase
 {
     private string $temporaryRoot;
 
@@ -31,7 +31,7 @@ final class SpikeFingerprintSymlinkForbiddenLockTest extends TestCase
         parent::setUp();
 
         $this->temporaryRoot = \sys_get_temp_dir()
-            . '/coretsia-spike-symlink-lock-'
+            . '/coretsia-fingerprint-symlink-'
             . \bin2hex(\random_bytes(8));
 
         \mkdir($this->temporaryRoot . '/config', 0777, true);
@@ -70,6 +70,51 @@ final class SpikeFingerprintSymlinkForbiddenLockTest extends TestCase
             self::assertStringNotContainsString($target, $exception->getMessage());
             self::assertStringNotContainsString($link, $exception->getMessage());
             self::assertStringNotContainsString('app-link.php', $exception->getMessage());
+        }
+    }
+
+    public function testDirectoryListingRejectsSymlinkDeclaredRootWithoutLeakingPath(): void
+    {
+        if (!\function_exists('symlink')) {
+            self::markTestSkipped('symlink() is unavailable in this environment.');
+        }
+
+        $linkRoot = $this->temporaryRoot . '-link';
+
+        if (!@\symlink($this->temporaryRoot, $linkRoot)) {
+            self::markTestSkipped('Symlink creation is not allowed in this environment.');
+        }
+
+        try {
+            new DeterministicFileLister()->listFiles($linkRoot);
+
+            self::fail('Expected FingerprintSymlinkForbiddenException was not thrown.');
+        } catch (FingerprintSymlinkForbiddenException $exception) {
+            self::assertSame(
+                FingerprintSymlinkForbiddenException::ERROR_CODE,
+                $exception->errorCode(),
+            );
+            self::assertSame(
+                FingerprintSymlinkForbiddenException::REASON_SYMLINK_FORBIDDEN,
+                $exception->reason(),
+            );
+
+            self::assertStringNotContainsString(
+                $this->temporaryRoot,
+                $exception->getMessage(),
+            );
+            self::assertStringNotContainsString(
+                $linkRoot,
+                $exception->getMessage(),
+            );
+        } finally {
+            if (\is_link($linkRoot)) {
+                if (\PHP_OS_FAMILY === 'Windows') {
+                    \rmdir($linkRoot);
+                } else {
+                    \unlink($linkRoot);
+                }
+            }
         }
     }
 

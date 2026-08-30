@@ -126,6 +126,21 @@ final class FingerprintFileListingOrderContractTest extends TestCase
         );
     }
 
+    public function testSingleFileCandidateNormalizesBackslashDeclaredPathToBasename(): void
+    {
+        self::writeFile(
+            'config/kernel.php',
+            "<?php\nreturn [];\n",
+        );
+
+        self::assertSame(
+            [
+                'kernel.php',
+            ],
+            new DeterministicFileLister()->listFileCandidate($this->temporaryRoot . '\\config\\kernel.php'),
+        );
+    }
+
     private function writeFile(string $relativePath, string $bytes): void
     {
         $path = $this->temporaryRoot . '/' . $relativePath;

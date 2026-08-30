@@ -21,11 +21,11 @@ namespace Coretsia\Tools\Tests\Contract;
 use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
 use RuntimeException;
 
-final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolContractTestCase
+final class ComposerRepositoriesSyncManagedOnlyContractTest extends ToolContractTestCase
 {
     public function testSyncRewritesOnlyManagedRepositoriesAndPreservesUnmanagedRepositories(): void
     {
-        $sandbox = $this->createWorkspaceSandbox('workspace_min');
+        $sandbox = $this->createWorkspaceSandbox('Workspace/Canonical');
         $rootComposer = $sandbox . '/composer.json';
 
         $composer = $this->readComposerJson($rootComposer);
@@ -80,7 +80,7 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
         self::assertNotSame(
             0,
             $checkCode,
-            "Expected managed repositories drift to be detected.\nOutput:\n" . $checkOutput
+            "Expected managed repositories drift to be detected.\nOutput:\n" . $checkOutput,
         );
         self::assertStringContainsString('CORETSIA_WORKSPACE_MANAGED_REPOS_OUT_OF_SYNC', $checkOutput);
 
@@ -91,7 +91,11 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
         $repos = $after['repositories'] ?? null;
 
         self::assertIsArray($repos);
-        self::assertSame($unmanagedRepo, $repos[0], 'New unmanaged repository must be preserved before managed block.');
+        self::assertSame(
+            $unmanagedRepo,
+            $repos[0],
+            'New unmanaged repository must be preserved before managed block.',
+        );
 
         $managed = [];
         $unmanaged = [];
@@ -118,6 +122,7 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
 
     /**
      * @param string $path
+     *
      * @return array<string,mixed>
      * @throws \JsonException
      */
@@ -169,6 +174,7 @@ final class SpikeComposerRepositoriesSyncManagedOnlyContractTest extends ToolCon
 
     /**
      * @param string $sandbox
+     *
      * @return array<string,string>
      * @throws \JsonException
      */

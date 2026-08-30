@@ -41,7 +41,13 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
             self::assertSame(
                 0,
                 $code,
-                "Expected managed repositories check to pass on canonical fixture state.\nOutput:\n" . $out
+                "Expected managed repositories check to pass on canonical fixture state.\nOutput:\n" . $out,
+            );
+
+            self::assertSame(
+                '',
+                $this->normalizeEol($out),
+                'Canonical workspace --check success must be silent.',
             );
         } finally {
             $this->removeDir($sandboxRepoRoot);
@@ -81,14 +87,14 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
             self::assertNotSame(
                 0,
                 $checkCode,
-                "Expected --check to fail on drift.\nOutput:\n" . $checkOut
+                "Expected --check to fail on drift.\nOutput:\n" . $checkOut,
             );
 
             [$applyCode, $applyOut] = $this->runSync($sandboxRepoRoot, []);
             self::assertSame(
                 0,
                 $applyCode,
-                "Expected apply (default mode) to restore canonical repositories.\nOutput:\n" . $applyOut
+                "Expected apply (default mode) to restore canonical repositories.\nOutput:\n" . $applyOut,
             );
 
             $rootAfterApply = $this->readBytes($rootComposer);
@@ -98,60 +104,60 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
             self::assertSame(
                 $this->normalizeEol($expectedRootCanonical),
                 $this->normalizeEol($rootAfterApply),
-                'Expected apply to preserve canonical root composer.json content.'
+                'Expected apply to preserve canonical root composer.json content.',
             );
 
             self::assertSame(
                 $this->normalizeEol($expectedFrameworkCanonical),
                 $this->normalizeEol($frameworkAfterApply),
-                'Expected apply to preserve canonical framework composer.json content.'
+                'Expected apply to preserve canonical framework composer.json content.',
             );
 
             self::assertSame(
                 $this->normalizeEol($expectedSkeletonCanonical),
                 $this->normalizeEol($skeletonAfterApply),
-                'Expected apply to restore canonical skeleton composer.json content.'
+                'Expected apply to restore canonical skeleton composer.json content.',
             );
 
             self::assertFalse(
                 str_contains($rootAfterApply, "\r\n"),
-                'Expected root composer.json to be normalized to LF line endings (no CRLF).'
+                'Expected root composer.json to be normalized to LF line endings (no CRLF).',
             );
 
             self::assertFalse(
                 str_contains($frameworkAfterApply, "\r\n"),
-                'Expected framework composer.json to be normalized to LF line endings (no CRLF).'
+                'Expected framework composer.json to be normalized to LF line endings (no CRLF).',
             );
 
             self::assertFalse(
                 str_contains($skeletonAfterApply, "\r\n"),
-                'Expected skeleton composer.json to be normalized to LF line endings (no CRLF).'
+                'Expected skeleton composer.json to be normalized to LF line endings (no CRLF).',
             );
 
             self::assertTrue(
                 is_dir($backupDir),
-                'Expected apply mode to create framework/var/backups/workspace inside sandbox.'
+                'Expected apply mode to create framework/var/backups/workspace inside sandbox.',
             );
 
             $skeletonBackups = $this->globSorted($backupDir . '/skeleton__composer.json.bak*');
             self::assertNotSame(
                 [],
                 $skeletonBackups,
-                'Expected apply mode to create at least one skeleton composer backup inside sandbox.'
+                'Expected apply mode to create at least one skeleton composer backup inside sandbox.',
             );
 
             $frameworkBackups = $this->globSorted($backupDir . '/framework__composer.json.bak*');
             self::assertSame(
                 [],
                 $frameworkBackups,
-                'Expected no framework composer backup when only skeleton composer.json was drifted.'
+                'Expected no framework composer backup when only skeleton composer.json was drifted.',
             );
 
             [$apply2Code, $apply2Out] = $this->runSync($sandboxRepoRoot, []);
             self::assertSame(
                 0,
                 $apply2Code,
-                "Expected second apply rerun to succeed.\nOutput:\n" . $apply2Out
+                "Expected second apply rerun to succeed.\nOutput:\n" . $apply2Out,
             );
 
             $rootAfterApply2 = $this->readBytes($rootComposer);
@@ -159,14 +165,18 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
             $skeletonAfterApply2 = $this->readBytes($skeletonComposer);
 
             self::assertSame($rootAfterApply, $rootAfterApply2, 'Expected root rerun to be rerun-no-diff.');
-            self::assertSame($frameworkAfterApply, $frameworkAfterApply2, 'Expected framework rerun to be rerun-no-diff.');
+            self::assertSame(
+                $frameworkAfterApply,
+                $frameworkAfterApply2,
+                'Expected framework rerun to be rerun-no-diff.'
+            );
             self::assertSame($skeletonAfterApply, $skeletonAfterApply2, 'Expected skeleton rerun to be rerun-no-diff.');
 
             $skeletonBackupsAfterRerun = $this->globSorted($backupDir . '/skeleton__composer.json.bak*');
             self::assertSame(
                 $skeletonBackups,
                 $skeletonBackupsAfterRerun,
-                'Expected rerun-no-diff to avoid creating additional skeleton backup files.'
+                'Expected rerun-no-diff to avoid creating additional skeleton backup files.',
             );
         } finally {
             $this->removeDir($sandboxRepoRoot);
@@ -175,6 +185,7 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     private function runSync(string $repoRoot, array $args): array
@@ -193,7 +204,7 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
                 '--repo-root',
                 $repoRoot,
             ],
-            $args
+            $args,
         );
 
         $descriptorSpec = [
@@ -276,7 +287,7 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
 
     private function workspaceFixtureRoot(): string
     {
-        $path = $this->frameworkRoot() . '/tools/spikes/fixtures/workspace_min';
+        $path = $this->frameworkRoot() . '/tools/tests/Fixtures/Workspace/Canonical';
         $path = rtrim(str_replace('\\', '/', $path), '/');
 
         if (!is_dir($path)) {
@@ -382,7 +393,7 @@ final class ManagedComposerRepositoriesGuardTest extends TestCase
 
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
+            \RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($iterator as $item) {

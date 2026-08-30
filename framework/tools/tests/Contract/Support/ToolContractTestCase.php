@@ -166,6 +166,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runPhp(string $script, array $args = [], ?string $cwd = null): array
@@ -211,6 +212,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runDeptracGenerate(string $repoRoot, array $args): array
@@ -224,6 +226,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runWorkspaceSync(string $repoRoot, array $args): array
@@ -235,15 +238,27 @@ abstract class ToolContractTestCase extends TestCase
         );
     }
 
-    protected function createWorkspaceSandbox(string $fixtureName): string
-    {
-        $fixtureRoot = $this->spikeFixturePath($fixtureName);
+    protected function createWorkspaceSandbox(
+        string $fixtureName,
+        ?string $overlayFixtureName = null,
+    ): string {
+        $fixtureRoot = $this->canonicalFixturePath($fixtureName);
         if (!is_dir($fixtureRoot)) {
-            throw new RuntimeException('Missing workspace fixture: ' . $fixtureName);
+            throw new RuntimeException('Missing canonical workspace fixture: ' . $fixtureName);
         }
 
         $sandbox = $this->tempDir('coretsia-workspace-fixture');
         $this->copyDir($fixtureRoot, $sandbox);
+
+        if ($overlayFixtureName !== null) {
+            $overlayFixtureRoot = $this->canonicalFixturePath($overlayFixtureName);
+            if (!is_dir($overlayFixtureRoot)) {
+                throw new RuntimeException('Missing canonical workspace overlay fixture: ' . $overlayFixtureName);
+            }
+
+            $this->copyDir($overlayFixtureRoot, $sandbox);
+        }
+
         $this->removeDir($sandbox . '/framework/var');
 
         self::assertFileExists($sandbox . '/composer.json');
@@ -345,7 +360,7 @@ abstract class ToolContractTestCase extends TestCase
         $lines[] = '|---|---|';
 
         $packageIds = array_keys($packages);
-        usort($packageIds, static fn ($a, $b): int => strcmp((string)$a, (string)$b));
+        usort($packageIds, static fn ($a, $b): int => strcmp((string) $a, (string) $b));
 
         foreach ($packageIds as $packageId) {
             $package = $packages[$packageId];
@@ -379,7 +394,7 @@ abstract class ToolContractTestCase extends TestCase
     protected function writeDeptracAllowlistYamlFromFixture(
         string $targetPath,
         string $fixtureRelativePath,
-        bool   $normalizeSrcWildcardToRegex = false,
+        bool $normalizeSrcWildcardToRegex = false,
     ): void {
         $entries = $this->requireCanonicalStringListFixture($fixtureRelativePath);
 
@@ -447,7 +462,7 @@ abstract class ToolContractTestCase extends TestCase
 
         foreach ($pairs as $actualRel => $expectedRel) {
             self::assertSame(
-                $this->normalizeEol($this->readBytes($this->spikeFixturePath($fixtureName . $expectedRel))),
+                $this->normalizeEol($this->readBytes($this->canonicalFixturePath($fixtureName . $expectedRel))),
                 $this->normalizeEol($this->readBytes($sandbox . $actualRel)),
                 'Expected workspace composer lock fixture to match: ' . $actualRel,
             );

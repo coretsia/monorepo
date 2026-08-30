@@ -1,0 +1,19 @@
+{
+  "name": "coretsia/platform-cli",
+  "type": "library",
+  "description": "Fixture package: platform/cli",
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Cli\\": "src/"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleClass": "Coretsia\\Platform\\Cli\\Module\\CliModule"
+    }
+  }
+}

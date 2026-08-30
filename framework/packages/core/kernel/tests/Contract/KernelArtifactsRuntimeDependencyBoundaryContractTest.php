@@ -22,22 +22,22 @@ use PHPUnit\Framework\TestCase;
 
 final class KernelArtifactsRuntimeDependencyBoundaryContractTest extends TestCase
 {
-    public function testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportToolingSpikeNamespaces(): void
+    public function testArtifactFingerprintAndCacheRuntimeCodeDoesNotImportToolingNamespaces(): void
     {
         foreach (self::artifactRuntimeFiles() as $path) {
             $source = self::readFile($path);
             $relativePath = self::relativeToRepo($path);
 
             self::assertStringNotContainsString(
-                'Coretsia\Tools\Spikes',
+                'Coretsia\Tools\\',
                 $source,
-                $relativePath . ' must not import tooling spike namespaces.',
+                $relativePath . ' must not import tooling namespaces.',
             );
 
             self::assertStringNotContainsString(
-                'Coretsia\\Tools\\Spikes',
+                'Coretsia\\\\Tools\\\\',
                 $source,
-                $relativePath . ' must not import tooling spike namespaces.',
+                $relativePath . ' must not reference escaped tooling namespaces.',
             );
         }
     }
@@ -93,52 +93,45 @@ final class KernelArtifactsRuntimeDependencyBoundaryContractTest extends TestCas
                 $source,
                 $relativePath . ' must not read or reference framework/tools.',
             );
-
-            self::assertStringNotContainsString(
-                'tools/spikes',
-                $source,
-                $relativePath . ' must not read or reference tools/spikes.',
-            );
         }
     }
 
-    public function testOnlyContractTestsMayReferenceSpikeFixtures(): void
+    public function testKernelTestsDoNotReferenceFrameworkTools(): void
     {
         foreach (self::kernelTestFiles() as $path) {
-            $source = \str_replace('\\', '/', self::readFile($path));
-
-            if (!\str_contains($source, 'framework/tools/')) {
+            if (
+                \str_replace('\\', '/', $path)
+                === \str_replace('\\', '/', __FILE__)
+            ) {
                 continue;
             }
 
+            $source = self::readFile($path);
+            $normalizedSource = \str_replace('\\', '/', $source);
             $relativePath = self::relativeToRepo($path);
 
-            self::assertStringStartsWith(
-                'framework/packages/core/kernel/tests/Contract/',
-                $relativePath,
-                $relativePath . ' is not allowed to reference framework/tools.',
+            self::assertStringNotContainsString(
+                'framework/tools/',
+                $normalizedSource,
+                $relativePath . ' must not reference framework/tools.',
             );
 
-            self::assertTrue(
-                \str_contains($source, 'framework/tools/spikes/fixtures/')
-                || \str_contains($source, 'tools/spikes/config_merge/tests/fixtures/'),
-                $relativePath . ' may only reference spike fixtures.',
+            self::assertDoesNotMatchRegularExpression(
+                '~(?<![A-Za-z0-9_.-])tools/~',
+                $normalizedSource,
+                $relativePath . ' must not reference tooling paths.',
             );
-
-            $forbiddenSpikeSourcePath = 'framework/tools/spikes' . '/src/';
 
             self::assertStringNotContainsString(
-                $forbiddenSpikeSourcePath,
+                'Coretsia\Tools\\',
                 $source,
-                $relativePath . ' must not reference spike source code.',
+                $relativePath . ' must not import tooling namespaces.',
             );
 
-            $forbiddenLegacySpikeSourcePath = 'tools/spikes' . '/src/';
-
             self::assertStringNotContainsString(
-                $forbiddenLegacySpikeSourcePath,
+                'Coretsia\\\\Tools\\\\',
                 $source,
-                $relativePath . ' must not reference spike source code.',
+                $relativePath . ' must not reference escaped tooling namespaces.',
             );
         }
     }

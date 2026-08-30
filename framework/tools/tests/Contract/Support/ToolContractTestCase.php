@@ -53,11 +53,11 @@ abstract class ToolContractTestCase extends TestCase
         return rtrim(str_replace('\\', '/', dirname($this->frameworkRoot())), '/');
     }
 
-    protected function spikeFixturePath(string $relativePath): string
+    protected function fixturePath(string $relativePath): string
     {
         $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
 
-        return $this->frameworkRoot() . '/tools/spikes/fixtures/' . $relativePath;
+        return $this->frameworkRoot() . '/tools/tests/Fixtures/' . $relativePath;
     }
 
     protected function canonicalFixturePath(string $relativePath): string
@@ -72,16 +72,16 @@ abstract class ToolContractTestCase extends TestCase
      */
     protected function requireArrayFixture(string $relativePath): array
     {
-        $path = $this->spikeFixturePath($relativePath);
+        $path = $this->fixturePath($relativePath);
 
         if (!is_file($path)) {
-            throw new RuntimeException('Missing spike fixture: ' . $relativePath);
+            throw new RuntimeException('Missing tooling fixture: ' . $relativePath);
         }
 
         $value = require $path;
 
         if (!is_array($value)) {
-            throw new RuntimeException('Spike fixture must return array: ' . $relativePath);
+            throw new RuntimeException('Tooling fixture must return array: ' . $relativePath);
         }
 
         return $value;
@@ -97,7 +97,7 @@ abstract class ToolContractTestCase extends TestCase
         $out = [];
         foreach ($value as $item) {
             if (!is_string($item) || $item === '') {
-                throw new RuntimeException('Spike fixture must return list<string>: ' . $relativePath);
+                throw new RuntimeException('Tooling fixture must return list<string>: ' . $relativePath);
             }
 
             $out[] = $item;
@@ -242,21 +242,24 @@ abstract class ToolContractTestCase extends TestCase
         string $fixtureName,
         ?string $overlayFixtureName = null,
     ): string {
-        $fixtureRoot = $this->canonicalFixturePath($fixtureName);
-        if (!is_dir($fixtureRoot)) {
-            throw new RuntimeException('Missing canonical workspace fixture: ' . $fixtureName);
+        $fixtureRoot = $this->fixturePath($fixtureName);
+
+        if (!\is_dir($fixtureRoot)) {
+            throw new RuntimeException('Missing workspace fixture: ' . $fixtureName);
         }
 
         $sandbox = $this->tempDir('coretsia-workspace-fixture');
+
         $this->copyDir($fixtureRoot, $sandbox);
 
         if ($overlayFixtureName !== null) {
-            $overlayFixtureRoot = $this->canonicalFixturePath($overlayFixtureName);
-            if (!is_dir($overlayFixtureRoot)) {
-                throw new RuntimeException('Missing canonical workspace overlay fixture: ' . $overlayFixtureName);
+            $overlayRoot = $this->fixturePath($overlayFixtureName);
+
+            if (!\is_dir($overlayRoot)) {
+                throw new RuntimeException('Missing workspace fixture overlay: ' . $overlayFixtureName);
             }
 
-            $this->copyDir($overlayFixtureRoot, $sandbox);
+            $this->copyDir($overlayRoot, $sandbox);
         }
 
         $this->removeDir($sandbox . '/framework/var');
@@ -354,7 +357,7 @@ abstract class ToolContractTestCase extends TestCase
         $lines = [];
         $lines[] = '# Fixture dependency table';
         $lines[] = '';
-        $lines[] = '## 4) Phase 0 baseline dependency table (MUST)';
+        $lines[] = '## Dependency table';
         $lines[] = '';
         $lines[] = '| package_id | depends_on |';
         $lines[] = '|---|---|';
@@ -462,7 +465,7 @@ abstract class ToolContractTestCase extends TestCase
 
         foreach ($pairs as $actualRel => $expectedRel) {
             self::assertSame(
-                $this->normalizeEol($this->readBytes($this->canonicalFixturePath($fixtureName . $expectedRel))),
+                $this->normalizeEol($this->readBytes($this->fixturePath($fixtureName . $expectedRel))),
                 $this->normalizeEol($this->readBytes($sandbox . $actualRel)),
                 'Expected workspace composer lock fixture to match: ' . $actualRel,
             );

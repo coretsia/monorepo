@@ -81,6 +81,55 @@ final class DirectivesMergeMapLikeOnlyTest extends TestCase
         );
     }
 
+    public function testMergeRecursivelyMergesMapsAndReplacesNestedLists(): void
+    {
+        $processor = self::processor();
+        $merger = self::merger($processor);
+
+        $base = [
+            'settings' => [
+                'security' => [
+                    'enabled' => true,
+                    'policy' => 'strict',
+                ],
+                'hosts' => [
+                    'a.example',
+                ],
+            ],
+        ];
+
+        $patch = $processor->processRootSubtree(
+            root: 'kernel',
+            subtree: [
+                'settings' => [
+                    '@merge' => [
+                        'security' => [
+                            'enabled' => false,
+                        ],
+                        'hosts' => [
+                            'b.example',
+                        ],
+                    ],
+                ],
+            ],
+        );
+
+        self::assertSame(
+            [
+                'settings' => [
+                    'hosts' => [
+                        'b.example',
+                    ],
+                    'security' => [
+                        'enabled' => false,
+                        'policy' => 'strict',
+                    ],
+                ],
+            ],
+            $merger->merge($base, $patch),
+        );
+    }
+
     public function testMergeAcceptsEmptyMapAsNoChangedKeys(): void
     {
         $processor = self::processor();
@@ -129,6 +178,54 @@ final class DirectivesMergeMapLikeOnlyTest extends TestCase
             ],
             $merger->merge([], $patch),
         );
+    }
+
+    public function testMergeRejectsListBaseAtMergeTime(): void
+    {
+        $processor = self::processor();
+        $merger = self::merger($processor);
+
+        $patch = $processor->processRootSubtree(
+            root: 'kernel',
+            subtree: [
+                'settings' => [
+                    '@merge' => [
+                        'enabled' => true,
+                    ],
+                ],
+            ],
+        );
+
+        try {
+            $merger->merge(
+                [
+                    'settings' => [
+                        'a',
+                        'b',
+                    ],
+                ],
+                $patch,
+            );
+
+            self::fail('Expected ConfigDirectiveTypeMismatchException was not thrown.');
+        } catch (ConfigDirectiveTypeMismatchException $exception) {
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::ERROR_CODE,
+                $exception->errorCode(),
+            );
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::REASON_MERGE_DIRECTIVE_BASE_MUST_BE_MAP,
+                $exception->reason(),
+            );
+            self::assertSame(
+                ConfigDirective::Merge,
+                $exception->directive(),
+            );
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::EXPECTED_MAP,
+                $exception->expectedType(),
+            );
+        }
     }
 
     #[DataProvider('invalidMergeDirectivePayloadProvider')]

@@ -330,7 +330,25 @@ final class ConfigValueSourceShapeContractTest extends TestCase
 
     public function testMetaMustNotUseRawValueOrSecretKeys(): void
     {
-        foreach (['value', 'rawValue', 'envValue', 'secret', 'password', 'token'] as $key) {
+        foreach (
+            [
+                'value',
+                'rawValue',
+                'configValue',
+                'envValue',
+                'rawEnvValue',
+                'secret',
+                'password',
+                'token',
+                'credential',
+                'credentials',
+                'privateKey',
+                'authorizationHeader',
+                'cookie',
+                'requestBody',
+                'responseBody',
+            ] as $key
+        ) {
             try {
                 new ConfigValueSource(
                     type: ConfigSourceType::Runtime,

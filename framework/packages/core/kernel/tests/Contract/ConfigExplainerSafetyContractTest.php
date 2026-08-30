@@ -22,22 +22,26 @@ use Coretsia\Contracts\Config\ConfigSourceType;
 use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Kernel\Config\Explain\ConfigExplainer;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
+final class ConfigExplainerSafetyContractTest extends TestCase
 {
-    public function testExplainTraceDoesNotLeakRawConfigValuesOrUnsafeMetadata(): void
+    public function testExplainDoesNotLeakRawConfigValuesOrUnsafeMetadata(): void
     {
         $config = [
-            'http' => [
-                'database' => [
-                    'password' => 'super-secret-password',
-                    'dsn' => 'mysql://user:pass@example.test/database',
+            'kernel' => [
+                'boot' => [
+                    'default_env' => 'super-secret-password',
+                    'default_preset' => 'mysql://user:pass@example.test/database',
                 ],
-                'middleware' => [
-                    'system_pre' => [
-                        'AuthorizationBearerToken',
+                'runtime' => [
+                    'http_driver' => 'http.classic',
+                ],
+                'modules' => [
+                    'discovery' => [
+                        'allowed_sources' => [
+                            'AuthorizationBearerToken',
+                        ],
                     ],
                 ],
             ],
@@ -46,34 +50,41 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
         $sources = [
             new ConfigValueSource(
                 type: ConfigSourceType::PackageDefault,
-                root: 'http',
-                sourceId: 'spike/defaults/http',
-                path: 'spike/config-merge/scenarios.php',
-                keyPath: 'http',
+                root: 'kernel',
+                sourceId: 'core/kernel/config/defaults/kernel',
+                path: 'framework/packages/core/kernel/config/kernel.php',
+                keyPath: 'kernel',
                 directive: null,
                 precedence: 10,
                 redacted: false,
                 meta: [
                     'kind' => 'package_default',
+                    'packageId' => 'core/kernel',
                     'sourceOrder' => 0,
-                    'envName' => 'HTTP_DATABASE_DSN',
+
+                    // Deliberately unsafe metadata: ConfigExplainer must drop it.
                     'hash' => 'not-a-valid-hash',
                     'length' => -1,
                 ],
             ),
             new ConfigValueSource(
                 type: ConfigSourceType::Env,
-                root: 'http',
-                sourceId: 'env/http/database/password',
+                root: 'kernel',
+                sourceId: 'env-overlay/ruleset/KERNEL_BOOT_DEFAULT_ENV',
                 path: null,
-                keyPath: 'http.database.password',
+                keyPath: 'kernel.boot.default_env',
                 directive: null,
                 precedence: 500,
                 redacted: true,
                 meta: [
+                    'envName' => 'KERNEL_BOOT_DEFAULT_ENV',
+                    'envSourceId' => null,
+                    'envSourceType' => null,
                     'kind' => 'env_overlay',
-                    'sourceOrder' => 1,
-                    'envName' => 'HTTP_DATABASE_PASSWORD',
+                    'mappingKind' => 'ruleset',
+                    'valueType' => 'non-empty-string',
+
+                    // Safe metadata intentionally retained by ConfigExplainer.
                     'hash' => \str_repeat('a', 64),
                     'hashAlgorithm' => 'sha256',
                     'length' => 21,
@@ -85,46 +96,46 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
             config: $config,
             sources: $sources,
             validationSubjects: [
-                'validated' => [],
-                'unvalidated' => [
+                'validated' => [
                     [
-                        'ownership' => 'user_owned',
-                        'root' => 'http',
-                        'validation' => 'unvalidated',
+                        'ownership' => 'ruleset_owned',
+                        'root' => 'kernel',
+                        'validation' => 'validated',
                     ],
                 ],
+                'unvalidated' => [],
             ],
             validationResult: ConfigValidationResult::success(),
             envOverlayMappings: [
                 [
-                    'env' => 'HTTP_DATABASE_PASSWORD',
+                    'env' => 'KERNEL_BOOT_DEFAULT_ENV',
                     'kind' => 'ruleset',
-                    'path' => 'http.database.password',
-                    'root' => 'http',
-                    'sourceId' => 'env/http/database/password',
-                    'type' => 'env',
+                    'path' => 'kernel.boot.default_env',
+                    'root' => 'kernel',
+                    'sourceId' => 'env-overlay/ruleset/KERNEL_BOOT_DEFAULT_ENV',
+                    'type' => 'non-empty-string',
                 ],
                 [
-                    'env' => 'HTTP_DATABASE_DSN',
+                    'env' => 'KERNEL_RUNTIME_HTTP_DRIVER',
                     'kind' => 'ruleset',
-                    'path' => 'http.database.dsn',
-                    'root' => 'http',
-                    'sourceId' => '/absolute/path/must/be/dropped',
-                    'type' => 'env',
+                    'path' => 'kernel.runtime.http_driver',
+                    'root' => 'kernel',
+                    'sourceId' => '/absolute/path/must/be-dropped',
+                    'type' => 'non-empty-string-no-ws',
                 ],
             ],
             owners: [
                 [
-                    'root' => 'http',
-                    'sourceId' => 'spike/defaults/http',
-                    'path' => 'spike/config-merge/scenarios.php',
+                    'root' => 'kernel',
+                    'sourceId' => 'core/kernel/config/defaults/kernel',
+                    'path' => 'framework/packages/core/kernel/config/kernel.php',
                     'packageId' => 'core/kernel',
                     'moduleId' => 'core.kernel',
                     'kind' => 'package_default',
                     'type' => 'package_default',
                 ],
                 [
-                    'root' => 'http',
+                    'root' => 'kernel',
                     'sourceId' => '/absolute/owner/source',
                     'path' => '/var/www/secret/config.php',
                     'packageId' => 'core/kernel',
@@ -147,21 +158,27 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
         self::assertStringNotContainsString('/absolute/owner/source', $encoded);
         self::assertStringNotContainsString('not-a-valid-hash', $encoded);
 
-        self::assertStringContainsString('HTTP_DATABASE_PASSWORD', $encoded);
+        self::assertStringContainsString('KERNEL_BOOT_DEFAULT_ENV', $encoded);
         self::assertStringContainsString(\str_repeat('a', 64), $encoded);
         self::assertStringContainsString('sha256', $encoded);
         self::assertStringContainsString('"length":21', $encoded);
 
-        $passwordPath = self::pathRow($explain, 'http.database.password');
+        $defaultEnvPath = self::pathRow(
+            $explain,
+            'kernel.boot.default_env',
+        );
 
-        self::assertSame('env', $passwordPath['sourceType']);
-        self::assertTrue($passwordPath['redacted']);
-        self::assertSame('env/http/database/password', $passwordPath['sourceId']);
-        self::assertSame('scalar:string', $passwordPath['valueShape']);
+        self::assertSame('env', $defaultEnvPath['sourceType']);
+        self::assertTrue($defaultEnvPath['redacted']);
+        self::assertSame(
+            'env-overlay/ruleset/KERNEL_BOOT_DEFAULT_ENV',
+            $defaultEnvPath['sourceId'],
+        );
+        self::assertSame('scalar:string', $defaultEnvPath['valueShape']);
 
         self::assertSame(
             [
-                'http.database.password',
+                'kernel.boot.default_env',
             ],
             $explain['envOverlay']['effectivePaths'],
         );
@@ -177,14 +194,12 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
         }
     }
 
-    public function testExplainTraceIsDeterministicForSameInputs(): void
+    public function testExplainIsDeterministicForEquivalentInputs(): void
     {
         $config = [
-            'http' => [
-                'middleware' => [
-                    'system_pre' => [
-                        'CorrelationId',
-                    ],
+            'kernel' => [
+                'boot' => [
+                    'default_env' => 'prod',
                 ],
             ],
         ];
@@ -192,29 +207,33 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
         $sources = [
             new ConfigValueSource(
                 type: ConfigSourceType::PackageDefault,
-                root: 'http',
-                sourceId: 'spike/defaults/http',
-                path: 'spike/config-merge/scenarios.php',
-                keyPath: 'http',
+                root: 'kernel',
+                sourceId: 'core/kernel/config/defaults/kernel',
+                path: 'framework/packages/core/kernel/config/kernel.php',
+                keyPath: 'kernel',
                 directive: null,
                 precedence: 10,
                 redacted: false,
                 meta: [
                     'kind' => 'package_default',
+                    'packageId' => 'core/kernel',
                     'sourceOrder' => 0,
                 ],
             ),
             new ConfigValueSource(
                 type: ConfigSourceType::AppConfig,
-                root: 'http',
-                sourceId: 'spike/app/http_middleware_system_pre',
-                path: 'spike/config-merge/scenarios.php',
-                keyPath: 'http.middleware.system_pre',
-                directive: '@append',
-                precedence: 400,
+                root: 'kernel',
+                sourceId: 'skeleton-config/app_environment/split_root/kernel',
+                path: 'skeleton/apps/main/config/environments/prod/kernel.php',
+                keyPath: 'kernel.boot.default_env',
+                directive: 'replace',
+                precedence: 401,
                 redacted: false,
                 meta: [
-                    'kind' => 'spike_scenario',
+                    'appEnv' => 'prod',
+                    'appTarget' => 'main',
+                    'kind' => 'split_root_subtree',
+                    'layer' => 'app_environment',
                     'sourceOrder' => 1,
                 ],
             ),
@@ -226,14 +245,14 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
             config: $config,
             sources: $sources,
             validationSubjects: [
-                'validated' => [],
-                'unvalidated' => [
+                'validated' => [
                     [
-                        'ownership' => 'user_owned',
-                        'root' => 'http',
-                        'validation' => 'unvalidated',
+                        'ownership' => 'ruleset_owned',
+                        'root' => 'kernel',
+                        'validation' => 'validated',
                     ],
                 ],
+                'unvalidated' => [],
             ],
             validationResult: ConfigValidationResult::success(),
             envOverlayMappings: [],
@@ -244,14 +263,14 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
             config: $config,
             sources: \array_reverse($sources),
             validationSubjects: [
-                'unvalidated' => [
+                'unvalidated' => [],
+                'validated' => [
                     [
-                        'validation' => 'unvalidated',
-                        'root' => 'http',
-                        'ownership' => 'user_owned',
+                        'validation' => 'validated',
+                        'root' => 'kernel',
+                        'ownership' => 'ruleset_owned',
                     ],
                 ],
-                'validated' => [],
             ],
             validationResult: ConfigValidationResult::success(),
             envOverlayMappings: [],
@@ -263,32 +282,16 @@ final class SpikeConfigExplainTraceIsSafeContractTest extends TestCase
             self::sorted(\array_column($first['paths'], 'path')),
             \array_column($first['paths'], 'path'),
         );
-    }
 
-    #[DataProvider('forbiddenRawMetaKeysProvider')]
-    public function testConfigValueSourceRejectsForbiddenRawMetaKeys(string $forbiddenKey): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-
-        new ConfigValueSource(
-            type: ConfigSourceType::Env,
-            root: 'http',
-            sourceId: 'env/http/password',
-            path: null,
-            keyPath: 'http.database.password',
-            directive: null,
-            precedence: 500,
-            redacted: true,
-            meta: [
-                $forbiddenKey => 'super-secret-password',
-            ],
+        $defaultEnvPath = self::pathRow(
+            $first,
+            'kernel.boot.default_env',
         );
-    }
 
-    public static function forbiddenRawMetaKeysProvider(): iterable
-    {
-        yield 'rawEnvValue' => ['rawEnvValue'];
-        yield 'token' => ['token'];
+        self::assertSame(
+            'replace',
+            $defaultEnvPath['directive'],
+        );
     }
 
     /**

@@ -60,6 +60,13 @@ abstract class ToolContractTestCase extends TestCase
         return $this->frameworkRoot() . '/tools/spikes/fixtures/' . $relativePath;
     }
 
+    protected function canonicalFixturePath(string $relativePath): string
+    {
+        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+
+        return $this->frameworkRoot() . '/tools/tests/Fixtures/' . $relativePath;
+    }
+
     /**
      * @return array<mixed>
      */
@@ -91,6 +98,45 @@ abstract class ToolContractTestCase extends TestCase
         foreach ($value as $item) {
             if (!is_string($item) || $item === '') {
                 throw new RuntimeException('Spike fixture must return list<string>: ' . $relativePath);
+            }
+
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function requireCanonicalArrayFixture(string $relativePath): array
+    {
+        $path = $this->canonicalFixturePath($relativePath);
+
+        if (!is_file($path)) {
+            throw new RuntimeException('Missing canonical fixture: ' . $relativePath);
+        }
+
+        $value = require $path;
+
+        if (!is_array($value)) {
+            throw new RuntimeException('Canonical fixture must return array: ' . $relativePath);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function requireCanonicalStringListFixture(string $relativePath): array
+    {
+        $value = $this->requireCanonicalArrayFixture($relativePath);
+
+        $out = [];
+        foreach ($value as $item) {
+            if (!is_string($item) || $item === '') {
+                throw new RuntimeException('Canonical fixture must return list<string>: ' . $relativePath);
             }
 
             $out[] = $item;
@@ -207,9 +253,9 @@ abstract class ToolContractTestCase extends TestCase
         return $sandbox;
     }
 
-    protected function createDeptracSandboxFromPackageIndexFixture(string $fixtureRelativePath): string
+    protected function createDeptracSandboxFromDependencyGraphFixture(string $fixtureRelativePath): string
     {
-        $fixture = $this->requireArrayFixture($fixtureRelativePath);
+        $fixture = $this->requireCanonicalArrayFixture($fixtureRelativePath);
         $packages = $fixture['packages'] ?? null;
 
         if (!is_array($packages) || $packages === []) {
@@ -330,12 +376,12 @@ abstract class ToolContractTestCase extends TestCase
         $this->writeBytesExact($path, implode("\n", $lines) . "\n");
     }
 
-    protected function writeDeptracAllowlistYamlFromSpikeFixture(
+    protected function writeDeptracAllowlistYamlFromFixture(
         string $targetPath,
         string $fixtureRelativePath,
         bool   $normalizeSrcWildcardToRegex = false,
     ): void {
-        $entries = $this->requireStringListFixture($fixtureRelativePath);
+        $entries = $this->requireCanonicalStringListFixture($fixtureRelativePath);
 
         $lines = [];
         $lines[] = 'exclude_files:';

@@ -274,7 +274,7 @@ final class DeptracGenerateTool
                     }
 
                     if (!self::isPackageId($dep)) {
-                        throw new RuntimeException('Invalid dependency table package_id dependency: ' . $dep);
+                        throw new RuntimeException('invalid-dependency-table-dependency-id');
                     }
 
                     $deps[] = $dep;

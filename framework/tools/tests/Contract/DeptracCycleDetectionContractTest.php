@@ -20,19 +20,19 @@ namespace Coretsia\Tools\Tests\Contract;
 
 use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
 
-final class SpikeDeptracCycleDetectionContractTest extends ToolContractTestCase
+final class DeptracCycleDetectionContractTest extends ToolContractTestCase
 {
     public function testCycleFixtureFailsWithDeterministicErrorCode(): void
     {
-        $sandbox = $this->createDeptracSandboxFromPackageIndexFixture('deptrac_min/package_index_cycle.php');
+        $sandbox = $this->createDeptracSandboxFromDependencyGraphFixture('Deptrac/dependency_graph_cycle.php');
 
         $out = $sandbox . '/framework/tools/testing/deptrac.yaml';
         $allowlist = $sandbox . '/framework/tools/testing/deptrac.allowlist.yaml';
         $artifactsDir = $sandbox . '/framework/var/arch';
 
-        $this->writeDeptracAllowlistYamlFromSpikeFixture(
+        $this->writeDeptracAllowlistYamlFromFixture(
             $allowlist,
-            'deptrac_min/allowlist_tests_only.php',
+            'Deptrac/allowlist_tests_only.php',
         );
 
         [$code, $output] = $this->runDeptracGenerate($sandbox, [
@@ -49,6 +49,10 @@ final class SpikeDeptracCycleDetectionContractTest extends ToolContractTestCase
         self::assertStringContainsString('CORETSIA_DEPTRAC_CYCLE_DETECTED', $output);
         self::assertStringContainsString('demo/pkg-a', $output);
         self::assertStringContainsString('demo/pkg-b', $output);
-        self::assertStringNotContainsString($sandbox, $output, 'Cycle diagnostics must not leak sandbox absolute paths.');
+        self::assertStringNotContainsString(
+            $sandbox,
+            $output,
+            'Cycle diagnostics must not leak sandbox absolute paths.'
+        );
     }
 }

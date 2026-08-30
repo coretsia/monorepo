@@ -20,19 +20,19 @@ namespace Coretsia\Tools\Tests\Contract;
 
 use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
 
-final class SpikeDeptracAllowlistPolicyContractTest extends ToolContractTestCase
+final class DeptracAllowlistPolicyContractTest extends ToolContractTestCase
 {
-    public function testSrcAllowlistFromSpikeFixtureIsRejectedDeterministically(): void
+    public function testSrcAllowlistFixtureIsRejectedDeterministically(): void
     {
-        $sandbox = $this->createDeptracSandboxFromPackageIndexFixture('deptrac_min/package_index_ok.php');
+        $sandbox = $this->createDeptracSandboxFromDependencyGraphFixture('Deptrac/dependency_graph_ok.php');
 
         $out = $sandbox . '/framework/tools/testing/deptrac.yaml';
         $allowlist = $sandbox . '/framework/tools/testing/deptrac.allowlist.yaml';
         $artifactsDir = $sandbox . '/framework/var/arch';
 
-        $this->writeDeptracAllowlistYamlFromSpikeFixture(
+        $this->writeDeptracAllowlistYamlFromFixture(
             $allowlist,
-            'deptrac_min/allowlist_invalid_src.php',
+            'Deptrac/allowlist_invalid_src.php',
             normalizeSrcWildcardToRegex: true,
         );
 
@@ -51,17 +51,17 @@ final class SpikeDeptracAllowlistPolicyContractTest extends ToolContractTestCase
         self::assertStringNotContainsString($sandbox, $output, 'Failure output must not leak sandbox absolute paths.');
     }
 
-    public function testTestsOnlyAllowlistFromSpikeFixtureIsAccepted(): void
+    public function testTestsOnlyAllowlistFixtureIsAccepted(): void
     {
-        $sandbox = $this->createDeptracSandboxFromPackageIndexFixture('deptrac_min/package_index_ok.php');
+        $sandbox = $this->createDeptracSandboxFromDependencyGraphFixture('Deptrac/dependency_graph_ok.php');
 
         $out = $sandbox . '/framework/tools/testing/deptrac.yaml';
         $allowlist = $sandbox . '/framework/tools/testing/deptrac.allowlist.yaml';
         $artifactsDir = $sandbox . '/framework/var/arch';
 
-        $this->writeDeptracAllowlistYamlFromSpikeFixture(
+        $this->writeDeptracAllowlistYamlFromFixture(
             $allowlist,
-            'deptrac_min/allowlist_tests_only.php',
+            'Deptrac/allowlist_tests_only.php',
         );
 
         [$code, $output] = $this->runDeptracGenerate($sandbox, [

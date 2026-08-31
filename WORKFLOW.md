@@ -149,7 +149,6 @@ composer gates                             # run main tooling gates
 composer dto:gate                          # run DTO policy rail
 composer arch                              # check package index, deptrac config, and deptrac analyze
 composer quality                           # run cs:check and phpstan
-composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
 composer lock:check                        # check lock files for accidental drift
 ```
@@ -208,7 +207,6 @@ git commit -m "Your commit message"        # create local commit
 Run after each commit and before push:
 
 ```bash
-composer spike:test:determinism            # run determinism check on committed state
 composer security                          # run dedicated security rail / Composer audit gate
 composer ci                                # run full local CI entrypoint
 ```
@@ -219,7 +217,6 @@ If a post-commit check fails or changes files:
 git status --short --untracked-files=all   # inspect changes after checks
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the last commit without changing its message
-composer spike:test:determinism            # rerun determinism check
 composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 ```
@@ -331,7 +328,6 @@ Single-commit cleanup flow:
 ```bash
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
-composer spike:test:determinism            # rerun determinism
 composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely replace remote branch history
@@ -424,7 +420,6 @@ composer gates                             # run main tooling gates
 composer dto:gate                          # run DTO policy rail
 composer arch                              # run arch rails
 composer quality                           # run cs:check and phpstan
-composer spike:test                        # run spike gates and spike tests
 composer test                              # run main test suite
 composer lock:check                        # check lock files
 
@@ -440,7 +435,6 @@ composer lock:check                        # final lock drift check
 
 git commit -m "Your commit message"        # create local commit
 
-composer spike:test:determinism            # run determinism check
 composer security                          # run dedicated security rail / Composer audit gate
 composer ci                                # run full local CI entrypoint
 ```
@@ -451,7 +445,6 @@ If post-commit checks require fixes:
 git status --short --untracked-files=all   # inspect changes
 git add "explicit-paths"                   # stage fixes
 git commit --amend --no-edit               # update latest commit
-composer spike:test:determinism            # rerun determinism
 composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 ```
@@ -503,7 +496,6 @@ Fix failed determinism or failed CI on a working branch:
 ```bash
 git add "explicit-paths"                   # stage the fix
 git commit --amend --no-edit               # update the latest commit
-composer spike:test:determinism            # rerun determinism
 composer security                          # rerun dedicated security rail
 composer ci                                # rerun full local CI entrypoint
 git push --force-with-lease                # safely update remote working branch

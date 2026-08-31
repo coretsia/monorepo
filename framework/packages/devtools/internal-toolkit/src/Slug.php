@@ -28,7 +28,7 @@ final class Slug
      * Converts a slug-like identifier (kebab/snake/dot/space separated) to StudlyCase.
      *
      * Examples:
-     *  - "cli-spikes" => "CliSpikes"
+     *  - "cli-tools" => "CliTools"
      *  - "internal_toolkit" => "InternalToolkit"
      *  - "foo.bar-baz" => "FooBarBaz"
      */
@@ -54,9 +54,9 @@ final class Slug
      * Converts an identifier (StudlyCase / kebab / snake / dot separated) to snake_case (lowercase, underscores).
      *
      * Examples:
-     *  - "CliSpikes" => "cli_spikes"
+     *  - "CliTools" => "cli_tools"
      *  - "JSONEncoder" => "json_encoder"
-     *  - "cli-spikes" => "cli_spikes"
+     *  - "cli-tools" => "cli_tools"
      */
     public static function toSnake(string $slug): string
     {
@@ -71,7 +71,7 @@ final class Slug
         // Insert underscores at word boundaries for StudlyCase / camelCase.
         // Handle acronym boundaries: "JSONEncoder" => "JSON_Encoder"
         $s = preg_replace('/([A-Z]+)([A-Z][a-z0-9])/', '$1_$2', $s) ?? $s;
-        // Handle lower-to-upper: "cliSpikes" => "cli_Spikes"
+        // Handle lower-to-upper: "cliTools" => "cli_Tools"
         $s = preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $s) ?? $s;
 
         $s = self::asciiLower($s);

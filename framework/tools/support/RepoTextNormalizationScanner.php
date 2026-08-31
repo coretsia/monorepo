@@ -254,6 +254,14 @@ final class RepoTextNormalizationScanner
         self::requireGitattributesRule(
             contents: $contents,
             diagnostics: $diagnostics,
+            canonicalNeedle: 'framework/tools/tests/Fixtures/** -text',
+            pattern: 'framework/tools/tests/Fixtures/**',
+            ruleRegexTail: '-text\b',
+        );
+
+        self::requireGitattributesRule(
+            contents: $contents,
+            diagnostics: $diagnostics,
             canonicalNeedle: '**/tests/fixtures/** -text',
             pattern: '**/tests/fixtures/**',
             ruleRegexTail: '-text\b',
@@ -268,8 +276,6 @@ final class RepoTextNormalizationScanner
         $mustContain = [
             'framework/var/',
 
-            '!framework/tools/spikes/fixtures/**/.env',
-            '!framework/tools/spikes/fixtures/**/.env.*',
             '!framework/tools/tests/Fixtures/**/.env',
             '!framework/tools/tests/Fixtures/**/.env.*',
 
@@ -292,11 +298,27 @@ final class RepoTextNormalizationScanner
     {
         // Enforce EOL only for types pinned in .gitattributes (plus .env* variants).
         $lfExtensions = [
-            'php', 'phpt', 'phtml',
-            'js', 'ts', 'tsx', 'css', 'scss',
-            'md', 'txt',
-            'json', 'yml', 'yaml', 'xml', 'neon', 'dist', 'lock',
-            'sh', 'bash', 'zsh', 'ps1',
+            'php',
+            'phpt',
+            'phtml',
+            'js',
+            'ts',
+            'tsx',
+            'css',
+            'scss',
+            'md',
+            'txt',
+            'json',
+            'yml',
+            'yaml',
+            'xml',
+            'neon',
+            'dist',
+            'lock',
+            'sh',
+            'bash',
+            'zsh',
+            'ps1',
             'svg',
         ];
 
@@ -304,11 +326,23 @@ final class RepoTextNormalizationScanner
 
         $skipDirNames = [
             '.git',
-            '.idea', '.vscode', '.fleet', '.osp',
-            'vendor', 'node_modules',
-            'var', 'tmp', 'build', 'coverage',
-            '.phpunit.cache', '.phpstan.cache', '.phpstan-cache', '.phpstan-cache',
-            '.rector.cache', '.psalm', '.infection',
+            '.idea',
+            '.vscode',
+            '.fleet',
+            '.osp',
+            'vendor',
+            'node_modules',
+            'var',
+            'tmp',
+            'build',
+            'coverage',
+            '.phpunit.cache',
+            '.phpstan.cache',
+            '.phpstan-cache',
+            '.phpstan-cache',
+            '.rector.cache',
+            '.psalm',
+            '.infection',
         ];
 
         // IMPORTANT (Windows): always base prefix checks on realpath() to avoid
@@ -462,7 +496,7 @@ final class RepoTextNormalizationScanner
         }
 
         // Collapse whitespace (canonical form).
-        $needle = (string)preg_replace('/\s+/', ' ', $needle);
+        $needle = (string) preg_replace('/\s+/', ' ', $needle);
 
         // Hard bans in ConsoleOutput: "=", "\" and "://"
         $needle = str_replace('://', ':/ /', $needle);
@@ -470,7 +504,7 @@ final class RepoTextNormalizationScanner
         $needle = str_replace('=', ':', $needle);
 
         // Normalize ":" spacing after replacement: "a : b" => "a:b"
-        $needle = (string)preg_replace('/\s*:\s*/', ':', $needle);
+        $needle = (string) preg_replace('/\s*:\s*/', ':', $needle);
         $needle = trim($needle);
 
         // Ensure printable ASCII (ConsoleOutput policy).
@@ -529,10 +563,25 @@ final class RepoTextNormalizationScanner
                     // Skip obvious binary types (we don't EOL-check those).
                     $ext = strtolower(pathinfo($current->getFilename(), PATHINFO_EXTENSION));
                     if (in_array($ext, [
-                        'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico',
-                        'pdf', 'zip', 'gz', 'tgz', 'tar', '7z', 'phar',
-                        'woff', 'woff2', 'ttf', 'eot',
-                        'mp4', 'mov',
+                        'png',
+                        'jpg',
+                        'jpeg',
+                        'gif',
+                        'webp',
+                        'ico',
+                        'pdf',
+                        'zip',
+                        'gz',
+                        'tgz',
+                        'tar',
+                        '7z',
+                        'phar',
+                        'woff',
+                        'woff2',
+                        'ttf',
+                        'eot',
+                        'mp4',
+                        'mov',
                     ], true)) {
                         return false;
                     }
@@ -658,7 +707,7 @@ final class RepoTextNormalizationScanner
      */
     private static function requireGitattributesRule(
         string $contents,
-        array  &$diagnostics,
+        array &$diagnostics,
         string $canonicalNeedle,
         string $pattern,
         string $ruleRegexTail

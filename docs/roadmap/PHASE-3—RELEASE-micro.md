@@ -1469,7 +1469,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - N/A (maintenance commands are separate epic 3.80.0 in old plan; not part of this epic)
+  - N/A (maintenance commands are owned by epic 3.80.0; not part of this epic)
 - HTTP:
   - terminal routes (owner = FallbackRouter 3.110.0):
     - `/`, `/ping`, `/_alive`, `/error`, reserved `/health*`, `/metrics`
@@ -1556,6 +1556,7 @@ Tests:
 - [ ] `framework/packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
 - [ ] `framework/packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
 - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — locks the canonical `platform/http` middleware slot/priority projection against `docs/ssot/http-middleware-catalog.md`; later `platform/http` middleware epics extend this shared contract
 - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
 - [ ] `framework/packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
 - [ ] `framework/packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
@@ -1789,6 +1790,7 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] `framework/packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
 - Contract:
   - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
   - [ ] `framework/packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
   - [ ] `framework/packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
@@ -2218,7 +2220,7 @@ Forbidden:
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag `system_pre` priority `940`
 - [ ] `framework/packages/platform/http/README.md` — section “RequestIdMiddleware” (slot/priority, header policy, upstream accept/replace rules)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RequestIdMiddleware` (system_pre 940)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `RequestIdMiddleware` (system_pre 940)
+- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `RequestIdMiddleware` (`http.middleware.system_pre` priority `940`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-requestid-correlationid-policy.md`
 
@@ -2455,7 +2457,7 @@ Forbidden:
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
   - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
   - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update rows:
+- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for:
   - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
   - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
 - [ ] `docs/adr/INDEX.md` — register:
@@ -2714,7 +2716,7 @@ Slice boundary note (MUST):
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag (system_pre) + register CLI commands (tag `cli.command`)
 - [ ] `framework/packages/platform/http/README.md` — section “Maintenance” (slot/tag/priority, bypass rules, file paths + schema)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
+- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-maintenance-mode-toggle.md`
 
@@ -3000,7 +3002,7 @@ N/A
   - [ ] `docs/ssot/system-route-table.md`
   - [ ] ADR registered
 - [ ] Gate output policy (MUST)
-  - [ ] Gate MUST use tools ConsoleOutput only (`framework/tools/spikes/_support/ConsoleOutput.php`).
+  - [ ] Gate MUST use tools ConsoleOutput only (`framework/tools/support/ConsoleOutput.php`).
   - [ ] Output:
     - [ ] line1: deterministic CODE
     - [ ] line2+: diagnostics sorted `strcmp`, paths normalized (forward slashes), no absolute paths.
@@ -4187,7 +4189,7 @@ Tests:
 - [ ] `framework/packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
 - [ ] `framework/packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
 - [ ] `framework/packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
+- [ ] `framework/packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php` — locks the `RouterMiddleware` contribution to `http.middleware.app` priority `100` against the canonical middleware catalog
 - [ ] `framework/packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
 
 Framework / E2E:
@@ -4198,7 +4200,6 @@ Framework / E2E:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-platform-http-app-router-middleware-action-invoker.md`
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
 - [ ] `docs/ssot/config-roots.md` — add row:
   - [ ] `http_app | platform/http-app | framework/packages/platform/http-app/config/http_app.php | framework/packages/platform/http-app/config/rules.php | app-layer http routing+invocation settings`
 - [ ] `docs/ssot/INDEX.md` — (only if config-roots.md is not already indexed) ensure it remains indexed as canonical SSoT.
@@ -4562,7 +4563,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — middleware catalog (must be updated with CORS row)
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` — rails fixture (must be updated with CORS row)
+  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — place to wire middleware
 
 - Required config roots/keys:
@@ -4635,7 +4636,6 @@ Forbidden:
 
 Tests:
 - [ ] `framework/packages/platform/http/tests/Contract/CorsHeadersDeterministicOrderContractTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
 - [ ] `framework/packages/platform/http/tests/Integration/CorsPreflightReturns204WithDeterministicHeadersTest.php`
 - [ ] `framework/packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
 
@@ -4646,7 +4646,7 @@ Tests:
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — registers + tags CORS middleware (system_pre 840)
 - [ ] `framework/packages/platform/http/README.md` — “CorsMiddleware” section (slot/priority/override recipe)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `CorsMiddleware` (priority 840)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update row for `CorsMiddleware` (priority 840)
+- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `CorsMiddleware` (`http.middleware.system_pre` priority `840`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-cors-middleware.md`
 
@@ -4756,7 +4756,7 @@ N/A
   - [ ] `framework/packages/platform/http/README.md`
   - [ ] `docs/ssot/http-middleware-catalog.md`
   - [ ] `docs/guides/cors.md`
-- [ ] Catalog fixture + SSoT doc updated in the same PR as middleware code
+- [ ] Shared catalog lock contract + SSoT catalog updated in the same PR as middleware code
 - [ ] Slot/priority locked by contract test
 - [ ] What problem this epic solves:
   - [ ] Централізований CORS з deterministic поведінкою (preflight 204, headers order stable).
@@ -4765,10 +4765,10 @@ N/A
   - [ ] Не логить raw Origin/headers; лише safe summary.
   - [ ] Не вводить нові label keys (лише allowlist).
 - [ ] Cutline impact: blocks Phase 3 cutline
-- [ ] Phase -1/0 catalog lock (MUST):
+- [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
-    - [ ] Phase 0 SSoT: `docs/ssot/http-middleware-catalog.md`
-    - [ ] Phase -1 rails fixture: `framework/tools/spikes/fixtures/http_middleware_catalog.php`
+    - [ ] `docs/ssot/http-middleware-catalog.md`
+    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] CORS: `system_pre` prio 840
 - [ ] Canonical blocked-policy is single-choice (MUST)
@@ -4856,9 +4856,6 @@ N/A
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
   - [ ] `platform/http` `MethodOverrideMiddleware` priority `820`
   - [ ] `platform/http` `ContentNegotiationMiddleware` priority `810`
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — add/update rows:
-  - [ ] `MethodOverrideMiddleware` → slot `http.middleware.system_pre`, priority `820`
-  - [ ] `ContentNegotiationMiddleware` → slot `http.middleware.system_pre`, priority `810`
 - [ ] `framework/packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/http-negotiation.md`
@@ -4899,8 +4896,8 @@ N/A
 - [ ] Docs updated and referenced by package README
 - [ ] Catalog priorities match runtime wiring (820 then 810)
 - [ ] Override/disable recipe documented (manual mode)
-- [ ] Catalog fixture stays synchronized with the SSoT catalog:
-  - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php`
+- [ ] Canonical middleware placement and priorities are fully specified in `docs/ssot/http-middleware-catalog.md`
+- [ ] Implementation epics `3.170.0` and `3.180.0` MUST extend the shared `MiddlewareCatalogPriorityAndSlotLockTest.php` when runtime wiring is added
 - [ ] Taxonomy + ordering lock (MUST)
   - [ ] Middleware catalog rows MUST use only allowed slots
     - [ ] Add/confirm rows in `docs/ssot/http-middleware-catalog.md`:
@@ -4958,7 +4955,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` — rails fixture (must be updated/locked)
+  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
 
 - Required config roots/keys:
@@ -5051,7 +5048,6 @@ Tests:
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 820)
 - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `MethodOverrideMiddleware` (`system_pre` 820)
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 820)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — ensure row (system_pre 820)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-method-override-middleware.md`
 
@@ -5159,7 +5155,7 @@ N/A
 - [ ] Docs updated (umbrella):
   - [ ] `docs/ssot/http-method-override.md`
   - [ ] `docs/ssot/http-middleware-catalog.md`
-- [ ] Catalog fixture + SSoT doc updated in the same PR as middleware code
+- [ ] Shared catalog lock contract + SSoT catalog updated in the same PR as middleware code
 - [ ] Slot/priority locked by contract test
 - [ ] What problem this epic solves:
   - [ ] Додає deterministic method override policy (header/query за allowlist) без дублювання у контролерах.
@@ -5168,10 +5164,10 @@ N/A
   - [ ] Не дозволяє override за замовчуванням з body/query (безпековий default).
   - [ ] Не логить raw header values.
 - [ ] Cutline impact: none
-- [ ] Phase -1/0 catalog lock (MUST):
+- [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
     - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php`
+    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] MethodOverride: `system_pre` prio 820
 
@@ -5215,7 +5211,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` — rails fixture (must be updated/locked)
+  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
   - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
 
 - Required config roots/keys:
@@ -5315,7 +5311,6 @@ Tests:
 - [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 810)
 - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `ContentNegotiationMiddleware` (`system_pre` 810)
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 810)
-- [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — ensure row (system_pre 810)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-content-negotiation-middleware.md`
 
@@ -5425,7 +5420,7 @@ N/A
 - [ ] Docs updated (umbrella):
   - [ ] `docs/ssot/http-negotiation.md`
   - [ ] `docs/ssot/http-middleware-catalog.md`
-- [ ] Catalog fixture + SSoT doc updated in the same PR as middleware code
+- [ ] Shared catalog lock contract + SSoT catalog updated in the same PR as middleware code
 - [ ] Slot/priority locked by contract test
 - [ ] Context write discipline (MUST)
   - [ ] The middleware MUST write response format ONLY via the cemented ContextStore API
@@ -5440,10 +5435,10 @@ N/A
   - [ ] Не робить “content-type negotiation” для request body (лише response format decision).
   - [ ] Не логить raw Accept header.
 - [ ] Cutline impact: none
-- [ ] Phase -1/0 catalog lock (MUST):
+- [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
     - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/tools/spikes/fixtures/http_middleware_catalog.php`
+    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] ContentNegotiation: `system_pre` prio 810
 
@@ -5821,7 +5816,7 @@ Forbidden:
 - [ ] `framework/tools/benchmarks/http/http.report.schema.json` — report shape lock
 - [ ] `framework/tools/benchmarks/http/README.md` — benchmark methodology + scenario list
 - [ ] `framework/tools/gates/http_benchmark_gate.php` — baseline comparator gate
-  - [ ] MUST use `framework/tools/spikes/_support/ConsoleOutput.php` only
+  - [ ] MUST use `framework/tools/support/ConsoleOutput.php` only
   - [ ] line1 MUST be a deterministic CODE
   - [ ] line2+ MUST contain only safe diagnostics sorted `strcmp`
   - [ ] MUST NOT print absolute paths, raw payloads, headers, cookies, query strings, or stack traces
@@ -5840,7 +5835,7 @@ Forbidden:
   - [ ] `benchmark:http:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated pinned benchmark job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [ ] `framework/tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_HTTP_BENCHMARK_DEGRADED`
   - [ ] `CORETSIA_HTTP_BENCHMARK_BASELINE_MISSING`
   - [ ] `CORETSIA_HTTP_BENCHMARK_ENV_MISMATCH`

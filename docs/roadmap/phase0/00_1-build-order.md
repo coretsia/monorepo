@@ -25,7 +25,7 @@
 
 ## 0) Scope
 
-- Scope: Phase 0 only (SPIKES + Phase 0 tooling rails).
+- Scope: Phase 0 only (tooling prototypes + Phase 0 tooling rails).
 - Goal: minimize risk by front-loading hard constraints (determinism, boundary rules, gate output policy) before building larger tooling.
 
 ---
@@ -44,10 +44,10 @@
 
 ### A) Cement boundaries + deterministic rails first
 
-1. 0.10.0 — Spikes boundary decision (DOC)
+1. 0.10.0 — Tooling prototype boundary decision (DOC)
    - Lock the “what is allowed” rule set early.
 
-2. 0.20.0 — Spikes sandbox + CI rails (TOOLING)
+2. 0.20.0 — Tooling prototype sandbox + CI rails (TOOLING)
    - Establish deterministic test execution + rerun-no-diff discipline so later epics cannot drift.
 
 ### B) Establish deterministic primitives that everything will reuse
@@ -60,7 +60,7 @@
 
 ### C) Enforce the boundaries (gates) before the surface area grows
 
-5. 0.30.0 — Spikes boundary enforcement gate (TOOLING)
+5. 0.30.0 — Tooling boundary enforcement gate (TOOLING)
    - Make boundary violations unmergeable as early as possible.
 
 ### D) Build the “deterministic core” of Phase 0 artifacts
@@ -92,9 +92,6 @@
 
 13. 0.130.0 — Minimal `coretsia` CLI base (prod-safe) (TOOLING)
     - Canonical launcher, deterministic output discipline.
-
-14. 0.140.0 — `coretsia/cli-spikes` Phase 0 command pack (TOOLING)
-    - A thin dispatcher to run spikes safely (no spike business logic in commands).
 
 ---
 

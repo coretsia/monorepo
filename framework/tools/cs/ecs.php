@@ -55,8 +55,8 @@ return ECSConfig::configure()
         $frameworkRoot . '/packages/*/*/tests/fixtures/*',
         $frameworkRoot . '/packages/*/*/tests/fixtures/**/*',
 
-        $frameworkRoot . '/tools/spikes/*/fixtures/*',
-        $frameworkRoot . '/tools/spikes/*/fixtures/**/*',
         $frameworkRoot . '/tools/tests/*/fixtures/*',
         $frameworkRoot . '/tools/tests/*/fixtures/**/*',
+        $frameworkRoot . '/tools/tests/Fixtures/*',
+        $frameworkRoot . '/tools/tests/Fixtures/**/*',
     ]);

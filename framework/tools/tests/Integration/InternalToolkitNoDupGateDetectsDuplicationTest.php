@@ -51,81 +51,11 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
             $res = $this->runGate($gate, $tmp);
 
             self::assertSame(1, $res['exit_code'], 'gate must fail');
-            self::assertSame('CORETSIA_TOOLKIT_DUPLICATION_DETECTED', $res['code_line'], 'must emit duplication code');
-        } finally {
-            $this->rmTree($tmp);
-        }
-    }
-
-    public function testGatePassesOnAllowlistedWrapperDelegatingToInternalToolkit(): void
-    {
-        $gate = $this->resolveGateOrSkip();
-
-        $tmp = $this->makeTempDir('toolkit-no-dup-wrapper-');
-
-        try {
-            $this->writePhp(
-                $tmp . '/spikes/any/StableJsonEncoder.php',
-                <<<'PHP'
-                <?php
-                declare(strict_types=1);
-
-                namespace Any;
-
-                final class StableJsonEncoder
-                {
-                    public static function encodeStable(mixed $value): string
-                    {
-                        return \Coretsia\Devtools\InternalToolkit\Json::encodeStable($value);
-                    }
-                }
-                PHP
+            self::assertSame(
+                'CORETSIA_TOOLKIT_DUPLICATION_DETECTED',
+                $res['code_line'],
+                'must emit duplication code',
             );
-
-            $res = $this->runGate($gate, $tmp);
-
-            self::assertSame(0, $res['exit_code'], 'gate must pass');
-            self::assertSame('', $res['raw_output'], 'gate must be silent on pass');
-        } finally {
-            $this->rmTree($tmp);
-        }
-    }
-
-    public function testGatePassesOnAllowlistedJsonEncodeInComposerJsonCanonicalizer(): void
-    {
-        $gate = $this->resolveGateOrSkip();
-
-        $tmp = $this->makeTempDir('toolkit-no-dup-json-allow-');
-
-        try {
-            $this->writePhp(
-                $tmp . '/spikes/workspace/ComposerJsonCanonicalizer.php',
-                <<<'PHP'
-                <?php
-                declare(strict_types=1);
-
-                namespace Coretsia\Tools\Spikes\Workspace;
-
-                final class ComposerJsonCanonicalizer
-                {
-                    public static function encodeCanonical(array $composerJson): string
-                    {
-                        return (string)\json_encode(
-                            $composerJson,
-                            \JSON_PRETTY_PRINT
-                            | \JSON_UNESCAPED_SLASHES
-                            | \JSON_UNESCAPED_UNICODE
-                            | \JSON_THROW_ON_ERROR
-                        );
-                    }
-                }
-                PHP
-            );
-
-            $res = $this->runGate($gate, $tmp);
-
-            self::assertSame(0, $res['exit_code'], 'gate must pass');
-            self::assertSame('', $res['raw_output'], 'gate must be silent on pass');
         } finally {
             $this->rmTree($tmp);
         }
@@ -151,7 +81,11 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
             $res = $this->runGate($gate, $tmp);
 
             self::assertSame(1, $res['exit_code'], 'gate must fail');
-            self::assertSame('CORETSIA_TOOLKIT_JSON_ENCODE_FORBIDDEN', $res['code_line'], 'must emit json-forbidden code');
+            self::assertSame(
+                'CORETSIA_TOOLKIT_JSON_ENCODE_FORBIDDEN',
+                $res['code_line'],
+                'must emit json-forbidden code',
+            );
         } finally {
             $this->rmTree($tmp);
         }
@@ -181,7 +115,7 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
 
     private function makeTempDir(string $prefix): string
     {
-        $base = \rtrim((string)\sys_get_temp_dir(), '\\/');
+        $base = \rtrim((string) \sys_get_temp_dir(), '\\/');
         $dir = $base . '/' . $prefix . \bin2hex(\random_bytes(8));
 
         if (!@\mkdir($dir, 0777, true) && !\is_dir($dir)) {
@@ -231,13 +165,13 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
         try {
             @\fclose($pipes[0]);
 
-            $stdout = (string)\stream_get_contents($pipes[1]);
-            $stderr = (string)\stream_get_contents($pipes[2]);
+            $stdout = (string) \stream_get_contents($pipes[1]);
+            $stderr = (string) \stream_get_contents($pipes[2]);
 
             @\fclose($pipes[1]);
             @\fclose($pipes[2]);
 
-            $exitCode = (int)\proc_close($proc);
+            $exitCode = (int) \proc_close($proc);
         } finally {
             if (\is_resource($proc)) {
                 @\proc_terminate($proc);
@@ -253,7 +187,7 @@ final class InternalToolkitNoDupGateDetectsDuplicationTest extends TestCase
         $codeLine = '';
         if ($outTrim !== '') {
             $lines = \explode("\n", $outTrim);
-            $codeLine = \trim((string)($lines[0] ?? ''));
+            $codeLine = \trim((string) ($lines[0] ?? ''));
         }
 
         return [

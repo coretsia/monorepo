@@ -48,16 +48,32 @@ final class PathNormalizeRelativeGoldenVectorsTest extends TestCase
             'mixed-separators a/b\\c' => ['a/b\\c', '/repo', 'a/b/c'],
             'redundant ./a/b' => ['./a/b', '/repo', 'a/b'],
             'redundant a//b' => ['a//b', '/repo', 'a/b'],
-            'drive-letter C:\\repo\\framework\\tools\\spikes' => ['C:\\repo\\framework\\tools\\spikes', 'C:\\repo', 'framework/tools/spikes'],
+            'drive-letter C:\\repo\\framework\\tools\\build' => [
+                'C:\\repo\\framework\\tools\\build',
+                'C:\\repo',
+                'framework/tools/build'
+            ],
         ];
 
         // Windows-only: MSYS/MinGW absolute forms + case-insensitive containment.
         if (\PHP_OS_FAMILY === 'Windows') {
-            $vectors['msys-drive /c/repo/... under win repoRoot'] = ['/c/repo/framework/tools/spikes', 'C:\\repo', 'framework/tools/spikes'];
-            $vectors['msys-repoRoot /c/repo with win abs path'] = ['C:\\repo\\framework\\tools\\spikes', '/c/repo', 'framework/tools/spikes'];
+            $vectors['msys-drive /c/repo/... under win repoRoot'] = [
+                '/c/repo/framework/tools/build',
+                'C:\\repo',
+                'framework/tools/build'
+            ];
+            $vectors['msys-repoRoot /c/repo with win abs path'] = [
+                'C:\\repo\\framework\\tools\\build',
+                '/c/repo',
+                'framework/tools/build'
+            ];
 
             // Case-insensitive containment (Windows FS semantics).
-            $vectors['windows-case-insensitive root vs abs'] = ['c:\\REPO\\Framework\\Tools', 'C:\\repo', 'Framework/Tools'];
+            $vectors['windows-case-insensitive root vs abs'] = [
+                'c:\\REPO\\Framework\\Tools',
+                'C:\\repo',
+                'Framework/Tools'
+            ];
         }
 
         return $vectors;

@@ -149,7 +149,7 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
   - Kernel owns base UnitOfWork context writes and operation-boundary observability.
 - Kernel, Foundation, worker, artifact, config, module-plan, reset, and runtime lifecycle services now consistently use provider-owned observability binding instead of business services depending on nullable observability dependencies or direct Noop implementation knowledge.
 - KernelRuntime lifecycle handling was refactored to reduce duplicated control flow while preserving deterministic failure precedence.
-- CI workflows were split into focused verification, spike/prototype rails, and architecture generator idempotence evidence workflows.
+- CI workflows were split into focused verification, prototype/tooling rails, and architecture generator idempotence evidence workflows.
 
 ### Fixed
 
@@ -252,7 +252,7 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
   - `composer ci`.
 - Managed Composer repositories policy.
 - Lock determinism policy.
-- Spikes boundary law.
+- Tooling boundary law.
 - SSoT-first development workflow.
 
 ### Changed

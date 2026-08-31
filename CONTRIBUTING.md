@@ -21,7 +21,7 @@ This repository is **SSoT-first**, **deterministic-by-default**, and **boundary-
 - `framework/` — framework meta-package + all framework packages
 - `skeleton/` — local workspace app sandbox (fixtures, E2E, entrypoints)
 - `docs/` — SSoT (`docs/ssot/**`) + task-first roadmap (`docs/roadmap/**`)
-- `framework/tools/` — gates, generators, CI rails, spikes (Phase 0 / Prelude)
+- `framework/tools/` — gates, generators, CI rails, and tooling support
 
 ## Ground rules (SSoT, MUST)
 
@@ -131,23 +131,6 @@ composer ci
 For the complete canonical command catalog and rail composition, see:
 
 - [Command catalog](docs/guides/commands.md)
-
-## Spikes boundary (Phase 0, MUST)
-
-Spikes are strictly tools-only.
-
-- The **only** spikes root is: `framework/tools/spikes/**`
-- Spikes **MUST NOT**:
-  - import runtime packages `core/*`, `platform/*`, `integrations/*` (any `Coretsia\*` runtime API),
-  - do path-based imports from `framework/packages/**` (`require/include` pointing into `packages/**/src/**`).
-- The **only exception** is deterministic primitives in `coretsia/devtools-internal-toolkit` (tooling-only library), used only via Composer autoload (namespace), never via path `require`.
-
-If you touch tooling determinism/generators, run the spikes rails (if present in scripts):
-
-```bash
-composer spike:test
-composer spike:test:determinism
-```
 
 ## Deterministic output & redaction (MUST)
 

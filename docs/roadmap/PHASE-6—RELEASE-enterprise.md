@@ -7260,7 +7260,7 @@ ssot_refs:
   - none
 
 - Required config roots/keys:
-  - `platform.worker` — MUST be `disabled` when `runtime_frankenphp.enabled=true` (policy carried from legacy epic)
+  - `platform.worker` — MUST be `disabled` when `runtime_frankenphp.enabled=true` (enforced by the canonical runtime-driver matrix in `docs/ssot/runtime-drivers.md`)
 
 - Required tags:
   - none
@@ -7520,7 +7520,7 @@ ssot_refs:
   - none
 
 - Required config roots/keys:
-  - `platform.worker` — MUST be `disabled` when `runtime_swoole.enabled=true` (policy carried from legacy epic)
+  - `platform.worker` — MUST be `disabled` when `runtime_swoole.enabled=true` (enforced by the canonical runtime-driver matrix in `docs/ssot/runtime-drivers.md`)
 
 - Required tags:
   - none
@@ -10669,7 +10669,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/sso-oidc/README.md`
   - [ ] `framework/packages/enterprise/sso-oidc/docs/oidc.md`
-  - [ ] ADR present (`docs/adr/ADR-XXXX-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-XXXX-...`)
 - [ ] Scope & intent (MUST)
   - [ ] Дає enterprise SSO через OIDC (login + callback) без вшивання vendor concretes у `core/contracts`
   - [ ] Узгоджує boundary: SSO провайдер → verified identity claims → link-to-local identity (без зміни `platform/auth` internals)
@@ -11369,7 +11369,6 @@ Forbidden:
 - [ ] `framework/packages/core/contracts/src/Tenancy/TenancyException.php` — deterministic codes
 
 - [ ] `docs/adr/ADR-XXXX-enterprise-tenancy-contracts.md` — ADR for tenancy contracts + boundary
-- [ ] `docs/adr/ADR-XXXX-enterprise-tenancy-contracts.md` — legacy ADR reference from prior draft (resolve/cleanup when spec locked)
 
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/TenantResolverRegistry.php` — collects resolvers deterministically
 - [ ] `framework/packages/enterprise/tenancy/src/Tenancy/Resolver/HostTenantResolver.php` — host-based
@@ -11527,7 +11526,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/tenancy/README.md`
   - [ ] `framework/packages/enterprise/tenancy/docs/tenancy.md`
-  - [ ] ADR present (`docs/adr/ADR-XXXX-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-XXXX-...`)
 - [ ] Scope & intent (MUST)
   - [ ] Додає multi-tenant контекст для HTTP UoW: детерміноване визначення tenant + запис `tenant_id` у ContextStore (safe id)
   - [ ] Дає pluggable resolvers (host/header/path/jwt_claim) з deterministic order і safety rails
@@ -11821,7 +11820,7 @@ N/A
 - [ ] Docs updated:
   - [ ] `framework/packages/enterprise/audit/README.md`
   - [ ] `framework/packages/enterprise/audit/docs/audit.md`
-  - [ ] ADR present (`docs/adr/ADR-XXXX-...`) (+ legacy ADR reference resolved/removed if redundant)
+  - [ ] ADR present (`docs/adr/ADR-XXXX-...`)
 - [ ] Scope & intent (MUST)
   - [ ] Додає enterprise audit trail: append-only записи з safe context (correlation/request/tenant/actor ids) без payload/PII
   - [ ] Дає vendor-agnostic contracts ports/VO для аудиту (щоб devtools/admin-panel могли читати без прив’язки)

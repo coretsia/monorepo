@@ -367,13 +367,6 @@ integrations/*
 devtools/*
 ```
 
-This includes tooling-only packages such as:
-
-```text
-devtools/internal-toolkit
-devtools/cli-spikes
-```
-
 ## Container decision
 
 `core/foundation` provides a PSR-11-compatible container runtime.

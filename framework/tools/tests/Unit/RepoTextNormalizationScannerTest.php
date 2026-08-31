@@ -232,6 +232,7 @@ final class RepoTextNormalizationScannerTest extends TestCase
                 '*.mov   -text',
                 '',
                 'framework/tools/**/fixtures/** -text',
+                'framework/tools/tests/Fixtures/** -text',
                 '**/tests/fixtures/** -text',
                 '',
             ]) . "\n";
@@ -242,8 +243,6 @@ final class RepoTextNormalizationScannerTest extends TestCase
         return implode("\n", [
                 'framework/var/',
                 '',
-                '!framework/tools/spikes/fixtures/**/.env',
-                '!framework/tools/spikes/fixtures/**/.env.*',
                 '!framework/tools/tests/Fixtures/**/.env',
                 '!framework/tools/tests/Fixtures/**/.env.*',
                 '',

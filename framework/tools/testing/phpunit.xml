@@ -53,7 +53,6 @@
       <directory>../../tools</directory>
     </include>
     <exclude>
-      <directory>../../tools/spikes</directory>
       <directory>../../var</directory>
     </exclude>
   </source>

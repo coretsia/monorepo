@@ -320,7 +320,7 @@ They do not depend on process locale, ICU collation, filesystem casing, or local
 Examples:
 
 ```text
-cli-spikes       -> CliSpikes
+cli-tools        -> CliTools
 internal_toolkit -> InternalToolkit
 foo.bar-baz      -> FooBarBaz
 psr-7            -> Psr7
@@ -339,10 +339,10 @@ An empty or whitespace-only input produces an empty string.
 Examples:
 
 ```text
-CliSpikes                -> cli_spikes
+CliTools                 -> cli_tools
 JSONEncoder              -> json_encoder
 CoreDTOAttribute         -> core_dto_attribute
-cli-spikes               -> cli_spikes
+cli-tools                -> cli_tools
 foo.bar/baz qux          -> foo_bar_baz_qux
 Coretsia\InternalToolkit -> coretsia_internal_toolkit
 ```

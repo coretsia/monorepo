@@ -104,22 +104,6 @@ docs/ssot/observability.md
 docs/ssot/observability-and-errors.md
 ```
 
-The Phase 0 fixture:
-
-```text
-framework/tools/spikes/fixtures/http_middleware_catalog.php
-```
-
-MAY be used only as a Phase 0 lock/alignment input.
-
-It is not the SSoT for middleware slot ownership, slot contents, runtime discovery, middleware placement, or context-key usage.
-
-The canonical middleware list/slot ownership/order reference is:
-
-```text
-docs/ssot/http-middleware-catalog.md
-```
-
 The middleware slot strings shown in this reference map are documentation values.
 
 Runtime package source MUST use the corresponding framework-reserved DI tag identifier constants from:

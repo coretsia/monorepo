@@ -21,7 +21,6 @@ deptrac:
     - '../../packages/core/dto-attribute/src'
     - '../../packages/core/foundation/src'
     - '../../packages/core/kernel/src'
-    - '../../packages/devtools/cli-spikes/src'
     - '../../packages/devtools/internal-toolkit/src'
     - '../../packages/platform/cli/src'
     - '../../packages/platform/worker/src'
@@ -48,10 +47,6 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Kernel\\.*'
-    - name: 'devtools.cli_spikes'
-      collectors:
-        - type: classLike
-          value: '^Coretsia\\Devtools\\CliSpikes\\.*'
     - name: 'devtools.internal_toolkit'
       collectors:
         - type: classLike
@@ -73,9 +68,6 @@ deptrac:
     'core.kernel':
       - 'core.contracts'
       - 'core.foundation'
-    'devtools.cli_spikes':
-      - 'core.contracts'
-      - 'platform.cli'
     'devtools.internal_toolkit': [ ]
     'platform.cli':
       - 'core.contracts'

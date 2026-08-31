@@ -134,17 +134,7 @@ Other docs MAY provide explanations, but MUST NOT claim dependency truth.
 
 ---
 
-## 7) Spikes boundary
-
-If you touch spikes/tooling:
-
-- [ ] Spikes live only under `framework/tools/spikes/**`.
-- [ ] Spikes MUST NOT import runtime packages (`core/*`, `platform/*`, `integrations/*`) via `Coretsia\*` APIs.
-- [ ] Any shared deterministic primitives belong only in `coretsia/devtools-internal-toolkit` and are consumed via Composer autoload.
-
----
-
-## 8) What to read next (minimum set)
+## 7) What to read next (minimum set)
 
 - [ ] `docs/roadmap/ROADMAP.md` (canonical roadmap and implementation phases)
 - [ ] `docs/guides/git-hooks.md` (hooks + managed repos workflow)
@@ -153,7 +143,7 @@ If you touch spikes/tooling:
 
 ---
 
-## 9) Next: development workflow
+## 8) Next: development workflow
 
 Continue with the canonical day-to-day workflow (including adding packages without manual Composer repository edits):
 

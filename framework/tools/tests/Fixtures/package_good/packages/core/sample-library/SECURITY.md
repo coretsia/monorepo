@@ -19,7 +19,7 @@
 Coretsia Framework is in **active development**.
 
 - **Prelude**: implemented
-- **Phase 0 — Spikes and prototypes**: implemented
+- **Phase 0 — Tooling foundations**: implemented
 - **Phase 1 — Core**: active development
 - **Stable production release**: not available yet
 

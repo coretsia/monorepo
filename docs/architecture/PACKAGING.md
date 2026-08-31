@@ -145,7 +145,7 @@ Examples:
 - `platform/cli` → `Coretsia\Platform\Cli\...`
 - `platform/problem-details` → `Coretsia\Platform\ProblemDetails\...`
 - `integrations/cache-redis` → `Coretsia\Integrations\CacheRedis\...`
-- `devtools/cli-spikes` → `Coretsia\Devtools\CliSpikes\...`
+- `devtools/internal-toolkit` → `Coretsia\Devtools\InternalToolkit\...`
 
 ### 5.3. Source + tests mapping (MUST)
 
@@ -235,7 +235,7 @@ Each such directory is one Composer package (`coretsia/<layer>-<slug>`).
 
 The following parts of the repository MUST NOT be considered publishable packages (and MUST NOT be positioned as such):
 
-- `framework/tools/**` — tooling, gates, CI rails, spikes, generators
+- `framework/tools/**` — tooling, gates, CI rails, generators, and tooling support
 - `skeleton/**` — workspace app sandbox, fixtures, runtime caches (`skeleton/var/**`)
 - `docs/**` — documentation
 - repo root files (`README.md`, `LICENSE`, etc.) — navigation/rules, not packages

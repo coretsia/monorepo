@@ -43,20 +43,11 @@ Those implementations overlapped in the following rules:
 - list order preservation;
 - safe deterministic diagnostics.
 
-The prototype payload spike files under:
-
-```text
-framework/tools/spikes/payload/*
-```
-
-proved the baseline behavior, but they are tooling/prototype material and cannot become runtime dependencies.
-
 Runtime packages must not depend on:
 
 ```text
 devtools/*
 tools/*
-framework/tools/spikes/*
 ```
 
 The existing Foundation stable JSON decision is recorded in:
@@ -146,7 +137,7 @@ docs/ssot/json-like-runtime-values.md
 
 `core/contracts` remains unchanged.
 
-Runtime packages must not copy code from `framework/tools/spikes/payload/*`.
+Runtime packages must not copy tooling implementation code for this behavior.
 
 Runtime packages must not depend on `devtools/internal-toolkit` for this behavior.
 
@@ -222,8 +213,7 @@ The implementation must not depend on:
 - PHP hash-map insertion side effects for final map order;
 - platform packages;
 - integration packages;
-- tooling packages;
-- spike packages.
+- tooling packages.
 
 ## Decision 3: Foundation owns path-aware safe normalization failures
 
@@ -615,22 +605,16 @@ The normalizer must not read generated artifacts.
 
 The normalizer must not write generated artifacts.
 
-## Decision 11: Runtime packages must not use tooling packages or spike code
+## Decision 11: Runtime packages must not use tooling packages or tooling implementation code
 
-Runtime packages must not copy code from:
-
-```text
-framework/tools/spikes/payload/*
-```
+Runtime packages must not copy tooling implementation code into runtime packages.
 
 Runtime packages must not depend on:
 
 ```text
 Coretsia\Devtools\InternalToolkit
-Coretsia\Tools\Spikes
 devtools/*
 tools/*
-framework/tools/spikes/*
 ```
 
 The runtime implementation must be native to runtime packages and respect package dependency boundaries.
@@ -643,7 +627,6 @@ platform/*
 integrations/*
 devtools/*
 tools/*
-framework/tools/spikes/*
 ```
 
 `core/kernel` may depend on:
@@ -699,7 +682,7 @@ Kernel keeps only UoW-specific behavior.
 
 `core/contracts` remains small and does not gain implementation primitives.
 
-Runtime packages remain independent from tooling packages and spike code.
+Runtime packages remain independent from tooling packages and tooling implementation code.
 
 `StableJsonEncoder` keeps its stable-json surface while reusing the baseline normalizer.
 
@@ -731,13 +714,13 @@ Path-safety rules may make diagnostics less human-detailed for unsafe keys, but 
 
 ## Rejected alternatives
 
-### Direct copy from `framework/tools/spikes/payload/*`
+### Copy tooling implementation into runtime packages
 
 Rejected.
 
-The spike files are prototype/tooling material.
+Tooling implementation code is not a runtime dependency source.
 
-Runtime packages must not import or copy spike code as runtime implementation.
+Runtime packages must not import or copy tooling implementation code as runtime implementation.
 
 The runtime implementation must be native to runtime packages and must not depend on tooling support classes.
 
@@ -881,7 +864,7 @@ This ADR does not implement:
 - tracing backend;
 - platform adapter behavior;
 - transport adapter behavior;
-- copying spike implementation into runtime packages;
+- copying tooling implementation into runtime packages;
 - dependency on `devtools/internal-toolkit`.
 
 ## Verification decision
@@ -929,7 +912,6 @@ platform/*
 integrations/*
 devtools/*
 tools/*
-framework/tools/spikes/*
 ```
 
 Public API gates must verify that:

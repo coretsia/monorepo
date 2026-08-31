@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "65deb3090f6be0570869d85a68b07a75",
+    "content-hash": "e72f0f136c9e75ea255996a2dfdfe63f",
     "packages": [],
     "packages-dev": [
         {
@@ -155,7 +155,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/contracts",
-                "reference": "c4c8896a0bd3cc0125b968aa206400b1a3f41d54"
+                "reference": "515be6c14290df1f6bc1f096d0044014406e5edc"
             },
             "require": {
                 "php": "^8.4"
@@ -211,7 +211,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "dad642a1f041dc74b1975bf7a4ac3e7a9e74370e"
+                "reference": "883427ca86d1bf7941d5e91688c5668b7f539ef8"
             },
             "require": {
                 "php": "^8.4"
@@ -267,7 +267,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "7fd546b240c0587555213b897da1d184b5b8b8b5"
+                "reference": "d16ce478f70e8271c957d6ce2100ae90d334e082"
             },
             "require": {
                 "coretsia/core-contracts": "^0.6.0",
@@ -337,7 +337,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core/kernel",
-                "reference": "706d14c870f51124247442f125416c953dec0642"
+                "reference": "e2af4abf58c3032384abc054eccbb06d60274975"
             },
             "require": {
                 "composer-runtime-api": "^2.2",
@@ -406,69 +406,12 @@
             }
         },
         {
-            "name": "coretsia/devtools-cli-spikes",
-            "version": "0.6.x-dev",
-            "dist": {
-                "type": "path",
-                "url": "packages/devtools/cli-spikes",
-                "reference": "3f81e8afedead622ee233869c627213fb1120b96"
-            },
-            "require": {
-                "coretsia/core-contracts": "^0.6.0",
-                "coretsia/platform-cli": "^0.6.0",
-                "php": "^8.4"
-            },
-            "suggest": {
-                "coretsia/devtools-internal-toolkit": "Optional deterministic helpers (Path/Json/Slug) for safe path handling and stable JSON."
-            },
-            "type": "library",
-            "extra": {
-                "coretsia": {
-                    "kind": "library"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Coretsia\\Devtools\\CliSpikes\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "Coretsia\\Devtools\\CliSpikes\\Tests\\": "tests/"
-                }
-            },
-            "license": [
-                "Apache-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "Coretsia Team",
-                    "email": "team@coretsia.dev",
-                    "homepage": "https://coretsia.dev/"
-                }
-            ],
-            "description": "Coretsia devtools-only deterministic command pack (doctor/spike:* / deptrac:* / workspace:*). Not for production runtime.",
-            "keywords": [
-                "cli",
-                "commands",
-                "coretsia",
-                "determinism",
-                "devtools",
-                "spikes",
-                "tooling"
-            ],
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
             "name": "coretsia/devtools-internal-toolkit",
             "version": "0.6.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "b4807a889577cd1cd05cc205a7041e06e9ed636d"
+                "reference": "e8083b62a5ff6bb74e87f373585505b2881445eb"
             },
             "require": {
                 "ext-json": "*",
@@ -524,7 +467,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "0e3b0b56262591060c20f889b1d9e4740e540efa"
+                "reference": "6467ab895a54306d92971e7ac9859face0438fed"
             },
             "require": {
                 "coretsia/core-contracts": "^0.6.0",
@@ -586,7 +529,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/worker",
-                "reference": "4bb97359368095c1ae2351e4d73a904a8845dbee"
+                "reference": "777be30ee3dbd5307fe3357dc21228ca6e260b7d"
             },
             "require": {
                 "coretsia/core-contracts": "^0.6.0",
@@ -1235,16 +1178,16 @@
         },
         {
             "name": "phpstan/phpdoc-parser",
-            "version": "2.3.3",
+            "version": "2.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpdoc-parser.git",
-                "reference": "fb19eedd2bb67ff8cf7a5502ad329e701d6398a3"
+                "reference": "98dbc9412932af5825e6d5aa5d6bc4de7d82538a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/fb19eedd2bb67ff8cf7a5502ad329e701d6398a3",
-                "reference": "fb19eedd2bb67ff8cf7a5502ad329e701d6398a3",
+                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/98dbc9412932af5825e6d5aa5d6bc4de7d82538a",
+                "reference": "98dbc9412932af5825e6d5aa5d6bc4de7d82538a",
                 "shasum": ""
             },
             "require": {
@@ -1276,17 +1219,17 @@
             "description": "PHPDoc parser with support for nullable, intersection and generic types",
             "support": {
                 "issues": "https://github.com/phpstan/phpdoc-parser/issues",
-                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.3"
+                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.4"
             },
-            "time": "2026-07-08T07:01:06+00:00"
+            "time": "2026-08-30T16:25:38+00:00"
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.9",
+            "version": "2.2.11",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/13d6b4f347bad222da436580c8304fa6f83e6bd0",
-                "reference": "13d6b4f347bad222da436580c8304fa6f83e6bd0",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/0eb899d48d9b784eee3f1b58a6c9dc79734cf811",
+                "reference": "0eb899d48d9b784eee3f1b58a6c9dc79734cf811",
                 "shasum": ""
             },
             "require": {
@@ -1342,7 +1285,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-22T07:38:16+00:00"
+            "time": "2026-08-31T10:33:10+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -3913,16 +3856,16 @@
         },
         {
             "name": "symfony/service-contracts",
-            "version": "v3.7.1",
+            "version": "v3.7.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/service-contracts.git",
-                "reference": "c0a284bab1ed8aa0417e3d69250ab437739563a0"
+                "reference": "15e6a07ec2a2c75ceb1b21dd98105ee8456d2257"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/service-contracts/zipball/c0a284bab1ed8aa0417e3d69250ab437739563a0",
-                "reference": "c0a284bab1ed8aa0417e3d69250ab437739563a0",
+                "url": "https://api.github.com/repos/symfony/service-contracts/zipball/15e6a07ec2a2c75ceb1b21dd98105ee8456d2257",
+                "reference": "15e6a07ec2a2c75ceb1b21dd98105ee8456d2257",
                 "shasum": ""
             },
             "require": {
@@ -3976,7 +3919,7 @@
                 "standards"
             ],
             "support": {
-                "source": "https://github.com/symfony/service-contracts/tree/v3.7.1"
+                "source": "https://github.com/symfony/service-contracts/tree/v3.7.3"
             },
             "funding": [
                 {
@@ -3996,7 +3939,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-16T09:55:08+00:00"
+            "time": "2026-07-27T15:39:01+00:00"
         },
         {
             "name": "symfony/string",
@@ -4351,7 +4294,6 @@
         "coretsia/core-dto-attribute": 20,
         "coretsia/core-foundation": 20,
         "coretsia/core-kernel": 20,
-        "coretsia/devtools-cli-spikes": 20,
         "coretsia/devtools-internal-toolkit": 20,
         "coretsia/platform-cli": 20,
         "coretsia/platform-worker": 20

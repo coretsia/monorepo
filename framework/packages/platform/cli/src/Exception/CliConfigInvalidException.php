@@ -25,8 +25,6 @@ use Coretsia\Platform\Cli\Error\ErrorCodes;
  */
 final class CliConfigInvalidException extends CliException
 {
-    public const string REASON_CLI_SPIKES_PRESET_MISSING = 'cli-spikes-preset-missing';
-    public const string REASON_CLI_SPIKES_PRESET_INVALID = 'cli-spikes-preset-invalid';
     public const string REASON_CLI_SUBTREE_INVALID = 'cli-subtree-invalid';
 
     /**
@@ -38,8 +36,6 @@ final class CliConfigInvalidException extends CliException
 
     /** @var list<string> */
     private const array ALLOWED_REASONS = [
-        self::REASON_CLI_SPIKES_PRESET_MISSING,
-        self::REASON_CLI_SPIKES_PRESET_INVALID,
         self::REASON_CLI_SUBTREE_INVALID,
         self::REASON_LAYOUT_INVALID,
     ];
@@ -51,16 +47,6 @@ final class CliConfigInvalidException extends CliException
             self::normalizeReason($reason, self::ALLOWED_REASONS),
             $previous,
         );
-    }
-
-    public static function cliSpikesPresetMissing(?\Throwable $previous = null): self
-    {
-        return new self(self::REASON_CLI_SPIKES_PRESET_MISSING, $previous);
-    }
-
-    public static function cliSpikesPresetInvalid(?\Throwable $previous = null): self
-    {
-        return new self(self::REASON_CLI_SPIKES_PRESET_INVALID, $previous);
     }
 
     public static function cliSubtreeInvalid(?\Throwable $previous = null): self

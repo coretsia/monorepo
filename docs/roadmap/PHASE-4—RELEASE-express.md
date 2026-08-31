@@ -8609,7 +8609,7 @@ Forbidden:
   - [ ] `benchmark:core:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated core benchmark job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [ ] `framework/tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_CORE_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_CORE_PERFORMANCE_RUN_FAILED`
 
@@ -8762,7 +8762,7 @@ ssot_refs:
 - Required deliverables (exact paths):
   - `framework/packages/platform/database/` — database runtime under test
   - `framework/packages/platform/migrations/` — schema setup for DB benchmark fixture
-  - `framework/tools/spikes/_support/` — canonical deterministic tooling helpers
+  - `framework/tools/support/` — canonical deterministic tooling helpers
 
 - Required config roots/keys:
   - `database.default`
@@ -8832,7 +8832,7 @@ Forbidden:
   - [ ] `benchmark:io:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated DB/FS benchmark job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [ ] `framework/tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_DBFS_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_DBFS_PERFORMANCE_RUN_FAILED`
   - [ ] `CORETSIA_DBFS_BENCHMARK_ENV_MISMATCH`

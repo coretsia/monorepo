@@ -34,11 +34,9 @@ desktop.ini
 !.env.sample
 
 # ---------------------------------------
-# Tooling fixtures: allow committed .env* under spikes fixtures
+# Tooling fixtures: allow committed .env* under canonical test fixtures
 # (these are NOT real secrets; used only for deterministic tests)
 # ---------------------------------------
-!framework/tools/spikes/fixtures/**/.env
-!framework/tools/spikes/fixtures/**/.env.*
 !framework/tools/tests/Fixtures/**/.env
 !framework/tools/tests/Fixtures/**/.env.*
 

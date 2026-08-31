@@ -94,7 +94,6 @@ These invariants are part of Phase 0 dependency law:
 | core/dto-attribute        | —                                            |       |
 | core/foundation           | core/contracts                               |       |
 | core/kernel               | core/contracts, core/foundation              |       |
-| devtools/cli-spikes       | core/contracts, platform/cli                 |       |
 | devtools/internal-toolkit | —                                            |       |
 | platform/cli              | core/contracts                               |       |
 | platform/errors           | core/contracts, core/foundation              |       |

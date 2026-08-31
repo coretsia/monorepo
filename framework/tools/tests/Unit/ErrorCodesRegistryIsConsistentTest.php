@@ -115,58 +115,25 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
         }
     }
 
-    public function testDeterminismRunnerCodesExistInRegistry(): void
+    public function testCodesReferencedBySupportAndGatesExistInRegistry(): void
     {
-        // MUST assert that DeterminismRunner codes exist in registry (hard fail if removed).
-        $mustExist = [
-            ErrorCodes::CORETSIA_DETERMINISM_GIT_REQUIRED,
-            ErrorCodes::CORETSIA_DETERMINISM_WORKTREE_DIRTY,
-            ErrorCodes::CORETSIA_DETERMINISM_RERUN_FAILED,
-        ];
-
-        $all = ErrorCodes::all();
-
-        foreach ($mustExist as $code) {
-            self::assertTrue(
-                ErrorCodes::has($code),
-                'DeterminismRunner required code is missing from ErrorCodes registry: ' . $code,
-            );
-
-            self::assertContains(
-                $code,
-                $all,
-                'DeterminismRunner required code MUST be present in ErrorCodes::all(): ' . $code,
-            );
-        }
-    }
-
-    public function testCodesReferencedByRunnerAndGatesExistInRegistry(): void
-    {
-        // (optional but recommended) Codes used by DeterminismRunner/Gates should exist in registry.
-        // Best-effort scan: enforce selected ErrorCodes families used by the scanned tooling.
+        // Codes used by canonical support/gates must exist in registry.
+        // Enforce selected ErrorCodes families used by the scanned tooling.
         $toolsRoot = realpath(__DIR__ . '/../..'); // framework/tools
         if (!is_string($toolsRoot) || $toolsRoot === '') {
             self::markTestSkipped('tools-root-unresolvable');
         }
 
         $candidates = [
-            $toolsRoot . '/spikes/_support/DeterminismRunner.php',
             $toolsRoot . '/support/bootstrap.php',
             $toolsRoot . '/support/DeterministicFile.php',
-            $toolsRoot . '/gates/spikes_io_policy_gate.php',
-            $toolsRoot . '/gates/spikes_output_gate.php',
             $toolsRoot . '/gates/repo_text_normalization_gate.php',
         ];
 
-        // IMPORTANT: keep this list scoped to actual ErrorCodes families.
-        // Do NOT include broad "CORETSIA_SPIKES_" because it also matches env vars like CORETSIA_SPIKES_TMP.
+        // Keep this list scoped to actual ErrorCodes families.
         $prefixes = [
-            'CORETSIA_DETERMINISM_',
             'CORETSIA_TOOLS_BOOTSTRAP_',
             'CORETSIA_TOOLS_IO_',
-            'CORETSIA_SPIKES_FIXTURE_',
-            'CORETSIA_SPIKES_IO_POLICY_',
-            'CORETSIA_SPIKES_OUTPUT_',
             'CORETSIA_REPO_TEXT_',
         ];
 
@@ -215,7 +182,7 @@ final class ErrorCodesRegistryIsConsistentTest extends TestCase
         foreach ($codes as $code) {
             self::assertTrue(
                 ErrorCodes::has($code),
-                'Runner/Gate references code that is missing from ErrorCodes registry: ' . $code,
+                'Support/gate references code that is missing from ErrorCodes registry: ' . $code,
             );
         }
     }

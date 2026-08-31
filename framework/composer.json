@@ -36,7 +36,6 @@
     "coretsia/core-dto-attribute": "0.6.x-dev",
     "coretsia/core-foundation": "0.6.x-dev",
     "coretsia/core-kernel": "0.6.x-dev",
-    "coretsia/devtools-cli-spikes": "0.6.x-dev",
     "coretsia/devtools-internal-toolkit": "0.6.x-dev",
     "coretsia/platform-cli": "0.6.x-dev",
     "coretsia/platform-worker": "0.6.x-dev",
@@ -51,11 +50,9 @@
   "autoload-dev": {
     "psr-4": {
       "Coretsia\\Tools\\Tests\\": "tools/tests/",
-      "Coretsia\\Tools\\Spikes\\": "tools/spikes/",
       "Coretsia\\Tools\\Support\\": "tools/support/"
     },
     "exclude-from-classmap": [
-      "tools/spikes/fixtures/",
       "tools/tests/Fixtures/"
     ]
   },
@@ -71,7 +68,6 @@
           "coretsia/core-dto-attribute": "0.6.x-dev",
           "coretsia/core-foundation": "0.6.x-dev",
           "coretsia/core-kernel": "0.6.x-dev",
-          "coretsia/devtools-cli-spikes": "0.6.x-dev",
           "coretsia/devtools-internal-toolkit": "0.6.x-dev",
           "coretsia/platform-cli": "0.6.x-dev",
           "coretsia/platform-worker": "0.6.x-dev"
@@ -98,6 +94,9 @@
       "@artifact-header-schema:gate",
       "@cross-cutting-contract:gate",
       "@kernel-public-api:gate",
+      "@toolkit:gate",
+      "@tools:ia",
+      "@repo:text:gate",
       "@no-runtime-tooling-artifacts:gate",
       "@package-compliance:gate",
       "@package-publish-safety:gate",
@@ -135,24 +134,9 @@
     "atomic-write:gate": "@php tools/gates/atomic_write_gate.php",
     "doc-version-drift:gate": "@php tools/gates/doc_version_drift_gate.php",
     "license-header:gate": "@php tools/gates/license_header_gate.php",
-    "spike:gate": "@php tools/gates/spikes_boundary_gate.php",
     "toolkit:gate": "@php tools/gates/internal_toolkit_no_dup_gate.php",
     "tools:ia": "@php tools/gates/tools_invalid_argument_exception_gate.php",
-    "spike:io:policy": "@php tools/gates/spikes_io_policy_gate.php",
-    "spike:canonical:paths": "@php tools/gates/spikes_canonical_paths_gate.php",
     "repo:text:gate": "@php tools/gates/repo_text_normalization_gate.php",
-    "spike:output:gate": "@php tools/gates/spikes_output_gate.php",
-    "spike:test": [
-      "@spike:gate",
-      "@toolkit:gate",
-      "@tools:ia",
-      "@spike:io:policy",
-      "@spike:canonical:paths",
-      "@repo:text:gate",
-      "@spike:output:gate",
-      "vendor/bin/phpunit -c tools/spikes/phpunit.spikes.xml --do-not-cache-result"
-    ],
-    "spike:test:determinism": "@php tools/spikes/_support/DeterminismRunner.php",
     "no-skeleton-http-default:gate": "@php tools/gates/no_skeleton_http_default_gate.php",
     "no-skeleton-bundles-default:gate": "@php tools/gates/no_skeleton_bundles_default_gate.php",
     "no-skeleton-mode-presets-default:gate": "@php tools/gates/no_skeleton_mode_presets_default_gate.php",

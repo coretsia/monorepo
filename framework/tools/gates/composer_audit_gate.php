@@ -22,6 +22,7 @@ declare(strict_types=1);
      *
      * @template T
      * @param callable():T $fn
+     *
      * @return T
      */
     $withSuppressedErrors = static function (callable $fn) {
@@ -43,11 +44,11 @@ declare(strict_types=1);
     });
 
     if ($toolsRootRuntime === null) {
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_COMPOSER_AUDIT_SCAN_FAILED',
                 [],
             );
@@ -56,17 +57,18 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     $fallbackAuditFailed = 'CORETSIA_COMPOSER_AUDIT_FAILED';
+    $fallbackNetworkFailed = 'CORETSIA_TOOLS_NETWORK_FAILED';
     $fallbackScanFailed = 'CORETSIA_COMPOSER_AUDIT_SCAN_FAILED';
 
     if (!\is_file($bootstrap) || !\is_readable($bootstrap)) {
@@ -107,6 +109,12 @@ declare(strict_types=1);
         $fallbackAuditFailed,
     );
 
+    $codeNetworkFailed = coretsia_composer_audit_gate_error_code_or_fallback(
+        $ErrorCodes,
+        'CORETSIA_TOOLS_NETWORK_FAILED',
+        $fallbackNetworkFailed,
+    );
+
     $codeScanFailed = coretsia_composer_audit_gate_error_code_or_fallback(
         $ErrorCodes,
         'CORETSIA_COMPOSER_AUDIT_SCAN_FAILED',
@@ -142,7 +150,21 @@ declare(strict_types=1);
 
         foreach (coretsia_composer_audit_gate_install_roots($repoRoot) as $installRoot) {
             $result = coretsia_composer_audit_gate_run_composer_audit($composerCommand, $installRoot['path']);
-            $payload = coretsia_composer_audit_gate_parse_audit_json($result);
+
+            try {
+                $payload = coretsia_composer_audit_gate_parse_audit_json($result);
+            } catch (\RuntimeException $exception) {
+                if (coretsia_composer_audit_gate_is_network_failure($result)) {
+                    $ConsoleOutput::codeWithDiagnostics(
+                        $codeNetworkFailed,
+                        [],
+                    );
+
+                    exit(1);
+                }
+
+                throw $exception;
+            }
 
             $rootDiagnostics = coretsia_composer_audit_gate_collect_diagnostics($payload, $installRoot['label']);
 
@@ -245,6 +267,7 @@ function coretsia_composer_audit_gate_resolve_existing_dir(string $path, string 
 
 /**
  * @param list<string> $argv
+ *
  * @return non-empty-list<string>
  */
 function coretsia_composer_audit_gate_resolve_composer_command(array $argv, string $frameworkRoot): array
@@ -353,6 +376,7 @@ function coretsia_composer_audit_gate_lock_has_packages(string $composerLock): b
 
 /**
  * @param non-empty-list<string> $composerCommand
+ *
  * @return array{exit:int,exitKnown:bool,stdout:string,stderr:string}
  */
 function coretsia_composer_audit_gate_run_composer_audit(array $composerCommand, string $cwd): array
@@ -397,59 +421,80 @@ function coretsia_composer_audit_gate_run_composer_audit(array $composerCommand,
         $deadline = \microtime(true) + 60.0;
 
         while (!\feof($pipes[1]) || !\feof($pipes[2])) {
-            $read = [];
-
-            if (!\feof($pipes[1])) {
-                $read[] = $pipes[1];
-            }
-
-            if (!\feof($pipes[2])) {
-                $read[] = $pipes[2];
-            }
-
-            if ($read !== []) {
-                $write = null;
-                $except = null;
-
-                \set_error_handler(static function (): bool {
-                    return true;
-                });
-
-                try {
-                    $ready = \stream_select($read, $write, $except, 0, 10_000);
-                } finally {
-                    \restore_error_handler();
+            if (\PHP_OS_FAMILY === 'Windows') {
+                if (!\feof($pipes[1])) {
+                    $stdout .= (string) \stream_get_contents($pipes[1]);
                 }
 
-                if ($ready === false) {
-                    throw new \RuntimeException('composer-stream-select-failed');
+                if (!\feof($pipes[2])) {
+                    $stderr .= (string) \stream_get_contents($pipes[2]);
                 }
 
-                foreach ($read as $stream) {
-                    if ($stream === $pipes[1]) {
-                        $stdout .= (string)\stream_get_contents($pipes[1]);
-                        continue;
+                \usleep(10_000);
+            } else {
+                $read = [];
+
+                if (!\feof($pipes[1])) {
+                    $read[] = $pipes[1];
+                }
+
+                if (!\feof($pipes[2])) {
+                    $read[] = $pipes[2];
+                }
+
+                if ($read !== []) {
+                    $write = null;
+                    $except = null;
+
+                    \set_error_handler(static function (): bool {
+                        return true;
+                    });
+
+                    try {
+                        $ready = \stream_select(
+                            $read,
+                            $write,
+                            $except,
+                            0,
+                            10_000,
+                        );
+                    } finally {
+                        \restore_error_handler();
                     }
 
-                    if ($stream === $pipes[2]) {
-                        $stderr .= (string)\stream_get_contents($pipes[2]);
+                    if ($ready === false) {
+                        throw new \RuntimeException('composer-stream-select-failed');
+                    }
+
+                    foreach ($read as $stream) {
+                        if ($stream === $pipes[1]) {
+                            $stdout .= (string) \stream_get_contents($pipes[1]);
+
+                            continue;
+                        }
+
+                        if ($stream === $pipes[2]) {
+                            $stderr .= (string) \stream_get_contents($pipes[2]);
+                        }
                     }
                 }
             }
 
             if (\strlen($stdout) + \strlen($stderr) > 2_000_000) {
                 \proc_terminate($process);
+
                 throw new \RuntimeException('composer-output-too-large');
             }
 
             if (\microtime(true) > $deadline) {
                 \proc_terminate($process);
+
                 throw new \RuntimeException('composer-process-timeout');
             }
         }
 
-        $stdout .= (string)\stream_get_contents($pipes[1]);
-        $stderr .= (string)\stream_get_contents($pipes[2]);
+        $stdout .= (string) \stream_get_contents($pipes[1]);
+        $stderr .= (string) \stream_get_contents($pipes[2]);
 
         \fclose($pipes[1]);
         \fclose($pipes[2]);
@@ -493,6 +538,7 @@ function coretsia_composer_audit_gate_shell_command(array $argv): string
 
 /**
  * @param non-empty-list<string> $composerCommand
+ *
  * @return list<string|array<int,string>>
  */
 function coretsia_composer_audit_gate_command_candidates(array $composerCommand): array
@@ -535,6 +581,7 @@ function coretsia_composer_audit_gate_command_candidates(array $composerCommand)
 
 /**
  * @param string|array<int,string> $cmd
+ *
  * @return array<string,mixed>
  */
 function coretsia_composer_audit_gate_proc_options(string|array $cmd): array
@@ -698,7 +745,7 @@ function coretsia_composer_audit_gate_should_try_next_command(
  */
 function coretsia_composer_audit_gate_exe_base(array $cmd): string
 {
-    $exe = \strtolower((string)($cmd[0] ?? ''));
+    $exe = \strtolower((string) ($cmd[0] ?? ''));
     if ($exe === '') {
         return '';
     }
@@ -709,7 +756,49 @@ function coretsia_composer_audit_gate_exe_base(array $cmd): string
 }
 
 /**
+ * @param array{
+ *     exit:int,
+ *     exitKnown:bool,
+ *     stdout:string,
+ *     stderr:string
+ * } $result
+ */
+function coretsia_composer_audit_gate_is_network_failure(array $result): bool
+{
+    if (!$result['exitKnown'] || $result['exit'] === 0) {
+        return false;
+    }
+
+    $output = \strtolower(
+        $result['stdout'] . "\n" . $result['stderr'],
+    );
+
+    if ($output === '') {
+        return false;
+    }
+
+    /*
+     * Composer CurlDownloader transport failures that mean the remote
+     * advisory source could not be reached or read reliably.
+     *
+     * 5  - could not resolve proxy
+     * 6  - could not resolve host
+     * 7  - failed to connect
+     * 28 - operation timeout
+     * 35 - TLS/SSL connect failure
+     * 52 - empty reply
+     * 55 - send failure
+     * 56 - receive failure
+     */
+    return \preg_match(
+        '/\bcurl error (?:5|6|7|28|35|52|55|56)\b/',
+        $output,
+    ) === 1;
+}
+
+/**
  * @param array{exit:int,exitKnown:bool,stdout:string,stderr:string} $result
+ *
  * @return array<string,mixed>
  */
 function coretsia_composer_audit_gate_parse_audit_json(array $result): array
@@ -761,6 +850,7 @@ function coretsia_composer_audit_gate_decode_json_payload(string $output): ?arra
 
 /**
  * @param array<string,mixed> $payload
+ *
  * @return list<string>
  */
 function coretsia_composer_audit_gate_collect_diagnostics(array $payload, string $rootLabel): array
@@ -815,6 +905,7 @@ function coretsia_composer_audit_gate_collect_diagnostics(array $payload, string
 
 /**
  * @param mixed $entries
+ *
  * @return list<array<string,mixed>>
  */
 function coretsia_composer_audit_gate_advisory_entries(mixed $entries): array
@@ -908,6 +999,7 @@ function coretsia_composer_audit_gate_is_valid_advisory_id(string $id): bool
 
 /**
  * @param list<string> $values
+ *
  * @return list<string>
  */
 function coretsia_composer_audit_gate_sorted_unique(array $values): array

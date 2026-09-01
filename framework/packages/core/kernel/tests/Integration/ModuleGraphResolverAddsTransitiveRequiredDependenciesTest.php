@@ -116,6 +116,115 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
         );
     }
 
+    public function testEquivalentManifestAndPresetPermutationsProduceIdenticalModulePlan(): void
+    {
+        $first = self::resolver()->resolve(
+            app: 'api',
+            installed: self::manifest([
+                self::descriptor(
+                    'platform.http',
+                    requires: [
+                        'core.kernel',
+                    ],
+                ),
+                self::descriptor(
+                    'core.kernel',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+                self::descriptor(
+                    'platform.cli',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+                self::descriptor('core.foundation'),
+            ]),
+            preset: self::preset(
+                required: [
+                    'platform.http',
+                    'platform.cli',
+                ],
+            ),
+        );
+
+        $second = self::resolver()->resolve(
+            app: 'api',
+            installed: self::manifest([
+                self::descriptor('core.foundation'),
+                self::descriptor(
+                    'platform.cli',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+                self::descriptor(
+                    'platform.http',
+                    requires: [
+                        'core.kernel',
+                    ],
+                ),
+                self::descriptor(
+                    'core.kernel',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+            ]),
+            preset: self::preset(
+                required: [
+                    'platform.cli',
+                    'platform.http',
+                ],
+            ),
+        );
+
+        $third = self::resolver()->resolve(
+            app: 'api',
+            installed: self::manifest([
+                self::descriptor(
+                    'core.kernel',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+                self::descriptor(
+                    'platform.http',
+                    requires: [
+                        'core.kernel',
+                    ],
+                ),
+                self::descriptor('core.foundation'),
+                self::descriptor(
+                    'platform.cli',
+                    requires: [
+                        'core.foundation',
+                    ],
+                ),
+            ]),
+            preset: self::preset(
+                required: [
+                    'platform.http',
+                    'platform.cli',
+                ],
+            ),
+        );
+
+        self::assertSame($first->toArray(), $second->toArray());
+        self::assertSame($first->toArray(), $third->toArray());
+
+        self::assertSame(
+            [
+                'core.foundation',
+                'core.kernel',
+                'platform.cli',
+                'platform.http',
+            ],
+            self::moduleIdValues($first->topologicalOrder()),
+        );
+    }
+
     public function testPresetOptionalInstalledModuleAlsoExpandsRequiredDependencyClosure(): void
     {
         $plan = self::resolver()->resolve(

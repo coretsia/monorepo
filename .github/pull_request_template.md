@@ -81,7 +81,6 @@ Use N/A only when a command is genuinely not applicable.
 - [ ] `composer dto:gate`
 - [ ] `composer arch`
 - [ ] `composer quality`
-- [ ] `composer spike:test`
 - [ ] `composer test`
 - [ ] `composer lock:check`
 

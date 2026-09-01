@@ -1,0 +1,3 @@
+In CurlDownloader.php line 407:
+
+curl error 28 while downloading https://security.example.invalid/api/security-advisories/: Connection timed out after 10013 milliseconds

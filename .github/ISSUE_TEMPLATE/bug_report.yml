@@ -89,7 +89,6 @@ body:
       placeholder: |
         composer gates
         composer framework:test
-        composer spike:test
     validations:
       required: false
 

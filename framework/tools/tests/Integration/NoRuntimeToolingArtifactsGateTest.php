@@ -22,18 +22,18 @@ use Coretsia\Tools\Tests\Contract\Support\ToolContractTestCase;
 
 final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
 {
-    public function testRuntimeSourceImportingToolsSpikesFails(): void
+    public function testRuntimeSourceImportingToolsNamespaceFails(): void
     {
         $sandbox = $this->createNoRuntimeToolingArtifactsGateSandbox();
 
         $this->writeRuntimePhp(
             $sandbox,
-            'core/foundation/src/Fixture/ImportsToolsSpikes.php',
+            'core/foundation/src/Fixture/ImportsTools.php',
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace Coretsia\\Foundation\\Fixture;\n\n"
-            . "use Coretsia\\Tools\\Spikes\\SomeSpike;\n\n"
-            . "final class ImportsToolsSpikes\n"
+            . "use Coretsia\\Tools\\Support\\SomeTool;\n\n"
+            . "final class ImportsTools\n"
             . "{\n"
             . "}\n",
         );
@@ -42,8 +42,11 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
 
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
-        self::assertStringContainsString('runtime-imports-tools-spikes', $output);
-        self::assertStringContainsString('framework/packages/core/foundation/src/Fixture/ImportsToolsSpikes.php', $output);
+        self::assertStringContainsString('runtime-imports-tools', $output);
+        self::assertStringContainsString(
+            'framework/packages/core/foundation/src/Fixture/ImportsTools.php',
+            $output,
+        );
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
@@ -57,7 +60,7 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace Coretsia\\Platform\\Cli\\Fixture;\n\n"
-            . "use Coretsia\\Devtools\\CliSpikes\\SomeTool;\n\n"
+            . "use Coretsia\\Devtools\\InternalToolkit\\SomeTool;\n\n"
             . "final class ImportsDevtools\n"
             . "{\n"
             . "}\n",
@@ -68,7 +71,10 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
         self::assertStringContainsString('runtime-imports-devtools', $output);
-        self::assertStringContainsString('framework/packages/platform/cli/src/Fixture/ImportsDevtools.php', $output);
+        self::assertStringContainsString(
+            'framework/packages/platform/cli/src/Fixture/ImportsDevtools.php',
+            $output,
+        );
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
@@ -93,7 +99,10 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
         self::assertStringContainsString('runtime-references-devtools-package', $output);
-        self::assertStringContainsString('framework/packages/core/foundation/src/Fixture/ReferencesDevtoolsPackage.php', $output);
+        self::assertStringContainsString(
+            'framework/packages/core/foundation/src/Fixture/ReferencesDevtoolsPackage.php',
+            $output,
+        );
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
@@ -142,7 +151,10 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
         self::assertStringContainsString('runtime-reads-framework-tools', $output);
-        self::assertStringContainsString('framework/packages/core/foundation/src/Fixture/RequiresToolsBuild.php', $output);
+        self::assertStringContainsString(
+            'framework/packages/core/foundation/src/Fixture/RequiresToolsBuild.php',
+            $output,
+        );
         self::assertStringNotContainsString('tools/build/deptrac_generate.php', $output);
         $this->assertSafeGateOutput($sandbox, $output);
     }
@@ -171,8 +183,37 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
         self::assertStringContainsString('runtime-executes-tooling-path', $output);
-        self::assertStringContainsString('framework/packages/core/foundation/src/Fixture/ExecutesToolsGate.php', $output);
+        self::assertStringContainsString(
+            'framework/packages/core/foundation/src/Fixture/ExecutesToolsGate.php',
+            $output,
+        );
         self::assertStringNotContainsString('tools/gates/no_skeleton_http_default_gate.php', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
+    public function testDevtoolsSubstringDoesNotCountAsExecutedToolsPath(): void
+    {
+        $sandbox = $this->createNoRuntimeToolingArtifactsGateSandbox();
+
+        $this->writeRuntimePhp(
+            $sandbox,
+            'core/foundation/src/Fixture/DevtoolsSubstring.php',
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace Coretsia\\Foundation\\Fixture;\n\n"
+            . "final class DevtoolsSubstring\n"
+            . "{\n"
+            . "    private const string VALUE = "
+            . "'framework/tools/build/deptrac_generate.php php vendor/devtools/bin/tool.php';\n"
+            . "}\n",
+        );
+
+        [$code, $output] = $this->runNoRuntimeToolingArtifactsGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('runtime-reads-framework-tools', $output);
+        self::assertStringNotContainsString('runtime-executes-tooling-path', $output);
+
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
@@ -200,7 +241,10 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         self::assertNotSame(0, $code, $output);
         self::assertStringContainsString('CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION', $output);
         self::assertStringContainsString('runtime-reads-architecture-artifact', $output);
-        self::assertStringContainsString('framework/packages/core/foundation/src/Fixture/ReadsArchitectureArtifact.php', $output);
+        self::assertStringContainsString(
+            'framework/packages/core/foundation/src/Fixture/ReadsArchitectureArtifact.php',
+            $output
+        );
         self::assertStringNotContainsString('framework/var/arch/deptrac_graph.svg', $output);
         $this->assertSafeGateOutput($sandbox, $output);
     }
@@ -223,7 +267,7 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         $this->writeBytesExact(
             $sandbox . '/docs/example.php',
             "<?php\n\n"
-            . "use Coretsia\\Tools\\Spikes\\IgnoredDocMention;\n",
+            . "use Coretsia\\Tools\\Support\\IgnoredDocMention;\n",
         );
 
         $this->writeBytesExact(
@@ -235,13 +279,13 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         $this->writeBytesExact(
             $sandbox . '/framework/packages/core/foundation/src/fixtures/IgnoredFixtureMention.php',
             "<?php\n\n"
-            . "use Coretsia\\Tools\\Spikes\\IgnoredFixtureMention;\n",
+            . "use Coretsia\\Tools\\Support\\IgnoredFixtureMention;\n",
         );
 
         $this->writeBytesExact(
-            $sandbox . '/framework/packages/devtools/cli-spikes/src/IgnoredDevtoolsPackageMention.php',
+            $sandbox . '/framework/packages/devtools/internal-toolkit/src/IgnoredDevtoolsPackageMention.php',
             "<?php\n\n"
-            . "use Coretsia\\Tools\\Spikes\\IgnoredDevtoolsPackageMention;\n",
+            . "use Coretsia\\Tools\\Support\\IgnoredDevtoolsPackageMention;\n",
         );
 
         [$code, $output] = $this->runNoRuntimeToolingArtifactsGate($sandbox);
@@ -336,7 +380,6 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         $sandbox = $this->tempDir('coretsia-no-runtime-tooling-artifacts-gate');
 
         $this->ensureDir($sandbox . '/framework/tools/gates');
-        $this->ensureDir($sandbox . '/framework/tools/spikes');
         $this->ensureDir($sandbox . '/framework/vendor');
 
         $this->writeBytesExact(
@@ -352,8 +395,8 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
         );
 
         $this->copyDir(
-            $this->frameworkRoot() . '/tools/spikes/_support',
-            $sandbox . '/framework/tools/spikes/_support',
+            $this->frameworkRoot() . '/tools/support',
+            $sandbox . '/framework/tools/support',
         );
 
         if ($includeRuntimePackageRoot) {
@@ -390,7 +433,7 @@ final class NoRuntimeToolingArtifactsGateTest extends ToolContractTestCase
 
         self::assertStringNotContainsString($normalizedSandbox, str_replace('\\', '/', $output));
         self::assertStringNotContainsString('\\', $output);
-        self::assertStringNotContainsString('Coretsia\\Tools\\Spikes', $output);
+        self::assertStringNotContainsString('Coretsia\\Tools', $output);
         self::assertStringNotContainsString('Coretsia\\Devtools', $output);
         self::assertStringNotContainsString('return [', $output);
         self::assertStringNotContainsString('shell_exec', $output);

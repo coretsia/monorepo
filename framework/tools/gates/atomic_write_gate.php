@@ -22,6 +22,7 @@ declare(strict_types=1);
      *
      * @template T
      * @param callable():T $fn
+     *
      * @return T
      */
     $withSuppressedErrors = static function (callable $fn) {
@@ -43,11 +44,11 @@ declare(strict_types=1);
     });
 
     if ($toolsRootRuntime === null) {
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_ATOMIC_WRITE_GATE_FAILED',
                 [],
             );
@@ -56,15 +57,15 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     $fallbackViolation = 'CORETSIA_ATOMIC_WRITE_VIOLATION';
     $fallbackGateFailed = 'CORETSIA_ATOMIC_WRITE_GATE_FAILED';
@@ -147,7 +148,7 @@ declare(strict_types=1);
             $tokens = \token_get_all($source, \defined('TOKEN_PARSE') ? \TOKEN_PARSE : 0);
 
             foreach (coretsia_atomic_write_gate_scan_tokens($tokens) as $line) {
-                $diagnostics[] = $frameworkRelative . ':' . (string)$line;
+                $diagnostics[] = $frameworkRelative . ':' . (string) $line;
             }
         }
 
@@ -367,7 +368,7 @@ function coretsia_atomic_write_gate_collect_php_files(string $scanRoot): array
             continue;
         }
 
-        if (\strtolower((string)$item->getExtension()) !== 'php') {
+        if (\strtolower((string) $item->getExtension()) !== 'php') {
             continue;
         }
 
@@ -404,7 +405,7 @@ function coretsia_atomic_write_gate_should_skip_file(
         return true;
     }
 
-    if ($frameworkRelative === 'tools/spikes/_support/DeterministicFile.php') {
+    if ($frameworkRelative === 'tools/support/DeterministicFile.php') {
         return true;
     }
 
@@ -416,15 +417,12 @@ function coretsia_atomic_write_gate_should_skip_file(
         return true;
     }
 
-    if (\str_starts_with($frameworkRelative, 'tools/spikes/fixtures/')) {
-        return true;
-    }
-
     return false;
 }
 
 /**
  * @param list<mixed> $tokens
+ *
  * @return list<int>
  */
 function coretsia_atomic_write_gate_scan_tokens(array $tokens): array
@@ -442,8 +440,8 @@ function coretsia_atomic_write_gate_scan_tokens(array $tokens): array
         }
 
         $id = $token[0];
-        $text = (string)$token[1];
-        $line = (int)($token[2] ?? 0);
+        $text = (string) $token[1];
+        $line = (int) ($token[2] ?? 0);
 
         if ($id === \T_COMMENT || $id === \T_DOC_COMMENT) {
             continue;
@@ -486,7 +484,7 @@ function coretsia_atomic_write_gate_function_call_name(array $tokens, int $i): ?
     }
 
     $id = $token[0];
-    $text = (string)$token[1];
+    $text = (string) $token[1];
 
     $allowedNameTokens = [\T_STRING];
 
@@ -621,7 +619,7 @@ function coretsia_atomic_write_gate_read_class_name(array $tokens, int $start): 
 
         if (\is_array($t)) {
             $id = $t[0];
-            $text = (string)$t[1];
+            $text = (string) $t[1];
 
             if ($id === \T_STRING) {
                 $out .= $text;
@@ -637,7 +635,7 @@ function coretsia_atomic_write_gate_read_class_name(array $tokens, int $start): 
             }
         }
 
-        if ((string)$t === '\\') {
+        if ((string) $t === '\\') {
             $out .= '\\';
             continue;
         }
@@ -741,10 +739,10 @@ function coretsia_atomic_write_gate_next_non_ws_token_is(array $tokens, int $i, 
 function coretsia_atomic_write_gate_token_text(mixed $token): string
 {
     if (\is_array($token)) {
-        return (string)$token[1];
+        return (string) $token[1];
     }
 
-    return (string)$token;
+    return (string) $token;
 }
 
 function coretsia_atomic_write_gate_string_literal_value(mixed $token): ?string
@@ -753,7 +751,7 @@ function coretsia_atomic_write_gate_string_literal_value(mixed $token): ?string
         return null;
     }
 
-    $literal = (string)$token[1];
+    $literal = (string) $token[1];
 
     if (\strlen($literal) < 2) {
         return null;

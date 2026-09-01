@@ -41,6 +41,16 @@ final class FingerprintCalculatorStableInputContractTest extends TestCase
         self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', $first);
     }
 
+    public function testCanonicalFingerprintFixtureHasPlatformIndependentSha256(): void
+    {
+        self::assertSame(
+            '0419fa5cc9d8ff64c7a088e88a327732294fb135614987032e030739ab99494e',
+            self::calculator($this)->calculate(
+                self::fingerprintInputFixture(),
+            ),
+        );
+    }
+
     public function testMapKeyInsertionOrderDoesNotAffectFingerprint(): void
     {
         $calculator = self::calculator($this);

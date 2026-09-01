@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class DeptracGenerateTool
 {
@@ -98,7 +98,7 @@ final class DeptracGenerateTool
 
                 $diagnostics[] = 'Run: php framework/tools/build/deptrac_generate.php --apply';
 
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_OUT_OF_DATE,
                     $diagnostics,
                 );
@@ -118,17 +118,17 @@ final class DeptracGenerateTool
             self::writeGraphArtifacts($artifactsDir, $model['nodes'], $model['edges']);
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
 
         if ($allowlistMissing) {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $allowlistPath), false);
+            \Coretsia\Tools\Support\ConsoleOutput::line(self::rel($repoRoot, $allowlistPath), false);
         }
 
         if ($changed) {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
+            \Coretsia\Tools\Support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $artifactsDir), false);
+        \Coretsia\Tools\Support\ConsoleOutput::line(self::rel($repoRoot, $artifactsDir), false);
 
         return 0;
     }
@@ -159,7 +159,7 @@ final class DeptracGenerateTool
 
         $code = array_shift($lines);
         if (!is_string($code) || $code === '') {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::CODE_GENERATE_FAILED);
+            \Coretsia\Tools\Support\ConsoleOutput::line(self::CODE_GENERATE_FAILED);
 
             return;
         }
@@ -174,7 +174,7 @@ final class DeptracGenerateTool
             }
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics($code, $diagnostics);
+        \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics($code, $diagnostics);
     }
 
     /**
@@ -274,7 +274,7 @@ final class DeptracGenerateTool
                     }
 
                     if (!self::isPackageId($dep)) {
-                        throw new RuntimeException('Invalid dependency table package_id dependency: ' . $dep);
+                        throw new RuntimeException('invalid-dependency-table-dependency-id');
                     }
 
                     $deps[] = $dep;
@@ -706,14 +706,15 @@ final class DeptracGenerateTool
     /**
      * Temporal bootstrap rule:
      * when a SSoT package depends on not-yet-materialized owner packages, allow direct composer edges
-     * to materialized transitive SSoT dependencies. This keeps early Phase 0 packages analyzable while
-     * foundation/kernel owner packages are still absent, without opening arbitrary package edges.
+     * to materialized transitive SSoT dependencies. This keeps packages analyzable while declared
+     * owner packages are not yet materialized, without opening arbitrary package edges.
      *
      * @param array{id:string,packageId:string,layer:string,slug:string,composerName:string,path:string,srcPath:string,psr4:string,requireNames:list<string>} $package
      * @param list<string> $allowedPackageIds
      * @param array<string, true> $activePackageIds
      * @param array<string, string> $composerNameToPackageId
      * @param array<string, list<string>> $ssotRuleset
+     *
      * @return list<string>
      */
     private static function applyTemporalMissingDependencyCompat(
@@ -1311,7 +1312,7 @@ final class DeptracGenerateTool
             $content .= "\n";
         }
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
+        \Coretsia\Tools\Support\DeterministicFile::writeTextLf($path, $content);
     }
 
     /**

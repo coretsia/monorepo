@@ -94,22 +94,6 @@ return array(
     ),
     4 =>
     array(
-      'composerName' => 'coretsia/devtools-cli-spikes',
-      'defaultsConfigPath' => null,
-      'id' => 'devtools.cli-spikes',
-      'kind' => 'library',
-      'layer' => 'devtools',
-      'moduleClass' => null,
-      'moduleId' => null,
-      'path' => 'framework/packages/devtools/cli-spikes',
-      'providers' =>
-      array(
-      ),
-      'psr4' => 'Coretsia\\Devtools\\CliSpikes\\',
-      'slug' => 'cli-spikes',
-    ),
-    5 =>
-    array(
       'composerName' => 'coretsia/devtools-internal-toolkit',
       'defaultsConfigPath' => null,
       'id' => 'devtools.internal-toolkit',
@@ -124,7 +108,7 @@ return array(
       'psr4' => 'Coretsia\\Devtools\\InternalToolkit\\',
       'slug' => 'internal-toolkit',
     ),
-    6 =>
+    5 =>
     array(
       'composerName' => 'coretsia/platform-cli',
       'defaultsConfigPath' => 'config/cli.php',
@@ -141,7 +125,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Cli\\',
       'slug' => 'cli',
     ),
-    7 =>
+    6 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

@@ -130,8 +130,7 @@
 ### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops consumption (MUST) [IMPL]
 ### 2.40.0 Platform CLI — Deterministic Workflows + Smart Suggestions (SHOULD) [IMPL]
 ### 2.50.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL]
-### 2.60.0 Devtools CLI-spikes — Tag-first Source-host Module Migration (MUST) [IMPL]
-### 2.70.0 CLI Performance Gate (MUST) [TOOLING]
+### 2.60.0 CLI Performance Gate (MUST) [TOOLING]
 
 ---
 

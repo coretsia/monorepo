@@ -166,7 +166,6 @@ platform/*
 integrations/*
 devtools/*
 tools/*
-framework/tools/spikes/*
 ```
 
 Runtime packages MAY consume the Foundation normalizer only when their package dependency rules allow a dependency on `core/foundation`.
@@ -503,7 +502,7 @@ The normalizer MUST NOT:
 - depend on filesystem traversal order;
 - depend on Composer package order;
 - depend on PHP hash-map insertion side effects for final map order;
-- depend on platform, integration, devtools, tools, or spike code.
+- depend on platform, integration, devtools, or tooling code.
 
 ## Diagnostics
 
@@ -1153,21 +1152,12 @@ transport DTO
 
 Transport-specific payload rules are owned by transport/platform packages.
 
-## Relationship to spikes
+## Tooling dependency boundary
 
-The prototype payload spike files are non-runtime tooling/prototype material.
-
-Runtime packages MUST NOT copy code from:
-
-```text
-framework/tools/spikes/payload/*
-```
-
-Runtime packages MUST NOT depend on:
+Runtime packages MUST NOT depend on tooling-only implementation packages or namespaces for this behavior, including:
 
 ```text
 Coretsia\Devtools\InternalToolkit
-Coretsia\Tools\Spikes
 ```
 
 The runtime implementation MUST be native to runtime packages.
@@ -1263,7 +1253,7 @@ A runtime implementation is compliant with this SSoT only if:
 - `JsonLikeShapeNormalizer` delegates baseline normalization to `JsonLikeNormalizer`;
 - Kernel keeps UoW-specific policy in Kernel only;
 - Foundation does not know about UoW-specific shapes;
-- runtime packages do not depend on devtools, tools, or spikes;
+- runtime packages do not depend on devtools or tooling code;
 - diagnostics contain only safe path, stable reason, and package-owned error code;
 - raw values, object class names, resources, secrets, tokens, SQL, payloads, and local paths do not leak through failures.
 
@@ -1278,7 +1268,6 @@ This SSoT does not define:
 - DTO semantics;
 - public Kernel normalizer API;
 - dependency on `devtools/internal-toolkit`;
-- dependency on `framework/tools/spikes/*`;
 - movement of json-like normalization to `core/contracts`;
 - generated artifacts;
 - shape-preserving nested JSON object/list model;

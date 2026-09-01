@@ -58,6 +58,14 @@ final class FingerprintExplainerRedactionContractTest extends TestCase
                 'validation' => 'unvalidated',
             ]),
         );
+
+        self::assertTrue(
+            self::containsEntry($explain['entries'], [
+                'kind' => 'fingerprint_policy',
+                'path' => 'var/cache',
+                'sourceType' => 'skeleton_ignore_prefix',
+            ]),
+        );
     }
 
     public function testExplainOutputDoesNotIncludeRawConfigValuesRawEnvValuesOrAbsolutePaths(): void

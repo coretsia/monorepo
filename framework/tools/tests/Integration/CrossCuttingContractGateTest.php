@@ -217,7 +217,6 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $sandbox = $this->tempDir('coretsia-cross-cutting-gate');
 
         $this->ensureDir($sandbox . '/framework/tools/gates');
-        $this->ensureDir($sandbox . '/framework/tools/spikes');
         $this->ensureDir($sandbox . '/framework/vendor');
 
         $this->writeBytesExact(
@@ -233,8 +232,8 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         );
 
         $this->copyDir(
-            $this->frameworkRoot() . '/tools/spikes/_support',
-            $sandbox . '/framework/tools/spikes/_support',
+            $this->frameworkRoot() . '/tools/support',
+            $sandbox . '/framework/tools/support',
         );
 
         $this->writeResetInterface($sandbox);

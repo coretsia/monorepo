@@ -22,6 +22,7 @@ declare(strict_types=1);
      *
      * @template T
      * @param callable():T $fn
+     *
      * @return T
      */
     $withSuppressedErrors = static function (callable $fn) {
@@ -46,15 +47,15 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     // Bootstrap MUST be loaded before scanning.
     // If bootstrap is missing/unreadable -> must use local ConsoleOutput include, print SCAN_FAILED and exit 1.
@@ -127,7 +128,6 @@ declare(strict_types=1);
 
         $violations = []; // list<array{path: string, symbol: string}>
         $hasJsonEncode = false;
-        $hasDuplication = false;
 
         $files = coretsia_tools_list_php_files($scanRoot);
 
@@ -152,16 +152,13 @@ declare(strict_types=1);
                 return \token_get_all($code);
             });
 
-            // Wrapper allowlist is evaluated on scan-root-relative path.
-            $isWrapperAllowlisted = coretsia_tools_is_wrapper_allowlisted($relPath);
-            $isJsonEncodeAllowlisted = coretsia_tools_is_json_encode_allowlisted($relPath);
-
-            // 1) Forbidden json_encode(...) calls (path-bound allowlist exception exists)
+            // 1) Forbidden json_encode(...) calls
             if (coretsia_tools_detect_json_encode_call($tokens)) {
-                if (!$isJsonEncodeAllowlisted) {
-                    $hasJsonEncode = true;
-                    $violations[] = ['path' => $relPath, 'symbol' => 'json_encode'];
-                }
+                $hasJsonEncode = true;
+                $violations[] = [
+                    'path' => $relPath,
+                    'symbol' => 'json_encode',
+                ];
             }
 
             // 2) Forbidden symbol declarations (function/method names)
@@ -172,21 +169,7 @@ declare(strict_types=1);
                     continue;
                 }
 
-                // Thin wrapper exception: encodeStable is allowed only in allowlisted wrapper file.
-                if ($isWrapperAllowlisted && $name === 'encodeStable') {
-                    continue;
-                }
-
-                $hasDuplication = true;
                 $violations[] = ['path' => $relPath, 'symbol' => $name];
-            }
-
-            // 3) Wrapper delegation rule (token-pattern presence only; no body heuristics)
-            if ($isWrapperAllowlisted && \in_array('encodeStable', $declared, true)) {
-                if (!coretsia_tools_detect_internal_toolkit_encode_stable_call($tokens)) {
-                    $hasDuplication = true;
-                    $violations[] = ['path' => $relPath, 'symbol' => 'encodeStable-wrapper-must-delegate'];
-                }
             }
         }
 
@@ -218,7 +201,7 @@ declare(strict_types=1);
             $diagnostics[] = $v['path'] . ': ' . $v['symbol'];
         }
 
-        $ConsoleOutput::codeWithDiagnostics((string)$codeOut, $diagnostics);
+        $ConsoleOutput::codeWithDiagnostics((string) $codeOut, $diagnostics);
         exit(1);
     } catch (\Throwable) {
         // Deterministic failure: no leaks.
@@ -234,7 +217,9 @@ declare(strict_types=1);
 
         exit(1);
     }
-})(isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []);
+})(
+    isset($_SERVER['argv']) && \is_array($_SERVER['argv']) ? $_SERVER['argv'] : []
+);
 
 /**
  * @return array<string,string> map absPath => scan-root-relative normalized path (forward slashes),
@@ -286,7 +271,7 @@ function coretsia_tools_list_php_files(string $scanRoot): array
         }
 
         $rel = \substr($absNorm, \strlen($scanRootNorm));
-        $rel = \ltrim((string)$rel, '/');
+        $rel = \ltrim((string) $rel, '/');
 
         $out[$abs] = $rel;
     }
@@ -309,20 +294,6 @@ function coretsia_tools_is_excluded_path(string $relPath): bool
     }
 
     return false;
-}
-
-function coretsia_tools_is_wrapper_allowlisted(string $relPath): bool
-{
-    // Allowlist pattern: spikes/*/StableJsonEncoder.php (scan-root-relative)
-    return \preg_match('#\Aspikes/[^/]+/StableJsonEncoder\.php\z#', $relPath) === 1;
-}
-
-function coretsia_tools_is_json_encode_allowlisted(string $relPath): bool
-{
-    // Allow exactly one exception file that MAY call json_encode(...).
-    // Path is evaluated as scan-root-relative (tools-root-relative in real repo).
-    // MUST NOT be generalized.
-    return $relPath === 'spikes/workspace/ComposerJsonCanonicalizer.php';
 }
 
 /**
@@ -349,7 +320,7 @@ function coretsia_tools_find_declared_function_like_names(array $tokens): array
         }
 
         if ($j < $n && \is_array($tokens[$j]) && $tokens[$j][0] === \T_STRING) {
-            $names[] = (string)$tokens[$j][1];
+            $names[] = (string) $tokens[$j][1];
         }
     }
 
@@ -393,11 +364,11 @@ function coretsia_tools_detect_json_encode_call(array $tokens): bool
             continue;
         }
 
-        $raw = \ltrim((string)$t[1], '\\');
+        $raw = \ltrim((string) $t[1], '\\');
         $parts = \explode('\\', $raw);
         $last = $parts[\count($parts) - 1];
 
-        if (\strtolower((string)$last) !== 'json_encode') {
+        if (\strtolower((string) $last) !== 'json_encode') {
             continue;
         }
 
@@ -438,78 +409,6 @@ function coretsia_tools_next_non_ws_token(array $tokens, int $i): array|string|n
         return $t;
     }
     return null;
-}
-
-/**
- * Wrapper delegation check (token-pattern only):
- * detect: \Coretsia\Devtools\InternalToolkit\Json::encodeStable(
- */
-function coretsia_tools_detect_internal_toolkit_encode_stable_call(array $tokens): bool
-{
-    $n = \count($tokens);
-
-    for ($i = 0; $i < $n; $i++) {
-        $t = $tokens[$i];
-
-        if (!\is_array($t)) {
-            continue;
-        }
-
-        if ($t[0] !== \T_NAME_QUALIFIED && $t[0] !== \T_NAME_FULLY_QUALIFIED) {
-            continue;
-        }
-
-        $name = \ltrim((string)$t[1], '\\');
-        if ($name !== 'Coretsia\\Devtools\\InternalToolkit\\Json') {
-            continue;
-        }
-
-        $j = $i + 1;
-        $j = coretsia_tools_skip_ws_only($tokens, $j);
-
-        if ($j >= $n) {
-            continue;
-        }
-
-        $tok = $tokens[$j];
-        if (!(\is_array($tok) && $tok[0] === \T_DOUBLE_COLON) && $tok !== '::') {
-            continue;
-        }
-
-        $j++;
-        $j = coretsia_tools_skip_ws_only($tokens, $j);
-
-        if ($j >= $n || !\is_array($tokens[$j]) || $tokens[$j][0] !== \T_STRING) {
-            continue;
-        }
-
-        if ((string)$tokens[$j][1] !== 'encodeStable') {
-            continue;
-        }
-
-        $j++;
-        $j = coretsia_tools_skip_ws_only($tokens, $j);
-
-        if ($j < $n && $tokens[$j] === '(') {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function coretsia_tools_skip_ws_only(array $tokens, int $i): int
-{
-    $n = \count($tokens);
-    while ($i < $n) {
-        $t = $tokens[$i];
-        if (\is_array($t) && $t[0] === \T_WHITESPACE) {
-            $i++;
-            continue;
-        }
-        break;
-    }
-    return $i;
 }
 
 function coretsia_tools_error_code_or_fallback(string $errorCodesFqcn, string $constantName, string $fallback): string

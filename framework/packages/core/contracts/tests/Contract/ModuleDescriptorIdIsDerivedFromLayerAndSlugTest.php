@@ -146,7 +146,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        ModuleDescriptor::fromLayerAndSlug('devtools', 'cli-spikes');
+        ModuleDescriptor::fromLayerAndSlug('devtools', 'internal-toolkit');
     }
 
     /**
@@ -155,7 +155,7 @@ final class ModuleDescriptorIdIsDerivedFromLayerAndSlugTest extends TestCase
     private static function assertNoObjectsInExportedShape(array $value, string $path = 'root'): void
     {
         foreach ($value as $key => $item) {
-            $itemPath = $path . '.' . (string)$key;
+            $itemPath = $path . '.' . (string) $key;
 
             self::assertFalse(
                 is_object($item),

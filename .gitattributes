@@ -126,8 +126,9 @@ framework/packages/*/*/bin/* text eol=lf
 # -----------------------------------------------------------------------------
 # Fixtures: byte-exact, NEVER normalize EOL/newlines (tests rely on raw bytes)
 # -----------------------------------------------------------------------------
-framework/tools/**/fixtures/** -text
-**/tests/fixtures/**          -text
+framework/tools/**/fixtures/**    -text
+framework/tools/tests/Fixtures/** -text
+**/tests/fixtures/**              -text
 
 # -----------------------------------------------------------------------------
 # Optional: exclude service/dev-only files from git archive exports

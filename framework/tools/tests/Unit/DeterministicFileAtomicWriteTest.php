@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Tests\Unit;
 
-use Coretsia\Tools\Spikes\_support\DeterministicFile;
+use Coretsia\Tools\Support\DeterministicFile;
 use PHPUnit\Framework\TestCase;
 
 final class DeterministicFileAtomicWriteTest extends TestCase

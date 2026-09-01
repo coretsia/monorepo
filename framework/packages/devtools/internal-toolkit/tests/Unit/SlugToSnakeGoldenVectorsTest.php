@@ -36,10 +36,10 @@ final class SlugToSnakeGoldenVectorsTest extends TestCase
     public static function provideGoldenVectors(): array
     {
         return [
-            'studly simple' => ['CliSpikes', 'cli_spikes'],
+            'studly simple' => ['CliTools', 'cli_tools'],
             'acronym boundary' => ['JSONEncoder', 'json_encoder'],
             'mixed acronym boundary' => ['CoreDTOAttribute', 'core_dto_attribute'],
-            'kebab' => ['cli-spikes', 'cli_spikes'],
+            'kebab' => ['cli-tools', 'cli_tools'],
             'dot slash space' => ['foo.bar/baz qux', 'foo_bar_baz_qux'],
             'backslash namespace-like' => ['Coretsia\\InternalToolkit', 'coretsia_internal_toolkit'],
             'already snake' => ['already__snake', 'already_snake'],

@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class NewPackage
 {
@@ -37,7 +37,9 @@ final class NewPackage
 
         $allowedLayers = ['core', 'platform', 'integrations', 'devtools', 'enterprise', 'presets'];
         if (!\in_array($layer, $allowedLayers, true)) {
-            throw new \RuntimeException('Invalid --layer (allowed: core|platform|integrations|devtools|enterprise|presets)');
+            throw new \RuntimeException(
+                'Invalid --layer (allowed: core|platform|integrations|devtools|enterprise|presets)'
+            );
         }
 
         if (\preg_match('/\A[a-z0-9][a-z0-9-]*\z/', $slug) !== 1) {
@@ -52,7 +54,11 @@ final class NewPackage
             throw new \RuntimeException('Forbidden slug: ' . $slug);
         }
 
-        if ($layer === 'core' && \in_array($slug, ['core', 'platform', 'integrations', 'enterprise', 'devtools', 'presets'], true)) {
+        if ($layer === 'core' && \in_array(
+            $slug,
+            ['core', 'platform', 'integrations', 'enterprise', 'devtools', 'presets'],
+            true,
+        )) {
             throw new \RuntimeException('Reserved core namespace collision slug: ' . $slug);
         }
 
@@ -64,28 +70,106 @@ final class NewPackage
             throw new \RuntimeException('Reserved slug: ' . $slug);
         }
 
-        $packageDir = $repoRoot . '/framework/packages/' . $layer . '/' . $slug;
-        if (\is_dir($packageDir)) {
-            throw new \RuntimeException('Package directory already exists: ' . self::rel($repoRoot, $packageDir));
+        $packagesRoot = $repoRoot . '/framework/packages';
+        $layerDir = $packagesRoot . '/' . $layer;
+        $packageDir = $layerDir . '/' . $slug;
+
+        if (!\is_dir($packagesRoot) || \is_link($packagesRoot)) {
+            throw new \RuntimeException('packages-root-invalid');
         }
+
+        if (
+            (\file_exists($layerDir) || \is_link($layerDir))
+            && (!\is_dir($layerDir) || \is_link($layerDir))
+        ) {
+            throw new \RuntimeException('package-layer-invalid');
+        }
+
+        if (\file_exists($packageDir) || \is_link($packageDir)) {
+            throw new \RuntimeException(
+                'Package directory already exists: ' . self::rel($repoRoot, $packageDir),
+            );
+        }
+
+        $initialLayerState = self::pathState($layerDir);
+
+        $layerAlreadyExists = $initialLayerState['directory'] && !$initialLayerState['link'];
+
+        $frameworkRoot = $repoRoot . '/framework';
+        $stagingRoot = $frameworkRoot
+            . '/var/tmp/new-package-'
+            . \bin2hex(\random_bytes(8));
+
+        if (\file_exists($stagingRoot) || \is_link($stagingRoot)) {
+            throw new \RuntimeException('package-staging-collision');
+        }
+
+        $stagedPackageDir = $stagingRoot
+            . '/packages/'
+            . $layer
+            . '/'
+            . $slug;
 
         $composerName = 'coretsia/' . $layer . '-' . $slug;
         $namespaceRoot = self::packageRootNamespace($layer, $slug);
 
-        self::mkdir($packageDir);
-        self::mkdir($packageDir . '/src');
+        try {
+            self::mkdir($stagingRoot);
+            self::mkdir($stagedPackageDir);
+            self::mkdir($stagedPackageDir . '/src');
 
-        self::writeTextLf(
-            $packageDir . '/composer.json',
-            self::composerJson($composerName, $namespaceRoot, $layer, $slug, $kind),
-        );
+            self::writeTextLf(
+                $stagedPackageDir . '/composer.json',
+                self::composerJson($composerName, $namespaceRoot, $layer, $slug, $kind),
+            );
 
-        self::runPackageScaffoldSync($repoRoot, $packageDir);
+            self::runPackageScaffoldSync($repoRoot, $stagedPackageDir);
+            self::runPackageScaffoldSync(
+                $repoRoot,
+                $stagedPackageDir,
+                check: true,
+            );
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("framework/packages/$layer/$slug", false);
+            if ($layerAlreadyExists) {
+                $currentLayerState = self::pathState($layerDir);
+                $currentPackageState = self::pathState($packageDir);
 
-        return 0;
+                if (
+                    !$currentLayerState['directory']
+                    || $currentLayerState['link']
+                    || $currentPackageState['exists']
+                    || $currentPackageState['link']
+                ) {
+                    throw new \RuntimeException('package-commit-target-changed');
+                }
+
+                $commitSource = $stagedPackageDir;
+                $commitDestination = $packageDir;
+            } else {
+                $currentLayerState = self::pathState($layerDir);
+
+                if (
+                    $currentLayerState['exists']
+                    || $currentLayerState['link']
+                ) {
+                    throw new \RuntimeException('package-commit-target-changed');
+                }
+
+                $commitSource = $stagingRoot . '/packages/' . $layer;
+                $commitDestination = $layerDir;
+            }
+
+            if (!@\rename($commitSource, $commitDestination)) {
+                throw new \RuntimeException('package-atomic-commit-failed');
+            }
+
+            \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
+            \Coretsia\Tools\Support\ConsoleOutput::line("framework/packages/$layer/$slug", false);
+
+            return 0;
+        } finally {
+            self::removeTree($stagingRoot);
+        }
     }
 
     /**
@@ -101,7 +185,7 @@ final class NewPackage
 
         $n = \count($argv);
         for ($i = 0; $i < $n; $i++) {
-            $a = (string)$argv[$i];
+            $a = (string) $argv[$i];
 
             if (!\str_starts_with($a, '--')) {
                 continue;
@@ -124,7 +208,7 @@ final class NewPackage
                 continue;
             }
 
-            $v = \trim((string)$argv[$i + 1]);
+            $v = \trim((string) $argv[$i + 1]);
             if ($v === '' || \str_starts_with($v, '--')) {
                 continue;
             }
@@ -214,8 +298,29 @@ final class NewPackage
         return self::encodeComposerJsonCanonical($json);
     }
 
-    private static function runPackageScaffoldSync(string $repoRoot, string $packageDir): void
+    /**
+     * @return array{
+     *     exists: bool,
+     *     directory: bool,
+     *     link: bool
+     * }
+     *
+     * @phpstan-impure
+     */
+    private static function pathState(string $path): array
     {
+        return [
+            'exists' => \file_exists($path),
+            'directory' => \is_dir($path),
+            'link' => \is_link($path),
+        ];
+    }
+
+    private static function runPackageScaffoldSync(
+        string $repoRoot,
+        string $packageDir,
+        bool $check = false,
+    ): void {
         $frameworkRoot = $repoRoot . '/framework';
         $syncTool = $frameworkRoot . '/tools/build/sync_package_scaffold.php';
 
@@ -223,11 +328,19 @@ final class NewPackage
             throw new \RuntimeException('sync_package_scaffold.php missing');
         }
 
+        $args = [PHP_BINARY, $syncTool];
+
+        if ($check) {
+            $args[] = '--check';
+        }
+
+        $args[] = $packageDir;
+
         /** @var array<int, resource> $pipes */
         $pipes = [];
 
         $process = \proc_open(
-            [PHP_BINARY, $syncTool, $packageDir],
+            $args,
             [
                 0 => ['pipe', 'r'],
                 1 => ['pipe', 'w'],
@@ -247,13 +360,13 @@ final class NewPackage
 
         $stdout = '';
         if (isset($pipes[1]) && \is_resource($pipes[1])) {
-            $stdout = (string)\stream_get_contents($pipes[1]);
+            $stdout = (string) \stream_get_contents($pipes[1]);
             \fclose($pipes[1]);
         }
 
         $stderr = '';
         if (isset($pipes[2]) && \is_resource($pipes[2])) {
-            $stderr = (string)\stream_get_contents($pipes[2]);
+            $stderr = (string) \stream_get_contents($pipes[2]);
             \fclose($pipes[2]);
         }
 
@@ -267,6 +380,57 @@ final class NewPackage
             }
 
             throw new \RuntimeException('package-scaffold-sync-failed: exit-code=' . $exitCode);
+        }
+    }
+
+    private static function removeTree(string $path): void
+    {
+        $path = \rtrim(\str_replace('\\', '/', $path), '/');
+
+        if ($path === '') {
+            throw new \RuntimeException('package-staging-cleanup-failed');
+        }
+
+        if (!\file_exists($path) && !\is_link($path)) {
+            return;
+        }
+
+        if (\is_link($path) || \is_file($path)) {
+            if (!@\unlink($path)) {
+                throw new \RuntimeException('package-staging-cleanup-failed');
+            }
+
+            return;
+        }
+
+        if (!\is_dir($path)) {
+            throw new \RuntimeException('package-staging-cleanup-failed');
+        }
+
+        $entries = @\scandir($path);
+
+        if ($entries === false) {
+            throw new \RuntimeException('package-staging-cleanup-failed');
+        }
+
+        $children = [];
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $children[] = $entry;
+        }
+
+        \sort($children, \SORT_STRING);
+
+        foreach ($children as $entry) {
+            self::removeTree($path . '/' . $entry);
+        }
+
+        if (!@\rmdir($path)) {
+            throw new \RuntimeException('package-staging-cleanup-failed');
         }
     }
 
@@ -307,7 +471,7 @@ final class NewPackage
         }
 
         if (\is_int($value)) {
-            return (string)$value;
+            return (string) $value;
         }
 
         if (\is_float($value)) {
@@ -457,7 +621,7 @@ final class NewPackage
     {
         $content = self::normalizeToLfFinalNewline($content);
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
+        \Coretsia\Tools\Support\DeterministicFile::writeTextLf($path, $content);
     }
 
     private static function mkdir(string $path): void
@@ -492,7 +656,7 @@ final class NewPackage
         $n = \count($argv);
 
         for ($i = 0; $i < $n; $i++) {
-            $a = (string)$argv[$i];
+            $a = (string) $argv[$i];
 
             if (\str_starts_with($a, '--repo-root=')) {
                 $v = \trim(\substr($a, \strlen('--repo-root=')));
@@ -501,7 +665,7 @@ final class NewPackage
             }
 
             if ($a === '--repo-root') {
-                $next = ($i + 1 < $n) ? \trim((string)$argv[$i + 1]) : '';
+                $next = ($i + 1 < $n) ? \trim((string) $argv[$i + 1]) : '';
 
                 return $next !== '' ? $next : null;
             }
@@ -601,6 +765,6 @@ try {
     exit(NewPackage::main($argv));
 } catch (Throwable $e) {
     $msg = \str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(NewPackage::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(NewPackage::CODE_FAILED . ": {$msg}");
     exit(1);
 }

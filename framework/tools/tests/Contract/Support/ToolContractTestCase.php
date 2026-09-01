@@ -53,11 +53,18 @@ abstract class ToolContractTestCase extends TestCase
         return rtrim(str_replace('\\', '/', dirname($this->frameworkRoot())), '/');
     }
 
-    protected function spikeFixturePath(string $relativePath): string
+    protected function fixturePath(string $relativePath): string
     {
         $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
 
-        return $this->frameworkRoot() . '/tools/spikes/fixtures/' . $relativePath;
+        return $this->frameworkRoot() . '/tools/tests/Fixtures/' . $relativePath;
+    }
+
+    protected function canonicalFixturePath(string $relativePath): string
+    {
+        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+
+        return $this->frameworkRoot() . '/tools/tests/Fixtures/' . $relativePath;
     }
 
     /**
@@ -65,16 +72,16 @@ abstract class ToolContractTestCase extends TestCase
      */
     protected function requireArrayFixture(string $relativePath): array
     {
-        $path = $this->spikeFixturePath($relativePath);
+        $path = $this->fixturePath($relativePath);
 
         if (!is_file($path)) {
-            throw new RuntimeException('Missing spike fixture: ' . $relativePath);
+            throw new RuntimeException('Missing tooling fixture: ' . $relativePath);
         }
 
         $value = require $path;
 
         if (!is_array($value)) {
-            throw new RuntimeException('Spike fixture must return array: ' . $relativePath);
+            throw new RuntimeException('Tooling fixture must return array: ' . $relativePath);
         }
 
         return $value;
@@ -90,7 +97,46 @@ abstract class ToolContractTestCase extends TestCase
         $out = [];
         foreach ($value as $item) {
             if (!is_string($item) || $item === '') {
-                throw new RuntimeException('Spike fixture must return list<string>: ' . $relativePath);
+                throw new RuntimeException('Tooling fixture must return list<string>: ' . $relativePath);
+            }
+
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function requireCanonicalArrayFixture(string $relativePath): array
+    {
+        $path = $this->canonicalFixturePath($relativePath);
+
+        if (!is_file($path)) {
+            throw new RuntimeException('Missing canonical fixture: ' . $relativePath);
+        }
+
+        $value = require $path;
+
+        if (!is_array($value)) {
+            throw new RuntimeException('Canonical fixture must return array: ' . $relativePath);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function requireCanonicalStringListFixture(string $relativePath): array
+    {
+        $value = $this->requireCanonicalArrayFixture($relativePath);
+
+        $out = [];
+        foreach ($value as $item) {
+            if (!is_string($item) || $item === '') {
+                throw new RuntimeException('Canonical fixture must return list<string>: ' . $relativePath);
             }
 
             $out[] = $item;
@@ -120,6 +166,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runPhp(string $script, array $args = [], ?string $cwd = null): array
@@ -165,6 +212,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runDeptracGenerate(string $repoRoot, array $args): array
@@ -178,6 +226,7 @@ abstract class ToolContractTestCase extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{0:int,1:string}
      */
     protected function runWorkspaceSync(string $repoRoot, array $args): array
@@ -189,15 +238,30 @@ abstract class ToolContractTestCase extends TestCase
         );
     }
 
-    protected function createWorkspaceSandbox(string $fixtureName): string
-    {
-        $fixtureRoot = $this->spikeFixturePath($fixtureName);
-        if (!is_dir($fixtureRoot)) {
+    protected function createWorkspaceSandbox(
+        string $fixtureName,
+        ?string $overlayFixtureName = null,
+    ): string {
+        $fixtureRoot = $this->fixturePath($fixtureName);
+
+        if (!\is_dir($fixtureRoot)) {
             throw new RuntimeException('Missing workspace fixture: ' . $fixtureName);
         }
 
         $sandbox = $this->tempDir('coretsia-workspace-fixture');
+
         $this->copyDir($fixtureRoot, $sandbox);
+
+        if ($overlayFixtureName !== null) {
+            $overlayRoot = $this->fixturePath($overlayFixtureName);
+
+            if (!\is_dir($overlayRoot)) {
+                throw new RuntimeException('Missing workspace fixture overlay: ' . $overlayFixtureName);
+            }
+
+            $this->copyDir($overlayRoot, $sandbox);
+        }
+
         $this->removeDir($sandbox . '/framework/var');
 
         self::assertFileExists($sandbox . '/composer.json');
@@ -207,9 +271,9 @@ abstract class ToolContractTestCase extends TestCase
         return $sandbox;
     }
 
-    protected function createDeptracSandboxFromPackageIndexFixture(string $fixtureRelativePath): string
+    protected function createDeptracSandboxFromDependencyGraphFixture(string $fixtureRelativePath): string
     {
-        $fixture = $this->requireArrayFixture($fixtureRelativePath);
+        $fixture = $this->requireCanonicalArrayFixture($fixtureRelativePath);
         $packages = $fixture['packages'] ?? null;
 
         if (!is_array($packages) || $packages === []) {
@@ -293,13 +357,13 @@ abstract class ToolContractTestCase extends TestCase
         $lines = [];
         $lines[] = '# Fixture dependency table';
         $lines[] = '';
-        $lines[] = '## 4) Phase 0 baseline dependency table (MUST)';
+        $lines[] = '## Dependency table';
         $lines[] = '';
         $lines[] = '| package_id | depends_on |';
         $lines[] = '|---|---|';
 
         $packageIds = array_keys($packages);
-        usort($packageIds, static fn ($a, $b): int => strcmp((string)$a, (string)$b));
+        usort($packageIds, static fn ($a, $b): int => strcmp((string) $a, (string) $b));
 
         foreach ($packageIds as $packageId) {
             $package = $packages[$packageId];
@@ -330,12 +394,12 @@ abstract class ToolContractTestCase extends TestCase
         $this->writeBytesExact($path, implode("\n", $lines) . "\n");
     }
 
-    protected function writeDeptracAllowlistYamlFromSpikeFixture(
+    protected function writeDeptracAllowlistYamlFromFixture(
         string $targetPath,
         string $fixtureRelativePath,
-        bool   $normalizeSrcWildcardToRegex = false,
+        bool $normalizeSrcWildcardToRegex = false,
     ): void {
-        $entries = $this->requireStringListFixture($fixtureRelativePath);
+        $entries = $this->requireCanonicalStringListFixture($fixtureRelativePath);
 
         $lines = [];
         $lines[] = 'exclude_files:';
@@ -401,7 +465,7 @@ abstract class ToolContractTestCase extends TestCase
 
         foreach ($pairs as $actualRel => $expectedRel) {
             self::assertSame(
-                $this->normalizeEol($this->readBytes($this->spikeFixturePath($fixtureName . $expectedRel))),
+                $this->normalizeEol($this->readBytes($this->fixturePath($fixtureName . $expectedRel))),
                 $this->normalizeEol($this->readBytes($sandbox . $actualRel)),
                 'Expected workspace composer lock fixture to match: ' . $actualRel,
             );

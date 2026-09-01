@@ -256,8 +256,6 @@ The current repository baseline includes additional repo-root verification rails
 - `composer quality`
 - `composer package-compliance:gate`
 - `composer package-scaffold:check -- framework`
-- `composer spike:test`
-- `composer spike:test:determinism`
 
 For the complete canonical command catalog, see:
 

@@ -22,6 +22,7 @@ declare(strict_types=1);
      *
      * @template T
      * @param callable():T $fn
+     *
      * @return T
      */
     $withSuppressedErrors = static function (callable $fn) {
@@ -42,11 +43,11 @@ declare(strict_types=1);
     });
 
     if ($toolsRootRuntime === null) {
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 'CORETSIA_RUNTIME_TOOLING_ARTIFACTS_GATE_FAILED',
                 [],
             );
@@ -55,15 +56,15 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     $fallbackViolation = 'CORETSIA_RUNTIME_TOOLING_ARTIFACTS_VIOLATION';
     $fallbackGateFailed = 'CORETSIA_RUNTIME_TOOLING_ARTIFACTS_GATE_FAILED';
@@ -237,6 +238,7 @@ function coretsia_no_runtime_tooling_artifacts_gate_collect_scan_roots(string $p
 
 /**
  * @param list<string> $scanRoots
+ *
  * @return list<string>
  */
 function coretsia_no_runtime_tooling_artifacts_gate_find_scan_files(array $scanRoots): array
@@ -309,10 +311,10 @@ function coretsia_no_runtime_tooling_artifacts_gate_detect_reasons(string $sourc
     if (
         coretsia_no_runtime_tooling_artifacts_gate_contains_namespace_prefix(
             $source,
-            'Coretsia\\Tools\\Spikes\\',
+            'Coretsia\\Tools\\',
         )
     ) {
-        $reasons['runtime-imports-tools-spikes'] = true;
+        $reasons['runtime-imports-tools'] = true;
     }
 
     if (
@@ -361,9 +363,7 @@ function coretsia_no_runtime_tooling_artifacts_gate_contains_devtools_package_re
     foreach (
         [
             'devtools/internal-toolkit',
-            'devtools/cli-spikes',
             'coretsia/devtools-internal-toolkit',
-            'coretsia/devtools-cli-spikes',
         ] as $needle
     ) {
         if (\str_contains($source, $needle)) {
@@ -387,7 +387,7 @@ function coretsia_no_runtime_tooling_artifacts_gate_contains_tooling_path(string
     foreach (
         [
             '~(?<![A-Za-z0-9_.-])framework[\\\\/]+tools[\\\\/]+~iu',
-            '~(?<![A-Za-z0-9_.-])tools[\\\\/]+(?:spikes|build|gates)(?:[\\\\/]+|\\b)~iu',
+            '~(?<![A-Za-z0-9_.-])tools[\\\\/]+~iu',
         ] as $pattern
     ) {
         if (\preg_match($pattern, $source) === 1) {
@@ -426,7 +426,7 @@ function coretsia_no_runtime_tooling_artifacts_gate_contains_executed_tooling_pa
 
         if (
             \preg_match(
-                '~(?:^|[^A-Za-z0-9_-])(?:php|composer|sh|bash)\\s+[^\\n]*(?:framework[\\\\/]+tools[\\\\/]+|tools[\\\\/]+(?:spikes|build|gates)(?:[\\\\/]+|\\b))~iu',
+                '~(?:^|[^A-Za-z0-9_-])(?:php|composer|sh|bash)\\s+[^\\n]*(?<![A-Za-z0-9_.-])tools[\\\\/]+~iu',
                 $line,
             ) === 1
         ) {

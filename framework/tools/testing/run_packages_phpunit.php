@@ -20,10 +20,10 @@ declare(strict_types=1);
     $frameworkRoot = dirname(__DIR__, 2);
     $frameworkRoot = rtrim(str_replace('\\', '/', $frameworkRoot), '/');
 
-    require_once $frameworkRoot . '/tools/spikes/_support/ConsoleOutput.php';
-    require_once $frameworkRoot . '/tools/spikes/_support/ErrorCodes.php';
-    require_once $frameworkRoot . '/tools/spikes/_support/DeterministicException.php';
-    require_once $frameworkRoot . '/tools/spikes/_support/DeterministicFile.php';
+    require_once $frameworkRoot . '/tools/support/ConsoleOutput.php';
+    require_once $frameworkRoot . '/tools/support/ErrorCodes.php';
+    require_once $frameworkRoot . '/tools/support/DeterministicException.php';
+    require_once $frameworkRoot . '/tools/support/DeterministicFile.php';
 
     $phpunitBin = $frameworkRoot . '/vendor/bin/phpunit';
     if (!is_file($phpunitBin)) {
@@ -109,7 +109,7 @@ declare(strict_types=1);
 
     if ($listPackages) {
         foreach ($pkgEntries as $e) {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line("package: {$e['pkg']}/tests", false);
+            \Coretsia\Tools\Support\ConsoleOutput::line("package: {$e['pkg']}/tests", false);
         }
     }
 
@@ -150,7 +150,7 @@ declare(strict_types=1);
     }
 
     try {
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($generatedConfigAbs, $xml);
+        \Coretsia\Tools\Support\DeterministicFile::writeTextLf($generatedConfigAbs, $xml);
     } catch (Throwable) {
         self_testRunnerFail('cannot write var/phpunit/phpunit.discovered.xml');
     }
@@ -176,7 +176,7 @@ declare(strict_types=1);
     $finalExitCode = 0;
 
     for ($run = 1; $run <= $repeat; $run++) {
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+        \Coretsia\Tools\Support\ConsoleOutput::line(
             "repeat: {$run}/{$repeat}",
             false,
         );
@@ -203,7 +203,7 @@ declare(strict_types=1);
         $summary .= ' failed-runs:' . implode(',', $failedRuns);
     }
 
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(
+    \Coretsia\Tools\Support\ConsoleOutput::line(
         $summary,
         false,
     );
@@ -566,7 +566,7 @@ function self_runPhpUnit(
 
 function self_testRunnerFail(string $reason): never
 {
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('CORETSIA_TEST_RUNNER_FAILED: ' . $reason);
+    \Coretsia\Tools\Support\ConsoleOutput::line('CORETSIA_TEST_RUNNER_FAILED: ' . $reason);
 
     exit(1);
 }

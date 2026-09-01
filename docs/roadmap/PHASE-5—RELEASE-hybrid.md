@@ -2916,7 +2916,7 @@ Forbidden:
   - [ ] `benchmark:async:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated async benchmark job
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [ ] `framework/tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_ASYNC_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_ASYNC_PERFORMANCE_RUN_FAILED`
 
@@ -3095,14 +3095,14 @@ N/A
   - [ ] if coverage file missing, prints `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
   - [ ] supports `--path` override for testing
   - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [ ] MUST load `framework/tools/support/bootstrap.php` before scanning.
   - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [ ] MUST attempt to load `framework/tools/support/ConsoleOutput.php`
     - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
     - [ ] MUST exit with code `1`
-  - [ ] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
+  - [ ] MUST use `Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [ ] MUST load `framework/tools/support/ErrorCodes.php` when available.
   - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
   - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [ ] MUST use two code classes when applicable:
@@ -3136,7 +3136,7 @@ N/A
   - [ ] `coverage:test` → `vendor/bin/phpunit -c tools/testing/phpunit.xml --coverage-clover var/phpunit/coverage/clover.xml`
   - [ ] `coverage:gate` → `@php tools/gates/coverage_gate.php`
 - [ ] `.github/workflows/ci.yml` — after `test` job, run coverage gate
-- [ ] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [ ] `framework/tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_COVERAGE_BELOW_THRESHOLD`
   - [ ] `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
 

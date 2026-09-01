@@ -17,10 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-require_once __DIR__ . '/../spikes/_support/ConsoleOutput.php';
-require_once __DIR__ . '/../spikes/_support/ErrorCodes.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicException.php';
-require_once __DIR__ . '/../spikes/_support/DeterministicFile.php';
+require_once __DIR__ . '/../support/ConsoleOutput.php';
+require_once __DIR__ . '/../support/ErrorCodes.php';
+require_once __DIR__ . '/../support/DeterministicException.php';
+require_once __DIR__ . '/../support/DeterministicFile.php';
 
 final class PackageIndexTool
 {
@@ -52,7 +52,7 @@ final class PackageIndexTool
 
         if ($check) {
             if ($changed) {
-                \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+                \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                     self::CODE_OUT_OF_DATE,
                     [self::rel($repoRoot, $outPath)],
                 );
@@ -66,9 +66,9 @@ final class PackageIndexTool
             self::writeFile($outPath, $php);
         }
 
-        \Coretsia\Tools\Spikes\_support\ConsoleOutput::line('OK', false);
+        \Coretsia\Tools\Support\ConsoleOutput::line('OK', false);
         if ($changed) {
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
+            \Coretsia\Tools\Support\ConsoleOutput::line(self::rel($repoRoot, $outPath), false);
         }
 
         return 0;
@@ -329,7 +329,7 @@ final class PackageIndexTool
             $content .= "\n";
         }
 
-        \Coretsia\Tools\Spikes\_support\DeterministicFile::writeTextLf($path, $content);
+        \Coretsia\Tools\Support\DeterministicFile::writeTextLf($path, $content);
     }
 
     /**
@@ -492,6 +492,6 @@ try {
     exit(PackageIndexTool::main($argv));
 } catch (Throwable $e) {
     $msg = str_replace(["\r\n", "\r"], "\n", $e->getMessage());
-    \Coretsia\Tools\Spikes\_support\ConsoleOutput::line(PackageIndexTool::CODE_FAILED . ": {$msg}");
+    \Coretsia\Tools\Support\ConsoleOutput::line(PackageIndexTool::CODE_FAILED . ": {$msg}");
     exit(1);
 }

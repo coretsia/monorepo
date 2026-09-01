@@ -49,6 +49,34 @@ final class ComposerAuditGateTest extends TestCase
         self::assertSame('', $result['stderr']);
     }
 
+    public function testCleanAuditPassesWhenComposerProcessDoesNotExitImmediately(): void
+    {
+        $repoRoot = $this->createFixtureRepoRoot('composer_audit_delayed_clean_');
+        $fakeComposer = $this->writeFakeComposer(
+            $repoRoot,
+            [
+                'root' => $this->fixturePath('audit_clean.json'),
+                'framework' => $this->fixturePath('audit_clean.json'),
+                'skeleton' => $this->fixturePath('audit_clean.json'),
+            ],
+            [
+                'root' => 0,
+                'framework' => 0,
+                'skeleton' => 0,
+            ],
+            delayMicros: 250_000,
+        );
+
+        $result = $this->runGate([
+            '--path=' . $repoRoot,
+            '--composer=' . $fakeComposer,
+        ]);
+
+        self::assertSame(0, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame('', $result['stderr']);
+    }
+
     public function testAdvisoryFoundFailsDeterministically(): void
     {
         $repoRoot = $this->createFixtureRepoRoot('composer_audit_advisory_');
@@ -118,6 +146,54 @@ final class ComposerAuditGateTest extends TestCase
         );
 
         $this->assertOutputIsRedacted($result['stderr'], $repoRoot);
+    }
+
+    public function testNetworkFailureFailsWithDedicatedNetworkCode(): void
+    {
+        $repoRoot = $this->createFixtureRepoRoot('composer_audit_network_failed_');
+        $fakeComposer = $this->writeFakeComposer(
+            $repoRoot,
+            [
+                'root' => $this->fixturePath('audit_network_failed.txt'),
+                'framework' => $this->fixturePath('audit_clean.json'),
+                'skeleton' => $this->fixturePath('audit_clean.json'),
+            ],
+            [
+                'root' => 100,
+                'framework' => 0,
+                'skeleton' => 0,
+            ],
+            [
+                'root' => true,
+            ],
+        );
+
+        $result = $this->runGate([
+            '--path=' . $repoRoot,
+            '--composer=' . $fakeComposer,
+        ]);
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+
+        self::assertSame(
+            ['CORETSIA_TOOLS_NETWORK_FAILED'],
+            $this->stderrLines($result['stderr']),
+        );
+
+        self::assertStringNotContainsString(
+            'curl error',
+            $result['stderr'],
+        );
+        self::assertStringNotContainsString(
+            'Connection timed out',
+            $result['stderr'],
+        );
+
+        $this->assertOutputIsRedacted(
+            $result['stderr'],
+            $repoRoot,
+        );
     }
 
     public function testComposerAuditNonZeroWithValidAdvisoriesIsFindingNotScanFailure(): void
@@ -280,6 +356,7 @@ final class ComposerAuditGateTest extends TestCase
 
     /**
      * @param list<string> $args
+     *
      * @return array{exit:int,stdout:string,stderr:string}
      */
     private function runGate(array $args): array
@@ -334,12 +411,14 @@ final class ComposerAuditGateTest extends TestCase
         array $fixtureByRoot,
         array $exitByRoot,
         array $stderrByRoot = [],
+        int $delayMicros = 0,
     ): string {
         $path = $repoRoot . '/fake-composer.php';
 
         $fixtures = \var_export($fixtureByRoot, true);
         $exits = \var_export($exitByRoot, true);
         $stderr = \var_export($stderrByRoot, true);
+        $delay = \var_export($delayMicros, true);
 
         $this->writeFile(
             $path,
@@ -351,6 +430,7 @@ declare(strict_types=1);
 \$fixtures = {$fixtures};
 \$exits = {$exits};
 \$stderr = {$stderr};
+\$delayMicros = {$delay};
 
 \$cwd = getcwd();
 \$cwd = is_string(\$cwd) ? rtrim(str_replace('\\\\', '/', \$cwd), '/') : '';
@@ -361,6 +441,10 @@ if (str_ends_with(\$cwd, '/framework')) {
 }
 if (str_ends_with(\$cwd, '/skeleton')) {
     \$label = 'skeleton';
+}
+
+if (\$delayMicros > 0) {
+    usleep(\$delayMicros);
 }
 
 \$fixture = \$fixtures[\$label] ?? null;

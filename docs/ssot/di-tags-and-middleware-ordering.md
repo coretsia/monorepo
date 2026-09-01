@@ -547,24 +547,6 @@ Container diagnostics MUST NOT introduce or alter:
 
 Diagnostics output remains introspection-only and MUST NOT be consumed as the canonical runtime discovery source.
 
-## Static fixture boundary
-
-The Phase 0 fixture:
-
-```text
-framework/tools/spikes/fixtures/http_middleware_catalog.php
-```
-
-MAY be cited only as a Phase 0 lock-source or alignment input.
-
-It is not the SSoT for HTTP middleware slot ownership, slot contents, runtime discovery, or middleware placement.
-
-The canonical HTTP middleware SSoT is:
-
-```text
-docs/ssot/http-middleware-catalog.md
-```
-
 ## Correct usage examples
 
 ### Discovering HTTP middleware for a slot

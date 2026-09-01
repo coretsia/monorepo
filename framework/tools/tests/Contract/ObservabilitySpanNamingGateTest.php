@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Tests\Contract;
 
-use Coretsia\Tools\Spikes\_support\ErrorCodes;
+use Coretsia\Tools\Support\ErrorCodes;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -617,17 +617,17 @@ final class ObservabilitySpanNamingGateTest extends TestCase
         self::writeFile($gateTarget, (string)file_get_contents(self::gatePath()));
 
         self::writeFile(
-            $repoRoot . '/framework/tools/spikes/_support/bootstrap.php',
+            $repoRoot . '/framework/tools/support/bootstrap.php',
             "<?php\ndeclare(strict_types=1);\n"
         );
 
         self::writeFile(
-            $repoRoot . '/framework/tools/spikes/_support/ConsoleOutput.php',
+            $repoRoot . '/framework/tools/support/ConsoleOutput.php',
             <<<'PHP'
             <?php
             declare(strict_types=1);
 
-            namespace Coretsia\Tools\Spikes\_support;
+            namespace Coretsia\Tools\Support;
 
             final class ConsoleOutput
             {
@@ -644,12 +644,12 @@ final class ObservabilitySpanNamingGateTest extends TestCase
         );
 
         self::writeFile(
-            $repoRoot . '/framework/tools/spikes/_support/ErrorCodes.php',
+            $repoRoot . '/framework/tools/support/ErrorCodes.php',
             <<<'PHP'
             <?php
             declare(strict_types=1);
 
-            namespace Coretsia\Tools\Spikes\_support;
+            namespace Coretsia\Tools\Support;
 
             final class ErrorCodes
             {

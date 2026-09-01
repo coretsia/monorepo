@@ -64,6 +64,53 @@ final class PayloadNormalizerRejectsUnsafeValuesTest extends TestCase
         );
     }
 
+    public function testRejectsNestedFloatWithExactListIndexPathWithoutLeakingRawValue(): void
+    {
+        try {
+            PayloadNormalizer::normalizePayload(
+                [
+                    'a' => [
+                        'b' => [
+                            1,
+                            2,
+                            3,
+                            [
+                                'c' => 1.25,
+                            ],
+                        ],
+                    ],
+                ],
+                'artifact',
+            );
+
+            self::fail('Expected JsonFloatForbiddenException was not thrown.');
+        } catch (JsonFloatForbiddenException $exception) {
+            self::assertSame(
+                JsonFloatForbiddenException::ERROR_CODE,
+                $exception->errorCode(),
+            );
+            self::assertSame(
+                JsonFloatForbiddenException::REASON_FLOAT_FORBIDDEN,
+                $exception->reason(),
+            );
+            self::assertSame(
+                'artifact.a.b[3].c',
+                $exception->path(),
+            );
+            self::assertStringContainsString(
+                'artifact.a.b[3].c',
+                $exception->getMessage(),
+            );
+
+            self::assertNoDiagnosticLeak(
+                $exception,
+                [
+                    '1.25',
+                ],
+            );
+        }
+    }
+
     public function testRejectsObjectsWithoutLeakingClassNameOrRawProperties(): void
     {
         $object = new class() {

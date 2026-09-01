@@ -1,8 +1,0 @@
-.env
-.env.local
-.env.local.local
-apps/web/config/app.php
-apps/web/config/http.php
-config/app.php
-config/http.php
-config/modules.php

@@ -22,6 +22,7 @@ declare(strict_types=1);
      *
      * @template T
      * @param callable():T $fn
+     *
      * @return T
      */
     $withSuppressedErrors = static function (callable $fn) {
@@ -46,11 +47,11 @@ declare(strict_types=1);
     $fallbackGateFailed = 'CORETSIA_SECRET_GATE_SCAN_FAILED';
 
     if ($toolsRootRuntime === null) {
-        $fallbackConsole = __DIR__ . '/../spikes/_support/ConsoleOutput.php';
+        $fallbackConsole = __DIR__ . '/../support/ConsoleOutput.php';
         if (\is_file($fallbackConsole) && \is_readable($fallbackConsole)) {
             require_once $fallbackConsole;
 
-            \Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics(
+            \Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics(
                 $fallbackGateFailed,
                 [],
             );
@@ -59,15 +60,15 @@ declare(strict_types=1);
         exit(1);
     }
 
-    $bootstrap = $toolsRootRuntime . '/spikes/_support/bootstrap.php';
-    $consoleFile = $toolsRootRuntime . '/spikes/_support/ConsoleOutput.php';
-    $errorCodesFile = $toolsRootRuntime . '/spikes/_support/ErrorCodes.php';
+    $bootstrap = $toolsRootRuntime . '/support/bootstrap.php';
+    $consoleFile = $toolsRootRuntime . '/support/ConsoleOutput.php';
+    $errorCodesFile = $toolsRootRuntime . '/support/ErrorCodes.php';
 
     /** @var class-string $ConsoleOutput */
-    $ConsoleOutput = 'Coretsia\\Tools\\Spikes\\_support\\ConsoleOutput';
+    $ConsoleOutput = 'Coretsia\\Tools\\Support\\ConsoleOutput';
 
     /** @var class-string $ErrorCodes */
-    $ErrorCodes = 'Coretsia\\Tools\\Spikes\\_support\\ErrorCodes';
+    $ErrorCodes = 'Coretsia\\Tools\\Support\\ErrorCodes';
 
     if (!\is_file($bootstrap) || !\is_readable($bootstrap)) {
         if (\is_file($consoleFile) && \is_readable($consoleFile)) {
@@ -149,6 +150,7 @@ declare(strict_types=1);
 
 /**
  * @param list<string> $argv
+ *
  * @return array{
  *     'source_root': string,
  *     'config_path': string,
@@ -194,7 +196,7 @@ function coretsia_secret_leakage_gate_parse_options(array $argv, string $repoRoo
                 throw new \RuntimeException('gitleaks-exit-code-invalid');
             }
 
-            $gitleaksExitCode = (int)$raw;
+            $gitleaksExitCode = (int) $raw;
             if ($gitleaksExitCode < 0 || $gitleaksExitCode > 255) {
                 throw new \RuntimeException('gitleaks-exit-code-invalid');
             }
@@ -385,59 +387,80 @@ function coretsia_secret_leakage_gate_run_gitleaks(string $sourceRoot, string $c
             $deadline = \microtime(true) + 60.0;
 
             while (!\feof($pipes[1]) || !\feof($pipes[2])) {
-                $read = [];
-
-                if (!\feof($pipes[1])) {
-                    $read[] = $pipes[1];
-                }
-
-                if (!\feof($pipes[2])) {
-                    $read[] = $pipes[2];
-                }
-
-                if ($read !== []) {
-                    $write = null;
-                    $except = null;
-
-                    \set_error_handler(static function (): bool {
-                        return true;
-                    });
-
-                    try {
-                        $ready = \stream_select($read, $write, $except, 0, 10_000);
-                    } finally {
-                        \restore_error_handler();
+                if (\PHP_OS_FAMILY === 'Windows') {
+                    if (!\feof($pipes[1])) {
+                        $stdout .= (string) \stream_get_contents($pipes[1]);
                     }
 
-                    if ($ready === false) {
-                        throw new \RuntimeException('gitleaks-stream-select-failed');
+                    if (!\feof($pipes[2])) {
+                        $stderr .= (string) \stream_get_contents($pipes[2]);
                     }
 
-                    foreach ($read as $stream) {
-                        if ($stream === $pipes[1]) {
-                            $stdout .= (string)\stream_get_contents($pipes[1]);
-                            continue;
+                    \usleep(10_000);
+                } else {
+                    $read = [];
+
+                    if (!\feof($pipes[1])) {
+                        $read[] = $pipes[1];
+                    }
+
+                    if (!\feof($pipes[2])) {
+                        $read[] = $pipes[2];
+                    }
+
+                    if ($read !== []) {
+                        $write = null;
+                        $except = null;
+
+                        \set_error_handler(static function (): bool {
+                            return true;
+                        });
+
+                        try {
+                            $ready = \stream_select(
+                                $read,
+                                $write,
+                                $except,
+                                0,
+                                10_000,
+                            );
+                        } finally {
+                            \restore_error_handler();
                         }
 
-                        if ($stream === $pipes[2]) {
-                            $stderr .= (string)\stream_get_contents($pipes[2]);
+                        if ($ready === false) {
+                            throw new \RuntimeException('gitleaks-stream-select-failed');
+                        }
+
+                        foreach ($read as $stream) {
+                            if ($stream === $pipes[1]) {
+                                $stdout .= (string) \stream_get_contents($pipes[1]);
+
+                                continue;
+                            }
+
+                            if ($stream === $pipes[2]) {
+                                $stderr .= (string) \stream_get_contents($pipes[2]);
+                            }
                         }
                     }
                 }
 
                 if (\strlen($stdout) + \strlen($stderr) > 2_000_000) {
                     \proc_terminate($process);
+
                     throw new \RuntimeException('gitleaks-output-too-large');
                 }
 
                 if (\microtime(true) > $deadline) {
                     \proc_terminate($process);
+
                     throw new \RuntimeException('gitleaks-process-timeout');
                 }
             }
 
-            $stdout .= (string)\stream_get_contents($pipes[1]);
-            $stderr .= (string)\stream_get_contents($pipes[2]);
+            $stdout .= (string) \stream_get_contents($pipes[1]);
+            $stderr .= (string) \stream_get_contents($pipes[2]);
 
             \fclose($pipes[1]);
             \fclose($pipes[2]);
@@ -505,6 +528,7 @@ function coretsia_secret_leakage_gate_remove_file(string $path): void
 
 /**
  * @param non-empty-list<string> $argv
+ *
  * @return list<string|array<int,string>>
  */
 function coretsia_secret_leakage_gate_command_candidates(array $argv): array
@@ -541,6 +565,7 @@ function coretsia_secret_leakage_gate_shell_command(array $argv): string
 
 /**
  * @param string|array<int,string> $cmd
+ *
  * @return array<string,mixed>
  */
 function coretsia_secret_leakage_gate_proc_options(string|array $cmd): array
@@ -601,6 +626,7 @@ function coretsia_secret_leakage_gate_decode_json_payload(string $output): ?arra
 
 /**
  * @param list<mixed> $decoded
+ *
  * @return list<array<string,mixed>>
  */
 function coretsia_secret_leakage_gate_normalize_findings_list(array $decoded): array
@@ -622,6 +648,7 @@ function coretsia_secret_leakage_gate_normalize_findings_list(array $decoded): a
 
 /**
  * @param list<array<string,mixed>> $findings
+ *
  * @return list<string>
  */
 function coretsia_secret_leakage_gate_collect_diagnostics(array $findings, string $sourceRoot): array
@@ -687,7 +714,7 @@ function coretsia_secret_leakage_gate_finding_line(array $finding): ?int
         }
 
         if (\is_string($value) && \preg_match('/\A[1-9][0-9]*\z/', $value) === 1) {
-            return (int)$value;
+            return (int) $value;
         }
     }
 
@@ -755,6 +782,7 @@ function coretsia_secret_leakage_gate_safe_relative_path(string $path, string $s
 
 /**
  * @param list<string> $values
+ *
  * @return list<string>
  */
 function coretsia_secret_leakage_gate_sorted_unique(array $values): array

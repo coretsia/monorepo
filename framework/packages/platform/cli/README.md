@@ -50,8 +50,6 @@ This package is runtime-safe but intentionally kernel-free in Phase 0.
   - `integrations/*`
   - `devtools/*` as runtime dependencies
 
-`platform/cli` MAY load allowlisted devtools presets only when they are installed and explicitly supported by the Phase 0 config merge policy.
-
 Before public stable release, public Composer dependencies MUST use SemVer constraints and MUST NOT use `dev-main`.
 
 ## Scope (Phase 0 constraints)
@@ -122,12 +120,7 @@ The runtime builds the final `cli` subtree using this fixed merge order:
 
 1. Package defaults
    - `framework/packages/platform/cli/config/cli.php`
-2. Devtools preset (optional; allowlisted, NOT a plugin system)
-   - only if the preset package is installed (detected via `Composer\InstalledVersions::isInstalled('coretsia/devtools-cli-spikes')`)
-   - preset file path is derived from the selected `$autoloadFile`:
-     - `$vendorDir = dirname($autoloadFile)`
-     - preset path: `$vendorDir . '/coretsia/devtools-cli-spikes/config/cli.php'`
-3. Skeleton overrides
+2. Skeleton overrides
    - `skeleton/config/cli.php`
    - if `skeleton/` directory is missing: treated as empty overlay (no error)
    - if `skeleton/config/cli.php` is missing: treated as empty overlay (no error)
@@ -135,7 +128,7 @@ The runtime builds the final `cli` subtree using this fixed merge order:
 ### Merge algorithm (cemented)
 
 - `cli.commands` uses append-unique preserving first occurrence order:
-  - apply sources in order: defaults → preset → skeleton
+  - apply sources in order: defaults → skeleton
   - remove duplicates deterministically by keeping the first occurrence
 - all other `cli.*` keys:
   - higher-precedence values override lower-precedence values
@@ -218,7 +211,7 @@ Before JSON normalization/encoding:
 ## Errors
 
 Phase 0 CLI errors are code-first and deterministic.
-This package owns its CLI error codes (NOT the spikes registry):
+This package owns its CLI error codes:
 
 - `CORETSIA_CLI_COMMAND_CLASS_MISSING`
 - `CORETSIA_CLI_COMMAND_INVALID`

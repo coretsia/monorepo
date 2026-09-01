@@ -69,6 +69,34 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
         );
     }
 
+    public function testAppendAgainstMissingBaseCreatesList(): void
+    {
+        $processor = self::processor();
+        $merger = self::merger($processor);
+
+        $patch = $processor->processRootSubtree(
+            root: 'kernel',
+            subtree: [
+                'values' => [
+                    '@append' => [
+                        'A',
+                        'B',
+                    ],
+                ],
+            ],
+        );
+
+        self::assertSame(
+            [
+                'values' => [
+                    'A',
+                    'B',
+                ],
+            ],
+            $merger->merge([], $patch),
+        );
+    }
+
     public function testPrependAcceptsListAndPrependsAtMergeTime(): void
     {
         $processor = self::processor();
@@ -147,6 +175,47 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
                         'AuthMiddleware',
                         'ControllerMiddleware',
                     ],
+                ],
+            ],
+            $merger->merge($base, $patch),
+        );
+    }
+
+    public function testRemoveUsesStrictEqualityRemovesDuplicatesAndIgnoresMissingValues(): void
+    {
+        $processor = self::processor();
+        $merger = self::merger($processor);
+
+        $base = [
+            'values' => [
+                1,
+                '1',
+                true,
+                'B',
+                'B',
+                'C',
+            ],
+        ];
+
+        $patch = $processor->processRootSubtree(
+            root: 'kernel',
+            subtree: [
+                'values' => [
+                    '@remove' => [
+                        '1',
+                        'B',
+                        'missing',
+                    ],
+                ],
+            ],
+        );
+
+        self::assertSame(
+            [
+                'values' => [
+                    1,
+                    true,
+                    'C',
                 ],
             ],
             $merger->merge($base, $patch),
@@ -233,6 +302,53 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
         );
 
         self::assertSame($base, $merger->merge($base, $patch));
+    }
+
+    public function testAppendRejectsMapBaseAtMergeTime(): void
+    {
+        $processor = self::processor();
+        $merger = self::merger($processor);
+
+        $patch = $processor->processRootSubtree(
+            root: 'kernel',
+            subtree: [
+                'values' => [
+                    '@append' => [
+                        'A',
+                    ],
+                ],
+            ],
+        );
+
+        try {
+            $merger->merge(
+                [
+                    'values' => [
+                        'not' => 'a-list',
+                    ],
+                ],
+                $patch,
+            );
+
+            self::fail('Expected ConfigDirectiveTypeMismatchException was not thrown.');
+        } catch (ConfigDirectiveTypeMismatchException $exception) {
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::ERROR_CODE,
+                $exception->errorCode(),
+            );
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::REASON_LIST_DIRECTIVE_BASE_MUST_BE_LIST,
+                $exception->reason(),
+            );
+            self::assertSame(
+                ConfigDirective::Append,
+                $exception->directive(),
+            );
+            self::assertSame(
+                ConfigDirectiveTypeMismatchException::EXPECTED_LIST,
+                $exception->expectedType(),
+            );
+        }
     }
 
     #[DataProvider('invalidListDirectivePayloadProvider')]

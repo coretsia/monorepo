@@ -21,7 +21,7 @@ parameters:
         - ../../tools/testing
 
     bootstrapFiles:
-        - ../spikes/_support/bootstrap.php
+        - ../support/bootstrap.php
 
     tmpDir: ../../var/phpstan
 
@@ -42,8 +42,6 @@ parameters:
             - ../../packages/*/*/tests/fixtures
             - ../../packages/*/*/tests/fixtures/*
 
-            - ../../tools/spikes
-            - ../../tools/spikes/*
             - ../../tools/tests
             - ../../tools/tests/*
             - ../../tools/*/fixtures

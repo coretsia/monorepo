@@ -173,4 +173,15 @@ final class RuntimeDriverResolverConflictDiagnosticsAreDeterministicallySortedTe
             'Runtime driver diagnostics must be sorted by canonical id using byte-order strcmp.',
         );
     }
+
+    public function testRepeatedConflictResolutionProducesSameDiagnosticProjection(): void
+    {
+        $first = self::resolveConflict();
+        $second = self::resolveConflict();
+
+        self::assertSame($first->errorCode(), $second->errorCode());
+        self::assertSame($first->reason(), $second->reason());
+        self::assertSame($first->activeDriverIds(), $second->activeDriverIds());
+        self::assertSame($first->conflictingDriverIds(), $second->conflictingDriverIds());
+    }
 }

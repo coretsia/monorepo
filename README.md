@@ -144,6 +144,8 @@ Artifacts:
 - must be rerun-no-diff;
 - are validated by schema and header semantics.
 
+The production determinism contract — including canonical ordering, fingerprint and generation identity, artifact byte reproducibility, runtime verification, Worker semantic determinism, and cross-platform guarantees — is defined in [Coretsia Determinism Contract](docs/architecture/DETERMINISM.md).
+
 ### Shared runtime lifecycle
 
 Coretsia uses a format-neutral Unit-of-Work model for runtime operations such as:
@@ -347,6 +349,7 @@ This is a framework-development workflow, not yet an end-user application instal
 ### Architecture and operations
 
 - [Canonical packaging strategy](docs/architecture/PACKAGING.md)
+- [Coretsia determinism contract](docs/architecture/DETERMINISM.md)
 - [Repository structure](docs/architecture/STRUCTURE.md)
 - [Command catalog](docs/guides/commands.md)
 - [Git hooks and managed repositories](docs/guides/git-hooks.md)

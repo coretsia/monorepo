@@ -378,9 +378,11 @@ final class ArtifactPipelineTestSupport
         array $config,
         ?ModuleResolution $moduleResolution = null,
         string $artifactsCacheDir = 'var/cache',
+        ?ConfigSourceSet $configSources = null,
     ): array {
         self::writeRootConfig($skeletonRoot, $config);
         $moduleResolution ??= self::moduleResolution();
+        $configSources ??= ConfigSourceSet::empty();
 
         return self::artifactCompiler($testCase)->compile(
             bootstrapConfig: self::bootstrapConfig(
@@ -390,7 +392,7 @@ final class ArtifactPipelineTestSupport
             moduleResolution: $moduleResolution,
             env: self::envRepository(),
             kernelConfig: self::kernelConfig(),
-            configSources: ConfigSourceSet::empty(),
+            configSources: $configSources,
         );
     }
 
@@ -419,6 +421,7 @@ final class ArtifactPipelineTestSupport
         string $skeletonRoot,
         ?ModuleResolution $moduleResolution = null,
         string $artifactsCacheDir = 'var/cache',
+        ?ConfigSourceSet $configSources = null,
     ): string {
         $bootstrapConfig = self::bootstrapConfig(
             skeletonRoot: $skeletonRoot,
@@ -427,7 +430,7 @@ final class ArtifactPipelineTestSupport
         $moduleResolution ??= self::moduleResolution();
         $modulePlan = $moduleResolution->plan();
         $env = self::envRepository();
-        $configSources = ConfigSourceSet::empty();
+        $configSources ??= ConfigSourceSet::empty();
 
         $compiled = self::configKernel($testCase)->compile(
             bootstrapConfig: $bootstrapConfig,

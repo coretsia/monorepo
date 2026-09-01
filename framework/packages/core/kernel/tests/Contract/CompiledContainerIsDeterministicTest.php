@@ -45,6 +45,17 @@ final class CompiledContainerIsDeterministicTest extends TestCase
         self::assertSame($first, $second);
     }
 
+    public function testCanonicalCompiledContainerFixtureHasPlatformIndependentSha256(): void
+    {
+        self::assertSame(
+            '6bc85b1882fb7bfe6485254674133f6f7191f23fab24e300b7be3dd3869361a2',
+            \hash(
+                'sha256',
+                self::containerBytes(self::containerDefinitions()),
+            ),
+        );
+    }
+
     public function testCompiledContainerPayloadUsesDeterministicMapOrdering(): void
     {
         $envelope = self::containerEnvelope(self::containerDefinitions());

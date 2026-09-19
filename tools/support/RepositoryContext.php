@@ -107,7 +107,7 @@ final class RepositoryContext
 
     /**
      * Resolve a repository-relative or absolute path and require it to remain
-     * lexically inside the repository root.
+     * inside the repository root after canonicalizing its existing path prefix.
      */
     public function resolve(string $path): string
     {
@@ -118,6 +118,8 @@ final class RepositoryContext
         $candidate = self::isAbsolutePath($path)
             ? self::normalizeAbsolutePath($path)
             : self::normalizeAbsolutePath(self::joinRoot($this->repoRoot, $path));
+
+        $candidate = self::canonicalizeExistingPrefix($candidate);
 
         if (!self::containsPath($this->repoRoot, $candidate)) {
             throw new \RuntimeException('repository-path-outside-root');
@@ -299,6 +301,39 @@ final class RepositoryContext
         }
 
         return $prefix . implode('/', $segments);
+    }
+
+    private static function canonicalizeExistingPrefix(string $path): string
+    {
+        $normalized = self::normalizeAbsolutePath($path);
+        $resolved = self::realpathSuppressed($normalized);
+
+        if ($resolved !== null) {
+            return $resolved;
+        }
+
+        $suffix = [];
+        $cursor = $normalized;
+
+        for ($i = 0; $i < 64; $i++) {
+            $parent = self::normalizePath(dirname($cursor));
+
+            if ($parent === '' || $parent === $cursor) {
+                break;
+            }
+
+            array_unshift($suffix, basename($cursor));
+            $cursor = self::normalizeAbsolutePath($parent);
+            $resolved = self::realpathSuppressed($cursor);
+
+            if ($resolved !== null) {
+                return self::normalizeAbsolutePath(
+                    self::joinRoot($resolved, implode('/', $suffix)),
+                );
+            }
+        }
+
+        return $normalized;
     }
 
     private static function pathsEqual(string $left, string $right): bool

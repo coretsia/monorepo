@@ -1,0 +1,55 @@
+{
+  "name": "coretsia/devtools-internal-toolkit",
+  "type": "library",
+  "description": "Tooling-only deterministic helpers for Coretsia devtools and repository tooling.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "php84",
+    "devtools",
+    "tooling",
+    "determinism",
+    "stable-json",
+    "path-normalization",
+    "slug",
+    "internal-toolkit"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Devtools\\InternalToolkit\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Devtools\\InternalToolkit\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "library"
+    }
+  }
+}

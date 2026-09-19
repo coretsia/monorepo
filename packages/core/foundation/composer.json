@@ -1,0 +1,69 @@
+{
+  "name": "coretsia/core-foundation",
+  "type": "library",
+  "description": "Coretsia Foundation runtime package (PSR-11 DI container, deterministic tags, stable diagnostics, and reset orchestration)",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "foundation",
+    "runtime",
+    "container",
+    "dependency-injection",
+    "di",
+    "psr-11",
+    "tags",
+    "deterministic",
+    "reset",
+    "long-running"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.6.0",
+    "psr/clock": "^1.0",
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Foundation\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Foundation\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "core.foundation",
+      "moduleClass": "Coretsia\\Foundation\\Module\\FoundationModule",
+      "providers": [
+        "Coretsia\\Foundation\\Provider\\FoundationServiceProvider"
+      ],
+      "requires": [],
+      "conflicts": [],
+      "defaultsConfigPath": "config/foundation.php"
+    }
+  }
+}

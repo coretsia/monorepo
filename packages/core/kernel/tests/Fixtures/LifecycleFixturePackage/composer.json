@@ -1,0 +1,23 @@
+{
+  "name": "coretsia/kernel-lifecycle-fixture",
+  "type": "library",
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Kernel\\Tests\\Fixtures\\LifecycleFixturePackage\\": ""
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.lifecycle-fixture",
+      "providers": [
+        "Coretsia\\Kernel\\Tests\\Fixtures\\LifecycleFixturePackage\\LifecycleFixtureServiceProvider"
+      ],
+      "requires": [
+        "core.kernel"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/lifecycle_fixture.php"
+    }
+  }
+}

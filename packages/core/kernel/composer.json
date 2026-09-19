@@ -1,0 +1,73 @@
+{
+  "name": "coretsia/core-kernel",
+  "type": "library",
+  "description": "Coretsia Kernel runtime package: UnitOfWork shapes, outcome policy, and kernel lifecycle invariants.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "php84",
+    "framework",
+    "kernel",
+    "runtime",
+    "unit-of-work",
+    "uow",
+    "context",
+    "result",
+    "outcome",
+    "lifecycle",
+    "composer-package"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "ext-ctype": "*",
+    "composer-runtime-api": "^2.2",
+    "coretsia/core-contracts": "^0.6.0",
+    "coretsia/core-foundation": "^0.6.0",
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Kernel\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Kernel\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "core.kernel",
+      "moduleClass": "Coretsia\\Kernel\\Module\\KernelModule",
+      "providers": [
+        "Coretsia\\Kernel\\Provider\\KernelServiceProvider"
+      ],
+      "requires": [
+        "core.foundation"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/kernel.php"
+    }
+  }
+}

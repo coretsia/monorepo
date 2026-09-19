@@ -1,0 +1,89 @@
+{
+  "name": "coretsia/monorepo",
+  "type": "project",
+  "description": "Workspace fixture (repo root)",
+  "require": {
+    "php": "^8.4"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/applications/skeleton",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/skeleton": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/core/contracts",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/core-contracts": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/core/kernel",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/core-kernel": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/devtools/internal-toolkit",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/devtools-internal-toolkit": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/framework",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/framework": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/cli",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-cli": "0.4.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "composer",
+      "url": "https://repo.packagist.org"
+    }
+  ],
+  "config": {
+    "sort-packages": true
+  }
+}

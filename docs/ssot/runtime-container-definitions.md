@@ -134,7 +134,7 @@ core/foundation
 
 It MUST NOT be moved to `core/contracts`.
 
-The model is coupled to Foundation DI semantics and is not a technology-neutral framework port.
+The model is coupled to Foundation DI semantics and is not a technology-neutral port suitable for `core/contracts`.
 
 It MUST NOT be moved to `core/kernel`.
 
@@ -151,42 +151,42 @@ Foundation MUST NOT depend on Kernel to define or apply the canonical model.
 The canonical public model is:
 
 ```text
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionProviderInterface.php
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionSet.php
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionKind.php
-framework/packages/core/foundation/src/Container/Definition/ContainerServiceDefinition.php
-framework/packages/core/foundation/src/Container/Definition/ContainerValueReference.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionProviderInterface.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionSet.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionKind.php
+packages/core/foundation/src/Container/Definition/ContainerServiceDefinition.php
+packages/core/foundation/src/Container/Definition/ContainerValueReference.php
 ```
 
 The source-runtime adapter is:
 
 ```text
-framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionApplier.php
+packages/core/foundation/src/Container/Definition/ContainerDefinitionApplier.php
 ```
 
 The canonical validation and shared identifier policies include:
 
 ```text
-framework/packages/core/foundation/src/Container/Internal/ContainerDefinitionPolicy.php
-framework/packages/core/foundation/src/Container/Internal/ContainerServiceIdPolicy.php
-framework/packages/core/foundation/src/Tag/Internal/TagNamePolicy.php
+packages/core/foundation/src/Container/Internal/ContainerDefinitionPolicy.php
+packages/core/foundation/src/Container/Internal/ContainerServiceIdPolicy.php
+packages/core/foundation/src/Tag/Internal/TagNamePolicy.php
 ```
 
 The canonical definition-validation exception is:
 
 ```text
-framework/packages/core/foundation/src/Container/Exception/ContainerDefinitionInvalidException.php
+packages/core/foundation/src/Container/Exception/ContainerDefinitionInvalidException.php
 ```
 
 The Kernel production definition-collection and completeness integration points are:
 
 ```text
-framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
-framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
-framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
-framework/packages/core/kernel/src/Container/ContainerCompiler.php
+packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
+packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
+packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+packages/core/kernel/src/Container/ContainerCompiler.php
 ```
 
 These implementation points do not change this document's authority boundary.
@@ -198,9 +198,9 @@ The Foundation canonical definition model does not discover or order module prov
 Kernel-owned compile-time provider planning is represented by:
 
 ```text
-framework/packages/core/kernel/src/Module/ModuleResolution.php
-framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlan.php
-framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
+packages/core/kernel/src/Module/ModuleResolution.php
+packages/core/kernel/src/Container/Provider/ContainerProviderPlan.php
+packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
 ```
 
 These classes are not part of the Foundation canonical model.
@@ -604,7 +604,7 @@ The context MUST NOT expose:
 - a container;
 - service instances;
 - `RuntimePathContext`;
-- skeleton runtime roots;
+- application runtime roots;
 - artifact runtime roots;
 - absolute runtime filesystem paths;
 - runtime lifecycle objects.
@@ -1884,52 +1884,52 @@ Sorting changes collision, parameter, and tag semantics.
 The canonical model SHOULD be locked by tests covering:
 
 ```text
-framework/packages/core/foundation/tests/Contract/ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
-framework/packages/core/foundation/tests/Contract/ContainerDefinitionSetIsDeterministicContractTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
+packages/core/foundation/tests/Contract/ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
+packages/core/foundation/tests/Contract/ContainerDefinitionSetIsDeterministicContractTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
 Kernel module-resolution and provider-plan behavior MUST additionally be locked by:
 
 ```text
-framework/packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
-framework/packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
+packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
 ```
 
 Kernel production runtime-graph compilation MUST additionally be locked by:
 
 ```text
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerUsesProviderPlanTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactCompilerUsesProductionContainerGraphTest.php
-framework/packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerGraphAsCompilerTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerUsesProviderPlanTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
+packages/core/kernel/tests/Integration/ArtifactCompilerUsesProductionContainerGraphTest.php
+packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 ```
 
 Foundation, Kernel, and Worker provider integration SHOULD additionally be locked by:
 
 ```text
-framework/packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
-framework/packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
-framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
-framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
-framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
+packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
+packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
+packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
+packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
+packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 ```
 
 Worker lazy-resolution and runtime-seed behavior SHOULD additionally be locked by:
 
 ```text
-framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
-framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
+packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
+packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
+packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
 Parity tests MUST compare:

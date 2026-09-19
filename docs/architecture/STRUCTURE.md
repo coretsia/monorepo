@@ -20,16 +20,22 @@
 
 ## 0) Canonical structure rules (fixed once and for all)
 
-### 0.0. Packaging strategy (canonical reference)
+### 0.0. Packaging and dependency strategy (canonical references)
 
 - All `path ↔ package_id ↔ composer ↔ namespace`, publishable units, and versioning rules MUST comply with:
   - `docs/architecture/PACKAGING.md`
+- Exact direct compile-time dependency permissions between layered packages MUST comply with:
+  - `docs/architecture/DEPENDENCIES.md`
 
-### 0.1. Names and the “folder ↔ package_id ↔ composer ↔ namespace” mapping
+### 0.1. Layered package identity and special distributions
 
-- Package path MUST: `framework/packages/<layer>/<slug>/`
-- Package id MUST: `<layer>/<slug>` (e.g. `platform/http-client`)
-- Composer package MUST: `coretsia/<layer>-<slug>` (e.g. `coretsia/platform-http-client`)
+- Layered package path MUST be: `packages/<layer>/<slug>/`
+- Layered package id MUST be: `<layer>/<slug>` (e.g. `platform/http-client`)
+- Layered package Composer name MUST follow: `coretsia/<layer>-<slug>` (e.g. `coretsia/platform-http-client`)
+- Special public distributions are:
+  - `packages/framework/` → `coretsia/framework`
+  - `packages/applications/skeleton/` → `coretsia/skeleton`
+- For every publishable product, Composer identity MUST be read from its `composer.json` `name`; filesystem layout MUST NOT be used as the universal package-name source of truth.
 - Slug uniqueness policy (single-choice):
   - slug MUST be unique within one layer
   - slug MAY repeat across layers (uniqueness is ensured by the `<layer>-` prefix in the composer name)
@@ -57,7 +63,7 @@
     - `presets`
 - Versioning MUST be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions MUST NOT be used.
 
-> Note: tooling-only libs that live outside `framework/packages/**` (for example `framework/tools/**`)
+> Note: tooling-only libs that live outside `packages/**` (for example `tools/**`)
 > are not publishable units and may have separate rules (see `docs/architecture/PACKAGING.md`).
 
 ### 0.2. Core vs Platform vs Integrations — hard separation
@@ -69,16 +75,19 @@
 - Enterprise: “strict stack” policies/packages (audit/compliance/tenancy/sso/…).
 - Presets: composer convenience packages (they pull dependencies), and do not replace runtime modes.
 
-### 0.3. Framework packages
+### 0.3. Layered packages
 
-- Each package is self-contained: `src/`, `config/`, `tests/`, `composer.json`, `README.md`
-- Packages do not pull in the application: no `apps/*`, no “project-specific” configs inside `framework/`.
+- Each layered package is self-contained within its package directory; the exact scaffold depends on its package kind and is governed by `docs/architecture/PACKAGING.md`.
+- Layered packages do not pull in the application: no `apps/*` and no project-specific configuration inside layered package source trees.
 
-### 0.4. Skeleton (application)
+### 0.4. Skeleton distribution and consumer application
 
-- Everything written by the user: `apps/`, `modules/`, `config/`, `resources/`, `var/`, `tests/`
-- `config/` in skeleton is overrides only, not framework defaults
-- Defaults live in packages (`framework/packages/**/config`), skeleton only overrides them.
+- `packages/applications/skeleton/` is the public `coretsia/skeleton` create-project template.
+- Template-owned application surfaces may include `apps/`, `modules/`, `config/`, `resources/`, `var/`, and `tests/`.
+- `config/` in the skeleton template contains application overrides only, not framework defaults.
+- Defaults live in owning runtime packages under `packages/<layer>/<slug>/config`.
+- After `composer create-project coretsia/skeleton <app>`, the extracted template root becomes the consumer application root.
+- Runtime/package code MUST NOT depend on `packages/applications/skeleton/` or any other monorepo source path.
 
 ### 0.5. “contracts” — the single source of truth for ports
 
@@ -89,181 +98,80 @@
 
 ---
 
-## 1) Final monorepo structure (framework + skeleton + tooling)
+## 1) Final monorepo structure (publishable products + tooling)
 
-Canonical repo roots (Prelude):
+Canonical repository ownership:
 
-- `framework/` — the framework tooling workspace root (packages + tools) + workspace runtime state in `framework/var/**`
-  - `framework/var/**` contains temporary/service tooling files (e.g. backups), and is not publishable content
-- `skeleton/` — the skeleton app workspace root (application sandbox) + runtime state in `skeleton/var/**`
-- `.githooks/` — Git hooks, enabled via `composer setup` (sets `git config core.hooksPath .githooks`)
+- `packages/**` — publishable Composer products.
+- `tools/**` — repository machinery: gates, generators, CI rails, architecture/testing support, and developer tooling.
+- `var/**` — mutable/generated repository workspace state; never publishable package content.
+- `composer.json` — the sole monorepo developer workspace manifest.
+- `composer.lock` — the sole monorepo workspace lock.
+- `vendor/**` — the sole monorepo workspace dependency installation.
+- `.githooks/` — Git hooks, enabled via `composer setup`.
 
-> `framework/packages/` has sublayers (core/platform/integrations/enterprise/devtools/presets).
-> Composer name is deterministically derived from `{layer, slug}` by the rule: `coretsia/<layer>-<slug>`.
+Layered package roots remain `core`, `platform`, `integrations`, `enterprise`, `devtools`, and `presets`.
 
-Canonical entrypoints (Prelude): everything runs from the repo root via `composer setup|test|ci`.
+Special public distributions are `packages/framework/` and `packages/applications/skeleton/`.
+
+Canonical entrypoints: everything runs from the repo root via `composer setup|test|ci`.
 
 See the minimal “clean clone → green baseline” scenario in `docs/guides/quickstart.md`.
 
-```txt
+```text
 coretsia/
-├── .githooks/                     # enabled by `composer setup` (core.hooksPath)
-├── .github/
-│   └── workflows/                 # CI: lint / static / unit / contract / integration
-├── docs/
-│   ├── adr/                       # ADR-0001..., ADR template
-│   ├── architecture/              # port-adapter, dependencies, modularity, modes
-│   ├── guides/                    # quickstart/onboarding/git-hooks/dependency-graph/...
-│   └── REPO.md
+├── composer.json
+├── composer.lock
+├── vendor/
+├── var/
+│   └── backups/
 │
-├── framework/
-│   ├── var/                       # tooling workspace state (e.g. backups); ignored
-│   │   └── backups/               # sync tools create backups here (deterministic policy)
-│   ├── packages/
-│   │   ├── core/
-│   │   │   ├── contracts/         # coretsia/core-contracts
-│   │   │   ├── foundation/        # coretsia/core-foundation
-│   │   │   └── kernel/            # coretsia/core-kernel
-│   │   │
-│   │   ├── platform/
-│   │   │   ├── cli/               # coretsia/platform-cli
-│   │   │   ├── http/              # coretsia/platform-http
-│   │   │   ├── routing/           # coretsia/platform-routing
-│   │   │   ├── errors/            # coretsia/platform-errors
-│   │   │   ├── problem-details/   # coretsia/platform-problem-details
-│   │   │   ├── http-client/       # coretsia/platform-http-client
-│   │   │   ├── database/          # coretsia/platform-database
-│   │   │   ├── migrations/        # coretsia/platform-migrations (optional split)
-│   │   │   ├── orm/               # coretsia/platform-orm (optional)
-│   │   │   ├── cache/             # coretsia/platform-cache
-│   │   │   ├── lock/              # coretsia/platform-lock
-│   │   │   ├── filesystem/        # coretsia/platform-filesystem
-│   │   │   ├── session/           # coretsia/platform-session
-│   │   │   ├── auth/              # coretsia/platform-auth
-│   │   │   ├── security/          # coretsia/platform-security
-│   │   │   ├── rate-limit/        # coretsia/platform-rate-limit (optional split)
-│   │   │   ├── events/            # coretsia/platform-events
-│   │   │   ├── cqrs/              # coretsia/platform-cqrs
-│   │   │   ├── outbox/            # coretsia/platform-outbox
-│   │   │   ├── inbox/             # coretsia/platform-inbox
-│   │   │   ├── event-sourcing/    # coretsia/platform-event-sourcing
-│   │   │   ├── queue/             # coretsia/platform-queue
-│   │   │   ├── scheduler/         # coretsia/platform-scheduler
-│   │   │   ├── etl/               # coretsia/platform-etl
-│   │   │   ├── logging/           # coretsia/platform-logging
-│   │   │   ├── metrics/           # coretsia/platform-metrics
-│   │   │   ├── tracing/           # coretsia/platform-tracing
-│   │   │   ├── health/            # coretsia/platform-health
-│   │   │   ├── observability/     # coretsia/platform-observability (meta/bundle)
-│   │   │   ├── feature-flags/     # coretsia/platform-feature-flags
-│   │   │   ├── validation/        # coretsia/platform-validation
-│   │   │   ├── view/              # coretsia/platform-view
-│   │   │   ├── translation/       # coretsia/platform-translation
-│   │   │   ├── mail/              # coretsia/platform-mail
-│   │   │   ├── reactive/          # coretsia/platform-reactive (optional)
-│   │   │   ├── websocket/         # coretsia/platform-websocket (optional)
-│   │   │   ├── graphql/           # coretsia/platform-graphql (optional)
-│   │   │   ├── grpc/              # coretsia/platform-grpc (optional)
-│   │   │   ├── openapi/           # coretsia/platform-openapi (optional)
-│   │   │   └── profiling/         # coretsia/platform-profiling (optional)
-│   │   │
-│   │   ├── integrations/
-│   │   │   ├── cache-redis/       # coretsia/integrations-cache-redis
-│   │   │   ├── cache-apcu/        # coretsia/integrations-cache-apcu
-│   │   │   ├── lock-redis/        # coretsia/integrations-lock-redis
-│   │   │   ├── queue-redis/       # coretsia/integrations-queue-redis
-│   │   │   ├── queue-rabbitmq/    # coretsia/integrations-queue-rabbitmq (optional)
-│   │   │   ├── filesystem-local/  # coretsia/integrations-filesystem-local
-│   │   │   ├── filesystem-s3/     # coretsia/integrations-filesystem-s3
-│   │   │   ├── metrics-prometheus/# coretsia/integrations-metrics-prometheus
-│   │   │   ├── tracing-otlp/      # coretsia/integrations-tracing-otlp
-│   │   │   ├── tracing-zipkin/    # coretsia/integrations-tracing-zipkin
-│   │   │   ├── mail-smtp/         # coretsia/integrations-mail-smtp
-│   │   │   └── runtime-roadrunner/# coretsia/integrations-runtime-roadrunner (optional)
-│   │   │
-│   │   ├── enterprise/
-│   │   │   ├── bundle/            # coretsia/enterprise-bundle (meta/bundle)
-│   │   │   ├── audit/             # coretsia/enterprise-audit (optional split)
-│   │   │   ├── tenancy/           # coretsia/enterprise-tenancy
-│   │   │   ├── compliance/        # coretsia/enterprise-compliance
-│   │   │   └── sso/               # coretsia/enterprise-sso (oidc/saml hooks)
-│   │   │
-│   │   ├── devtools/
-│   │   │   ├── dev-tools/         # coretsia/devtools-dev-tools
-│   │   │   ├── scaffolding/       # coretsia/devtools-scaffolding
-│   │   │   ├── admin-panel/       # coretsia/devtools-admin-panel
-│   │   │   └── api-docs/          # coretsia/devtools-api-docs
-│   │   │
-│   │   └── presets/
-│   │       ├── preset-micro/      # coretsia/presets-preset-micro
-│   │       ├── preset-express/    # coretsia/presets-preset-express
-│   │       ├── preset-hybrid/     # coretsia/presets-preset-hybrid
-│   │       └── preset-enterprise/ # coretsia/presets-preset-enterprise
-│   │
-│   ├── tools/
-│   │   ├── cs/                    # ecs/php-cs-fixer config
-│   │   ├── phpstan/               # phpstan.neon + baselines
-│   │   ├── rector/
-│   │   ├── testing/               # phpunit.xml templates, infection, deptrac rules
-│   │   └── build/                 # release scripts, package discovery, manifest generators
-│   └── composer.json              # framework workspace (managed repos + scripts)
+├── coretsia
 │
-├── skeleton/
-│   ├── apps/
-│   │   ├── web/
-│   │   │   ├── public/            # index.php
-│   │   │   ├── bootstrap/         # app entry bootstrap
-│   │   │   └── config/            # per-app overrides (optional)
-│   │   ├── api/
-│   │   │   ├── public/
-│   │   │   ├── bootstrap/
-│   │   │   └── config/
-│   │   ├── console/
-│   │   │   ├── bootstrap/
-│   │   │   └── config/
-│   │   └── worker/
-│   │       ├── bootstrap/
-│   │       └── config/
-│   │
-│   ├── modules/                   # DDD bounded contexts (user code)
-│   ├── config/                    # root overrides (shared)
-│   │   ├── modes/                 # express/hybrid/enterprise/micro presets for kernel
-│   │   └── environments/          # local/staging/production overrides (optional)
-│   ├── bootstrap/                 # shared paths + bootstrap helpers
-│   ├── resources/
-│   │   ├── views/
-│   │   ├── lang/
-│   │   └── assets/
-│   ├── var/                       # skeleton runtime state (cache/logs/tmp/...)
-│   │   ├── cache/
-│   │   ├── cache-data/
-│   │   ├── etl/
-│   │   ├── locks/
-│   │   ├── logs/
-│   │   ├── maintenance/
-│   │   ├── quarantine/
-│   │   ├── sessions/
-│   │   └── tmp/
+├── packages/
+│   ├── framework/
+│   │   └── composer.json
+│   ├── applications/
+│   │   └── skeleton/
+│   │       ├── composer.json
+│   │       ├── .env.example
+│   │       ├── config/
+│   │       ├── apps/
+│   │       └── var/
+│   ├── core/
+│   ├── platform/
+│   ├── integrations/
+│   ├── enterprise/
+│   ├── devtools/
+│   └── presets/
+│
+├── tools/
 │   ├── bin/
+│   ├── http/
+│   ├── build/
+│   ├── release/
+│   ├── gates/
+│   ├── architecture/
+│   ├── testing/
 │   ├── tests/
-│   │   ├── Fixtures/
-│   │   ├── Integration/
-│   │   └── Contract/
-│   ├── .env.example
-│   └── composer.json
+│   ├── support/
+│   ├── phpstan/
+│   └── cs/
 │
-└── composer.json                  # monorepo root (managed repos + canonical entrypoints)
+├── docs/
+├── .github/
+└── .githooks/
 ```
 
 ---
 
-## 2) Canonical template for any framework package
+## 2) Canonical template for a layered runtime package
 
-> Goal: any package can be “included as a module”, receive default config, rules, tags, commands, migrations,
-> resources.
+> Goal: a runtime package can be included as a module, receive default config, rules, tags, commands, migrations,
+> and resources.
 
 ```txt
-framework/packages/<layer>/<slug>/
+packages/<layer>/<slug>/
 ├── src/
 │   ├── Module/                    # <Xxx>Module (ModuleInterface)
 │   ├── Provider/                  # <Xxx>ServiceProvider
@@ -306,7 +214,7 @@ Required conventions inside the package
 ## 3) “contracts” as the real center: final subfolder structure
 
 ```txt
-framework/packages/core/contracts/src/
+packages/core/contracts/src/
 ├── Module/
 ├── Config/
 ├── Env/
@@ -339,7 +247,7 @@ Formula:
 
 where capability ∈ `cache|queue|filesystem|metrics|tracing|mail|runtime|lock`.
 
-Examples (all under `framework/packages/integrations/`):
+Examples (all under `packages/integrations/`):
 
 - `cache-redis` → `coretsia/integrations-cache-redis`
 - `cache-apcu` → `coretsia/integrations-cache-apcu`
@@ -360,12 +268,13 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
 
 ### 5.1. Mode presets (kernel runtime planning)
 
-- Live in skeleton: `skeleton/config/modes/*.php`
+- Template source: `packages/applications/skeleton/config/modes/*.php`
+- Consumer application path after `create-project`: `config/modes/*.php`
 - Affect the module plan (required/optional/disabled + bundles such as `observability=minimal`)
 
 ### 5.2. Preset packages (composer dependency convenience)
 
-- Live in framework: `framework/packages/presets/preset-*/`
+- Live as layered packages under `packages/presets/preset-*/`
 - They make “composer require coretsia/presets-preset-express” pull the recommended dependency set for the corresponding release line
 - They do not replace mode presets. They only install dependencies.
 - Preset package MUST be phase-consistent with `ROADMAP.md`:
@@ -385,7 +294,7 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
 To prevent `modules/` from becoming “a pile of classes”, we fix the bounded context structure:
 
 ```txt
-skeleton/modules/<ContextName>/
+packages/applications/skeleton/modules/<ContextName>/
 ├── src/
 │   ├── Domain/                    # Entities, VOs, Domain Events, Specs
 │   ├── Application/               # Use-cases, Commands/Queries, Handlers
@@ -414,9 +323,12 @@ Integration channels between modules:
 
 ---
 
-## 7) Dependency rules between layers (so that there are no “dependencies everywhere”)
+## 7) Layer-level dependency direction (conceptual summary)
 
-Here is a simple “law”:
+> Exact direct package-to-package compile-time dependency permissions are defined only in `docs/architecture/DEPENDENCIES.md`. \
+> This section summarizes layer direction and MUST NOT be used to infer additional package-level edges.
+
+A useful layer-level model:
 
 - Core (`contracts`, `foundation`, `kernel`)
   → depends on nothing “above” it (except PSR/standards).
@@ -429,7 +341,7 @@ Here is a simple “law”:
 - Enterprise
   → may depend on Platform/Integrations, but it is the “upper layer”.
 
-Mini permission matrix:
+Conceptual layer-direction matrix:
 
 | From \ To    | Core | Platform |   Integrations |       DevTools | Enterprise |
 |--------------|-----:|---------:|---------------:|---------------:|-----------:|
@@ -449,13 +361,14 @@ Mini permission matrix:
 
 1. A single place for runtime “build artifacts”
 
-- skeleton: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
+- consumer application: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
 - kernel artifacts: `var/cache/module-manifest.php`, `var/cache/config.php`, `var/cache/container.php` (stub/later)
 
 2. Unified config rules
 
-- defaults — packages only (`framework/packages/**/config`)
-- overrides — skeleton only (`skeleton/config`, `skeleton/apps/*/config`, `skeleton/modules/*/config`)
+- defaults — owning runtime packages only (`packages/<layer>/<slug>/config`)
+- template overrides — `packages/applications/skeleton/config`, `packages/applications/skeleton/apps/*/config`, `packages/applications/skeleton/modules/*/config`
+- consumer overrides after `create-project` — `config`, `apps/*/config`, `modules/*/config`
 - validators/metadata — `config/rules.php` (package) + explain/source tracking in kernel
 
 3. A package is always “enabled” through Module + Provider
@@ -476,7 +389,7 @@ Mini permission matrix:
 
 ### Custom
 
-- `custom` — a user-defined mode preset (`skeleton/config/modes/*.php`) that:
+- `custom` — a user-defined mode preset (`config/modes/*.php` in the consumer application; template source under `packages/applications/skeleton/config/modes/*.php`) that:
   - is based on the same `required|optional|disabled` rules,
   - MUST NOT require capabilities that do not yet exist in the roadmap phase / installed packages,
   - MAY assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
@@ -594,8 +507,8 @@ Notes:
 
 ### Preset packages vs runtime modes
 
-- Runtime mode preset (`skeleton/config/modes/*.php`) defines the module plan.
-- Composer preset package (`framework/packages/presets/preset-*`) defines the dependency convenience set.
+- Runtime mode preset (`config/modes/*.php` in the consumer application) defines the module plan; template source lives under `packages/applications/skeleton/config/modes/*.php`.
+- Composer preset package (`packages/presets/preset-*`) defines the dependency convenience set.
 - A preset package MUST NOT declare capabilities that do not yet exist in the corresponding roadmap release line.
 - Recommended mapping:
   - `preset-micro` → required payload `micro`

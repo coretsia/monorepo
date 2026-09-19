@@ -44,14 +44,15 @@ Examples:
 
 ## Affected areas
 
-- [ ] `framework/packages/core/**`
-- [ ] `framework/packages/platform/**`
-- [ ] `framework/packages/integrations/**`
-- [ ] `framework/packages/presets/**`
-- [ ] `framework/packages/enterprise/**`
-- [ ] `framework/packages/devtools/**`
-- [ ] `framework/tools/**`
-- [ ] `skeleton/**`
+- [ ] `packages/framework/**`
+- [ ] `packages/applications/skeleton/**`
+- [ ] `packages/core/**`
+- [ ] `packages/platform/**`
+- [ ] `packages/integrations/**`
+- [ ] `packages/presets/**`
+- [ ] `packages/enterprise/**`
+- [ ] `packages/devtools/**`
+- [ ] `tools/**`
 - [ ] `.github/**`
 - [ ] `docs/**`
 - [ ] root Composer / workspace / repository metadata
@@ -76,7 +77,7 @@ Use N/A only when a command is genuinely not applicable.
 -->
 
 - [ ] `composer sync:check`
-- [ ] `composer validate:all`
+- [ ] `composer validate --strict`
 - [ ] `composer gates`
 - [ ] `composer dto:gate`
 - [ ] `composer arch`
@@ -100,9 +101,7 @@ Affected generated outputs:
 
 ```text
 # Example:
-# docs/generated/GENERATED_STRUCTURE.md
-# docs/generated/GENERATED_STRUCTURE_TREE.md
-# framework/tools/testing/deptrac.yaml
+# tools/testing/deptrac.yaml
 ```
 
 ## Backward compatibility

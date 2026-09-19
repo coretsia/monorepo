@@ -25,7 +25,7 @@ owner: core/kernel
 Epic `1.270.0` introduces the first Kernel-owned UnitOfWork runtime shapes under:
 
 ```text
-framework/packages/core/kernel/src/Runtime/
+packages/core/kernel/src/Runtime/
 ```
 
 Earlier ADRs intentionally avoided freezing a UnitOfWork context model in `core/contracts`.
@@ -44,8 +44,8 @@ The Kernel package must remain independent of:
 - `integrations/*`
 - `Psr\Http\Message\*`
 - `Psr\Http\Server\*`
-- framework HTTP request/response implementations
-- framework CLI command implementations
+- `platform/http` request/response implementations
+- `platform/cli` command implementations
 - queue vendor message objects
 - scheduler vendor objects
 - generated artifacts
@@ -94,13 +94,13 @@ Coretsia will introduce `UnitOfWorkContext` as the canonical Kernel-owned runtim
 The implementation path is:
 
 ```text
-framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php
+packages/core/kernel/src/Runtime/UnitOfWorkContext.php
 ```
 
 The canonical UnitOfWork type vocabulary is implemented by:
 
 ```text
-framework/packages/core/kernel/src/Runtime/UnitOfWorkType.php
+packages/core/kernel/src/Runtime/UnitOfWorkType.php
 ```
 
 The context shape is owned by:
@@ -173,8 +173,8 @@ The context must not contain:
 - PSR-7 response objects;
 - PSR-15 middleware objects;
 - PSR-15 request handler objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI command objects;
 - CLI input/output objects;
 - queue message objects;
@@ -413,13 +413,13 @@ kernel.uow.attributes.max_keys = 200
 The config defaults path is:
 
 ```text
-framework/packages/core/kernel/config/kernel.php
+packages/core/kernel/config/kernel.php
 ```
 
 The config rules path is:
 
 ```text
-framework/packages/core/kernel/config/rules.php
+packages/core/kernel/config/rules.php
 ```
 
 The config root is:
@@ -594,7 +594,7 @@ docs/ssot/reset-tags.md
 docs/ssot/uow-and-reset-contracts.md
 ```
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -728,7 +728,7 @@ Hook/export consumers receive deterministic normalized arrays.
 
 Attributes provide a controlled extension point without allowing arbitrary unsafe payloads.
 
-Float-forbidden json-like policy remains aligned with Phase 0 deterministic payload rules.
+Float-forbidden json-like policy remains aligned with the canonical Foundation json-like runtime value policy.
 
 Safe diagnostics prevent accidental secret or PII leaks.
 
@@ -841,7 +841,7 @@ This ADR does not implement:
 - hook discovery;
 - reset orchestration;
 - reset DI tag identifier constants;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - outcome mapping;
 - result shape;
 - HTTP response construction;
@@ -878,10 +878,10 @@ This ADR does not introduce new artifacts.
 Expected verification includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
 ```
 
 Verification must prove:

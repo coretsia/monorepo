@@ -92,7 +92,6 @@ N/A
 - [x] `UPGRADE.md` — upgrade policy entrypoint
 - [x] `docs/roadmap/ROADMAP.md` — roadmap (non-product doc)
 - [x] `docs/architecture/STRUCTURE.md` — repository structure doc
-- [x] `docs/generated/GENERATED_STRUCTURE.md` — generated docs namespace placeholder (no real generators yet)
 - [x] `docs/ssot/INDEX.md` — SSoT index entrypoint (placeholder):
   - [x] MUST exist before any SSoT registry docs are added (tags/config-roots/artifacts/observability)
   - [x] Later epics MUST only "Modify" this file (no re-ownership as Creates)
@@ -263,16 +262,16 @@ N/A
 - [x] Preconditions satisfied (no forward references)
 - [x] The packaging strategy is **single-choice** (no “either/or”), with explicit MUST/MUST NOT rules
 - [x] `docs/architecture/PACKAGING.md` MUST include (as MUST/MUST NOT rules):
-  - [x] Package identity mapping: `framework/packages/<layer>/<slug>` ↔ `package_id=<layer>/<slug>`
+  - [x] Package identity mapping: `packages/<layer>/<slug>` ↔ `package_id=<layer>/<slug>`
   - [x] Composer name mapping (single-choice): `composer=coretsia/<layer>-<slug>`
   - [x] Slug uniqueness policy (single-choice):
     - [x] slug MAY be reused across layers; global uniqueness is ensured by the `<layer>-` prefix in composer name
   - [x] Namespace mapping (single-choice; deterministic algorithm):
     - [x] `layer` → StudlyCase(`<layer>`)
     - [x] `slug` (kebab-case) → StudlyCase(`<slug>`)
-    - [x] Source: `framework/packages/<layer>/<slug>/src` → `Coretsia\<Layer>\<Slug>\...`
-    - [x] Tests: `framework/packages/<layer>/<slug>/tests` → `Coretsia\<Layer>\<Slug>\Tests\...`
-    - [x] Example: `framework/packages/platform/problem-details` → `Coretsia\Platform\ProblemDetails\...`
+    - [x] Source: `packages/<layer>/<slug>/src` → `Coretsia\<Layer>\<Slug>\...`
+    - [x] Tests: `packages/<layer>/<slug>/tests` → `Coretsia\<Layer>\<Slug>\Tests\...`
+    - [x] Example: `packages/platform/problem-details` → `Coretsia\Platform\ProblemDetails\...`
   - [x] Publishable units law: what is publishable (packages) vs non-publishable (tools/skeleton/docs)
   - [x] Versioning policy (single-choice): monorepo tags
     - [x] The repository uses a single release line: tags vMAJOR.MINOR.PATCH
@@ -352,11 +351,11 @@ N/A
   - `composer test`
 
 - Tooling (repo root, explicit calls when needed):
-  - `php framework/tools/build/sync_composer_repositories.php`
-  - `php framework/tools/build/new-package.php ...`
+  - `php tools/build/sync_composer_repositories.php`
+  - `php tools/build/new-package.php ...`
 
 - Artifacts:
-  - tooling writes: `framework/var/*` (ignored)
+  - tooling writes: `var/*` (ignored)
   - skeleton runtime dirs are scaffolded with keep files only (no runtime code/artifacts)
 
 ### Deliverables (MUST)
@@ -366,14 +365,14 @@ N/A
 **CI + runner**
 
 - [x] `.github/workflows/ci.yml` MUST run project-wide checks:
-  - [x] `php framework/tools/build/sync_composer_repositories.php --check` (MUST fail on drift; MUST run before any `composer install`)
+  - [x] `php tools/build/sync_composer_repositories.php --check` (MUST fail on drift; MUST run before any `composer install`)
   - [x] `composer install` (root; MUST NOT modify `composer.lock`)
   - [x] `composer -d framework install` (MUST NOT modify `framework/composer.lock`)
-  - [x] `composer -d skeleton install` (MUST NOT modify `skeleton/composer.lock`)
+  - [x] `composer -d skeleton install` (MUST NOT modify `packages/applications/skeleton/composer.lock`)
   - [x] `composer validate` (root)
   - [x] `composer -d framework validate`
   - [x] `composer -d skeleton validate`
-  - [x] `composer test` (repo root; delegates to `framework/tools/testing/phpunit.xml`)
+  - [x] `composer test` (repo root; delegates to `tools/testing/phpunit.xml`)
   - [x] lock drift check: job MUST fail if any `composer.lock` changed
 - [x] `.github/workflows/ci.yml` SHOULD run on at least:
   - [x] ubuntu-latest
@@ -383,34 +382,34 @@ N/A
 
 - [x] `composer.json` — repo root scripts + workspace pointers (baseline)
 - [x] `framework/composer.json` — tooling workspace root
-- [x] `skeleton/composer.json` — skeleton app workspace root
+- [x] `packages/applications/skeleton/composer.json` — skeleton app workspace root
 - [x] `skeleton/.env.example` — baseline env template
 
 **Deterministic dependency locks**
 
 - [x] `composer.lock` — repo root lock (deterministic CI installs)
 - [x] `framework/composer.lock` — tooling workspace lock
-- [x] `skeleton/composer.lock` — skeleton workspace lock
+- [x] `packages/applications/skeleton/composer.lock` — skeleton workspace lock
 
 **Managed repositories tooling**
 
-- [x] `framework/tools/build/package_index.php` — package index build (tooling-only)
-- [x] `framework/tools/build/sync_composer_repositories.php` — idempotent sync + backups + check mode
-- [x] `framework/tools/build/new-package.php` — create new package skeleton (tooling-side)
+- [x] `tools/build/package_index.php` — package index build (tooling-only)
+- [x] `tools/build/sync_composer_repositories.php` — idempotent sync + backups + check mode
+- [x] `tools/build/new-package.php` — create new package skeleton (tooling-side)
 
 **Var dirs**
 
-- [x] `framework/var/.gitignore`
-- [x] `framework/var/backups/.gitignore`
-- [x] `skeleton/var/cache/.gitkeep`
-- [x] `skeleton/var/logs/.gitkeep`
-- [x] `skeleton/var/tmp/.gitkeep`
-- [x] `skeleton/var/quarantine/.gitkeep`
-- [x] `skeleton/var/maintenance/.gitkeep`
-- [x] `skeleton/var/sessions/.gitkeep`
-- [x] `skeleton/var/locks/.gitkeep`
-- [x] `skeleton/var/cache-data/.gitkeep`
-- [x] `skeleton/var/etl/.gitkeep`
+- [x] `var/.gitignore`
+- [x] `var/backups/.gitignore`
+- [x] `packages/applications/skeleton/var/cache/.gitkeep`
+- [x] `packages/applications/skeleton/var/logs/.gitkeep`
+- [x] `packages/applications/skeleton/var/tmp/.gitkeep`
+- [x] `packages/applications/skeleton/var/quarantine/.gitkeep`
+- [x] `packages/applications/skeleton/var/maintenance/.gitkeep`
+- [x] `packages/applications/skeleton/var/sessions/.gitkeep`
+- [x] `packages/applications/skeleton/var/locks/.gitkeep`
+- [x] `packages/applications/skeleton/var/cache-data/.gitkeep`
+- [x] `packages/applications/skeleton/var/etl/.gitkeep`
 
 **Git hooks + guides**
 
@@ -422,15 +421,15 @@ N/A
 
 **Testing infrastructure (project-wide)**
 
-- [x] `framework/tools/testing/phpunit.xml` — canonical PHPUnit config for the whole monorepo MUST:
+- [x] `tools/testing/phpunit.xml` — canonical PHPUnit config for the whole monorepo MUST:
   - [x] define a default testsuite that always exists (Smoke)
-  - [x] not require directories that do not exist yet (no forward refs to `framework/tools/spikes/**` until 0.20.0)
-- [x] `framework/tools/testing/bootstrap.php` — canonical test bootstrap (autoload + strict ini)
-- [x] `framework/tools/testing/tests/Smoke/MonorepoSmokeTest.php` — minimal always-on smoke test (prevents “0 tests” / proves harness works)
-- [x] `framework/tools/testing/phpunit.xml` MUST include (no forward refs; paths relative to `framework/`):
+  - [x] not require directories that do not exist yet (no forward refs to `tools/spikes/**` until 0.20.0)
+- [x] `tools/testing/bootstrap.php` — canonical test bootstrap (autoload + strict ini)
+- [x] `tools/testing/tests/Smoke/MonorepoSmokeTest.php` — minimal always-on smoke test (prevents “0 tests” / proves harness works)
+- [x] `tools/testing/phpunit.xml` MUST include (no forward refs; paths relative to `framework/`):
   - [x] `tools/testing/tests/**` (Smoke suite)
   - [x] `tools/tests/**` (tooling integration tests, incl. managed repositories guard)
-- [x] `framework/tools/tests/Integration/ManagedComposerRepositoriesGuardTest.php` — test evidence: sync/check exists + restores canonical state + rerun-no-diff
+- [x] `tools/tests/Integration/ManagedComposerRepositoriesGuardTest.php` — test evidence: sync/check exists + restores canonical state + rerun-no-diff
 
 #### Modifies
 
@@ -441,8 +440,8 @@ N/A
   - [x] `docs/guides/dependency-graph.md`
   - [x] and reiterate canonical repo-root commands: `composer setup|ci|test`
 - [x] `docs/architecture/STRUCTURE.md` — update repository layout to reflect introduction of:
-  - [x] `framework/` (tooling workspace root + `framework/var/*`)
-  - [x] `skeleton/` (skeleton app workspace root + `skeleton/var/*`)
+  - [x] `framework/` (tooling workspace root + `var/*`)
+  - [x] `skeleton/` (skeleton app workspace root + `packages/applications/skeleton/var/*`)
   - [x] `.githooks/` (enabled by `composer setup`)
 
 #### Configuration (keys + defaults)
@@ -450,20 +449,20 @@ N/A
 - [x] Files:
   - [x] `composer.json`
   - [x] `framework/composer.json`
-  - [x] `skeleton/composer.json`
+  - [x] `packages/applications/skeleton/composer.json`
 - [x] Managed composer repositories (single-choice; MUST be explicit):
   - [x] The `repositories` key in each of:
     - [x] `composer.json`
     - [x] `framework/composer.json`
-    - [x] `skeleton/composer.json`
+    - [x] `packages/applications/skeleton/composer.json`
   - [x] MUST be fully managed by:
-    - [x] `php framework/tools/build/sync_composer_repositories.php`
+    - [x] `php tools/build/sync_composer_repositories.php`
   - [x] MUST NOT be edited manually; enforcement:
-    - [x] `.githooks/pre-commit` MUST run `php framework/tools/build/sync_composer_repositories.php --check` and fail on drift
+    - [x] `.githooks/pre-commit` MUST run `php tools/build/sync_composer_repositories.php --check` and fail on drift
 - [x] Root `composer.json` scripts (canonical delegation; single-choice):
   - [x] `setup` = (MUST run from repo root):
     - [x] enable hooks: `git config core.hooksPath .githooks`
-    - [x] `php framework/tools/build/sync_composer_repositories.php`
+    - [x] `php tools/build/sync_composer_repositories.php`
     - [x] `composer install` (root)
     - [x] `composer -d framework install`
     - [x] `composer -d skeleton install`
@@ -492,18 +491,18 @@ N/A
 #### Security / Redaction
 
 - [x] MUST block unmanaged edits of managed composer repositories via `.githooks/pre-commit` (sync `--check`)
-- [x] MUST write backups before applying managed-block changes (backups live under `framework/var/backups/*` and are ignored)
+- [x] MUST write backups before applying managed-block changes (backups live under `var/backups/*` and are ignored)
 - [x] MUST NOT (Prelude-safe constraints):
-  - [x] MUST NOT add runtime skeleton overrides: `skeleton/config/**` (e.g. `skeleton/config/http.php`, `skeleton/config/modes/*.php`)
+  - [x] MUST NOT add runtime skeleton overrides: `packages/applications/skeleton/config/**` (e.g. `packages/applications/skeleton/config/http.php`, `packages/applications/skeleton/config/modes/*.php`)
   - [x] MUST NOT add scripts that call framework runtime/CLI (`coretsia`, `doctor`, `cache:verify`) in `composer.json` at this stage
   - [x] MUST NOT claim or require arch rails (`deptrac`, gates) in CI/scripts at this stage
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Add an integration test that fails if the managed composer repositories guard is removed:
-  - [x] `framework/tools/tests/Integration/ManagedComposerRepositoriesGuardTest.php`
+  - [x] `tools/tests/Integration/ManagedComposerRepositoriesGuardTest.php`
     - [x] asserts: drift in `repositories` causes `sync --check` to fail (guard present)
-    - [x] asserts: running `php framework/tools/build/sync_composer_repositories.php` restores canonical state
+    - [x] asserts: running `php tools/build/sync_composer_repositories.php` restores canonical state
     - [x] asserts: rerun sync is rerun-no-diff (stable output; no additional changes)
 
 ### Tests (MUST)
@@ -513,8 +512,8 @@ N/A
 
 - Integration:
   - [x] `composer validate` passes in root/framework/skeleton
-  - [x] `php framework/tools/build/sync_composer_repositories.php` rerun-no-diff
-  - [x] `php framework/tools/build/sync_composer_repositories.php --check` passes on canonical state
+  - [x] `php tools/build/sync_composer_repositories.php` rerun-no-diff
+  - [x] `php tools/build/sync_composer_repositories.php --check` passes on canonical state
 
 - Gates/Arch:
   - N/A (arch rails are introduced later; Prelude must not claim them)
@@ -527,15 +526,15 @@ N/A
   - [x] `coretsia doctor` / `coretsia cache:verify`
   - [x] `composer serve` / front controller wiring
   - [x] any runtime artifacts beyond directory scaffolding (keep files only)
-- [x] `framework/tools/build/sync_composer_repositories.php` is idempotent (rerun-no-diff)
-- [x] `framework/tools/build/sync_composer_repositories.php` MUST be runnable on a clean clone without vendor deps (self-contained; no autoload requirement)
+- [x] `tools/build/sync_composer_repositories.php` is idempotent (rerun-no-diff)
+- [x] `tools/build/sync_composer_repositories.php` MUST be runnable on a clean clone without vendor deps (self-contained; no autoload requirement)
 - [x] Pre-commit blocks unmanaged edits (via `--check`); backups exist
 - [x] `composer setup` and `composer ci` run on a clean clone without hidden prerequisites
 - [x] Dependency determinism:
   - [x] CI uses `composer install` (NOT update) and must not modify any `composer.lock`
   - [x] Local rerun: `composer install` (root/framework/skeleton) results in no diff
 - [x] Lock policy:
-  - [x] `composer.lock` / `framework/composer.lock` / `skeleton/composer.lock` are committed
+  - [x] `composer.lock` / `framework/composer.lock` / `packages/applications/skeleton/composer.lock` are committed
   - [x] CI enforces no drift (job fails if any lock changed)
   - [x] Any lock change MUST be an explicit developer action committed in PR (never produced implicitly by CI)
 - [x] CI runs monorepo tests (not CLI-only) using the canonical PHPUnit config:
@@ -759,9 +758,9 @@ ssot_refs: []
 
 - Required deliverables (exact paths):
   - `.githooks/pre-commit` — hooks exist (enabled by `composer setup`)
-  - `framework/tools/build/new-package.php` — package creation tool exists
-  - `framework/tools/build/sync_composer_repositories.php` — managed sync exists
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
+  - `tools/build/new-package.php` — package creation tool exists
+  - `tools/build/sync_composer_repositories.php` — managed sync exists
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
   - `composer.json` — root scripts exist
   - `docs/guides/onboarding.md` — onboarding exists (from PRELUDE.30.0)
   - `docs/guides/quickstart.md` — quickstart exists (from PRELUDE.30.0)
@@ -783,15 +782,15 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `php framework/tools/build/new-package.php --layer=<...> --slug=<...>` (example)
-  - `php framework/tools/build/sync_composer_repositories.php`
+  - `php tools/build/new-package.php --layer=<...> --slug=<...>` (example)
+  - `php tools/build/sync_composer_repositories.php`
   - `composer setup`
   - `composer ci`
 
 - Canonical Prelude workflow (after PRELUDE.30.0; no forward refs):
   - `composer setup` (repo root; enables hooks, runs sync, installs deps)
   - `composer ci` (Prelude-only: validate + test; no deptrac/gates claims)
-  - (optional explicit tooling) `php framework/tools/build/sync_composer_repositories.php` (rerun-no-diff)
+  - (optional explicit tooling) `php tools/build/sync_composer_repositories.php` (rerun-no-diff)
 
 - Extension points (later, when available; NOT required in Prelude):
   - dependency analysis / arch rails (e.g. dep graph enforcement)

@@ -1,6 +1,0 @@
-{
-  "schemaVersion": "coretsia.releaseLine.v1",
-  "currentMinor": "0.6",
-  "devVersion": "0.6.x-dev",
-  "publicConstraint": "^0.6.0"
-}

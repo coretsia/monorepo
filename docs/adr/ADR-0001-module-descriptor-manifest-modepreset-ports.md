@@ -24,13 +24,9 @@ owner: core/contracts
 
 Coretsia needs a stable contracts surface that allows the future Kernel owner package to build a deterministic module plan without coupling `core/contracts` to runtime package implementations, filesystem scanning, platform code, integrations, HTTP abstractions, or vendor-specific infrastructure.
 
-The Phase 0 workspace package-index prototype cemented the canonical package metadata shape:
+Runtime module discovery is Composer-metadata-driven. Repository package-index tooling is tooling-only and MUST NOT become a runtime input.
 
-```text
-{layer, slug, path, composerName, psr4, kind, moduleClass?}
-```
-
-The Kernel must be able to derive module identity from this metadata in a deterministic way. Contracts must define the stable ports and value objects used by the Kernel and other runtime owners, but contracts must not implement discovery, filesystem traversal, Composer scanning, dependency resolution, DI wiring, or mode preset storage.
+The Kernel must derive canonical module identity from installed Composer metadata in a deterministic way. Contracts must define the stable ports and value objects used by the Kernel and other runtime owners, but contracts must not implement discovery, filesystem traversal, Composer scanning, dependency resolution, DI wiring, or mode preset storage.
 
 Coretsia also needs canonical mode preset contracts for the public mode vocabulary:
 
@@ -48,7 +44,7 @@ The contracts must remain format-neutral. A mode preset may later be stored as P
 Introduce module and mode contracts under:
 
 ```text
-framework/packages/core/contracts/src/Module/
+packages/core/contracts/src/Module/
 ```
 
 The contracts introduced by epic `1.70.0` define:
@@ -68,14 +64,15 @@ The canonical module id format is:
 <layer>.<slug>
 ```
 
-The module id is derived only from package-index metadata fields:
+The canonical module id is read from installed Composer metadata:
 
 ```text
-layer
-slug
+extra.coretsia.moduleId
 ```
 
-Composer/package-index metadata may provide optional descriptor input fields such as `composerName`, `psr4`, `kind`, or `moduleClass`, but these fields must not affect module identity.
+The value MUST be validated through `ModuleId` and MUST follow the canonical `<layer>.<slug>` format.
+
+Installed Composer metadata may provide optional descriptor input fields such as `composerName`, `psr4`, `kind`, or `moduleClass`, but these fields must not affect canonical module identity.
 
 Only fields explicitly defined by the descriptor exported shape are exposed by `ModuleDescriptor::toArray()`.
 
@@ -87,7 +84,7 @@ It rejects duplicate module ids, exposes stable lookup by module id, and returns
 
 `ManifestReaderInterface` is a port for reading the installed `ModuleManifest`; it does not prescribe how the implementation discovers or loads the manifest.
 
-The Kernel owner package is responsible for implementing concrete manifest reading later. A future Kernel implementation may use the Phase 0 workspace package-index shape as its canonical metadata source, but this implementation is not part of `core/contracts`.
+The Kernel owner package is responsible for concrete manifest reading. Runtime manifest construction MUST use installed Composer metadata through `ManifestReaderInterface` and MUST NOT consume repository tooling package-index artifacts.
 
 Mode presets are represented by stable contracts only.
 
@@ -134,7 +131,8 @@ Any exported map-like data must be deterministic:
 - PSR-7 / HTTP message interfaces
 - vendor-specific concrete APIs such as PDO, Redis, S3, Prometheus, or similar infrastructure namespaces
 - runtime package implementations
-- tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 The contracts package defines ports and value objects only.

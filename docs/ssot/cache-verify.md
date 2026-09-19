@@ -547,7 +547,7 @@ Verification result data MAY include:
 - nullable safe current generation id;
 - safe artifact name;
 - safe artifact basename;
-- safe skeleton-relative artifact path;
+- safe application-root-relative artifact path;
 - a stable logical current-generation diagnostic path;
 - safe status token;
 - safe reason token;
@@ -594,7 +594,7 @@ Verification explain entries are safe per-artifact diagnostic metadata.
 Explain entries MAY include:
 
 - artifact basename;
-- skeleton-relative artifact path;
+- application-root-relative artifact path;
 - reason token.
 
 Explain entries MUST NOT include:

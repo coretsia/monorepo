@@ -175,17 +175,17 @@ config root: problem_details
 
 ## Reserved Config Roots (MUST)
 
-| root              | owner package_id           | defaults file                                                            | rules file                                                     | notes                             |
-|-------------------|----------------------------|--------------------------------------------------------------------------|----------------------------------------------------------------|-----------------------------------|
-| `cli`             | `platform/cli`             | `framework/packages/platform/cli/config/cli.php`                         | `framework/packages/platform/cli/config/rules.php`             | Phase 0 locked root from 0.130.0. |
-| `foundation`      | `core/foundation`          | `framework/packages/core/foundation/config/foundation.php`               | `framework/packages/core/foundation/config/rules.php`          | Runtime core root.                |
-| `kernel`          | `core/kernel`              | `framework/packages/core/kernel/config/kernel.php`                       | `framework/packages/core/kernel/config/rules.php`              | Runtime kernel root.              |
-| `http`            | `platform/http`            | `framework/packages/platform/http/config/http.php`                       | `framework/packages/platform/http/config/rules.php`            | Platform HTTP root.               |
-| `logging`         | `platform/logging`         | `framework/packages/platform/logging/config/logging.php`                 | `framework/packages/platform/logging/config/rules.php`         | Platform logging root.            |
-| `metrics`         | `platform/metrics`         | `framework/packages/platform/metrics/config/metrics.php`                 | `framework/packages/platform/metrics/config/rules.php`         | Platform metrics root.            |
-| `tracing`         | `platform/tracing`         | `framework/packages/platform/tracing/config/tracing.php`                 | `framework/packages/platform/tracing/config/rules.php`         | Platform tracing root.            |
-| `worker`          | `platform/worker`          | `framework/packages/platform/worker/config/worker.php`                   | `framework/packages/platform/worker/config/rules.php`          | Long-running worker runtime root. |
-| `problem_details` | `platform/problem-details` | `framework/packages/platform/problem-details/config/problem_details.php` | `framework/packages/platform/problem-details/config/rules.php` | Platform problem-details root.    |
+| root              | owner package_id           | defaults file                                                  | rules file                                           | notes                             |
+|-------------------|----------------------------|----------------------------------------------------------------|------------------------------------------------------|-----------------------------------|
+| `cli`             | `platform/cli`             | `packages/platform/cli/config/cli.php`                         | `packages/platform/cli/config/rules.php`             | Canonical CLI root.               |
+| `foundation`      | `core/foundation`          | `packages/core/foundation/config/foundation.php`               | `packages/core/foundation/config/rules.php`          | Runtime core root.                |
+| `kernel`          | `core/kernel`              | `packages/core/kernel/config/kernel.php`                       | `packages/core/kernel/config/rules.php`              | Runtime kernel root.              |
+| `http`            | `platform/http`            | `packages/platform/http/config/http.php`                       | `packages/platform/http/config/rules.php`            | Platform HTTP root.               |
+| `logging`         | `platform/logging`         | `packages/platform/logging/config/logging.php`                 | `packages/platform/logging/config/rules.php`         | Platform logging root.            |
+| `metrics`         | `platform/metrics`         | `packages/platform/metrics/config/metrics.php`                 | `packages/platform/metrics/config/rules.php`         | Platform metrics root.            |
+| `tracing`         | `platform/tracing`         | `packages/platform/tracing/config/tracing.php`                 | `packages/platform/tracing/config/rules.php`         | Platform tracing root.            |
+| `worker`          | `platform/worker`          | `packages/platform/worker/config/worker.php`                   | `packages/platform/worker/config/rules.php`          | Long-running worker runtime root. |
+| `problem_details` | `platform/problem-details` | `packages/platform/problem-details/config/problem_details.php` | `packages/platform/problem-details/config/rules.php` | Platform problem-details root.    |
 
 ## Rules for Later Extensions (MUST)
 

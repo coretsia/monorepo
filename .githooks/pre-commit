@@ -15,13 +15,13 @@ set -euo pipefail
 
 # Coretsia pre-commit hook
 #
-# Enforces managed Composer repositories blocks (SPOF) before commit.
+# Enforces the managed Composer repositories policy before commit.
 # Canonical check tool:
-#   php framework/tools/build/sync_composer_repositories.php --check
+#   php tools/build/sync_composer_repositories.php --check
 #
 # Notes:
 # - This hook MUST be enabled via: git config core.hooksPath .githooks
-# - The sync tool MUST be runnable without vendor/autoload (Prelude constraint).
+# - The sync tool MUST be runnable without vendor/autoload.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -34,11 +34,11 @@ if ! command -v "${PHP_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
-SYNC_TOOL="${ROOT_DIR}/framework/tools/build/sync_composer_repositories.php"
+SYNC_TOOL="${ROOT_DIR}/tools/build/sync_composer_repositories.php"
 
 if [ ! -f "${SYNC_TOOL}" ]; then
   echo "CORETSIA_GITHOOK_SYNC_TOOL_MISSING"
-  echo "Missing: framework/tools/build/sync_composer_repositories.php"
+  echo "Missing: tools/build/sync_composer_repositories.php"
   echo "Run from repo root: composer setup"
   exit 1
 fi

@@ -20,7 +20,7 @@
 type: code
 phase: 2
 epic_id: "2.10.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 goal: "Зацементувати й реалізаційно посилити canonical Kernel-owned PHP mode preset source contract, deterministic source-to-loaded-state round trip та packaging ownership."
 provides:
@@ -54,24 +54,24 @@ ssot_refs:
   - `docs/architecture/PACKAGING.md`
 
 - Existing implementation hardened by this epic:
-  - `framework/packages/core/kernel/src/Module/ModePreset.php`
-  - `framework/packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
-  - `framework/packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
-  - `framework/packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
-  - `framework/packages/core/kernel/resources/modes/hybrid.php`
-  - `framework/packages/core/kernel/resources/modes/enterprise.php`
+  - `packages/core/kernel/src/Module/ModePreset.php`
+  - `packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
+  - `packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
+  - `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
+  - `packages/core/kernel/resources/modes/hybrid.php`
+  - `packages/core/kernel/resources/modes/enterprise.php`
 
 - Existing contracts and implementation surfaces retained:
-  - `framework/packages/core/contracts/src/Module/ModePresetInterface.php`
-  - `framework/packages/core/contracts/src/Module/ModuleId.php`
-  - `framework/packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
-  - `framework/packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php`
-  - `framework/packages/core/kernel/config/kernel.php`
-  - `framework/packages/core/kernel/resources/modes/micro.php`
-  - `framework/packages/core/kernel/resources/modes/express.php`
+  - `packages/core/contracts/src/Module/ModePresetInterface.php`
+  - `packages/core/contracts/src/Module/ModuleId.php`
+  - `packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
+  - `packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php`
+  - `packages/core/kernel/config/kernel.php`
+  - `packages/core/kernel/resources/modes/micro.php`
+  - `packages/core/kernel/resources/modes/express.php`
 
 - Existing packaging enforcement retained:
-  - `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
+  - `tools/gates/no_skeleton_mode_presets_default_gate.php`
 
 - Scope constraints:
   - no new public runtime entrypoint is introduced
@@ -146,15 +146,15 @@ Forbidden:
     - [ ] framework defaults directory resolves as:
       - [ ] `<core/kernel-package-root>/<kernel.modes.defaults_path>`
     - [ ] skeleton overrides directory resolves as:
-      - [ ] `<BootstrapConfig::skeletonRoot()>/<kernel.modes.overrides_path>`
+      - [ ] `<BootstrapConfig::applicationRoot()>/<kernel.modes.overrides_path>`
     - [ ] current canonical config defaults are:
       - [ ] `kernel.modes.schema_version = 1`
       - [ ] `kernel.modes.defaults_path = resources/modes`
       - [ ] `kernel.modes.overrides_path = config/modes`
     - [ ] current shipped framework location is therefore:
-      - [ ] `framework/packages/core/kernel/resources/modes/*.php`
+      - [ ] `packages/core/kernel/resources/modes/*.php`
     - [ ] current default skeleton override location is therefore:
-      - [ ] `skeleton/config/modes/*.php`
+      - [ ] `packages/applications/skeleton/config/modes/*.php`
   - [ ] lookup and precedence:
     - [ ] requested preset name is supplied by `BootstrapConfig::preset()`
     - [ ] skeleton override file is checked first
@@ -358,7 +358,7 @@ Forbidden:
 
 #### Modifies
 
-- [ ] `framework/packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
+- [ ] `packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
   - [ ] retain existing structural, type, safety, and pairwise-disjointness validation
   - [ ] construct the normalized immutable `ModePreset`
   - [ ] before returning, compare:
@@ -374,7 +374,7 @@ Forbidden:
   - [ ] semantic validation executes before canonical round-trip comparison
   - [ ] validator MUST NOT silently accept source casing, duplicate sets, set reordering, or map-key reordering
 
-- [ ] `framework/packages/core/kernel/src/Module/ModePreset.php`
+- [ ] `packages/core/kernel/src/Module/ModePreset.php`
   - [ ] retain canonical sorting of direct-construction module-id sets
   - [ ] change `normalizeModuleIdSet()` so duplicate canonical `ModuleId::value()` entries are rejected
   - [ ] duplicate rejection uses stable field-specific internal reason:
@@ -384,7 +384,7 @@ Forbidden:
   - [ ] retain the exact eight-field `toArray()` export
   - [ ] do not add `moduleIds` to `toArray()`
 
-- [ ] `framework/packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
+- [ ] `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
   - [ ] add:
     - [ ] `REASON_SOURCE_NOT_CANONICAL`
     - [ ] `REASON_SOURCE_OUTPUT_FORBIDDEN`
@@ -393,7 +393,7 @@ Forbidden:
   - [ ] do not add or rename an ErrorCode
   - [ ] diagnostics remain limited to safe preset name and reason token
 
-- [ ] `framework/packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
+- [ ] `packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
   - [ ] retain override-first/default-second lookup
   - [ ] retain first-existing-file-wins behavior
   - [ ] retain no-merge behavior
@@ -411,7 +411,7 @@ Forbidden:
   - [ ] raw source Throwable data MUST NOT be copied into message, reason, context, logs, metrics, spans, or exported diagnostics
   - [ ] do not expose resolved paths or raw source content
 
-- [ ] `framework/packages/core/kernel/resources/modes/hybrid.php`
+- [ ] `packages/core/kernel/resources/modes/hybrid.php`
   - [ ] reorder `optional` to exact byte-order `strcmp` order:
     1. `platform.http`
     2. `platform.logging`
@@ -420,7 +420,7 @@ Forbidden:
     5. `platform.worker`
   - [ ] no semantic module membership change
 
-- [ ] `framework/packages/core/kernel/resources/modes/enterprise.php`
+- [ ] `packages/core/kernel/resources/modes/enterprise.php`
   - [ ] reorder `optional` to exact byte-order `strcmp` order:
     1. `platform.http`
     2. `platform.logging`
@@ -429,7 +429,7 @@ Forbidden:
     5. `platform.worker`
   - [ ] no semantic module membership change
 
-- [ ] `framework/packages/core/kernel/tests/Contract/ModePresetConstructorPolicyContractTest.php`
+- [ ] `packages/core/kernel/tests/Contract/ModePresetConstructorPolicyContractTest.php`
   - [ ] add direct-construction duplicate rejection coverage for:
     - [ ] duplicate `required`
     - [ ] duplicate `optional`
@@ -437,12 +437,12 @@ Forbidden:
   - [ ] retain acceptance of unsorted but otherwise valid direct-construction sets
   - [ ] assert returned loaded sets are `strcmp`-sorted
 
-- [ ] `framework/packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
+- [ ] `packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
   - [ ] retain exact eight-field export order
   - [ ] explicitly assert `moduleIds` key is absent
   - [ ] retain separate `moduleIds()` accessor coverage
 
-- [ ] `framework/packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
+- [ ] `packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
   - [ ] include both new reasons in ModePreset invalid-exception coverage:
     - [ ] `mode-preset-source-not-canonical`
     - [ ] `mode-preset-source-output-forbidden`
@@ -554,10 +554,10 @@ Forbidden:
   - [ ] add a normative “Mode preset packaging” section
   - [ ] framework distribution:
     - [ ] `core/kernel` ships the four canonical preset files:
-      - [ ] `framework/packages/core/kernel/resources/modes/micro.php`
-      - [ ] `framework/packages/core/kernel/resources/modes/express.php`
-      - [ ] `framework/packages/core/kernel/resources/modes/hybrid.php`
-      - [ ] `framework/packages/core/kernel/resources/modes/enterprise.php`
+      - [ ] `packages/core/kernel/resources/modes/micro.php`
+      - [ ] `packages/core/kernel/resources/modes/express.php`
+      - [ ] `packages/core/kernel/resources/modes/hybrid.php`
+      - [ ] `packages/core/kernel/resources/modes/enterprise.php`
     - [ ] every shipped framework preset MUST satisfy the canonical source round-trip contract
     - [ ] shipped framework preset module-id sets MUST already be unique and `strcmp`-sorted
     - [ ] shipped framework preset map keys MUST already be recursively `strcmp`-sorted
@@ -565,13 +565,13 @@ Forbidden:
       - [ ] `kernel.modes.defaults_path = resources/modes`
   - [ ] default skeleton distribution:
     - [ ] default skeleton ships no preset PHP file matching:
-      - [ ] `skeleton/config/modes/*.php`
-    - [ ] this matches the current skeleton-relative default:
+      - [ ] `packages/applications/skeleton/config/modes/*.php`
+    - [ ] this matches the current application-relative default:
       - [ ] `kernel.modes.overrides_path = config/modes`
     - [ ] absence of the directory is valid
     - [ ] an empty directory has no runtime semantic effect
   - [ ] project ownership:
-    - [ ] project owners MAY add `skeleton/config/modes/<preset>.php`
+    - [ ] project owners MAY add `packages/applications/skeleton/config/modes/<preset>.php`
     - [ ] those files are user-owned overrides
     - [ ] user-owned overrides use the same strict source schema as framework-owned presets
     - [ ] override status does not weaken canonicality, safety, output, or redaction requirements
@@ -652,7 +652,7 @@ Forbidden:
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/ModePresetCanonicalSourceRoundTripContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/ModePresetCanonicalSourceRoundTripContractTest.php`
     - [ ] loads all four framework-owned canonical PHP preset payloads
     - [ ] validates each payload through `ModePresetSchemaValidator`
     - [ ] asserts strict identity:
@@ -663,7 +663,7 @@ Forbidden:
     - [ ] asserts `moduleIds` is absent from source payload and `toArray()`
 
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsNonCanonicalSourceTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsNonCanonicalSourceTest.php`
     - [ ] data-provider coverage for:
       - [ ] reordered top-level keys
       - [ ] uppercase/non-canonical module-id source string
@@ -680,7 +680,7 @@ Forbidden:
       - [ ] cross-list overlap remains `mode-preset-sets-overlap`
       - [ ] unsafe metadata remains its existing safety reason
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/ModePresetLoaderSourceIsolationTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/ModePresetLoaderSourceIsolationTest.php`
     - [ ] creates isolated temporary defaults and overrides directories
     - [ ] removes every temporary source file and directory in `finally`
     - [ ] ordinary output case:
@@ -768,9 +768,9 @@ Forbidden:
 - [ ] `hybrid.php` optional module ids are canonical and `strcmp`-sorted.
 - [ ] `enterprise.php` optional module ids are canonical and `strcmp`-sorted.
 - [ ] All four framework preset files pass the canonical round-trip test.
-- [ ] Framework-owned presets remain under `framework/packages/core/kernel/resources/modes/*.php`.
-- [ ] Default skeleton ships no `skeleton/config/modes/*.php` files.
-- [ ] Project-owned overrides remain allowed under `skeleton/config/modes/*.php`.
+- [ ] Framework-owned presets remain under `packages/core/kernel/resources/modes/*.php`.
+- [ ] Default skeleton ships no `packages/applications/skeleton/config/modes/*.php` files.
+- [ ] Project-owned overrides remain allowed under `packages/applications/skeleton/config/modes/*.php`.
 - [ ] Framework and project-owned sources use the same strict schema.
 - [ ] Skeleton override precedence and no-merge behavior remain unchanged.
 - [ ] No public API signature changes.
@@ -801,7 +801,7 @@ Forbidden:
 type: package
 phase: 2
 epic_id: "2.20.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -831,10 +831,10 @@ ssot_refs:
   - 2.10.0 — modes SSoT + packaging enforcement gate
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/kernel/resources/modes/micro.php`
-  - `framework/packages/core/kernel/resources/modes/express.php`
-  - `framework/packages/core/kernel/resources/modes/hybrid.php`
-  - `framework/packages/core/kernel/resources/modes/enterprise.php`
+  - `packages/core/kernel/resources/modes/micro.php`
+  - `packages/core/kernel/resources/modes/express.php`
+  - `packages/core/kernel/resources/modes/hybrid.php`
+  - `packages/core/kernel/resources/modes/enterprise.php`
   - `docs/ssot/modes.md`
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
@@ -851,7 +851,7 @@ Forbidden:
 
 Kernel-owned fixture trees (tests-only; deterministic content; LF-only):
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/_POLICY.md`
+- [ ] `packages/core/kernel/tests/Fixtures/_POLICY.md`
   - [ ] MUST state:
     - [ ] fixtures are tests-only
     - [ ] LF-only, final newline
@@ -859,36 +859,36 @@ Kernel-owned fixture trees (tests-only; deterministic content; LF-only):
     - [ ] MUST NOT ship `config/modes/*` anywhere inside fixtures
     - [ ] config files follow subtree rule (no root wrapper)
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/MicroApp/`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/MicroApp/README.md`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/MicroApp/config/modules.php`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/MicroApp/config/kernel.php` (optional minimal subtree)
+- [ ] `packages/core/kernel/tests/Fixtures/MicroApp/`
+  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/README.md`
+  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/config/kernel.php` (optional minimal subtree)
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/ExpressApp/`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/ExpressApp/README.md`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/ExpressApp/config/kernel.php` (optional minimal subtree)
+- [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/`
+  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/README.md`
+  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/kernel.php` (optional minimal subtree)
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/HybridApp/`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/HybridApp/README.md`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/HybridApp/config/modules.php`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/HybridApp/config/kernel.php` (optional minimal subtree)
+- [ ] `packages/core/kernel/tests/Fixtures/HybridApp/`
+  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/README.md`
+  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/config/kernel.php` (optional minimal subtree)
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/README.md`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/kernel.php` (optional minimal subtree)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/README.md`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/kernel.php` (optional minimal subtree)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/ModePresetResourcesExistAndReturnArrayTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/ModePresetResourcesExistAndReturnArrayTest.php`
     - [ ] MUST only assert file presence + `is_array(require ...)`
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/ModeFixturesDoNotShipModeOverridesTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/ModeFixturesDoNotShipModeOverridesTest.php`
     - [ ] Assert: no `tests/Fixtures/**/config/modes/*` present
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/ModeFixtureConfigFilesReturnArrayTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/ModeFixtureConfigFilesReturnArrayTest.php`
     - [ ] For each fixture app dir:
       - [ ] assert `config/modules.php` exists and `is_array(require ...)`
       - [ ] if `config/kernel.php` exists, assert `is_array(require ...)`
@@ -899,7 +899,7 @@ Kernel-owned fixture trees (tests-only; deterministic content; LF-only):
 - [ ] Fixture trees exist (paths exact)
 - [ ] Fixtures deterministic (LF-only, no machine-specific content)
 - [ ] Fixtures do not include any `config/modes/*`
-- [ ] Skeleton default `skeleton/config/modes/*` still forbidden (enforced by 2.10.0 gate)
+- [ ] Skeleton default `packages/applications/skeleton/config/modes/*` still forbidden (enforced by 2.10.0 gate)
 
 ---
 
@@ -909,7 +909,7 @@ Kernel-owned fixture trees (tests-only; deterministic content; LF-only):
 type: package
 phase: 2
 epic_id: "2.25.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -1016,11 +1016,11 @@ ssot_refs:
 
 - Boundary note (single-choice):
   - this epic intentionally co-introduces the public contracts port required by the same kernel capability
-  - the ONLY allowed cross-package deliverables outside `framework/packages/core/kernel/` in this epic are:
-    - `framework/packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
-    - `framework/packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
-    - `framework/packages/core/contracts/src/Kernel/Ops/OpsResult.php`
-    - `framework/packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
+  - the ONLY allowed cross-package deliverables outside `packages/core/kernel/` in this epic are:
+    - `packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
+    - `packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
+    - `packages/core/contracts/src/Kernel/Ops/OpsResult.php`
+    - `packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
     - `docs/ssot/observability.md`
   - this epic MUST NOT introduce unrelated `core/contracts` surface beyond the Kernel Ops port
 
@@ -1052,7 +1052,7 @@ worker
 
 ```php
 new BootstrapInput(
-    skeletonRoot: $skeletonRoot,
+    applicationRoot: $applicationRoot,
     appTarget: AppTarget::fromString($request->appTarget()),
     preset: null,
 );
@@ -1061,8 +1061,8 @@ new BootstrapInput(
 Effective preset ownership remains:
 
 ```text
-skeleton/config/app.php presets[appTarget]
-→ skeleton/config/app.php preset
+packages/applications/skeleton/config/app.php presets[appTarget]
+→ packages/applications/skeleton/config/app.php preset
 → kernel.boot.default_preset
 ```
 
@@ -1229,7 +1229,7 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/core/kernel/src/Config/CompileHostConfigInputBuilder.php`
+- [ ] `packages/core/kernel/src/Config/CompileHostConfigInputBuilder.php`
   - [ ] internal readonly/stateless helper
   - [ ] is not a public contract
   - [ ] introduces no DTO
@@ -1259,14 +1259,14 @@ Forbidden:
   - [ ] performs no config source loading
   - [ ] performs no directives, merge, validation, explain, fingerprint, graph, or artifact operations
 
-- [ ] `framework/packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
+- [ ] `packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
   - [ ] readonly value object
   - [ ] contains only `appTarget: string`
   - [ ] rejects empty, multiline, or control-byte input
   - [ ] performs no Kernel-specific target validation
   - [ ] contains no mode, preset, paths, config, or artifact state
 
-- [ ] `framework/packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
+- [ ] `packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
   - [ ] Methods (single-choice; deterministic; no stdout/stderr):
     - [ ] `validateConfig(KernelOpsRequest $request): OpsResult`
     - [ ] `debugConfig(KernelOpsRequest $request): OpsResult`
@@ -1278,7 +1278,7 @@ Forbidden:
   - [ ] MUST NOT become a generic CLI command bus
   - [ ] MUST NOT acquire worker, migration, database, queue, storage, or integration-owned methods
 
-- [ ] `framework/packages/core/contracts/src/Kernel/Ops/OpsResult.php`
+- [ ] `packages/core/contracts/src/Kernel/Ops/OpsResult.php`
   - [ ] Immutable DTO / readonly:
     - [ ] `schemaVersion: int`
     - [ ] `operation: string`
@@ -1335,11 +1335,11 @@ Forbidden:
     - [ ] `'warnings' => list<array{code: string, module_id: string, reason: string}>`
   - [ ] `debugModules()` MUST NOT call `ModulePlan::toArray()` directly because the current exported shape contains Composer-owned module metadata
 
-- [ ] `framework/packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
+- [ ] `packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
   - [ ] Deterministic code-first; message safe (no secrets/abs paths)
   - [ ] Intended for catch/handling in `platform/*` without `Coretsia\Kernel\*` imports
 
-- [ ] `framework/packages/core/kernel/src/Ops/KernelOpsFacade.php`
+- [ ] `packages/core/kernel/src/Ops/KernelOpsFacade.php`
   - [ ] MUST `implements Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
   - [ ] constructor receives the exact `KernelOpsHostInput` seeded by `KernelOpsHostBooter`
   - [ ] constructor receives operation services explicitly:
@@ -1353,7 +1353,7 @@ Forbidden:
     - [ ] `ArtifactCompiler`
     - [ ] `CacheVerifier`
     - [ ] `CompileHostConfigInputBuilder`
-  - [ ] uses `KernelOpsHostInput::skeletonRoot()` as the sole skeleton root for every target-specific `BootstrapInput`
+  - [ ] uses `KernelOpsHostInput::applicationRoot()` as the sole skeleton root for every target-specific `BootstrapInput`
   - [ ] constructor receives:
     - [ ] `ContextAccessorInterface`
     - [ ] `TracerPortInterface`
@@ -1499,13 +1499,13 @@ Forbidden:
   - [ ] passes all prepared arguments unchanged to the existing Kernel services
   - [ ] MUST NOT substitute the console-host `ConfigRepositoryInterface` for target-specific Phase B compilation
 
-- [ ] `framework/packages/core/kernel/src/Ops/KernelOpsHostInput.php`
-  - [ ] readonly normalized `skeletonRoot`
+- [ ] `packages/core/kernel/src/Ops/KernelOpsHostInput.php`
+  - [ ] readonly normalized `applicationRoot`
   - [ ] contains no target, preset, config, or artifact paths
   - [ ] performs no filesystem reads
   - [ ] the exact normalized instance is seeded into the source operations container
 
-- [ ] `framework/packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+- [ ] `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
   - [ ] public stateless zero-constructor boot façade
   - [ ] canonical API:
     - [ ] `public function boot(KernelOpsHostInput $input): ContainerInterface`
@@ -1594,21 +1594,21 @@ Forbidden:
 
 #### Modifies
 
-- [ ] `framework/packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
+- [ ] `packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
   - [ ] add:
     - [ ] `public function sourceCandidatesFor(BootstrapConfig $bootstrapConfig): array`
-  - [ ] returns the exact framework-default and skeleton-override candidates used by `createFor()`
+  - [ ] returns the exact framework-default and application-override candidates used by `createFor()`
   - [ ] `createFor()` and `sourceCandidatesFor()` MUST share one private path-resolution implementation
   - [ ] MUST NOT reimplement mode path resolution in `CompileHostConfigInputBuilder`
 
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+- [ ] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [ ] register `KernelOpsFacade` as compile-host/source-operations wiring
   - [ ] bind `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class` to `KernelOpsFacade::class`
   - [ ] registration and binding MUST remain in `register()`
   - [ ] `KernelOpsFacade` MUST NOT be contributed by `define()`
   - [ ] `KernelOpsFacade` and `KernelOpsInterface` MUST NOT enter the canonical runtime definition graph
 
-- [ ] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [ ] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [ ] add deterministic construction for `KernelOpsFacade`
   - [ ] wire explicit Kernel operation dependencies
   - [ ] factory construction MUST NOT execute module resolution, config compilation, fingerprint calculation, artifact writing, or cache verification
@@ -1773,29 +1773,29 @@ Forbidden:
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeDoesNotLeakAbsolutePathsTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeImplementsContractsPortTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeDoesNotLeakAbsolutePathsTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeImplementsContractsPortTest.php`
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeReturnsJsonLikeResultsTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeReturnsJsonLikeResultsTest.php`
     - [ ] MUST assert deep “json-like” invariants for `OpsResult->data`:
       - [ ] allowed scalar types: null|bool|int|string
       - [ ] arrays only; no objects/resources
       - [ ] floats forbidden (hard-fail)
       - [ ] maps are recursively key-sorted (`strcmp`) by the producer (kernel), lists preserve order
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsResultIsSafeWithoutLateRedactionTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsResultIsSafeWithoutLateRedactionTest.php`
     - [ ] covers every successful and handled-error operation result shape
     - [ ] uses raw sensitive fixture values and absolute-path fixtures in lower-level fake inputs
     - [ ] asserts none reaches the returned `OpsResult`
     - [ ] asserts no `SensitiveDataRedactorInterface` service is resolved or invoked
     - [ ] asserts result safety before any CLI formatter or output pipeline is involved
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugConfigPreservesSafeExplainPathsTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigPreservesSafeExplainPathsTest.php`
     - [ ] preserves `ConfigExplainer`-normalized repo-relative or logical source paths
     - [ ] rejects absolute filesystem paths
     - [ ] preserves list order and recursively `strcmp`-sorts maps through `OpsResult` normalization
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeObservabilityTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeObservabilityTest.php`
     - [ ] emits exactly one `kernel.operation` span
     - [ ] emits exactly one total metric
     - [ ] emits exactly one duration metric
@@ -1803,12 +1803,12 @@ Forbidden:
     - [ ] labels are limited to `operation|outcome`
     - [ ] no generation id, fingerprint, path, or raw value reaches observability
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFailedExceptionIsSafeTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFailedExceptionIsSafeTest.php`
     - [ ] previous Throwable message is absent
     - [ ] paths and raw values are absent
     - [ ] public code and reason are deterministic
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsFacadeContextBoundaryTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeContextBoundaryTest.php`
     - [ ] reads only:
       - [ ] `ContextKeys::CORRELATION_ID`
       - [ ] `ContextKeys::UOW_ID`
@@ -1816,79 +1816,79 @@ Forbidden:
     - [ ] performs no context writes
     - [ ] missing context values do not fail the operation
 
-  - [ ] `framework/packages/core/kernel/tests/Unit/KernelOpsObservabilityFailureDoesNotChangeOutcomeTest.php`
+  - [ ] `packages/core/kernel/tests/Unit/KernelOpsObservabilityFailureDoesNotChangeOutcomeTest.php`
     - [ ] tracer failure does not change successful result
     - [ ] meter failure does not change successful result
     - [ ] logger failure does not replace the operation result or primary exception
 
 - Integration:
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsUsesConfiguredTargetPresetTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugModulesDoesNotBuildEnvOrConfigInputsTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDoesNotSetExplicitBootstrapPresetTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHostBootsWithoutCurrentGenerationTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHostUsesConsoleTargetForCommandCompositionTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsOperationsRequireExplicitAppTargetTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCompilePublishesAndReportsCurrentGenerationTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHashMatchesCompiledGenerationIdTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsMissingCurrentAsDirtyTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsResultsDoNotExposeSyntheticCurrentGenerationPathsTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsUsesHostSkeletonRootForTargetBootstrapTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugModulesUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsUsesConfiguredTargetPresetTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugModulesDoesNotBuildEnvOrConfigInputsTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDoesNotSetExplicitBootstrapPresetTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostBootsWithoutCurrentGenerationTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostUsesConsoleTargetForCommandCompositionTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsOperationsRequireExplicitAppTargetTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompilePublishesAndReportsCurrentGenerationTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashMatchesCompiledGenerationIdTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsMissingCurrentAsDirtyTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsResultsDoNotExposeSyntheticCurrentGenerationPathsTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsUsesHostApplicationRootForTargetBootstrapTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugModulesUsesSingleModuleResolutionSnapshotTest.php`
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsAllFourGenerationFilesTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsAllFourGenerationFilesTest.php`
     - [ ] result data contains exactly `artifacts|current_generation_id|expected_generation_id|state`
     - [ ] artifact entries contain exactly `basename|existing_byte_count|expected_byte_count|identity|reason|status`
     - [ ] artifact identities match the canonical compile order
     - [ ] no artifact entry contains a path
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHashReturnsExpectedGenerationIdWithoutWritesTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashReturnsExpectedGenerationIdWithoutWritesTest.php`
     - [ ] result data contains exactly `generation_id`
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCompileReportsAllFourGenerationFilesTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileReportsAllFourGenerationFilesTest.php`
     - [ ] result data contains exactly `artifacts|generation_id`
     - [ ] artifact entries contain exactly `basename|identity`
     - [ ] artifact identities and basenames match the canonical order
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHostRejectsDefinitionOnlyProviderBeforeRegistrationTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsDefinitionOnlyProviderBeforeRegistrationTest.php`
     - [ ] no provider `register()` method is invoked before the capability failure
     - [ ] no partial final definition set is applied
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHostRejectsInvalidConsoleConfigBeforeFinalProviderRegistrationTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsInvalidConsoleConfigBeforeFinalProviderRegistrationTest.php`
     - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
     - [ ] `KernelOpsHostBooter` converts it through `ConfigInvalidException::fromValidationResult(...)`
     - [ ] `ConfigValidator` is not invoked a second time
     - [ ] no final source-host provider is instantiated or registered
     - [ ] no final source operations container is built
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCompileInvalidConfigDoesNotPublishTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileInvalidConfigDoesNotPublishTest.php`
     - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
     - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
     - [ ] `ConfigValidator` is not invoked a second time
     - [ ] KernelOpsFacade maps the failure safely
     - [ ] KernelOpsFacade performs no duplicate validation
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHashInvalidConfigDoesNotBuildGraphTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashInvalidConfigDoesNotBuildGraphTest.php`
     - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
     - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
     - [ ] `ConfigValidator` is not invoked a second time
     - [ ] KernelOpsFacade maps the failure safely
     - [ ] KernelOpsFacade performs no duplicate validation
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsVerifyInvalidConfigDoesNotReadCurrentTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsVerifyInvalidConfigDoesNotReadCurrentTest.php`
     - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
     - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
     - [ ] `ConfigValidator` is not invoked a second time
     - [ ] KernelOpsFacade maps the failure safely
     - [ ] KernelOpsFacade performs no duplicate validation
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsReusesCanonicalConfigPipelineTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsReusesCanonicalConfigPipelineTest.php`
     - [ ] uses one Bootstrap Phase A resolution
     - [ ] uses one `ModuleResolution`
     - [ ] uses one canonical config-location input set
     - [ ] delegates loading, merge, validation, and explain to existing `ConfigKernel`
     - [ ] KernelOpsFacade performs no package-path or config-file discovery
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
     - [ ] seed and final source-host builders are distinct instances
     - [ ] seed builder contains only Foundation and Kernel bootstrap providers
     - [ ] final builder receives the validated complete source configuration
@@ -1900,13 +1900,13 @@ Forbidden:
     - [ ] no imperative-only provider lane exists
     - [ ] external tagged commands are visible through the final `TagRegistry`
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsRunsInsideExistingCallerUowWithoutNestingTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsRunsInsideExistingCallerUowWithoutNestingTest.php`
     - [ ] an arbitrary caller-owned UoW remains the only UoW
     - [ ] the test does not require or instantiate platform/cli
     - [ ] KernelOpsFacade does not call KernelRuntime
     - [ ] KernelOpsFacade does not trigger reset directly
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCompileUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileUsesSingleModuleResolutionSnapshotTest.php`
     - [ ] `resolveResolution()` is called exactly once
     - [ ] `resolve()` is not called
     - [ ] Composer manifest is read exactly once
@@ -1915,39 +1915,39 @@ Forbidden:
     - [ ] no second manifest read occurs during provider definition collection
     - [ ] `ArtifactCompiler` does not resolve module services itself
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsHashUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashUsesSingleModuleResolutionSnapshotTest.php`
     - [ ] one module-resolution snapshot is used for the complete hash operation
     - [ ] no second manifest read occurs
     - [ ] `FingerprintCalculator` does not resolve modules itself
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsCacheVerifyUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyUsesSingleModuleResolutionSnapshotTest.php`
     - [ ] `resolveResolution()` is called exactly once
     - [ ] Composer manifest is read exactly once
     - [ ] provider planning consumes the returned snapshot
     - [ ] the same plan is supplied to verification inputs
     - [ ] `CacheVerifier` does not resolve modules itself
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsValidateConfigUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsValidateConfigUsesSingleModuleResolutionSnapshotTest.php`
     - [ ] one `ModuleResolution` is used for the complete validation operation
     - [ ] Composer manifest is read exactly once
     - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
     - [ ] no provider or manifest discovery is repeated
 
-  - [ ] `framework/packages/core/kernel/tests/Integration/KernelOpsDebugConfigUsesSingleModuleResolutionSnapshotTest.php`
+  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigUsesSingleModuleResolutionSnapshotTest.php`
     - [ ] one `ModuleResolution` is used for the complete debug operation
     - [ ] Composer manifest is read exactly once
     - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
     - [ ] safe explain output does not expose raw config or env values
 
 - Contract:
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOpsHasNoRedactionOrCliDependencyContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/KernelOpsHasNoRedactionOrCliDependencyContractTest.php`
     - [ ] rejects `SensitiveDataRedactorInterface`
     - [ ] rejects `platform/redaction` package and namespace references
     - [ ] rejects redaction-service resolution
     - [ ] rejects `Coretsia\Platform\*`
     - [ ] rejects CLI formatter and output classes
 
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOpsDoesNotDuplicateConfigPipelineContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/KernelOpsDoesNotDuplicateConfigPipelineContractTest.php`
     - [ ] rejects Kernel Ops-local implementations of:
       - [ ] `ConfigLoaderInterface`
       - [ ] `MergeStrategyInterface`
@@ -1958,19 +1958,19 @@ Forbidden:
     - [ ] rejects `ConfigSourcePlan` or equivalent parallel config model
     - [ ] allows only orchestration calls into the existing Bootstrap, module, ConfigKernel, artifact, and verification services
 
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOpsDoesNotWriteContextOrControlUowContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/KernelOpsDoesNotWriteContextOrControlUowContractTest.php`
     - [ ] no direct `ContextStore` write
     - [ ] no `KernelRuntimeInterface` dependency
     - [ ] no `ResetOrchestrator`
     - [ ] no `kernel.reset` discovery
 
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOpsFacadeIsCompileHostOnlyContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/KernelOpsFacadeIsCompileHostOnlyContractTest.php`
     - [ ] source container contains `KernelOpsFacade`
     - [ ] source container binds `KernelOpsInterface`
     - [ ] Kernel runtime definitions contain neither service id
     - [ ] generated definition descriptors contain neither service id
 
-  - [ ] `framework/packages/core/kernel/tests/Contract/KernelOperationServicesDoNotResolveModulesContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/KernelOperationServicesDoNotResolveModulesContractTest.php`
     - [ ] `ArtifactCompiler` does not depend on module-resolution services
     - [ ] `FingerprintCalculator` does not depend on module-resolution services
     - [ ] `CacheVerifier` does not depend on module-resolution services
@@ -2014,7 +2014,7 @@ Forbidden:
 type: package
 phase: 2
 epic_id: "2.27.0"
-owner_path: "framework/packages/platform/redaction/"
+owner_path: "packages/platform/redaction/"
 
 package_id: "platform/redaction"
 composer: "coretsia/platform-redaction"
@@ -2061,17 +2061,17 @@ ssot_refs:
   - this epic MUST NOT modify Kernel Ops production source or result DTOs.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
-  - `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
-  - `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
-  - `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php`
-  - `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php`
-  - `framework/packages/core/foundation/src/Container/ServiceProviderInterface.php`
-  - `framework/packages/core/foundation/src/Container/ContainerBuilder.php`
-  - `framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionProviderInterface.php`
-  - `framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
-  - `framework/packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php`
-  - `framework/packages/core/foundation/src/Container/Definition/ContainerValueReference.php`
+  - `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
+  - `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+  - `packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Container/ServiceProviderInterface.php`
+  - `packages/core/foundation/src/Container/ContainerBuilder.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionProviderInterface.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerValueReference.php`
 
 - Required config roots/keys:
   - none
@@ -2160,7 +2160,7 @@ Required Foundation APIs:
 #### Creates
 
 Contracts:
-- [ ] `framework/packages/core/contracts/src/Security/Exception/RedactionException.php`
+- [ ] `packages/core/contracts/src/Security/Exception/RedactionException.php`
   - [ ] final contracts-level port failure
   - [ ] extends `RuntimeException`
   - [ ] implements the exact error code, reason allowlist, named constructors, and message contract defined under `Cross-cutting → Errors`
@@ -2179,7 +2179,7 @@ Contracts:
   - [ ] does not accept or retain a previous Throwable
   - [ ] contains no rejected value, map key, scope, hash, length, path, pattern, class name, resource id, or payload fragment
 
-- [ ] `framework/packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+- [ ] `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
   - [ ] exact API:
     - [ ] `public function redactValue(string $value, RedactionKind $kind, RedactionContext $context): RedactedValue`
     - [ ] `public function redactJsonLike(mixed $value, RedactionContext $context): mixed`
@@ -2194,7 +2194,7 @@ Contracts:
   - [ ] neither method writes stdout/stderr
   - [ ] neither method may return an original sensitive scalar from a redacted branch
 
-- [ ] `framework/packages/core/contracts/src/Security/RedactionContext.php`
+- [ ] `packages/core/contracts/src/Security/RedactionContext.php`
   - [ ] final readonly value object
   - [ ] `public const int SCHEMA_VERSION = 1`
   - [ ] constructor:
@@ -2216,7 +2216,7 @@ Contracts:
   - [ ] examples of valid scopes: `cli.output`, `logging.record`, `http.problem-detail`
   - [ ] contains no raw redacted value or runtime ContextStore dependency
 
-- [ ] `framework/packages/core/contracts/src/Security/RedactionKind.php`
+- [ ] `packages/core/contracts/src/Security/RedactionKind.php`
   - [ ] string-backed enum with exactly:
     - [ ] `UNKNOWN = 'unknown'`
     - [ ] `SECRET = 'secret'`
@@ -2234,7 +2234,7 @@ Contracts:
   - [ ] contains identifiers only
   - [ ] contains no key/value classification, hashing, config, or presentation logic
 
-- [ ] `framework/packages/core/contracts/src/Security/RedactionMode.php`
+- [ ] `packages/core/contracts/src/Security/RedactionMode.php`
   - [ ] string-backed enum with exactly:
     - [ ] `PLACEHOLDER = 'placeholder'`
     - [ ] `LENGTH = 'length'`
@@ -2245,7 +2245,7 @@ Contracts:
   - [ ] contains no `raw|none|disabled|passthrough|debug` mode
   - [ ] debug or environment state MUST NOT change the selected disclosure mode
 
-- [ ] `framework/packages/core/contracts/src/Security/RedactedValue.php`
+- [ ] `packages/core/contracts/src/Security/RedactedValue.php`
   - [ ] final readonly value object
   - [ ] `public const int SCHEMA_VERSION = 1`
   - [ ] constructor receives exactly:
@@ -2286,7 +2286,7 @@ Contracts:
   - [ ] MUST NOT retain the raw value, raw bytes, context, path, source metadata, or previous Throwable
 
 Package scaffold:
-- [ ] `framework/packages/platform/redaction/composer.json`
+- [ ] `packages/platform/redaction/composer.json`
   - [ ] `name = coretsia/platform-redaction`
   - [ ] `type = library`
   - [ ] requires exactly:
@@ -2311,11 +2311,11 @@ Package scaffold:
     - [ ] `conflicts = []`
     - [ ] no `defaultsConfigPath`
 
-- [ ] `framework/packages/platform/redaction/LICENSE`
-- [ ] `framework/packages/platform/redaction/NOTICE`
-- [ ] `framework/packages/platform/redaction/SECURITY.md`
+- [ ] `packages/platform/redaction/LICENSE`
+- [ ] `packages/platform/redaction/NOTICE`
+- [ ] `packages/platform/redaction/SECURITY.md`
 
-- [ ] `framework/packages/platform/redaction/README.md`
+- [ ] `packages/platform/redaction/README.md`
   - [ ] package purpose and ownership
   - [ ] scalar versus recursive json-like entrypoints
   - [ ] examples use synthetic values only
@@ -2327,7 +2327,7 @@ Package scaffold:
   - [ ] points to `docs/ssot/sensitive-data-redaction.md` for canonical policy
 
 Module and provider:
-- [ ] `framework/packages/platform/redaction/src/Module/RedactionModule.php`
+- [ ] `packages/platform/redaction/src/Module/RedactionModule.php`
   - [ ] constants:
     - [ ] `MODULE_ID = 'platform.redaction'`
     - [ ] `PACKAGE_ID = 'platform/redaction'`
@@ -2344,7 +2344,7 @@ Module and provider:
   - [ ] no `configRoot()`
   - [ ] no config reads, service resolution, filesystem access, or runtime work
 
-- [ ] `framework/packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+- [ ] `packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
   - [ ] implements `ServiceProviderInterface`
   - [ ] implements `ContainerDefinitionProviderInterface`
   - [ ] `register()` calls `assertDefinitionProviderRegistrationAllowed()`
@@ -2355,7 +2355,7 @@ Module and provider:
   - [ ] no tags are introduced
 
 Implementation:
-- [ ] `framework/packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
+- [ ] `packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
   - [ ] implements the exact `SensitiveDataRedactorInterface`
   - [ ] constructor receives exactly:
     - [ ] `SensitiveKeyClassifier`
@@ -2410,7 +2410,7 @@ Implementation:
     - [ ] every other unexpected Throwable becomes safe `internal-failure`
   - [ ] stateless; never retains input, result, current path, classifier decision, or previous failure
 
-- [ ] `framework/packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
+- [ ] `packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
   - [ ] stateless
   - [ ] canonical API:
     - [ ] `public function classify(string $key): ?RedactionKind`
@@ -2437,7 +2437,7 @@ Implementation:
   - [ ] unknown keys return `null`
   - [ ] no config, env, mutable registry, learned state, or runtime regex loading
 
-- [ ] `framework/packages/platform/redaction/src/Redaction/SensitiveValueClassifier.php`
+- [ ] `packages/platform/redaction/src/Redaction/SensitiveValueClassifier.php`
   - [ ] stateless
   - [ ] canonical API:
     - [ ] `public function classify(string $value): ?RedactionKind`
@@ -2472,7 +2472,7 @@ Implementation:
   - [ ] MUST NOT perform network calls, read config/env, decode payloads, or load mutable patterns
   - [ ] no locale-dependent classification
 
-- [ ] `framework/packages/platform/redaction/src/Redaction/StableRedactionHasher.php`
+- [ ] `packages/platform/redaction/src/Redaction/StableRedactionHasher.php`
   - [ ] stateless
   - [ ] canonical API:
     - [ ] `public function hash(string $bytes, RedactionKind $kind, RedactionContext $context): string`
@@ -2579,7 +2579,7 @@ Docs:
 
 #### Modifies
 
-- [ ] `framework/packages/core/contracts/README.md`
+- [ ] `packages/core/contracts/README.md`
   - [ ] document the Security redaction contracts
   - [ ] document exact scalar and json-like entrypoints
   - [ ] clarify that the contracts package owns no implementation or classifier policy
@@ -2622,10 +2622,10 @@ Docs:
   - [ ] include `coretsia/platform-redaction: 0.5.x-dev` in workspace `require-dev`
   - [ ] include the package in canonical generated path-package version metadata
 
-- [ ] `framework/tools/testing/package-index.php`
+- [ ] `tools/testing/package-index.php`
   - [ ] regenerate through the canonical package-index generator
 
-- [ ] `framework/tools/testing/deptrac.yaml`
+- [ ] `tools/testing/deptrac.yaml`
   - [ ] regenerate to include `packages/platform/redaction/src`
   - [ ] enforce only the allowed `core/contracts` and `core/foundation` edges
 
@@ -2636,8 +2636,8 @@ This package introduces no config root and no config files.
 The following files MUST NOT exist:
 
 ```text
-framework/packages/platform/redaction/config/redaction.php
-framework/packages/platform/redaction/config/rules.php
+packages/platform/redaction/config/redaction.php
+packages/platform/redaction/config/rules.php
 ```
 
 `RedactionModule` has no `CONFIG_ROOT` and no `configRoot()` method.
@@ -2928,14 +2928,14 @@ Required assertions:
 ### Tests (MUST)
 
 - Contracts:
-  - [ ] `framework/packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
     - [ ] exact two public methods
     - [ ] exact parameter and return types
     - [ ] both methods document `Coretsia\Contracts\Security\Exception\RedactionException`
     - [ ] no platform-local exception appears in the interface contract
     - [ ] no implementation-package dependency
 
-  - [ ] `framework/packages/core/contracts/tests/Contract/RedactionExceptionShapeContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/RedactionExceptionShapeContractTest.php`
     - [ ] exact FQCN belongs to `core/contracts`
     - [ ] exact error code is `CORETSIA_REDACTION_FAILED`
     - [ ] exact public message is `CORETSIA_REDACTION_FAILED: <reason>`
@@ -2946,19 +2946,19 @@ Required assertions:
     - [ ] no previous Throwable is retained
     - [ ] no raw fixture value appears in the message
 
-  - [ ] `framework/packages/core/contracts/tests/Contract/RedactionContextShapeContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/RedactionContextShapeContractTest.php`
     - [ ] exact fields and accessors
     - [ ] default placeholder mode
     - [ ] scope regex and byte bound
     - [ ] invalid syntax, excessive byte length, whitespace, multiline, NUL, ESC, and control bytes throw exactly `redaction-context-scope-invalid`
     - [ ] documents that runtime/high-cardinality semantic values are forbidden caller inputs but are not inferred by the value object
 
-  - [ ] `framework/packages/core/contracts/tests/Contract/RedactionEnumsContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/RedactionEnumsContractTest.php`
     - [ ] exact `RedactionKind` cases and values
     - [ ] exact `RedactionMode` cases and values
     - [ ] no raw/disabled mode
 
-  - [ ] `framework/packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
     - [ ] exact six-key `toArray()` shape
     - [ ] recursive json-like compatibility
     - [ ] exact mode invariants
@@ -2967,35 +2967,35 @@ Required assertions:
     - [ ] no original value storage
 
 - Package contracts:
-  - [ ] `framework/packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
     - [ ] module and provider are loadable
     - [ ] module metadata matches composer metadata
     - [ ] module has no config root
     - [ ] provider construction has no side effects
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionModuleComposerMetadataContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionModuleComposerMetadataContractTest.php`
     - [ ] exact package name, namespace, module id, provider, requires, and conflicts
     - [ ] no `defaultsConfigPath`
     - [ ] exact direct Composer dependencies
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
     - [ ] exact service-definition order
     - [ ] no closures or runtime objects
     - [ ] exact interface alias
     - [ ] no config parameters or tags
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionProviderSourceDefinitionsParityTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionProviderSourceDefinitionsParityTest.php`
     - [ ] source-mode registration and declarative definitions resolve the same services
     - [ ] applying the provider produces exactly one redactor binding
     - [ ] source and declarative application produce the same binding
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionPackageHasNoConfigSurfaceContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionPackageHasNoConfigSurfaceContractTest.php`
     - [ ] no config directory
     - [ ] no config root in module metadata
     - [ ] no disable or runtime policy keys
     - [ ] no env reads
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTest.php`
     - [ ] no ContextStore or ContextAccessor
     - [ ] no KernelRuntimeInterface
     - [ ] no ResetInterface
@@ -3003,18 +3003,18 @@ Required assertions:
     - [ ] no logger, tracer, meter, or reporter
     - [ ] no stdout/stderr writes
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
     - [ ] complete canonical fixture matrix
     - [ ] output and exception messages contain no raw fixture value
 
-  - [ ] `framework/packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
+  - [ ] `packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
     - [ ] same input/context produces the same recursively normalized result
     - [ ] map order is canonical
     - [ ] list order is preserved
     - [ ] hash output is stable
 
 - Unit:
-  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
     - [ ] exact canonicalization
     - [ ] exact key vocabulary
     - [ ] every alias listed in `docs/ssot/sensitive-data-redaction.md` is covered
@@ -3023,7 +3023,7 @@ Required assertions:
     - [ ] no locale dependence
     - [ ] unknown keys return null
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
     - [ ] exact high-confidence patterns
     - [ ] covers every SSoT-defined baseline pattern class
     - [ ] precedence collisions resolve according to the exact documented order
@@ -3033,7 +3033,7 @@ Required assertions:
     - [ ] near-miss fixtures for every pattern remain unclassified
     - [ ] no automatic unkeyed classification exists for `secret|secret-reference|session-id|payload|env-value`
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
     - [ ] exact domain-separated input
     - [ ] exact NUL separators and `coretsia.redaction@1` prefix
     - [ ] direct scalar bytes are hashed unchanged
@@ -3042,11 +3042,11 @@ Required assertions:
     - [ ] scope and kind separation
     - [ ] byte-oriented behavior
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorValueTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorValueTest.php`
     - [ ] explicit scalar redaction for every kind
     - [ ] no raw scalar is retained or returned
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorJsonLikeTraversalTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorJsonLikeTraversalTest.php`
     - [ ] key-first branch redaction
     - [ ] one sensitive key replaces its complete value branch with one redacted summary
     - [ ] complete non-string branch summaries use normalized stable JSON without the encoder-owned final LF
@@ -3056,24 +3056,24 @@ Required assertions:
     - [ ] non-sensitive scalar preservation
     - [ ] no JSON, URL, base64, JWT payload, SQL, or provider-payload decoding occurs
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorModesTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorModesTest.php`
     - [ ] exact placeholder, length, hash, and hash-and-length shapes
     - [ ] placeholder mode does not encode or hash a complete sensitive branch
     - [ ] a synthetic non-string sensitive branch containing malformed UTF-8 is safely replaced in placeholder mode
     - [ ] the same branch fails with `input-invalid` when length or hash requires stable JSON byte materialization
     - [ ] hash-and-length materializes and hashes one canonical byte representation
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorRejectsSensitiveMapKeysTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorRejectsSensitiveMapKeysTest.php`
     - [ ] sensitive dynamic map key fails closed
     - [ ] key value is absent from exception diagnostics
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorLimitsTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorLimitsTest.php`
     - [ ] exact depth, node, and string-byte limits
     - [ ] limit failures expose only the stable reason
     - [ ] direct `redactValue()` input over `65536` bytes fails with `input-limit-exceeded`
     - [ ] output expansion beyond the fixed output budget fails with `output-invalid`
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailureStageMappingTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailureStageMappingTest.php`
     - [ ] unsupported input type → `input-invalid`
     - [ ] input-branch stable encoding failure → `input-invalid`
     - [ ] input normalization limit → `input-limit-exceeded`
@@ -3086,7 +3086,7 @@ Required assertions:
     - [ ] existing `RedactionException` is rethrown as the same instance
     - [ ] no failure returns unchanged input or a partial result
 
-  - [ ] `framework/packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailsClosedTest.php`
+  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailsClosedTest.php`
     - [ ] rejects floats, objects, closures, resources, and non-string map keys
     - [ ] map keys containing NUL, CR, LF, ESC, or another C0 control byte fail with `input-invalid`
     - [ ] rejected map keys are absent from exception messages
@@ -3094,14 +3094,14 @@ Required assertions:
     - [ ] preserves no previous Throwable
 
 - Integration:
-  - [ ] `framework/packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+  - [ ] `packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
     - [ ] canonical source container resolves `SensitiveDataRedactorInterface`
     - [ ] resolved service is `DefaultSensitiveDataRedactor`
     - [ ] classifiers and hasher are injected in exact order
     - [ ] repeated resolution returns the same shared stateless service
     - [ ] redaction works without config, context, Kernel runtime, or observability services
 
-  - [ ] `framework/packages/platform/redaction/tests/Integration/RedactionModuleRequiresExplicitEnablementTest.php`
+  - [ ] `packages/platform/redaction/tests/Integration/RedactionModuleRequiresExplicitEnablementTest.php`
     - [ ] an installed but disabled package contributes no provider or binding
     - [ ] an explicitly enabled `platform.redaction` module contributes exactly one binding
     - [ ] no config, debug, app environment, or Composer-presence auto-enablement occurs
@@ -3149,9 +3149,9 @@ Required assertions:
 - [ ] No Phase 3–6 production package is modified by this epic.
 - [ ] No future roadmap epic is rewritten as an implementation deliverable of this package.
 - [ ] Docs updated:
-  - [ ] `framework/packages/core/contracts/README.md`
-  - [ ] `framework/packages/platform/redaction/README.md`
-  - [ ] `framework/packages/platform/redaction/SECURITY.md`
+  - [ ] `packages/core/contracts/README.md`
+  - [ ] `packages/platform/redaction/README.md`
+  - [ ] `packages/platform/redaction/SECURITY.md`
   - [ ] `docs/ssot/sensitive-data-redaction.md`
   - [ ] `docs/ssot/observability-and-errors.md`
   - [ ] `docs/ssot/observability.md`
@@ -3178,7 +3178,7 @@ Required assertions:
 type: package
 phase: 2
 epic_id: "2.30.0"
-owner_path: "framework/packages/platform/cli/"
+owner_path: "packages/platform/cli/"
 
 package_id: "platform/cli"
 composer: "coretsia/platform-cli"
@@ -3291,8 +3291,8 @@ CLI renders the effective preset returned by `OpsResult`.
 
 - Required deliverables (exact paths):
   - `docs/ssot/tags.md` contains reserved tag `cli.command` (owner `platform/cli`)
-  - `framework/packages/platform/cli/config/cli.php` (subtree file)
-  - `framework/packages/platform/cli/config/rules.php`
+  - `packages/platform/cli/config/cli.php` (subtree file)
+  - `packages/platform/cli/config/rules.php`
   - kernel mode defaults/allowed exist under `kernel.modes.*`
   - Foundation declarative definition application and TagRegistry ordering are cemented
   - Kernel source/operations-host boot can run before generated artifacts exist
@@ -3359,23 +3359,23 @@ CLI renders the effective preset returned by `OpsResult`.
 
 ### Cross-package modification boundary (MUST)
 
-The only files outside `framework/packages/platform/cli/` that this epic may create or modify are:
+The only files outside `packages/platform/cli/` that this epic may create or modify are:
 
-- `framework/packages/core/contracts/src/Cli/Command/CommandInterface.php`
-- `framework/packages/core/contracts/src/Cli/Input/InputInterface.php`
-- `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
-- `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
-- `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
-- `framework/packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
-- `framework/packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
-- `framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
+- `packages/core/contracts/src/Cli/Command/CommandInterface.php`
+- `packages/core/contracts/src/Cli/Input/InputInterface.php`
+- `packages/platform/worker/src/Console/WorkerStartCommand.php`
+- `packages/platform/worker/src/Console/WorkerStopCommand.php`
+- `packages/platform/worker/src/Console/WorkerStatusCommand.php`
+- `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
+- `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
+- `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
+- `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
 - `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/observability.md`
 - `docs/adr/INDEX.md`
 - `coretsia`
-- `framework/bin/coretsia`
+- `tools/bin/coretsia`
 
 No other command-owner package may be modified solely to implement the CLI host.
 
@@ -3480,9 +3480,9 @@ These symbols belong to Kernel-side operation orchestration. Their presence in C
 ### Entry points / integration points (MUST)
 
 - CLI entrypoint (packaged):
-  - `framework/packages/platform/cli/bin/coretsia` (declared in composer.json `"bin"`)
+  - `packages/platform/cli/bin/coretsia` (declared in composer.json `"bin"`)
 - Monorepo canonical wrappers (Prelude compliance):
-  - repo-root `coretsia` and `framework/bin/coretsia` MUST remain the canonical entrypoints
+  - repo-root `coretsia` and `tools/bin/coretsia` MUST remain the canonical entrypoints
   - wrappers MAY delegate to `vendor/bin/coretsia` but MUST be CWD-independent
 
 - CLI has two explicit boot paths.
@@ -3661,7 +3661,7 @@ It maps only the safe `OpsResult` returned by Kernel.
 
 #### Creates
 
-- [ ] `framework/packages/platform/cli/src/Output/CliOutputPolicy.php`
+- [ ] `packages/platform/cli/src/Output/CliOutputPolicy.php`
   - [ ] immutable readonly value object
   - [ ] created only from validated config
   - [ ] contains:
@@ -3678,7 +3678,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] contains no redaction toggle
   - [ ] contains no mutable state
 
-- [ ] `framework/packages/platform/cli/src/Output/TerminalCapabilities.php`
+- [ ] `packages/platform/cli/src/Output/TerminalCapabilities.php`
   - [ ] immutable readonly runtime-input value
   - [ ] contains:
     - [ ] `interactive: bool`
@@ -3692,7 +3692,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] `interactive` means stdout is interactive
   - [ ] `ansiSupported` is true only when ANSI is safe for both stdout and stderr
 
-- [ ] `framework/packages/platform/cli/src/Output/TerminalCapabilitiesDetector.php`
+- [ ] `packages/platform/cli/src/Output/TerminalCapabilitiesDetector.php`
   - [ ] is the only platform/cli service allowed to probe terminal capabilities
   - [ ] receives explicit stdout and stderr stream resources from the entrypoint
   - [ ] stdout determines adaptive-format interactivity
@@ -3707,7 +3707,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] MUST NOT retain streams
   - [ ] tests can replace it with deterministic capabilities
 
-- [ ] `framework/packages/platform/cli/src/Bootstrap/CliEntrypointPaths.php`
+- [ ] `packages/platform/cli/src/Bootstrap/CliEntrypointPaths.php`
   - [ ] immutable readonly value object
   - [ ] contains:
     - [ ] normalized Composer autoload path
@@ -3715,16 +3715,16 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] performs no filesystem traversal or resolution
   - [ ] exposes no public diagnostic rendering
 
-- [ ] `framework/packages/platform/cli/src/Bootstrap/CliEntrypointPathsResolver.php`
+- [ ] `packages/platform/cli/src/Bootstrap/CliEntrypointPathsResolver.php`
   - [ ] pure entrypoint-layout resolver
   - [ ] unresolved or conflicting post-autoload layout throws `CliBootstrapException`
   - [ ] canonical API:
-    - [ ] `public function resolve(string $launcherFile, string $autoloadPath, ?string $composerBinDir, ?string $explicitSkeletonRoot): CliEntrypointPaths`
+    - [ ] `public function resolve(string $launcherFile, string $autoloadPath, ?string $composerBinDir, ?string $explicitApplicationRoot): CliEntrypointPaths`
   - [ ] receives an already-selected readable autoload path
   - [ ] validates and normalizes that path
   - [ ] explicit skeleton root is used by canonical monorepo wrappers
   - [ ] otherwise the skeleton root is derived only from the canonical Composer binary layout
-  - [ ] exactly one skeleton-root source may be active
+  - [ ] exactly one application-root source may be active
   - [ ] supports:
     - [ ] Composer binary proxy variables
     - [ ] monorepo canonical wrapper layout
@@ -3733,7 +3733,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] MUST NOT read application config
   - [ ] unresolved layout throws a deterministic path-safe CLI bootstrap exception
 
-- [ ] `framework/packages/platform/cli/src/Bootstrap/UltraEarlyDoctorRunner.php`
+- [ ] `packages/platform/cli/src/Bootstrap/UltraEarlyDoctorRunner.php`
   - [ ] used only when the exact command token is `doctor`
   - [ ] creates invocation-local `ArgvInput`
   - [ ] creates invocation-local `CommandOutputBuffer`
@@ -3757,7 +3757,7 @@ It maps only the safe `OpsResult` returned by Kernel.
     - [ ] `coretsia doctor`
   - [ ] additional arguments or options fail deterministically through the fixed doctor output pipeline
 
-- [ ] `framework/packages/platform/cli/src/Bootstrap/CliHostBootstrap.php`
+- [ ] `packages/platform/cli/src/Bootstrap/CliHostBootstrap.php`
   - [ ] is the only platform/cli class allowed to import `KernelOpsHostInput` and `KernelOpsHostBooter`
   - [ ] boots the source operations container
   - [ ] resolves `CliApplication` from that container
@@ -3766,8 +3766,8 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] terminal capability detection is separate from command parsing and domain logic
   - [ ] passes capabilities into the resolved `CliApplication`
   - [ ] canonical entrypoint API:
-    - [ ] `public function run(string $skeletonRoot, array $argv, TerminalCapabilities $capabilities, ConsoleOutputWriter $writer): int`
-  - [ ] constructs `KernelOpsHostInput` internally from explicit `skeletonRoot`
+    - [ ] `public function run(string $applicationRoot, array $argv, TerminalCapabilities $capabilities, ConsoleOutputWriter $writer): int`
+  - [ ] constructs `KernelOpsHostInput` internally from explicit `applicationRoot`
   - [ ] boots one source operations container
   - [ ] resolves `CliApplication`
   - [ ] passes `argv|capabilities|writer` as invocation-local values
@@ -3787,7 +3787,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] MUST NOT expose Throwable message, class, trace, provider id, config value, or path
 
 Entrypoint + application:
-- [ ] `framework/packages/platform/cli/bin/coretsia`
+- [ ] `packages/platform/cli/bin/coretsia`
   - [ ] before using any package class:
     - [ ] select autoload only from Composer binary-proxy input or canonical Coretsia wrapper input
     - [ ] reject conflicting sources
@@ -3805,7 +3805,7 @@ Entrypoint + application:
   - [ ] contains no catalog, formatting, command-domain, or Kernel operation logic
   - [ ] performs only the minimal pre-autoload selection of one allowed autoload candidate
   - [ ] after Composer autoload succeeds, validates and normalizes the selected autoload path and resolves the skeleton root only through `CliEntrypointPathsResolver`
-  - [ ] MUST NOT reproduce skeleton-root or Composer-layout algorithms inline
+  - [ ] MUST NOT reproduce application-root or Composer-layout algorithms inline
   - [ ] catches `CliBootstrapException` before the generic uncaught `Throwable` boundary
   - [ ] renders only its stable code and reason through `ConsoleOutputWriter`
   - [ ] owns the final uncaught Throwable boundary
@@ -3818,7 +3818,7 @@ Entrypoint + application:
   - [ ] MUST NOT render Throwable message, class, trace, previous throwable, or path
   - [ ] MUST NOT depend on the deleted `ErrorCodes` registry
 
-- [ ] `framework/packages/platform/cli/src/Application/CliApplication.php`
+- [ ] `packages/platform/cli/src/Application/CliApplication.php`
   - [ ] owns the normal post-bootstrap command flow:
     - [ ] create one invocation-local `CommandOutputBuffer`
     - [ ] parse into `ParsedCliInvocation`
@@ -3876,7 +3876,7 @@ Entrypoint + application:
     - [ ] do not retry formatting or redaction
 
 Input:
-- [ ] `framework/packages/platform/cli/src/Input/ParsedCliInvocation.php`
+- [ ] `packages/platform/cli/src/Input/ParsedCliInvocation.php`
   - [ ] immutable readonly value
   - [ ] contains:
     - [ ] `ArgvInput commandInput`
@@ -3884,7 +3884,7 @@ Input:
     - [ ] nullable `colorOverride: string`
   - [ ] contains no streams, config repository, catalog, descriptor, or command service
 
-- [ ] `framework/packages/platform/cli/src/Input/ArgvInput.php`
+- [ ] `packages/platform/cli/src/Input/ArgvInput.php`
   - [ ] Concrete `InputInterface` implementation; deterministic parse rules (no locale-dependent behavior).
   - [ ] MUST implement expanded `InputInterface`
   - [ ] MUST expose:
@@ -3899,7 +3899,7 @@ Input:
   - [ ] MUST NOT expose parser internals
   - [ ] MUST NOT require commands to depend on `platform/cli` concrete classes
 
-- [ ] `framework/packages/platform/cli/src/Input/ArgvInputParser.php`
+- [ ] `packages/platform/cli/src/Input/ArgvInputParser.php`
   - [ ] canonical API:
     - [ ] `public function parse(array $argv): ParsedCliInvocation`
   - [ ] structural parsing failures throw `CliInputInvalidException`
@@ -3932,7 +3932,7 @@ Input:
   - [ ] repeated global options hard-fail
   - [ ] empty global option values hard-fail
 
-- [ ] `framework/packages/platform/cli/src/Input/CommandInputValidator.php`
+- [ ] `packages/platform/cli/src/Input/CommandInputValidator.php`
   - [ ] `public function validate(CommandDescriptor $descriptor, ArgvInput $input): void`
   - [ ] receives selected `CommandDescriptor` and parsed `ArgvInput`
   - [ ] validates arguments and options before resolving the command service
@@ -3952,7 +3952,7 @@ Input:
   - [ ] repeatable required-value options must arrive as `list<string>`
 
 Output:
-- [ ] `framework/packages/platform/cli/src/Output/CommandOutputBuffer.php`
+- [ ] `packages/platform/cli/src/Output/CommandOutputBuffer.php`
   - [ ] implements `OutputInterface`
   - [ ] created as a new local instance for one `CliApplication::run()` invocation
   - [ ] preserves `text()`, `json()`, and `error()` records in call order
@@ -3972,7 +3972,7 @@ Output:
   - [ ] applies the same string policy recursively to JSON-like payload keys and values
   - [ ] owner-package output cannot inject raw ANSI sequences
 
-- [ ] `framework/packages/platform/cli/src/Output/CommandOutputBatch.php`
+- [ ] `packages/platform/cli/src/Output/CommandOutputBatch.php`
   - [ ] immutable finalized ordered record list
   - [ ] exact record shapes:
     - [ ] text:
@@ -3990,7 +3990,7 @@ Output:
   - [ ] preserves list and record order
   - [ ] contains no streams or formatter state
 
-- [ ] `framework/packages/platform/cli/src/Output/FormattedOutput.php`
+- [ ] `packages/platform/cli/src/Output/FormattedOutput.php`
   - [ ] stdout and stderr payloads MUST NOT end with CR or LF
   - [ ] final-newline ownership belongs exclusively to `ConsoleOutputWriter`
   - [ ] immutable readonly value
@@ -4001,7 +4001,7 @@ Output:
   - [ ] contains no ANSI when effective color is disabled
   - [ ] stores stdout and stderr bytes without trailing CR or LF
 
-- [ ] `framework/packages/platform/cli/src/Output/ConsoleOutputWriter.php`
+- [ ] `packages/platform/cli/src/Output/ConsoleOutputWriter.php`
   - [ ] invocation-local final output sink
   - [ ] constructor receives explicit stdout and stderr stream resources
   - [ ] canonical API:
@@ -4012,7 +4012,7 @@ Output:
   - [ ] retains no previous output
   - [ ] commands MUST NOT receive this service
 
-- [ ] `framework/packages/platform/cli/src/Output/FormatResolver.php`
+- [ ] `packages/platform/cli/src/Output/FormatResolver.php`
   - [ ] `public function resolve(?string $explicitFormat, TerminalCapabilities $capabilities): string`
   - [ ] consumes:
     - [ ] nullable explicit global format token
@@ -4032,7 +4032,7 @@ Output:
   - [ ] MUST NOT read config directly
   - [ ] deterministic for the same policy, global token, and terminal capabilities
 
-- [ ] `framework/packages/platform/cli/src/Output/ColorResolver.php`
+- [ ] `packages/platform/cli/src/Output/ColorResolver.php`
   - [ ] `public function resolve(?string $explicitColor, TerminalCapabilities $capabilities, string $effectiveFormat): bool`
   - [ ] consumes:
     - [ ] nullable explicit global color token
@@ -4052,7 +4052,7 @@ Output:
   - [ ] MUST NOT expose terminal details to commands
   - [ ] returns one boolean effective color decision
 
-- [ ] `framework/packages/platform/cli/src/Output/Ansi/AnsiDecorator.php`
+- [ ] `packages/platform/cli/src/Output/Ansi/AnsiDecorator.php`
   - [ ] owns the fixed semantic ANSI mapping
   - [ ] semantic roles:
     - [ ] heading
@@ -4069,13 +4069,13 @@ Output:
   - [ ] output with color disabled is byte-stable and escape-free
 
 Output (deterministic + redacted):
-- [ ] `framework/packages/platform/cli/src/Output/OutputFormatter.php`
+- [ ] `packages/platform/cli/src/Output/OutputFormatter.php`
   - [ ] MUST be a stateless one-call transformer
   - [ ] MUST NOT implement `begin|add|flush` accumulation
   - [ ] MUST NOT be tagged `kernel.stateful` or `kernel.reset`
   - [ ] MUST consume `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` for sensitive output summaries.
-  - [ ] `framework/packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
-  - [ ] `framework/packages/platform/cli/src/Redaction/*` MUST NOT exist in this package.
+  - [ ] `packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
+  - [ ] `packages/platform/cli/src/Redaction/*` MUST NOT exist in this package.
   - [ ] receives effective format and effective color as explicit invocation inputs
   - [ ] MUST NOT read CLI config
   - [ ] MUST NOT read ContextStore
@@ -4109,7 +4109,7 @@ Output (deterministic + redacted):
     - [ ] text and json-derived records go to stdout
     - [ ] error records go to stderr
 
-- [ ] `framework/packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
+- [ ] `packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
   - [ ] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
   - [ ] MUST NOT emit ANSI escape sequences
   - [ ] MUST NOT emit terminal-width-dependent output
@@ -4118,7 +4118,7 @@ Output (deterministic + redacted):
   - [ ] null is used only when descriptor selection did not complete
   - [ ] produces stream payloads without trailing CR or LF
 
-- [ ] `framework/packages/platform/cli/src/Output/Formatter/TableFormatter.php` — safe table output
+- [ ] `packages/platform/cli/src/Output/Formatter/TableFormatter.php` — safe table output
   - [ ] Stateless table renderer: no cross-run width/column memory; compute from current payload only.
   - [ ] constructor receives configured `maxWidth`
   - [ ] honors `cli.output.table.max_width`
@@ -4127,14 +4127,14 @@ Output (deterministic + redacted):
   - [ ] visible-width calculation MUST ignore ANSI escape bytes
   - [ ] produces stream payloads without trailing CR or LF
 
-- [ ] `framework/packages/platform/cli/src/Output/Formatter/PlainFormatter.php` — safe plain output
+- [ ] `packages/platform/cli/src/Output/Formatter/PlainFormatter.php` — safe plain output
   - [ ] Stateless plain renderer; no hidden global formatting state.
   - [ ] MAY use `AnsiDecorator` only when color is enabled
   - [ ] color-disabled output is byte-stable
   - [ ] produces stream payloads without trailing CR or LF
 
 Output schema:
-- [ ] `framework/packages/platform/cli/resources/schema/cli_output@1.json`
+- [ ] `packages/platform/cli/resources/schema/cli_output@1.json`
   - [ ] JSON Schema for rendered CLI payloads (no floats; no secrets; deterministic shape)
   - [ ] Used by `JsonOutputSchemaContractTest.php` as the single source of truth
   - [ ] exact top-level shape:
@@ -4153,7 +4153,7 @@ Output schema:
   - [ ] JSON maps use deterministic key order
 
 Catalog:
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
+- [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
   - [ ] is one frozen immutable catalog built from final tag-registry input and validated command overrides
   - [ ] contains no mutable cache and requires no reset
   - [ ] MUST consume only `ReservedTags::CLI_COMMAND`
@@ -4186,7 +4186,7 @@ Catalog:
     - [ ] `public function require(string $name): CommandDescriptor`
   - [ ] `require()` performs no command service resolution
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandTagSchema.php`
+- [ ] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
   - [ ] validates `TaggedService::id()` as the exact command class FQCN
   - [ ] validates `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS` against the canonicalized tag metadata without resolving the command service
   - [ ] validates exact required metadata keys:
@@ -4227,7 +4227,7 @@ Catalog:
   - [ ] does not reject an argument or option merely because its name or summary describes a path
   - [ ] throws `InvalidCommandTagMetaException`
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandOverrides.php`
+- [ ] `packages/platform/cli/src/Catalog/CommandOverrides.php`
   - [ ] stateless overlay applier
   - [ ] constructor has no catalog or config state
   - [ ] invalid override structure or value type throws `CliConfigInvalidException`
@@ -4251,7 +4251,7 @@ Catalog:
   - [ ] cannot introduce commands or aliases
   - [ ] produces an immutable catalog view
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandDescriptor.php` — canonical immutable command descriptor
+- [ ] `packages/platform/cli/src/Catalog/CommandDescriptor.php` — canonical immutable command descriptor
   - [ ] Stateless immutable DTO (readonly). No derived caches; safe to share.
   - [ ] MUST be internal CLI catalog DTO built from tag metadata
   - [ ] MUST NOT be imported by external packages
@@ -4269,7 +4269,7 @@ Catalog:
   - [ ] MUST NOT contain raw config values, secrets, paths, endpoints, or payloads
 
 Kernel operation request resolver:
-- [ ] `framework/packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
+- [ ] `packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
   - [ ] `public function resolve(InputInterface $input): KernelOpsRequest`
   - [ ] invalid scalar target shape throws `CliInputInvalidException`
   - [ ] is used only by built-in Kernel operation commands
@@ -4285,7 +4285,7 @@ Kernel operation request resolver:
   - [ ] semantic target validation belongs to Kernel Ops
 
 Runner + diagnostics:
-- [ ] `framework/packages/platform/cli/src/Runner/CommandRunner.php`
+- [ ] `packages/platform/cli/src/Runner/CommandRunner.php`
   - [ ] `public function run(CommandDescriptor $descriptor, InputInterface $input, OutputInterface $output, string $outputFormat): int`
   - [ ] service resolution and exit-code validation occur inside the UoW callback
   - [ ] invalid exit code throws before `KernelRuntimeInterface::runUnitOfWork()` returns
@@ -4350,7 +4350,7 @@ Runner + diagnostics:
     - [ ] attributes contain exactly `operation|output_format`
   - [ ] MUST NOT write UoW attributes into ContextStore directly
 
-- [ ] `framework/packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
+- [ ] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
   - [ ] implements `ErrorHandlerInterface`
   - [ ] canonical API:
     - [ ] `public function handle(Throwable $throwable, ?ErrorHandlingContext $context = null): ErrorDescriptor`
@@ -4376,7 +4376,7 @@ Runner + diagnostics:
     - [ ] argv or option values
   - [ ] performs no rendering, logging, redaction, or stream writes
 
-- [ ] `framework/packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
+- [ ] `packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
   - [ ] consumes `ErrorDescriptor`, not raw Throwable
   - [ ] calls `OutputInterface::error($descriptor->code(), $descriptor->message())`
   - [ ] baseline CLI output does not render:
@@ -4391,7 +4391,7 @@ Redaction:
 - [ ] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
 
 Built-in commands:
-- [ ] `framework/packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
+- [ ] `packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
   - [ ] Stateless orchestrator; any per-run diagnostics collection MUST be local (if extracted into a service collector → that collector becomes resettable).
   - [ ] public constructor requires no services
   - [ ] performs only fixed allowlisted environment-capability checks
@@ -4403,7 +4403,7 @@ Built-in commands:
   - [ ] `OPTIONS = []`
   - [ ] `SUMMARY = 'Check CLI bootstrap and runtime prerequisites.'`
 
-- [ ] `framework/packages/platform/cli/src/Command/DebugModulesCommand.php`
+- [ ] `packages/platform/cli/src/Command/DebugModulesCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] delegates exactly one `debugModules()` operation
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
@@ -4423,7 +4423,7 @@ Built-in commands:
   - [ ] `SUMMARY = 'Show the resolved module plan for the configured target preset.'`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigValidateCommand.php`
+- [ ] `packages/platform/cli/src/Command/ConfigValidateCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
   - [ ] consumes only the returned safe `OpsResult`
@@ -4441,7 +4441,7 @@ Built-in commands:
   - [ ] `SUMMARY = 'Validate configuration for the configured target preset.'`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigDebugCommand.php`
+- [ ] `packages/platform/cli/src/Command/ConfigDebugCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
   - [ ] consumes only safe explain metadata returned in `OpsResult`
@@ -4460,7 +4460,7 @@ Built-in commands:
   - [ ] `SUMMARY = 'Show safe configuration resolution diagnostics for the configured target preset.'`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigCompileCommand.php`
+- [ ] `packages/platform/cli/src/Command/ConfigCompileCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
   - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
@@ -4491,7 +4491,7 @@ Built-in commands:
     - [ ] `summary = Application target: web, api, console, or worker.`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `framework/packages/platform/cli/src/Command/ConfigHashCommand.php`
+- [ ] `packages/platform/cli/src/Command/ConfigHashCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
   - [ ] MUST NOT resolve modules or calculate fingerprints locally
@@ -4513,7 +4513,7 @@ Built-in commands:
     - [ ] `summary = Application target: web, api, console, or worker.`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `framework/packages/platform/cli/src/Command/CacheVerifyCommand.php`
+- [ ] `packages/platform/cli/src/Command/CacheVerifyCommand.php`
   - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
   - [ ] passes exactly one explicit app target through `KernelOpsRequest`
   - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
@@ -4549,32 +4549,32 @@ Built-in commands:
     - [ ] deterministic output + redaction policy
 
 Errors:
-- [ ] `framework/packages/platform/cli/src/Exception/CliInputInvalidException.php`
+- [ ] `packages/platform/cli/src/Exception/CliInputInvalidException.php`
   - [ ] code `CORETSIA_CLI_INPUT_INVALID`
   - [ ] code-first deterministic public message
   - [ ] exposes only stable safe reason tokens
   - [ ] used by `ArgvInputParser`, `CommandInputValidator`, catalog selection, and `KernelOpsRequestResolver`
   - [ ] MUST NOT contain argv values, option values, paths, or previous Throwable messages
 
-- [ ] `framework/packages/platform/cli/src/Exception/CliBootstrapException.php`
+- [ ] `packages/platform/cli/src/Exception/CliBootstrapException.php`
   - [ ] code `CORETSIA_CLI_BOOTSTRAP_FAILED`
   - [ ] code-first deterministic public message
   - [ ] exposes only stable safe reason tokens
   - [ ] used after Composer autoload by `CliEntrypointPathsResolver`
   - [ ] MUST NOT contain launcher paths, autoload paths, skeleton paths, or previous Throwable messages
 
-- [ ] `framework/packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php`
+- [ ] `packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php`
   - [ ] code `CORETSIA_CLI_INVALID_COMMAND_META`
   - [ ] Stateless schema/registry violation exception
   - [ ] error details limited to names/serviceIds (no secrets/paths)
 
-- [ ] `framework/packages/platform/cli/src/Exception/RedactionViolationException.php`
+- [ ] `packages/platform/cli/src/Exception/RedactionViolationException.php`
   - [ ] Stateless redaction policy violation exception
   - [ ] exposes only code `CORETSIA_CLI_REDACTION_VIOLATION`
   - [ ] exposes fixed reason `output-redaction-failed`
   - [ ] contains no raw value, hash, length, path, or previous Throwable message
 
-- [ ] `framework/packages/platform/cli/src/Exception/CliOutputFormatException.php`
+- [ ] `packages/platform/cli/src/Exception/CliOutputFormatException.php`
   - [ ] code `CORETSIA_CLI_OUTPUT_FORMAT_FAILED`
   - [ ] fixed reason `output-format-failed`
   - [ ] contains no rendered bytes, raw records, paths, or previous message
@@ -4582,41 +4582,41 @@ Errors:
 #### Deletes
 
 Legacy production files:
-- [ ] `framework/packages/platform/cli/src/Application.php`
+- [ ] `packages/platform/cli/src/Application.php`
   - [ ] remove config loading, root inference, FQCN registry, reflection, zero-argument command construction, and legacy dispatch
   - [ ] no compatibility wrapper or class alias remains
 
-- [ ] `framework/packages/platform/cli/src/Input/CliInput.php`
+- [ ] `packages/platform/cli/src/Input/CliInput.php`
   - [ ] replaced by `ArgvInput` and `ArgvInputParser`
 
-- [ ] `framework/packages/platform/cli/src/Output/CliOutput.php`
+- [ ] `packages/platform/cli/src/Output/CliOutput.php`
   - [ ] replaced by buffer, formatters, redactor integration, and `ConsoleOutputWriter`
 
-- [ ] `framework/packages/platform/cli/src/Output/TrackedOutput.php`
+- [ ] `packages/platform/cli/src/Output/TrackedOutput.php`
   - [ ] no mutable error-tracking decorator remains
 
-- [ ] `framework/packages/platform/cli/src/Error/ErrorCodes.php`
+- [ ] `packages/platform/cli/src/Error/ErrorCodes.php`
   - [ ] error codes move to owning exception classes
   - [ ] no global CLI error-code registry remains
 
-- [ ] `framework/packages/platform/cli/src/Exception/CliCommandClassMissingException.php`
-- [ ] `framework/packages/platform/cli/src/Exception/CliCommandInvalidException.php`
-- [ ] `framework/packages/platform/cli/src/Exception/CliException.php`
-- [ ] `framework/packages/platform/cli/src/Exception/CliExceptionInterface.php`
+- [ ] `packages/platform/cli/src/Exception/CliCommandClassMissingException.php`
+- [ ] `packages/platform/cli/src/Exception/CliCommandInvalidException.php`
+- [ ] `packages/platform/cli/src/Exception/CliException.php`
+- [ ] `packages/platform/cli/src/Exception/CliExceptionInterface.php`
   - [ ] legacy Phase-0 exception hierarchy is removed
   - [ ] no compatibility aliases remain
 
 Legacy tests and fixtures:
-- [ ] `framework/packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
-- [ ] `framework/packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/cli/tests/Integration/ApplicationSkeletonDispatchIntegrationTest.php`
-- [ ] `framework/packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
-- [ ] `framework/packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
-- [ ] `framework/packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
-- [ ] `framework/packages/platform/cli/tests/Fake/FakeWorkspaceSyncApplyCommand.php`
-- [ ] `framework/packages/platform/cli/tests/Fake/FakeWorkspaceSyncDryRunCommand.php`
-- [ ] `framework/packages/platform/cli/tests/Fixtures/LeakCommand.php`
-- [ ] `framework/packages/platform/cli/tests/Fixtures/LeakCommand.prepend.php`
+- [ ] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
+- [ ] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/cli/tests/Integration/ApplicationDispatchIntegrationTest.php`
+- [ ] `packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
+- [ ] `packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
+- [ ] `packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
+- [ ] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncApplyCommand.php`
+- [ ] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncDryRunCommand.php`
+- [ ] `packages/platform/cli/tests/Fixtures/LeakCommand.php`
+- [ ] `packages/platform/cli/tests/Fixtures/LeakCommand.prepend.php`
   - [ ] replaced by tag-backed catalog, output-pipeline, security, and external-package fixtures defined by this epic
 
 #### Modifies
@@ -4625,11 +4625,11 @@ Legacy tests and fixtures:
   - [ ] repository-root wrapper
   - [ ] computes autoload and skeleton paths only from fixed repository-relative locations
   - [ ] sets explicit wrapper bootstrap variables
-  - [ ] delegates to `framework/packages/platform/cli/bin/coretsia`
+  - [ ] delegates to `packages/platform/cli/bin/coretsia`
   - [ ] is independent of current working directory
   - [ ] performs no command parsing or rendering
 
-- [ ] `framework/bin/coretsia` — complete rewrite
+- [ ] `tools/bin/coretsia` — complete rewrite
   - [ ] framework-root wrapper
   - [ ] computes autoload and skeleton paths only from fixed framework-relative locations
   - [ ] sets explicit wrapper bootstrap variables
@@ -4637,12 +4637,12 @@ Legacy tests and fixtures:
   - [ ] is independent of current working directory
   - [ ] performs no command parsing or rendering
 
-- [ ] `framework/packages/core/contracts/src/Cli/Input/InputInterface.php`
+- [ ] `packages/core/contracts/src/Cli/Input/InputInterface.php`
   - [ ] method signatures remain unchanged
   - [ ] document that `tokens()` exposes command-facing tokens only
   - [ ] global `format|color` options MUST NOT reach owner-package commands
 
-- [ ] `framework/packages/platform/cli/src/Module/CliModule.php` — complete rewrite
+- [ ] `packages/platform/cli/src/Module/CliModule.php` — complete rewrite
   - [ ] follows the canonical module metadata shape
   - [ ] constants:
     - [ ] `MODULE_ID = 'platform.cli'`
@@ -4661,14 +4661,14 @@ Legacy tests and fixtures:
   - [ ] no static-only Phase-0 module API remains
   - [ ] no config reads, command discovery, boot logic, or output logic
 
-- [ ] `framework/packages/platform/cli/src/Exception/CliCommandFailedException.php` — complete rewrite
+- [ ] `packages/platform/cli/src/Exception/CliCommandFailedException.php` — complete rewrite
   - [ ] code `CORETSIA_CLI_COMMAND_FAILED`
   - [ ] code-first deterministic public message
   - [ ] exposes fixed safe reason token
   - [ ] previous throwable message is never included
   - [ ] no dependency on deleted `CliException` or `ErrorCodes`
 
-- [ ] `framework/packages/platform/cli/src/Exception/CliConfigInvalidException.php` — complete rewrite
+- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php` — complete rewrite
   - [ ] code `CORETSIA_CLI_CONFIG_INVALID`
   - [ ] code-first deterministic public message
   - [ ] exposes only stable safe reason tokens
@@ -4676,7 +4676,7 @@ Legacy tests and fixtures:
   - [ ] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
   - [ ] no dependency on deleted `CliException` or `ErrorCodes`
 
-- [ ] `framework/packages/platform/cli/src/Command/HelpCommand.php` — complete rewrite
+- [ ] `packages/platform/cli/src/Command/HelpCommand.php` — complete rewrite
   - [ ] existing Phase-0 implementation is replaced completely
   - [ ] receives `CommandCatalog`
   - [ ] renders general help from descriptors without resolving command services
@@ -4697,7 +4697,7 @@ Legacy tests and fixtures:
   - [ ] `OPTIONS = []`
   - [ ] `SUMMARY = 'Show general or command-specific help.'`
 
-- [ ] `framework/packages/platform/cli/src/Command/ListCommand.php` — complete rewrite
+- [ ] `packages/platform/cli/src/Command/ListCommand.php` — complete rewrite
   - [ ] existing Phase-0 implementation is replaced completely
   - [ ] receives `CommandCatalog`
   - [ ] renders descriptors without resolving command services
@@ -4715,7 +4715,7 @@ Legacy tests and fixtures:
   - [ ] `OPTIONS = []`
   - [ ] `SUMMARY = 'List available commands.'`
 
-- [ ] `framework/packages/platform/cli/src/Provider/CliServiceFactory.php`
+- [ ] `packages/platform/cli/src/Provider/CliServiceFactory.php`
   - [ ] stateless construction/wiring helper
   - [ ] MUST NOT keep caches, output buffers, terminal state, current command, or last result
   - [ ] reads CLI configuration only from the already-merged and validated `ConfigRepositoryInterface`
@@ -4784,22 +4784,22 @@ Legacy tests and fixtures:
   - [ ] MUST NOT resolve command services during construction
   - [ ] MUST NOT write stdout/stderr
 
-- [ ] `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
+- [ ] `packages/platform/worker/src/Console/WorkerStartCommand.php`
   - [ ] remove `public const string MODE`
   - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
   - [ ] no dependency on `platform/cli`
 
-- [ ] `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
+- [ ] `packages/platform/worker/src/Console/WorkerStopCommand.php`
   - [ ] remove `public const string MODE`
   - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
   - [ ] no dependency on `platform/cli`
 
-- [ ] `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
+- [ ] `packages/platform/worker/src/Console/WorkerStatusCommand.php`
   - [ ] remove `public const string MODE`
   - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
   - [ ] no dependency on `platform/cli`
 
-- [ ] `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
+- [ ] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
   - [ ] remove the `mode` argument from `commandMeta(...)`
   - [ ] remove the `mode` return-shape field
   - [ ] remove `'mode' => $mode`
@@ -4814,7 +4814,7 @@ Legacy tests and fixtures:
   - [ ] retain `ReservedTags::CLI_COMMAND`
   - [ ] retain no compile-time dependency on `platform/cli`
 
-- [ ] `framework/packages/core/contracts/src/Cli/Command/CommandInterface.php`
+- [ ] `packages/core/contracts/src/Cli/Command/CommandInterface.php`
   - [ ] preserve existing methods:
     - [ ] `name(): string`
     - [ ] `run(InputInterface $input, OutputInterface $output): int`
@@ -4830,7 +4830,7 @@ Legacy tests and fixtures:
   - [ ] portable process exit code range is `0..255`
   - [ ] contract remains independent of `platform/cli`
 
-- [ ] `framework/packages/platform/cli/composer.json` — complete rewrite of Phase-0 metadata
+- [ ] `packages/platform/cli/composer.json` — complete rewrite of Phase-0 metadata
   - [ ] remove description claims:
     - [ ] `config-based command registry`
     - [ ] `kernel-free in Phase 0`
@@ -4857,7 +4857,7 @@ Legacy tests and fixtures:
     - [ ] integrations solely for command discovery
     - [ ] a concrete redaction implementation solely to use the contracts port
 
-- [ ] `framework/packages/platform/cli/src/Provider/CliServiceProvider.php`
+- [ ] `packages/platform/cli/src/Provider/CliServiceProvider.php`
   - [ ] existing placeholder Phase-0 provider is replaced completely
   - [ ] legacy `id()` and static `factories()` placeholder API are removed
   - [ ] implements:
@@ -4951,7 +4951,7 @@ Legacy tests and fixtures:
   - [ ] source-host wiring contains no config reads during provider registration
   - [ ] all config reads remain in `CliServiceFactory`
 
-- [ ] `framework/packages/platform/cli/config/cli.php`
+- [ ] `packages/platform/cli/config/cli.php`
   - [ ] returns the `cli` subtree only
   - [ ] MUST NOT repeat the root as `['cli' => ...]`
   - [ ] contains only deterministic scalar/map/list defaults
@@ -4977,7 +4977,7 @@ Legacy tests and fixtures:
     - [ ] `cli.output.colors.*`
     - [ ] `cli.output.palette.*`
 
-- [ ] `framework/packages/platform/cli/config/rules.php`
+- [ ] `packages/platform/cli/config/rules.php`
   - [ ] returns a plain declarative ruleset array
   - [ ] validates the `cli` subtree with `additionalKeys = false`
   - [ ] `cli.commands`
@@ -5068,7 +5068,7 @@ Legacy tests and fixtures:
   - [ ] `format|exit_code` may be bounded span attributes
   - [ ] raw arguments, options, output records, paths, endpoints, config, and payloads are forbidden
 
-- [ ] `framework/packages/platform/cli/README.md` MUST include:
+- [ ] `packages/platform/cli/README.md` MUST include:
   - [ ] existing README is replaced completely
   - [ ] remove historical descriptions:
     - [ ] Phase 0
@@ -5109,7 +5109,7 @@ Legacy tests and fixtures:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
 
-- [ ] `framework/packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
+- [ ] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
   - [ ] scans every production command under `src/Command`
   - [ ] rejects:
     - [ ] `echo`
@@ -5257,58 +5257,58 @@ Legacy tests and fixtures:
 ### Tests (MUST)
 
 - Test fixtures:
-  - [ ] `framework/packages/platform/cli/tests/Fixture/ExternalCommand/ExternalOwnerService.php`
-  - [ ] `framework/packages/platform/cli/tests/Fixture/ExternalCommand/ExternalModeCommand.php`
+  - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ExternalOwnerService.php`
+  - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ExternalModeCommand.php`
     - [ ] implements `CommandInterface`
     - [ ] declares owner-domain `mode` option
     - [ ] depends on `ExternalOwnerService`
 
-  - [ ] `framework/packages/platform/cli/tests/Fixture/ExternalCommand/ExternalCommandServiceProvider.php`
+  - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ExternalCommandServiceProvider.php`
     - [ ] contributes the command only through `cli.command`
     - [ ] references command constants
 
-  - [ ] `framework/packages/platform/cli/tests/Fixture/ExternalCommand/ReservedHelpCommand.php`
+  - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ReservedHelpCommand.php`
     - [ ] contributes external name `help` for deterministic collision testing
 
 - Unit:
-  - [ ] `framework/packages/platform/cli/tests/Unit/ColorResolverDisablesAutoWhenStderrIsRedirectedTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/ColorResolverDisablesAutoWhenStderrIsRedirectedTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsNonClassServiceIdTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonClassServiceIdTest.php`
     - [ ] a non-class service id hard-fails before descriptor construction
     - [ ] no command service is resolved
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsMetadataConstantMismatchTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsMetadataConstantMismatchTest.php`
     - [ ] tag metadata differing from command constants hard-fails
     - [ ] command constants are read without service construction
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandOutputBufferDiscardTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferDiscardTest.php`
     - [ ] clears all pre-error records
     - [ ] remains writable before finalization
     - [ ] rejects discard after finalization
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/KernelOpsRequestResolverTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/KernelOpsRequestResolverTest.php`
     - [ ] consumes only the already validated `InputInterface`
     - [ ] accepts exactly one non-empty scalar `target`
     - [ ] has no `CommandDescriptor` dependency
     - [ ] does not validate canonical Kernel target values
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CliServiceFactoryReadsValidatedCliRootTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CliServiceFactoryReadsValidatedCliRootTest.php`
     - [ ] every config-dependent factory method reads only the complete `cli` root
     - [ ] each config-dependent factory method calls `ConfigRepositoryInterface::get('cli')` exactly once
     - [ ] no factory method reads an individual `cli.*` path
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/OutputFormatterUsesSensitiveDataRedactorTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/OutputFormatterUsesSensitiveDataRedactorTest.php`
     - [ ] formatter receives `SensitiveDataRedactorInterface`
     - [ ] formatter does not instantiate or resolve a concrete redactor
     - [ ] no CLI-local classifier, policy, hasher, or pattern registry is constructed
@@ -5316,49 +5316,49 @@ Legacy tests and fixtures:
     - [ ] raw sensitive fixture values do not reach rendered output
     - [ ] redacted maps are recursively re-sorted before concrete formatting
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityMetadataKeyTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityMetadataKeyTest.php`
     - [ ] `priority` key hard-fails deterministically
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaRejectsUnknownKeysTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsUnknownKeysTest.php`
     - [ ] unknown metadata keys hard-fail deterministically
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandTagSchemaValidatesNameRegexTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaValidatesNameRegexTest.php`
     - [ ] invalid command names hard-fail deterministically
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogDoesNotInstantiateCommandsForListTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDoesNotInstantiateCommandsForListTest.php`
     - [ ] catalog can build descriptors from tag metadata without resolving command services
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
     - [ ] duplicate command names hard-fail deterministically
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
     - [ ] external `help` hard-fails
     - [ ] external `list` hard-fails
     - [ ] built-in `help` and `list` are allowed only for platform/cli built-in service ids
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
     - [ ] descriptor name and command `name()` mismatch hard-fails with `InvalidCommandTagMetaException`
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CliOutputPolicyTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CliOutputPolicyTest.php`
     - [ ] accepts complete default config
     - [ ] rejects unsupported format token
     - [ ] rejects unsupported color token
     - [ ] rejects invalid table width
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/FormatResolverTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/FormatResolverTest.php`
     - [ ] explicit format overrides configured default
     - [ ] adaptive interactive resolves to configured interactive format
     - [ ] adaptive non-interactive resolves to configured non-interactive format
     - [ ] performs no CI env detection
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/ColorResolverTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/ColorResolverTest.php`
     - [ ] explicit color overrides configured default
     - [ ] auto requires both interactive output and ANSI support
     - [ ] never disables color
     - [ ] always enables color for text formats
     - [ ] JSON always disables color
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
     - [ ] emits one span
     - [ ] emits total and duration metrics
     - [ ] labels only `operation|outcome`
@@ -5366,38 +5366,38 @@ Legacy tests and fixtures:
     - [ ] thrown command failure records `exit_code = 1`
 
 - Contract:
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotReferenceArtifactRuntimeOrGenerationInternalsContractTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Contract/JsonOutputNeverContainsAnsiContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotReferenceArtifactRuntimeOrGenerationInternalsContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/JsonOutputNeverContainsAnsiContractTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
     - [ ] `CliErrorHandler` implements `ErrorHandlerInterface`
     - [ ] `CliApplication` receives `CliErrorHandler` under its concrete service id
     - [ ] `CliServiceProvider` does not alias `ErrorHandlerInterface`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliCommandOutputBufferIsInvocationLocalContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliCommandOutputBufferIsInvocationLocalContractTest.php`
     - [ ] `CommandOutputBuffer` is absent from source-host service registration
     - [ ] `CommandOutputBuffer` is absent from canonical runtime definitions
     - [ ] `CliApplication` creates exactly one buffer per invocation
     - [ ] no buffer state is retained between `CliApplication::run()` calls
     - [ ] the same invocation-local buffer is cleared and reused for error rendering
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotImplementConfigPipelineContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotImplementConfigPipelineContractTest.php`
     - [ ] no direct package config-file reads
     - [ ] no CLI-local loader, merger, validator, directive processor, or repository
     - [ ] only `ConfigRepositoryInterface` is consumed
 
-  - [ ] `framework/packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
+  - [ ] `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
     - [ ] remove all `MODE` assertions
     - [ ] assert exactly `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
     - [ ] assert arrays and scalar metadata types
 
-  - [ ] `framework/packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
+  - [ ] `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
     - [ ] remove `mode` from expected metadata shape
     - [ ] assert exact six-key metadata
     - [ ] preserve `cli.command` tag assertions
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/LegacyPhase0CliFilesAreRemovedContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/LegacyPhase0CliFilesAreRemovedContractTest.php`
     - [ ] asserts every file listed under `Deletes` is absent
     - [ ] asserts no production reference to:
       - [ ] `cli.commands` registry list
@@ -5411,23 +5411,23 @@ Legacy tests and fixtures:
       - [ ] `RedactionPolicy`
       - [ ] Phase 0
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
     - [ ] correct direct dependencies
     - [ ] bin declared
     - [ ] no command-owner package dependency solely for discovery
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliHasSingleProductionOutputSinkContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliHasSingleProductionOutputSinkContractTest.php`
     - [ ] after Composer autoload succeeds, only `ConsoleOutputWriter.php` writes stdout/stderr
     - [ ] binary may construct and pass stdout/stderr streams
     - [ ] binary may write directly to stderr only for the fixed pre-autoload failure
     - [ ] `TerminalCapabilitiesDetector` may inspect streams but never writes them
     - [ ] no other production class references output sinks
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/JsonOutputSchemaContractTest.php`
-    - [ ] MUST load schema from `framework/packages/platform/cli/resources/schema/cli_output@1.json` (no inline schema duplication)
+  - [ ] `packages/platform/cli/tests/Contract/JsonOutputSchemaContractTest.php`
+    - [ ] MUST load schema from `packages/platform/cli/resources/schema/cli_output@1.json` (no inline schema duplication)
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotReferenceKernelCompileInternalsContractTest.php`
-    - [ ] scans `framework/packages/platform/cli/src`
+  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotReferenceKernelCompileInternalsContractTest.php`
+    - [ ] scans `packages/platform/cli/src`
     - [ ] rejects imports and FQCN references to:
       - [ ] `ModulePlanResolver`
       - [ ] `ModuleResolution`
@@ -5442,7 +5442,7 @@ Legacy tests and fixtures:
     - [ ] allows `KernelOpsHostInput` and `KernelOpsHostBooter` only in `src/Bootstrap/CliHostBootstrap.php`
     - [ ] rejects every other `Coretsia\Kernel\Ops\*` reference
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
     - [ ] `CliServiceProvider` implements both provider interfaces
     - [ ] source container contains `KernelOpsRequestResolver`
     - [ ] source container contains all six Kernel operation commands
@@ -5456,25 +5456,25 @@ Legacy tests and fixtures:
     - [ ] canonical runtime definitions contain no `KernelOpsRequestResolver`
     - [ ] canonical runtime definitions contain no `KernelOpsHostInput` or `KernelOpsHostBooter`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliConfigSubtreeShapeContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeContractTest.php`
     - [ ] config returns subtree only
     - [ ] no root repetition
     - [ ] exact default keys
     - [ ] no closures, objects, resources, floats, or env reads
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliConfigRulesCoverAllDefaultsContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliConfigRulesCoverAllDefaultsContractTest.php`
     - [ ] every default key has a rule
     - [ ] no rule-owned key is missing from defaults
     - [ ] unknown keys are rejected
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliRedactionCannotBeDisabledContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliRedactionCannotBeDisabledContractTest.php`
     - [ ] no redaction enable/disable config key
     - [ ] no redaction bypass option
     - [ ] OutputFormatter requires `SensitiveDataRedactorInterface`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliHasNoPackageLocalRedactionImplementationContractTest.php`
-    - [ ] `framework/packages/platform/cli/src/Redaction/` does not exist
-    - [ ] `framework/packages/platform/cli/src/Output/Redaction/` does not exist
+  - [ ] `packages/platform/cli/tests/Contract/CliHasNoPackageLocalRedactionImplementationContractTest.php`
+    - [ ] `packages/platform/cli/src/Redaction/` does not exist
+    - [ ] `packages/platform/cli/src/Output/Redaction/` does not exist
     - [ ] `RedactionEngine.php` is absent
     - [ ] `RedactionPolicy.php` is absent
     - [ ] production source defines no CLI-local:
@@ -5486,96 +5486,96 @@ Legacy tests and fixtures:
     - [ ] `OutputFormatter` depends only on `SensitiveDataRedactorInterface`
     - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/CliDoesNotWriteContextOrResetDirectlyContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotWriteContextOrResetDirectlyContractTest.php`
     - [ ] no direct ContextStore writes
     - [ ] no ResetOrchestrator dependency
     - [ ] no reset tag enumeration
 
 - Integration:
-  - [ ] `framework/packages/platform/cli/tests/Integration/CoretsiaWrappersAreCwdIndependentTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/DoctorDoesNotEnterKernelUowTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliGlobalColorOptionIsNotPassedToPackageCommandTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalPackageCommandExitCodeIsPreservedTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigCompileDoesNotReadCurrentOrArtifactsTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigHashRendersGenerationIdTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyRendersFourGenerationArtifactsTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyDirtyReturnsExitCodeTwoTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyInvalidReturnsExitCodeThreeTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CommandInputValidatorPreservesRepeatableOptionOrderTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/GlobalFormatOptionIsNotPassedToPackageCommandTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/DoctorDoesNotLeakSecretsTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliRejectsCliModeKeysInConfigDeterministicallyTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliRejectsLegacyCommandRegistryDeterministicallyTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CoretsiaWrappersAreCwdIndependentTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/DoctorDoesNotEnterKernelUowTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliGlobalColorOptionIsNotPassedToPackageCommandTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandExitCodeIsPreservedTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileDoesNotReadCurrentOrArtifactsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigHashRendersGenerationIdTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyRendersFourGenerationArtifactsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyDirtyReturnsExitCodeTwoTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyInvalidReturnsExitCodeThreeTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorPreservesRepeatableOptionOrderTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/GlobalFormatOptionIsNotPassedToPackageCommandTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/DoctorDoesNotLeakSecretsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliRejectsCliModeKeysInConfigDeterministicallyTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliRejectsLegacyCommandRegistryDeterministicallyTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
     - [ ] the composed source host resolves exactly one `SensitiveDataRedactorInterface`
     - [ ] `OutputFormatter` receives the contracts port
     - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/KernelCommandsRejectUndeclaredModeAndPresetOptionsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRejectUndeclaredModeAndPresetOptionsTest.php`
     - [ ] Kernel commands do not declare `mode` or `preset`
     - [ ] both options fail before command service resolution
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliUsesMergedValidatedConfigurationTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliUsesMergedValidatedConfigurationTest.php`
     - [ ] skeleton override changes effective CLI output policy
     - [ ] invalid CLI config fails in the existing ConfigKernel validation pipeline
     - [ ] CliServiceFactory does not re-run validation
 
-  - [ ] `framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
+  - [ ] `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
     - [ ] remove `MODE` arguments and `mode` expected fields
     - [ ] preserve source/definition metadata parity for the final six-key schema
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
     - [ ] changed format default affects `FormatResolver`
     - [ ] changed adaptive mapping affects adaptive resolution
     - [ ] changed color default affects `ColorResolver`
     - [ ] changed table width affects `TableFormatter`
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
     - [ ] UoW type is `cli`
     - [ ] canonical command name is passed as `operation`
     - [ ] effective format is passed as `output_format`
     - [ ] effective format is not added to ContextStore
     - [ ] platform/cli performs no direct context writes
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliRejectsInvalidCommandOverridesDeterministicallyTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliRejectsInvalidCommandOverridesDeterministicallyTest.php`
     - [ ] ConfigValidator rejects a non-map `cli.commands.overrides`
     - [ ] CommandOverrides rejects invalid dynamic command-name keys
     - [ ] CommandOverrides rejects invalid override value types
     - [ ] CommandOverrides rejects unknown fields
     - [ ] CommandOverrides rejects unknown command names
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
     - [ ] command is contributed by an enabled non-CLI package
     - [ ] command resolves an owner-package service
     - [ ] platform/cli imports no owner-package class
     - [ ] command is discovered, validated, resolved, and dispatched through generic infrastructure
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalPackageCommandMayDeclareDomainModeOptionTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandMayDeclareDomainModeOptionTest.php`
     - [ ] external command declares `mode` in its own `OPTIONS`
     - [ ] descriptor validation accepts it
     - [ ] value reaches the external command unchanged
     - [ ] it does not affect Kernel preset selection
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalTaggedCommandIsLazyDiscoveredTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ExternalTaggedCommandIsLazyDiscoveredTest.php`
     - [ ] external tagged command appears in catalog
     - [ ] command constructor is not called during catalog/list/help descriptor build
     - [ ] command constructor is called only on dispatch
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkerCommandMetadataCompatibilityTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkerCommandMetadataCompatibilityTest.php`
     - [ ] when `platform.worker` is enabled, worker command tag metadata passes `CommandTagSchema`
     - [ ] worker command service ids are discovered through generic `cli.command`
     - [ ] `platform/cli` production source still does not import `Coretsia\Platform\Worker\*`
@@ -5587,48 +5587,48 @@ Legacy tests and fixtures:
     - [ ] worker command classes contain no `MODE` constant
     - [ ] CLI-global `--color` is consumed before Worker command input is constructed
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php`
     - [ ] asserts exactly one `KernelOpsInterface` compile call
     - [ ] asserts exactly one explicit app target is passed
     - [ ] asserts the command does not resolve any Kernel compile-time service
     - [ ] asserts no Composer metadata reader is touched by CLI
     - [ ] asserts no artifact compiler is resolved by CLI
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php`
     - [ ] asserts exactly one `KernelOpsInterface` verify call
     - [ ] asserts exactly one explicit app target is passed
     - [ ] asserts the command does not resolve any Kernel compile-time service
     - [ ] asserts no Composer metadata reader is touched by CLI
     - [ ] asserts no cache verifier is resolved by CLI
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/DebugModulesDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/DebugModulesDelegatesToKernelOpsPortTest.php`
     - [ ] exactly one `debugModules()` call
     - [ ] no module-resolution service is resolved by CLI
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigValidateDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigValidateDelegatesToKernelOpsPortTest.php`
     - [ ] exactly one `validateConfig()` call
     - [ ] no ConfigKernel or module-resolution service is resolved by CLI
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigDebugDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigDebugDelegatesToKernelOpsPortTest.php`
     - [ ] exactly one `debugConfig()` call
     - [ ] only safe `OpsResult` data reaches output
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ConfigHashDelegatesToKernelOpsPortTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ConfigHashDelegatesToKernelOpsPortTest.php`
     - [ ] exactly one `hashConfig()` call
     - [ ] no fingerprint or module-resolution service is resolved by CLI
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
     - [ ] proves commands from an enabled non-CLI package are discovered through `cli.command`
     - [ ] MUST NOT rely on filesystem scanning
     - [ ] MUST NOT use a `cli.commands` registry list
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
     - [ ] enables `platform.worker` in a composed test fixture/app
     - [ ] asserts `worker:start`, `worker:stop`, and `worker:status` appear in the command catalog
     - [ ] asserts discovery happens via `cli.command`
     - [ ] MUST NOT require `platform/cli` compile-time dependency on `platform/worker`
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkerStartDispatchesThroughCommandCatalogTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkerStartDispatchesThroughCommandCatalogTest.php`
     - [ ] dispatches `worker:start` through `CliApplication` / `CommandCatalog`
     - [ ] uses a safe fake worker manager or fake command handler
     - [ ] MUST NOT start real worker processes
@@ -5656,8 +5656,8 @@ Legacy tests and fixtures:
 - [ ] redaction cannot be disabled
 - [ ] `OutputFormatter` consumes only `SensitiveDataRedactorInterface`.
 - [ ] `platform/cli` defines no package-local redaction engine, policy, classifier, hasher, or pattern registry.
-- [ ] `framework/packages/platform/cli/src/Redaction/` is absent.
-- [ ] `framework/packages/platform/cli/src/Output/Redaction/` is absent.
+- [ ] `packages/platform/cli/src/Redaction/` is absent.
+- [ ] `packages/platform/cli/src/Output/Redaction/` is absent.
 - [ ] adaptive format depends only on explicit terminal capabilities
 - [ ] color policy is `auto|always|never`
 - [ ] JSON output is always ANSI-free
@@ -5697,7 +5697,7 @@ Legacy tests and fixtures:
 type: package
 phase: 2
 epic_id: "2.40.0"
-owner_path: "framework/packages/platform/cli/"
+owner_path: "packages/platform/cli/"
 
 package_id: "platform/cli"
 composer: "coretsia/platform-cli"
@@ -5832,7 +5832,7 @@ Forbidden:
 
 ### Cross-package modification boundary (MUST)
 
-The only files outside `framework/packages/platform/cli/` that this epic may create or modify are:
+The only files outside `packages/platform/cli/` that this epic may create or modify are:
 
 - `docs/adr/ADR-XXXX-cli-composite-workflows.md`
 - `docs/adr/INDEX.md`
@@ -5998,7 +5998,7 @@ For the exact composite descriptor:
 
 #### Canonical config shape (MUST)
 
-`framework/packages/platform/cli/config/cli.php` adds exactly:
+`packages/platform/cli/config/cli.php` adds exactly:
 
 ```php
 'workflows' => [
@@ -6034,7 +6034,7 @@ cli.replay.*
 
 #### Config rules (MUST)
 
-`framework/packages/platform/cli/config/rules.php` is modified so:
+`packages/platform/cli/config/rules.php` is modified so:
 
 - `cli` remains a required map with `additionalKeys = false`;
 - `cli.workflows` is a required map with `additionalKeys = false`;
@@ -6155,24 +6155,24 @@ Workflow step order is preserved exactly as declared.
 #### Creates
 
 Workflow model:
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowDefinition.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowDefinition.php`
   - [ ] immutable readonly value
   - [ ] contains canonical name, summary, and ordered non-empty step list
   - [ ] no config repository, services, closures, or runtime state
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowStep.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowStep.php`
   - [ ] immutable readonly value
   - [ ] contains command name, ordered arguments, and normalized option map
   - [ ] no command object, descriptor, service id, or container
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowSchema.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowSchema.php`
   - [ ] stateless deep validator and normalizer for dynamic workflow definitions
   - [ ] enforces the exact shapes and bounds in this epic
   - [ ] performs no command discovery or service resolution
   - [ ] throws only `WorkflowDefinitionInvalidException`
   - [ ] public diagnostics contain only stable reason tokens
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowCatalog.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowCatalog.php`
   - [ ] immutable finalized workflow catalog
   - [ ] consumes normalized definitions from `WorkflowSchema`
   - [ ] receives the final `CommandCatalog`
@@ -6196,7 +6196,7 @@ Workflow model:
   - [ ] an invalid lookup token throws `WorkflowNotFoundException` without exposing the token
   - [ ] an unknown but valid lookup token MAY be exposed by `WorkflowNotFoundException`
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowStepInputFactory.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowStepInputFactory.php`
   - [ ] stateless structured-input adapter
   - [ ] creates the existing normalized CLI `InputInterface` implementation from one `WorkflowStep`
   - [ ] MUST NOT use shell parsing or shell escaping
@@ -6217,7 +6217,7 @@ Workflow model:
   - [ ] MUST NOT perform descriptor, argument, option, required-value, or repeatability validation
   - [ ] MUST NOT implement a second argument/option validation policy
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowStepResult.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowStepResult.php`
   - [ ] immutable readonly value
   - [ ] contains exactly:
     - [ ] `index: int`
@@ -6226,7 +6226,7 @@ Workflow model:
     - [ ] `records: list<normalized output record>`
   - [ ] contains no arguments, options, raw tokens, command object, service id, or paths added by workflow infrastructure
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowResult.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowResult.php`
   - [ ] immutable readonly value
   - [ ] contains exactly:
     - [ ] workflow name
@@ -6236,7 +6236,7 @@ Workflow model:
   - [ ] contains no unexecuted synthetic steps
   - [ ] exports one recursively normalized json-like map
 
-- [ ] `framework/packages/platform/cli/src/Workflow/WorkflowRunner.php`
+- [ ] `packages/platform/cli/src/Workflow/WorkflowRunner.php`
   - [ ] stateless and re-entrant
   - [ ] receives:
     - [ ] final `CommandCatalog`
@@ -6272,7 +6272,7 @@ Workflow model:
     - [ ] the original Throwable propagates unchanged
 
 Composite execution:
-- [ ] `framework/packages/platform/cli/src/Runner/CompositeCommandInterface.php`
+- [ ] `packages/platform/cli/src/Runner/CompositeCommandInterface.php`
   - [ ] internal platform-only interface
   - [ ] canonical API:
     - [ ] `public function name(): string`
@@ -6288,7 +6288,7 @@ Composite execution:
   - [ ] no external package extension semantics
 
 Commands:
-- [ ] `framework/packages/platform/cli/src/Command/WorkflowListCommand.php`
+- [ ] `packages/platform/cli/src/Command/WorkflowListCommand.php`
   - [ ] normal `CommandInterface` command
   - [ ] receives only `WorkflowCatalog`
   - [ ] renders safe workflow names and summaries
@@ -6301,7 +6301,7 @@ Commands:
     - [ ] `ARGUMENTS = []`
     - [ ] `OPTIONS = []`
 
-- [ ] `framework/packages/platform/cli/src/Command/WorkflowRunCommand.php`
+- [ ] `packages/platform/cli/src/Command/WorkflowRunCommand.php`
   - [ ] implements internal `CompositeCommandInterface`
   - [ ] does not implement `Coretsia\Contracts\Cli\Command\CommandInterface`
   - [ ] `name()` returns `self::NAME`
@@ -6330,7 +6330,7 @@ Commands:
     - [ ] `OPTIONS = []`
 
 Suggestions:
-- [ ] `framework/packages/platform/cli/src/UX/SmartSuggestor.php`
+- [ ] `packages/platform/cli/src/UX/SmartSuggestor.php`
   - [ ] stateless
   - [ ] consumes only final visible `CommandDescriptor` names from `CommandCatalog`
   - [ ] excludes hidden commands
@@ -6347,13 +6347,13 @@ Suggestions:
   - [ ] contains no mutable cache
 
 Errors:
-- [ ] `framework/packages/platform/cli/src/Exception/WorkflowDefinitionInvalidException.php`
+- [ ] `packages/platform/cli/src/Exception/WorkflowDefinitionInvalidException.php`
   - [ ] code `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID`
   - [ ] code-first deterministic public message
   - [ ] exposes only stable reason tokens
   - [ ] contains no definition values, arguments, options, paths, or previous Throwable message
 
-- [ ] `framework/packages/platform/cli/src/Exception/WorkflowNotFoundException.php`
+- [ ] `packages/platform/cli/src/Exception/WorkflowNotFoundException.php`
   - [ ] code `CORETSIA_CLI_WORKFLOW_NOT_FOUND`
   - [ ] fixed safe reason `workflow-not-found`
   - [ ] MAY expose only the already validated workflow-name token
@@ -6369,7 +6369,7 @@ Docs:
 
 #### Modifies
 
-- [ ] `framework/packages/platform/cli/src/Output/CommandOutputBuffer.php`
+- [ ] `packages/platform/cli/src/Output/CommandOutputBuffer.php`
   - [ ] preserve the existing `finalize()` and `discard()` APIs
   - [ ] broaden the authorized `discard()` callers to exactly:
     - [ ] the existing `CliApplication` top-level error boundary
@@ -6377,20 +6377,20 @@ Docs:
   - [ ] no other production caller may invoke `discard()`
   - [ ] `discard()` remains forbidden after finalization
 
-- [ ] `framework/packages/platform/cli/config/cli.php`
+- [ ] `packages/platform/cli/config/cli.php`
   - [ ] add only `cli.workflows.definitions = []`
   - [ ] preserve all 2.30.0 output and command override defaults unchanged
 
-- [ ] `framework/packages/platform/cli/config/rules.php`
+- [ ] `packages/platform/cli/config/rules.php`
   - [ ] add exact static `workflows.definitions` boundary
   - [ ] preserve `additionalKeys = false` at every static schema-owned level
   - [ ] dynamic keys are allowed only under `cli.commands.overrides` and `cli.workflows.definitions`
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandDescriptor.php`
+- [ ] `packages/platform/cli/src/Catalog/CommandDescriptor.php`
   - [ ] add internal derived `executionKind: normal|composite`
   - [ ] value is not exported or configurable
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandTagSchema.php`
+- [ ] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
   - [ ] preserve the exact six metadata keys
   - [ ] preserve external `CommandInterface` requirement
   - [ ] allow `CompositeCommandInterface` only for exact built-in allowlisted service ids
@@ -6398,24 +6398,24 @@ Docs:
   - [ ] the composite exception changes only the execution interface requirement, not metadata validation
   - [ ] reject external composite implementations deterministically
 
-- [ ] `framework/packages/platform/cli/src/Catalog/CommandCatalog.php`
+- [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php`
   - [ ] add `public function find(string $name): ?CommandDescriptor`
   - [ ] `find()` performs no service resolution
   - [ ] preserve final catalog order
 
-- [ ] `framework/packages/platform/cli/src/Runner/CommandRunner.php`
+- [ ] `packages/platform/cli/src/Runner/CommandRunner.php`
   - [ ] preserve the normal command path exactly
   - [ ] add exact composite branch described in this epic
   - [ ] remain stateless and re-entrant
   - [ ] preserve output, exit-code, interface, name, and observability validation
   - [ ] MUST NOT create an outer UoW for `WorkflowRunCommand`
 
-- [ ] `framework/packages/platform/cli/src/Output/CommandOutputBatch.php`
+- [ ] `packages/platform/cli/src/Output/CommandOutputBatch.php`
   - [ ] add a read-only ordered `records()` accessor
   - [ ] accessor returns the already normalized immutable record list
   - [ ] no mutable reference is exposed
 
-- [ ] `framework/packages/platform/cli/src/Application/CliApplication.php`
+- [ ] `packages/platform/cli/src/Application/CliApplication.php`
   - [ ] unknown command selection uses `CommandCatalog::find()`
   - [ ] writes the canonical unknown-command error record
   - [ ] obtains suggestions only through `SmartSuggestor`
@@ -6424,7 +6424,7 @@ Docs:
   - [ ] suggestions pass through the same final formatter and redactor
   - [ ] no suggestion data enters logs, metrics, or UoW attributes
 
-- [ ] `framework/packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
+- [ ] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
   - [ ] add known safe mappings for:
     - [ ] `WorkflowDefinitionInvalidException`
     - [ ] `WorkflowNotFoundException`
@@ -6433,20 +6433,20 @@ Docs:
   - [ ] MUST NOT include workflow definitions, step data, arguments, option values, service ids, paths, or previous Throwable messages
   - [ ] returned descriptor extensions remain empty
 
-- [ ] `framework/packages/platform/cli/src/Provider/CliServiceFactory.php`
+- [ ] `packages/platform/cli/src/Provider/CliServiceFactory.php`
   - [ ] remains the only `cli.*` config consumer
   - [ ] reads the complete validated `cli` root through the existing helper
   - [ ] constructs normalized workflow definitions through `WorkflowSchema`
   - [ ] performs no command service resolution
 
-- [ ] `framework/packages/platform/cli/src/Provider/CliServiceProvider.php`
+- [ ] `packages/platform/cli/src/Provider/CliServiceProvider.php`
   - [ ] registers/defines workflow services in the same source/definition split as 2.30.0
   - [ ] tags `WorkflowListCommand` and `WorkflowRunCommand` with exact six-key metadata
   - [ ] tag priority is actual `0`
   - [ ] references command constants only
   - [ ] does not conditionally register commands from config
 
-- [ ] `framework/packages/platform/cli/README.md`
+- [ ] `packages/platform/cli/README.md`
   - [ ] document exact workflow config shape
   - [ ] document fail-fast behavior
   - [ ] document one UoW per step
@@ -6532,79 +6532,79 @@ Docs:
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowRunnerUsesFreshChildBufferPerStepTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowRunnerPropagatesThrowableUnchangedTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowCatalogRejectsUnknownCommandTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowCatalogRejectsCompositeStepTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerUsesFreshChildBufferPerStepTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerPropagatesThrowableUnchangedTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsUnknownCommandTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsCompositeStepTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowStepInputFactoryCanonicalProjectionTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowStepInputFactoryCanonicalProjectionTest.php`
     - [ ] option keys use `strcmp` order
     - [ ] bare flags use `true`
     - [ ] repeated values preserve list order
     - [ ] `--` separates positional arguments
     - [ ] false and null config values are rejected by `WorkflowSchema`
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowRunnerDiscardsThrowingChildBufferTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerDiscardsThrowingChildBufferTest.php`
     - [ ] the throwing child buffer is discarded
     - [ ] the same Throwable instance is rethrown
     - [ ] no completed workflow result is emitted
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowSchemaTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowSchemaTest.php`
     - [ ] accepts the exact canonical shape
     - [ ] rejects unknown keys, macros, templates, floats, unsafe strings, invalid option values, and all bounds violations
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowCatalogDeterminismTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogDeterminismTest.php`
     - [ ] workflow names are `strcmp` sorted
     - [ ] step order is preserved
     - [ ] no command service is instantiated
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/WorkflowRunnerStopsOnFirstNonZeroExitCodeTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerStopsOnFirstNonZeroExitCodeTest.php`
     - [ ] exact first non-zero code is returned
     - [ ] later steps are not resolved
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/SmartSuggestorTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/SmartSuggestorTest.php`
     - [ ] fixed thresholds
     - [ ] maximum three results
     - [ ] hidden commands excluded
     - [ ] catalog-order tie-break
 
-  - [ ] `framework/packages/platform/cli/tests/Unit/CommandRunnerCompositeExecutionTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerCompositeExecutionTest.php`
     - [ ] no outer Kernel UoW for `workflow:run`
     - [ ] normal commands remain unchanged
 
 - Contract:
-  - [ ] `framework/packages/platform/cli/tests/Contract/WorkflowConfigShapeContractTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Contract/WorkflowCommandsUseExactTagMetadataTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Contract/OnlyWorkflowRunMayUseCompositeCommandInterfaceTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Contract/WorkflowInfrastructureDoesNotWriteToStdoutTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/WorkflowConfigShapeContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/WorkflowCommandsUseExactTagMetadataTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/OnlyWorkflowRunMayUseCompositeCommandInterfaceTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/WorkflowInfrastructureDoesNotWriteToStdoutTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/WorkflowUxIntroducesNoRedactionBoundaryContractTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/WorkflowUxIntroducesNoRedactionBoundaryContractTest.php`
     - [ ] workflow and suggestion classes do not depend on a concrete redactor
     - [ ] workflow and suggestion classes do not receive `SensitiveDataRedactorInterface`
     - [ ] no workflow-local or suggestion-local classifier, policy, hasher, or pattern registry exists
     - [ ] no prompt, confirmation, preview, or separate diagnostics renderer is introduced
     - [ ] the existing `OutputFormatter` remains the sole final redaction boundary
 
-  - [ ] `framework/packages/platform/cli/tests/Contract/WorkflowEpicIntroducesNoReplayArtifactTest.php`
+  - [ ] `packages/platform/cli/tests/Contract/WorkflowEpicIntroducesNoReplayArtifactTest.php`
     - [ ] no replay classes, config keys, artifact registry entry, or replay SSoT exists
 
 - Integration:
-  - [ ] `framework/packages/platform/cli/tests/Integration/CliErrorHandlerMapsWorkflowExceptionsSafelyTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunAggregatesOrderedStepRecordsTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunRejectsModeAndPresetOptionsTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunKernelOpsStepsUseDefinitionTargetTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/UnknownCommandSuggestionsUseFinalCatalogTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowDefinitionsRequireNoFilesystemScanningTest.php`
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunExecutesEveryStepThroughCommandRunnerTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/CliErrorHandlerMapsWorkflowExceptionsSafelyTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunAggregatesOrderedStepRecordsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunRejectsModeAndPresetOptionsTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunKernelOpsStepsUseDefinitionTargetTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/UnknownCommandSuggestionsUseFinalCatalogTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowDefinitionsRequireNoFilesystemScanningTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunExecutesEveryStepThroughCommandRunnerTest.php`
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunFinalOutputIsRedactedOnceTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunFinalOutputIsRedactedOnceTest.php`
     - [ ] completed workflow output invokes the shared redaction port exactly once
     - [ ] child step batches are not redacted separately
     - [ ] raw sensitive fixture values from child records are absent from final output
     - [ ] no workflow-specific redactor is resolved
     - [ ] record order remains unchanged after redaction
 
-  - [ ] `framework/packages/platform/cli/tests/Integration/WorkflowRunUsesOneKernelUowPerStepTest.php`
+  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunUsesOneKernelUowPerStepTest.php`
     - [ ] no outer workflow UoW
     - [ ] no nested UoW
     - [ ] reset completes after every step
@@ -6639,11 +6639,11 @@ Docs:
 type: skeleton
 phase: 2
 epic_id: "2.50.0"
-owner_path: "skeleton/apps/"
+owner_path: "packages/applications/skeleton/apps/"
 
 goal: "Надати стабільні target-aware HTTP front controllers для skeleton web/api та deterministic `composer serve` / `composer smoke:http` flow до появи platform/http; front-controller paths залишаються незмінними, а тимчасовий 503 fallback пізніше замінюється реальним HTTP runtime bootstrap."
 provides:
-- "Real stable HTTP entrypoints: `skeleton/apps/web/public/index.php` and `skeleton/apps/api/public/index.php`."
+- "Real stable HTTP entrypoints: `packages/applications/skeleton/apps/web/public/index.php` and `packages/applications/skeleton/apps/api/public/index.php`."
 - "Explicit canonical target ownership: each front controller hardcodes exactly one target, `web` or `api`."
 - "Shared non-public HTTP bootstrap seam that currently emits deterministic 503 and is replaced internally when platform/http becomes available."
 - "Target-aware dev server command using `--target=web|api`."
@@ -6666,22 +6666,22 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Required deliverables:
-  - `skeleton/apps/web/public/` exists
-  - `skeleton/apps/api/public/` exists
+  - `packages/applications/skeleton/apps/web/public/` exists
+  - `packages/applications/skeleton/apps/api/public/` exists
   - repo-root `composer.json` exists
 
 - Existing packaging enforcement retained unchanged:
-  - `framework/tools/gates/no_skeleton_http_default_gate.php`
+  - `tools/gates/no_skeleton_http_default_gate.php`
 
 - Gate boundary:
-  - the gate forbids only repo-root `skeleton/config/http.php`
-  - application front controllers under `skeleton/apps/<http-app>/public/` are not HTTP config defaults
+  - the gate forbids only repo-root `packages/applications/skeleton/config/http.php`
+  - application front controllers under `packages/applications/skeleton/apps/<http-app>/public/` are not HTTP config defaults
   - this epic MUST NOT add an allowlist or exception to the gate
 
 - New tooling boundary:
-  - `framework/bin/serve` does not exist before this epic and is created here
-  - `framework/bin/smoke` does not exist before this epic and is created here
-  - `framework/bin/smoke-http` does not exist before this epic and is created here
+  - `tools/http/serve` does not exist before this epic and is created here
+  - `tools/http/smoke` does not exist before this epic and is created here
+  - `tools/http/smoke-http` does not exist before this epic and is created here
   - source files imported from another project are implementation inputs only
   - imported implementations MUST be adapted completely to this epic and MUST NOT define compatibility requirements
 
@@ -6700,17 +6700,17 @@ ssot_refs:
 
 - Repo-root Composer scripts:
   - `composer serve`
-    - delegates to `@php framework/bin/serve`
+    - delegates to `@php tools/http/serve`
     - accepts script arguments after `--`
     - canonical target option: `--target=web|api`
   - `composer smoke:http`
-    - delegates to `@php framework/bin/smoke http`
+    - delegates to `@php tools/http/smoke http`
     - accepts script arguments after `--`
     - canonical target option: `--target=web|api`
 
 - Target ownership:
-  - `serve --target=web` selects `skeleton/apps/web/public`
-  - `serve --target=api` selects `skeleton/apps/api/public`
+  - `serve --target=web` selects `packages/applications/skeleton/apps/web/public`
+  - `serve --target=api` selects `packages/applications/skeleton/apps/api/public`
   - `smoke http --target=<target>` starts and verifies the same target
   - target selection changes only the selected skeleton docroot
   - the public front controller independently declares the same canonical target
@@ -6723,7 +6723,7 @@ ssot_refs:
 
 ### Deterministic CLI contract (MUST)
 
-The following rules apply to `framework/bin/serve`, `framework/bin/smoke`, and `framework/bin/smoke-http`:
+The following rules apply to `tools/http/serve`, `tools/http/smoke`, and `tools/http/smoke-http`:
 
 - long options use only `--name=value` form
 - boolean flags use only `--name`
@@ -6733,12 +6733,12 @@ The following rules apply to `framework/bin/serve`, `framework/bin/smoke`, and `
 - missing option values are rejected
 - empty option values are rejected
 - option names are ASCII case-sensitive
-- positional arguments are forbidden except the exact `http` command accepted by `framework/bin/smoke`
+- positional arguments are forbidden except the exact `http` command accepted by `tools/http/smoke`
 - exact command layouts are:
-  - `framework/bin/serve [options]`
-  - `framework/bin/smoke http [options]`
-  - `framework/bin/smoke-http [options]`
-- for `framework/bin/smoke`, `http` must be the first argument after the script path
+  - `tools/http/serve [options]`
+  - `tools/http/smoke http [options]`
+  - `tools/http/smoke-http [options]`
+- for `tools/http/smoke`, `http` must be the first argument after the script path
 - options may appear in any order after the command token
 - options before `http` are rejected
 - additional positional arguments are rejected
@@ -6788,8 +6788,8 @@ Timeout validation:
 - ASCII decimal digits only
 - range `1..60`
 - default is exactly `5` seconds
-- applies to `framework/bin/smoke` readiness and cleanup waits
-- applies to `framework/bin/smoke-http` connect and response reads
+- applies to `tools/http/smoke` readiness and cleanup waits
+- applies to `tools/http/smoke-http` connect and response reads
 - timeout measurement uses monotonic `hrtime(true)`
 - wall-clock time, timezone, and system date do not participate
 - each bounded phase receives one total deadline
@@ -6929,9 +6929,9 @@ Unexpected failure containment:
 - each CLI script has one top-level failure boundary
 - expected validation, process, socket, and response failures map to their documented codes
 - every other caught `Throwable` maps to a script-local internal failure code:
-  - `framework/bin/serve` → `CORETSIA_SERVE_INTERNAL_FAILURE`
-  - `framework/bin/smoke` → `CORETSIA_SMOKE_INTERNAL_FAILURE`
-  - `framework/bin/smoke-http` → `CORETSIA_SMOKE_HTTP_INTERNAL_FAILURE`
+  - `tools/http/serve` → `CORETSIA_SERVE_INTERNAL_FAILURE`
+  - `tools/http/smoke` → `CORETSIA_SMOKE_INTERNAL_FAILURE`
+  - `tools/http/smoke-http` → `CORETSIA_SMOKE_HTTP_INTERNAL_FAILURE`
 - previous Throwable objects are not retained after mapping
 - Throwable messages, classes, traces, files, and line numbers are never copied into output
 - PHP warnings produced by filesystem, process, stream, or socket operations are suppressed or converted inside the top-level failure boundary
@@ -6940,8 +6940,8 @@ Unexpected failure containment:
 ### Skeleton HTTP packaging boundary (MUST)
 
 - HTTP-facing skeleton apps MAY ship their canonical executable front controller:
-  - `skeleton/apps/web/public/index.php`
-  - `skeleton/apps/api/public/index.php`
+  - `packages/applications/skeleton/apps/web/public/index.php`
+  - `packages/applications/skeleton/apps/api/public/index.php`
 
 - A front controller:
   - is an application entrypoint
@@ -6951,7 +6951,7 @@ Unexpected failure containment:
   - MUST NOT embed environment-specific HTTP configuration
 
 - Default HTTP config remains forbidden:
-  - `skeleton/config/http.php` MUST remain absent
+  - `packages/applications/skeleton/config/http.php` MUST remain absent
   - the existing `no_skeleton_http_default_gate.php` remains unchanged
   - no path-specific allowlist is introduced
 
@@ -6992,7 +6992,7 @@ Unexpected failure containment:
   - [ ] contains no timestamp, path, host, port, target, header, cookie, query, body, process, or exception data in output
   - [ ] is the stable bootstrap seam whose internal fallback is replaced by platform/http in Phase 3
 
-- [ ] `skeleton/apps/web/public/index.php`
+- [ ] `packages/applications/skeleton/apps/web/public/index.php`
   - [ ] real stable web front controller
   - [ ] CWD-independent require of `skeleton/bootstrap/HttpFrontController.php`
   - [ ] calls exactly:
@@ -7002,7 +7002,7 @@ Unexpected failure containment:
   - [ ] contains no fallback response implementation of its own
   - [ ] contains no executable code after the `run()` call
 
-- [ ] `skeleton/apps/api/public/index.php`
+- [ ] `packages/applications/skeleton/apps/api/public/index.php`
   - [ ] real stable API front controller
   - [ ] CWD-independent require of `skeleton/bootstrap/HttpFrontController.php`
   - [ ] calls exactly:
@@ -7012,7 +7012,7 @@ Unexpected failure containment:
   - [ ] contains no fallback response implementation of its own
   - [ ] contains no executable code after the `run()` call
 
-- [ ] `framework/bin/serve`
+- [ ] `tools/http/serve`
   - [ ] new pure-PHP executable script
   - [ ] strict argument parser
   - [ ] CWD-independent repo-root discovery through `__DIR__`
@@ -7044,8 +7044,8 @@ Unexpected failure containment:
     - [ ] arbitrary PHP binary
     - [ ] arbitrary child command
   - [ ] target mapping is exact:
-    - [ ] `web` → `skeleton/apps/web/public`
-    - [ ] `api` → `skeleton/apps/api/public`
+    - [ ] `web` → `packages/applications/skeleton/apps/web/public`
+    - [ ] `api` → `packages/applications/skeleton/apps/api/public`
   - [ ] target validation occurs after syntactic argument parsing:
     - [ ] `web|api` are accepted HTTP targets
     - [ ] `console|worker` fail with `CORETSIA_SERVE_TARGET_NOT_HTTP`
@@ -7131,7 +7131,7 @@ Unexpected failure containment:
     - [ ] `{"schema":1,"code":"<CODE>"}\n`
   - [ ] failure output contains no host, port, path, process id, command, exception message, or child output
 
-- [ ] `framework/bin/smoke`
+- [ ] `tools/http/smoke`
   - [ ] pure-PHP deterministic smoke orchestrator
   - [ ] accepts exactly:
     - [ ] positional command `http`
@@ -7156,7 +7156,7 @@ Unexpected failure containment:
   - [ ] every path after control-directory creation executes that cleanup boundary
   - [ ] starts exactly one serve child through an argument-vector `proc_open` command:
     - [ ] `PHP_BINARY`
-    - [ ] repo-root `framework/bin/serve`
+    - [ ] repo-root `tools/http/serve`
     - [ ] `--target=<target>`
     - [ ] `--host=<bind-host>`
     - [ ] `--port=<port>`
@@ -7180,7 +7180,7 @@ Unexpected failure containment:
   - [ ] TCP reachability without the exact owned readiness file never establishes server ownership
   - [ ] executes exactly one checker child through an argument-vector `proc_open` command:
     - [ ] `PHP_BINARY`
-    - [ ] repo-root `framework/bin/smoke-http`
+    - [ ] repo-root `tools/http/smoke-http`
     - [ ] `--host=<connect-host>`
     - [ ] `--port=<port>`
     - [ ] `--timeout=<timeout>`
@@ -7275,7 +7275,7 @@ Unexpected failure containment:
   - [ ] child stdout/stderr and child failure payloads are not forwarded
   - [ ] no profiles, env overrides, cURL, database checks, CLI checks, JUnit, GitHub annotations, colors, progress output, or dynamic logs remain
 
-- [ ] `framework/bin/smoke-http`
+- [ ] `tools/http/smoke-http`
   - [ ] pure-PHP checker only
   - [ ] MUST NOT start, stop, or manage a server
   - [ ] MUST NOT call `proc_open`
@@ -7405,14 +7405,14 @@ Unexpected failure containment:
 #### Modifies
 
 - [ ] repo-root `composer.json` — add scripts:
-  - [ ] `serve` → `@php framework/bin/serve`
-  - [ ] `smoke:http` → `@php framework/bin/smoke http`
+  - [ ] `serve` → `@php tools/http/serve`
+  - [ ] `smoke:http` → `@php tools/http/smoke http`
   - [ ] script arguments remain pass-through after Composer `--`
 
 - [ ] `docs/architecture/PACKAGING.md`
   - [ ] register stable HTTP entrypoints:
-    - [ ] `skeleton/apps/web/public/index.php`
-    - [ ] `skeleton/apps/api/public/index.php`
+    - [ ] `packages/applications/skeleton/apps/web/public/index.php`
+    - [ ] `packages/applications/skeleton/apps/api/public/index.php`
   - [ ] document explicit front-controller target ownership
   - [ ] document shared non-public `HttpFrontController` bootstrap seam
   - [ ] document that console and worker use non-HTTP host entrypoints owned by their respective epics
@@ -7421,12 +7421,12 @@ Unexpected failure containment:
 ### Verification (TEST EVIDENCE) (MUST)
 
 - [ ] `composer serve -- --target=web`
-  - [ ] selects `skeleton/apps/web/public`
+  - [ ] selects `packages/applications/skeleton/apps/web/public`
   - [ ] serves the web front controller
   - [ ] returns deterministic 503 fallback
 
 - [ ] `composer serve -- --target=api`
-  - [ ] selects `skeleton/apps/api/public`
+  - [ ] selects `packages/applications/skeleton/apps/api/public`
   - [ ] serves the API front controller
   - [ ] returns the same deterministic 503 fallback
 
@@ -7442,7 +7442,7 @@ Unexpected failure containment:
   - [ ] terminates the server
   - [ ] succeeds silently
 
-- [ ] direct `framework/bin/smoke-http` without a server:
+- [ ] direct `tools/http/smoke-http` without a server:
   - [ ] fails with `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
   - [ ] starts no server
 
@@ -7453,15 +7453,15 @@ Unexpected failure containment:
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/tools/tests/Contract/RepoRootHttpSmokeComposerScriptsContractTest.php`
+  - [ ] `tools/tests/Contract/RepoRootHttpSmokeComposerScriptsContractTest.php`
     - [ ] repo-root `composer.json` contains exact `serve` script:
-      - [ ] `@php framework/bin/serve`
+      - [ ] `@php tools/http/serve`
     - [ ] repo-root `composer.json` contains exact `smoke:http` script:
-      - [ ] `@php framework/bin/smoke http`
+      - [ ] `@php tools/http/smoke http`
     - [ ] no duplicate or alternative serve/smoke script entry exists
     - [ ] scripts contain no shell operator, platform-specific executable, env assignment, or CWD-dependent path
 
-  - [ ] `framework/tools/tests/Contract/HttpSmokeEphemeralIpcContractTest.php`
+  - [ ] `tools/tests/Contract/HttpSmokeEphemeralIpcContractTest.php`
     - [ ] smoke/serve IPC does not rely on non-blocking `proc_open` pipes
     - [ ] no `stream_select()` call receives a process pipe
     - [ ] readiness uses only the atomic ready-file protocol
@@ -7470,7 +7470,7 @@ Unexpected failure containment:
     - [ ] IPC paths are absent from public diagnostics
     - [ ] temporary IPC state is not classified as a generated artifact
 
-  - [ ] `framework/tools/tests/Contract/HttpFrontControllerFallbackContractTest.php`
+  - [ ] `tools/tests/Contract/HttpFrontControllerFallbackContractTest.php`
     - [ ] class file can be required without producing output or headers
     - [ ] class is final
     - [ ] exact constant value is independently asserted as:
@@ -7482,7 +7482,7 @@ Unexpected failure containment:
     - [ ] `run('invalid')` throws exactly `LogicException('http-front-controller-target-invalid')`
     - [ ] invalid-target exception contains no rejected target value
 
-  - [ ] `framework/tools/tests/Contract/HttpSkeletonFrontControllersDeclareCanonicalTargetsTest.php`
+  - [ ] `tools/tests/Contract/HttpSkeletonFrontControllersDeclareCanonicalTargetsTest.php`
     - [ ] web front controller calls shared bootstrap with exactly `web`
     - [ ] api front controller calls shared bootstrap with exactly `api`
     - [ ] both use CWD-independent paths
@@ -7490,7 +7490,7 @@ Unexpected failure containment:
     - [ ] neither duplicates fallback response bytes
     - [ ] no HTTP front controller exists under console or worker skeleton apps
 
-  - [ ] `framework/tools/tests/Contract/SmokeHttpIsSocketCheckerOnlyTest.php`
+  - [ ] `tools/tests/Contract/SmokeHttpIsSocketCheckerOnlyTest.php`
     - [ ] rejects ext-curl and cURL symbols
     - [ ] rejects `proc_open`
     - [ ] rejects env reads
@@ -7498,7 +7498,7 @@ Unexpected failure containment:
     - [ ] checker reads the canonical bootstrap body constant
 
 - Integration:
-  - [ ] `framework/tools/tests/Integration/ServeSmokeAndSmokeHttpCliContractTest.php`
+  - [ ] `tools/tests/Integration/ServeSmokeAndSmokeHttpCliContractTest.php`
     - [ ] split option forms are rejected
     - [ ] duplicate options are rejected
     - [ ] unknown options are rejected
@@ -7517,7 +7517,7 @@ Unexpected failure containment:
     - [ ] hostile or similarly named env values do not alter defaults or parsing
     - [ ] internal failure output contains only the script-local internal code
 
-  - [ ] `framework/tools/tests/Integration/ServeLifecycleControlTest.php`
+  - [ ] `tools/tests/Integration/ServeLifecycleControlTest.php`
     - [ ] serve emits readiness only after TCP reachability
     - [ ] exact atomic stop-file protocol terminates the wrapper and built-in server
     - [ ] orderly control shutdown exits with status `0`
@@ -7537,7 +7537,7 @@ Unexpected failure containment:
     - [ ] direct serve without `--control-dir` emits the same readiness bytes to stdout
     - [ ] unexpected post-readiness child exit maps to `CORETSIA_SERVE_CHILD_EXITED`
 
-  - [ ] `framework/tools/tests/Integration/ServeIgnoresAmbientPhpConfigurationTest.php`
+  - [ ] `tools/tests/Integration/ServeIgnoresAmbientPhpConfigurationTest.php`
     - [ ] runs with a synthetic hostile `PHPRC`
     - [ ] runs with a synthetic hostile `PHP_INI_SCAN_DIR`
     - [ ] hostile INI attempts to configure:
@@ -7553,11 +7553,11 @@ Unexpected failure containment:
     - [ ] orderly shutdown leaves no listener on the selected port
     - [ ] cleanup leaves no IPC file or control directory
 
-  - [ ] `framework/tools/tests/Integration/HttpStubSmokeTest.php`
+  - [ ] `tools/tests/Integration/HttpStubSmokeTest.php`
     - [ ] matrix:
       - [ ] target `web`
       - [ ] target `api`
-    - [ ] invokes `framework/bin/smoke http --target=<target>`
+    - [ ] invokes `tools/http/smoke http --target=<target>`
     - [ ] verifies status, required headers, forbidden headers, content length, and exact body bytes
     - [ ] verifies silent success
     - [ ] verifies server process is terminated after the smoke run
@@ -7566,12 +7566,12 @@ Unexpected failure containment:
     - [ ] final output is emitted only after cleanup
     - [ ] cleanup failure overrides an earlier success or failure result with `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
 
-  - [ ] `framework/tools/tests/Integration/SmokeHttpDoesNotManageServerTest.php`
+  - [ ] `tools/tests/Integration/SmokeHttpDoesNotManageServerTest.php`
     - [ ] without a running server, `smoke-http` fails with `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
     - [ ] no server process is started
     - [ ] no log or temporary diagnostic file is created
 
-  - [ ] `framework/tools/tests/Integration/SmokeHttpFailureMappingTest.php`
+  - [ ] `tools/tests/Integration/SmokeHttpFailureMappingTest.php`
     - [ ] uses a synthetic local socket responder with fixed response fixtures
     - [ ] malformed status line → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
     - [ ] incomplete header section → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
@@ -7596,15 +7596,15 @@ Unexpected failure containment:
     - [ ] response framing failure takes precedence over every semantic mismatch
     - [ ] response-read timeout → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
 
-  - [ ] `framework/tools/tests/Integration/ServePortUnavailableDeterministicTest.php`
-    - [ ] starts `framework/bin/serve` on an already occupied port
+  - [ ] `tools/tests/Integration/ServePortUnavailableDeterministicTest.php`
+    - [ ] starts `tools/http/serve` on an already occupied port
     - [ ] asserts `CORETSIA_SERVE_PORT_UNAVAILABLE`
     - [ ] asserts exact one-line JSON failure output
     - [ ] asserts no child output, path, host, port, PID, command, or exception diagnostic is exposed
 
-  - [ ] `framework/tools/tests/Integration/SmokeOccupiedPortDoesNotEstablishReadinessTest.php`
+  - [ ] `tools/tests/Integration/SmokeOccupiedPortDoesNotEstablishReadinessTest.php`
     - [ ] starts an unrelated synthetic listener on the selected port
-    - [ ] invokes `framework/bin/smoke http`
+    - [ ] invokes `tools/http/smoke http`
     - [ ] external TCP reachability is not accepted as smoke readiness
     - [ ] smoke never invokes `smoke-http` against the unrelated listener
     - [ ] failure maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
@@ -7642,7 +7642,7 @@ Unexpected failure containment:
 - [ ] Cleanup has fixed deadlines and reports `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED` instead of waiting indefinitely.
 - [ ] No default skeleton `config/http.php` is introduced.
 - [ ] HTTP front controllers are classified as executable app entrypoints, not default HTTP configuration
-- [ ] `framework/tools/gates/no_skeleton_http_default_gate.php` remains unchanged
+- [ ] `tools/gates/no_skeleton_http_default_gate.php` remains unchanged
 - [ ] No gate allowlist or front-controller exception is introduced
 - [ ] Front-controller paths can remain unchanged when platform/http replaces the temporary fallback.
 - [ ] `smoke`, `smoke-http`, and `serve` are created by this epic rather than treated as existing Coretsia files.
@@ -7682,7 +7682,7 @@ Unexpected failure containment:
 - [ ] The shared atomic IPC publication contract is referenced rather than partially duplicated in smoke cleanup.
 - [ ] Server cleanup failure triggers include process state, wrapper exit status, owned port state, and IPC removal.
 - [ ] IPC directory deletion remains owned by `smoke`, not by `serve`.
-- [ ] `framework/bin/smoke` accepts only the exact layout `smoke http [options]`.
+- [ ] `tools/http/smoke` accepts only the exact layout `smoke http [options]`.
 - [ ] HTTP `Host` uses the canonical connect host rather than the original requested host token.
 - [ ] HTTP header-line colon and whitespace grammar is deterministic.
 - [ ] Expected `Content-Length` uses one canonical decimal byte representation.
@@ -7696,7 +7696,7 @@ Unexpected failure containment:
 type: tools
 phase: 2
 epic_id: "2.60.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Benchmark execution time of key CLI commands on a pinned benchmark runner and fail only there if performance degrades beyond threshold."
 provides:
@@ -7739,13 +7739,13 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/config/performance.php` — tooling-local performance benchmark config:
+- [ ] `tools/config/performance.php` — tooling-local performance benchmark config:
   - [ ] list of commands to benchmark (e.g., `coretsia list`, `coretsia help`, `coretsia config:validate --target=console`)
   - [ ] threshold multiplier (e.g., 1.2 = 20% slower allowed)
-  - [ ] baseline file path `framework/tools/config/performance.baseline.json`
+  - [ ] baseline file path `tools/config/performance.baseline.json`
   - [ ] baseline MUST be tied to the pinned benchmark environment / runner class
 
-- [ ] `framework/tools/gates/performance_gate.php` — deterministic gate:
+- [ ] `tools/gates/performance_gate.php` — deterministic gate:
   - [ ] runs each command multiple times (e.g., 3) and takes median execution time
   - [ ] benchmark cases are declared as:
     - [ ] one canonical safe benchmark id
@@ -7763,14 +7763,14 @@ N/A
   - [ ] uses `ConsoleOutput`
   - [ ] supports `--update-baseline` flag to update baseline after intentional improvements
   - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/support/bootstrap.php` before scanning.
+  - [ ] MUST load `tools/support/bootstrap.php` before scanning.
   - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/support/ConsoleOutput.php`
+    - [ ] MUST attempt to load `tools/support/ConsoleOutput.php`
     - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
     - [ ] MUST exit with code `1`
   - [ ] MUST use `Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/support/ErrorCodes.php` when available.
+  - [ ] MUST load `tools/support/ErrorCodes.php` when available.
   - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
   - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [ ] MUST use two code classes when applicable:
@@ -7793,7 +7793,7 @@ N/A
     - [ ] stable across OS/filesystem order/locale
     - [ ] free of raw argv, reconstructed command lines, child stdout/stderr, env values, absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
 
-- [ ] `framework/tools/config/performance.baseline.json` — initial baseline (committed)
+- [ ] `tools/config/performance.baseline.json` — initial baseline (committed)
 
 #### Modifies
 
@@ -7806,7 +7806,7 @@ N/A
 
 - [ ] `.github/workflows/performance-benchmark.yml` — dedicated pinned-runner workflow/job for the performance gate
 
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_PERFORMANCE_GATE_SCAN_FAILED`
 
@@ -7865,13 +7865,13 @@ N/A
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/PerformanceGateTest.php`
+- [ ] `tools/tests/Integration/PerformanceGateTest.php`
   - [ ] executes a deterministic fake slow command
   - [ ] asserts the degradation code and canonical benchmark id
   - [ ] asserts stable diagnostic ordering
   - [ ] asserts the expected non-zero exit code
 
-- [ ] `framework/tools/tests/Integration/PerformanceGateDoesNotLeakChildProcessDataTest.php`
+- [ ] `tools/tests/Integration/PerformanceGateDoesNotLeakChildProcessDataTest.php`
   - [ ] child command writes fake secrets, env-like values, paths, payloads, and argv-like text to stdout and stderr
   - [ ] gate captures and discards both streams
   - [ ] none of the fake values appears in gate diagnostics

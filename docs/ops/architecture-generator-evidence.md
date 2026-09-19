@@ -31,9 +31,9 @@ After each repeated architecture generator command, CI verifies that tracked gen
 
 The current drift check covers:
 
-- `framework/tools/testing/package-index.php`
-- `framework/tools/testing/deptrac.yaml`
-- `framework/tools/testing/deptrac.allowlist.yaml`
+- `tools/testing/package-index.php`
+- `tools/testing/deptrac.yaml`
+- `tools/testing/deptrac.allowlist.yaml`
 
 ## Metrics
 

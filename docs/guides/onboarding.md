@@ -89,10 +89,7 @@ If baseline is not green, stop and fix it before making changes.
 
 ### 4.2 Managed Composer repositories (single source of truth)
 
-- [ ] You MUST NOT manually edit `repositories` in:
-  - `composer.json`
-  - `framework/composer.json`
-  - `skeleton/composer.json`
+- [ ] You MUST NOT manually edit the managed `repositories` block in root `composer.json`.
 
 - [ ] If drift happens, fix via the canonical tool:
 
@@ -105,7 +102,7 @@ Pre-commit enforces drift checks and MUST block commits on mismatch.
 
 ### 4.3 Lock determinism
 
-- [ ] Lockfiles MUST be committed (root/framework/skeleton).
+- [ ] The root workspace `composer.lock` MUST be committed.
 - [ ] CI MUST rely on `composer install` (not update) and MUST fail on lock drift.
 - [ ] Avoid “fix by update”; do it only when the change is intentional and reviewed.
 
@@ -113,32 +110,35 @@ Pre-commit enforces drift checks and MUST block commits on mismatch.
 
 ## 5) Monorepo packaging identity (naming & layout law)
 
-When you create or review packages, verify these invariants:
+When you create or review publishable Composer products, verify these invariants:
 
-- [ ] Package path MUST be: `framework/packages/<layer>/<slug>/`
-- [ ] Package id MUST be: `<layer>/<slug>`
-- [ ] Composer name MUST be: `coretsia/<layer>-<slug>`
-- [ ] Namespace mapping MUST be deterministic:
-  - `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
-  - source under `src/`, tests under `tests/`
+- [ ] Publishable products MUST live under `packages/**`.
+- [ ] Layered packages use `packages/<layer>/<slug>/` and package id `<layer>/<slug>`.
+- [ ] Special public distributions are:
+  - `packages/framework/` → `coretsia/framework`
+  - `packages/applications/skeleton/` → `coretsia/skeleton`
+- [ ] Composer identity MUST be read from the package `composer.json` `name` field.
+- [ ] Layered package namespace mapping MUST follow `docs/architecture/PACKAGING.md`, including the canonical `core/*` short-namespace exception.
+- [ ] Layered package source/tests mapping MUST follow the package namespace rules in `docs/architecture/PACKAGING.md`.
 - [ ] Versioning MUST be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH` (no per-package versions).
 
 ---
 
 ## 6) Dependency truth source (SSoT)
 
-- [ ] For Phase 0 / compile-time dependency truth, use the single source of truth:
-  - `docs/roadmap/phase0/00_2-dependency-table.md`
+- [ ] For exact direct compile-time dependency permissions between layered packages, use:
+  - `docs/architecture/DEPENDENCIES.md`
 
-Other docs MAY provide explanations, but MUST NOT claim dependency truth.
+Other docs MAY provide explanations or layer-level summaries, but MUST NOT introduce alternative package-level edges.
 
 ---
 
 ## 7) What to read next (minimum set)
 
 - [ ] `docs/roadmap/ROADMAP.md` (canonical roadmap and implementation phases)
+- [ ] `docs/architecture/DEPENDENCIES.md` (exact direct compile-time dependency SSoT)
 - [ ] `docs/guides/git-hooks.md` (hooks + managed repos workflow)
-- [ ] `docs/guides/dependency-graph.md` (conceptual model)
+- [ ] `docs/guides/dependency-graph.md` (conceptual dependency model)
 - [ ] `docs/ssot/INDEX.md` (SSoT registry entrypoint)
 
 ---

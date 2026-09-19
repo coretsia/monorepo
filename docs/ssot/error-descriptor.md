@@ -33,7 +33,7 @@ Coretsia\Contracts\Observability\Errors\ErrorDescriptor
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php
+packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php
 ```
 
 It complements:
@@ -378,7 +378,7 @@ or an integer in the inclusive range:
 100..599
 ```
 
-`httpStatus` MUST NOT make `core/contracts` depend on HTTP packages, PSR-7, framework HTTP objects, or problem-details renderers.
+`httpStatus` MUST NOT make `core/contracts` depend on HTTP packages, PSR-7, `platform/http` objects, or problem-details renderers.
 
 Non-HTTP runtimes MAY ignore `httpStatus`.
 
@@ -489,7 +489,7 @@ Extension values MUST follow the json-like payload policy in this document.
 
 ## Extensions payload constraints
 
-`ErrorDescriptor.extensions` MUST be json-like and MUST follow the Phase 0 float-forbidden policy.
+`ErrorDescriptor.extensions` MUST be json-like and MUST follow the canonical json-like runtime value policy.
 
 Allowed scalar values:
 
@@ -880,37 +880,37 @@ Metric labels MUST use only allowlisted label keys.
 Current contracts-level enforcement evidence includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
+packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
 ```
 
 The extension json-like and float-forbidden policy is enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
 ```
 
 The extension depth, node-count, individual-string, aggregate-string, recursive-array, and budget-diagnostic requirements are enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
 ```
 
 The semantic extension-key, absolute-path, safe-derivation, recursive-policy, and fail-safe diagnostic requirements are enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 ```
 
 The exported field set and deterministic top-level key order are enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
 ```
 
 ## Non-goals

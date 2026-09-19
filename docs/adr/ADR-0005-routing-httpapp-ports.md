@@ -25,8 +25,8 @@ owner: core/contracts
 Epic `1.110.0` introduces stable contracts for routing and HttpApp invocation under:
 
 ```text
-framework/packages/core/contracts/src/Routing/
-framework/packages/core/contracts/src/HttpApp/
+packages/core/contracts/src/Routing/
+packages/core/contracts/src/HttpApp/
 ```
 
 Runtime routing and HttpApp packages need shared contracts for route declarations, route matching, action argument resolution, and action invocation without coupling `core/contracts` to HTTP transport APIs, platform implementations, integrations, generated artifacts, middleware implementations, or vendor-specific runtime objects.
@@ -38,14 +38,15 @@ It must not depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - concrete router implementations
 - concrete middleware implementations
 - concrete controller implementations
 - concrete service container implementations
 - generated route artifacts
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 
 The detailed normative policy for this ADR is defined by:
 
@@ -127,7 +128,7 @@ docs/ssot/routing-and-http-app-contracts.md
 Routing descriptors must not expose:
 
 - PSR-7 objects;
-- framework request or response objects;
+- `platform/http` request or response objects;
 - middleware objects;
 - controller objects;
 - service instances;
@@ -291,8 +292,8 @@ Both contracts must not require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - concrete middleware objects;
 - concrete service container objects;
 - concrete controller base classes;
@@ -340,7 +341,7 @@ The canonical middleware tag is:
 http.middleware.app
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
@@ -366,7 +367,7 @@ Epic `1.110.0` introduces no DI tags.
 
 The contracts package must not declare routing or HttpApp DI tag identifier constants.
 
-The contracts package must not define additional code-level registries for framework-reserved middleware tag identifiers.
+The contracts package must not define additional code-level registries for Coretsia-reserved middleware DI tag identifiers.
 
 The contracts package may reference reserved middleware tags in documentation as runtime policy.
 
@@ -376,13 +377,13 @@ Reserved tag ownership remains governed by:
 docs/ssot/tags.md
 ```
 
-Framework-reserved DI tag identifier strings are declared in:
+Coretsia-reserved DI tag identifier strings are declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Non-owner packages using reserved tags must follow the tag registry rules, use `Coretsia\Foundation\Tag\ReservedTags::*` in runtime package source, and must not redefine competing tag semantics, competing metadata schema, or additional code-level registries for framework-reserved DI tag identifiers.
+Non-owner packages using reserved tags must follow the tag registry rules, use `Coretsia\Foundation\Tag\ReservedTags::*` in runtime package source, and must not redefine competing tag semantics, competing metadata schema, or additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 ## Config decision
 
@@ -410,7 +411,7 @@ The contracts package must not own the routes artifact payload schema.
 
 ## Json-like payload decision
 
-Any json-like payload exposed by routing or HttpApp contracts must follow the same Phase 0 json-like policy used by the rest of the contracts boundary:
+Any json-like payload exposed by routing or HttpApp contracts must follow the canonical json-like runtime value policy defined by `docs/ssot/json-like-runtime-values.md`:
 
 - allowed scalars are `string`, `int`, `bool`, and `null`;
 - floats are forbidden, including `NaN`, `INF`, and `-INF`;

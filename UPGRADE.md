@@ -37,18 +37,19 @@ If you previously relied on wrapper roots in config files, you must adjust your 
 
 ### 2) Managed Composer repositories (must not drift)
 
-`repositories` blocks are managed only by:
+The root `composer.json` `repositories` block is managed only by:
 
 ```bash
 composer sync:repos
 ```
 
-During upgrades (or rebases), treat manual edits of `repositories` as invalid and expect CI/pre-commit to fail on drift.
+During upgrades (or rebases), treat manual edits of the root `repositories` block as invalid and expect CI/pre-commit to fail on drift.
 
 ### 3) Lock determinism (must not drift)
 
-Lock files are committed for root/framework/skeleton. CI uses `composer install` and fails on lock drift.
-If your upgrade changes dependencies, regenerate locks intentionally and commit them.
+The monorepo root `composer.lock` is committed. Consumer applications own their own `composer.lock`.
+CI uses `composer install` and fails on root workspace lock drift.
+If your upgrade changes dependencies, regenerate the affected lock intentionally and commit it where applicable.
 
 ### 4) Determinism & redaction baseline
 
@@ -84,7 +85,7 @@ composer sync:check
 5. Install dependencies using locks
 
 ```bash
-composer install:all
+composer install
 ```
 
 6. Run the canonical rails
@@ -101,6 +102,123 @@ composer ci
 ## v0.x development snapshots
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
+
+### From v0.6.0 to v0.7.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- This release establishes explicit repository, package, distribution, and consumer application ownership boundaries.
+
+#### Repository topology
+
+The legacy framework-centered repository layout has been replaced:
+
+```text
+framework/packages/**  → packages/**
+framework/tools/**     → tools/**
+framework/var/**       → var/**
+```
+
+The previous root `framework/` and `skeleton/` workspace directories are no longer part of the canonical repository topology.
+
+The root `composer.json` and `composer.lock` now own the development workspace. Repository tooling runs through the root Composer scripts.
+
+Do not retain tooling scripts or local Composer repositories that depend on the previous framework-local or skeleton-local development workspaces.
+
+#### Public distributions
+
+The new public Composer distributions are:
+
+```text
+coretsia/framework
+coretsia/skeleton
+```
+
+Install the baseline framework runtime in an existing PHP project through:
+
+```bash
+composer require coretsia/framework:^0.7
+```
+
+Create a new application from the public skeleton through:
+
+```bash
+composer create-project coretsia/skeleton my-app "^0.7"
+```
+
+These commands use public Composer packages rather than local monorepo path repositories.
+
+#### Consumer application ownership
+
+Consumer applications own their own:
+
+```text
+composer.json
+composer.lock
+vendor/
+config/
+apps/
+var/
+```
+
+Runtime packages must resolve application configuration and state from the consumer application root, not from the monorepo source skeleton.
+
+Do not depend on sibling `framework/` or `skeleton/` directories in consumer applications.
+
+#### Runtime and process boundaries
+
+Kernel runtime-driver matrix resolution now uses `RuntimeDriverResolver` instead of the previous Kernel entrypoint compatibility boundary.
+
+Kernel owns runtime-driver selection and conflict policy. Worker module participation and Worker-specific runtime prerequisites belong to the Worker-owned entrypoint boundary.
+
+Review integrations that depend directly on the previous entrypoint compatibility behavior and migrate them to the corresponding canonical owner.
+
+`KernelRuntime` now enforces single-active `UnitOfWork` ownership. Overlapping low-level lifecycle operations are rejected deterministically, and ownership is released only after the required reset cleanup boundary.
+
+Do not depend on overlapping `UnitOfWork` lifecycles or assume that a finished operation releases its ownership before reset cleanup.
+
+#### Artifacts and process bootstrap
+
+Kernel-generated PHP artifacts are parsed as strict canonical data. Arbitrary PHP syntax is not accepted as an artifact representation.
+
+Consumers of generated artifacts must use the canonical artifact verification and runtime boot boundaries rather than executing artifact files directly.
+
+Compilation and verification reuse their canonical module-resolution and configuration-source inputs. Do not independently rediscover or reconstruct these inputs between compilation, fingerprinting, artifact production, and cache verification.
+
+Supervisor-to-Guardian and Guardian-to-ProcHost bootstrap use authenticated child-launch handshakes.
+
+Custom process-host or Worker lifecycle integrations must not depend on the previous reserve-close-rebind bootstrap behavior.
+
+#### Repository tooling and determinism
+
+Obsolete Phase 0 spike implementations and compatibility rails have been removed. Use the canonical Foundation, Kernel, Worker, and repository-tooling implementations instead of former spike entrypoints.
+
+The repository-wide license-header gate now validates supported source, markup, configuration, metadata, and generated artifact formats.
+
+New or modified files and generators must preserve the canonical license-header and text-normalization policies.
+
+Production determinism is governed by `DETERMINISM.md` and the applicable subsystem SSoT documents.
+
+Equivalent semantic application inputs must not acquire different fingerprints, generation identities, or artifact bytes solely because of irrelevant physical repository layout differences.
+
+Clocks, process identifiers, scheduling, security randomness, and transport correlation remain outside deterministic semantic boundaries.
+
+#### Release line
+
+The `0.7` release line uses workspace version `0.7.x-dev` and public internal package constraints `^0.7.0`.
+
+#### Migration steps
+
+1. Review the `v0.7.0` `CHANGELOG.md` section and relevant changed SSoT documents.
+2. Migrate repository tooling and development commands to the root Composer workspace.
+3. Replace obsolete repository-relative paths with the canonical `packages/**`, `tools/**`, and `var/**` paths.
+4. Remove monorepo-only Composer path repositories from consumer application manifests.
+5. Update internal Coretsia dependencies to the target release line and refresh dependency locks intentionally.
+6. Migrate integrations that depend on the previous Kernel runtime-driver entrypoint boundary, overlapping `UnitOfWork` lifecycles, executable generated artifacts, or legacy Worker process-bootstrap behavior.
+7. Replace obsolete Phase 0 spike entrypoints with their canonical production or repository-tooling equivalents.
+8. Review custom source and artifact generators for canonical license headers, text normalization, and production determinism requirements.
+9. Run the canonical repository validation or consumer installation checks appropriate to the upgraded project.
 
 ### From v0.5.0 to v0.6.0
 

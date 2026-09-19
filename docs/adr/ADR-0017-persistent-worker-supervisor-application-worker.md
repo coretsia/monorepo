@@ -45,7 +45,7 @@ The worker runtime must support:
 The worker runtime belongs to:
 
 ```text
-framework/packages/platform/worker/
+packages/platform/worker/
 ```
 
 The package identity is:
@@ -267,8 +267,8 @@ The `worker` config root is owned by `platform/worker`.
 The package-owned files are:
 
 ```text
-framework/packages/platform/worker/config/worker.php
-framework/packages/platform/worker/config/rules.php
+packages/platform/worker/config/worker.php
+packages/platform/worker/config/rules.php
 ```
 
 `config/worker.php` returns the worker subtree directly.
@@ -480,7 +480,7 @@ Coretsia\Kernel\Runtime\RuntimePathContext
 It contains:
 
 ```text
-skeletonRoot
+applicationRoot
 artifactRoot
 ```
 
@@ -522,13 +522,13 @@ WorkerProcessGuardianClient
 
 `ApplicationWorker` receives `WorkerStopSignal`.
 
-It must not independently reconstruct the skeleton root.
+It must not independently reconstruct the application root.
 
-`WorkerChildCommandBuilder` receives one validated skeleton-root-relative artifact root.
+`WorkerChildCommandBuilder` receives one validated application-root-relative artifact root.
 
-`PcntlWorkerProcessDriver` and `ProcWorkerProcessDriver` receive the normalized skeleton root and the shared `WorkerChildCommandBuilder`. Neither driver receives a raw artifact root as an independent constructor value.
+`PcntlWorkerProcessDriver` and `ProcWorkerProcessDriver` receive the normalized application root and the shared `WorkerChildCommandBuilder`. Neither driver receives a raw artifact root as an independent constructor value.
 
-The PCNTL and proc drivers pass the normalized skeleton root as the worker working directory through guardian-backed spawn. `WorkerProcessGuardianClient` uses the normalized skeleton root for guardian bootstrap and generation claim. The proc process host receives the worker working directory through guardian-owned process-host operations.
+The PCNTL and proc drivers pass the normalized application root as the worker working directory through guardian-backed spawn. `WorkerProcessGuardianClient` uses the normalized application root for guardian bootstrap and generation claim. The proc process host receives the worker working directory through guardian-owned process-host operations.
 
 The constructed Worker services must not depend on `BootstrapConfig` or independently reconstruct generated artifact locations.
 
@@ -808,7 +808,7 @@ The canonical package-internal process-driver interface is:
 Coretsia\Platform\Worker\Internal\WorkerProcessDriverInterface
 ```
 
-It is not a public framework port.
+It is not a public contracts-level port.
 
 Its operations cover:
 
@@ -919,7 +919,7 @@ The driver owns:
 
 It MUST NOT call `pcntl_fork()`, `pcntl_exec()`, `pcntl_waitpid()`, or `posix_kill()`.
 
-The guardian PCNTL backend owns fork, exec, signal, wait, reap, and the canonical generation fence. After fork, the guardian child closes its copy of the authenticated guardian-supervisor connection, detaches the `WorkerLifecycleLock` descriptor, resets guardian signal handlers, changes to the explicit skeleton root, and executes the package-owned child launcher.
+The guardian PCNTL backend owns fork, exec, signal, wait, reap, and the canonical generation fence. After fork, the guardian child closes its copy of the authenticated guardian-supervisor connection, detaches the `WorkerLifecycleLock` descriptor, resets guardian signal handlers, changes to the explicit application root, and executes the package-owned child launcher.
 
 The exec-created PHP runtime performs a fresh artifact-only boot and resolves `ApplicationWorker` from a newly hydrated runtime container. No parent runtime container, shared service cache, `ApplicationWorker` instance, or PHP object graph crosses the successful exec boundary as active PHP state.
 
@@ -956,7 +956,7 @@ Outside the intentional per-worker handoff transition, unexpected EOF or loss of
 
 ## Process-child artifact-only boot decision
 
-Each PCNTL and proc child receives one validated skeleton-root-relative artifact root:
+Each PCNTL and proc child receives one validated application-root-relative artifact root:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -1324,7 +1324,7 @@ Unix control sockets are created under restrictive `umask(0177)` and verified as
 
 TCP control remains restricted exactly to `127.0.0.1`; no non-loopback or unsafe opt-in exists.
 
-On Windows, deployment MUST restrict the skeleton and runtime-directory ACLs to the application service account and authorized administrators. Pure-PHP `chmod()` behavior is not treated as an equivalent Windows ACL guarantee.
+On Windows, deployment MUST restrict the application root and runtime-directory ACLs to the application service account and authorized administrators. Pure-PHP `chmod()` behavior is not treated as an equivalent Windows ACL guarantee.
 
 Linux-specific peer credential validation MAY be evaluated separately, but it is not required by the cross-platform Worker contract.
 
@@ -1928,7 +1928,7 @@ The worker package does not:
 - implement deployment restart loops;
 - replace systemd, OpenRC, Supervisor, Kubernetes, Docker, or Windows service management.
 
-Coretsia provides a framework-level worker-generation containment layer without taking ownership of restart policy. If only the foreground supervisor dies while its guardian remains alive, the guardian terminates and reaps the old worker generation and retains `worker.lock` until cleanup completes. External process-group, cgroup, container, or job-object containment remains the outer safety boundary for guardian or whole-unit death.
+Coretsia provides a worker-generation containment layer without taking ownership of restart policy. If only the foreground supervisor dies while its guardian remains alive, the guardian terminates and reaps the old worker generation and retains `worker.lock` until cleanup completes. External process-group, cgroup, container, or job-object containment remains the outer safety boundary for guardian or whole-unit death.
 
 The external service manager must not bypass the Worker control and shutdown contracts by treating the diagnostic state file as liveness authority.
 
@@ -2119,7 +2119,7 @@ Rejected.
 
 Supervisor, process-driver, and control-client seams are package-local implementation boundaries.
 
-They are not technology-neutral framework contracts. The task-source SPI is intentionally excluded from this rejected alternative because real sources are cross-package implementations of contracts-owned ports.
+They are not technology-neutral contracts suitable for `core/contracts`. The task-source SPI is intentionally excluded from this rejected alternative because real sources are cross-package implementations of contracts-owned ports.
 
 ### Let `ApplicationWorker` invoke hooks and reset directly
 
@@ -2187,71 +2187,71 @@ This ADR does not define:
 Expected verification includes:
 
 ```text
-framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php
-framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
-framework/packages/platform/worker/tests/Unit/WorkerPoolStateTest.php
-framework/packages/platform/worker/tests/Unit/WorkerChildTableTest.php
-framework/packages/platform/worker/tests/Unit/WorkerSupervisorLifecycleTest.php
-framework/packages/platform/worker/tests/Unit/ContainerWorkerProcessDriverResolverTest.php
-framework/packages/platform/worker/tests/Unit/WorkerChildCommandBuilderTest.php
-framework/packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
-framework/packages/platform/worker/tests/Unit/WorkerProcessBootstrapProtocolTest.php
-framework/packages/platform/worker/tests/Unit/WorkerProcessGuardianProtocolTest.php
-framework/packages/platform/worker/tests/Unit/WorkerProcProcessHostProtocolTest.php
+packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php
+packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
+packages/platform/worker/tests/Unit/WorkerPoolStateTest.php
+packages/platform/worker/tests/Unit/WorkerChildTableTest.php
+packages/platform/worker/tests/Unit/WorkerSupervisorLifecycleTest.php
+packages/platform/worker/tests/Unit/ContainerWorkerProcessDriverResolverTest.php
+packages/platform/worker/tests/Unit/WorkerChildCommandBuilderTest.php
+packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
+packages/platform/worker/tests/Unit/WorkerProcessBootstrapProtocolTest.php
+packages/platform/worker/tests/Unit/WorkerProcessGuardianProtocolTest.php
+packages/platform/worker/tests/Unit/WorkerProcProcessHostProtocolTest.php
 
-framework/packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php
-framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerCommandsUseCliContractsOnlyTest.php
-framework/packages/platform/worker/tests/Contract/WorkerStateJsonSchemaContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerHealthCommandContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSafetyContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerControlProtocolSchemaContractTest.php
-framework/packages/platform/worker/tests/Contract/ProcWorkerProcessDriverSafetyContractTest.php
-framework/packages/platform/worker/tests/Contract/PcntlWorkerContainerIsolationContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerLocalFileOpenModeContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerProcessBootstrapBoundaryContractTest.php
-framework/packages/platform/worker/tests/Contract/WorkerProcessGuardianBoundaryContractTest.php
+packages/platform/worker/tests/Contract/ApplicationWorkerStopwatchFailurePolicyContractTest.php
+packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php
+packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
+packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php
+packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php
+packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php
+packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php
+packages/platform/worker/tests/Contract/WorkerCommandsUseCliContractsOnlyTest.php
+packages/platform/worker/tests/Contract/WorkerStateJsonSchemaContractTest.php
+packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+packages/platform/worker/tests/Contract/WorkerHealthCommandContractTest.php
+packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
+packages/platform/worker/tests/Contract/WorkerControlProtocolSafetyContractTest.php
+packages/platform/worker/tests/Contract/WorkerControlProtocolSchemaContractTest.php
+packages/platform/worker/tests/Contract/ProcWorkerProcessDriverSafetyContractTest.php
+packages/platform/worker/tests/Contract/PcntlWorkerContainerIsolationContractTest.php
+packages/platform/worker/tests/Contract/WorkerLocalFileOpenModeContractTest.php
+packages/platform/worker/tests/Contract/WorkerProcessBootstrapBoundaryContractTest.php
+packages/platform/worker/tests/Contract/WorkerProcessGuardianBoundaryContractTest.php
 
-framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
-framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php
-framework/packages/platform/worker/tests/Integration/WorkerControlTransportTest.php
-framework/packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest.php
-framework/packages/platform/worker/tests/Integration/ProcWorkerProcessHostDescriptorIsolationTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcProcessHostGuardianDeathTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcessBootstrapChannelTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcessBootstrapFailureContainmentTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianProcTest.php
-framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
-framework/packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
-framework/packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
-framework/packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlDescriptorIsolationTest.php
-framework/packages/platform/worker/tests/Integration/CoretsiaWorkerChildReadinessTest.php
-framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleLockFilesystemTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleLockCloseOnExecTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
-framework/packages/platform/worker/tests/Integration/WorkerSupervisorProductionFlowTest.php
-framework/packages/platform/worker/tests/Integration/WorkerSupervisorReadinessTest.php
-framework/packages/platform/worker/tests/Integration/WorkerSupervisorRecycleTest.php
-framework/packages/platform/worker/tests/Integration/WorkerSupervisorChildFailureTest.php
-framework/packages/platform/worker/tests/Integration/WorkerSupervisorSignalShutdownTest.php
-framework/packages/platform/worker/tests/Integration/WorkerRuntimeCleanupTest.php
+packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
+packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
+packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php
+packages/platform/worker/tests/Integration/WorkerControlTransportTest.php
+packages/platform/worker/tests/Integration/ProcWorkerProcessDriverTest.php
+packages/platform/worker/tests/Integration/ProcWorkerProcessHostDescriptorIsolationTest.php
+packages/platform/worker/tests/Integration/WorkerProcProcessHostGuardianDeathTest.php
+packages/platform/worker/tests/Integration/WorkerProcessBootstrapChannelTest.php
+packages/platform/worker/tests/Integration/WorkerProcessBootstrapFailureContainmentTest.php
+packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlTest.php
+packages/platform/worker/tests/Integration/WorkerProcessGuardianProcTest.php
+packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+packages/platform/worker/tests/Integration/PcntlWorkerProcessDriverTest.php
+packages/platform/worker/tests/Integration/PcntlWorkerExecIsolationTest.php
+packages/platform/worker/tests/Integration/PcntlWorkerArtifactBootTest.php
+packages/platform/worker/tests/Integration/WorkerProcessGuardianPcntlDescriptorIsolationTest.php
+packages/platform/worker/tests/Integration/CoretsiaWorkerChildReadinessTest.php
+packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
+packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
+packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleLockFilesystemTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleLockCloseOnExecTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
+packages/platform/worker/tests/Integration/WorkerSupervisorProductionFlowTest.php
+packages/platform/worker/tests/Integration/WorkerSupervisorReadinessTest.php
+packages/platform/worker/tests/Integration/WorkerSupervisorRecycleTest.php
+packages/platform/worker/tests/Integration/WorkerSupervisorChildFailureTest.php
+packages/platform/worker/tests/Integration/WorkerSupervisorSignalShutdownTest.php
+packages/platform/worker/tests/Integration/WorkerRuntimeCleanupTest.php
 
-framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
-framework/packages/core/kernel/tests/Contract/ArtifactLocalFileOpenModeContractTest.php
+packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
+packages/core/kernel/tests/Contract/ArtifactLocalFileOpenModeContractTest.php
 ```
 
 These tests are expected to verify:

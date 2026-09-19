@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia mode names, mode preset
 This document governs contracts introduced by epic `1.70.0` under:
 
 ```text
-framework/packages/core/contracts/src/Module/
+packages/core/contracts/src/Module/
 ```
 
 ## Normative language
@@ -36,7 +36,7 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Canonical mode and preset names
 
-Coretsia defines these framework canonical mode and preset names:
+Coretsia defines these canonical mode and preset names:
 
 ```text
 micro
@@ -45,11 +45,11 @@ hybrid
 enterprise
 ```
 
-These names are reserved for framework-owned canonical presets.
+These names are reserved for Coretsia-owned canonical presets.
 
 Owner-defined custom preset names are non-canonical names.
 
-Owner-defined custom preset names MUST NOT use framework canonical preset names.
+Owner-defined custom preset names MUST NOT use Coretsia canonical preset names.
 
 Mode and preset names are lowercase ASCII strings.
 
@@ -91,9 +91,9 @@ It emphasizes:
 - persistence-oriented workflows
 - typical web application concerns
 
-The framework-owned `express` preset is the conventional HTTP/web application mode.
+The Coretsia-owned `express` preset is the conventional HTTP/web application mode.
 
-The framework-owned `express` preset requires:
+The Coretsia-owned `express` preset requires:
 
 ```text
 platform.http
@@ -133,7 +133,7 @@ It emphasizes:
 
 A mode preset is a deterministic module-selection profile.
 
-A framework-owned mode preset MUST use a framework canonical preset name.
+A Coretsia-owned mode preset MUST use a Coretsia canonical preset name.
 
 An owner-defined custom preset MUST use a non-canonical safe preset name.
 
@@ -175,11 +175,11 @@ The storage format is outside `core/contracts`.
 
 ## Mode preset ownership
 
-Framework-owned mode presets are framework policy.
+Coretsia-owned mode presets are Coretsia policy.
 
 Project-specific overrides are user-owned and belong outside contracts.
 
-Contracts MUST NOT define skeleton override resolution.
+Contracts MUST NOT define application override resolution.
 
 Contracts MUST NOT implement mode preset discovery.
 
@@ -231,7 +231,7 @@ The `required`, `optional`, and `disabled` lists MUST be pairwise disjoint withi
 
 A preset implementation MUST NOT silently resolve conflicts between these three lists.
 
-Conflict resolution between a framework preset and application/user override is future owner policy and is outside `core/contracts`.
+Conflict resolution between a Coretsia canonical preset and application/user override is owner policy and is outside `core/contracts`.
 
 A loaded mode preset implementation MUST NOT be weaker than the schema validation policy that accepted its source payload.
 
@@ -392,7 +392,7 @@ Implementations SHOULD throw deterministic owner-defined exceptions for missing 
 
 The loader input MUST be a safe preset name.
 
-Framework canonical preset names are:
+Coretsia canonical preset names are:
 
 ```text
 micro
@@ -405,19 +405,19 @@ Owner-defined custom preset names MAY exist.
 
 Owner-defined custom preset names are non-canonical names.
 
-Owner-defined custom preset names MUST NOT use framework canonical preset names.
+Owner-defined custom preset names MUST NOT use Coretsia canonical preset names.
 
-Skeleton override files MAY override framework canonical presets using the same canonical name through the standard skeleton override mechanism:
+Application override files MAY override Coretsia canonical presets using the same canonical name through the standard application override mechanism:
 
 ```text
-skeleton/config/modes/<canonical>.php
+config/modes/<canonical>.php
 ```
 
-Skeleton preset loading is single-choice.
+Application override preset loading is single-choice.
 
-When both a skeleton override preset and a framework default preset exist for the same canonical name, the skeleton override wins.
+When both an application override preset and a Kernel package default preset exist for the same canonical name, the application override wins.
 
-Skeleton and framework presets MUST NOT be merged.
+Application override and Kernel package default presets MUST NOT be merged.
 
 Preset names MUST be safe lowercase ASCII identifiers.
 
@@ -497,7 +497,8 @@ They MUST NOT depend on:
 - S3 concrete APIs
 - Prometheus concrete APIs
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 ## Non-goals
@@ -506,7 +507,7 @@ This SSoT does not define:
 
 - concrete preset file format
 - preset file paths
-- skeleton override resolution
+- application override resolution
 - Kernel mode compilation
 - generated Kernel module plan artifact
 - CLI command behavior

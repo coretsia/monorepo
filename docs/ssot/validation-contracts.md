@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia validation contracts, v
 This document governs contracts introduced by epic `1.130.0` under:
 
 ```text
-framework/packages/core/contracts/src/Validation/
+packages/core/contracts/src/Validation/
 ```
 
 It complements:
@@ -59,9 +59,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement validator logic, validation rule execution, exception mapper implementation, mapper discovery, DI registration, HTTP middleware, request parsing, response rendering, config defaults, config rules, providers, or generated artifacts.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to validation diagnostics.
 - `0.60.0` presence-sensitive behavior MUST NOT collapse distinct states when future owners validate optional, missing, empty, or null values.
@@ -110,8 +110,8 @@ They MUST NOT depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - worker runtime packages
 - queue vendor clients
 - scheduler vendor clients
@@ -123,7 +123,8 @@ They MUST NOT depend on:
 - concrete tracing implementations
 - concrete metrics implementations
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 Runtime packages MAY depend on `core/contracts`.
@@ -261,7 +262,7 @@ Validation contract fields SHOULD use stable ASCII-compatible identifiers when t
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Validation/ValidatorInterface.php
+packages/core/contracts/src/Validation/ValidatorInterface.php
 ```
 
 The canonical interface shape is:
@@ -310,8 +311,8 @@ The validation port MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -329,7 +330,7 @@ Concrete validation behavior belongs to runtime owner packages.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Validation/ValidationResult.php
+packages/core/contracts/src/Validation/ValidationResult.php
 ```
 
 `ValidationResult` is an immutable contracts result shape.
@@ -438,7 +439,7 @@ Contract tests cement this order as part of the validation result shape contract
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Validation/Violation.php
+packages/core/contracts/src/Validation/Violation.php
 ```
 
 `Violation` is an immutable safe descriptor shape.
@@ -688,7 +689,7 @@ Contract tests cement this order as part of the violation shape contract.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Validation/ValidationException.php
+packages/core/contracts/src/Validation/ValidationException.php
 ```
 
 `ValidationException` MUST use this deterministic validation error code:
@@ -807,7 +808,7 @@ The relevant existing reserved tag is:
 
 `core/contracts` is not the owner of `error.mapper`.
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -947,9 +948,9 @@ The concrete validator implementation, rule engine, mapper implementation, probl
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ValidationContractsTest.php
-framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php
-framework/packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php
+packages/core/contracts/tests/Contract/ValidationContractsTest.php
+packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php
+packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php
 ```
 
 These tests are expected to verify:
@@ -988,7 +989,7 @@ This SSoT does not define:
 - executable validators;
 - validator DI registration;
 - DI tag identifier constants in `core/contracts`;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - error mapper implementation;
 - mapper registry implementation;
 - mapper priority algorithm;

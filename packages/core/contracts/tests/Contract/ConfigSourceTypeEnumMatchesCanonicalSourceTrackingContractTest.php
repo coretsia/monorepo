@@ -1,0 +1,109 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Coretsia Framework (Monorepo)
+ *
+ * Project: Coretsia Framework (Monorepo)
+ * Authors: Vladyslav Mudrichenko and contributors
+ * Copyright (c) 2026 Vladyslav Mudrichenko
+ *
+ * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * For contributors list, see git history.
+ * See LICENSE and NOTICE in the project root for full license information.
+ */
+
+namespace Coretsia\Contracts\Tests\Contract;
+
+use Coretsia\Contracts\Config\ConfigSourceType;
+use Coretsia\Contracts\Config\ConfigValueSource;
+use PHPUnit\Framework\TestCase;
+
+final class ConfigSourceTypeEnumMatchesCanonicalSourceTrackingContractTest extends TestCase
+{
+    /**
+     * @var list<string>
+     */
+    private const array SOURCE_TYPE_VALUES = [
+        'package_default',
+        'application_config',
+        'app_config',
+        'dotenv',
+        'env',
+        'cli',
+        'runtime',
+        'generated_artifact',
+    ];
+
+    public function testSourceTypeEnumMatchesSourceTrackingVocabulary(): void
+    {
+        self::assertSame(self::SOURCE_TYPE_VALUES, ConfigSourceType::values());
+    }
+
+    public function testSourceTypeEnumDoesNotDefineIntrinsicPrecedence(): void
+    {
+        foreach (ConfigSourceType::cases() as $type) {
+            self::assertFalse(method_exists($type, 'precedence'));
+        }
+    }
+
+    public function testPrecedenceIsExplicitSourceTraceMetadataNotSourceTypeMetadata(): void
+    {
+        $lowRank = new ConfigValueSource(
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.cache',
+            precedence: 10,
+        );
+
+        $highRank = new ConfigValueSource(
+            type: ConfigSourceType::Env,
+            root: 'foundation',
+            sourceId: 'env.runtime',
+            path: 'env/runtime',
+            keyPath: 'container.cache',
+            precedence: 40,
+        );
+
+        self::assertSame(ConfigSourceType::Env, $lowRank->type());
+        self::assertSame(ConfigSourceType::Env, $highRank->type());
+
+        self::assertSame(10, $lowRank->precedence());
+        self::assertSame(40, $highRank->precedence());
+    }
+
+    public function testSourceTypeVocabularyOrderIsNotAMergePrecedenceContract(): void
+    {
+        $trace = new ConfigValueSource(
+            type: ConfigSourceType::PackageDefault,
+            root: 'foundation',
+            sourceId: 'core.foundation',
+            path: 'config/foundation.php',
+            keyPath: 'container.autowire',
+            precedence: 90,
+        );
+
+        self::assertSame(ConfigSourceType::PackageDefault, $trace->type());
+        self::assertSame(90, $trace->precedence());
+        self::assertSame('package_default', $trace->toArray()['type']);
+        self::assertSame(90, $trace->toArray()['precedence']);
+    }
+
+    public function testSourceTypeExpansionRequiresContractTestUpdate(): void
+    {
+        self::assertSame(
+            self::SOURCE_TYPE_VALUES,
+            array_map(
+                static fn (ConfigSourceType $type): string => $type->value,
+                ConfigSourceType::cases(),
+            ),
+        );
+
+        self::assertCount(count(self::SOURCE_TYPE_VALUES), ConfigSourceType::cases());
+    }
+}

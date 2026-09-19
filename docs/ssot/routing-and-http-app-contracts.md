@@ -27,8 +27,8 @@ This document is the Single Source of Truth for Coretsia routing contracts, rout
 This document governs contracts introduced by epic `1.110.0` under:
 
 ```text
-framework/packages/core/contracts/src/Routing/
-framework/packages/core/contracts/src/HttpApp/
+packages/core/contracts/src/Routing/
+packages/core/contracts/src/HttpApp/
 ```
 
 It complements:
@@ -68,8 +68,8 @@ They MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - concrete middleware objects;
 - concrete router implementations;
 - concrete controller implementations;
@@ -92,15 +92,16 @@ They MUST NOT depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - concrete router implementations
 - concrete middleware implementations
 - concrete controller implementations
 - concrete service container implementations
 - vendor-specific runtime clients
 - generated architecture artifacts
-- tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 
 Runtime packages MAY depend on `core/contracts`.
 
@@ -585,7 +586,7 @@ The route provider port MUST NOT prescribe:
 - PHP attribute scanning;
 - controller scanning;
 - Composer metadata scanning;
-- framework module scanning;
+- runtime module scanning;
 - generated artifact loading;
 - DI container integration;
 - HTTP middleware wiring;
@@ -643,8 +644,8 @@ match(string $method, string $path, ?string $host = null): ?RouteMatch
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - concrete middleware objects;
 - concrete route collection objects;
 - concrete route compiler objects.
@@ -756,8 +757,8 @@ The `context` map MUST NOT contain:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - raw headers;
 - raw cookies;
 - raw request bodies;
@@ -815,8 +816,8 @@ The arguments map is not required to be json-like because resolved arguments MAY
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - concrete middleware objects;
 - concrete service container objects;
 - concrete controller base classes;
@@ -876,7 +877,7 @@ The canonical middleware tag is:
 http.middleware.app
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
@@ -904,7 +905,7 @@ This epic introduces no DI tags.
 
 The contracts package MUST NOT declare routing or HttpApp tag constants.
 
-The contracts package MUST NOT define additional code-level registries for framework-reserved middleware tag identifiers.
+The contracts package MUST NOT define additional code-level registries for Coretsia-reserved middleware DI tag identifiers.
 
 The contracts package MAY reference existing reserved middleware tags in documentation as runtime policy.
 
@@ -914,7 +915,7 @@ Reserved tag ownership remains governed by:
 docs/ssot/tags.md
 ```
 
-Non-owner packages using existing reserved tags MUST follow the tag registry rules, MUST use `Coretsia\Foundation\Tag\ReservedTags::*` in runtime package source, and MUST NOT redefine competing tag semantics, competing metadata schema, or additional code-level registries for framework-reserved DI tag identifiers.
+Non-owner packages using existing reserved tags MUST follow the tag registry rules, MUST use `Coretsia\Foundation\Tag\ReservedTags::*` in runtime package source, and MUST NOT redefine competing tag semantics, competing metadata schema, or additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 ## Config policy
 
@@ -998,11 +999,11 @@ This document is doc-only.
 Current and future contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php
-framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php
-framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php
+packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php
+packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php
+packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php
+packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php
+packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php
 ```
 
 These tests are expected to verify:

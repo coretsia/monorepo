@@ -109,8 +109,8 @@ N/A
   - `<tag>` priority `<int>` meta `per owner schema`
 
 - Artifacts:
-  - reads: `skeleton/var/cache/<appId>/<artifact>.php`
-  - writes: `skeleton/var/cache/<appId>/<artifact>.php`
+  - reads: `packages/applications/skeleton/var/cache/<appId>/<artifact>.php`
+  - writes: `packages/applications/skeleton/var/cache/<appId>/<artifact>.php`
 
 - Notes (only if applicable):
   - if this epic references a tag owned by another package, this section MUST name only:
@@ -160,7 +160,7 @@ N/A
 
 - [ ] Tags introduced (this epic is the OWNER):
   - [ ] if this epic owns one or more reserved tags:
-    - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner constants)
+    - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (owner constants)
     - [ ] constants:
       - [ ] `<TAG_CONST> = '<tag>'`
   - [ ] if this epic does not own the referenced tags:
@@ -177,7 +177,7 @@ N/A
   - [ ] this package MUST NOT introduce owner constants for tags it does not own
   - [ ] runtime code MUST use:
     - [ ] the owner public constant, if the owner package is an allowed compile-time dependency; OR
-    - [ ] a package-local mirror constant in `framework/packages/core/foundation/src/Tag/ReservedTags.php`, if the owner package is a forbidden compile-time dependency
+    - [ ] a package-local mirror constant in `packages/core/foundation/src/Tag/ReservedTags.php`, if the owner package is a forbidden compile-time dependency
   - [ ] any package-local mirror constant:
     - [ ] MUST be package-internal only
     - [ ] MUST equal the canonical tag string exactly
@@ -191,7 +191,7 @@ N/A
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/cache/<appId>/<artifact>.php` (schemaVersion, deterministic bytes)
+  - [ ] `packages/applications/skeleton/var/cache/<appId>/<artifact>.php` (schemaVersion, deterministic bytes)
 - [ ] Reads:
   - [ ] validates header + payload schema
 

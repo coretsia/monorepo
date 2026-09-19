@@ -1,0 +1,77 @@
+# Coretsia Framework (Monorepo)
+#
+# Project: Coretsia Framework (Monorepo)
+# Authors: Vladyslav Mudrichenko and contributors
+# Copyright (c) 2026 Vladyslav Mudrichenko
+#
+# SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+# SPDX-License-Identifier: Apache-2.0
+#
+# For contributors list, see git history.
+# See LICENSE and NOTICE in the project root for full license information.
+
+# GENERATED FILE (deterministic). Do not edit manually.
+# Regenerate: php tools/build/deptrac_generate.php --apply
+
+deptrac:
+  cache_file: 'var/deptrac/.deptrac.cache'
+
+  paths:
+    - '../../packages/core/contracts/src'
+    - '../../packages/core/dto-attribute/src'
+    - '../../packages/core/foundation/src'
+    - '../../packages/core/kernel/src'
+    - '../../packages/devtools/internal-toolkit/src'
+    - '../../packages/platform/cli/src'
+    - '../../packages/platform/worker/src'
+
+  exclude_files:
+    - '#(^|/)fixtures(/|$)#'
+    - '#(^|/)tests(/|$)#'
+    - '#(^|/)vendor(/|$)#'
+
+  layers:
+    - name: 'core.contracts'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Contracts\\.*'
+    - name: 'core.dto-attribute'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Dto\\Attribute\\.*'
+    - name: 'core.foundation'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Foundation\\.*'
+    - name: 'core.kernel'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Kernel\\.*'
+    - name: 'devtools.internal-toolkit'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Devtools\\InternalToolkit\\.*'
+    - name: 'platform.cli'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Cli\\.*'
+    - name: 'platform.worker'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Worker\\.*'
+
+  ruleset:
+    'core.contracts': [ ]
+    'core.dto-attribute': [ ]
+    'core.foundation':
+      - 'core.contracts'
+    'core.kernel':
+      - 'core.contracts'
+      - 'core.foundation'
+    'devtools.internal-toolkit': [ ]
+    'platform.cli':
+      - 'core.contracts'
+    'platform.worker':
+      - 'core.contracts'
+      - 'core.foundation'
+      - 'core.kernel'

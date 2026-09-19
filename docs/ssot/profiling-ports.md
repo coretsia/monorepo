@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia profiling port semantic
 This document governs profiling contracts introduced by epic `1.90.0` under:
 
 ```text
-framework/packages/core/contracts/src/Observability/Profiling/
+packages/core/contracts/src/Observability/Profiling/
 ```
 
 It complements:
@@ -43,9 +43,9 @@ docs/ssot/dto-policy.md
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-Profiling metadata follows the Phase 0 json-like and redaction invariants:
+Profiling metadata follows the canonical json-like and redaction invariants:
 
 - floats are forbidden;
 - lists preserve order;
@@ -95,7 +95,7 @@ Profiling contracts MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
+- `platform/http` request objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects.
@@ -120,7 +120,8 @@ They MUST NOT depend on:
 - Xdebug concrete APIs
 - Tideways concrete APIs
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 ## DTO terminology boundary
@@ -185,7 +186,7 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-The canonical code-level identifiers for these framework-reserved DI tags are:
+The canonical code-level identifiers for these Coretsia-reserved DI tags are:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
@@ -509,7 +510,7 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-Runtime package source MUST use the corresponding framework-reserved DI tag identifier constants:
+Runtime package source MUST use the corresponding Coretsia-reserved DI tag identifier constants:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW

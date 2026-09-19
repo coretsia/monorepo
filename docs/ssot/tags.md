@@ -33,8 +33,8 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 - Shared ownership is forbidden.
 - Only the owner epic may introduce or modify a reserved tag entry.
 - Registry rows MAY exist independently of whether the semantic owner package currently registers runtime services for that tag.
-- Every framework-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
-- Framework packages MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
+- Every Coretsia-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
+- Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved DI tag identifiers.
 - `ReservedTags` owns tag identifier strings only.
 - Runtime semantics, metadata schema, discovery, ordering, dispatch, validation, and consumer behavior remain owned by the semantic owner package declared in this SSoT.
 - Non-owner packages MAY use existing reserved tags, but MUST NOT redefine competing semantics or competing meta-schema for the same tag.
@@ -101,15 +101,15 @@ Stability enum is single-choice:
 | `cli.command`                 | `platform/cli`    | CLI command discovery.                      | `stable`       | Canonical CLI discovery tag.                                |
 | `error.mapper`                | `platform/errors` | Error mapper discovery.                     | `stable`       | Canonical discovery point for error mapping components.     |
 | `health.check`                | `platform/health` | Health check discovery.                     | `experimental` | Reserved baseline row; owner package is future-facing.      |
-| `http.middleware.app`         | `platform/http`   | Main application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.app_post`    | `platform/http`   | Post-application middleware slot.           | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.app_pre`     | `platform/http`   | Pre-application middleware slot.            | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.route`       | `platform/http`   | Main route-scoped middleware slot.          | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.route_post`  | `platform/http`   | Post-route middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.route_pre`   | `platform/http`   | Pre-route middleware slot.                  | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.system`      | `platform/http`   | Main system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.system_post` | `platform/http`   | Post-system middleware slot.                | `stable`       | Canonical Phase 0+ taxonomy.                                |
-| `http.middleware.system_pre`  | `platform/http`   | Pre-system middleware slot.                 | `stable`       | Canonical Phase 0+ taxonomy.                                |
+| `http.middleware.app`         | `platform/http`   | Main application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.app_post`    | `platform/http`   | Post-application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.app_pre`     | `platform/http`   | Pre-application middleware slot.            | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route`       | `platform/http`   | Main route-scoped middleware slot.          | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route_post`  | `platform/http`   | Post-route middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route_pre`   | `platform/http`   | Pre-route middleware slot.                  | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system`      | `platform/http`   | Main system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system_post` | `platform/http`   | Post-system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system_pre`  | `platform/http`   | Pre-system middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
 | `kernel.hook.after_uow`       | `core/kernel`     | Post-unit-of-work lifecycle hook discovery. | `stable`       | Canonical kernel lifecycle hook.                            |
 | `kernel.hook.before_uow`      | `core/kernel`     | Pre-unit-of-work lifecycle hook discovery.  | `stable`       | Canonical kernel lifecycle hook.                            |
 | `kernel.reset`                | `core/foundation` | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.        |
@@ -126,21 +126,21 @@ The following non-canonical tags are forbidden and MUST NOT be introduced anywhe
 
 Rationale:
 
-- Canonical Phase 0+ HTTP middleware taxonomy is single-choice: `system/app/route`.
+- Canonical HTTP middleware taxonomy is single-choice: `system/app/route`.
 - Any new epic mentioning `http.middleware.user*` MUST treat it only as forbidden non-canonical terminology.
 - `http.middleware.user*` names MUST NOT appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
 
 ## Runtime Usage Rule (MUST)
 
-Runtime code in framework packages MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for framework-reserved DI tags.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for Coretsia-reserved DI tags.
 
 Raw literal tag strings are allowed in docs, tests, fixtures, and config defaults where readability or user-owned configuration is the subject.
 
-Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tags.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for Coretsia-reserved DI tags.
 
-Runtime package source MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
+Runtime package source MUST NOT define additional code-level registries for Coretsia-reserved DI tag identifiers.
 
-Custom/user tags are outside this reserved registry unless explicitly promoted to framework-reserved status through this SSoT.
+Custom/user DI tags are outside this reserved registry unless explicitly promoted to Coretsia-reserved status through this SSoT.
 
 ## Contributor Rule (MUST)
 

@@ -1,0 +1,172 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Coretsia Framework (Monorepo)
+ *
+ * Project: Coretsia Framework (Monorepo)
+ * Authors: Vladyslav Mudrichenko and contributors
+ * Copyright (c) 2026 Vladyslav Mudrichenko
+ *
+ * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * For contributors list, see git history.
+ * See LICENSE and NOTICE in the project root for full license information.
+ */
+
+namespace Coretsia\Kernel\Boot;
+
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
+
+/**
+ * Immutable resolved Bootstrap Phase A configuration.
+ *
+ * BootstrapConfig represents the resolved, minimal, format-neutral Kernel boot
+ * configuration needed before full config compilation and before runtime
+ * lifecycle starts.
+ *
+ * It MUST NOT:
+ *
+ * - scan apps/<app>;
+ * - infer the application target;
+ * - read the filesystem;
+ * - require the derived app root to exist;
+ * - read process env;
+ * - parse dotenv files;
+ * - contain raw env values.
+ *
+ * The app root is always derived deterministically as:
+ *
+ * applicationRoot/apps/<appTarget>
+ */
+final readonly class BootstrapConfig
+{
+    private string $appRoot;
+
+    /**
+     * @param non-empty-string $appEnv
+     * @param non-empty-string $preset
+     * @param non-empty-string $artifactsCacheDir
+     */
+    public function __construct(
+        private string $appEnv,
+        private string $preset,
+        private bool $debug,
+        private string $artifactsCacheDir,
+        private BootstrapEnvSourcePolicy $envSourcePolicy,
+        private AppTarget $appTarget,
+        private string $applicationRoot,
+    ) {
+        if (!self::isNonEmptySafeSingleLineString($this->appEnv)) {
+            throw new \InvalidArgumentException('bootstrap-config-app-env-invalid');
+        }
+
+        if (!self::isNonEmptySafeSingleLineString($this->preset)) {
+            throw new \InvalidArgumentException('bootstrap-config-preset-invalid');
+        }
+
+        if (!BootstrapArtifactsCacheDir::isValid($this->artifactsCacheDir)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID,
+            );
+        }
+
+        if (!self::isNonEmptySafeSingleLineString($this->applicationRoot)) {
+            throw BootstrapException::withReason(
+                BootstrapException::REASON_INVALID_APPLICATION_ROOT,
+            );
+        }
+
+        $this->appRoot = self::deriveAppRoot($this->applicationRoot, $this->appTarget);
+    }
+
+    /**
+     * Resolved non-empty application environment token.
+     *
+     * @return non-empty-string
+     */
+    public function appEnv(): string
+    {
+        return $this->appEnv;
+    }
+
+    /**
+     * Resolved non-empty bootstrap preset token.
+     *
+     * @return non-empty-string
+     */
+    public function preset(): string
+    {
+        return $this->preset;
+    }
+
+    public function debug(): bool
+    {
+        return $this->debug;
+    }
+
+    /**
+     * Resolved Kernel artifact cache directory relative to applicationRoot.
+     *
+     * @return non-empty-string
+     */
+    public function artifactsCacheDir(): string
+    {
+        return $this->artifactsCacheDir;
+    }
+
+    public function envSourcePolicy(): BootstrapEnvSourcePolicy
+    {
+        return $this->envSourcePolicy;
+    }
+
+    public function appTarget(): AppTarget
+    {
+        return $this->appTarget;
+    }
+
+    /**
+     * Resolved application root string.
+     *
+     * This class does not check whether the path exists and does not normalize
+     * it through the filesystem.
+     */
+    public function applicationRoot(): string
+    {
+        return $this->applicationRoot;
+    }
+
+    /**
+     * Deterministically derived app root.
+     *
+     * The path is derived as: applicationRoot/apps/<appTarget>
+     *
+     * This class does not check whether the derived path exists.
+     */
+    public function appRoot(): string
+    {
+        return $this->appRoot;
+    }
+
+    private static function deriveAppRoot(string $applicationRoot, AppTarget $appTarget): string
+    {
+        $root = \rtrim($applicationRoot, '/\\');
+
+        if ($root === '') {
+            return $applicationRoot . 'apps/' . $appTarget->value;
+        }
+
+        return $root . '/apps/' . $appTarget->value;
+    }
+
+    private static function isNonEmptySafeSingleLineString(string $value): bool
+    {
+        return $value !== ''
+            && \trim($value) === $value
+            && !\str_contains($value, "\r")
+            && !\str_contains($value, "\n")
+            && \preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) !== 1;
+    }
+}

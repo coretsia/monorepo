@@ -31,6 +31,7 @@ Hard rule: documented workflows MUST NOT rely on `./dev/**`.
 - Canonical command catalog (SSoT): `docs/guides/commands.md`
 - Git hooks & managed repositories policy: `docs/guides/git-hooks.md`
 - Packaging / identity law: `docs/architecture/PACKAGING.md`
+- Compile-time dependency law: `docs/architecture/DEPENDENCIES.md`
 
 ---
 
@@ -38,14 +39,11 @@ Hard rule: documented workflows MUST NOT rely on `./dev/**`.
 
 ### 1.1 Repo-root execution (MUST)
 
-- All workflow steps assume you are in the repo root (the directory that contains `composer.json` + `framework/` + `skeleton/`).
+- All workflow steps assume you are in the repo root (the directory that contains `composer.json`, `packages/`, and `tools/`).
 
 ### 1.2 Managed Composer repositories (MUST)
 
-- You MUST NOT manually edit `repositories` blocks in:
-  - `composer.json`
-  - `framework/composer.json`
-  - `skeleton/composer.json`
+- You MUST NOT manually edit the managed `repositories` block in root `composer.json`.
 
 - The canonical repo-root entrypoints are:
   - `composer sync:repos` (apply)
@@ -57,10 +55,7 @@ See: `docs/guides/git-hooks.md`.
 
 ### 1.3 Lock determinism (MUST)
 
-- Lockfiles MUST be committed for all three roots:
-  - `composer.lock`
-  - `framework/composer.lock`
-  - `skeleton/composer.lock`
+- The root workspace `composer.lock` MUST be committed.
 
 - CI entrypoint MUST fail on lock drift:
   - `composer lock:check` (part of `composer ci`)
@@ -80,8 +75,8 @@ What this guarantees by policy:
 
 - hooks are enabled (`core.hooksPath=.githooks`),
 - managed repositories are synced/validated,
-- dependencies are installed from committed lockfiles,
-- composer roots are validated,
+- root workspace dependencies are installed from the committed `composer.lock`,
+- root `composer.json` is validated,
 - the test suite is runnable.
 
 If `composer ci` is not green, stop and fix baseline first.
@@ -122,7 +117,7 @@ or the full rails:
 composer ci
 ```
 
-If you changed dependencies anywhere (any `composer.json` or lockfile), always run:
+If you changed dependencies anywhere (any `composer.json` or root `composer.lock`), always run:
 
 ```bash
 composer ci
@@ -130,9 +125,9 @@ composer ci
 
 ---
 
-## 4) Adding a new framework package (step-by-step)
+## 4) Adding a new layered package (step-by-step)
 
-This workflow creates a new publishable unit under `framework/packages/<layer>/<slug>/` using the canonical generator.
+This workflow creates a new publishable unit under `packages/<layer>/<slug>/` using the canonical generator.
 
 ### 4.1 Choose identity (MUST)
 
@@ -145,7 +140,7 @@ This workflow creates a new publishable unit under `framework/packages/<layer>/<
 From repo root:
 
 ```bash
-composer package:new -- --layer=<layer> --slug=<slug>
+composer package:new -- --layer=<layer> --slug=<slug> --kind=<library|runtime>
 ```
 
 This tool is the canonical entrypoint for scaffolding.
@@ -154,32 +149,40 @@ This tool is the canonical entrypoint for scaffolding.
 
 Verify the package matches the packaging law:
 
-- path: `framework/packages/<layer>/<slug>/`
-- composer: `coretsia/<layer>-<slug>`
+- path: `packages/<layer>/<slug>/`
+- composer: package `composer.json` `name` MUST match the canonical identity for that package
 - namespace mapping is deterministic (see `docs/architecture/PACKAGING.md`)
+- dependency policy: the package MUST have exactly one canonical row in `docs/architecture/DEPENDENCIES.md`
 
 ### 4.4 Sync repositories (optional, safe; rerun-no-diff)
 
-You normally do NOT need this for package creation alone (glob repos already cover packages), but it is always safe to rerun:
+After creating or relocating a package, synchronize the managed root Composer repositories so the new package is included in the workspace:
 
 ```bash
 composer sync:repos
 ```
 
-### 4.5 If you added/changed dependencies (MUST follow lock policy)
-
-Dependency changes must be intentional and must update the relevant lockfiles.
-
-For canonical install/update/check commands, see:
-
-- `docs/guides/commands.md`
-
-After dependency changes, run:
+Verify that the managed repositories are synchronized:
 
 ```bash
-composer install:all
+composer sync:check
+```
+
+### 4.5 If you added/changed dependencies (MUST follow lock policy)
+
+Dependency changes must be intentional and must update the root workspace `composer.lock` when dependency resolution changes.
+
+Any added or removed internal production dependency between layered packages MUST also be reflected intentionally in `docs/architecture/DEPENDENCIES.md`.
+
+Use the appropriate native Composer update operation for the intended dependency change, then run:
+
+```bash
 composer ci
 ```
+
+For canonical Coretsia workflow commands, see:
+
+- `docs/guides/commands.md`
 
 ---
 
@@ -192,13 +195,13 @@ Fix (repo root):
 ```bash
 composer sync:repos
 composer sync:check
-git add composer.json framework/composer.json skeleton/composer.json
+git add composer.json
 git commit
 ```
 
 ### 5.2 `composer ci` fails: lock drift detected
 
-Policy: CI must rely on `composer install` and must not modify locks.
+Policy: CI must rely on `composer install` and must not modify `composer.lock`.
 
 Deterministic fix approach:
 
@@ -210,14 +213,14 @@ composer setup
 composer ci
 ```
 
-If the drift is intentional (you explicitly changed dependencies), ensure the correct lockfiles are updated and committed.
+If the drift is intentional (you explicitly changed dependencies), ensure the root `composer.lock` is updated and committed.
 
 ### 5.3 Composer validation fails
 
 Run the strict validators directly (repo root):
 
 ```bash
-composer validate:all
+composer validate --strict
 ```
 
 Then re-run:
@@ -255,7 +258,7 @@ The current repository baseline includes additional repo-root verification rails
 - `composer dto:gate`
 - `composer quality`
 - `composer package-compliance:gate`
-- `composer package-scaffold:check -- framework`
+- `composer package-scaffold:check`
 
 For the complete canonical command catalog, see:
 

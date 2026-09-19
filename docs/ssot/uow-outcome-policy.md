@@ -34,8 +34,8 @@ Coretsia\Kernel\Runtime\UnitOfWorkResult
 The implementation paths are:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Outcome.php
-framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php
+packages/core/kernel/src/Runtime/Outcome.php
+packages/core/kernel/src/Runtime/UnitOfWorkResult.php
 ```
 
 The runtime lifecycle executor owner is:
@@ -111,7 +111,7 @@ core/kernel
 The package path is:
 
 ```text
-framework/packages/core/kernel/
+packages/core/kernel/
 ```
 
 The Composer package is:
@@ -483,7 +483,7 @@ Coretsia\Kernel\Runtime\KernelRuntime
 
 `core/kernel` MUST NOT define competing reset DI tag identifier constants.
 
-Framework-reserved reset and hook tag identifier constants are declared only in:
+Coretsia-reserved reset and hook DI tag identifier constants are declared only in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -989,7 +989,7 @@ This SSoT does not define or own additional tags.
 
 This SSoT does not define or own DI tag identifier constants.
 
-Existing framework-reserved DI tag identifier constants are declared only in:
+Existing Coretsia-reserved DI tag identifier constants are declared only in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -1013,7 +1013,7 @@ Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 ```
 
-Runtime package source MUST use these constants for framework-reserved DI tag identifiers.
+Runtime package source MUST use these constants for Coretsia-reserved DI tag identifiers.
 
 Tag ownership and discovery policy are governed by:
 
@@ -1203,7 +1203,7 @@ Then the before-uow hook failure remains the surfaced primary failure.
 Kernel contract enforcement includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
+packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
 ```
 
 `OutcomeMappingStabilityContractTest` is the single contract lock for the HTTP/CLI mapping rules in this document.
@@ -1221,19 +1221,19 @@ It MUST verify at minimum:
 Shape-specific contract enforcement is owned by:
 
 ```text
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 ```
 
 Kernel reset-responsibility and runtime-boundary lifecycle enforcement is owned by:
 
 ```text
-framework/packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
+packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
 ```
 
 `KernelRuntimeResetResponsibilityContractTest` verifies that `KernelRuntime` acquires lifecycle exclusivity before UnitOfWork context creation/base writes and sets reset responsibility only after the canonical context-write helper returns successfully.

@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia secrets contracts, secr
 This document governs contracts introduced by epic `1.180.0` under:
 
 ```text
-framework/packages/core/contracts/src/Secrets/
+packages/core/contracts/src/Secrets/
 ```
 
 The canonical secrets contract introduced by this epic is:
@@ -39,7 +39,7 @@ Coretsia\Contracts\Secrets\SecretsResolverInterface
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php
+packages/core/contracts/src/Secrets/SecretsResolverInterface.php
 ```
 
 It complements:
@@ -74,9 +74,9 @@ The contract introduced by this epic defines only:
 
 The contracts package MUST NOT implement secret storage, env lookup, vault lookup, cloud secret manager access, secret caching, rotation, encryption, config loading, DI registration, backend discovery, generated artifacts, observability emission, health checks, debug endpoints, or error mapping.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to resolved secret values, diagnostics, logs, spans, metrics, CLI output, health output, debug output, worker output, and backend errors.
 - `0.60.0` missing vs empty MUST remain distinguishable when runtime owners resolve secrets from env, files, vaults, cloud providers, generated config, or another backend.
@@ -151,7 +151,8 @@ They MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 - vendor-specific runtime clients
 
@@ -370,7 +371,7 @@ The contracts package does not introduce a `SecretNotFoundException`, `SecretExc
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php
+packages/core/contracts/src/Secrets/SecretsResolverInterface.php
 ```
 
 The canonical interface shape is:
@@ -604,13 +605,13 @@ If a future runtime owner needs secrets DI tags, that owner MUST introduce them 
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved secrets tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved secrets DI tag identifiers.
 
 ## Artifact policy
 
@@ -881,11 +882,11 @@ Secrets contracts MUST NOT introduce provider-specific, backend-specific, creden
 Epic `1.180.0` MUST NOT create:
 
 ```text
-framework/packages/platform/secrets/*
-framework/packages/platform/config/*
-framework/packages/platform/http/*
-framework/packages/integrations/*
-config/*.php
+packages/platform/secrets/*
+packages/platform/config/*
+packages/platform/http/*
+packages/integrations/*
+packages/applications/skeleton/config/**
 provider/module wiring files
 secret resolver implementation
 env secret resolver implementation
@@ -930,7 +931,7 @@ The concrete resolver implementation, backend selection, caching, rotation, conf
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php
+packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php
 ```
 
 This test is expected to verify:
@@ -949,7 +950,7 @@ This test is expected to verify:
 - secrets contracts do not depend on Vault, cloud SDK, dotenv, filesystem, database, Redis, cache, lock, or vendor concretes;
 - secrets contracts do not expose streams, resources, iterators, generators, closures, vendor clients, backend objects, or runtime wiring objects;
 - secrets contracts do not declare DI tag identifier constants;
-- secrets contracts do not define additional code-level registries for framework-reserved DI tag identifiers;
+- secrets contracts do not define additional code-level registries for Coretsia-reserved DI tag identifiers;
 - secrets contracts do not introduce config roots, config keys, or artifact concepts;
 - secrets contracts do not introduce a secrets exception hierarchy;
 - secrets contracts do not expose `float` as an accepted value or returned result value.

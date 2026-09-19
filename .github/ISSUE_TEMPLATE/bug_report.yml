@@ -44,7 +44,7 @@ body:
         - Tooling gates
         - Architecture / Deptrac
         - Package compliance / scaffold
-        - Skeleton / app defaults
+        - Application template / app defaults
         - Documentation / SSoT / roadmap
         - Other / unsure
     validations:
@@ -88,7 +88,7 @@ body:
       render: shell
       placeholder: |
         composer gates
-        composer framework:test
+        composer test
     validations:
       required: false
 
@@ -114,7 +114,7 @@ body:
       placeholder: |
         - docs/roadmap/...
         - docs/ssot/...
-        - framework/tools/gates/...
+        - tools/gates/...
     validations:
       required: false
 

@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.90.0` introduces stable contracts for observability, errors, health, and profiling under:
 
 ```text
-framework/packages/core/contracts/src/Observability/
+packages/core/contracts/src/Observability/
 ```
 
 Runtime packages need shared ports for tracing, metrics, correlation, error mapping, health checks, and profiling without depending on transport-specific APIs or vendor-specific SDKs.
@@ -38,7 +38,8 @@ It must not depend on:
 - `integrations/*`
 - `Psr\Http\Message\*`
 - vendor concrete clients or SDKs
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 The existing SSoT baseline already defines:
@@ -124,7 +125,7 @@ Runtime discovery of exception mappers is platform-owned through the reserved ta
 error.mapper
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -193,7 +194,7 @@ Runtime discovery is through the reserved tag:
 health.check
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HEALTH_CHECK
@@ -251,7 +252,7 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-The canonical code-level identifiers for these framework-reserved DI tags are:
+The canonical code-level identifiers for these Coretsia-reserved DI tags are:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_BEFORE_UOW
@@ -262,7 +263,7 @@ The contracts package does not introduce profiling-specific DI tags in epic `1.9
 
 ## Json-like payload decision
 
-Any json-like payload exposed by contracts introduced in epic `1.90.0` must follow the Phase 0 json-like policy:
+Any json-like payload exposed by contracts introduced in epic `1.90.0` must follow the canonical json-like runtime value policy defined by `docs/ssot/json-like-runtime-values.md`:
 
 - allowed scalars are `string`, `int`, `bool`, and `null`;
 - floats are forbidden, including `NaN`, `INF`, and `-INF`;
@@ -347,7 +348,7 @@ Rejected.
 
 DI tag ownership is defined by `docs/ssot/tags.md`.
 
-Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 This epic references reserved tags as runtime policy only.
 

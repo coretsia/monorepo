@@ -106,13 +106,13 @@ docs/ssot/observability-and-errors.md
 
 The middleware slot strings shown in this reference map are documentation values.
 
-Runtime package source MUST use the corresponding framework-reserved DI tag identifier constants from:
+Runtime package source MUST use the corresponding Coretsia-reserved DI tag identifier constants from:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-This document MUST NOT introduce additional code-level registries for framework-reserved DI tag identifiers.
+This document MUST NOT introduce additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 ## Table: Middleware FQCN → ContextKeys written/read
 

@@ -89,13 +89,13 @@ The reset span name is validated by canonical span naming policy.
 
 Reset metric names and metric-specific labels are registered in the canonical metrics catalog.
 
-It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, tag naming rules, and framework-reserved DI tag identifier code-level registry rules are owned by:
+It does not own the canonical reserved tag registry. Tag names, ownership rows, reserved prefixes, tag naming rules, and Coretsia-reserved DI tag identifier code-level registry rules are owned by:
 
 ```text
 docs/ssot/tags.md
 ```
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -103,7 +103,7 @@ Coretsia\Foundation\Tag\ReservedTags
 
 This document MUST NOT redeclare reserved tag registry rows from `docs/ssot/tags.md`.
 
-This document MUST NOT introduce additional code-level registries for framework-reserved DI tag identifiers.
+This document MUST NOT introduce additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 It does not own general tag discovery ordering, dedupe behavior, or consumer obligations. Those are owned by:
 
@@ -181,7 +181,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -193,7 +193,7 @@ The fixed stateful-service enforcement marker is:
 kernel.stateful
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -234,7 +234,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -337,7 +337,7 @@ kernel.reset
 
 `kernel.reset` is owned by `core/foundation` in the canonical tag registry.
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -460,7 +460,7 @@ Concrete reset failure semantics are owned by Foundation reset orchestration.
 
 It is owned by `core/foundation`.
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -1076,13 +1076,13 @@ It defines policy that MUST be enforced by owner package tests, integration chec
 Expected enforcement rails include:
 
 ```text
-framework/tools/gates/reserved_tags_registry_gate.php
-framework/tools/gates/cross_cutting_contract_gate.php
-framework/tools/gates/observability_span_naming_gate.php
-framework/tools/gates/observability_metric_catalog_gate.php
+tools/gates/reserved_tags_registry_gate.php
+tools/gates/cross_cutting_contract_gate.php
+tools/gates/observability_span_naming_gate.php
+tools/gates/observability_metric_catalog_gate.php
 ```
 
-`reserved_tags_registry_gate.php` enforces that framework-reserved DI tag identifiers are declared in `Coretsia\Foundation\Tag\ReservedTags` and that runtime package source does not define additional code-level registries for those identifiers.
+`reserved_tags_registry_gate.php` enforces that Coretsia-reserved DI tag identifiers are declared in `Coretsia\Foundation\Tag\ReservedTags` and that runtime package source does not define additional code-level registries for those identifiers.
 
 `observability_span_naming_gate.php` validates reset span naming policy for `foundation.reset`.
 
@@ -1132,18 +1132,18 @@ kernel.stateful
 Expected enhanced reset test evidence includes:
 
 ```text
-framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php
-framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php
+packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php
+packages/core/foundation/tests/Integration/ResetGroupWorksTest.php
+packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php
+packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php
+packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
+packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
+packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php
+packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
 ```
 
 Verification MUST prove:
@@ -1236,7 +1236,7 @@ Reset diagnostics MUST prefer omission over unsafe emission.
 
 Examples in this document may show raw tag strings to document canonical values and serialized/tag-registry payload shapes.
 
-Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for Coretsia-reserved DI tag identifiers.
 
 ## Examples
 

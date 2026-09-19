@@ -72,7 +72,7 @@ This document defines:
 - rate-limit placement rules;
 - default wiring rules through reserved DI tags.
 
-This document does not implement middleware classes, package config, DI providers, discovery algorithms, compiled artifacts, runtime modules, skeleton defaults, HTTP request handling, routing, sessions, auth, problem-details rendering, health endpoints, tracing backends, metrics backends, or logging backends.
+This document does not implement middleware classes, package config, DI providers, discovery algorithms, compiled artifacts, runtime modules, application-template defaults, HTTP request handling, routing, sessions, auth, problem-details rendering, health endpoints, tracing backends, metrics backends, or logging backends.
 
 ## Coordination boundary
 
@@ -89,25 +89,25 @@ It introduces no:
 - middleware implementations;
 - service providers;
 - package modules;
-- skeleton config;
+- application-template config;
 - exception taxonomy;
 - metric label keys.
 
 Concrete package files for the following packages MUST be created or modified only by their owning package epics:
 
 ```text
-framework/packages/platform/http/**
-framework/packages/platform/logging/**
-framework/packages/platform/tracing/**
-framework/packages/platform/metrics/**
-framework/packages/platform/problem-details/**
-framework/packages/platform/health/**
-framework/packages/platform/session/**
-framework/packages/platform/auth/**
-framework/packages/platform/security/**
-framework/packages/platform/routing/**
-framework/packages/core/foundation/**
-framework/packages/core/kernel/**
+packages/platform/http/**
+packages/platform/logging/**
+packages/platform/tracing/**
+packages/platform/metrics/**
+packages/platform/problem-details/**
+packages/platform/health/**
+packages/platform/session/**
+packages/platform/auth/**
+packages/platform/security/**
+packages/platform/routing/**
+packages/core/foundation/**
+packages/core/kernel/**
 ```
 
 This document may reference future or optional owners only as policy and catalog context.
@@ -125,18 +125,18 @@ docs/ssot/observability.md
 docs/ssot/observability-and-errors.md
 docs/ssot/uow-and-reset-contracts.md
 docs/architecture/PACKAGING.md
-docs/roadmap/phase0/00_2-dependency-table.md
+docs/architecture/DEPENDENCIES.md
 ```
 
 The tag registry remains the canonical owner of reserved DI tag names and semantic owner rows.
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-This document may list raw reserved tag strings for taxonomy readability, but runtime package source MUST use `ReservedTags::*` for framework-reserved DI tag identifiers.
+This document may list raw reserved tag strings for taxonomy readability, but runtime package source MUST use `ReservedTags::*` for Coretsia-reserved DI tag identifiers.
 
 The config roots registry remains the canonical owner of reserved config roots and config defaults authority.
 
@@ -146,7 +146,7 @@ The UoW and reset contracts SSoT remains the canonical owner of reset and hook c
 
 The packaging document remains the canonical owner of package identity, namespace, Composer naming, publishable-unit, and runtime package shape rules.
 
-The dependency table remains the canonical owner of compile-time package edges for its declared scope.
+`docs/architecture/DEPENDENCIES.md` remains the canonical owner of exact direct compile-time dependency permissions between layered packages.
 
 ## Contract and port references
 
@@ -212,7 +212,7 @@ http.middleware.route
 http.middleware.route_post
 ```
 
-The canonical code-level identifiers for these framework-reserved DI tags are:
+The canonical code-level identifiers for these Coretsia-reserved DI tags are:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE
@@ -226,7 +226,7 @@ Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE
 Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST
 ```
 
-Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for these framework-reserved DI tags.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for these Coretsia-reserved DI tags.
 
 No other HTTP middleware slot taxonomy is allowed.
 
@@ -280,7 +280,7 @@ kernel.reset
 
 Default HTTP middleware wiring is via tags.
 
-No skeleton config is required for baseline middleware participation.
+No application config is required for baseline middleware participation.
 
 Canonical tag-based registration and discovery remain the source of truth for middleware participation.
 
@@ -862,7 +862,7 @@ An optional owner MUST obey:
 
 - the canonical slot taxonomy;
 - tag registry ownership;
-- centralized framework-reserved tag identifier usage through `Coretsia\Foundation\Tag\ReservedTags`;
+- centralized Coretsia-reserved DI tag identifier usage through `Coretsia\Foundation\Tag\ReservedTags`;
 - observability redaction law;
 - config roots ownership;
 - package dependency rules;
@@ -923,7 +923,7 @@ Generated artifacts MUST NOT contain secrets, credentials, tokens, cookies, raw 
 This coordination epic expects existing CI rails to run:
 
 ```text
-framework/tools/gates/cross_cutting_contract_gate.php
+tools/gates/cross_cutting_contract_gate.php
 ```
 
 Referenced owner-package tests are evidence inputs for this coordination policy.
@@ -933,10 +933,10 @@ They are not owned by this epic.
 Future owner-package evidence may include:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
-framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
-framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php
-framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php
+packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
+packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
+packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php
+packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php
 ```
 
 Those tests are reference-only here.
@@ -968,17 +968,16 @@ It is not implemented by this docs-only epic.
 Epic `1.190.0` MUST NOT create or modify:
 
 ```text
-framework/packages/platform/http/config/http.php
-framework/packages/platform/http/config/rules.php
-framework/packages/platform/http/src/**
-framework/packages/platform/logging/src/**
-framework/packages/platform/tracing/src/**
-framework/packages/platform/metrics/src/**
-framework/packages/platform/problem-details/src/**
-framework/packages/core/foundation/src/**
-framework/packages/core/kernel/src/**
-skeleton/**
-config/*.php
+packages/platform/http/config/http.php
+packages/platform/http/config/rules.php
+packages/platform/http/src/**
+packages/platform/logging/src/**
+packages/platform/tracing/src/**
+packages/platform/metrics/src/**
+packages/platform/problem-details/src/**
+packages/core/foundation/src/**
+packages/core/kernel/src/**
+packages/applications/skeleton/**
 ```
 
 It MUST NOT implement:
@@ -1023,7 +1022,7 @@ This SSoT does not define:
 - config validation rules;
 - DI provider implementation;
 - compiled middleware artifact schema;
-- skeleton application config;
+- application-template config;
 - exception taxonomy;
 - new metric labels.
 
@@ -1036,4 +1035,4 @@ This SSoT does not define:
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [Packaging strategy](../architecture/PACKAGING.md)
-- [Phase 0 dependency table](../roadmap/phase0/00_2-dependency-table.md)
+- [Compile-time package dependencies](../architecture/DEPENDENCIES.md)

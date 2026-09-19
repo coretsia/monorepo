@@ -20,7 +20,7 @@
 type: package
 phase: 3
 epic_id: "3.10.0"
-owner_path: "framework/packages/platform/errors/"
+owner_path: "packages/platform/errors/"
 
 package_id: "platform/errors"
 composer: "coretsia/platform-errors"
@@ -71,7 +71,7 @@ ssot_refs:
 - Tag owner implementation note (MUST):
   - This epic MUST NOT re-introduce `error.mapper` in the tag registry.
   - This epic is the owner implementation epic that introduces the canonical owner constant in
-    `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
+    `packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Required config roots registry:
   - N/A at epic start.
@@ -138,30 +138,30 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/errors/src/Module/ErrorsModule.php` — module entry (runtime)
-- [ ] `framework/packages/platform/errors/src/Provider/ErrorsServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/errors/src/Provider/ErrorsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants (owner)
-- [ ] `framework/packages/platform/errors/config/errors.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/errors/config/rules.php` — config shape rules
-- [ ] `framework/packages/platform/errors/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/errors/src/Module/ErrorsModule.php` — module entry (runtime)
+- [ ] `packages/platform/errors/src/Provider/ErrorsServiceProvider.php` — DI wiring
+- [ ] `packages/platform/errors/src/Provider/ErrorsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants (owner)
+- [ ] `packages/platform/errors/config/errors.php` — config subtree (no repeated root)
+- [ ] `packages/platform/errors/config/rules.php` — config shape rules
+- [ ] `packages/platform/errors/README.md` — docs (Observability / Errors / Security-Redaction)
 
-- [ ] `framework/packages/platform/errors/src/ErrorHandler.php` — implements ErrorHandlerInterface (never throws)
+- [ ] `packages/platform/errors/src/ErrorHandler.php` — implements ErrorHandlerInterface (never throws)
   - [ ] MUST swallow failures from optional reporter/logger/tracer/meter enrichment paths
   - [ ] final fallback path MUST still return a deterministic `ErrorDescriptor`
   - [ ] internal sink/enrichment failures MUST NOT escape `handle()`
-- [ ] `framework/packages/platform/errors/src/Mapper/ExceptionMapperRegistry.php` — aggregates `error.mapper` deterministically
-- [ ] `framework/packages/platform/errors/src/Mapper/DefaultExceptionMapper.php` — fallback `CORETSIA_UNHANDLED_EXCEPTION`
-- [ ] `framework/packages/platform/errors/src/Reporting/ErrorReporter.php` — glue to ErrorReporterPortInterface (noop-safe)
-- [ ] `framework/packages/platform/errors/src/Redaction/ErrorRedactor.php` — prevents leaking secrets in detail/extensions
-- [ ] `framework/packages/platform/errors/src/Exception/MapperFailedException.php` — internal exception (`CORETSIA_ERROR_MAPPER_FAILED`)
+- [ ] `packages/platform/errors/src/Mapper/ExceptionMapperRegistry.php` — aggregates `error.mapper` deterministically
+- [ ] `packages/platform/errors/src/Mapper/DefaultExceptionMapper.php` — fallback `CORETSIA_UNHANDLED_EXCEPTION`
+- [ ] `packages/platform/errors/src/Reporting/ErrorReporter.php` — glue to ErrorReporterPortInterface (noop-safe)
+- [ ] `packages/platform/errors/src/Redaction/ErrorRedactor.php` — prevents leaking secrets in detail/extensions
+- [ ] `packages/platform/errors/src/Exception/MapperFailedException.php` — internal exception (`CORETSIA_ERROR_MAPPER_FAILED`)
 
-- [ ] `framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php` — contract proof
-- [ ] `framework/packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
-- [ ] `framework/packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` — unit proof
-- [ ] `framework/packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` — deterministic registry proof
-- [ ] `framework/packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php` — fallback proof
-- [ ] `framework/packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php` — redaction proof
+- [ ] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php` — contract proof
+- [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
+- [ ] `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` — unit proof
+- [ ] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` — deterministic registry proof
+- [ ] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php` — fallback proof
+- [ ] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php` — redaction proof
 
 - [ ] `docs/ssot/error-flow.md` — canonical error flow (HTTP/CLI/worker adapters), “no PSR-7 in errors”
 - [ ] `docs/ssot/error-codes.md` — baseline error codes + stability rules
@@ -173,34 +173,34 @@ Forbidden:
   - [ ] `docs/ssot/error-codes.md`
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-platform-errors-errorhandler-exception-mapper.md`
-- [ ] `docs/ssot/config-roots.md` — add root row for `errors` (owner `platform/errors`, defaults `framework/packages/platform/errors/config/errors.php`, rules `framework/packages/platform/errors/config/rules.php`)
+- [ ] `docs/ssot/config-roots.md` — add root row for `errors` (owner `platform/errors`, defaults `packages/platform/errors/config/errors.php`, rules `packages/platform/errors/config/rules.php`)
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/errors/composer.json`
-- [ ] `framework/packages/platform/errors/src/Module/ErrorsModule.php`
-- [ ] `framework/packages/platform/errors/src/Provider/ErrorsServiceProvider.php`
-- [ ] `framework/packages/platform/errors/config/errors.php`
-- [ ] `framework/packages/platform/errors/config/rules.php`
-- [ ] `framework/packages/platform/errors/README.md`
-- [ ] `framework/packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/errors/composer.json`
+- [ ] `packages/platform/errors/src/Module/ErrorsModule.php`
+- [ ] `packages/platform/errors/src/Provider/ErrorsServiceProvider.php`
+- [ ] `packages/platform/errors/config/errors.php`
+- [ ] `packages/platform/errors/config/rules.php`
+- [ ] `packages/platform/errors/README.md`
+- [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/errors/config/errors.php`
+  - [ ] `packages/platform/errors/config/errors.php`
 - [ ] Keys (dot):
   - [ ] `errors.enabled` = true
   - [ ] `errors.reporting.enabled` = false
   - [ ] `errors.redaction.enabled` = true
   - [ ] `errors.detail.show_in_local` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/errors/config/rules.php` enforces shape
+  - [ ] `packages/platform/errors/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `ERROR_MAPPER = 'error.mapper'`
 - [ ] ServiceProvider wiring evidence:
@@ -256,8 +256,8 @@ N/A
 
 - [ ] If Context writes exist → `N/A` (no Context writes)
 - [ ] If `kernel.reset` used → `N/A` (expected none)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` + metrics/log assertions where applicable
-- [ ] If redaction exists → `framework/packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` + `framework/packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` + metrics/log assertions where applicable
+- [ ] If redaction exists → `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` + `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -266,14 +266,14 @@ N/A (integration tests should run with minimal container wiring)
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php`
+  - [ ] `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
+  - [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php`
-  - [ ] `framework/packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php`
-  - [ ] `framework/packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
+  - [ ] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php`
+  - [ ] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php`
+  - [ ] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
 - Gates/Arch:
   - [ ] deptrac green (no forbidden deps)
 
@@ -298,7 +298,7 @@ N/A (integration tests should run with minimal container wiring)
 type: package
 phase: 3
 epic_id: "3.20.0"
-owner_path: "framework/packages/platform/logging/"
+owner_path: "packages/platform/logging/"
 
 package_id: "platform/logging"
 composer: "coretsia/platform-logging"
@@ -399,15 +399,15 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/logging/src/Module/LoggingModule.php` — module entry (runtime)
-- [ ] `framework/packages/platform/logging/src/Provider/LoggingServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/logging/src/Provider/LoggingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/logging/config/logging.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/logging/config/rules.php` — config shape rules
-- [ ] `framework/packages/platform/logging/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/logging/src/Module/LoggingModule.php` — module entry (runtime)
+- [ ] `packages/platform/logging/src/Provider/LoggingServiceProvider.php` — DI wiring
+- [ ] `packages/platform/logging/src/Provider/LoggingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/logging/config/logging.php` — config subtree (no repeated root)
+- [ ] `packages/platform/logging/config/rules.php` — config shape rules
+- [ ] `packages/platform/logging/README.md` — docs (Observability / Errors / Security-Redaction)
 
-- [ ] `framework/packages/platform/logging/src/LoggerFactory.php` — builds PSR-3 logger; default stream → `php://stderr`
-- [ ] `framework/packages/platform/logging/src/Processor/ContextBagProcessor.php` — appends safe context keys
+- [ ] `packages/platform/logging/src/LoggerFactory.php` — builds PSR-3 logger; default stream → `php://stderr`
+- [ ] `packages/platform/logging/src/Processor/ContextBagProcessor.php` — appends safe context keys
   - [ ] MUST NOT append raw `ContextKeys::PATH`, `HOST`, or `USER_AGENT` values directly
   - [ ] if request-context enrichment is enabled, those values MUST be redacted/normalized
     (for example `hash/len`, or `path_template` when already available from context)
@@ -415,16 +415,16 @@ Forbidden:
     - [ ] `correlation_id`
     - [ ] `uow_id`
     - [ ] `uow_type`
-- [ ] `framework/packages/platform/logging/src/Redaction/LogRedactor.php` — blocks secrets/PII in metadata
-- [ ] `framework/packages/platform/logging/src/Formatter/JsonLineFormatter.php` — deterministic field order
+- [ ] `packages/platform/logging/src/Redaction/LogRedactor.php` — blocks secrets/PII in metadata
+- [ ] `packages/platform/logging/src/Formatter/JsonLineFormatter.php` — deterministic field order
 
-- [ ] `framework/packages/platform/logging/src/Exception/LoggingWriteFailedException.php` — (`CORETSIA_LOG_WRITE_FAILED`)
+- [ ] `packages/platform/logging/src/Exception/LoggingWriteFailedException.php` — (`CORETSIA_LOG_WRITE_FAILED`)
 
-- [ ] `framework/packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php` — contract proof (no secrets)
-- [ ] `framework/packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
-- [ ] `framework/packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php` — deterministic order proof
-- [ ] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php` — context proof
-- [ ] `framework/packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php` — disable behavior proof
+- [ ] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php` — contract proof (no secrets)
+- [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
+- [ ] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php` — deterministic order proof
+- [ ] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php` — context proof
+- [ ] `packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php` — disable behavior proof
 
 - [ ] `docs/ssot/logging-policy.md` — redaction rules + allowed fields + examples (AccessLog-friendly)
 
@@ -437,18 +437,18 @@ Forbidden:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/logging/composer.json`
-- [ ] `framework/packages/platform/logging/src/Module/LoggingModule.php`
-- [ ] `framework/packages/platform/logging/src/Provider/LoggingServiceProvider.php`
-- [ ] `framework/packages/platform/logging/config/logging.php`
-- [ ] `framework/packages/platform/logging/config/rules.php`
-- [ ] `framework/packages/platform/logging/README.md`
-- [ ] `framework/packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/logging/composer.json`
+- [ ] `packages/platform/logging/src/Module/LoggingModule.php`
+- [ ] `packages/platform/logging/src/Provider/LoggingServiceProvider.php`
+- [ ] `packages/platform/logging/config/logging.php`
+- [ ] `packages/platform/logging/config/rules.php`
+- [ ] `packages/platform/logging/README.md`
+- [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/logging/config/logging.php`
+  - [ ] `packages/platform/logging/config/logging.php`
 - [ ] Keys (dot):
   - [ ] `logging.enabled` = true
   - [ ] `logging.driver` = 'stream'
@@ -456,7 +456,7 @@ Forbidden:
   - [ ] `logging.level` = 'info'
   - [ ] `logging.redaction.enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/logging/config/rules.php` enforces shape
+  - [ ] `packages/platform/logging/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -520,8 +520,8 @@ N/A
 
 - [ ] If Context writes exist → `N/A` (no Context writes)
 - [ ] If `kernel.reset` used → `N/A` (not expected)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
-- [ ] If redaction exists → `framework/packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+- [ ] If redaction exists → `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -530,13 +530,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php`
+  - [ ] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
-  - [ ] `framework/packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
+  - [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
-  - [ ] `framework/packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php`
+  - [ ] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+  - [ ] `packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php`
 - Gates/Arch:
   - [ ] deptrac green (no forbidden deps)
 
@@ -561,7 +561,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.30.0"
-owner_path: "framework/packages/platform/tracing/"
+owner_path: "packages/platform/tracing/"
 
 package_id: "platform/tracing"
 composer: "coretsia/platform-tracing"
@@ -665,24 +665,24 @@ Naming lock (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/platform/tracing/src/Module/TracingModule.php` — module entry
-- [ ] `framework/packages/platform/tracing/src/Provider/TracingServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/tracing/src/Provider/TracingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/tracing/config/tracing.php` — config subtree
-- [ ] `framework/packages/platform/tracing/config/rules.php` — config rules
-- [ ] `framework/packages/platform/tracing/README.md` — docs
+- [ ] `packages/platform/tracing/src/Module/TracingModule.php` — module entry
+- [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php` — DI wiring
+- [ ] `packages/platform/tracing/src/Provider/TracingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/tracing/config/tracing.php` — config subtree
+- [ ] `packages/platform/tracing/config/rules.php` — config rules
+- [ ] `packages/platform/tracing/README.md` — docs
 
-- [ ] `framework/packages/platform/tracing/src/Default/DefaultTracer.php` — TracerPortInterface
-- [ ] `framework/packages/platform/tracing/src/Default/DefaultSpan.php` — SpanInterface
-- [ ] `framework/packages/platform/tracing/src/W3c/W3cTraceContextPropagation.php` — ContextPropagationInterface (deterministic, no-throw)
-- [ ] `framework/packages/platform/tracing/src/Noop/NullSpanExporter.php` — SpanExporterInterface
-- [ ] `framework/packages/platform/tracing/src/Sampling/AlwaysOffSampler.php` — SamplerInterface (Phase 0 default; no-throw)
+- [ ] `packages/platform/tracing/src/Default/DefaultTracer.php` — TracerPortInterface
+- [ ] `packages/platform/tracing/src/Default/DefaultSpan.php` — SpanInterface
+- [ ] `packages/platform/tracing/src/W3c/W3cTraceContextPropagation.php` — ContextPropagationInterface (deterministic, no-throw)
+- [ ] `packages/platform/tracing/src/Noop/NullSpanExporter.php` — SpanExporterInterface
+- [ ] `packages/platform/tracing/src/Sampling/AlwaysOffSampler.php` — SamplerInterface (Phase 0 default; no-throw)
 
-- [ ] `framework/packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
-- [ ] `framework/packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-- [ ] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-- [ ] `framework/packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
+- [ ] `packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
+- [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
+- [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
 
 Docs:
 - [ ] `docs/ssot/tracecontext.md` — W3C propagation rules + redaction + “no labels for trace ids”
@@ -696,24 +696,24 @@ Docs:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/tracing/composer.json`
-- [ ] `framework/packages/platform/tracing/src/Module/TracingModule.php`
-- [ ] `framework/packages/platform/tracing/src/Provider/TracingServiceProvider.php`
-- [ ] `framework/packages/platform/tracing/config/tracing.php`
-- [ ] `framework/packages/platform/tracing/config/rules.php`
-- [ ] `framework/packages/platform/tracing/README.md`
-- [ ] `framework/packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/tracing/composer.json`
+- [ ] `packages/platform/tracing/src/Module/TracingModule.php`
+- [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php`
+- [ ] `packages/platform/tracing/config/tracing.php`
+- [ ] `packages/platform/tracing/config/rules.php`
+- [ ] `packages/platform/tracing/README.md`
+- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/tracing/config/tracing.php`
+  - [ ] `packages/platform/tracing/config/tracing.php`
 - [ ] Keys (dot):
   - [ ] `tracing.enabled` = true
   - [ ] `tracing.sampling.mode` = 'always_off'
   - [ ] `tracing.exporter` = 'null'
 - [ ] Rules:
-  - [ ] `framework/packages/platform/tracing/config/rules.php` enforces shape
+  - [ ] `packages/platform/tracing/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -773,8 +773,8 @@ N/A
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
 - [ ] If metrics/spans/logs exist →
-  - [ ] `framework/packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+  - [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -783,13 +783,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
+  - [ ] `packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+  - [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
+  - [ ] `packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -812,7 +812,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.31.0"
-owner_path: "framework/packages/platform/metrics/"
+owner_path: "packages/platform/metrics/"
 
 package_id: "platform/metrics"
 composer: "coretsia/platform-metrics"
@@ -925,24 +925,24 @@ Naming lock (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/platform/metrics/src/Module/MetricsModule.php` — module entry
-- [ ] `framework/packages/platform/metrics/src/Provider/MetricsServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/metrics/src/Provider/MetricsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/metrics/config/metrics.php` — config subtree
-- [ ] `framework/packages/platform/metrics/config/rules.php` — config rules
-- [ ] `framework/packages/platform/metrics/README.md` — docs
+- [ ] `packages/platform/metrics/src/Module/MetricsModule.php` — module entry
+- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php` — DI wiring
+- [ ] `packages/platform/metrics/src/Provider/MetricsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/metrics/config/metrics.php` — config subtree
+- [ ] `packages/platform/metrics/config/rules.php` — config rules
+- [ ] `packages/platform/metrics/README.md` — docs
 
-- [ ] `framework/packages/platform/metrics/src/Default/DefaultMeter.php` — MeterPortInterface
-- [ ] `framework/packages/platform/metrics/src/Noop/NullMetricsRenderer.php` — MetricsRendererInterface
-- [ ] `framework/packages/platform/metrics/src/Labels/AllowedLabelSet.php` — allowlist enforcement
+- [ ] `packages/platform/metrics/src/Default/DefaultMeter.php` — MeterPortInterface
+- [ ] `packages/platform/metrics/src/Noop/NullMetricsRenderer.php` — MetricsRendererInterface
+- [ ] `packages/platform/metrics/src/Labels/AllowedLabelSet.php` — allowlist enforcement
   - [ ] MUST enforce the fixed SSoT allowlist from `docs/ssot/observability.md`
   - [ ] MUST NOT read allowlist values from runtime/app config
-- [ ] `framework/packages/platform/metrics/src/Exception/MetricLabelForbiddenException.php` — (`CORETSIA_METRIC_LABEL_FORBIDDEN`)
+- [ ] `packages/platform/metrics/src/Exception/MetricLabelForbiddenException.php` — (`CORETSIA_METRIC_LABEL_FORBIDDEN`)
 
-- [ ] `framework/packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
-- [ ] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-- [ ] `framework/packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
+- [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
+- [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
 
 Docs:
 - [ ] `docs/ssot/metrics-policy.md` — metric naming + normalization map + examples
@@ -957,18 +957,18 @@ Docs:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/metrics/composer.json`
-- [ ] `framework/packages/platform/metrics/src/Module/MetricsModule.php`
-- [ ] `framework/packages/platform/metrics/src/Provider/MetricsServiceProvider.php`
-- [ ] `framework/packages/platform/metrics/config/metrics.php`
-- [ ] `framework/packages/platform/metrics/config/rules.php`
-- [ ] `framework/packages/platform/metrics/README.md`
-- [ ] `framework/packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/metrics/composer.json`
+- [ ] `packages/platform/metrics/src/Module/MetricsModule.php`
+- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php`
+- [ ] `packages/platform/metrics/config/metrics.php`
+- [ ] `packages/platform/metrics/config/rules.php`
+- [ ] `packages/platform/metrics/README.md`
+- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/metrics/config/metrics.php`
+  - [ ] `packages/platform/metrics/config/metrics.php`
 - [ ] Keys (dot):
   - [ ] `metrics.enabled` = true
   - [ ] `metrics.renderer` = 'null'
@@ -977,7 +977,7 @@ Docs:
   - [ ] label allowlist is fixed by `docs/ssot/observability.md`
   - [ ] `docs/ssot/metrics-policy.md` MAY document metric-specific normalization/examples only
 - [ ] Rules:
-  - [ ] `framework/packages/platform/metrics/config/rules.php` enforces shape
+  - [ ] `packages/platform/metrics/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -1039,8 +1039,8 @@ N/A
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
 - [ ] If metrics/spans/logs exist →
-  - [ ] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
+  - [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
 - [ ] If redaction exists → covered by SSoT “no labels for trace ids / request ids” + allowlist enforcement tests above
 
 #### Test harness / fixtures (when integration is needed)
@@ -1050,12 +1050,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
+  - [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `framework/packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
+  - [ ] `packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -1081,7 +1081,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.40.0"
-owner_path: "framework/packages/platform/problem-details/"
+owner_path: "packages/platform/problem-details/"
 
 package_id: "platform/problem-details"
 composer: "coretsia/platform-problem-details"
@@ -1190,31 +1190,31 @@ Normative:
 
 #### Creates
 
-- [ ] `framework/packages/platform/problem-details/src/Module/ProblemDetailsModule.php` — module entry
-- [ ] `framework/packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/problem-details/src/Provider/ProblemDetailsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php` — module entry
+- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php` — DI wiring
+- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
 
-- [ ] `framework/packages/platform/problem-details/config/problem_details.php` — config subtree
-- [ ] `framework/packages/platform/problem-details/config/rules.php` — config rules
-- [ ] `framework/packages/platform/problem-details/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
+- [ ] `packages/platform/problem-details/config/problem_details.php` — config subtree
+- [ ] `packages/platform/problem-details/config/rules.php` — config rules
+- [ ] `packages/platform/problem-details/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
 
-- [ ] `framework/packages/platform/problem-details/src/ProblemDetails.php` — VO (RFC7807 fields)
-- [ ] `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsRendererInterface.php` — package-local renderer port
-- [ ] `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — deterministic JSON + content-type
+- [ ] `packages/platform/problem-details/src/ProblemDetails.php` — VO (RFC7807 fields)
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsRendererInterface.php` — package-local renderer port
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — deterministic JSON + content-type
   - [ ] MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder` (single-choice runtime writer)
   - [ ] MUST recursively sort map keys by `strcmp`; lists preserve order
   - [ ] MUST NOT emit floats/NaN/INF
   - [ ] MUST NOT use ad-hoc `json_encode` directly in renderer logic
-- [ ] `framework/packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php` — ErrorDescriptor → RFC7807 mapping
-- [ ] `framework/packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — PSR-15 outer wrapper
-- [ ] `framework/packages/platform/problem-details/src/Security/Redaction.php` — redaction helpers (hash/len, safe fields)
-- [ ] `framework/packages/platform/problem-details/src/Exception/ProblemDetailsRenderFailedException.php` — (`CORETSIA_PROBLEM_DETAILS_RENDER_FAILED`)
+- [ ] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php` — ErrorDescriptor → RFC7807 mapping
+- [ ] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — PSR-15 outer wrapper
+- [ ] `packages/platform/problem-details/src/Security/Redaction.php` — redaction helpers (hash/len, safe fields)
+- [ ] `packages/platform/problem-details/src/Exception/ProblemDetailsRenderFailedException.php` — (`CORETSIA_PROBLEM_DETAILS_RENDER_FAILED`)
 
-- [ ] `framework/packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
-- [ ] `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
-- [ ] `framework/packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
-- [ ] `framework/packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+- [ ] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
+- [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+- [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
+- [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
 
 #### Modifies
 
@@ -1223,25 +1223,25 @@ Normative:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/problem-details/composer.json`
-- [ ] `framework/packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
-- [ ] `framework/packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
-- [ ] `framework/packages/platform/problem-details/config/problem_details.php`
-- [ ] `framework/packages/platform/problem-details/config/rules.php`
-- [ ] `framework/packages/platform/problem-details/README.md`
-- [ ] `framework/packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/problem-details/composer.json`
+- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
+- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
+- [ ] `packages/platform/problem-details/config/problem_details.php`
+- [ ] `packages/platform/problem-details/config/rules.php`
+- [ ] `packages/platform/problem-details/README.md`
+- [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/problem-details/config/problem_details.php`
+  - [ ] `packages/platform/problem-details/config/problem_details.php`
 - [ ] Keys (dot):
   - [ ] `problem_details.enabled` = true
   - [ ] `problem_details.show_detail` = false
   - [ ] `problem_details.show_detail_in_local` = true
   - [ ] `problem_details.redaction.enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/problem-details/config/rules.php` enforces shape
+  - [ ] `packages/platform/problem-details/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -1298,8 +1298,8 @@ N/A
 - [ ] If `kernel.reset` used → `N/A`
 - [ ] If metrics/spans/logs exist → integration tests must assert deterministic body + no secrets
 - [ ] If redaction exists →
-  - [ ] `framework/packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
-  - [ ] `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -1308,13 +1308,13 @@ N/A (PSR-15 middleware can be tested via unit/integration harness)
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
+  - [ ] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
-  - [ ] `framework/packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+  - [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
-  - [ ] `framework/packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
 - Gates/Arch:
   - [ ] deptrac green (no forbidden deps)
 
@@ -1342,7 +1342,7 @@ N/A (PSR-15 middleware can be tested via unit/integration harness)
 type: package
 phase: 3
 epic_id: "3.50.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -1401,7 +1401,7 @@ ssot_refs:
 - Required tags registry:
   - All nine `http.middleware.*` tags above MUST already be reserved in `docs/ssot/tags.md` with owner `platform/http`.
   - This epic is the owner implementation epic that introduces the canonical owner constants in
-    `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
+    `packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — UoW hooks
@@ -1501,69 +1501,69 @@ Forbidden:
 
 - [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
-- [ ] `framework/packages/platform/http/src/Module/HttpModule.php` — module entry
+- [ ] `packages/platform/http/src/Module/HttpModule.php` — module entry
   - [ ] MUST declare canonical provided capability `runtime.http`
   - [ ] MUST use `RuntimeCapability::HTTP->value` or prove exact equality to that canonical id
   - [ ] MUST NOT rely on package id inference such as `platform.http -> runtime.http`
 
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` —  define constants for ALL 9 tags above (owner = platform/http)
-- [ ] `framework/packages/platform/http/config/http.php` — config subtree
-- [ ] `framework/packages/platform/http/config/rules.php` — config rules
-- [ ] `framework/packages/platform/http/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
+- [ ] `packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` —  define constants for ALL 9 tags above (owner = platform/http)
+- [ ] `packages/platform/http/config/http.php` — config subtree
+- [ ] `packages/platform/http/config/rules.php` — config rules
+- [ ] `packages/platform/http/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Core runtime:
-- [ ] `framework/packages/platform/http/src/HttpKernelInterface.php`
-- [ ] `framework/packages/platform/http/src/HttpKernel.php`
-- [ ] `framework/packages/platform/http/src/Middleware/Pipeline.php`
-- [ ] `framework/packages/platform/http/src/Middleware/MiddlewareResolver.php`
-- [ ] `framework/packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
-- [ ] `framework/packages/platform/http/src/Middleware/Dedupe.php`
+- [ ] `packages/platform/http/src/HttpKernelInterface.php`
+- [ ] `packages/platform/http/src/HttpKernel.php`
+- [ ] `packages/platform/http/src/Middleware/Pipeline.php`
+- [ ] `packages/platform/http/src/Middleware/MiddlewareResolver.php`
+- [ ] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+- [ ] `packages/platform/http/src/Middleware/Dedupe.php`
 
 PSR-7 glue (no superglobals inside):
-- [ ] `framework/packages/platform/http/src/Psr7/ServerRequestFactory.php`
-- [ ] `framework/packages/platform/http/src/Response/ResponseEmitter.php`
+- [ ] `packages/platform/http/src/Psr7/ServerRequestFactory.php`
+- [ ] `packages/platform/http/src/Response/ResponseEmitter.php`
 
 System payload helpers:
-- [ ] `framework/packages/platform/http/src/System/SystemEndpointPayload.php`
+- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php`
 
 Core middlewares (Phase 0 baseline):
-- [ ] `framework/packages/platform/http/src/Middleware/CorrelationIdMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Middleware/TraceContextMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Middleware/HttpMetricsMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Middleware/AccessLogMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/CorrelationIdMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/TraceContextMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/HttpMetricsMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/AccessLogMiddleware.php`
 
 Request normalization/safety (Phase 0, config-driven):
-- [ ] `framework/packages/platform/http/src/Middleware/TrustedProxyMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Proxy/TrustedProxyPolicy.php`
-- [ ] `framework/packages/platform/http/src/Middleware/RequestContextMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Middleware/TrustedHostMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Host/TrustedHostPolicy.php`
-- [ ] `framework/packages/platform/http/src/Middleware/RequestBodySizeLimitMiddleware.php`
-- [ ] `framework/packages/platform/http/src/Middleware/JsonBodyParserMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/TrustedProxyMiddleware.php`
+- [ ] `packages/platform/http/src/Proxy/TrustedProxyPolicy.php`
+- [ ] `packages/platform/http/src/Middleware/RequestContextMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/TrustedHostMiddleware.php`
+- [ ] `packages/platform/http/src/Host/TrustedHostPolicy.php`
+- [ ] `packages/platform/http/src/Middleware/RequestBodySizeLimitMiddleware.php`
+- [ ] `packages/platform/http/src/Middleware/JsonBodyParserMiddleware.php`
 
 Terminal handler:
-- [ ] `framework/packages/platform/http/src/Routing/FallbackRouterHandler.php`
+- [ ] `packages/platform/http/src/Routing/FallbackRouterHandler.php`
 
 Errors (exceptions, mapped by `platform/errors`):
-- [ ] `framework/packages/platform/http/src/Exception/BadJsonException.php` — `CORETSIA_HTTP_BAD_JSON`
-- [ ] `framework/packages/platform/http/src/Exception/BodyTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
-- [ ] `framework/packages/platform/http/src/Exception/TrustedHostRejectedException.php` — `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
+- [ ] `packages/platform/http/src/Exception/BadJsonException.php` — `CORETSIA_HTTP_BAD_JSON`
+- [ ] `packages/platform/http/src/Exception/BodyTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
+- [ ] `packages/platform/http/src/Exception/TrustedHostRejectedException.php` — `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
 
 Tests:
-- [ ] `framework/packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
-- [ ] `framework/packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — locks the canonical `platform/http` middleware slot/priority projection against `docs/ssot/http-middleware-catalog.md`; later `platform/http` middleware epics extend this shared contract
-- [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
-- [ ] `framework/packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+- [ ] `packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
+- [ ] `packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
+- [ ] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — locks the canonical `platform/http` middleware slot/priority projection against `docs/ssot/http-middleware-catalog.md`; later `platform/http` middleware epics extend this shared contract
+- [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
+- [ ] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+- [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+- [ ] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
+- [ ] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+- [ ] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
   - [ ] MUST fail if `config/http.php` repeats root (`['http'=>...]` is forbidden; subtree only)
   - [ ] MUST fail if any key starting with `@` exists under returned subtree (any depth)
 
@@ -1573,7 +1573,7 @@ Docs:
 
 #### Modifies
 
-- [ ] `framework/tools/gates/no_skeleton_http_default_gate.php` — must remain green (no skeleton default http config)
+- [ ] `tools/gates/no_skeleton_http_default_gate.php` — must remain green (no skeleton default http config)
 - [ ] deptrac expectations updated (if needed)
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/http-middleware-wiring.md`
@@ -1582,7 +1582,7 @@ Docs:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-platform-http-runtime-pipeline-wiring.md`
 
-- [ ] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php`
+- [ ] `packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php`
   - [ ] replace the temporary direct `platform.http` module-id check with the finalized HTTP runtime provider contract;
   - [ ] remove `TODO(platform-http-3.50.0)` only after replacement tests are green.
 
@@ -1592,13 +1592,13 @@ Docs:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/http/composer.json`
-- [ ] `framework/packages/platform/http/src/Module/HttpModule.php`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php`
-- [ ] `framework/packages/platform/http/config/http.php`
-- [ ] `framework/packages/platform/http/config/rules.php`
-- [ ] `framework/packages/platform/http/README.md`
-- [ ] `framework/packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/http/composer.json`
+- [ ] `packages/platform/http/src/Module/HttpModule.php`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+- [ ] `packages/platform/http/config/http.php`
+- [ ] `packages/platform/http/config/rules.php`
+- [ ] `packages/platform/http/README.md`
+- [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
@@ -1624,7 +1624,7 @@ Normative:
     - [ ] this prevents package-local divergence for maintenance / redirect / error responses
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.enabled` = true
 
@@ -1678,12 +1678,12 @@ Normative:
     - [ ] concrete behavior for individual HTTP features is introduced by later HTTP epics
 
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `MIDDLEWARE_SYSTEM_PRE = 'http.middleware.system_pre'`
     - [ ] `MIDDLEWARE_SYSTEM = 'http.middleware.system'`
@@ -1770,14 +1770,14 @@ N/A
 #### Required policy tests matrix
 
 - [ ] If Context writes exist → covered by:
-  - [ ] `framework/packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
   - [ ] (context enrichment) add/verify via middleware integration tests where applicable
 - [ ] If `kernel.reset` used → `N/A` (not expected)
 - [ ] If metrics/spans/logs exist → covered by:
-  - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
   - [ ] access log behavior proven indirectly via pipeline tests (Phase 0)
 - [ ] If redaction exists → covered by:
-  - [ ] `framework/packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -1786,22 +1786,22 @@ N/A (integration tests use minimal kernel/http harness)
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
-  - [ ] `framework/packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
+  - [ ] `packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
+  - [ ] `packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
-  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
-  - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
-  - [ ] `framework/packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [ ] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [ ] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
+  - [ ] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
 - Gates/Arch:
-  - [ ] `framework/tools/gates/no_skeleton_http_default_gate.php` green
+  - [ ] `tools/gates/no_skeleton_http_default_gate.php` green
   - [ ] deptrac updated (if needed)
 
 - [ ] non-classic HTTP driver is rejected when no HTTP runtime provider is present;
@@ -1846,7 +1846,7 @@ N/A (integration tests use minimal kernel/http harness)
 type: package
 phase: 3
 epic_id: "3.55.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -1881,24 +1881,24 @@ ssot_refs:
 
 - Epic prerequisites:
   - 3.50.0 — `platform/http` package skeleton exists.
-  - 3.50.0 — `framework/packages/platform/http/src/HttpKernel.php` exists.
-  - 3.50.0 — `framework/packages/platform/http/src/HttpKernelInterface.php` exists.
+  - 3.50.0 — `packages/platform/http/src/HttpKernel.php` exists.
+  - 3.50.0 — `packages/platform/http/src/HttpKernelInterface.php` exists.
   - 3.50.0 — HTTP middleware stack, terminal handler, config root, provider wiring, and UoW envelope exist.
-  - 3.50.0 — `framework/packages/platform/http/config/http.php` and `framework/packages/platform/http/config/rules.php` exist.
-  - 3.50.0 — canonical HTTP middleware tag owner constants exist in `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
+  - 3.50.0 — `packages/platform/http/config/http.php` and `packages/platform/http/config/rules.php` exist.
+  - 3.50.0 — canonical HTTP middleware tag owner constants exist in `packages/core/foundation/src/Tag/ReservedTags.php`.
   - 1.280.0 — `core/kernel` provides `KernelRuntime`, which wraps each request as a UoW and executes the canonical after/reset flow.
   - 1.250.0 — Foundation reset orchestration exists and owns reset ordering/meta behavior.
 
 - Required pre-existing deliverables (exact paths):
-  - `framework/packages/platform/http/composer.json`
-  - `framework/packages/platform/http/src/HttpKernel.php`
-  - `framework/packages/platform/http/src/HttpKernelInterface.php`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php`
-  - `framework/packages/platform/http/src/Provider/HttpServiceFactory.php`
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php`
-  - `framework/packages/platform/http/config/http.php`
-  - `framework/packages/platform/http/config/rules.php`
-  - `framework/packages/platform/http/README.md`
+  - `packages/platform/http/composer.json`
+  - `packages/platform/http/src/HttpKernel.php`
+  - `packages/platform/http/src/HttpKernelInterface.php`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/platform/http/config/http.php`
+  - `packages/platform/http/config/rules.php`
+  - `packages/platform/http/README.md`
   - `docs/ssot/http-middleware-wiring.md`
   - `docs/ssot/http-middleware-catalog.md`
 
@@ -1966,7 +1966,7 @@ Forbidden:
 - [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 Test-only harness/support:
-- [ ] `framework/packages/platform/http/tests/Support/LongRunningSafetyProbe.php` — helper used only by tests
+- [ ] `packages/platform/http/tests/Support/LongRunningSafetyProbe.php` — helper used only by tests
   - [ ] MUST NOT change production behavior (no hooks, no middleware injection)
   - [ ] MUST NOT emit stdout/stderr output
   - [ ] MUST NOT log request payloads/headers/tokens
@@ -1977,22 +1977,22 @@ Docs:
 - [ ] `docs/architecture/http-long-running.md` — rules: no statics, reset discipline, adapter notes
 
 Tests:
-- [ ] `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+- [ ] `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+- [ ] `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/README.md` — add long-running runtime safety section.
-- [ ] `framework/packages/platform/http/config/http.php` — add only `http.long_running.span_attr_enabled` if optional span attribute emission is configurable.
-- [ ] `framework/packages/platform/http/config/rules.php` — add shape rule only for `http.long_running.span_attr_enabled` if the config key is introduced.
+- [ ] `packages/platform/http/README.md` — add long-running runtime safety section.
+- [ ] `packages/platform/http/config/http.php` — add only `http.long_running.span_attr_enabled` if optional span attribute emission is configurable.
+- [ ] `packages/platform/http/config/rules.php` — add shape rule only for `http.long_running.span_attr_enabled` if the config key is introduced.
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
-  - [ ] `framework/packages/platform/http/config/rules.php`
+  - [ ] `packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/rules.php`
 - [ ] Keys (dot):
   - [ ] `http.long_running.span_attr_enabled` = true
     - [ ] controls only optional span attribute emission;
@@ -2001,7 +2001,7 @@ Tests:
     - [ ] MUST NOT enable/disable harness behavior;
     - [ ] long-running safety remains unconditional when a long-running HTTP runtime adapter is used.
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces `http.long_running.span_attr_enabled` as bool.
+  - [ ] `packages/platform/http/config/rules.php` enforces `http.long_running.span_attr_enabled` as bool.
 
 #### Wiring / DI tags (when applicable)
 
@@ -2009,7 +2009,7 @@ N/A for new tags.
 
 - [ ] This epic MUST NOT introduce or modify `http.middleware.*` tag constants.
 - [ ] HTTP middleware tag constants are already owned and introduced by `3.50.0` in:
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
 - [ ] This epic MUST NOT add new middleware slots.
 - [ ] This epic MUST NOT alter middleware stack ordering.
 
@@ -2057,16 +2057,16 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] if effective reset discovery is used → `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
-- [ ] If long-running no-leak promised → `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+- [ ] if effective reset discovery is used → `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+- [ ] If long-running no-leak promised → `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
 
 ### Tests (MUST)
 
 - Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+  - [ ] `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+  - [ ] `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
 - [ ] Add policy/contract assertions inside these integration tests:
   - [ ] `LongRunning100SequentialRequestsNoLeakTest` MUST assert:
     - [ ] one `HttpKernel` instance can handle 100 sequential requests in the same process;
@@ -2099,7 +2099,7 @@ N/A
 - [ ] Docs complete:
   - [ ] `docs/architecture/http-long-running.md`
   - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
-  - [ ] `framework/packages/platform/http/README.md` long-running safety section.
+  - [ ] `packages/platform/http/README.md` long-running safety section.
 
 ---
 
@@ -2109,7 +2109,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.60.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -2138,10 +2138,10 @@ ssot_refs: []
   - PHASE 1 Foundation `ContextKeys::REQUEST_ID` MUST exist (see PHASE 1 patch above)
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/config/http.php` — base config file must exist
-  - `framework/packages/platform/http/config/rules.php` — base rules must exist
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring base exists
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — provides `http.middleware.system_pre`
+  - `packages/platform/http/config/http.php` — base config file must exist
+  - `packages/platform/http/config/rules.php` — base rules must exist
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring base exists
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — provides `http.middleware.system_pre`
 
 - Required config roots/keys:
   - `http.request_id.*` — introduced by this epic
@@ -2206,21 +2206,21 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Middleware/RequestIdMiddleware.php` — read/validate/generate request id
-- [ ] `framework/packages/platform/http/src/RequestId/RequestIdPolicy.php` — VO policy
-- [ ] `framework/packages/platform/http/src/RequestId/RequestIdValidator.php` — deterministic charset/len validation
+- [ ] `packages/platform/http/src/Middleware/RequestIdMiddleware.php` — read/validate/generate request id
+- [ ] `packages/platform/http/src/RequestId/RequestIdPolicy.php` — VO policy
+- [ ] `packages/platform/http/src/RequestId/RequestIdValidator.php` — deterministic charset/len validation
 
-- [ ] `framework/packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts accepted upstream id is written to `ContextKeys::REQUEST_ID` and returned in the configured response header
-- [ ] `framework/packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts invalid upstream id is replaced deterministically, written to `ContextKeys::REQUEST_ID`, and returned in the configured response header
+- [ ] `packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts accepted upstream id is written to `ContextKeys::REQUEST_ID` and returned in the configured response header
+- [ ] `packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts invalid upstream id is replaced deterministically, written to `ContextKeys::REQUEST_ID`, and returned in the configured response header
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.request_id.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for new keys
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag `system_pre` priority `940`
-- [ ] `framework/packages/platform/http/README.md` — section “RequestIdMiddleware” (slot/priority, header policy, upstream accept/replace rules)
+- [ ] `packages/platform/http/config/http.php` — add `http.request_id.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for new keys
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag `system_pre` priority `940`
+- [ ] `packages/platform/http/README.md` — section “RequestIdMiddleware” (slot/priority, header policy, upstream accept/replace rules)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RequestIdMiddleware` (system_pre 940)
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `RequestIdMiddleware` (`http.middleware.system_pre` priority `940`)
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `RequestIdMiddleware` (`http.middleware.system_pre` priority `940`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-requestid-correlationid-policy.md`
 
@@ -2231,14 +2231,14 @@ N/A (same package as 3.50.0)
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.request_id.enabled` = false
   - [ ] `http.request_id.header_name` = 'X-Request-Id'
   - [ ] `http.request_id.accept_from_upstream` = true
   - [ ] `http.request_id.max_length` = 128
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -2310,8 +2310,8 @@ N/A
 - Unit/Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts ContextStore write + response header echo for valid upstream id
-  - [ ] `framework/packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts deterministic replacement + ContextStore write + response header emission
+  - [ ] `packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts ContextStore write + response header echo for valid upstream id
+  - [ ] `packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts deterministic replacement + ContextStore write + response header emission
 - Gates/Arch:
   - [ ] deptrac green (same boundary as 3.50.0)
 
@@ -2335,7 +2335,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.70.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -2365,9 +2365,9 @@ ssot_refs: []
   - (optional) 3.50.0 — TrustedProxyMiddleware exists if redirect relies on proxy scheme
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/config/http.php`
-  - `framework/packages/platform/http/config/rules.php`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/http/config/http.php`
+  - `packages/platform/http/config/rules.php`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php`
 
 - Required config roots/keys:
   - `http.security_headers.*`
@@ -2439,25 +2439,25 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Middleware/SecurityHeadersMiddleware.php` — adds headers deterministically
-- [ ] `framework/packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php` — VO policy (CSP/Referrer/etc)
-- [ ] `framework/packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php` — redirect policy-based
-- [ ] `framework/packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php` — VO policy (status/allowlist)
+- [ ] `packages/platform/http/src/Middleware/SecurityHeadersMiddleware.php` — adds headers deterministically
+- [ ] `packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php` — VO policy (CSP/Referrer/etc)
+- [ ] `packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php` — redirect policy-based
+- [ ] `packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php` — VO policy (status/allowlist)
 
-- [ ] `framework/packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
+- [ ] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+- [ ] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+- [ ] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `security_headers.*` + `https_redirect.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for new keys
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register middlewares + add tags/priority
-- [ ] `framework/packages/platform/http/README.md` — sections “HttpsRedirectMiddleware” and “SecurityHeadersMiddleware” (slot/priority, toggle keys, override recipe)
+- [ ] `packages/platform/http/config/http.php` — add `security_headers.*` + `https_redirect.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for new keys
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middlewares + add tags/priority
+- [ ] `packages/platform/http/README.md` — sections “HttpsRedirectMiddleware” and “SecurityHeadersMiddleware” (slot/priority, toggle keys, override recipe)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
   - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
   - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for:
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for:
   - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
   - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
 - [ ] `docs/adr/INDEX.md` — register:
@@ -2470,7 +2470,7 @@ N/A (same package as 3.50.0)
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.security_headers.enabled` = false
   - [ ] `http.security_headers.x_content_type_options` = 'nosniff'
@@ -2482,7 +2482,7 @@ N/A (same package as 3.50.0)
   - [ ] `http.https_redirect.status` = 308
   - [ ] `http.https_redirect.allow_methods` = ['GET','HEAD']
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -2546,10 +2546,10 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+  - [ ] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+  - [ ] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
 - Gates/Arch:
   - [ ] deptrac green (same boundary as 3.50.0)
 
@@ -2572,7 +2572,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.80.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -2581,7 +2581,7 @@ module_id: "platform.http"
 
 goal: "Maintenance toggle працює без `config:compile` і без впливу на fingerprint/artifacts, повертаючи deterministic 503."
 provides:
-- "Real maintenance toggle через `skeleton/var/maintenance/*` (поза artifacts/fingerprint)"
+- "Real maintenance toggle через `packages/applications/skeleton/var/maintenance/*` (поза artifacts/fingerprint)"
 - "Deterministic 503 response + optional `message.json` schema"
 - "CLI команди enable/disable/status живуть у `platform/http` і discover-яться через existing tag `cli.command` (owner = `platform/cli`) за non-owner tag usage rule"
 
@@ -2601,14 +2601,14 @@ ssot_refs: []
   - N/A
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/config/http.php` — додаємо `http.maintenance.*` ключі
-  - `framework/packages/platform/http/config/rules.php` — додаємо rules для `http.maintenance.*`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring middleware + CLI commands
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner=http (для `http.middleware.system_pre`)
+  - `packages/platform/http/config/http.php` — додаємо `http.maintenance.*` ключі
+  - `packages/platform/http/config/rules.php` — додаємо rules для `http.maintenance.*`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring middleware + CLI commands
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner=http (для `http.middleware.system_pre`)
 
 - Runtime state location policy (MUST):
-  - `skeleton/var/maintenance/` is the reserved runtime state directory for this epic.
-  - The directory itself is created by this epic via `skeleton/var/maintenance/.gitkeep`.
+  - `packages/applications/skeleton/var/maintenance/` is the reserved runtime state directory for this epic.
+  - The directory itself is created by this epic via `packages/applications/skeleton/var/maintenance/.gitkeep`.
 
 - Required config roots/keys:
   - `http.maintenance.*` — toggles + paths + retry-after defaults
@@ -2666,9 +2666,9 @@ Slice boundary note (MUST):
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `maintenance:enable` → `framework/packages/platform/http/src/Console/MaintenanceEnableCommand.php`
-  - `maintenance:disable` → `framework/packages/platform/http/src/Console/MaintenanceDisableCommand.php`
-  - `maintenance:status` → `framework/packages/platform/http/src/Console/MaintenanceStatusCommand.php`
+  - `maintenance:enable` → `packages/platform/http/src/Console/MaintenanceEnableCommand.php`
+  - `maintenance:disable` → `packages/platform/http/src/Console/MaintenanceDisableCommand.php`
+  - `maintenance:status` → `packages/platform/http/src/Console/MaintenanceStatusCommand.php`
 - HTTP:
   - middleware: `\Coretsia\Http\Maintenance\MaintenanceMiddleware::class`
   - middleware slots/tags: `http.middleware.system_pre` priority `900` meta `{toggle:'http.maintenance.enabled'}`
@@ -2679,44 +2679,44 @@ Slice boundary note (MUST):
   - N/A
 - Artifacts:
   - reads:
-    - `skeleton/var/maintenance/enabled`
-    - `skeleton/var/maintenance/message.json` (optional)
+    - `packages/applications/skeleton/var/maintenance/enabled`
+    - `packages/applications/skeleton/var/maintenance/message.json` (optional)
   - writes (via CLI commands only):
-    - `skeleton/var/maintenance/enabled`
-    - `skeleton/var/maintenance/message.json` (optional)
+    - `packages/applications/skeleton/var/maintenance/enabled`
+    - `packages/applications/skeleton/var/maintenance/message.json` (optional)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Maintenance/MaintenanceStateReader.php` — reads flag + validates optional message schema (safe)
-- [ ] `framework/packages/platform/http/src/Maintenance/MaintenanceMiddleware.php` — returns deterministic 503 when enabled; bypass `/_alive`
-- [ ] `framework/packages/platform/http/src/Maintenance/MaintenanceMessage.php` — VO schema `{schemaVersion,message,retryAfterSeconds?}`
-- [ ] `framework/packages/platform/http/src/Maintenance/Exception/MaintenanceMessageInvalidException.php` — errorCode `CORETSIA_MAINTENANCE_MESSAGE_INVALID`
+- [ ] `packages/platform/http/src/Maintenance/MaintenanceStateReader.php` — reads flag + validates optional message schema (safe)
+- [ ] `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php` — returns deterministic 503 when enabled; bypass `/_alive`
+- [ ] `packages/platform/http/src/Maintenance/MaintenanceMessage.php` — VO schema `{schemaVersion,message,retryAfterSeconds?}`
+- [ ] `packages/platform/http/src/Maintenance/Exception/MaintenanceMessageInvalidException.php` — errorCode `CORETSIA_MAINTENANCE_MESSAGE_INVALID`
 
-- [ ] `framework/packages/platform/http/src/Console/MaintenanceEnableCommand.php` — creates `enabled` + optional `message.json` (deterministic bytes)
-- [ ] `framework/packages/platform/http/src/Console/MaintenanceDisableCommand.php` — removes `enabled` (atomic)
-- [ ] `framework/packages/platform/http/src/Console/MaintenanceStatusCommand.php` — reads state safely (no secrets)
+- [ ] `packages/platform/http/src/Console/MaintenanceEnableCommand.php` — creates `enabled` + optional `message.json` (deterministic bytes)
+- [ ] `packages/platform/http/src/Console/MaintenanceDisableCommand.php` — removes `enabled` (atomic)
+- [ ] `packages/platform/http/src/Console/MaintenanceStatusCommand.php` — reads state safely (no secrets)
 
-- [ ] `skeleton/var/maintenance/.gitkeep` — runtime state dir placeholder; maintenance state files themselves are NOT committed deliverables
+- [ ] `packages/applications/skeleton/var/maintenance/.gitkeep` — runtime state dir placeholder; maintenance state files themselves are NOT committed deliverables
   - [ ] Runtime state policy (MUST):
     - [ ] `enabled` and `message.json` are runtime state written/removed by commands and MUST NOT be committed as repository deliverables
 
 - [ ] `docs/ops/maintenance-mode.md` — how to enable/disable + safety notes (no artifacts)
 
-- [ ] `framework/packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
-- [ ] `framework/packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
+- [ ] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+- [ ] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+- [ ] `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
+- [ ] `packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.maintenance.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for `http.maintenance.*`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag (system_pre) + register CLI commands (tag `cli.command`)
-- [ ] `framework/packages/platform/http/README.md` — section “Maintenance” (slot/tag/priority, bypass rules, file paths + schema)
+- [ ] `packages/platform/http/config/http.php` — add `http.maintenance.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.maintenance.*`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag (system_pre) + register CLI commands (tag `cli.command`)
+- [ ] `packages/platform/http/README.md` — section “Maintenance” (slot/tag/priority, bypass rules, file paths + schema)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-maintenance-mode-toggle.md`
 
@@ -2727,14 +2727,14 @@ N/A (package `platform/http` already exists; this epic adds maintenance slice on
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.maintenance.enabled` = true
-  - [ ] `http.maintenance.flag_path` = 'skeleton/var/maintenance/enabled'
-  - [ ] `http.maintenance.message_path` = 'skeleton/var/maintenance/message.json'
+  - [ ] `http.maintenance.flag_path` = 'packages/applications/skeleton/var/maintenance/enabled'
+  - [ ] `http.maintenance.message_path` = 'packages/applications/skeleton/var/maintenance/message.json'
   - [ ] `http.maintenance.retry_after_default_seconds` = 60
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -2752,10 +2752,10 @@ N/A (package `platform/http` already exists; this epic adds maintenance slice on
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/maintenance/enabled` (existence flag)
-  - [ ] `skeleton/var/maintenance/message.json` (schemaVersion, deterministic bytes)
+  - [ ] `packages/applications/skeleton/var/maintenance/enabled` (existence flag)
+  - [ ] `packages/applications/skeleton/var/maintenance/message.json` (schemaVersion, deterministic bytes)
 - [ ] Reads:
-  - [ ] `skeleton/var/maintenance/message.json` schema is validated deterministically (schemaVersion int; safe fields only)
+  - [ ] `packages/applications/skeleton/var/maintenance/message.json` schema is validated deterministically (schemaVersion int; safe fields only)
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -2791,8 +2791,8 @@ N/A
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+- [ ] If redaction exists → `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -2803,11 +2803,11 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
+  - [ ] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+  - [ ] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [ ] `packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -2819,7 +2819,7 @@ N/A
 - [ ] Verification tests present where applicable
 - [ ] Determinism: CLI enable/disable/status не роблять artifacts dirty; rerun-no-diff where applicable
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/http/README.md`
+  - [ ] `packages/platform/http/README.md`
   - [ ] `docs/ops/maintenance-mode.md`
   - [ ] ADR registered
 - [ ] CLI tag usage stays compliant with tag SSoT:
@@ -2844,7 +2844,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.90.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -2902,7 +2902,7 @@ N/A
 ### Entry points / integration points (MUST)
 
 - Gates/CI:
-  - `framework/tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
+  - `tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
 - CLI:
   - N/A
 - HTTP:
@@ -2916,10 +2916,10 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/System/SystemRouteTable.php` — entries + `SCHEMA_VERSION`
-- [ ] `framework/tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
-- [ ] `framework/packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php` — shape + invariants
-- [ ] `framework/tools/gates/tests/SystemRouteTableGateTest.php` — fixture good/bad
+- [ ] `packages/platform/http/src/System/SystemRouteTable.php` — entries + `SCHEMA_VERSION`
+- [ ] `tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
+- [ ] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php` — shape + invariants
+- [ ] `tools/gates/tests/SystemRouteTableGateTest.php` — fixture good/bad
 - [ ] `docs/ssot/system-route-table.md` — meaning of `active|reserved|dev_only` + how owners claim endpoints later
 
 #### Modifies
@@ -2974,23 +2974,23 @@ N/A
 - [ ] If `kernel.reset` used → `N/A`
 - [ ] If metrics/spans/logs exist → `N/A`
 - [ ] If redaction exists → `N/A`
-- [ ] Gate enforcement exists → `framework/tools/gates/tests/SystemRouteTableGateTest.php`
+- [ ] Gate enforcement exists → `tools/gates/tests/SystemRouteTableGateTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Gate fixtures:
-  - [ ] `framework/tools/gates/tests/Fixtures/SystemRouteTable/*` (good/bad snapshots)
+  - [ ] `tools/gates/tests/Fixtures/SystemRouteTable/*` (good/bad snapshots)
 
 ### Tests (MUST)
 
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
 - Integration:
   - N/A
 - Gates/Arch:
-  - [ ] `framework/tools/gates/tests/SystemRouteTableGateTest.php`
+  - [ ] `tools/gates/tests/SystemRouteTableGateTest.php`
 
 ### DoD (MUST)
 
@@ -3002,7 +3002,7 @@ N/A
   - [ ] `docs/ssot/system-route-table.md`
   - [ ] ADR registered
 - [ ] Gate output policy (MUST)
-  - [ ] Gate MUST use tools ConsoleOutput only (`framework/tools/support/ConsoleOutput.php`).
+  - [ ] Gate MUST use tools ConsoleOutput only (`tools/support/ConsoleOutput.php`).
   - [ ] Output:
     - [ ] line1: deterministic CODE
     - [ ] line2+: diagnostics sorted `strcmp`, paths normalized (forward slashes), no absolute paths.
@@ -3016,7 +3016,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.100.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -3078,7 +3078,7 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/System/ReservedPathMatcher.php` — segment-prefix matcher (exact vs prefix boundary)
+- [ ] `packages/platform/http/src/System/ReservedPathMatcher.php` — segment-prefix matcher (exact vs prefix boundary)
   - [ ] Matcher normalization invariants (MUST)
     - [ ] Matching MUST be defined on a **normalized path**:
       - [ ] collapse multiple slashes `//+` → `/` (single-choice),
@@ -3089,7 +3089,7 @@ N/A
       - [ ] MUST NOT match `/healthz`
     - [ ] Implementation MUST be pure string ops; no unbounded allocations proportional to input beyond O(n).
 
-- [ ] `framework/packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — edge cases (`//`, trailing slash, boundary)
+- [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — edge cases (`//`, trailing slash, boundary)
 - [ ] `docs/ssot/reserved-path-matching.md` — exact vs prefix semantics + examples
 
 #### Modifies
@@ -3142,7 +3142,7 @@ N/A
 - [ ] If `kernel.reset` used → `N/A`
 - [ ] If metrics/spans/logs exist → `N/A`
 - [ ] If redaction exists → `N/A`
-- [ ] Semantic correctness proof → `framework/packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+- [ ] Semantic correctness proof → `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -3151,7 +3151,7 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+  - [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
 - Contract/Integration:
   - N/A
 - Gates/Arch:
@@ -3175,7 +3175,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.110.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -3208,9 +3208,9 @@ ssot_refs:
   - `3.100.0` — `ReservedPathMatcher` exists (matching semantics)
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/src/Routing/FallbackRouterHandler.php` — terminal handler hook point (owner=http runtime)
-  - `framework/packages/platform/http/src/System/SystemEndpointPayload.php` — canonical payload helper (can be introduced earlier; this epic may extend it)
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring terminal handler to pipeline
+  - `packages/platform/http/src/Routing/FallbackRouterHandler.php` — terminal handler hook point (owner=http runtime)
+  - `packages/platform/http/src/System/SystemEndpointPayload.php` — canonical payload helper (can be introduced earlier; this epic may extend it)
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring terminal handler to pipeline
 
 - Required config roots/keys:
   - N/A
@@ -3282,27 +3282,27 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Routing/FallbackRouter.php` — endpoint dispatch (uses SystemRouteTable + ReservedPathMatcher)
-- [ ] `framework/packages/platform/http/src/Routing/FallbackResponses.php` — helpers for deterministic response bodies/headers
+- [ ] `packages/platform/http/src/Routing/FallbackRouter.php` — endpoint dispatch (uses SystemRouteTable + ReservedPathMatcher)
+- [ ] `packages/platform/http/src/Routing/FallbackResponses.php` — helpers for deterministic response bodies/headers
   - [ ] JSON bodies produced here MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder`
   - [ ] map keys MUST be recursively sorted by `strcmp`; lists preserve order
   - [ ] MUST NOT emit floats/NaN/INF
   - [ ] MUST NOT use ad-hoc `json_encode` directly in response helpers
-- [ ] `framework/packages/platform/http/src/Exception/IntentionalErrorException.php` — thrown on `/error` (`CORETSIA_HTTP_INTENTIONAL_ERROR`)
+- [ ] `packages/platform/http/src/Exception/IntentionalErrorException.php` — thrown on `/error` (`CORETSIA_HTTP_INTENTIONAL_ERROR`)
 - [ ] `docs/ssot/http-system-endpoints.md` — owned vs reserved endpoints + owner-claim rules
 
-- [ ] `framework/packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
+- [ ] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
+- [ ] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
+- [ ] `packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
+- [ ] `packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
+- [ ] `packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/src/Routing/FallbackRouterHandler.php` — delegate to `FallbackRouter` (single dispatch point)
-- [ ] `framework/packages/platform/http/src/System/SystemEndpointPayload.php` — add/align canonical payloads for 501/503 (no secrets)
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire router into terminal handler (if not already)
+- [ ] `packages/platform/http/src/Routing/FallbackRouterHandler.php` — delegate to `FallbackRouter` (single dispatch point)
+- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php` — add/align canonical payloads for 501/503 (no secrets)
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire router into terminal handler (if not already)
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/http-system-endpoints.md`
 
@@ -3362,13 +3362,13 @@ N/A
 - Unit/Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/UnsupportedMethodForSystemEndpointFallsThroughAsNotMatchedTest.php`
+  - [ ] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
+  - [ ] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
+  - [ ] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
+  - [ ] `packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
+  - [ ] `packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
+  - [ ] `packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/UnsupportedMethodForSystemEndpointFallsThroughAsNotMatchedTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -3399,7 +3399,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.120.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -3432,9 +3432,9 @@ ssot_refs:
   - `3.110.0` — FallbackRouter dispatches `/_debug/` prefix to debug router (or equivalent hook)
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/config/http.php` — додаємо `http.debug.*` keys
-  - `framework/packages/platform/http/config/rules.php` — rules для `http.debug.*`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register debug services/handlers
+  - `packages/platform/http/config/http.php` — додаємо `http.debug.*` keys
+  - `packages/platform/http/config/rules.php` — rules для `http.debug.*`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — register debug services/handlers
 
 - Required config roots/keys:
   - `http.debug.*` — enable/guard/token/allowlist/path allowlist
@@ -3496,27 +3496,27 @@ Forbidden:
   - N/A
 - Artifacts:
   - reads (safe summary only):
-    - may read `skeleton/var/cache/<appId>/*` only to show cache status summary (no values)
+    - may read `packages/applications/skeleton/var/cache/<appId>/*` only to show cache status summary (no values)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Debug/DebugGuard.php` — allowlist/token/local env guard
-- [ ] `framework/packages/platform/http/src/Debug/DebugRouter.php` — routes `/_debug/*` to handlers deterministically
-- [ ] `framework/packages/platform/http/src/Debug/DebugHeadersHandler.php` — outputs only safe headers (redacts Authorization/Cookie/Set-Cookie)
-- [ ] `framework/packages/platform/http/src/Debug/DebugModuleListHandler.php` — lists enabled modules (safe)
-- [ ] `framework/packages/platform/http/src/Debug/DebugConfigHandler.php` — formation trace + redacted value (no secrets)
-- [ ] `framework/packages/platform/http/src/Debug/DebugCacheHandler.php` — cache artifact status summary (no values)
+- [ ] `packages/platform/http/src/Debug/DebugGuard.php` — allowlist/token/local env guard
+- [ ] `packages/platform/http/src/Debug/DebugRouter.php` — routes `/_debug/*` to handlers deterministically
+- [ ] `packages/platform/http/src/Debug/DebugHeadersHandler.php` — outputs only safe headers (redacts Authorization/Cookie/Set-Cookie)
+- [ ] `packages/platform/http/src/Debug/DebugModuleListHandler.php` — lists enabled modules (safe)
+- [ ] `packages/platform/http/src/Debug/DebugConfigHandler.php` — formation trace + redacted value (no secrets)
+- [ ] `packages/platform/http/src/Debug/DebugCacheHandler.php` — cache artifact status summary (no values)
   - [ ] Cache status MUST be summary-only:
     - [ ] existence + byte size + sha256 (optional),
     - [ ] MUST NOT parse artifacts payloads,
     - [ ] MUST NOT output absolute paths or file contents.
-- [ ] `framework/packages/platform/http/src/Debug/Redaction.php` — helper `hash/len`, header redaction map
+- [ ] `packages/platform/http/src/Debug/Redaction.php` — helper `hash/len`, header redaction map
 
-- [ ] `framework/packages/platform/http/src/Debug/Exception/DebugForbiddenException.php` — errorCode `CORETSIA_HTTP_DEBUG_FORBIDDEN` (403)
-- [ ] `framework/packages/platform/http/src/Debug/Exception/DebugDisabledException.php` — errorCode `CORETSIA_HTTP_DEBUG_DISABLED` (deterministic 404 when debug endpoints are disabled)
-- [ ] `framework/packages/platform/http/src/Error/DebugExceptionMapper.php`
+- [ ] `packages/platform/http/src/Debug/Exception/DebugForbiddenException.php` — errorCode `CORETSIA_HTTP_DEBUG_FORBIDDEN` (403)
+- [ ] `packages/platform/http/src/Debug/Exception/DebugDisabledException.php` — errorCode `CORETSIA_HTTP_DEBUG_DISABLED` (deterministic 404 when debug endpoints are disabled)
+- [ ] `packages/platform/http/src/Error/DebugExceptionMapper.php`
   - [ ] implements `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
   - [ ] maps:
     - [ ] `DebugDisabledException` → `ErrorDescriptor` with optional HTTP hint `404`
@@ -3527,17 +3527,17 @@ Forbidden:
 
 - [ ] `docs/guides/http-debug-endpoints.md` — how to enable in local + security warnings + redaction rules
 
-- [ ] `framework/packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
+- [ ] `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
+- [ ] `packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
+- [ ] `packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.debug.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for `http.debug.*`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — register guard/router/handlers
-- [ ] `framework/packages/platform/http/README.md` — section “Debug endpoints” (handlers dispatch model; why dev_only; redaction rules)
+- [ ] `packages/platform/http/config/http.php` — add `http.debug.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.debug.*`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register guard/router/handlers
+- [ ] `packages/platform/http/README.md` — section “Debug endpoints” (handlers dispatch model; why dev_only; redaction rules)
 - [ ] `docs/ssot/http-system-endpoints.md` — add dev-only `/_debug/*` endpoint set + guard/disabled behavior policy
 
 #### Package skeleton (if type=package)
@@ -3547,7 +3547,7 @@ N/A (package `platform/http` already exists; this epic adds debug diagnostics sl
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.debug.enabled` = false
   - [ ] `http.debug.allowlist` = ['127.0.0.1', '::1']
@@ -3564,7 +3564,7 @@ N/A (package `platform/http` already exists; this epic adds debug diagnostics sl
     - [ ] counts for lists/maps
     - [ ] source info (`ConfigValueSource`) without absolute paths
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -3618,8 +3618,8 @@ N/A
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
+- [ ] If redaction exists → `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -3630,10 +3630,10 @@ N/A
 - Unit/Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
+  - [ ] `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
+  - [ ] `packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
+  - [ ] `packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -3646,7 +3646,7 @@ N/A
 - [ ] Default disabled; guard works (local/allowlist/token)
 - [ ] No secret leakage (tests)
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/http/README.md`
+  - [ ] `packages/platform/http/README.md`
   - [ ] `docs/guides/http-debug-endpoints.md`
   - [ ] `docs/ssot/http-system-endpoints.md`
 - [ ] Debug disabled/blocked response policy (single-choice) (MUST)
@@ -3671,7 +3671,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.130.0"
-owner_path: "framework/packages/platform/routing/"
+owner_path: "packages/platform/routing/"
 
 package_id: "platform/routing"
 composer: "coretsia/platform-routing"
@@ -3680,7 +3680,7 @@ module_id: "platform.routing"
 
 goal: "Deterministic routes artifact компілюється і читається runtime router’ом (artifact-only у prod), із reserved endpoints guard."
 provides:
-- "Real deterministic routes artifact: `skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; rerun → no diff)"
+- "Real deterministic routes artifact: `packages/applications/skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; rerun → no diff)"
 - "Runtime `CompiledRouter` (artifact-only policy) + writes `ContextKeys::PATH_TEMPLATE` (low-cardinality)"
 - "Compile-time reserved endpoints guard: uses `platform/http` `SystemRouteTable` + `ReservedPathMatcher` (NO DUPES)"
 
@@ -3721,7 +3721,7 @@ ssot_refs:
   - `routing.route_provider`:
     - N/A at epic start.
     - This epic is the owner epic that adds `routing.route_provider` to `docs/ssot/tags.md`
-      and introduces the canonical owner constant in `framework/packages/core/foundation/src/Tag/ReservedTags.php`.
+      and introduces the canonical owner constant in `packages/core/foundation/src/Tag/ReservedTags.php`.
 
 - Tag usage (MUST) — make ordering source-of-truth explicit
   - `RouteProviderRegistry` MUST enumerate providers ONLY via:
@@ -3782,14 +3782,14 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `routes:compile` → `framework/packages/platform/routing/src/Console/RoutesCompileCommand.php`
+  - `routes:compile` → `packages/platform/routing/src/Console/RoutesCompileCommand.php`
 - HTTP:
   - N/A (routing consumed by http-app RouterMiddleware; owner=`platform/http-app`)
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
-  - writes: `skeleton/var/cache/<appId>/routes.php`
-  - reads: `skeleton/var/cache/<appId>/routes.php` (runtime)
+  - writes: `packages/applications/skeleton/var/cache/<appId>/routes.php`
+  - reads: `packages/applications/skeleton/var/cache/<appId>/routes.php` (runtime)
   - validates header + payload schema on read
 
 ### Deliverables (MUST)
@@ -3797,67 +3797,67 @@ Forbidden:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/routing/composer.json`
-- [ ] `framework/packages/platform/routing/src/Module/RoutingModule.php`
-- [ ] `framework/packages/platform/routing/src/Provider/RoutingServiceProvider.php`
-- [ ] `framework/packages/platform/routing/src/Provider/RoutingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/routing/config/routing.php`
-- [ ] `framework/packages/platform/routing/config/rules.php`
-- [ ] `framework/packages/platform/routing/README.md`
-- [ ] `framework/packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/routing/composer.json`
+- [ ] `packages/platform/routing/src/Module/RoutingModule.php`
+- [ ] `packages/platform/routing/src/Provider/RoutingServiceProvider.php`
+- [ ] `packages/platform/routing/src/Provider/RoutingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/routing/config/routing.php`
+- [ ] `packages/platform/routing/config/rules.php`
+- [ ] `packages/platform/routing/README.md`
+- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Tags + registry:
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants
-- [ ] `framework/packages/platform/routing/src/Compile/RouteProviderRegistry.php` — collects `RouteProviderInterface` via tag `routing.route_provider`
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants
+- [ ] `packages/platform/routing/src/Compile/RouteProviderRegistry.php` — collects `RouteProviderInterface` via tag `routing.route_provider`
 
 Compile:
-- [ ] `framework/packages/platform/routing/src/Compile/RoutesCompiler.php` — deterministic compile (providers deterministic; per-provider order preserved)
-- [ ] `framework/packages/platform/routing/src/Compile/ReservedRoutesGuard.php` — blocks reserved paths/prefixes using `SystemRouteTable` + `ReservedPathMatcher`
+- [ ] `packages/platform/routing/src/Compile/RoutesCompiler.php` — deterministic compile (providers deterministic; per-provider order preserved)
+- [ ] `packages/platform/routing/src/Compile/ReservedRoutesGuard.php` — blocks reserved paths/prefixes using `SystemRouteTable` + `ReservedPathMatcher`
 
 Artifacts:
-- [ ] `framework/packages/platform/routing/src/Artifacts/RoutesArtifactWriter.php` — atomic write + deterministic bytes
-- [ ] `framework/packages/platform/routing/src/Artifacts/RoutesArtifactReader.php` — validates header + payload schemaVersion
-- [ ] `framework/packages/platform/routing/src/Artifacts/RoutesArtifactHeader.php` — header VO (schemaVersion pinned; no timestamps)
-- [ ] `framework/packages/platform/routing/src/Artifacts/Php/StablePhpArrayDumper.php`
+- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactWriter.php` — atomic write + deterministic bytes
+- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactReader.php` — validates header + payload schemaVersion
+- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactHeader.php` — header VO (schemaVersion pinned; no timestamps)
+- [ ] `packages/platform/routing/src/Artifacts/Php/StablePhpArrayDumper.php`
   - [ ] stable key ordering (`strcmp`) for maps at every depth,
   - [ ] consistent indentation,
   - [ ] LF-only + final newline,
   - [ ] no var_export locale dependence, no timestamps.
 
 Runtime:
-- [ ] `framework/packages/platform/routing/src/Runtime/CompiledRouter.php` — implements `RouterInterface`, reads artifact, writes `ContextKeys::PATH_TEMPLATE`
-- [ ] `framework/packages/platform/routing/src/Runtime/PathNormalizer.php` — normalization MUST match reserved matcher policy
+- [ ] `packages/platform/routing/src/Runtime/CompiledRouter.php` — implements `RouterInterface`, reads artifact, writes `ContextKeys::PATH_TEMPLATE`
+- [ ] `packages/platform/routing/src/Runtime/PathNormalizer.php` — normalization MUST match reserved matcher policy
 
 CLI:
-- [ ] `framework/packages/platform/routing/src/Console/RoutesCompileCommand.php` — writes artifact, safe output, supports `--format=json`
+- [ ] `packages/platform/routing/src/Console/RoutesCompileCommand.php` — writes artifact, safe output, supports `--format=json`
   - [ ] `--format=json` output MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder`
   - [ ] JSON output MUST be deterministic: recursive map-key sort `strcmp`, lists preserve order
   - [ ] JSON output MUST NOT include absolute paths, raw config values, or secrets
 
 Errors:
-- [ ] `framework/packages/platform/routing/src/Exception/RoutesArtifactInvalidException.php` — `CORETSIA_ROUTES_ARTIFACT_INVALID`
-- [ ] `framework/packages/platform/routing/src/Exception/ReservedRouteViolationException.php` — `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
+- [ ] `packages/platform/routing/src/Exception/RoutesArtifactInvalidException.php` — `CORETSIA_ROUTES_ARTIFACT_INVALID`
+- [ ] `packages/platform/routing/src/Exception/ReservedRouteViolationException.php` — `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
 
 Docs:
 - [ ] `docs/ssot/routing-artifact.md` — artifact schemaVersion + determinism rules
 - [ ] `docs/guides/routing.md` — how to register providers + run compile
 
 Tests:
-- [ ] `framework/packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
-- [ ] `framework/packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
+- [ ] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
+- [ ] `packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
 
-- [ ] `framework/packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
-- [ ] `framework/packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
+- [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
+- [ ] `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
+- [ ] `packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
+- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
+- [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
+- [ ] `packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
 
-- [ ] `framework/packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
-- [ ] `framework/packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
-- [ ] `framework/packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
-- [ ] `framework/packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+- [ ] `packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
+- [ ] `packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
+- [ ] `packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
+- [ ] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
 
 #### Modifies
 
@@ -3869,43 +3869,43 @@ Tests:
 - [ ] `docs/ssot/tags.md` — register:
   - [ ] `routing.route_provider` (owner `platform/routing`) - RouteProvider discovery via Foundation TagRegistry; providers are ordered by TagRegistry (priority DESC, serviceId ASC), per-provider route order is preserved.
 - [ ] `docs/ssot/config-roots.md` — register:
-  - [ ] `routing | platform/routing | framework/packages/platform/routing/config/routing.php | framework/packages/platform/routing/config/rules.php | compiled routing artifact + runtime router settings`
+  - [ ] `routing | platform/routing | packages/platform/routing/config/routing.php | packages/platform/routing/config/rules.php | compiled routing artifact + runtime router settings`
 - [ ] `docs/ssot/artifacts.md` — update the existing `routes@1` registry row if notes/path-shape need refinement; MUST NOT add a duplicate registry row
   - [ ] `routes` (owner `platform/routing`) - { "_meta": <header>, "payload": <schema> } | docs/ssot/routing-artifact.md | Deterministic bytes; LF-only + final newline; no timestamps/abs paths/secrets; rerun-no-diff.
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/routing/composer.json`
-- [ ] `framework/packages/platform/routing/src/Module/RoutingModule.php`
-- [ ] `framework/packages/platform/routing/src/Provider/RoutingServiceProvider.php`
-- [ ] `framework/packages/platform/routing/config/routing.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/routing/config/rules.php`
-- [ ] `framework/packages/platform/routing/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/routing/composer.json`
+- [ ] `packages/platform/routing/src/Module/RoutingModule.php`
+- [ ] `packages/platform/routing/src/Provider/RoutingServiceProvider.php`
+- [ ] `packages/platform/routing/config/routing.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/routing/config/rules.php`
+- [ ] `packages/platform/routing/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/routing/config/routing.php`
+  - [ ] `packages/platform/routing/config/routing.php`
 - [ ] Keys (dot):
   - [ ] `routing.enabled` = true
   - [ ] `routing.compile.enabled` = true
   - [ ] `routing.runtime.enabled` = true
-  - [ ] `routing.artifacts.path` = 'skeleton/var/cache/<appId>/routes.php'
+  - [ ] `routing.artifacts.path` = 'packages/applications/skeleton/var/cache/<appId>/routes.php'
   - [ ] `routing.compile.strict_reserved_guard` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/routing/config/rules.php` enforces shape
+  - [ ] `packages/platform/routing/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constants:
     - [ ] `ROUTE_PROVIDER = 'routing.route_provider'`
 - [ ] `cli.command` usage rule (MUST):
   - [ ] because owner package `platform/cli` is a forbidden compile-time dependency here, any mirror constant for `cli.command`
     MUST be package-internal only (for example a private constant inside the wiring class)
-  - [ ] `cli.command` MUST NOT be exposed from `framework/packages/core/foundation/src/Tag/ReservedTags.php` as public API of `platform/routing`
+  - [ ] `cli.command` MUST NOT be exposed from `packages/core/foundation/src/Tag/ReservedTags.php` as public API of `platform/routing`
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Routing\Compile\RouteProviderRegistry`
   - [ ] registers: `Coretsia\Routing\Compile\RoutesCompiler`
@@ -3921,7 +3921,7 @@ Tests:
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; deterministic bytes; rerun → no diff)
+  - [ ] `packages/applications/skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; deterministic bytes; rerun → no diff)
 - [ ] Reads:
   - [ ] validates header + payload schema
 
@@ -3975,36 +3975,36 @@ Tests:
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `framework/packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+- [ ] If Context writes exist → `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
 - [ ] If `kernel.reset` used → `N/A` (unless caching added)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php` + observability assertions where applicable
-- [ ] If redaction exists → `framework/packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php` (indirect) + CLI output safety assertions in CLI integration test
+- [ ] If metrics/spans/logs exist → `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php` + observability assertions where applicable
+- [ ] If redaction exists → `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php` (indirect) + CLI output safety assertions in CLI integration test
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/platform/routing/tests/Fixtures/<App>/...` (only if wiring requires boot)
+  - [ ] `packages/platform/routing/tests/Fixtures/<App>/...` (only if wiring requires boot)
 - [ ] Fake adapters:
   - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions (if used in tests)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
+  - [ ] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
+  - [ ] `packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
+  - [ ] `packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
-  - [ ] `framework/packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+  - [ ] `packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
+  - [ ] `packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
+  - [ ] `packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
+  - [ ] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -4018,7 +4018,7 @@ Tests:
 - [ ] Reserved endpoints blocked via Phase SSoT (SystemRouteTable + matcher), no local fork
 - [ ] Router writes `ContextKeys::PATH_TEMPLATE` on match (no raw path in metric labels)
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/routing/README.md`
+  - [ ] `packages/platform/routing/README.md`
   - [ ] `docs/ssot/routing-artifact.md`
   - [ ] `docs/guides/routing.md`
   - [ ] ADR registered
@@ -4035,7 +4035,7 @@ Tests:
 type: package
 phase: 3
 epic_id: "3.140.0"
-owner_path: "framework/packages/platform/http-app/"
+owner_path: "packages/platform/http-app/"
 
 package_id: "platform/http-app"
 composer: "coretsia/platform-http-app"
@@ -4067,9 +4067,9 @@ ssot_refs:
   - Phase 0 HTTP stack model exists in `platform/http` and executes `http.middleware.app` slot.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — defines middleware slots incl. `http.middleware.app`
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — defines middleware slots incl. `http.middleware.app`
   - `docs/ssot/http-middleware-catalog.md` — canonical placement/priority table
-  - `framework/packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php` — provided by 2.20.0
+  - `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php` — provided by 2.20.0
 
 - Tag usage rule (MUST):
   - for `http.middleware.app`, runtime code MUST use the owner public constant from `platform/http`
@@ -4144,30 +4144,30 @@ Forbidden:
 - Kernel hooks/tags:
   - `error.mapper` priority `800` (meta per owner `platform/errors` tag schema, if any)
 - Artifacts:
-  - reads (indirect, via `RouterInterface` impl): `skeleton/var/cache/<appId>/routes.php`
+  - reads (indirect, via `RouterInterface` impl): `packages/applications/skeleton/var/cache/<appId>/routes.php`
 
 ### Deliverables (MUST)
 
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/http-app/composer.json` — package manifest
-- [ ] `framework/packages/platform/http-app/src/Module/HttpAppModule.php` — runtime module entry
-- [ ] `framework/packages/platform/http-app/src/Provider/HttpAppServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/http-app/src/Provider/HttpAppServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/http-app/config/http_app.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/http-app/config/rules.php` — config rules
-- [ ] `framework/packages/platform/http-app/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/http-app/composer.json` — package manifest
+- [ ] `packages/platform/http-app/src/Module/HttpAppModule.php` — runtime module entry
+- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceProvider.php` — DI wiring
+- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/http-app/config/http_app.php` — config subtree (no repeated root)
+- [ ] `packages/platform/http-app/config/rules.php` — config rules
+- [ ] `packages/platform/http-app/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Implementation:
-- [ ] `framework/packages/platform/http-app/src/Middleware/RouterMiddleware.php` — routing boundary + dispatch
-- [ ] `framework/packages/platform/http-app/src/Action/ActionInvoker.php` — invokes handler; spans/metrics/logs
+- [ ] `packages/platform/http-app/src/Middleware/RouterMiddleware.php` — routing boundary + dispatch
+- [ ] `packages/platform/http-app/src/Action/ActionInvoker.php` — invokes handler; spans/metrics/logs
   - [ ] MUST resolve handler ids only through `http_app.handlers.map`
   - [ ] MUST NOT perform implicit FQCN/service-id fallback
-- [ ] `framework/packages/platform/http-app/src/Action/ArgumentResolver/ArgumentResolver.php` — resolves args (no interface autowire)
-- [ ] `framework/packages/platform/http-app/src/Action/ArgumentResolver/RouteParamsAccessor.php` — helper
-- [ ] `framework/packages/platform/http-app/src/Response/ActionResponseMapper.php` — maps return value → ResponseInterface (json/html)
+- [ ] `packages/platform/http-app/src/Action/ArgumentResolver/ArgumentResolver.php` — resolves args (no interface autowire)
+- [ ] `packages/platform/http-app/src/Action/ArgumentResolver/RouteParamsAccessor.php` — helper
+- [ ] `packages/platform/http-app/src/Response/ActionResponseMapper.php` — maps return value → ResponseInterface (json/html)
   - [ ] If `ActionResponseMapper` serializes JSON, it MUST:
     - [ ] use `Coretsia\Foundation\Serialization\StableJsonEncoder` as the single JSON writer
     - [ ] not use tooling `internal-toolkit`
@@ -4176,24 +4176,24 @@ Implementation:
     - [ ] MUST NOT use ad-hoc `json_encode` directly in mapper logic
 
 Exceptions + mapping:
-- [ ] `framework/packages/platform/http-app/src/Exception/HttpNotFoundException.php` — `CORETSIA_HTTP_404`
-- [ ] `framework/packages/platform/http-app/src/Exception/HttpMethodNotAllowedException.php` — `CORETSIA_HTTP_405`
-- [ ] `framework/packages/platform/http-app/src/Error/HttpAppProblemMapper.php` — implements `ExceptionMapperInterface`, tag `error.mapper`
+- [ ] `packages/platform/http-app/src/Exception/HttpNotFoundException.php` — `CORETSIA_HTTP_404`
+- [ ] `packages/platform/http-app/src/Exception/HttpMethodNotAllowedException.php` — `CORETSIA_HTTP_405`
+- [ ] `packages/platform/http-app/src/Error/HttpAppProblemMapper.php` — implements `ExceptionMapperInterface`, tag `error.mapper`
 
 Docs:
 - [ ] `docs/guides/http-app.md` — how to register handlers + how 404/405 mapping works
 
 Tests:
-- [ ] `framework/packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-- [ ] `framework/packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php` — locks the `RouterMiddleware` contribution to `http.middleware.app` priority `100` against the canonical middleware catalog
-- [ ] `framework/packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
+- [ ] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
+- [ ] `packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
+- [ ] `packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
+- [ ] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php` — locks the `RouterMiddleware` contribution to `http.middleware.app` priority `100` against the canonical middleware catalog
+- [ ] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
 
 Framework / E2E:
-- [ ] `framework/tools/tests/Integration/Http/HelloRouteEndToEndTest.php` — routing+http-app+http
+- [ ] `tools/tests/Integration/Http/HelloRouteEndToEndTest.php` — routing+http-app+http
 
 #### Modifies
 
@@ -4201,23 +4201,23 @@ Framework / E2E:
   - [ ] `docs/adr/ADR-XXXX-platform-http-app-router-middleware-action-invoker.md`
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
 - [ ] `docs/ssot/config-roots.md` — add row:
-  - [ ] `http_app | platform/http-app | framework/packages/platform/http-app/config/http_app.php | framework/packages/platform/http-app/config/rules.php | app-layer http routing+invocation settings`
+  - [ ] `http_app | platform/http-app | packages/platform/http-app/config/http_app.php | packages/platform/http-app/config/rules.php | app-layer http routing+invocation settings`
 - [ ] `docs/ssot/INDEX.md` — (only if config-roots.md is not already indexed) ensure it remains indexed as canonical SSoT.
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/http-app/composer.json`
-- [ ] `framework/packages/platform/http-app/src/Module/HttpAppModule.php`
-- [ ] `framework/packages/platform/http-app/src/Provider/HttpAppServiceProvider.php`
-- [ ] `framework/packages/platform/http-app/config/http_app.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/http-app/config/rules.php`
-- [ ] `framework/packages/platform/http-app/README.md`
-- [ ] `framework/packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/http-app/composer.json`
+- [ ] `packages/platform/http-app/src/Module/HttpAppModule.php`
+- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceProvider.php`
+- [ ] `packages/platform/http-app/config/http_app.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/http-app/config/rules.php`
+- [ ] `packages/platform/http-app/README.md`
+- [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http-app/config/http_app.php`
+  - [ ] `packages/platform/http-app/config/http_app.php`
 - [ ] Keys (dot):
   - [ ] `http_app.enabled` = true
   - [ ] `http_app.handlers.map` = []  # handlerId => serviceId
@@ -4227,12 +4227,12 @@ Framework / E2E:
   - [ ] `http_app.response.json.enabled` = true
   - [ ] `http_app.response.html.enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http-app/config/rules.php` enforces shape
+  - [ ] `packages/platform/http-app/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - Tags introduced (this epic is the OWNER):
-  - N/A (uses existing owner tags; this epic MUST NOT create a public `framework/packages/core/foundation/src/Tag/ReservedTags.php` owner file)
+  - N/A (uses existing owner tags; this epic MUST NOT create a public `packages/core/foundation/src/Tag/ReservedTags.php` owner file)
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\HttpApp\Middleware\RouterMiddleware`
   - [ ] adds tag: `http.middleware.app` priority `100`
@@ -4291,29 +4291,29 @@ N/A (consumes routing artifact via `RouterInterface`)
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
+- [ ] If redaction exists → `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
 - [ ] Fake adapters:
   - [ ] (as needed) `FakeTracer` / `FakeMetrics` / `FakeLogger`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
-  - [ ] `framework/packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
+  - [ ] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
+  - [ ] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
+  - [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
-  - [ ] `framework/packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
-  - [ ] `framework/packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-  - [ ] `framework/packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
+  - [ ] `packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
+  - [ ] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
 - Gates/Arch:
   - [ ] deptrac: ensure `platform/http` does NOT depend on `platform/http-app` (hard rule)
 
@@ -4327,7 +4327,7 @@ N/A (consumes routing artifact via `RouterInterface`)
 - [ ] 404/405 go through canonical error flow (error.mapper)
 - [ ] No interface autowire magic in argument resolver
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/http-app/README.md`
+  - [ ] `packages/platform/http-app/README.md`
   - [ ] `docs/guides/http-app.md`
 - [ ] `config/http_app.php` returns subtree only (no `['http_app'=>...]` wrapper).
 - [ ] runtime reads via `http_app.*` keys from global config.
@@ -4358,11 +4358,11 @@ N/A (consumes routing artifact via `RouterInterface`)
 type: skeleton
 phase: 3
 epic_id: "3.145.0"
-owner_path: "skeleton/apps/web/"
+owner_path: "packages/applications/skeleton/apps/web/"
 
 goal: "Замість Phase-2 stub (503 boot-not-ready) забезпечити реальну точку входу web-app: kernel boot → container → platform/http + platform/http-app, щоб можна було зайти в браузері і отримати 200 з demo output."
 provides:
-- "Реальний boot для `skeleton/apps/web/public/index.php` через core/kernel (mode preset + artifacts) без runtime сканувань"
+- "Реальний boot для `packages/applications/skeleton/apps/web/public/index.php` через core/kernel (mode preset + artifacts) без runtime сканувань"
 - "Мінімальний app-module (у skeleton) з DI реєстрацією demo action/service"
 - "Детермінований dev server flow: compile artifacts → serve → GET / повертає стабільний JSON/HTML"
 
@@ -4389,7 +4389,7 @@ ssot_refs:
   - 3.10.0 + 3.40.0 — errors + problem-details exist (щоб 500/404 мали канонічний flow)
 
 - Required deliverables (exact paths):
-  - `skeleton/apps/web/public/index.php` (from 2.50.0)
+  - `packages/applications/skeleton/apps/web/public/index.php` (from 2.50.0)
 
 - Required config roots/keys:
   - `app.*`, `foundation.*`, `kernel.*`, `http.*`, `routing.*`, `http_app.*` — з відповідних пакетів / skeleton app config
@@ -4417,9 +4417,9 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - Browser entrypoint:
-  - `skeleton/apps/web/public/index.php` MUST dispatch to real boot when artifacts are ready
+  - `packages/applications/skeleton/apps/web/public/index.php` MUST dispatch to real boot when artifacts are ready
 - Dev flow:
-  - `framework/bin/serve` SHOULD compile required artifacts deterministically before starting server
+  - `tools/http/serve` SHOULD compile required artifacts deterministically before starting server
 
 ### Deliverables (MUST)
 
@@ -4428,63 +4428,63 @@ Forbidden:
 - [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
 App config (minimal, для demo):
-- [ ] `skeleton/apps/web/config/app.php`
-  - [ ] returns subtree with stable `id` used for `skeleton/var/cache/<appId>/...`
+- [ ] `packages/applications/skeleton/apps/web/config/app.php`
+  - [ ] returns subtree with stable `id` used for `packages/applications/skeleton/var/cache/<appId>/...`
   - [ ] returns subtree with default `mode` = `express` for demo
   - [ ] runtime reads these values as global config keys `app.id` and `app.mode`
-- [ ] `skeleton/apps/web/config/http_app.php`
+- [ ] `packages/applications/skeleton/apps/web/config/http_app.php`
   - [ ] returns subtree only (no repeated root)
   - [ ] MUST define deterministic `http_app.handlers.map` for the demo handler ids used by compiled routes
 - [ ] Normative:
-  - [ ] this epic MUST NOT introduce `skeleton/apps/web/config/modules.php` as a runtime module-selection path
+  - [ ] this epic MUST NOT introduce `packages/applications/skeleton/apps/web/config/modules.php` as a runtime module-selection path
   - [ ] module selection for web boot MUST remain kernel-owned and single-choice:
     - [ ] selected preset / mode files
     - [ ] composer metadata discovery
-  - [ ] this epic MAY add skeleton-local app code (`AppModule`, providers, route provider, actions),
+  - [ ] this epic MAY add application-local app code (`AppModule`, providers, route provider, actions),
     but it MUST NOT add a parallel modules-list config file that bypasses the cemented ModulePlan policy
 
 Demo module & action (показати “реєстрацію сервісів”):
-- [ ] `skeleton/apps/web/src/Module/AppModule.php`
-- [ ] `skeleton/apps/web/src/Provider/AppServiceProvider.php`
-- [ ] `skeleton/apps/web/src/Routing/AppRouteProvider.php`
+- [ ] `packages/applications/skeleton/apps/web/src/Module/AppModule.php`
+- [ ] `packages/applications/skeleton/apps/web/src/Provider/AppServiceProvider.php`
+- [ ] `packages/applications/skeleton/apps/web/src/Routing/AppRouteProvider.php`
   - [ ] implements `Coretsia\Contracts\Routing\RouteProviderInterface`
   - [ ] provides deterministic route definitions for the demo web app
   - [ ] MUST define `GET /` with a stable `handlerId` consumed by `platform/http-app`
-- [ ] `skeleton/apps/web/src/Http/Action/HomeAction.php`
+- [ ] `packages/applications/skeleton/apps/web/src/Http/Action/HomeAction.php`
   - [ ] returns deterministic response (JSON: `{ "ok": true, "app": "<appId>" }`)
-  - [ ] handler id used by the route provider MUST be mapped in `skeleton/apps/web/config/http_app.php`
+  - [ ] handler id used by the route provider MUST be mapped in `packages/applications/skeleton/apps/web/config/http_app.php`
 
 Real boot:
-- [ ] `skeleton/apps/web/public/_boot_web.php`
+- [ ] `packages/applications/skeleton/apps/web/public/_boot_web.php`
   - [ ] MUST:
     - [ ] build Kernel runtime for selected `app.id` / `app.mode`
     - [ ] refuse with deterministic 503 payload if required artifacts missing
-      (`skeleton/var/cache/<appId>/container.php`, `skeleton/var/cache/<appId>/config.php`, `skeleton/var/cache/<appId>/routes.php`)
+      (`packages/applications/skeleton/var/cache/<appId>/container.php`, `packages/applications/skeleton/var/cache/<appId>/config.php`, `packages/applications/skeleton/var/cache/<appId>/routes.php`)
     - [ ] on success: create request from globals → dispatch via http kernel → emit response
-- [ ] `framework/tools/tests/Integration/WebEntryPointHelloEndToEndTest.php`
+- [ ] `tools/tests/Integration/WebEntryPointHelloEndToEndTest.php`
   - [ ] starts built-in server → GET `/` → asserts 200 + deterministic body
   - [ ] MUST prove that the matched app route `/` wins over `platform/http` fallback `/`
   - [ ] assertion target MUST be the demo app response body from `HomeAction`, not the fallback “Hello Coretsia” page
-- [ ] `framework/tools/tests/Integration/WebEntryPointMissingArtifactsReturns503Test.php`
+- [ ] `tools/tests/Integration/WebEntryPointMissingArtifactsReturns503Test.php`
   - [ ] starts built-in server without required artifacts → GET `/` → asserts deterministic 503 body from `_boot_not_ready_payload.php`
 
 #### Modifies
 
-- [ ] `skeleton/apps/web/public/index.php`
+- [ ] `packages/applications/skeleton/apps/web/public/index.php`
   - [ ] replace stub call with:
     - [ ] call `_boot_web.php` when ready
     - [ ] keep `_boot_not_ready_payload.php` as fallback payload (single source for 503 body)
-- [ ] `skeleton/apps/web/src/Provider/AppServiceProvider.php`
+- [ ] `packages/applications/skeleton/apps/web/src/Provider/AppServiceProvider.php`
   - [ ] registers `HomeAction`
   - [ ] registers `AppRouteProvider`
   - [ ] adds tag `routing.route_provider` for `AppRouteProvider` using the owner public constant from `platform/routing`
-- [ ] `framework/bin/serve`
+- [ ] `tools/http/serve`
   - [ ] before starting server, run deterministic compile chain (single-choice):
     - [ ] `coretsia config:compile`
     - [ ] `coretsia routes:compile`
-  - [ ] `framework/bin/serve` MUST resolve selected HTTP app target via `--app=<web|api>` with default = `web`
+  - [ ] `tools/http/serve` MUST resolve selected HTTP app target via `--app=<web|api>` with default = `web`
   - [ ] compile + serve flow in this epic is executed for the selected app target only
-  - [ ] docroot MUST resolve to `skeleton/apps/<app>/public`
+  - [ ] docroot MUST resolve to `packages/applications/skeleton/apps/<app>/public`
   - [ ] NOTE:
     - [ ] `container.php` is produced by `config:compile`; `container:compile` is NOT a separate required step here.
   - [ ] MUST remain CWD-independent and repo-root anchored
@@ -4497,8 +4497,8 @@ Real boot:
 
 ### Tests (MUST)
 
-- [ ] `framework/tools/tests/Integration/WebEntryPointHelloEndToEndTest.php`
-- [ ] `framework/tools/tests/Integration/WebEntryPointMissingArtifactsReturns503Test.php`
+- [ ] `tools/tests/Integration/WebEntryPointHelloEndToEndTest.php`
+- [ ] `tools/tests/Integration/WebEntryPointMissingArtifactsReturns503Test.php`
 
 ### DoD (MUST)
 
@@ -4507,7 +4507,7 @@ Real boot:
 - [ ] Без artifacts: deterministic 503 з payload з `_boot_not_ready_payload.php`
 - [ ] Реєстрація сервісів продемонстрована через skeleton AppModule/AppServiceProvider
 - [ ] Module selection remains compliant with kernel-owned policy:
-  - [ ] this epic does NOT introduce `skeleton/apps/web/config/modules.php`
+  - [ ] this epic does NOT introduce `packages/applications/skeleton/apps/web/config/modules.php`
   - [ ] demo web module is surfaced through the existing kernel-owned module selection flow
     (preset/mode selection + composer metadata), not via a parallel skeleton modules list
 - [ ] Multi-app skeleton compatibility is preserved:
@@ -4518,10 +4518,10 @@ Real boot:
 - [ ] Scope clarification (MUST):
   - [ ] this epic materializes the `web` app target only
   - [ ] it MUST remain compatible with the canonical skeleton multi-app layout:
-    - [ ] `skeleton/apps/web/`
-    - [ ] `skeleton/apps/api/`
-    - [ ] `skeleton/apps/console/`
-    - [ ] `skeleton/apps/worker/`
+    - [ ] `packages/applications/skeleton/apps/web/`
+    - [ ] `packages/applications/skeleton/apps/api/`
+    - [ ] `packages/applications/skeleton/apps/console/`
+    - [ ] `packages/applications/skeleton/apps/worker/`
   - [ ] it MUST NOT redefine module-selection policy or imply that `web` is the only valid app target in the skeleton
 
 ---
@@ -4532,7 +4532,7 @@ Real boot:
 type: package
 phase: 3
 epic_id: "3.150.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -4563,8 +4563,8 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — middleware catalog (must be updated with CORS row)
-  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — place to wire middleware
+  - `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — place to wire middleware
 
 - Required config roots/keys:
   - `http.cors.*` — CORS policy keys (introduced by this epic; no external precondition)
@@ -4622,10 +4622,10 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Cors/CorsPolicy.php` — VO (allowed origins/methods/headers, deterministic)
-- [ ] `framework/packages/platform/http/src/Middleware/CorsMiddleware.php` — PSR-15, handles preflight + response headers
-- [ ] `framework/packages/platform/http/src/Exception/CorsBlockedException.php` — `CORETSIA_HTTP_CORS_BLOCKED`
-- [ ] `framework/packages/platform/http/src/Error/CorsExceptionMapper.php`
+- [ ] `packages/platform/http/src/Cors/CorsPolicy.php` — VO (allowed origins/methods/headers, deterministic)
+- [ ] `packages/platform/http/src/Middleware/CorsMiddleware.php` — PSR-15, handles preflight + response headers
+- [ ] `packages/platform/http/src/Exception/CorsBlockedException.php` — `CORETSIA_HTTP_CORS_BLOCKED`
+- [ ] `packages/platform/http/src/Error/CorsExceptionMapper.php`
   - [ ] implements `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
   - [ ] maps `CorsBlockedException` → `ErrorDescriptor` with optional HTTP hint `403`
   - [ ] MUST NOT leak raw `Origin` / request header values (`hash/len` only)
@@ -4635,18 +4635,18 @@ Forbidden:
 - [ ] `docs/guides/cors.md` — policy examples + security notes
 
 Tests:
-- [ ] `framework/packages/platform/http/tests/Contract/CorsHeadersDeterministicOrderContractTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/CorsPreflightReturns204WithDeterministicHeadersTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
+- [ ] `packages/platform/http/tests/Contract/CorsHeadersDeterministicOrderContractTest.php`
+- [ ] `packages/platform/http/tests/Integration/CorsPreflightReturns204WithDeterministicHeadersTest.php`
+- [ ] `packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.cors.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for `http.cors.*`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — registers + tags CORS middleware (system_pre 840)
-- [ ] `framework/packages/platform/http/README.md` — “CorsMiddleware” section (slot/priority/override recipe)
+- [ ] `packages/platform/http/config/http.php` — add `http.cors.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.cors.*`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — registers + tags CORS middleware (system_pre 840)
+- [ ] `packages/platform/http/README.md` — “CorsMiddleware” section (slot/priority/override recipe)
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `CorsMiddleware` (priority 840)
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `CorsMiddleware` (`http.middleware.system_pre` priority `840`)
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `CorsMiddleware` (`http.middleware.system_pre` priority `840`)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-cors-middleware.md`
 
@@ -4657,7 +4657,7 @@ N/A (package `platform/http` already exists; this epic adds CORS slice only)
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.cors.enabled` = false
   - [ ] `http.cors.allowed_origins` = []
@@ -4667,7 +4667,7 @@ N/A (package `platform/http` already exists; this epic adds CORS slice only)
   - [ ] `http.cors.allow_credentials` = false
   - [ ] `http.cors.max_age` = 600
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -4722,8 +4722,8 @@ N/A
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
+- [ ] If redaction exists → `packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -4734,12 +4734,12 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/CorsHeadersDeterministicOrderContractTest.php`
-  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [ ] `packages/platform/http/tests/Contract/CorsHeadersDeterministicOrderContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/CorsPreflightReturns204WithDeterministicHeadersTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/CorsBlockedOriginTriggersCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/CorsPreflightReturns204WithDeterministicHeadersTest.php`
+  - [ ] `packages/platform/http/tests/Integration/CorsBlockedOriginIncrementsMetricNoopSafeTest.php`
+  - [ ] `packages/platform/http/tests/Integration/CorsBlockedOriginTriggersCanonicalErrorFlowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -4753,7 +4753,7 @@ N/A
 - [ ] Deterministic headers order
 - [ ] No secret/PII leakage
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/http/README.md`
+  - [ ] `packages/platform/http/README.md`
   - [ ] `docs/ssot/http-middleware-catalog.md`
   - [ ] `docs/guides/cors.md`
 - [ ] Shared catalog lock contract + SSoT catalog updated in the same PR as middleware code
@@ -4768,7 +4768,7 @@ N/A
 - [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
     - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+    - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] CORS: `system_pre` prio 840
 - [ ] Canonical blocked-policy is single-choice (MUST)
@@ -4814,7 +4814,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog exists (this epic updates it)
-  - `framework/packages/platform/http/README.md` — package docs exists (this epic updates it)
+  - `packages/platform/http/README.md` — package docs exists (this epic updates it)
 
 - Required config roots/keys:
   - N/A
@@ -4856,7 +4856,7 @@ N/A
 - [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
   - [ ] `platform/http` `MethodOverrideMiddleware` priority `820`
   - [ ] `platform/http` `ContentNegotiationMiddleware` priority `810`
-- [ ] `framework/packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
+- [ ] `packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/http-negotiation.md`
   - [ ] `docs/ssot/http-method-override.md`
@@ -4923,7 +4923,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.170.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -4955,8 +4955,8 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
-  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
+  - `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
 
 - Required config roots/keys:
   - `http.method_override.*` — method override policy keys (introduced by this epic)
@@ -5024,11 +5024,11 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/MethodOverride/MethodOverridePolicy.php` — VO
-- [ ] `framework/packages/platform/http/src/Middleware/MethodOverrideMiddleware.php` — PSR-15
-- [ ] `framework/packages/platform/http/src/Exception/InvalidMethodOverrideException.php` — `CORETSIA_HTTP_METHOD_OVERRIDE_INVALID`
+- [ ] `packages/platform/http/src/MethodOverride/MethodOverridePolicy.php` — VO
+- [ ] `packages/platform/http/src/Middleware/MethodOverrideMiddleware.php` — PSR-15
+- [ ] `packages/platform/http/src/Exception/InvalidMethodOverrideException.php` — `CORETSIA_HTTP_METHOD_OVERRIDE_INVALID`
   - [ ] Add (or extend existing) mapper in `platform/http`:
-    - [ ] `framework/packages/platform/http/src/Error/MethodOverrideExceptionMapper.php`
+    - [ ] `packages/platform/http/src/Error/MethodOverrideExceptionMapper.php`
       - [ ] implements `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
       - [ ] maps `InvalidMethodOverrideException` → `ErrorDescriptor` with optional HTTP hint 400
       - [ ] must not leak raw header/query/body values (only safe tokens/len/hash)
@@ -5037,16 +5037,16 @@ Forbidden:
         - [ ] MUST NOT import `platform/errors`, because it is a forbidden compile-time dependency here
 
 Tests:
-- [ ] `framework/packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
-- [ ] `framework/packages/platform/http/tests/Unit/MethodOverridePolicyDefaultsAreSafeTest.php`
+- [ ] `packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
+- [ ] `packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http/tests/Unit/MethodOverridePolicyDefaultsAreSafeTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.method_override.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for `http.method_override.*`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 820)
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `MethodOverrideMiddleware` (`system_pre` 820)
+- [ ] `packages/platform/http/config/http.php` — add `http.method_override.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.method_override.*`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 820)
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `MethodOverrideMiddleware` (`system_pre` 820)
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 820)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-method-override-middleware.md`
@@ -5058,7 +5058,7 @@ N/A (package `platform/http` already exists; this epic adds method-override slic
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.method_override.enabled` = false
   - [ ] `http.method_override.allow_from_headers` = true
@@ -5068,7 +5068,7 @@ N/A (package `platform/http` already exists; this epic adds method-override slic
   - [ ] `http.method_override.param_name` = '_method'
   - [ ] `http.method_override.header_name` = 'X-Http-Method-Override'
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -5121,10 +5121,10 @@ N/A
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
+- [ ] If redaction exists → `packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
 - [ ] conflicting header/query source handling is proven by:
-  - [ ] `framework/packages/platform/http/tests/Integration/ConflictingMethodOverrideSourcesTriggerCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/ConflictingMethodOverrideSourcesTriggerCanonicalErrorFlowTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5133,13 +5133,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http/tests/Unit/MethodOverridePolicyDefaultsAreSafeTest.php`
+  - [ ] `packages/platform/http/tests/Unit/MethodOverridePolicyDefaultsAreSafeTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/ConflictingMethodOverrideSourcesTriggerCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
+  - [ ] `packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/ConflictingMethodOverrideSourcesTriggerCanonicalErrorFlowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -5167,7 +5167,7 @@ N/A
 - [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
     - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+    - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] MethodOverride: `system_pre` prio 820
 
@@ -5179,7 +5179,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.180.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -5211,8 +5211,8 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
-  - `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
-  - `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
+  - `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
 
 - Required config roots/keys:
   - `http.negotiation.*` — negotiation policy keys (introduced by this epic)
@@ -5279,15 +5279,15 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/Negotiation/ContentNegotiationPolicy.php` — VO
-- [ ] `framework/packages/platform/http/src/Middleware/ContentNegotiationMiddleware.php` — PSR-15
-- [ ] `framework/packages/platform/http/src/Exception/NotAcceptableException.php` — `CORETSIA_HTTP_NOT_ACCEPTABLE` (406)
+- [ ] `packages/platform/http/src/Negotiation/ContentNegotiationPolicy.php` — VO
+- [ ] `packages/platform/http/src/Middleware/ContentNegotiationMiddleware.php` — PSR-15
+- [ ] `packages/platform/http/src/Exception/NotAcceptableException.php` — `CORETSIA_HTTP_NOT_ACCEPTABLE` (406)
   - [ ] Canonical mapping for CORETSIA_HTTP_NOT_ACCEPTABLE (SHOULD)
     - [ ] If `strict_accept=true` yields 406:
       - [ ] Middleware MUST throw deterministic `NotAcceptableException` (errorCode `CORETSIA_HTTP_NOT_ACCEPTABLE`)
       - [ ] Mapping MUST be done via `error.mapper` to `ErrorDescriptor` (no ad-hoc rendering)
     - [ ] Add (or extend existing) mapper:
-      - [ ] `framework/packages/platform/http/src/Error/NegotiationExceptionMapper.php`
+      - [ ] `packages/platform/http/src/Error/NegotiationExceptionMapper.php`
         - [ ] implements `ExceptionMapperInterface`
         - [ ] maps `NotAcceptableException` → `ErrorDescriptor` with optional HTTP hint 406
         - [ ] never logs/prints raw `Accept` header (hash/len only)
@@ -5296,9 +5296,9 @@ Forbidden:
           - [ ] MUST NOT import `platform/errors`, because it is a forbidden compile-time dependency here
 
 Tests:
-- [ ] `framework/packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
-- [ ] `framework/packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
-- [ ] `framework/packages/platform/http/tests/Unit/NegotiationPolicyDeterministicSelectionTest.php`
+- [ ] `packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
+- [ ] `packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
+- [ ] `packages/platform/http/tests/Unit/NegotiationPolicyDeterministicSelectionTest.php`
   - [ ] MUST prove:
     - [ ] query-param precedence over `Accept`
     - [ ] deterministic tie-break via `http.negotiation.supported` order
@@ -5306,10 +5306,10 @@ Tests:
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.negotiation.*` keys + defaults
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for `http.negotiation.*`
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 810)
-- [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `ContentNegotiationMiddleware` (`system_pre` 810)
+- [ ] `packages/platform/http/config/http.php` — add `http.negotiation.*` keys + defaults
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.negotiation.*`
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 810)
+- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `ContentNegotiationMiddleware` (`system_pre` 810)
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 810)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-content-negotiation-middleware.md`
@@ -5321,7 +5321,7 @@ N/A (package `platform/http` already exists; this epic adds negotiation slice on
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.negotiation.enabled` = false
   - [ ] `http.negotiation.supported` = ['json','html']
@@ -5330,7 +5330,7 @@ N/A (package `platform/http` already exists; this epic adds negotiation slice on
   - [ ] `http.negotiation.query_param_name` = '_format'
   - [ ] `http.negotiation.strict_accept` = false
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -5384,10 +5384,10 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `framework/packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
+- [ ] If Context writes exist → `packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
-- [ ] If redaction exists → `framework/packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
+- [ ] If redaction exists → `packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5396,12 +5396,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http/tests/Unit/NegotiationPolicyDeterministicSelectionTest.php`
+  - [ ] `packages/platform/http/tests/Unit/NegotiationPolicyDeterministicSelectionTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
-  - [ ] `framework/packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
+  - [ ] `packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
+  - [ ] `packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -5438,7 +5438,7 @@ N/A
 - [ ] Canonical catalog lock (MUST):
   - [ ] Any middleware added/changed MUST update:
     - [ ] `docs/ssot/http-middleware-catalog.md`
-    - [ ] `framework/packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+    - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] ContentNegotiation: `system_pre` prio 810
 
@@ -5450,7 +5450,7 @@ N/A
 type: package
 phase: 3
 epic_id: "3.190.0"
-owner_path: "framework/packages/platform/problem-details/"
+owner_path: "packages/platform/problem-details/"
 
 package_id: "platform/problem-details"
 composer: "coretsia/platform-problem-details"
@@ -5481,9 +5481,9 @@ ssot_refs: []
   - Baseline `platform/problem-details` exists and provides JSON renderer and HTTP error handling middleware.
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — existing middleware to be updated
-  - `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — existing JSON renderer used via selector
-  - `framework/packages/platform/problem-details/config/problem_details.php` — config file to extend
+  - `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — existing middleware to be updated
+  - `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — existing JSON renderer used via selector
+  - `packages/platform/problem-details/config/problem_details.php` — config file to extend
 
 - Required config roots/keys:
   - `problem_details.*` — baseline config root exists
@@ -5552,25 +5552,25 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsHtmlRenderer.php` — deterministic escaped HTML
-- [ ] `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsRendererSelector.php` — selects json/html
-- [ ] `framework/packages/platform/problem-details/src/Security/HtmlEscaper.php` — minimal escaper helper
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsHtmlRenderer.php` — deterministic escaped HTML
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsRendererSelector.php` — selects json/html
+- [ ] `packages/platform/problem-details/src/Security/HtmlEscaper.php` — minimal escaper helper
 
 Docs:
 - [ ] `docs/guides/error-pages.md` — how to enable HTML + safety notes
 
 Tests:
-- [ ] `framework/packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
-- [ ] `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
-- [ ] `framework/packages/platform/problem-details/tests/Contract/HtmlRendererDeterministicBytesContractTest.php`
-- [ ] `framework/packages/platform/problem-details/tests/Integration/FormatSelectionPrefersContextKeyOverAcceptTest.php`
+- [ ] `packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
+- [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
+- [ ] `packages/platform/problem-details/tests/Contract/HtmlRendererDeterministicBytesContractTest.php`
+- [ ] `packages/platform/problem-details/tests/Integration/FormatSelectionPrefersContextKeyOverAcceptTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — unchanged, but used via selector
-- [ ] `framework/packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — updated to use selector
-- [ ] `framework/packages/platform/problem-details/config/problem_details.php` — add/extend html renderer settings
-- [ ] `framework/packages/platform/problem-details/README.md` — selector rules + negotiation integration
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — unchanged, but used via selector
+- [ ] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — updated to use selector
+- [ ] `packages/platform/problem-details/config/problem_details.php` — add/extend html renderer settings
+- [ ] `packages/platform/problem-details/README.md` — selector rules + negotiation integration
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-problem-details-html-renderer-error-pages.md`
 
@@ -5581,7 +5581,7 @@ N/A (package `platform/problem-details` already exists; this epic adds HTML rend
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/problem-details/config/problem_details.php`
+  - [ ] `packages/platform/problem-details/config/problem_details.php`
 - [ ] Keys (dot):
   - [ ] `problem_details.renderers.enabled.json` = true
   - [ ] `problem_details.renderers.enabled.html` = true
@@ -5637,8 +5637,8 @@ N/A (uses existing error handling contract; no new exception types required)
 
 - [ ] If Context writes exist → `N/A`
 - [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
-- [ ] If redaction exists → `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
+- [ ] If redaction exists → `packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5649,11 +5649,11 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/problem-details/tests/Contract/HtmlRendererDeterministicBytesContractTest.php`
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsHtmlDeterministicContractTest.php`
+  - [ ] `packages/platform/problem-details/tests/Contract/HtmlRendererDeterministicBytesContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
-  - [ ] `framework/packages/platform/problem-details/tests/Integration/FormatSelectionPrefersContextKeyOverAcceptTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/AcceptHtmlReturnsTextHtmlErrorPageTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/FormatSelectionPrefersContextKeyOverAcceptTest.php`
 - Gates/Arch:
   - [ ] deptrac green
 
@@ -5667,7 +5667,7 @@ N/A
 - [ ] HTML deterministic + escaped
 - [ ] No secrets/PII in HTML or logs
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/problem-details/README.md`
+  - [ ] `packages/platform/problem-details/README.md`
   - [ ] `docs/guides/error-pages.md`
 - [ ] Renderer selection inputs (MUST)
   - [ ] Renderer selection MUST:
@@ -5697,7 +5697,7 @@ N/A
 type: tools
 phase: 3
 epic_id: "3.200.0"
-owner_path: "framework/tools/benchmarks/http/"
+owner_path: "tools/benchmarks/http/"
 
 goal: "Зацементувати deterministic HTTP benchmark harness для ключових micro-сценаріїв і ловити регресії продуктивності тільки у pinned benchmark environment до потрапляння змін у реліз."
 provides:
@@ -5729,13 +5729,13 @@ ssot_refs:
   - 3.145.0 — browser-visible web app entrypoint exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/` — HTTP runtime under test
-  - `framework/packages/platform/problem-details/` — problem-details scenario under test
-  - `framework/packages/platform/routing/` — compiled/runtime routing scenario under test
-  - `framework/packages/platform/http-app/` — action invocation scenario under test
+  - `packages/platform/http/` — HTTP runtime under test
+  - `packages/platform/problem-details/` — problem-details scenario under test
+  - `packages/platform/routing/` — compiled/runtime routing scenario under test
+  - `packages/platform/http-app/` — action invocation scenario under test
   - N/A beyond the runtime packages under test.
   - This epic creates and owns its dedicated benchmark fixture app:
-    - `framework/tools/tests/Fixtures/HttpBenchApp/`
+    - `tools/tests/Fixtures/HttpBenchApp/`
 
 - Required config roots/keys:
   - `http.*` — HTTP runtime config used by fixture app
@@ -5767,7 +5767,7 @@ Depends on:
 - `devtools/internal-toolkit` (canonical tooling JSON writer / deterministic path helpers for benchmark report generation)
 
 Forbidden:
-- runtime imports from `framework/packages/**/src/**` by path (`require/include` with package src literals)
+- runtime imports from `packages/**/src/**` by path (`require/include` with package src literals)
 - live network calls during benchmark execution
 - non-pinned shared-runner gating as source of truth
 
@@ -5783,8 +5783,8 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `composer benchmark:http` → `framework/tools/benchmarks/http/run.php`
-  - `composer benchmark:http:gate` → `framework/tools/gates/http_benchmark_gate.php`
+  - `composer benchmark:http` → `tools/benchmarks/http/run.php`
+  - `composer benchmark:http:gate` → `tools/gates/http_benchmark_gate.php`
 
 - HTTP:
   - benchmark scenarios MUST cover:
@@ -5799,8 +5799,8 @@ Forbidden:
   - N/A
 
 - Artifacts:
-  - reads: `framework/tools/benchmarks/http/http.baseline.json`
-  - writes: `framework/tools/benchmarks/http/http.report.json`
+  - reads: `tools/benchmarks/http/http.baseline.json`
+  - writes: `tools/benchmarks/http/http.report.json`
 
 - Notes (only if applicable):
   - Gate MUST fail only in a dedicated pinned benchmark job.
@@ -5810,22 +5810,22 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/tools/benchmarks/http/run.php` — canonical benchmark runner
-- [ ] `framework/tools/benchmarks/http/BenchmarkConfig.php` — warmups/runs/scenarios/environment fingerprint policy
-- [ ] `framework/tools/benchmarks/http/http.baseline.json` — pinned-runner baseline
-- [ ] `framework/tools/benchmarks/http/http.report.schema.json` — report shape lock
-- [ ] `framework/tools/benchmarks/http/README.md` — benchmark methodology + scenario list
-- [ ] `framework/tools/gates/http_benchmark_gate.php` — baseline comparator gate
-  - [ ] MUST use `framework/tools/support/ConsoleOutput.php` only
+- [ ] `tools/benchmarks/http/run.php` — canonical benchmark runner
+- [ ] `tools/benchmarks/http/BenchmarkConfig.php` — warmups/runs/scenarios/environment fingerprint policy
+- [ ] `tools/benchmarks/http/http.baseline.json` — pinned-runner baseline
+- [ ] `tools/benchmarks/http/http.report.schema.json` — report shape lock
+- [ ] `tools/benchmarks/http/README.md` — benchmark methodology + scenario list
+- [ ] `tools/gates/http_benchmark_gate.php` — baseline comparator gate
+  - [ ] MUST use `tools/support/ConsoleOutput.php` only
   - [ ] line1 MUST be a deterministic CODE
   - [ ] line2+ MUST contain only safe diagnostics sorted `strcmp`
   - [ ] MUST NOT print absolute paths, raw payloads, headers, cookies, query strings, or stack traces
-- [ ] `framework/tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php` — harness proof
-- [ ] `framework/tools/tests/Integration/Gates/HttpBenchmarkGateTest.php` — deterministic gate proof
-- [ ] `framework/tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
-- [ ] `framework/tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
-- [ ] `framework/tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
-- [ ] `framework/tools/tests/Fixtures/HttpBenchApp/` — minimal benchmark app fixture
+- [ ] `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php` — harness proof
+- [ ] `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php` — deterministic gate proof
+- [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
+- [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
+- [ ] `tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
+- [ ] `tools/tests/Fixtures/HttpBenchApp/` — minimal benchmark app fixture
 - [ ] `docs/ops/http-benchmarks.md` — how to run/update baseline and how CI interprets results
 
 #### Modifies
@@ -5835,7 +5835,7 @@ Forbidden:
   - [ ] `benchmark:http:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated pinned benchmark job
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_HTTP_BENCHMARK_DEGRADED`
   - [ ] `CORETSIA_HTTP_BENCHMARK_BASELINE_MISSING`
   - [ ] `CORETSIA_HTTP_BENCHMARK_ENV_MISMATCH`
@@ -5848,7 +5848,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/tools/benchmarks/http/BenchmarkConfig.php`
+  - [ ] `tools/benchmarks/http/BenchmarkConfig.php`
 - [ ] Keys (dot):
   - [ ] `benchmark.http.warmup_runs` = 3
   - [ ] `benchmark.http.measure_runs` = 9
@@ -5865,7 +5865,7 @@ N/A
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `framework/tools/benchmarks/http/http.report.json` (deterministic key order, LF-only, final newline)
+  - [ ] `tools/benchmarks/http/http.report.json` (deterministic key order, LF-only, final newline)
   - [ ] report JSON bytes MUST be produced via the canonical tooling JSON writer from `coretsia/devtools-internal-toolkit`
   - [ ] ad-hoc `json_encode` MUST NOT be used in benchmark tooling for baseline/report files
 - [ ] Reads:
@@ -5913,15 +5913,15 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
+- [ ] If metrics/spans/logs exist → `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
   (asserts: safe output shape only; no raw payloads)
-- [ ] If redaction exists → `framework/tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
+- [ ] If redaction exists → `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
   (asserts: absolute paths and raw payloads never appear)
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/tools/tests/Fixtures/HttpBenchApp/`
+  - [ ] `tools/tests/Fixtures/HttpBenchApp/`
 - [ ] Fake adapters:
   - [ ] FakeTracer
   - [ ] FakeMetrics
@@ -5930,13 +5930,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
-  - [ ] `framework/tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
+  - [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
+  - [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
 - Contract:
-  - [ ] `framework/tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
+  - [ ] `tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
-  - [ ] `framework/tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
+  - [ ] `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
+  - [ ] `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
   - [ ] pinned benchmark CI job wired and isolated
@@ -5954,5 +5954,5 @@ N/A
   - [ ] comparison logic is deterministic
 - [ ] Gate fails only on pinned benchmark environment
 - [ ] Docs updated:
-  - [ ] `framework/tools/benchmarks/http/README.md`
+  - [ ] `tools/benchmarks/http/README.md`
   - [ ] `docs/ops/http-benchmarks.md`

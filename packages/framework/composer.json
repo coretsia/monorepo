@@ -1,0 +1,32 @@
+{
+  "name": "coretsia/framework",
+  "type": "metapackage",
+  "description": "Coretsia framework runtime dependency distribution",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "runtime",
+    "kernel",
+    "modular",
+    "psr",
+    "ddd"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-kernel": "^0.7.0"
+  }
+}

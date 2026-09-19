@@ -1186,17 +1186,17 @@ platform/worker
 Representative current enforcement evidence includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverNoForbiddenDepsContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverPublicApiContractTest.php
-framework/packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesClassicWithEmptyContributionsTest.php
-framework/packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesRoadrunnerFromKernelConfigTest.php
-framework/packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest.php
-framework/packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
-framework/packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesRuntimeDriverContributionsTest.php
-framework/packages/platform/worker/tests/Unit/WorkerRuntimeEntrypointGuardTest.php
-framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
-framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
-framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+packages/core/kernel/tests/Contract/KernelRuntimeDriverNoForbiddenDepsContractTest.php
+packages/core/kernel/tests/Contract/KernelRuntimeDriverPublicApiContractTest.php
+packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesClassicWithEmptyContributionsTest.php
+packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesRoadrunnerFromKernelConfigTest.php
+packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest.php
+packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php
+packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesRuntimeDriverContributionsTest.php
+packages/platform/worker/tests/Unit/WorkerRuntimeEntrypointGuardTest.php
+packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
+packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 ```
 
 ## Verification contract

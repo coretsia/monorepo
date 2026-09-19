@@ -1,0 +1,11 @@
+{
+  "name": "coretsia/framework",
+  "type": "metapackage",
+  "description": "Workspace fixture (framework package)",
+  "require": {
+    "php": "^8.4"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

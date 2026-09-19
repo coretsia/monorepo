@@ -48,7 +48,7 @@ Independent imperative and descriptor-oriented runtime models are forbidden beca
 
 The canonical model must be available below Kernel so Foundation source providers do not depend on `core/kernel`.
 
-The model must not be moved to `core/contracts`, because it is not a technology-neutral framework port. It is coupled to Foundation DI semantics, including `ContainerBuilder`, service-definition lifecycle, tag registration, collision behavior, and source-runtime application.
+The model must not be moved to `core/contracts`, because it is not a technology-neutral port suitable for `core/contracts`. It is coupled to Foundation DI semantics, including `ContainerBuilder`, service-definition lifecycle, tag registration, collision behavior, and source-runtime application.
 
 The model must also remain distinct from the Kernel-owned `container@1` artifact schema.
 
@@ -73,7 +73,7 @@ The compiled-container SSoT continues to own the Kernel `container@1` payload an
 Coretsia defines a Foundation-owned declarative runtime container-definition model under:
 
 ```text
-framework/packages/core/foundation/src/Container/Definition/
+packages/core/foundation/src/Container/Definition/
 ```
 
 The canonical public model consists of:
@@ -220,7 +220,7 @@ It must not expose:
 
 `RuntimePathContext` is not part of `ContainerDefinitionContext`.
 
-Absolute skeleton or artifact roots must not be passed through definition context config roots, parameters, literal values, provider state, or descriptor fields.
+Absolute application or artifact roots must not be passed through definition context config roots, parameters, literal values, provider state, or descriptor fields.
 
 They are supplied separately as runtime seeds by source-mode or artifact-mode boot orchestration.
 
@@ -700,7 +700,7 @@ The per-provider sets are an orchestration detail. They MUST NOT be applied inde
 - Existing Foundation, Kernel, and Worker service providers are the canonical definition providers.
 - Kernel compile-host wiring remains explicitly separated from runtime graph wiring.
 - Foundation remains independent from Kernel.
-- Framework-wide contracts remain free from Foundation-specific DI semantics.
+- `core/contracts` remains free from Foundation-specific DI semantics.
 - Provider order and operation order remain explicit and testable.
 - Source and compiled paths can share service, factory, alias, parameter, tag, and lifecycle semantics.
 - Source-container factory closures remain isolated to the Foundation adapter, while runtime execution callbacks remain runtime construction or execution behavior outside the canonical definition model.
@@ -861,51 +861,51 @@ This decision should be locked by tests covering:
 The required canonical-model test files are:
 
 ```text
-framework/packages/core/foundation/tests/Contract/ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
-framework/packages/core/foundation/tests/Contract/ContainerDefinitionSetIsDeterministicContractTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
+packages/core/foundation/tests/Contract/ContainerDefinitionSetRejectsRuntimeValuesContractTest.php
+packages/core/foundation/tests/Contract/ContainerDefinitionSetIsDeterministicContractTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
 The required provider-integration test files are:
 
 ```text
-framework/packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
-framework/packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
-framework/packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
-framework/packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
-framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
+packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php
+packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php
+packages/platform/worker/tests/Contract/WorkerProviderDefinitionsContainNoClosuresContractTest.php
+packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php
+packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 ```
 
 The required module-resolution and provider-plan test files are:
 
 ```text
-framework/packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
-framework/packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
-framework/packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
+packages/core/kernel/tests/Contract/ComposerManifestReaderPreservesProviderOrderContractTest.php
+packages/core/kernel/tests/Integration/ModuleResolutionContainsManifestAndPlanTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanUsesTopologicalModuleOrderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanPreservesDeclaredProviderOrderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsDuplicateProviderTest.php
+packages/core/kernel/tests/Integration/ContainerProviderPlanRejectsNonDefinitionProviderTest.php
 ```
 
 The required production runtime-graph compilation test files are:
 
 ```text
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerUsesProviderPlanTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactCompilerUsesProductionContainerGraphTest.php
-framework/packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerGraphAsCompilerTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerUsesProviderPlanTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsMissingRequiredServiceTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php
+packages/core/kernel/tests/Integration/ArtifactCompilerUsesProductionContainerGraphTest.php
+packages/core/kernel/tests/Integration/CacheVerifierUsesSameContainerGraphAsCompilerTest.php
 ```
 
 The required Worker lazy-resolution and runtime-seed test files are:
 
 ```text
-framework/packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
-framework/packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
+packages/platform/worker/tests/Integration/WorkerStartCommandResolvesSupervisorLazilyTest.php
+packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
+packages/core/kernel/tests/Unit/RuntimePathContextValidationTest.php
 ```
 
 Provider parity tests must compare:

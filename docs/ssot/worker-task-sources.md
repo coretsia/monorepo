@@ -54,13 +54,13 @@ http
 
 ## Reserved tag
 
-Task sources are contributed through the framework-reserved tag:
+Task sources are contributed through the Coretsia-reserved DI tag:
 
 ```text
 worker.task_source
 ```
 
-Runtime framework code MUST reference it through:
+Runtime package source MUST reference it through:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::WORKER_TASK_SOURCE
@@ -332,21 +332,21 @@ Service discovery belongs to provider definitions plus `ReservedTags` and `TagRe
 Contracts-level shape and vocabulary are enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/WorkerTaskTypeIsStableContractTest.php
-framework/packages/core/contracts/tests/Contract/WorkerTaskSourceContractsShapeContractTest.php
+packages/core/contracts/tests/Contract/WorkerTaskTypeIsStableContractTest.php
+packages/core/contracts/tests/Contract/WorkerTaskSourceContractsShapeContractTest.php
 ```
 
 Worker-level selection, context, execution, settlement, and lifecycle behavior are enforced by:
 
 ```text
-framework/packages/platform/worker/tests/Unit/WorkerTaskSourceResolverTest.php
-framework/packages/platform/worker/tests/Unit/WorkerTaskSourceContextTest.php
-framework/packages/platform/worker/tests/Unit/WorkerShutdownBudgetTest.php
-framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
-framework/packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
-framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
-framework/packages/platform/worker/tests/Integration/WorkerTaskSourceStartupFailureProcessTest.php
+packages/platform/worker/tests/Unit/WorkerTaskSourceResolverTest.php
+packages/platform/worker/tests/Unit/WorkerTaskSourceContextTest.php
+packages/platform/worker/tests/Unit/WorkerShutdownBudgetTest.php
+packages/platform/worker/tests/Unit/ApplicationWorkerTest.php
+packages/platform/worker/tests/Unit/ApplicationWorkerMaxRequestsTest.php
+packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php
+packages/platform/worker/tests/Integration/WorkerTaskSourceResolverSelectsServiceLazilyTest.php
+packages/platform/worker/tests/Integration/WorkerTaskSourceStartupFailureProcessTest.php
 ```
 
 ## Cross-references

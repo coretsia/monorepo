@@ -76,7 +76,7 @@ This document MUST NOT redefine:
 - global observability metric catalog or label allowlist;
 - Foundation container provider ordering policy;
 - Foundation `TagRegistry` discovery, ordering, and dedupe semantics;
-- framework-reserved DI tag identifier ownership through `Coretsia\Foundation\Tag\ReservedTags`;
+- Coretsia-reserved DI tag identifier ownership through `Coretsia\Foundation\Tag\ReservedTags`;
 - reset orchestration semantics;
 - platform routing artifacts such as `routes@1`.
 
@@ -734,9 +734,9 @@ Empty tag maps are valid.
 
 Tag names MUST be deterministic safe tag strings.
 
-Framework-reserved tag names, when present in the compiled `tags` payload, MUST use the canonical identifier strings declared by `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag names, when present in the compiled `tags` payload, MUST use the canonical identifier strings declared by `Coretsia\Foundation\Tag\ReservedTags`.
 
-This document does not introduce new reserved tag identifiers and does not authorize additional code-level registries for framework-reserved DI tag identifiers.
+This document does not introduce new reserved tag identifiers and does not authorize additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 Custom or user-defined non-reserved tag strings MAY appear in compiled payloads only when they come from compile-time container metadata and satisfy the tag string safety rules.
 
@@ -808,7 +808,7 @@ Compiled-container code MUST NOT invent a second tag dedupe rule.
 
 Reset discovery semantics remain Foundation/reset-owned.
 
-The reset discovery tag identifier is the framework-reserved DI tag string `kernel.reset`, declared by `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET` and registered in `docs/ssot/tags.md`.
+The reset discovery tag identifier is the Coretsia-reserved DI tag string `kernel.reset`, declared by `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET` and registered in `docs/ssot/tags.md`.
 
 The compiled-container payload may carry the service ids, priorities, and deterministic owner-defined metadata required for runtime discovery, but it MUST NOT redefine reset tag ownership, reset ordering semantics, reset failure taxonomy, or reset-specific observability.
 
@@ -1195,7 +1195,7 @@ It is not an artifact payload.
 It carries:
 
 ```text
-skeletonRoot
+applicationRoot
 artifactRoot
 ```
 
@@ -1220,7 +1220,7 @@ The complete public input is:
 
 ```text
 ArtifactRuntimeInput
-  skeletonRoot
+  applicationRoot
   artifactRoot
 ```
 
@@ -1568,35 +1568,35 @@ safe key paths
 Canonical implementation points include:
 
 ```text
-framework/packages/core/kernel/src/Container/ContainerCompiler.php
-framework/packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
-framework/packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
-framework/packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
-framework/packages/core/kernel/src/Container/RuntimeContainerSeedSet.php
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
-framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php
-framework/packages/core/kernel/src/Module/ModulePlanArtifactHydrator.php
-framework/packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
-framework/packages/core/kernel/src/Module/ModuleResolution.php
-framework/packages/core/kernel/src/Container/CompiledContainerFactory.php
-framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php
-framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php
-framework/packages/core/kernel/src/Container/Definition/ParameterBag.php
-framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php
-framework/packages/core/kernel/src/Artifacts/Fingerprint/ContainerGraphFingerprintBucketBuilder.php
-framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php
-framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php
-framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
-framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
-framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php
-framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
-framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
-framework/packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php
-framework/packages/core/foundation/src/Tag/ReservedTags.php
-framework/packages/core/foundation/src/Tag/TagRegistry.php
-framework/packages/core/foundation/src/Discovery/DeterministicOrder.php
+packages/core/kernel/src/Container/ContainerCompiler.php
+packages/core/kernel/src/Container/RuntimeContainerGraphCompiler.php
+packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php
+packages/core/kernel/src/Container/RuntimeContainerSeedIds.php
+packages/core/kernel/src/Container/RuntimeContainerSeedSet.php
+packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
+packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
+packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php
+packages/core/kernel/src/Module/ModulePlanArtifactHydrator.php
+packages/core/kernel/src/Container/Provider/ContainerProviderPlanResolver.php
+packages/core/kernel/src/Module/ModuleResolution.php
+packages/core/kernel/src/Container/CompiledContainerFactory.php
+packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php
+packages/core/kernel/src/Container/Definition/ServiceDefinition.php
+packages/core/kernel/src/Container/Definition/ParameterBag.php
+packages/core/kernel/src/Container/Definition/DefinitionGraph.php
+packages/core/kernel/src/Artifacts/Fingerprint/ContainerGraphFingerprintBucketBuilder.php
+packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php
+packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php
+packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php
+packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
+packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
+packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php
+packages/core/foundation/src/Tag/ReservedTags.php
+packages/core/foundation/src/Tag/TagRegistry.php
+packages/core/foundation/src/Discovery/DeterministicOrder.php
 ```
 
 These implementation points do not change this document's authority boundary.

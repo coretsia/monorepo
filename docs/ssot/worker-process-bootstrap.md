@@ -806,7 +806,7 @@ docs/ssot/runtime-container-definitions.md
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/adr/ADR-0032-process-exec-descriptor-safety.md
 docs/architecture/worker.md
-framework/packages/platform/worker/README.md
+packages/platform/worker/README.md
 ```
 
 ## Cross-references

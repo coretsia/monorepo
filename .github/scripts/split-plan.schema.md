@@ -22,9 +22,10 @@
 
 `split-plan.json` is a **CI evidence artifact** proving that package discovery is deterministic and consistent with the monorepo packaging law:
 
-- discovery source: `framework/packages/<layer>/<slug>/composer.json`
-- composer identity MUST match: `coretsia/<layer>-<slug>`
-- split repo identity MUST match: `coretsia/<layer>-<slug>`
+- discovery source: `WorkspacePackageCatalog` over publishable products under `packages/**`
+- composer identity MUST be read from `composer.json.name`
+- `pathPrefix` MUST identify the exact publishable product source directory
+- split repo identity MUST equal the Composer package identity
 - output MUST be byte-stable (rerun-no-diff)
 
 Non-goals:
@@ -53,16 +54,19 @@ Non-goals:
 
 ### 1.3 Strict discovery + validation (MUST)
 
-- The generator MUST scan only:
-  - `framework/packages/<layer>/<slug>/composer.json`
-- `<layer>` MUST be one of:
-  - `core|platform|integrations|enterprise|devtools|presets`
-- `<slug>` MUST match:
-  - `/\A[a-z0-9][a-z0-9-]*\z/`
-- For each package:
-  - expected composer name MUST be `coretsia/<layer>-<slug>`
-  - `composer.json:name` MUST exist and MUST equal the expected value
-- Symlink directories under `framework/packages/**` are forbidden (hard-fail).
+- The generator MUST use `WorkspacePackageCatalog` as the canonical publishable-product discovery source for `packages/**`.
+- Discovery MUST support all canonical public source shapes:
+  - `packages/framework/composer.json`
+  - `packages/applications/skeleton/composer.json`
+  - `packages/<layer>/<slug>/composer.json`
+- Composer identity MUST be read from `composer.json.name`.
+- Generic publication discovery MUST NOT derive Composer identity from filesystem depth, layer, or slug.
+- Layered packages MAY additionally be validated against the canonical layered-package law:
+  - `<layer>` is a canonical materialized layer;
+  - `<slug>` is canonical kebab-case;
+  - layered Composer naming follows `docs/architecture/PACKAGING.md`.
+- Special distributions MUST NOT be forced into layered-package identity rules.
+- Symlink directories participating in package discovery under `packages/**` are forbidden (hard-fail).
 
 ## 2) Schema (MUST)
 
@@ -75,8 +79,8 @@ Required keys (in this exact order):
 1. `schemaVersion` (string) MUST be `coretsia.splitPlan.v1`
 2. `sourceCommit` (string) MUST be `git rev-parse HEAD` from the monorepo root
 3. `tag` (string|null)
-  - MUST be the release tag in tag workflows
-  - MUST be null when not provided (local / non-release context)
+   - MUST be the release tag in tag workflows
+   - MUST be null when not provided (local / non-release context)
 4. `packages` (array) list of package entries (see below)
 
 No additional fields are allowed unless `schemaVersion` is bumped.
@@ -87,10 +91,16 @@ Type: JSON object.
 
 Required keys (in this exact order):
 
-1. `package_id` (string) = `<layer>/<slug>`
-2. `pathPrefix` (string) = `framework/packages/<layer>/<slug>/` (trailing slash required)
-3. `splitRepo` (string) = `coretsia/<layer>-<slug>`
-4. `composerName` (string) = `coretsia/<layer>-<slug>`
+1. `package_id` (string) = stable deterministic split-package identifier emitted by the generator
+   - consumers MUST treat this value as opaque;
+   - consumers MUST NOT assume the value has `<layer>/<slug>` shape.
+2. `pathPrefix` (string) = exact repo-relative publishable product source directory with a trailing slash
+3. `splitRepo` (string) = canonical split repository identity
+4. `composerName` (string) = exact `composer.json.name` value
+
+`splitRepo` MUST equal `composerName` under the current Coretsia split-repository policy.
+
+For layered packages, `package_id` MUST equal the canonical catalog package id. For special distributions, `package_id` MUST equal `composerName`.
 
 No additional fields are allowed unless `schemaVersion` is bumped.
 

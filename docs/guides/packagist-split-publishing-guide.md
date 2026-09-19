@@ -18,29 +18,50 @@ This guide defines the operational rules for publishing Coretsia monorepo packag
 
 ## Scope
 
-This applies to every package under:
+This applies to every publishable Composer product discovered under `packages/**` and selected by the split-publish allowlist.
+
+Supported source shapes include:
 
 ```text
-framework/packages/<layer>/<slug>/
+packages/framework/composer.json
+packages/applications/skeleton/composer.json
+packages/<layer>/<slug>/composer.json
 ```
 
-Canonical identity law:
+Canonical identity rules:
 
-```text
-package path:   framework/packages/<layer>/<slug>/
-package_id:     <layer>/<slug>
-composer name:  coretsia/<layer>-<slug>
-split repo:     github.com/coretsia/<layer>-<slug>
-```
+- Composer package identity MUST be read from `composer.json.name`.
+- Filesystem layout MUST NOT be used as the universal Composer-name derivation rule.
+- Layered packages MAY use `<layer>/<slug>` metadata where required by layered-package tooling.
+- Special distributions such as `coretsia/framework` and `coretsia/skeleton` MUST NOT require fake layer/slug identities.
+- Split repository identity and source `pathPrefix` MUST come from the deterministic split plan.
 
 Example:
 
 ```text
-package path:   framework/packages/core/contracts/
+package path:   packages/core/contracts/
 package_id:     core/contracts
 composer name:  coretsia/core-contracts
 split repo:     github.com/coretsia/core-contracts
 ```
+
+Special distribution examples:
+
+```text
+package path:   packages/framework/
+package_id:     coretsia/framework
+composer name:  coretsia/framework
+split repo:     github.com/coretsia/framework
+```
+
+```text
+package path:   packages/applications/skeleton/
+package_id:     coretsia/skeleton
+composer name:  coretsia/skeleton
+split repo:     github.com/coretsia/skeleton
+```
+
+Special distributions use their canonical Composer package names as split-publishing package identifiers. They do not use layered `<layer>/<slug>` package ids.
 
 ## Core rule
 
@@ -74,7 +95,7 @@ Published split packages are selected through the explicit publish allowlist:
 
 The allowlist is intentionally separate from package discovery.
 
-`split-plan.php` discovers every package under `framework/packages/<layer>/<slug>/`, but only packages listed in `.github/split-publish-packages.json` are pushed to public split repositories.
+`split-plan.php` discovers publishable Composer manifests under `packages/**`, including special distribution shapes, but only packages listed in `.github/split-publish-packages.json` are pushed to public split repositories.
 
 This prevents unfinished or private packages from being published accidentally.
 
@@ -87,17 +108,15 @@ The file MUST use this shape:
   "schemaVersion": "coretsia.splitPublishPackages.v1",
   "packages": [
     {
-      "package_id": "<layer>/<slug>"
+      "package_id": "<package_id>"
     }
   ]
 }
 ```
 
-`package_id` MUST match the canonical monorepo package id:
+`package_id` MUST match the stable package id emitted by the deterministic split plan.
 
-```text
-<layer>/<slug>
-```
+`package_id` is a repository-internal publishing selector. Composer package identity remains owned by `composer.json.name`.
 
 Example:
 
@@ -133,7 +152,7 @@ The workflow creates a short-lived GitHub App installation token for each target
 
 Each allowlisted package MUST also exist in the deterministic split plan generated from the monorepo package tree.
 
-The workflow derives `pathPrefix`, split repository owner, split repository name, Composer package name, layer, and slug from the split plan. The allowlist stores only the package id.
+The workflow derives `pathPrefix`, split repository owner/name, Composer package name, and package metadata from the split plan. Layer/slug metadata is applicable only where the package actually uses layered-package identity. The allowlist stores only the package id.
 
 The split publisher GitHub App MUST be installed on every selected split repository that can receive automated pushes.
 
@@ -189,7 +208,7 @@ The monorepo development workspace resolves local package changes through Compos
 Workspace path repositories use generated `options.versions` values from:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 For release line `0.4`, workspace package versions use:
@@ -201,7 +220,7 @@ For release line `0.4`, workspace package versions use:
 Example workspace-local internal package constraint:
 
 ```json
-"coretsia/<layer>-<slug>": "0.4.x-dev"
+"<composer-package-name>": "0.4.x-dev"
 ```
 
 This is valid for monorepo-local development because the workspace uses path repositories with symlinks and generated path repository versions.
@@ -213,7 +232,7 @@ Replace all angle-bracket placeholders before running the commands.
 Template:
 
 ```bash
-composer require coretsia/<layer>-<slug>:^MAJOR.MINOR
+composer require <composer-package-name>:^MAJOR.MINOR
 ```
 
 Published package dependencies MUST NOT use `dev-main` in public `require` or `require-dev` sections.
@@ -221,7 +240,7 @@ Published package dependencies MUST NOT use `dev-main` in public `require` or `r
 Published package dependencies MUST use the release-line public SemVer constraint generated from:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 For release line `0.4`, internal public package dependencies use:
@@ -236,17 +255,20 @@ Package `composer.json` files MUST NOT contain a manual `version` field.
 
 A new package needs a one-time publishing bootstrap before it can be released through the normal automated flow.
 
-For a new package:
+For a new split-publish candidate, first resolve its canonical publishing identity through the deterministic split plan:
 
 ```text
-framework/packages/<layer>/<slug>
+package_id
+pathPrefix
+composer package name
+split repository
 ```
 
-perform:
+Then perform:
 
 ```text
 1. Verify package identity with split-plan.
-2. Create public empty split repository: coretsia/<layer>-<slug>.
+2. Create the public empty split repository resolved by the deterministic split plan.
 3. Add the split repository to the Coretsia split publisher GitHub App selected repositories list.
 4. Verify the GitHub App has Contents: Read and write for the selected split repository.
 5. Ensure package composer metadata is Packagist-safe:
@@ -271,7 +293,7 @@ The publish allowlist entry MUST use this shape:
 
 ```json
 {
-  "package_id": "<layer>/<slug>"
+  "package_id": "<package_id>"
 }
 ```
 
@@ -356,19 +378,16 @@ The workflow uses `actions/create-github-app-token@v3` to create a short-lived i
 
 The installation token MUST be treated as an opaque secret value.
 
-Workflows, scripts, documentation, and troubleshooting checks MUST NOT assume
-a fixed token length, fixed internal structure, absence of dots, or a specific
-opaque/JWT representation.
+Workflows, scripts, documentation, and troubleshooting checks MUST NOT assume a fixed token length, fixed internal structure, absence of dots, or a specific opaque/JWT representation.
 
-The token MAY be longer than older GitHub App installation tokens and MUST be
-passed through unchanged to Git/GitHub clients.
+The token MAY be longer than older GitHub App installation tokens and MUST be passed through unchanged to Git/GitHub clients.
 
 The workflow pushes split branches and tags over HTTPS.
 
 Canonical push target shape:
 
 ```text
-https://github.com/coretsia/<layer>-<slug>.git
+https://github.com/<split-owner>/<split-repository>.git
 ```
 
 If the GitHub App is not installed on a split repository, token creation for that repository must fail.
@@ -394,16 +413,16 @@ This procedure applies after the package publishing bootstrap is prepared on a f
 Input package identity:
 
 ```text
-framework/packages/<layer>/<slug>
-package_id:    <layer>/<slug>
-composer name: coretsia/<layer>-<slug>
-split repo:    https://github.com/coretsia/<layer>-<slug>
+source path:   <pathPrefix>
+package_id:    <package_id>
+composer name: <composer-package-name>
+split repo:    https://github.com/<split-owner>/<split-repository>
 ```
 
 Example:
 
 ```text
-framework/packages/core/dto-attribute
+packages/core/dto-attribute
 package_id:    core/dto-attribute
 composer name: coretsia/core-dto-attribute
 split repo:    https://github.com/coretsia/core-dto-attribute
@@ -416,7 +435,7 @@ After `.github/split-publish-packages.json` is merged to monorepo `main`, verify
 Expected split repository:
 
 ```text
-https://github.com/coretsia/<layer>-<slug>
+https://github.com/<split-owner>/<split-repository>
 ```
 
 Expected root files include at minimum:
@@ -426,30 +445,26 @@ composer.json
 README.md
 LICENSE
 NOTICE
-src/
 ```
 
-Package tests SHOULD be present when the package owns test coverage:
+Distribution-specific source content is package-owned:
 
-```text
-tests/
-```
+- layered code packages normally publish `src/`;
+- `coretsia/skeleton` publishes application-template files such as `config/`, `apps/`, and `.env.example`;
+- `coretsia/framework` MUST publish only the files owned by the framework distribution contract;
+- `tests/` SHOULD be present when the distribution owns publishable test coverage.
 
-The split repository root must not contain the monorepo package path:
-
-```text
-framework/packages/<layer>/<slug>/
-```
+The split repository root MUST contain the contents of the source `pathPrefix` directly and MUST NOT contain `pathPrefix` itself as a nested directory.
 
 Verify package name in root `composer.json`:
 
 ```json
 {
-  "name": "coretsia/<layer>-<slug>"
+  "name": "<composer-package-name>"
 }
 ```
 
-For the concrete package, replace `<layer>` and `<slug>` with the package identity values.
+For the concrete package, replace placeholders with the canonical values emitted by the deterministic split plan.
 
 If `split-publish.yml` fails while creating the GitHub App token, verify that the split repository is selected in the GitHub App installation.
 
@@ -458,13 +473,13 @@ If `split-publish.yml` fails while creating the GitHub App token, verify that th
 Submit this repository URL:
 
 ```text
-https://github.com/coretsia/<layer>-<slug>
+https://github.com/<split-owner>/<split-repository>
 ```
 
 Verify package name:
 
 ```text
-coretsia/<layer>-<slug>
+<composer-package-name>
 ```
 
 Verify that the Packagist package page points to the split repository and exposes the expected package metadata.
@@ -482,9 +497,10 @@ Do not duplicate release tag checks, changelog extraction, GitHub Release creati
 Additional split-specific checks for first package publication:
 
 1. Verify every newly submitted split repository is non-empty.
-2. Verify each split repository root contains `composer.json`, `README.md`, `LICENSE`, `NOTICE`, and `src/`.
-3. Verify the split repository root does not contain the monorepo package path.
-4. Verify the Packagist package page points to the split repository, not the monorepo.
+2. Verify each split repository root contains `composer.json`, `README.md`, `LICENSE`, and `NOTICE`.
+3. Verify distribution-specific source content matches the package distribution contract.
+4. Verify the split repository root contains the contents of its source `pathPrefix` directly, not the `pathPrefix` directory wrapper.
+5. Verify the Packagist package page points to the split repository, not the monorepo.
 
 Do not manually scan all allowlisted split repositories for tag availability before release.
 
@@ -509,11 +525,9 @@ After this evidence exists, the package is considered publicly published.
 
 Run outside the monorepo.
 
-Replace all angle-bracket placeholders before running the commands.
+Use the smoke scenario that matches the published distribution.
 
-Do not execute commands containing literal angle-bracket placeholders.
-
-Template:
+### Layered Composer package
 
 ```bash
 mkdir /tmp/coretsia-packagist-smoke
@@ -523,20 +537,38 @@ composer init \
   --name=coretsia/smoke \
   --no-interaction
 
-composer require coretsia/<layer>-<slug>:^MAJOR.MINOR
-
-php -r "require 'vendor/autoload.php'; echo class_exists('<Package\\PublicClass>') || interface_exists('<Package\\PublicInterface>') || enum_exists('<Package\\PublicEnum>') || trait_exists('<Package\\PublicTrait>') ? 'OK'.PHP_EOL : 'MISSING'.PHP_EOL;"
+composer require <composer-package-name>:^MAJOR.MINOR
 ```
 
-Expected:
+When the package owns a public PHP symbol, verify a symbol from that package public surface.
 
-```text
-OK
+### `coretsia/framework`
+
+```bash
+mkdir /tmp/coretsia-framework-smoke
+cd /tmp/coretsia-framework-smoke
+
+composer init \
+  --name=coretsia/framework-smoke \
+  --no-interaction
+
+composer require coretsia/framework:^MAJOR.MINOR
+composer show coretsia/framework
 ```
 
-The checked symbol MUST be owned by the split package and MUST be part of the package public surface.
+### `coretsia/skeleton`
 
-Do not use a class from another package as the smoke-test symbol.
+```bash
+cd /tmp
+rm -rf coretsia-application-smoke
+
+composer create-project coretsia/skeleton coretsia-application-smoke "^MAJOR.MINOR"
+cd coretsia-application-smoke
+```
+
+The created application MUST own its normal consumer-root structure and MUST NOT depend on monorepo filesystem topology.
+
+A smoke test passes only when the selected distribution installs successfully from its public split repository / Packagist package outside the monorepo.
 
 ## Normal release procedure for published packages
 
@@ -598,7 +630,7 @@ Check:
 
 ```text
 1. The split repository exists.
-2. The split repository name matches coretsia/<layer>-<slug>.
+2. The split repository owner/name matches the deterministic split plan.
 3. The split repository is selected in the Coretsia split publisher GitHub App installation.
 4. The GitHub App has Contents: Read and write.
 5. The monorepo has vars.SPLIT_PUBLISH_APP_CLIENT_ID.

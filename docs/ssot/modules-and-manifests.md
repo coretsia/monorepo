@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia module identity, module
 This document governs contracts introduced by epic `1.70.0` under:
 
 ```text
-framework/packages/core/contracts/src/Module/
+packages/core/contracts/src/Module/
 ```
 
 ## Normative language
@@ -52,25 +52,27 @@ integrations.redis
 enterprise.audit
 ```
 
-The module id MUST be derived only from package metadata fields:
+The canonical runtime module identity MUST be read from installed Composer metadata:
 
 ```text
-layer
-slug
+extra.coretsia.moduleId
 ```
 
-The canonical derivation is:
+The value MUST be validated through `ModuleId` and MUST follow the canonical format:
 
 ```text
-moduleId = layer + "." + slug
+<layer>.<slug>
 ```
 
-Composer/package-index metadata MAY provide optional descriptor input fields such as:
+`layer` and `slug` are canonical components of that module id.
+
+Filesystem layout MUST NOT be used as runtime module identity input.
+
+Installed Composer metadata MAY provide optional normalized descriptor inputs such as:
 
 ```text
 composerName
-psr4
-kind
+packageKind
 moduleClass
 ```
 
@@ -99,13 +101,13 @@ None of these fields is a module identity input.
 
 Only fields explicitly defined by the descriptor exported shape MAY be exported by `ModuleDescriptor::toArray()`.
 
-The package-index `kind` field maps to the exported descriptor field:
+`packageKind` is derived from installed package kind metadata such as:
 
 ```text
-packageKind
+extra.coretsia.kind
 ```
 
-The `psr4` field is package-index/build metadata unless a future SSoT explicitly promotes it into the descriptor exported shape.
+PSR-4 metadata is package/build metadata unless a future SSoT explicitly promotes it into the descriptor exported shape.
 
 Filesystem paths MUST NOT be used to derive module identity at runtime.
 
@@ -165,7 +167,7 @@ enterprise
 
 Tooling-only packages MUST NOT be described as runtime modules.
 
-In particular, packages under the tooling layer are not runtime modules.
+In particular, packages under the `devtools` layer are not runtime modules.
 
 ## Runtime module dependency metadata
 
@@ -353,35 +355,21 @@ docs/adr/ADR-0024-kernel-module-plan-resolution.md
 docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
 ```
 
-## Package-index lock-source alignment
+## Runtime metadata and tooling package-index boundary
 
-The Phase 0 workspace package-index prototype cemented this metadata shape:
+Repository package-index tooling is tooling-only and MUST NOT become a runtime manifest source.
 
-```text
-{layer, slug, path, composerName, psr4, kind, moduleClass?}
-```
+Runtime manifest construction MUST use installed Composer metadata through `ManifestReaderInterface`.
 
-Module identity rules in this document MUST NOT contradict that shape.
+Runtime code MUST NOT consume generated repository package-index artifacts.
 
-The following fields are identity inputs:
+The canonical runtime module identity is:
 
 ```text
-layer
-slug
+extra.coretsia.moduleId
 ```
 
-The following fields are optional descriptor inputs only:
-
-```text
-composerName
-psr4
-kind
-moduleClass
-```
-
-Runtime module graph metadata, compile-time provider metadata, and compile-time package default-config metadata are intentionally not part of the Phase 0 package-index lock-source shape.
-
-Composer metadata MAY provide these fields through:
+Composer metadata MAY additionally provide:
 
 ```text
 extra.coretsia.requires
@@ -390,18 +378,19 @@ extra.coretsia.providers
 extra.coretsia.defaultsConfigPath
 ```
 
-When a runtime manifest reader consumes those Composer fields, it MUST normalize them into `ModuleDescriptor.metadata()`.
+When a runtime manifest reader consumes those Composer fields, it MUST normalize them into the canonical `ModuleDescriptor` / manifest model.
 
 The canonical semantics are:
 
+- `moduleId`: validated canonical `<layer>.<slug>` module identity;
 - `requires`: duplicate-collapsed and `strcmp`-sorted module-id set;
 - `conflicts`: duplicate-collapsed and `strcmp`-sorted module-id set;
 - `providers`: duplicate-free declaration-ordered FQCN list;
 - `defaultsConfigPath`: optional validated logical package-relative `config/<root>.php` string.
 
-A future package-index owner MAY promote runtime graph metadata into tooling output, but until a future SSoT explicitly does so, the Phase 0 package-index shape remains unchanged.
+Repository package-index fields such as physical `path` are tooling/build metadata.
 
-The `path` field is tooling/build metadata. It MUST NOT be required by contracts consumers at runtime and MUST NOT be exported as a runtime module descriptor path.
+Physical package paths MUST NOT be required by contracts consumers at runtime and MUST NOT be exported as runtime module descriptor paths.
 
 ## Descriptor boundary
 
@@ -449,7 +438,7 @@ Schema version policy:
 - schema version MUST be positive;
 - schema version MUST change only when descriptor shape compatibility changes;
 - adding optional metadata keys does not necessarily require a schema version bump;
-- changing module id derivation requires a schema version bump and a major policy review;
+- changing canonical module-id identity or grammar requires a schema version bump and a major policy review;
 - removing or changing the meaning of required descriptor fields requires a schema version bump.
 
 ## Descriptor required fields
@@ -469,9 +458,11 @@ The descriptor MUST satisfy this invariant:
 moduleId === layer + "." + slug
 ```
 
-The `moduleId` MUST be derived from `layer` and `slug`.
+`moduleId` is the canonical identity field.
 
-The descriptor MUST NOT accept an independently conflicting module id.
+`layer` and `slug` MUST be derived from or validated against `moduleId`.
+
+The descriptor MUST reject conflicting `moduleId`, `layer`, or `slug` values.
 
 ## Descriptor optional fields
 
@@ -485,7 +476,7 @@ capabilities
 metadata
 ```
 
-Optional fields MUST NOT affect module id derivation.
+Optional fields MUST NOT affect canonical module identity.
 
 Optional fields MUST NOT be required for a package to have a valid module identity.
 
@@ -562,7 +553,7 @@ Missing `metadata.requires` MUST be treated as an empty list by graph resolution
 
 Missing `metadata.conflicts` MUST be treated as an empty list by graph resolution owners.
 
-The `requires` and `conflicts` metadata keys MUST NOT affect module id derivation.
+The `requires` and `conflicts` metadata keys MUST NOT affect canonical module identity.
 
 ## Descriptor textual input policy
 
@@ -893,7 +884,6 @@ It MUST expose installed module descriptors without prescribing the implementati
 A manifest reader implementation MAY read from:
 
 - Composer metadata
-- generated package index
 - generated Kernel artifact
 - another future owner-defined source
 
@@ -1007,6 +997,14 @@ Kernel-owned Composer metadata discovery MUST NOT instantiate module classes to 
 
 Kernel-owned Composer metadata discovery MUST NOT derive module identity from filesystem paths.
 
+Kernel-owned Composer metadata discovery MUST read canonical runtime module identity from:
+
+```text
+extra.coretsia.moduleId
+```
+
+`extra.coretsia.moduleId` MUST be validated before descriptor construction.
+
 Kernel-owned Composer metadata discovery MAY normalize runtime graph and compile-time declaration metadata from:
 
 ```text
@@ -1093,7 +1091,8 @@ They MUST NOT depend on:
 - S3 concrete APIs
 - Prometheus concrete APIs
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 ## Security and redaction

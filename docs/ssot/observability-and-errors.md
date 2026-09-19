@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia observability contracts
 This document governs contracts introduced by epic `1.90.0` under:
 
 ```text
-framework/packages/core/contracts/src/Observability/
+packages/core/contracts/src/Observability/
 ```
 
 It complements:
@@ -46,9 +46,9 @@ docs/ssot/profiling-ports.md
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.70.0` json-like payloads forbid floats, including `NaN`, `INF`, and `-INF`.
 - `0.70.0` list order is preserved and map ordering is deterministic.
@@ -92,7 +92,8 @@ They MUST NOT depend on:
 - Prometheus concrete APIs
 - OpenTelemetry concrete SDK APIs
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 ## DTO terminology boundary
@@ -241,7 +242,7 @@ The port MUST NOT prescribe:
 
 - HTTP header names;
 - PSR-7 request objects;
-- framework request objects;
+- `platform/http` request objects;
 - storage mechanism;
 - generator algorithm;
 - propagation format.
@@ -330,7 +331,7 @@ It MUST NOT require:
 
 - PSR-7 requests;
 - PSR-7 responses;
-- framework HTTP request objects;
+- `platform/http` request objects;
 - vendor propagation carriers.
 
 Carrier keys and values MUST be safe strings or documented json-like scalar values.
@@ -605,7 +606,7 @@ Excessive depth, node count, individual string size, aggregate string size, and 
 The extension resource-budget requirements are enforced by:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
 ```
 
 `ErrorDescriptor` MUST NOT expose:
@@ -657,7 +658,7 @@ Mapper discovery is runtime policy owned by `platform/errors` through the existi
 error.mapper
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -691,8 +692,8 @@ It MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete output implementations;
 - worker concrete message objects.
 
@@ -742,7 +743,7 @@ When present, `operation` and `correlationId` MUST be non-empty safe single-line
 Health contracts under:
 
 ```text
-framework/packages/core/contracts/src/Observability/Health/
+packages/core/contracts/src/Observability/Health/
 ```
 
 define health check port shape, typed health result shape, and health status vocabulary only.
@@ -831,7 +832,7 @@ Health check discovery is runtime policy owned by `platform/health` through the 
 health.check
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HEALTH_CHECK
@@ -865,7 +866,7 @@ Runtime discovery tags are reserved in:
 docs/ssot/tags.md
 ```
 
-Framework-reserved DI tag identifier strings are declared in:
+Coretsia-reserved DI tag identifier strings are declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -873,7 +874,7 @@ Coretsia\Foundation\Tag\ReservedTags
 
 This epic does not introduce DI tags.
 
-Contracts MAY reference existing reserved tags in documentation as runtime policy, but MUST NOT own DI tag identifier constants, additional code-level registries for framework-reserved DI tag identifiers, or tag schemas.
+Contracts MAY reference existing reserved tags in documentation as runtime policy, but MUST NOT own DI tag identifier constants, additional code-level registries for Coretsia-reserved DI tag identifiers, or tag schemas.
 
 ## Security and redaction
 

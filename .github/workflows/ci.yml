@@ -40,9 +40,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Gate rail: tooling/baseline gates (gates)"
         shell: bash
@@ -146,9 +146,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Gate rail: tooling/baseline gates (gates)"
         shell: bash
@@ -203,9 +203,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Security: security aggregate (security)"
         shell: bash
@@ -333,9 +333,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Security: security aggregate (security)"
         shell: bash
@@ -364,9 +364,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Arch: package index generator rerun-no-diff (arch:package-index:check)"
         shell: bash
@@ -384,9 +384,9 @@ jobs:
         shell: bash
         run: |
           git diff --exit-code -- \
-            framework/tools/testing/package-index.php \
-            framework/tools/testing/deptrac.yaml \
-            framework/tools/testing/deptrac.allowlist.yaml
+            tools/testing/package-index.php \
+            tools/testing/deptrac.yaml \
+            tools/testing/deptrac.allowlist.yaml
 
       - name: "Arch: deptrac analyze (arch:deptrac:analyze)"
         shell: bash
@@ -397,9 +397,9 @@ jobs:
         with:
           name: coretsia-deptrac-graph
           path: |
-            framework/var/arch/deptrac_graph.dot
-            framework/var/arch/deptrac_graph.svg
-            framework/var/arch/deptrac_graph.html
+            var/arch/deptrac_graph.dot
+            var/arch/deptrac_graph.svg
+            var/arch/deptrac_graph.html
           if-no-files-found: error
           retention-days: 14
 
@@ -497,9 +497,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Arch: package index generator rerun-no-diff (arch:package-index:check)"
         shell: bash
@@ -539,17 +539,17 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
-      - name: "Validate: composer (framework) (validate:framework)"
+      - name: "Validate: root workspace composer"
         shell: bash
-        run: composer --no-interaction validate:framework
+        run: composer --no-interaction validate --strict
 
-      - name: "Test: framework package/unit/contract suite"
+      - name: "Test: complete package suite"
         shell: bash
-        run: composer --no-interaction --working-dir=framework run-script test --
+        run: composer --no-interaction test
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
@@ -648,17 +648,17 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
-      - name: "Validate: composer (framework) (validate:framework)"
+      - name: "Validate: root workspace composer"
         shell: bash
-        run: composer --no-interaction validate:framework
+        run: composer --no-interaction validate --strict
 
-      - name: "Test: framework package/unit/contract suite"
+      - name: "Test: complete package suite"
         shell: bash
-        run: composer --no-interaction --working-dir=framework run-script test --
+        run: composer --no-interaction test
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash
@@ -683,9 +683,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Quality: code style baseline (cs:check)"
         shell: bash
@@ -789,9 +789,9 @@ jobs:
         shell: bash
         run: composer --no-interaction sync:check
 
-      - name: "Install: composer (framework) (install:framework)"
+      - name: "Install: root workspace dependencies"
         shell: bash
-        run: composer --no-interaction --no-progress install:framework
+        run: composer --no-interaction --no-progress install --prefer-dist
 
       - name: "Quality: code style baseline (cs:check)"
         shell: bash

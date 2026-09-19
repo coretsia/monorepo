@@ -45,7 +45,7 @@ Owner packages validate their own package/module prerequisites, adapter availabi
 The public Kernel runtime-driver symbols are listed in:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 The resolution boundary is:
@@ -296,7 +296,7 @@ Changes to runtime-driver ids, Kernel selector semantics, contribution compositi
 docs/ssot/runtime-drivers.md
 docs/adr/ADR-0027-runtime-driver-resolution.md
 docs/architecture/runtime-driver-resolution.md
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 Kernel runtime-driver tests
 ```
 
@@ -305,7 +305,7 @@ Changes to Worker task-type mapping or Worker entrypoint ownership also require 
 ```text
 docs/architecture/worker.md
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
-framework/packages/platform/worker/README.md
+packages/platform/worker/README.md
 Worker runtime-driver/entrypoint tests
 ```
 
@@ -338,6 +338,6 @@ This document does not define:
 
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
 - [ADR-0027: Runtime driver resolution and compatibility matrix](../adr/ADR-0027-runtime-driver-resolution.md)
-- [Kernel Public API evidence](../../framework/packages/core/kernel/PUBLIC_API.md)
+- [Kernel Public API evidence](../../packages/core/kernel/PUBLIC_API.md)
 - [Worker Architecture](./worker.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](../adr/ADR-0020-kernel-runtime-uow-spi.md)

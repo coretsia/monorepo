@@ -238,7 +238,7 @@ Historical wording in this ADR that describes only imperative provider registrat
 Epic `1.200.0` introduces the `core/foundation` runtime package under:
 
 ```text
-framework/packages/core/foundation/
+packages/core/foundation/
 ```
 
 The package provides the baseline runtime mechanisms that higher-level packages need before Kernel, HTTP, CLI, worker, and platform packages can compose deterministic runtime behavior:
@@ -320,7 +320,7 @@ Coretsia will introduce `core/foundation` as the runtime package that owns:
 - canonical `TaggedService` value object;
 - canonical `DeterministicOrder` ordering primitive;
 - Foundation reset orchestrator;
-- canonical framework-reserved DI tag identifier registry;
+- canonical Coretsia-reserved DI tag identifier registry;
 - Foundation configuration defaults and rules;
 - stable JSON encoder for deterministic diagnostics;
 - container diagnostics snapshot.
@@ -330,26 +330,26 @@ Follow-up note: current live baseline json-like value validation and recursive d
 The implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Container/Container.php
-framework/packages/core/foundation/src/Container/ContainerBuilder.php
-framework/packages/core/foundation/src/Container/ServiceProviderInterface.php
-framework/packages/core/foundation/src/Container/Exception/ContainerException.php
-framework/packages/core/foundation/src/Container/Exception/NotFoundException.php
-framework/packages/core/foundation/src/Container/ContainerDiagnostics.php
-framework/packages/core/foundation/src/Discovery/DeterministicOrder.php
-framework/packages/core/foundation/src/Module/FoundationModule.php
-framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php
-framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php
-framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php
-framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
-framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
-framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
-framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
-framework/packages/core/foundation/src/Tag/ReservedTags.php
-framework/packages/core/foundation/src/Tag/TagRegistry.php
-framework/packages/core/foundation/src/Tag/TaggedService.php
-framework/packages/core/foundation/config/foundation.php
-framework/packages/core/foundation/config/rules.php
+packages/core/foundation/src/Container/Container.php
+packages/core/foundation/src/Container/ContainerBuilder.php
+packages/core/foundation/src/Container/ServiceProviderInterface.php
+packages/core/foundation/src/Container/Exception/ContainerException.php
+packages/core/foundation/src/Container/Exception/NotFoundException.php
+packages/core/foundation/src/Container/ContainerDiagnostics.php
+packages/core/foundation/src/Discovery/DeterministicOrder.php
+packages/core/foundation/src/Module/FoundationModule.php
+packages/core/foundation/src/Provider/FoundationServiceProvider.php
+packages/core/foundation/src/Provider/FoundationServiceFactory.php
+packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php
+packages/core/foundation/src/Serialization/StableJsonEncoder.php
+packages/core/foundation/src/Serialization/StableJsonDecoder.php
+packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
+packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
+packages/core/foundation/src/Tag/ReservedTags.php
+packages/core/foundation/src/Tag/TagRegistry.php
+packages/core/foundation/src/Tag/TaggedService.php
+packages/core/foundation/config/foundation.php
+packages/core/foundation/config/rules.php
 ```
 
 The package depends on:
@@ -533,13 +533,13 @@ foundation
 The defaults file is:
 
 ```text
-framework/packages/core/foundation/config/foundation.php
+packages/core/foundation/config/foundation.php
 ```
 
 The rules file is:
 
 ```text
-framework/packages/core/foundation/config/rules.php
+packages/core/foundation/config/rules.php
 ```
 
 The defaults file must return the `foundation` subtree only.
@@ -592,7 +592,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -648,7 +648,7 @@ all(string $tag): list<Coretsia\Foundation\Tag\TaggedService>
 
 `TagRegistry` owns runtime tagged-service discovery lists, deterministic ordering, and dedupe behavior.
 
-`ReservedTags` owns framework-reserved DI tag identifier strings only.
+`ReservedTags` owns Coretsia-reserved DI tag identifier strings only.
 
 `ReservedTags` MUST NOT be used as a runtime discovery source.
 
@@ -674,7 +674,7 @@ The tag name grammar follows the canonical tag registry grammar:
 ^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$
 ```
 
-Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for framework-reserved DI tag identifiers.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` for Coretsia-reserved DI tag identifiers.
 
 Custom non-reserved tag strings MAY be passed directly only when they are owner-defined, documented, and satisfy the canonical tag grammar.
 
@@ -803,7 +803,7 @@ http.middleware.route
 http.middleware.route_post
 ```
 
-The canonical code-level identifiers for these framework-reserved DI tags are:
+The canonical code-level identifiers for these Coretsia-reserved DI tags are:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE
@@ -831,21 +831,21 @@ The non-canonical `http.middleware.user*` names are forbidden by the tag registr
 
 ## CLI discovery decision
 
-Phase 0 `platform/cli` is kernel-free and uses only the config registry:
+The current `platform/cli` built-in runtime is kernel-free and uses only the config registry:
 
 ```text
 cli.commands
 ```
 
-Phase 0 does not use tag-based CLI command discovery.
+The current CLI baseline does not use tag-based CLI command discovery.
 
-A future Kernel-backed CLI mode may use tag-based discovery through:
+A Kernel-backed CLI mode may use tag-based discovery through:
 
 ```text
 cli.command
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND
@@ -887,7 +887,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -973,7 +973,7 @@ They must lock only deterministic hard-fail behavior and the stable message.
 
 `kernel.stateful` is a fixed non-configurable enforcement marker.
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -1365,9 +1365,9 @@ core/foundation -> devtools/*
 core/foundation -> generated tooling artifacts as runtime dependencies
 ```
 
-Phase 0 tooling libraries and gates are tools-only.
+Repository machinery under `tools/**` is tooling-only and MUST NOT become a runtime dependency surface.
 
-Runtime packages must not import them as compile-time dependencies.
+Publishable `devtools/*` packages are developer tooling and MUST NOT be required by runtime packages.
 
 ## Module metadata decision
 
@@ -1436,10 +1436,10 @@ Epic `1.200.0` introduces no new tag registry rows.
 
 Epic `1.200.0` introduces no new tag registry rows.
 
-Framework-reserved DI tag identifier strings are declared in:
+Coretsia-reserved DI tag identifier strings are declared in:
 
 ```text
-framework/packages/core/foundation/src/Tag/ReservedTags.php
+packages/core/foundation/src/Tag/ReservedTags.php
 ```
 
 The canonical runtime class is:
@@ -1486,10 +1486,10 @@ Required test areas include:
 - `DeterministicOrder` implements `priority DESC, id ASC`;
 - ordering uses `strcmp` and is locale-independent;
 - `TagRegistry->all($tag)` returns canonical order;
-- `ReservedTags` exposes the canonical framework-reserved DI tag identifier strings;
+- `ReservedTags` exposes the canonical Coretsia-reserved DI tag identifier strings;
 - `ReservedTags::all()` returns the canonical reserved tag list without duplicates;
-- runtime package source uses `ReservedTags::*` for framework-reserved DI tag identifiers;
-- runtime package source defines no additional code-level registries for framework-reserved DI tag identifiers;
+- runtime package source uses `ReservedTags::*` for Coretsia-reserved DI tag identifiers;
+- runtime package source defines no additional code-level registries for Coretsia-reserved DI tag identifiers;
 - tag dedupe is first-wins;
 - reset orchestrator invokes each resettable service exactly once per cycle;
 - reset orchestrator uses configured `foundation.reset.tag`;
@@ -1525,7 +1525,7 @@ Additional stable JSON serialization tests must verify that:
 
 Architecture gates must verify that `core/foundation` does not depend on forbidden package families.
 
-Repository policy gates must verify that framework-reserved DI tag identifier strings remain synchronized between:
+Repository policy gates must verify that Coretsia-reserved DI tag identifier strings remain synchronized between:
 
 ```text
 docs/ssot/tags.md
@@ -1542,7 +1542,7 @@ composer reserved-tags:gate
 
 Positive consequences:
 
-- Framework-reserved DI tag identifiers have one canonical code-level registry.
+- Coretsia-reserved DI tag identifiers have one canonical code-level registry.
 - Runtime packages get one canonical tag discovery mechanism.
 - Service discovery order is stable across operating systems and process locales.
 - HTTP middleware, reset services, CLI commands, error mappers, health checks, and future tagged lists can share one ordering law.
@@ -1556,7 +1556,7 @@ Positive consequences:
 
 Trade-offs:
 
-- Runtime packages must use `ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
+- Runtime packages must use `ReservedTags::*` as the only code-level identifier registry for Coretsia-reserved DI tag identifiers.
 - Provider order must be made deterministic by the upstream module/kernel planner.
 - Foundation does not support arbitrary container extension strategies in this epic.
 - `DeterministicOrder` is not replaceable through DI.
@@ -1717,9 +1717,9 @@ Foundation provides only tag registry and ordering mechanisms.
 
 Rejected.
 
-Phase 0 tooling packages are tools-only.
+`devtools/*` packages are developer tooling, not runtime dependencies.
 
-Runtime packages must not depend on `devtools/*`.
+Runtime packages must not depend on `devtools/*`, and runtime code must not consume repository machinery under `tools/**`.
 
 Foundation must implement its runtime-safe deterministic helpers directly or through allowed runtime dependencies.
 
@@ -1779,7 +1779,7 @@ This ADR does not implement:
 - transport/request payload semantics;
 - generic redaction engine;
 - tooling gates implementation;
-- package-local constants for framework-reserved DI tags.
+- package-local constants for Coretsia-reserved DI tags.
 
 ## Related SSoT
 

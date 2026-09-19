@@ -35,13 +35,13 @@ This decision depends on several already accepted boundaries:
 - Runtime module discovery is metadata-only.
 - Composer package-level `require` / `conflict` are installation/build constraints, not module graph edges.
 - Module graph edges are represented explicitly through Coretsia module metadata.
-- Mode preset files describe user-facing mode intent (`micro`, `express`, `hybrid`, `enterprise`, or skeleton-defined overrides).
-- Runtime code must not discover modules by scanning source trees, package directories, skeleton directories, or application directories.
+- Mode preset files describe user-facing mode intent (`micro`, `express`, `hybrid`, `enterprise`, or application-defined overrides).
+- Runtime code must not discover modules by scanning source trees, package directories, or application directories.
 
 The Kernel therefore needs one orchestration point that combines:
 
 - selected preset from `BootstrapConfig`;
-- preset loading from skeleton override or framework default files;
+- preset loading from application override or Kernel package default files;
 - one Composer installed metadata discovery run;
 - module graph resolution;
 - topological sorting;
@@ -204,11 +204,11 @@ Runtime discovery MUST use Composer installed metadata only.
 
 Runtime discovery MUST NOT:
 
-- scan `framework/packages/**`;
+- scan `packages/**`;
 - scan package directories;
 - scan source trees;
 - scan `vendor/**` for package classes;
-- scan skeleton directories;
+- scan application directories;
 - instantiate module classes;
 - require package filesystem paths to derive module identity.
 
@@ -292,23 +292,23 @@ BootstrapConfig::preset()
 
 Mode preset lookup order is:
 
-1. skeleton override preset;
-2. framework default preset.
+1. application override preset;
+2. Kernel package default preset.
 
 The resolved locations are:
 
 ```text
-BootstrapConfig::skeletonRoot() + kernel.modes.overrides_path + <preset>.php
+BootstrapConfig::applicationRoot() + kernel.modes.overrides_path + <preset>.php
 core/kernel package root + kernel.modes.defaults_path + <preset>.php
 ```
 
 The first existing preset file wins.
 
-Skeleton and framework presets MUST NOT be merged.
+Application override and Kernel package default presets MUST NOT be merged.
 
-Missing skeleton override is not an error.
+Missing application override is not an error.
 
-Missing framework default after missing skeleton override is a deterministic hard failure:
+Missing Kernel package default after missing application override is a deterministic hard failure:
 
 ```text
 CORETSIA_MODE_PRESET_NOT_FOUND
@@ -349,14 +349,14 @@ Resolved filesystem paths MUST NOT be exported in diagnostics, logs, warnings, o
 The following files MUST NOT be read by `ModulePlanResolver`:
 
 ```text
-skeleton/config/modules.php
-skeleton/apps/<app>/config/modules.php
+config/modules.php
+apps/<app>/config/modules.php
 ```
 
 The resolver MUST NOT scan:
 
 ```text
-skeleton/apps/*
+apps/*
 ```
 
 The resolver MUST NOT infer the selected app target from filesystem layout.
@@ -491,7 +491,7 @@ Warning ordering is deterministic and defined by the warning canonical sort key.
 
 `ModulePlan` MUST NOT store or export:
 
-- `skeletonRoot`;
+- `applicationRoot`;
 - `appRoot`;
 - `defaultsPath`;
 - `overridesPath`;
@@ -899,7 +899,7 @@ Trade-offs:
 
 - Composer package-level `require` / `conflict` are not sufficient to define runtime module graph edges.
 - Runtime modules must explicitly declare Coretsia module graph metadata in `extra.coretsia.requires` and `extra.coretsia.conflicts`.
-- Preset overrides replace framework defaults instead of merging with them.
+- Application preset overrides replace Kernel package defaults instead of merging with them.
 - Application targets cannot customize module selection directly; they must select a preset through Bootstrap Phase A.
 - `FilesystemModePresetLoader` cannot be registered as a global service because it depends on a resolved `BootstrapConfig`.
 - Compile-time orchestration that needs provider metadata must retain `ModuleResolution` for the duration of the operation instead of retaining only `ModulePlan`.
@@ -924,8 +924,8 @@ This ADR does not define:
 - platform or integration package behavior;
 - HTTP routing or middleware selection;
 - app-local module-selection files;
-- automatic discovery from `skeleton/apps/*`;
-- merge semantics between framework and skeleton presets.
+- automatic discovery from `apps/*`;
+- merge semantics between Kernel package defaults and application overrides.
 
 Detailed conflict, required-missing, optional-missing, and cycle failure policy is defined separately by ADR-0025.
 

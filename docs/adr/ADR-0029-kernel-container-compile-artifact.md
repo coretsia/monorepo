@@ -299,7 +299,7 @@ public function boot(
 `ArtifactRuntimeInput` contains only:
 
 ```text
-skeletonRoot
+applicationRoot
 artifactRoot
 ```
 

@@ -405,7 +405,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -594,7 +594,7 @@ http.middleware.route
 http.middleware.route_post
 ```
 
-The corresponding framework-reserved DI tag identifiers are declared in:
+The corresponding Coretsia-reserved DI tag identifiers are declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -743,8 +743,8 @@ It defines policy that MUST be enforced by owner package tests and repository ga
 Enforcement rails include:
 
 ```text
-framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
-framework/tools/gates/cross_cutting_contract_gate.php
+packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
+tools/gates/cross_cutting_contract_gate.php
 ```
 
 The Kernel integration test MUST prove the runtime reset invariant:

@@ -1,0 +1,11 @@
+{
+  "name": "coretsia/skeleton",
+  "type": "project",
+  "description": "Workspace fixture (application template)",
+  "require": {
+    "php": "^8.4"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

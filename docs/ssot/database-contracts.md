@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia database contracts, SQL
 This document governs contracts introduced by epic `1.150.0` under:
 
 ```text
-framework/packages/core/contracts/src/Database/
+packages/core/contracts/src/Database/
 ```
 
 The canonical database contracts introduced by this epic are:
@@ -44,12 +44,12 @@ Coretsia\Contracts\Database\SqlDialectInterface
 The implementation paths are:
 
 ```text
-framework/packages/core/contracts/src/Database/SqlQueryInterface.php
-framework/packages/core/contracts/src/Database/SqlQuery.php
-framework/packages/core/contracts/src/Database/DatabaseDriverInterface.php
-framework/packages/core/contracts/src/Database/ConnectionInterface.php
-framework/packages/core/contracts/src/Database/QueryResultInterface.php
-framework/packages/core/contracts/src/Database/SqlDialectInterface.php
+packages/core/contracts/src/Database/SqlQueryInterface.php
+packages/core/contracts/src/Database/SqlQuery.php
+packages/core/contracts/src/Database/DatabaseDriverInterface.php
+packages/core/contracts/src/Database/ConnectionInterface.php
+packages/core/contracts/src/Database/QueryResultInterface.php
+packages/core/contracts/src/Database/SqlDialectInterface.php
 ```
 
 ## Normative language
@@ -73,9 +73,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement database access, connection pooling, connection registries, transaction orchestration, SQL compilation, schema building, query builders, migration runners, migration discovery, migration CLI commands, database configuration loading, driver configuration validation, exception mapping, observability emitters, DI registration, config defaults, config rules, generated artifacts, PDO wrappers, or vendor database adapters.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to database diagnostics, migration diagnostics, SQL diagnostics, and driver diagnostics.
 - `0.60.0` missing vs empty MUST remain distinguishable where database values, configuration values, or driver inputs need presence-sensitive behavior.
@@ -161,7 +161,8 @@ They MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 Runtime packages MAY depend on `core/contracts`.
@@ -305,7 +306,7 @@ Runtime owners MUST prefer omission over unsafe emission.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/SqlQueryInterface.php
+packages/core/contracts/src/Database/SqlQueryInterface.php
 ```
 
 The canonical interface shape is:
@@ -387,7 +388,7 @@ Bindings MUST NOT contain:
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/SqlQuery.php
+packages/core/contracts/src/Database/SqlQuery.php
 ```
 
 `SqlQuery` MUST be immutable.
@@ -478,7 +479,7 @@ SQL grammar, placeholder style, identifier quoting, and driver-specific SQL vali
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/DatabaseDriverInterface.php
+packages/core/contracts/src/Database/DatabaseDriverInterface.php
 ```
 
 The canonical interface shape is:
@@ -690,7 +691,7 @@ If duration or size tuning values are needed, they SHOULD be represented as inte
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/ConnectionInterface.php
+packages/core/contracts/src/Database/ConnectionInterface.php
 ```
 
 The canonical interface shape is:
@@ -777,7 +778,7 @@ This is runtime policy only.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/QueryResultInterface.php
+packages/core/contracts/src/Database/QueryResultInterface.php
 ```
 
 The canonical interface shape is:
@@ -846,7 +847,7 @@ Future owner epics MAY introduce safe result extensions through SSoT and ADR upd
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Database/SqlDialectInterface.php
+packages/core/contracts/src/Database/SqlDialectInterface.php
 ```
 
 The dialect contract exists so future database and migration owners can handle driver-specific SQL differences without exposing vendor database objects.
@@ -1123,13 +1124,13 @@ If a future runtime owner needs database or migration DI tags, that owner MUST i
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved database or migration tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved database or migration DI tag identifiers.
 
 ## Config policy
 
@@ -1329,9 +1330,9 @@ The concrete driver registry, connection registry, connection implementation, po
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php
+packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php
+packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php
+packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php
 ```
 
 These tests are expected to verify:

@@ -27,9 +27,9 @@ This document is the Single Source of Truth for Coretsia Foundation runtime time
 This document governs runtime services introduced by epic `1.220.0` under:
 
 ```text
-framework/packages/core/foundation/src/Clock/
-framework/packages/core/foundation/src/Id/
-framework/packages/core/foundation/src/Time/
+packages/core/foundation/src/Clock/
+packages/core/foundation/src/Id/
+packages/core/foundation/src/Time/
 ```
 
 It also governs the Foundation-owned configuration key:
@@ -91,21 +91,21 @@ core/foundation
 The implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Clock/
-framework/packages/core/foundation/src/Id/
-framework/packages/core/foundation/src/Time/
+packages/core/foundation/src/Clock/
+packages/core/foundation/src/Id/
+packages/core/foundation/src/Time/
 ```
 
 The defaults file is owned by `core/foundation`:
 
 ```text
-framework/packages/core/foundation/config/foundation.php
+packages/core/foundation/config/foundation.php
 ```
 
 The rules file is owned by `core/foundation`:
 
 ```text
-framework/packages/core/foundation/config/rules.php
+packages/core/foundation/config/rules.php
 ```
 
 No new package is introduced for time, ids, or duration utilities.
@@ -220,7 +220,7 @@ foundation.duration.*
 
 ## Config validation policy
 
-`framework/packages/core/foundation/config/rules.php` MUST enforce:
+`packages/core/foundation/config/rules.php` MUST enforce:
 
 ```text
 foundation.ids.default ∈ {ulid, uuid}
@@ -966,17 +966,17 @@ No float duration value is produced.
 Expected verification includes:
 
 ```text
-framework/packages/core/foundation/tests/Unit/UlidFormatTest.php
-framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php
-framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php
-framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php
-framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php
-framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php
-framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
-framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
-framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
-framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
-framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
+packages/core/foundation/tests/Unit/UlidFormatTest.php
+packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php
+packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php
+packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php
+packages/core/foundation/tests/Contract/UuidFormatContractTest.php
+packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php
+packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
+packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
+packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
+packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 ```
 
 These tests are expected to verify:

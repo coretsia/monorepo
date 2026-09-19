@@ -787,7 +787,7 @@ Executable evidence covers:
 - Worker child-order permutations;
 - deterministic Worker exception and lifecycle classifications.
 
-The canonical framework package test suite runs on both Ubuntu and Windows CI.
+The canonical Coretsia package test suite runs on both Ubuntu and Windows CI.
 
 Tests are executable evidence of this contract. Individual test names are not themselves part of the architecture contract and may change without changing the guarantees defined here.
 

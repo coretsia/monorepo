@@ -63,8 +63,8 @@ The contracts package does not own concrete UnitOfWork runtime classes, payload 
 Epic `1.120.0` introduces stable contracts for reset-capable services and unit-of-work lifecycle hooks under:
 
 ```text
-framework/packages/core/contracts/src/Runtime/
-framework/packages/core/contracts/src/Runtime/Hook/
+packages/core/contracts/src/Runtime/
+packages/core/contracts/src/Runtime/Hook/
 ```
 
 Long-running runtimes such as workers, queue consumers, schedulers, long-lived CLI processes, and custom runtime loops need a stable way to prevent mutable state from leaking between units of work.
@@ -76,14 +76,15 @@ It must not depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - worker runtime packages
 - queue vendor clients
 - scheduler vendor clients
 - concrete service container implementations
 - concrete middleware implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 The detailed normative policy for this ADR is defined by:
@@ -173,7 +174,7 @@ The reserved default is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -223,8 +224,8 @@ Hook interfaces intentionally do not receive:
 - PSR-7 request objects;
 - PSR-7 response objects;
 - PSR-15 middleware objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -318,7 +319,7 @@ Coretsia\Foundation\Tag\ReservedTags
 
 The contracts package may reference these tag strings in documentation as runtime policy.
 
-It must not define competing public tag APIs, additional code-level registries for framework-reserved DI tag identifiers, competing tag metadata keys, or competing priority semantics.
+It must not define competing public tag APIs, additional code-level registries for Coretsia-reserved DI tag identifiers, competing tag metadata keys, or competing priority semantics.
 
 ## Runtime ownership decision
 
@@ -482,7 +483,7 @@ The needed tags are reserved in `docs/ssot/tags.md`.
 
 The contracts package is not the owner of `kernel.reset` or `kernel.hook.*`.
 
-Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 ### Define tag priority metadata in contracts
 
@@ -500,7 +501,7 @@ This ADR does not implement:
 - concrete hook executor;
 - DI service discovery;
 - DI tag identifier constants in `core/contracts`;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - tag metadata schema;
 - tag priority schema;
 - worker loop behavior;

@@ -27,7 +27,7 @@ This document is the canonical narrative for the active Phase B config merge ord
 It defines the deterministic order in which normalized config value sources are folded into the final global config by:
 
 ```text
-framework/packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/ConfigKernel.php
 ```
 
 It complements the matrix form owned by:
@@ -70,15 +70,15 @@ Config loaders own loading and per-file normalization for their source category.
 The canonical runtime implementation paths are:
 
 ```text
-framework/packages/core/kernel/src/Config/Source/ConfigSourceLocationBuilder.php
-framework/packages/core/kernel/src/Config/ConfigKernel.php
-framework/packages/core/kernel/src/Config/ConfigMerger.php
-framework/packages/core/kernel/src/Config/DirectiveProcessor.php
-framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
-framework/packages/core/kernel/src/Config/ConfigRulesLoader.php
-framework/packages/core/kernel/src/Config/ConfigValidator.php
+packages/core/kernel/src/Config/Source/ConfigSourceLocationBuilder.php
+packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/kernel/src/Config/DirectiveProcessor.php
+packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
+packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
+packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
+packages/core/kernel/src/Config/ConfigRulesLoader.php
+packages/core/kernel/src/Config/ConfigValidator.php
 ```
 
 Config root ownership is defined by:
@@ -105,7 +105,7 @@ This document owns:
 
 - the active Phase B merge-order narrative;
 - aggregate `roots.php` versus split `<root>.php` behavior;
-- skeleton shared versus skeleton environment versus app shared versus app environment precedence;
+- application-root shared versus application-root environment versus app-target shared versus app-target environment precedence;
 - directive timing relative to merge;
 - env overlay timing relative to file config;
 - validation timing relative to final merge;
@@ -154,18 +154,18 @@ Loaders MUST NOT invent source precedence.
 
 The active Phase B order is:
 
-| Rank | Source category                 | Source path / mechanism                                             |
-|-----:|---------------------------------|---------------------------------------------------------------------|
-|   10 | Package defaults                | package `config/<root>.php`                                         |
-|  100 | Skeleton shared aggregate       | `skeleton/config/roots.php`                                         |
-|  101 | Skeleton shared split root      | `skeleton/config/<root>.php`                                        |
-|  200 | Skeleton environment aggregate  | `skeleton/config/environments/<appEnv>/roots.php`                   |
-|  201 | Skeleton environment split root | `skeleton/config/environments/<appEnv>/<root>.php`                  |
-|  300 | App shared aggregate            | `skeleton/apps/<appTarget>/config/roots.php`                        |
-|  301 | App shared split root           | `skeleton/apps/<appTarget>/config/<root>.php`                       |
-|  400 | App environment aggregate       | `skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php`  |
-|  401 | App environment split root      | `skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php` |
-|  500 | Env overlays                    | ruleset-derived or explicit env overlay mappings                    |
+| Rank | Source category                         | Source path / mechanism                                    |
+|-----:|-----------------------------------------|------------------------------------------------------------|
+|   10 | Package defaults                        | package `config/<root>.php`                                |
+|  100 | Application-root shared aggregate       | `config/roots.php`                                         |
+|  101 | Application-root shared split root      | `config/<root>.php`                                        |
+|  200 | Application-root environment aggregate  | `config/environments/<appEnv>/roots.php`                   |
+|  201 | Application-root environment split root | `config/environments/<appEnv>/<root>.php`                  |
+|  300 | App-target shared aggregate             | `apps/<appTarget>/config/roots.php`                        |
+|  301 | App-target shared split root            | `apps/<appTarget>/config/<root>.php`                       |
+|  400 | App-target environment aggregate        | `apps/<appTarget>/config/environments/<appEnv>/roots.php`  |
+|  401 | App-target environment split root       | `apps/<appTarget>/config/environments/<appEnv>/<root>.php` |
+|  500 | Env overlays                            | ruleset-derived or explicit env overlay mappings           |
 
 The rank numbers are intentionally spaced to leave room for future explicitly introduced layers.
 
@@ -182,7 +182,7 @@ The active Phase B pipeline is:
 2. Load optional explicit rulesets supplied by a future user/module mechanism.
 3. Build the effective ruleset list.
 4. Load package defaults.
-5. Load skeleton/app config files and safe config source-file metadata.
+5. Load application-root/app-target config files and safe config source-file metadata.
 6. Build env overlays from rulesets / explicit mappings and the immutable env snapshot.
 7. Preserve the exact resolved env overlay mappings.
 8. Build deterministic merge entries.
@@ -229,7 +229,7 @@ Package default files MUST return only the subtree for `<root>`.
 Example valid package default file:
 
 ```text
-framework/packages/core/kernel/config/kernel.php
+packages/core/kernel/config/kernel.php
 ```
 
 Valid shape:
@@ -284,38 +284,38 @@ Composer package name is used only for exact physical install-root lookup; it is
 
 Every enabled package that declares a valid package default contributes its declared root to the deterministic `splitRoots` list. The initial package-owned list is unique and byte-order sorted.
 
-Aggregate `roots.php` files at skeleton/app loading layers MAY add user-owned roots to the effective split-root set. That later aggregate-root behavior does not change package ownership or package source discovery.
+Aggregate `roots.php` files at application-root/app-target loading layers MAY add user-owned roots to the effective split-root set. That later aggregate-root behavior does not change package ownership or package source discovery.
 
 Package default loading MUST NOT scan arbitrary package directories.
 
-## Skeleton and app file layers
+## Application-root and app-target file layers
 
-Skeleton/app config has four active file layers:
+Application-root/app-target config has four active file layers:
 
 ```text
-skeleton shared
-skeleton environment
-app shared
-app environment
+application-root shared
+application-root environment
+app-target shared
+app-target environment
 ```
 
 Their relative strength is:
 
 ```text
-skeleton shared
-  < skeleton environment
-  < app shared
-  < app environment
+application-root shared
+  < application-root environment
+  < app-target shared
+  < app-target environment
 ```
 
 The full source category order is:
 
 ```text
 package defaults
-  < skeleton shared
-  < skeleton environment
-  < app shared
-  < app environment
+  < application-root shared
+  < application-root environment
+  < app-target shared
+  < app-target environment
   < env overlays
 ```
 
@@ -364,7 +364,7 @@ A split root file returns only the subtree for that root.
 Example file:
 
 ```text
-skeleton/config/kernel.php
+config/kernel.php
 ```
 
 Valid shape:
@@ -389,9 +389,9 @@ return [
 ];
 ```
 
-Users MAY split custom roots into dedicated `<root>.php` files when the root name is part of the deterministic split-root candidate list supplied to `SkeletonConfigLoader`.
+Users MAY split custom roots into dedicated `<root>.php` files when the root name is part of the deterministic split-root candidate list supplied to `ApplicationConfigLoader`.
 
-`SkeletonConfigLoader` MUST NOT scan arbitrary config directories to discover split root files.
+`ApplicationConfigLoader` MUST NOT scan arbitrary config directories to discover split root files.
 
 ## Aggregate versus split root precedence
 
@@ -400,21 +400,21 @@ At the same layer, aggregate `roots.php` is weaker than split `<root>.php`.
 Example:
 
 ```text
-skeleton/config/roots.php          rank 100
-skeleton/config/kernel.php         rank 101
+config/roots.php          rank 100
+config/kernel.php         rank 101
 ```
 
 The same same-layer rule applies to:
 
 ```text
-skeleton/config/environments/<appEnv>/roots.php
-skeleton/config/environments/<appEnv>/<root>.php
+config/environments/<appEnv>/roots.php
+config/environments/<appEnv>/<root>.php
 
-skeleton/apps/<appTarget>/config/roots.php
-skeleton/apps/<appTarget>/config/<root>.php
+apps/<appTarget>/config/roots.php
+apps/<appTarget>/config/<root>.php
 
-skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php
-skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php
+apps/<appTarget>/config/environments/<appEnv>/roots.php
+apps/<appTarget>/config/environments/<appEnv>/<root>.php
 ```
 
 ## Aggregate versus split example
@@ -422,7 +422,7 @@ skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php
 Aggregate file:
 
 ```text
-skeleton/config/roots.php
+config/roots.php
 ```
 
 ```php
@@ -439,7 +439,7 @@ return [
 Split root file at the same layer:
 
 ```text
-skeleton/config/kernel.php
+config/kernel.php
 ```
 
 ```php
@@ -469,37 +469,37 @@ Untouched aggregate values survive.
 
 ## Environment-specific precedence
 
-Environment-specific skeleton config is stronger than shared skeleton config.
+Environment-specific application-root config is stronger than shared application-root config.
 
 Example:
 
 ```text
-skeleton/config/roots.php                              rank 100
-skeleton/config/kernel.php                             rank 101
-skeleton/config/environments/local/roots.php           rank 200
-skeleton/config/environments/local/kernel.php          rank 201
+config/roots.php                              rank 100
+config/kernel.php                             rank 101
+config/environments/local/roots.php           rank 200
+config/environments/local/kernel.php          rank 201
 ```
 
 For the same config path, the environment-specific layer wins over the shared layer.
 
 ## App-specific precedence
 
-App shared config is stronger than skeleton environment config.
+App-target shared config is stronger than application-root environment config.
 
-App environment config is stronger than app shared config.
+App-target environment config is stronger than app-target shared config.
 
 Example:
 
 ```text
-skeleton/config/environments/local/kernel.php                         rank 201
-skeleton/apps/admin/config/kernel.php                                 rank 301
-skeleton/apps/admin/config/environments/local/kernel.php              rank 401
+config/environments/local/kernel.php                         rank 201
+apps/admin/config/kernel.php                                 rank 301
+apps/admin/config/environments/local/kernel.php              rank 401
 ```
 
 For the same config path:
 
 ```text
-skeleton environment < app shared < app environment
+application-root environment < app-target shared < app-target environment
 ```
 
 ## Directives before merge
@@ -738,7 +738,7 @@ explain
 
 `envOverlayMappings` MUST be the exact resolved mapping list produced by `EnvironmentOverlayLoader` from loaded rulesets plus explicit mappings.
 
-`configSourceFiles` MUST be the safe source-file metadata produced by `SkeletonConfigLoader` for skeleton/app config candidates.
+`configSourceFiles` MUST be the safe source-file metadata produced by `ApplicationConfigLoader` for application-root/app-target config candidates.
 
 `configSourceFiles` metadata MAY include only:
 
@@ -758,14 +758,14 @@ len
 
 `len`, when present, MUST be the byte length of the LF-normalized file bytes used for hashing.
 
-Missing expected skeleton/app config candidates MUST be represented as:
+Missing expected application-root/app-target config candidates MUST be represented as:
 
 ```text
 exists=false
 readable=false
 ```
 
-Unreadable existing skeleton/app config candidates MUST either fail according to the loader policy or be represented as:
+Unreadable existing application-root/app-target config candidates MUST either fail according to the loader policy or be represented as:
 
 ```text
 exists=true
@@ -806,7 +806,7 @@ Validation MUST NOT run before env overlays are merged.
 
 Only roots with loaded rulesets are semantically validated.
 
-Framework-owned roots with loaded package-owned rulesets are validated strictly according to owner package rules.
+Coretsia-owned roots with loaded package-owned rulesets are validated strictly according to owner package rules.
 
 Module-owned roots with loaded module-owned rulesets are validated strictly when module-owned rules exist.
 
@@ -930,7 +930,7 @@ config/<root>.php
 
 ### Invalid: split root file repeats root wrapper
 
-Invalid `skeleton/config/kernel.php`:
+Invalid `config/kernel.php`:
 
 ```php
 return [
@@ -986,18 +986,18 @@ Expected tests include:
 ConfigPrecedenceMatrixTest.php
 ConfigAggregateAndSplitFilesMergeOrderTest.php
 ConfigEnvironmentSpecificOverlaysPrecedenceTest.php
-ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php
-UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
+packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoApplicationOverridesTest.php
+packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotCoretsiaValidatedTest.php
 ```
 
 Tests SHOULD verify:
 
-- package defaults are weaker than skeleton/app/env overlays;
+- package defaults are weaker than application-root/app-target/env overlays;
 - aggregate `roots.php` is weaker than split `<root>.php` at the same layer;
-- skeleton shared is weaker than skeleton environment;
-- skeleton environment is weaker than app shared;
-- app shared is weaker than app environment;
-- app environment is weaker than env overlays;
+- application-root shared is weaker than application-root environment;
+- application-root environment is weaker than app-target shared;
+- app-target shared is weaker than app-target environment;
+- app-target environment is weaker than env overlays;
 - directives are processed before merge and applied during merge;
 - env overlays are generated only from known mappings;
 - `ConfigKernel::compile(...)` returns the exact resolved `envOverlayMappings`;

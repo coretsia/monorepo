@@ -32,7 +32,7 @@ body:
         - Development workflow
         - Architecture
         - Package documentation
-        - Skeleton documentation
+        - Application template / skeleton distribution
         - Generated structure
         - README / contributing
         - Other / unsure
@@ -75,8 +75,8 @@ body:
       description: Provide links to code, tests, commands, or policy that support the correction.
       placeholder: |
         - composer ...
-        - framework/composer.json
-        - framework/tools/gates/...
+        - composer.json
+        - tools/gates/...
         - test output...
     validations:
       required: false

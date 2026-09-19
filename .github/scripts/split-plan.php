@@ -25,20 +25,20 @@ declare(strict_types=1);
  *   php .github/scripts/split-plan.php --out=ci/split-plan.json
  */
 
+use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\RepositoryContext;
+use Coretsia\Tools\Support\WorkspacePackageCatalog;
+
+require_once __DIR__ . '/../../tools/support/ErrorCodes.php';
+require_once __DIR__ . '/../../tools/support/DeterministicException.php';
+require_once __DIR__ . '/../../tools/support/DeterministicFile.php';
+require_once __DIR__ . '/../../tools/support/RepositoryContext.php';
+require_once __DIR__ . '/../../tools/support/ComposerJson.php';
+require_once __DIR__ . '/../../tools/support/WorkspacePackageCatalog.php';
+
 final class SplitPlan
 {
     private const string SCHEMA_VERSION = 'coretsia.splitPlan.v1';
-    private const string VENDOR = 'coretsia';
-
-    /** @var list<string> */
-    private const array ALLOWED_LAYERS = [
-        'core',
-        'platform',
-        'integrations',
-        'enterprise',
-        'devtools',
-        'presets',
-    ];
 
     public static function main(array $argv): int
     {
@@ -60,79 +60,26 @@ final class SplitPlan
                 $tagOut = $tag;
             }
 
-            $repoRoot = dirname(__DIR__, 2); // .github/scripts -> repo root
-            $packagesRoot = $repoRoot . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'packages';
-
-            if (!is_dir($packagesRoot)) {
-                throw new RuntimeException('Missing directory: framework/packages/');
-            }
-
+            $repository = RepositoryContext::discoverFrom(__DIR__);
+            $repoRoot = $repository->repoRoot();
             $sourceCommit = self::gitHead($repoRoot);
 
-            $layers = self::listDirs($packagesRoot);
+            self::assertNoSymlinkDirectories(
+                $repository->packagesRoot(),
+            );
 
-            foreach ($layers as $layer) {
-                if (!in_array($layer, self::ALLOWED_LAYERS, true)) {
-                    throw new RuntimeException(sprintf(
-                        'Unknown layer directory under framework/packages/: "%s" (allowed: %s)',
-                        $layer,
-                        implode(', ', self::ALLOWED_LAYERS)
-                    ));
-                }
-            }
+            $catalog = WorkspacePackageCatalog::discover($repository);
 
             /** @var list<array{package_id:string,pathPrefix:string,splitRepo:string,composerName:string}> $packages */
-            $packages = [];
+            $packages = self::buildPackages($catalog);
 
-            foreach ($layers as $layer) {
-                $layerPath = $packagesRoot . DIRECTORY_SEPARATOR . $layer;
-
-                foreach (self::listDirs($layerPath) as $slug) {
-                    self::assertValidSlug($slug);
-
-                    $pkgPathRel = 'framework/packages/' . $layer . '/' . $slug;
-                    $pkgPathAbs = $repoRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pkgPathRel);
-
-                    $composerJsonAbs = $pkgPathAbs . DIRECTORY_SEPARATOR . 'composer.json';
-                    if (!is_file($composerJsonAbs)) {
-                        throw new RuntimeException(sprintf('Missing composer.json: %s', $composerJsonAbs));
-                    }
-
-                    $expectedComposerName = self::VENDOR . '/' . $layer . '-' . $slug;
-                    self::assertValidComposerName($expectedComposerName);
-
-                    $composer = self::readJsonFile($composerJsonAbs);
-                    $actualName = $composer['name'] ?? null;
-
-                    if (!is_string($actualName) || $actualName === '') {
-                        throw new RuntimeException(sprintf('composer.json missing "name": %s', $composerJsonAbs));
-                    }
-                    self::assertValidComposerName($actualName);
-
-                    if ($actualName !== $expectedComposerName) {
-                        throw new RuntimeException(sprintf(
-                            'composer name mismatch for %s: expected "%s", got "%s"',
-                            $pkgPathRel,
-                            $expectedComposerName,
-                            $actualName
-                        ));
-                    }
-
-                    $packageId = $layer . '/' . $slug;
-                    $pathPrefix = $pkgPathRel . '/';
-                    $splitRepo = self::VENDOR . '/' . $layer . '-' . $slug;
-
-                    // Keys MUST be in exact order (schema):
-                    $packages[] = [
-                        'package_id' => $packageId,
-                        'pathPrefix' => $pathPrefix,
-                        'splitRepo' => $splitRepo,
-                        'composerName' => $actualName,
-                    ];
-                }
-            }
-
-            usort($packages, static fn(array $a, array $b): int => strcmp($a['package_id'], $b['package_id']));
+            usort(
+                $packages,
+                static fn (array $a, array $b): int => strcmp(
+                    $a['package_id'],
+                    $b['package_id'],
+                ),
+            );
 
             // Keys MUST be in exact order (schema):
             $plan = [
@@ -142,8 +89,12 @@ final class SplitPlan
                 'packages' => $packages,
             ];
 
-            $jsonBytes = self::jsonBytes($plan) . "\n";
-            self::writeFileAtomic($repoRoot, $out, $jsonBytes);
+            $jsonBytes = self::jsonBytes($plan);
+
+            DeterministicFile::writeTextLf(
+                self::resolveOutputPath($repository, $out),
+                $jsonBytes,
+            );
 
             return 0;
         } catch (Throwable $e) {
@@ -152,100 +103,175 @@ final class SplitPlan
         }
     }
 
+    private static function resolveOutputPath(
+        RepositoryContext $repository,
+        string $out,
+    ): string {
+        $outputPath = $repository->resolve($out);
+        $relativePath = $repository->relativeToRepo($outputPath);
+
+        if ($relativePath === '.') {
+            throw new RuntimeException('split-plan-output-path-invalid');
+        }
+
+        $current = $repository->repoRoot();
+
+        foreach (explode('/', $relativePath) as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                throw new RuntimeException('split-plan-output-path-invalid');
+            }
+
+            $current .= '/' . $segment;
+
+            if (is_link($current)) {
+                throw new RuntimeException('split-plan-output-symlink-not-allowed');
+            }
+
+            if (!file_exists($current)) {
+                break;
+            }
+        }
+
+        return $outputPath;
+    }
+
+    private static function assertNoSymlinkDirectories(
+        string $packagesRoot,
+    ): void {
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator(
+                    $packagesRoot,
+                    FilesystemIterator::SKIP_DOTS,
+                ),
+                RecursiveIteratorIterator::SELF_FIRST,
+            );
+
+            foreach ($iterator as $item) {
+                if (!$item instanceof SplFileInfo) {
+                    continue;
+                }
+
+                if ($item->isLink() && $item->isDir()) {
+                    throw new RuntimeException('split-plan-package-symlink-directory-forbidden');
+                }
+            }
+        } catch (UnexpectedValueException) {
+            throw new RuntimeException('split-plan-package-tree-unreadable');
+        }
+    }
+
     /**
-     * @return array<string, string|bool>
+     * @return list<array{
+     *     package_id:string,
+     *     pathPrefix:string,
+     *     splitRepo:string,
+     *     composerName:string
+     * }>
+     */
+    private static function buildPackages(
+        WorkspacePackageCatalog $catalog,
+    ): array {
+        $packages = [];
+        $seenPackageIds = [];
+
+        foreach ($catalog->all() as $product) {
+            $packageId = self::splitPackageId($product);
+
+            if (isset($seenPackageIds[$packageId])) {
+                throw new RuntimeException('split-plan-package-id-collision');
+            }
+
+            $seenPackageIds[$packageId] = true;
+
+            // Keys MUST be in exact order (schema):
+            $packages[] = [
+                'package_id' => $packageId,
+                'pathPrefix' => $product['relativePath'] . '/',
+                'splitRepo' => $product['composerName'],
+                'composerName' => $product['composerName'],
+            ];
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param array{
+     *     kind:string,
+     *     relativePath:string,
+     *     absolutePath:string,
+     *     composerJsonPath:string,
+     *     composerName:string,
+     *     layer:string|null,
+     *     slug:string|null,
+     *     packageId:string|null
+     * } $product
+     */
+    private static function splitPackageId(array $product): string
+    {
+        if ($product['packageId'] !== null) {
+            return $product['packageId'];
+        }
+
+        if (
+            $product['kind']
+            !== WorkspacePackageCatalog::KIND_SPECIAL_DISTRIBUTION
+        ) {
+            throw new RuntimeException('split-plan-product-kind-invalid');
+        }
+
+        return $product['composerName'];
+    }
+
+    /**
+     * @return array{out?:string,tag?:string}
      */
     private static function parseArgs(array $argv): array
     {
+        /** @var array{out?:string,tag?:string} $out */
         $out = [];
+
         foreach ($argv as $i => $arg) {
             if ($i === 0) {
                 continue;
             }
+
             if (!is_string($arg) || $arg === '') {
-                continue;
+                throw new RuntimeException('split-plan-argument-invalid');
             }
+
             if ($arg === '--help' || $arg === '-h') {
                 throw new RuntimeException(
-                    "Usage: php .github/scripts/split-plan.php --out=PATH [--tag=vMAJOR.MINOR.PATCH]\n"
+                    "Usage: php .github/scripts/split-plan.php --out=PATH [--tag=vMAJOR.MINOR.PATCH]\n",
                 );
             }
+
             if (!str_starts_with($arg, '--')) {
-                throw new RuntimeException(sprintf('Unknown argument: %s', $arg));
+                throw new RuntimeException('split-plan-argument-invalid');
             }
+
             $eq = strpos($arg, '=');
+
             if ($eq === false) {
-                $key = substr($arg, 2);
-                $out[$key] = true;
-                continue;
+                throw new RuntimeException('split-plan-argument-invalid');
             }
+
             $key = substr($arg, 2, $eq - 2);
-            $val = substr($arg, $eq + 1);
-            $out[$key] = $val;
+            $value = substr($arg, $eq + 1);
+
+            if (
+                !in_array($key, ['out', 'tag'], true)
+                || $value === ''
+                || array_key_exists($key, $out)
+            ) {
+                throw new RuntimeException('split-plan-argument-invalid');
+            }
+
+            $out[$key] = $value;
         }
+
         return $out;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function listDirs(string $path): array
-    {
-        $items = @scandir($path);
-        if ($items === false) {
-            throw new RuntimeException(sprintf('Cannot read directory: %s', $path));
-        }
-
-        $dirs = [];
-        foreach ($items as $name) {
-            if ($name === '.' || $name === '..') {
-                continue;
-            }
-            $full = $path . DIRECTORY_SEPARATOR . $name;
-            if (!is_dir($full)) {
-                continue;
-            }
-            if (is_link($full)) {
-                throw new RuntimeException(sprintf('Symlink directories are forbidden: %s', $full));
-            }
-            $dirs[] = $name;
-        }
-
-        sort($dirs, SORT_STRING);
-        return $dirs;
-    }
-
-    private static function assertValidSlug(string $slug): void
-    {
-        if (!preg_match('/\A[a-z0-9][a-z0-9-]*\z/', $slug)) {
-            throw new RuntimeException(sprintf('Invalid slug: "%s" (expected kebab-case)', $slug));
-        }
-    }
-
-    private static function assertValidComposerName(string $name): void
-    {
-        if (!preg_match('/\A[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*\z/', $name)) {
-            throw new RuntimeException(sprintf('Invalid composer package name: "%s"', $name));
-        }
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private static function readJsonFile(string $file): array
-    {
-        $raw = @file_get_contents($file);
-        if ($raw === false) {
-            throw new RuntimeException(sprintf('Cannot read file: %s', $file));
-        }
-
-        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($data)) {
-            throw new RuntimeException(sprintf('Invalid JSON object in: %s', $file));
-        }
-
-        /** @var array<string,mixed> $data */
-        return $data;
     }
 
     private static function jsonBytes(mixed $value): string
@@ -310,54 +336,15 @@ final class SplitPlan
         $code = proc_close($proc);
 
         if ($code !== 0) {
-            throw new RuntimeException('git rev-parse HEAD failed: ' . trim((string)$stderr));
+            throw new RuntimeException('git rev-parse HEAD failed: ' . trim((string) $stderr));
         }
 
-        $sha = trim((string)$stdout);
+        $sha = trim((string) $stdout);
         if ($sha === '' || !preg_match('/\A[0-9a-f]{40}\z/i', $sha)) {
             throw new RuntimeException('Invalid git HEAD hash: ' . $sha);
         }
 
         return strtolower($sha);
-    }
-
-    private static function writeFileAtomic(string $repoRoot, string $out, string $bytes): void
-    {
-        $outAbs = $out;
-        if (!str_starts_with($outAbs, DIRECTORY_SEPARATOR) && !preg_match('/\A[A-Za-z]:[\\\\\\/]/', $outAbs)) {
-            $outAbs = $repoRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $outAbs);
-        }
-
-        $dir = dirname($outAbs);
-        if (!is_dir($dir) && !@mkdir($dir, 0777, true)) {
-            throw new RuntimeException(sprintf('Cannot create directory: %s', $dir));
-        }
-
-        $tmp = $outAbs . '.tmp';
-        $fh = @fopen($tmp, 'wb');
-        if ($fh === false) {
-            throw new RuntimeException(sprintf('Cannot open for write: %s', $tmp));
-        }
-
-        try {
-            $len = strlen($bytes);
-            $w = fwrite($fh, $bytes);
-            if ($w === false || $w !== $len) {
-                throw new RuntimeException(sprintf('Short write: %s', $tmp));
-            }
-        } finally {
-            fclose($fh);
-        }
-
-        if (is_file($outAbs) && !@unlink($outAbs)) {
-            @unlink($tmp);
-            throw new RuntimeException(sprintf('Cannot remove existing file: %s', $outAbs));
-        }
-
-        if (!@rename($tmp, $outAbs)) {
-            @unlink($tmp);
-            throw new RuntimeException(sprintf('Cannot move into place: %s', $outAbs));
-        }
     }
 }
 

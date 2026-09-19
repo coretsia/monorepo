@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia mail contracts, mailer 
 This document governs contracts introduced by epic `1.170.0` under:
 
 ```text
-framework/packages/core/contracts/src/Mail/
+packages/core/contracts/src/Mail/
 ```
 
 The canonical mail contracts introduced by this epic are:
@@ -42,10 +42,10 @@ Coretsia\Contracts\Mail\MailException
 The implementation paths are:
 
 ```text
-framework/packages/core/contracts/src/Mail/MailerInterface.php
-framework/packages/core/contracts/src/Mail/MailTransportInterface.php
-framework/packages/core/contracts/src/Mail/MailMessage.php
-framework/packages/core/contracts/src/Mail/MailException.php
+packages/core/contracts/src/Mail/MailerInterface.php
+packages/core/contracts/src/Mail/MailTransportInterface.php
+packages/core/contracts/src/Mail/MailMessage.php
+packages/core/contracts/src/Mail/MailException.php
 ```
 
 It complements:
@@ -82,9 +82,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement mail delivery behavior, SMTP behavior, API transport behavior, queue behavior, template rendering, MIME building, attachment streaming, credentials resolution, config loading, DI registration, transport discovery, generated artifacts, observability emission, or error mapping.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to mail recipients, message content, credentials, diagnostics, logs, spans, metrics, CLI output, health output, worker output, and transport errors.
 - `0.60.0` missing vs empty MUST remain distinguishable when runtime owners build message metadata, policy inputs, or diagnostics.
@@ -160,7 +160,8 @@ They MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 - vendor-specific runtime clients
 
@@ -262,7 +263,7 @@ Safe derivations MUST NOT expose raw recipients, raw subject, raw body, credenti
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Mail/MailerInterface.php
+packages/core/contracts/src/Mail/MailerInterface.php
 ```
 
 The canonical interface shape is:
@@ -310,7 +311,7 @@ Concrete runtime implementations MAY throw separate owner-defined exceptions onl
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Mail/MailTransportInterface.php
+packages/core/contracts/src/Mail/MailTransportInterface.php
 ```
 
 The transport port exists so runtime owners can swap backing implementations without changing public APIs.
@@ -421,7 +422,7 @@ Runtime owners adapt those concerns before calling the transport.
 - request objects;
 - response objects;
 - PSR-7 objects;
-- framework context objects;
+- framework-specific context objects;
 - middleware objects;
 - database connections;
 - cache pool objects;
@@ -442,7 +443,7 @@ Runtime owners adapt those concerns before calling the transport.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Mail/MailMessage.php
+packages/core/contracts/src/Mail/MailMessage.php
 ```
 
 `MailMessage` MUST be immutable.
@@ -845,7 +846,7 @@ The mail body MAY contain ordinary CR and LF when those bytes are part of the bo
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Mail/MailException.php
+packages/core/contracts/src/Mail/MailException.php
 ```
 
 `MailException` MUST use this deterministic generic mail delivery error code:
@@ -1089,13 +1090,13 @@ If a future runtime owner needs mail DI tags, that owner MUST introduce them thr
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved mail tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved mail DI tag identifiers.
 
 ## Artifact policy
 
@@ -1371,11 +1372,11 @@ Mail contracts MUST NOT introduce provider-specific, transport-specific, queue-s
 Epic `1.170.0` MUST NOT create:
 
 ```text
-framework/packages/platform/mail/*
-framework/packages/platform/queue/*
-framework/packages/platform/http/*
-framework/packages/integrations/*
-config/*.php
+packages/platform/mail/*
+packages/platform/queue/*
+packages/platform/http/*
+packages/integrations/*
+packages/applications/skeleton/config/**
 provider/module wiring files
 mail transport implementation
 SMTP transport implementation
@@ -1412,7 +1413,7 @@ When a future runtime package sends mail:
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php
+packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php
 ```
 
 This test is expected to verify:

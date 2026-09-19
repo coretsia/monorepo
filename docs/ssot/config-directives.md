@@ -24,26 +24,26 @@ owner: core/kernel
 
 This document is the Single Source of Truth for examples of Coretsia config directives.
 
-It explains how directive-shaped config payloads are intended to look in package, skeleton, and application config files.
+It explains how directive-shaped config payloads are intended to look in package, application-root, and app-target config files.
 
 This document intentionally does not duplicate the full runtime validation rules.
 
 The canonical directive allowlist is owned by:
 
 ```text
-framework/packages/core/contracts/src/Config/ConfigDirective.php
+packages/core/contracts/src/Config/ConfigDirective.php
 ```
 
 The per-file directive namespace and type processing implementation is owned by:
 
 ```text
-framework/packages/core/kernel/src/Config/DirectiveProcessor.php
+packages/core/kernel/src/Config/DirectiveProcessor.php
 ```
 
 The merge-time directive application implementation is owned by:
 
 ```text
-framework/packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/kernel/src/Config/ConfigMerger.php
 ```
 
 The config and env policy is owned by:
@@ -186,7 +186,7 @@ A `<root>.php` file returns only the subtree for that root and does not repeat t
 Example file:
 
 ```text
-skeleton/config/kernel.php
+config/kernel.php
 ```
 
 Valid shape:
@@ -688,7 +688,7 @@ A shared aggregate config file may provide defaults for several roots.
 File:
 
 ```text
-skeleton/config/roots.php
+config/roots.php
 ```
 
 Example:
@@ -719,7 +719,7 @@ A split root file at the same layer may refine only one root.
 File:
 
 ```text
-skeleton/config/http.php
+config/http.php
 ```
 
 Example:
@@ -751,12 +751,12 @@ Effective result for `http.middleware.app`:
 
 ## Environment-specific example
 
-A shared skeleton config may define production-oriented defaults.
+A shared application-root config may define production-oriented defaults.
 
 File:
 
 ```text
-skeleton/config/http.php
+config/http.php
 ```
 
 Example:
@@ -781,7 +781,7 @@ An environment-specific config may remove one item for a local environment.
 File:
 
 ```text
-skeleton/config/environments/local/http.php
+config/environments/local/http.php
 ```
 
 Example:
@@ -1066,9 +1066,9 @@ Test coverage SHOULD include:
 The canonical runtime files for directive enforcement are:
 
 ```text
-framework/packages/core/contracts/src/Config/ConfigDirective.php
-framework/packages/core/kernel/src/Config/DirectiveProcessor.php
-framework/packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/contracts/src/Config/ConfigDirective.php
+packages/core/kernel/src/Config/DirectiveProcessor.php
+packages/core/kernel/src/Config/ConfigMerger.php
 ```
 
 ## Cross-references

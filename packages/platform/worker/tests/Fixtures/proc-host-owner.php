@@ -59,7 +59,15 @@ try {
         \JSON_THROW_ON_ERROR,
     );
 
-    if (@\file_put_contents($runtimeRoot . '/proc-host-owner.ready', $ready . "\n", \LOCK_EX) === false) {
+    $readyPath = $runtimeRoot . '/proc-host-owner.ready';
+    $readyTmpPath = $readyPath . '.tmp';
+
+    if (
+        @\file_put_contents($readyTmpPath, $ready . "\n", \LOCK_EX) === false
+        || !@\rename($readyTmpPath, $readyPath)
+    ) {
+        @\unlink($readyTmpPath);
+
         exit(5);
     }
 

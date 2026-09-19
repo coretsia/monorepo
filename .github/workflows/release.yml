@@ -86,6 +86,8 @@ jobs:
           test -f ".github/workflows/split-publish.yml"
           test -f ".github/scripts/split-plan.php"
           test -f ".github/scripts/split-plan.schema.md"
+          test -f "packages/framework/composer.json"
+          test -f "packages/applications/skeleton/composer.json"
 
       - name: "Deterministic split plan (A)"
         shell: bash
@@ -180,15 +182,20 @@ jobs:
               if (!is_string($cn) || $cn === "") { fwrite(STDERR, "packages[$i].composerName invalid\n"); exit(1); }
               if ($sr !== $cn) { fwrite(STDERR, "packages[$i] splitRepo != composerName\n"); exit(1); }
 
-              $parts = explode("/", $id, 2);
-              if (count($parts) !== 2) { fwrite(STDERR, "packages[$i].package_id format invalid\n"); exit(1); }
-              [$layer, $slug] = $parts;
+              if (
+                  !str_starts_with($pp, "packages/")
+                  || $pp === "packages/"
+                  || str_contains($pp, "\\")
+                  || str_contains($pp, "..")
+              ) {
+                  fwrite(STDERR, "packages[$i].pathPrefix invalid\n");
+                  exit(1);
+              }
 
-              $expectedPrefix = "framework/packages/{$layer}/{$slug}/";
-              $expectedRepo   = "coretsia/{$layer}-{$slug}";
-
-              if ($pp !== $expectedPrefix) { fwrite(STDERR, "packages[$i].pathPrefix mismatch\n"); exit(1); }
-              if ($sr !== $expectedRepo) { fwrite(STDERR, "packages[$i].splitRepo mismatch\n"); exit(1); }
+              if (!preg_match("/^coretsia\/[a-z0-9][a-z0-9._-]*$/", $cn)) {
+                  fwrite(STDERR, "packages[$i].composerName invalid\n");
+                  exit(1);
+              }
 
               $ids[] = $id;
           }

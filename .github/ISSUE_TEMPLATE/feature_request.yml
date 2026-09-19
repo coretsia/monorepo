@@ -41,7 +41,7 @@ body:
         - Tooling / gates
         - Architecture / Deptrac
         - Package scaffold / compliance
-        - Skeleton / presets
+        - Application template / presets
         - Documentation / SSoT
         - Other / unsure
     validations:
@@ -93,8 +93,8 @@ body:
       label: Expected affected areas
       description: List packages, docs, gates, tests, or generated artifacts likely to change.
       placeholder: |
-        - framework/packages/...
-        - framework/tools/gates/...
+        - packages/...
+        - tools/gates/...
         - docs/ssot/...
         - docs/roadmap/...
     validations:

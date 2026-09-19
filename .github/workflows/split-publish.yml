@@ -265,14 +265,6 @@ jobs:
                       exit(1);
                   }
 
-                  $parts = explode("/", $id, 2);
-                  if (count($parts) !== 2) {
-                      fwrite(STDERR, "Invalid package_id format: {$id}\n");
-                      exit(1);
-                  }
-
-                  [$layer, $slug] = $parts;
-
                   $repoParts = explode("/", $splitRepo, 2);
                   if (count($repoParts) !== 2 || $repoParts[0] === "" || $repoParts[1] === "") {
                       fwrite(STDERR, "Invalid splitRepo format for {$id}: {$splitRepo}\n");
@@ -283,8 +275,6 @@ jobs:
 
                   $include[] = [
                       "package_id" => $id,
-                      "layer" => $layer,
-                      "slug" => $slug,
                       "prefix" => rtrim($pathPrefix, "/"),
                       "split_repo" => $splitRepo,
                       "split_owner" => $splitOwner,
@@ -334,8 +324,6 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     env:
-      LAYER: ${{ matrix.layer }}
-      SLUG: ${{ matrix.slug }}
       PREFIX: ${{ matrix.prefix }}
       SPLIT_REPO: ${{ matrix.split_repo }}
       SPLIT_OWNER: ${{ matrix.split_owner }}
@@ -378,7 +366,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          SPLIT_BRANCH="split-${LAYER}-${SLUG}-${GITHUB_SHA}"
+          SPLIT_BRANCH="split-${SPLIT_REPO_NAME}-${GITHUB_SHA}"
 
           git branch -D "${SPLIT_BRANCH}" 2>/dev/null || true
 

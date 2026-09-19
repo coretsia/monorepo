@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 declare(strict_types=1);
@@ -17,8 +16,8 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-// Thin wrapper (single-choice): delegate to the canonical repository launcher.
-$exitCode = require __DIR__ . '/tools/bin/coretsia';
-
-// Safety net: if the launcher unexpectedly returns (it SHOULD call exit()), propagate the exit code.
-exit((int)$exitCode);
+return [
+    // Canonical layered package ids only: '<layer>/<slug>'.
+    // Special distributions are not package-compliance candidates.
+    // 'core/dto-attribute',
+];

@@ -37,8 +37,8 @@ desktop.ini
 # Tooling fixtures: allow committed .env* under canonical test fixtures
 # (these are NOT real secrets; used only for deterministic tests)
 # ---------------------------------------
-!framework/tools/tests/Fixtures/**/.env
-!framework/tools/tests/Fixtures/**/.env.*
+!tools/tests/Fixtures/**/.env
+!tools/tests/Fixtures/**/.env.*
 
 # ---------------------------------------
 # Composer / PHP dependencies
@@ -86,33 +86,32 @@ infection.json.dist
 **/.infection/
 
 # ---------------------------------------
-# Logs / temp / runtime artifacts (root only)
+# Logs / temp / runtime artifacts
 # ---------------------------------------
 *.log
 *.tmp
 *.swp
-/var/
 /tmp/
 
 # ---------------------------------------
-# Framework tooling scratch
+# Repository tooling state
 # keep only marker .gitignore files
 # ---------------------------------------
-/framework/var/*
-!/framework/var/.gitignore
-!/framework/var/backups/
-!/framework/var/backups/.gitignore
+/var/*
+!/var/.gitignore
+!/var/backups/
+!/var/backups/.gitignore
 
 # ---------------------------------------
-# Skeleton runtime dirs:
+# Skeleton application-template runtime dirs
 # keep .gitkeep, ignore everything else inside var/
 # ---------------------------------------
-/skeleton/var/*
-/skeleton/var/**/
-!/skeleton/var/*/
-/skeleton/var/**/*
-!/skeleton/var/**/.gitkeep
-!/skeleton/var/*/.gitkeep
+/packages/applications/skeleton/var/*
+/packages/applications/skeleton/var/**/
+!/packages/applications/skeleton/var/*/
+/packages/applications/skeleton/var/**/*
+!/packages/applications/skeleton/var/**/.gitkeep
+!/packages/applications/skeleton/var/*/.gitkeep
 
 # ---------------------------------------
 # Node / frontend artifacts (if present)

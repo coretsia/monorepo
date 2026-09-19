@@ -31,8 +31,8 @@
 # -----------------------------------------------------------------------------
 LICENSE text eol=lf
 NOTICE text eol=lf
-framework/packages/*/*/LICENSE text eol=lf
-framework/packages/*/*/NOTICE text eol=lf
+packages/**/LICENSE text eol=lf
+packages/**/NOTICE text eol=lf
 
 # -----------------------------------------------------------------------------
 # Source (force LF)
@@ -75,8 +75,9 @@ framework/packages/*/*/NOTICE text eol=lf
 # Scripts (force LF)
 # -----------------------------------------------------------------------------
 coretsia text eol=lf
-framework/bin/coretsia text eol=lf
-framework/packages/*/*/bin/* text eol=lf
+tools/bin/coretsia text eol=lf
+.githooks/** text eol=lf
+packages/**/bin/* text eol=lf
 *.sh    text eol=lf
 *.bash  text eol=lf
 *.zsh   text eol=lf
@@ -126,9 +127,9 @@ framework/packages/*/*/bin/* text eol=lf
 # -----------------------------------------------------------------------------
 # Fixtures: byte-exact, NEVER normalize EOL/newlines (tests rely on raw bytes)
 # -----------------------------------------------------------------------------
-framework/tools/**/fixtures/**    -text
-framework/tools/tests/Fixtures/** -text
-**/tests/fixtures/**              -text
+tools/**/fixtures/**       -text
+tools/tests/Fixtures/**    -text
+**/tests/fixtures/**       -text
 
 # -----------------------------------------------------------------------------
 # Optional: exclude service/dev-only files from git archive exports
@@ -144,8 +145,8 @@ framework/tools/tests/Fixtures/** -text
 /TECHNICAL_STRUCTURE.md    export-ignore
 /generate_structure.php    export-ignore
 
-/skeleton            export-ignore
-/framework/tools     export-ignore
+/tools               export-ignore
+/var                 export-ignore
 
 /tests               export-ignore
 /phpunit.xml         export-ignore

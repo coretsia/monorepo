@@ -22,12 +22,8 @@ paths = [
     '''(^|/)\.git/.*$''',
     '''(^|/)\.tmp/.*$''',
     '''(^|/)vendor/.*$''',
-    '''(^|/)framework/vendor/.*$''',
-    '''(^|/)skeleton/vendor/.*$''',
-    '''(^|/)framework/var/.*$''',
-    '''(^|/)skeleton/var/.*$''',
     '''(^|/)var/.*$''',
-    '''(^|/)framework/tools/tests/Fixtures/Gitleaks/.*$''',
+    '''(^|/)tools/tests/Fixtures/Gitleaks/.*$''',
 ]
 
 [[allowlists]]
